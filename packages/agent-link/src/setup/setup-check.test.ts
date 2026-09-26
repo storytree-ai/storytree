@@ -8,7 +8,7 @@
  * where storytree listens (a copy of the test Postgres's owner record) or how to open it.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -23,7 +23,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { registerHooks, removeHooks, runSetupCheck, type HookCommand, type Homes } from "./index.js";
+import { registerHooks, removeCommand, removeHooks, runSetupCheck, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -368,5 +368,54 @@ test("8.7 a status line of the user's own is kept: storytree's is installed only
     assert.deepEqual(readJson(home.claudeSettings).statusLine, theirs, "theirs, untouched");
     assert.equal(removeHooks(home.homes).statusLine, "none");
     assert.deepEqual(readJson(home.claudeSettings), { ...CLAUDE_SETTINGS, statusLine: theirs }, "and still theirs once storytree is removed");
+  });
+});
+
+test("8.8 with gh missing, or signed out, the check says so and names the fix; signed in, it says nothing about it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const said = async (gh: GhState): Promise<string> => {
+      let text = "";
+      const setup = { homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => gh };
+      await withAgent(dir, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (agent) => {
+        text = (await agent.call("check_setup")).text;
+      });
+      return text;
+    };
+    const missing = await said("missing");
+    assert.match(missing, /gh/);
+    assert.match(missing, /cli\.github\.com/, `names where to get it: ${missing}`);
+    assert.match(await said("signed out"), /gh auth login/);
+    assert.doesNotMatch(await said("signed in"), /\bgh\b/);
+  });
+});
+
+test("8.9 in a throwaway home, the first start puts a storytree command on the path, a second changes nothing, and removing storytree takes it out", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    const command = { path: bin, home: dir };
+    const hook: HookCommand = { node: process.execPath, script: hookScript };
+    const start = () => runSetupCheck({ folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, command });
+    const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
+
+    assert.equal((await start()).command, "installed");
+    // It runs as the user would run it: by its name, through their shell, found on the path.
+    const ran = spawnSync("storytree", [], { shell: true, encoding: "utf8", env: { ...process.env, PATH: bin, Path: bin } });
+    assert.match(`${ran.stdout}${ran.stderr}`, /storytree setup/, `it is storytree's command: ${ran.stdout}${ran.stderr}`);
+    const first = readFileSync(file, "utf8");
+
+    assert.equal((await start()).command, "already installed");
+    assert.equal(readFileSync(file, "utf8"), first, "not a byte changed");
+
+    assert.equal(removeCommand(command), "removed");
+    assert.equal(existsSync(file), false);
+    assert.equal(removeCommand(command), "none", "and removing again finds nothing");
+
+    writeFileSync(file, "a storytree of the user's own\n");
+    assert.equal((await start()).command, "another storytree kept");
+    assert.equal(removeCommand(command), "none");
+    assert.equal(readFileSync(file, "utf8"), "a storytree of the user's own\n", "theirs, untouched");
   });
 });

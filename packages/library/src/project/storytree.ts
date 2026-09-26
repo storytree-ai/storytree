@@ -15,6 +15,7 @@ import { Knowledge } from "../knowledge/knowledge.js";
 import { SchemaRecords } from "../schema/records.js";
 import { PgTransactions } from "../transactions/pg.js";
 import type { Transactions } from "../transactions/types.js";
+import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { cannotCreateDatabases, ConnectionError, isInsufficientPrivilege } from "./connection-error.js";
@@ -68,6 +69,8 @@ export interface Project {
   readonly records: SchemaRecords;
   /** The project's plan of work: stories, capabilities, contracts and arcs (capability 4). */
   readonly work: WorkModel;
+  /** Each arc's increments, and its state worked out from them (capability 10). */
+  readonly flight: WorkInFlight;
   /** What the project has learned: memory notes, decisions and definitions (capability 6). */
   readonly knowledge: Knowledge;
   /** How healthy each story, capability and contract is, reported and verified (capability 5). */
@@ -195,6 +198,7 @@ class ProjectLibrary implements Project {
   readonly transactions: Transactions;
   readonly records: SchemaRecords;
   readonly work: WorkModel;
+  readonly flight: WorkInFlight;
   readonly knowledge: Knowledge;
   readonly health: HealthRecord;
   readonly #forget: () => void;
@@ -206,6 +210,7 @@ class ProjectLibrary implements Project {
     this.transactions = new PgTransactions(pool);
     this.records = new SchemaRecords(this.transactions);
     this.work = new WorkModel(this.records);
+    this.flight = new WorkInFlight(this.records);
     this.knowledge = new Knowledge(this.records);
     this.health = new HealthRecord(this.records, this.work);
     this.#forget = forget;

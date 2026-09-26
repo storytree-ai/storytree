@@ -88,7 +88,7 @@ type TableType = "arc" | "story" | "capability" | "contract" | "health" | "memor
  * restated here rather than taken from the code. Its keys ARE each type's required fields.
  */
 const MINIMAL: { readonly [T in TableType]: FieldsOf<T> } = {
-  arc: { title: "Launch v1" },
+  arc: { title: "Launch v1", intent: "Ship sign-up", endState: "Visitors can sign up" },
   story: { title: "Visitor can sign up" },
   capability: { title: "Email form", story: "story-1" },
   contract: { title: "Rejects a bad email", capability: "capability-1" },
@@ -100,7 +100,7 @@ const MINIMAL: { readonly [T in TableType]: FieldsOf<T> } = {
 
 /** The same records with every optional field filled in as well. */
 const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
-  arc: { title: "Launch v1", description: "The first public release", stories: ["story-1", "story-2"] },
+  arc: { title: "Launch v1", description: "The first public release", stories: ["story-1", "story-2"], intent: "Ship sign-up", endState: "Visitors can sign up", parked: true },
   story: { title: "Visitor can sign up", description: "By email, with a confirmation link" },
   capability: {
     title: "Email form",
@@ -121,7 +121,7 @@ const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
  * id names a record that exists is for later capabilities, not for this layer.)
  */
 const EMPTIEST: { readonly [T in TableType]: FieldsOf<T> } = {
-  arc: { title: "A", description: "", stories: [] },
+  arc: { title: "A", description: "", stories: [], intent: "I", endState: "E" },
   story: { title: "S", description: "" },
   capability: { title: "C", story: "", description: "", dependsOn: [""] },
   contract: { title: "K", capability: "", description: "" },

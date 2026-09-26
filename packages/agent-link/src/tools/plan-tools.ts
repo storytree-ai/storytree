@@ -14,6 +14,8 @@ import { quoted } from "./text.js";
 
 const title = z.string().min(1).describe("What it is called: a short name");
 const description = z.string().min(1).optional().describe("A sentence or two on what it is for");
+const intent = z.string().min(1).describe("What the arc exists to deliver, in a sentence");
+const endState = z.string().min(1).describe("What closed looks like: the condition under which it is delivered");
 const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, as the plan shows it`);
 const founding = z
   .object({
@@ -26,9 +28,15 @@ export function registerPlanTools(define: Define): void {
   define(
     "plan_arc",
     "Plan an arc: an initiative that grows one or more stories. Stories it lists must already be planned; it may list none.",
-    z.object({ title, description, stories: z.array(z.string().min(1)).optional().describe("The ids of the stories it grows") }),
-    async ({ title: name, description: about, stories }, { library }) => {
-      const arc = await library.createArc({ title: name, ...optional({ description: about, stories }) });
+    z.object({
+      title,
+      description,
+      intent,
+      end_state: endState,
+      stories: z.array(z.string().min(1)).optional().describe("The ids of the stories it grows"),
+    }),
+    async ({ title: name, description: about, intent: aim, end_state: end, stories }, { library }) => {
+      const arc = await library.createArc({ title: name, intent: aim, endState: end, ...optional({ description: about, stories }) });
       return { text: `Planned arc ${quoted(name)} (${arc.id}).`, data: { id: arc.id } };
     },
   );
@@ -88,6 +96,8 @@ export function registerPlanTools(define: Define): void {
       capability: z.string().min(1).optional().describe("A contract's capability, to move it"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
+      intent: intent.optional(),
+      end_state: endState.optional(),
     }),
     async ({ id: target, ...changes }, call) => editPlan(target, changes, call),
   );
@@ -104,6 +114,8 @@ interface Changes {
   capability?: string | undefined;
   depends_on?: string[] | undefined;
   stories?: string[] | undefined;
+  intent?: string | undefined;
+  end_state?: string | undefined;
 }
 
 /** The fields each kind of plan record can have corrected, as the tool names them. */
@@ -111,7 +123,7 @@ const EDITABLE = {
   story: ["title", "description"],
   capability: ["title", "description", "story", "depends_on"],
   contract: ["title", "description", "capability"],
-  arc: ["title", "description", "stories"],
+  arc: ["title", "description", "stories", "intent", "end_state"],
 } as const;
 
 async function editPlan(target: string, changes: Changes, { library }: Call): Promise<Answer> {
@@ -122,8 +134,8 @@ async function editPlan(target: string, changes: Changes, { library }: Call): Pr
   const wrong = given.map(([field]) => field).filter((field) => !allowed.includes(field));
   if (wrong.length > 0) return { text: `A ${kind} has no ${wrong.join(" or ")} to correct; it has ${allowed.join(", ")}.`, refused: true };
   if (given.length === 0) return { text: `Nothing to correct: give the ${kind}'s ${allowed.join(", ")}.`, refused: true };
-  const { depends_on: dependsOn, ...rest } = changes;
-  const fields = optional({ ...rest, dependsOn });
+  const { depends_on: dependsOn, end_state: endState, ...rest } = changes;
+  const fields = optional({ ...rest, dependsOn, endState });
   const edited =
     kind === "story"
       ? await library.editStory(target, fields)

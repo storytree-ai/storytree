@@ -102,7 +102,7 @@ for (const backend of [memory, postgres]) {
     const bare = await work.addStory({ title: "Visitor can leave" });
     const empty = await work.addCapability({ title: "Password rules", story: story.id });
     // An arc, which is part of the tree but has no health.
-    const arc = await work.createArc({ title: "Launch v1", stories: [story.id] });
+    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const before = await transactions.history();
 
     for (const node of [story, capability, contract, bare, empty]) {
@@ -401,7 +401,7 @@ for (const backend of [memory, postgres]) {
     // Refused: an entry for a node that does not exist (missing, retired, a near miss, an id the
     // library cannot store), or for a record that is not a contract. For a story or a capability the
     // error says why: their health is rolled up from their contracts. Nothing is written.
-    const arc = await work.createArc({ title: "Launch v1", stories: [story.id] });
+    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const note = await records.create("memory", { text: "Mailgun needs a verified domain" });
     const healthRecord = at(await healthRecordsOf(transactions, contract.id), 0);
     const retired = await work.addContract({ title: "Accepts a plus address", capability: capability.id });

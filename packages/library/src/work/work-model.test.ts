@@ -18,7 +18,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { connect } from "../project/index.js";
 import { DependencyLoopError, MissingReferenceError } from "../references.js";
-import { SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
+import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { WorkModel } from "./index.js";
@@ -213,21 +213,21 @@ for (const backend of [memory, postgres]) {
     const unlisted = await work.addStory({ title: "Visitor can leave" });
 
     // Arcs listing no stories, as a research arc may: with no stories field, and with an empty list.
-    const research = await work.createArc({ title: "Research: pricing" });
-    await assertCreated(transactions, research, "arc", { title: "Research: pricing" });
+    const research = await work.createArc({ title: "Research: pricing", intent: "An intent", endState: "An end state" });
+    await assertCreated(transactions, research, "arc", { title: "Research: pricing" , intent: "An intent", endState: "An end state"});
     await laterThan(research);
-    const spike = await work.createArc({ title: "Spike", description: "Nothing to grow yet", stories: [] });
-    await assertCreated(transactions, spike, "arc", { title: "Spike", description: "Nothing to grow yet", stories: [] });
+    const spike = await work.createArc({ title: "Spike", intent: "An intent", endState: "An end state", description: "Nothing to grow yet", stories: [] });
+    await assertCreated(transactions, spike, "arc", { title: "Spike", intent: "An intent", endState: "An end state", description: "Nothing to grow yet", stories: [] });
     await laterThan(spike);
 
     // Arcs listing the story (one of them lists another story first), created in an order that is
     // not their ids' order; then an arc listing only the other story.
     const launches = await createInOrder(3, (n) =>
-      work.createArc({ title: `Launch ${n}`, stories: n === 1 ? [other.id, story.id] : [story.id] }),
+      work.createArc({ title: `Launch ${n}`, intent: "An intent", endState: "An end state", stories: n === 1 ? [other.id, story.id] : [story.id] }),
     );
     const both = at(launches, 1);
-    await assertCreated(transactions, both, "arc", { title: "Launch 1", stories: [other.id, story.id] });
-    const invite = await work.createArc({ title: "Invite friends", stories: [other.id] });
+    await assertCreated(transactions, both, "arc", { title: "Launch 1", intent: "An intent", endState: "An end state", stories: [other.id, story.id] });
+    const invite = await work.createArc({ title: "Invite friends", intent: "An intent", endState: "An end state", stories: [other.id] });
 
     assert.deepEqual(await work.arcsFor(story.id), launches, "every arc listing the story, as stored, in creation order");
     assert.deepEqual(await work.arcsFor(other.id), [both, invite]);
@@ -248,7 +248,7 @@ for (const backend of [memory, postgres]) {
 
     // An arc's id is the library's own, as every record's is: an id in the input is refused.
     const before = await transactions.history();
-    await assert.rejects(work.createArc(untyped({ id: both.id, title: "Replaced?" })), schemaError("arc", ["id"]));
+    await assert.rejects(work.createArc(untyped({ id: both.id, title: "Replaced?", intent: "An intent", endState: "An end state" })), schemaError("arc", ["id"]));
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
 
@@ -257,7 +257,7 @@ for (const backend of [memory, postgres]) {
     const elsewhere = await work.addStory({ title: "Visitor can sign in" });
     const capability = await work.addCapability({ title: "Email form", story: story.id });
     const contract = await work.addContract({ title: "Rejects a bad email", capability: capability.id });
-    const arc = await work.createArc({ title: "Launch v1", stories: [story.id] });
+    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const retiredStory = await work.addStory({ title: "Visitor can pay" });
     const retiredCapability = await work.addCapability({ title: "Card form", story: story.id });
     await records.retire(retiredStory.id, "out of scope");
@@ -283,10 +283,10 @@ for (const backend of [memory, postgres]) {
       [() => work.addContract({ title: "Rejects a bad email", capability: contract.id }), "capability", contract.id, "contract"],
       // An arc listing a story that is missing, retired, or not a story, even among good ones:
       // the first bad one is named.
-      [() => work.createArc({ title: "Launch v2", stories: [NO_STORY] }), "stories", NO_STORY],
-      [() => work.createArc({ title: "Launch v2", stories: [story.id, retiredStory.id] }), "stories", retiredStory.id],
+      [() => work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [NO_STORY] }), "stories", NO_STORY],
+      [() => work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, retiredStory.id] }), "stories", retiredStory.id],
       [
-        () => work.createArc({ title: "Launch v2", stories: [story.id, elsewhere.id, capability.id, NO_STORY] }),
+        () => work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id, capability.id, NO_STORY] }),
         "stories",
         capability.id,
         "capability",
@@ -303,7 +303,7 @@ for (const backend of [memory, postgres]) {
       await assert.rejects(work.addCapability({ title: "Email form", story: bad }), schemaError("capability", ["story"]));
       await assert.rejects(work.editCapability(capability.id, { story: bad }), schemaError("capability", ["story"]));
       await assert.rejects(work.addContract({ title: "Rejects a bad email", capability: bad }), schemaError("contract", ["capability"]));
-      await assert.rejects(work.createArc({ title: "Launch v2", stories: [story.id, bad] }), schemaError("arc", ["stories"]));
+      await assert.rejects(work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, bad] }), schemaError("arc", ["stories"]));
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
 
@@ -322,8 +322,8 @@ for (const backend of [memory, postgres]) {
     await assertCreated(transactions, second, "capability", { title: "Password rules", story: elsewhere.id });
     const covered = await work.addContract({ title: "Refuses a short password", capability: second.id });
     await assertCreated(transactions, covered, "contract", { title: "Refuses a short password", capability: second.id });
-    const launch = await work.createArc({ title: "Launch v2", stories: [story.id, elsewhere.id] });
-    await assertCreated(transactions, launch, "arc", { title: "Launch v2", stories: [story.id, elsewhere.id] });
+    const launch = await work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id] });
+    await assertCreated(transactions, launch, "arc", { title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id] });
   });
 
   contract("4.4", "a capability depending on a capability that does not exist is refused", async ({ work, records, transactions }) => {
@@ -472,7 +472,7 @@ async function assertCreated(
   assert.match(record.id, new RegExp(`^${type}_[0-9a-f]{12}$`), `a generated ${type} id: ${record.id}`);
   assert.deepEqual(
     record,
-    { id: record.id, type, version: 1, fields, createdAt: record.createdAt, updatedAt: record.createdAt },
+    { id: record.id, type, version: SCHEMA_VERSIONS[type], fields, createdAt: record.createdAt, updatedAt: record.createdAt },
     `a new ${type}, holding exactly the fields given`,
   );
   assert.deepEqual(await transactions.get(record.id), record, `the ${type} is stored as returned`);

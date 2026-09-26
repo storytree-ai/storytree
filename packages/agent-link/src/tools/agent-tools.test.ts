@@ -82,7 +82,7 @@ test("6.1 a test client lists the tools, then plans an arc, a story, a capabilit
       assert.deepEqual(await agent.tools(), TOOLS);
 
       const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", founding: { title: "Email only, no social login", text: "The smallest signup that works" } }));
-      const arc = idOf(await agent.call("plan_arc", { title: "Launch v1", stories: [story] }));
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch v1", intent: "Ship sign-up", end_state: "Visitors can sign up", stories: [story] }));
       const capability = idOf(await agent.call("plan_capability", { story, title: "Email form", founding: { title: "Validate on the client first", text: "Before any request is sent" } }));
       const contract = idOf(await agent.call("plan_contract", { capability, title: "Rejects a bad email" }));
 
@@ -186,7 +186,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
     // The same folder with storytree stopped: nowhere the app's owner record would be.
     await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(folder, "..", "stopped", "pgdata") }), async (agent) => {
       const calls: [string, Record<string, unknown>][] = [
-        ["plan_arc", { title: "Launch v1" }],
+        ["plan_arc", { title: "Launch v1", intent: "Ship sign-up", end_state: "Visitors can sign up" }],
         ["plan_story", { title: "Visitor can sign up", ...FOUNDED }],
         ["plan_capability", { story: "story_000000000000", title: "Email form", ...FOUNDED }],
         ["plan_contract", { capability: "capability_000000000000", title: "Rejects a bad email" }],

@@ -1,3 +1,4 @@
+export { LifecycleError, WorkInFlight } from "./work-in-flight.js";
 export { WorkModel } from "./work-model.js";
 export type {
   ArcEdit,

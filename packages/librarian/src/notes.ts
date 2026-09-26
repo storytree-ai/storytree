@@ -24,3 +24,28 @@ export async function noteOf(library: Library, id: string): Promise<Note> {
   if (note === undefined) throw new LibrarianRefusal(`there is no live note ${id}`);
   return note;
 }
+
+/** One note's reference to another: which note, in which field, names which record. */
+export interface Reference {
+  readonly from: string;
+  readonly field: string;
+  readonly to: string;
+}
+
+/**
+ * Every record `note` names: its links (what it rests on), a decision's supersessions, a process's
+ * hand-ons, and an agent role's reading, rules, anti-patterns and step reading.
+ */
+export function referencesOf(note: Note): Reference[] {
+  const fields = note.fields as Readonly<Record<string, unknown>>;
+  const named: [string, unknown][] = [
+    ["links", fields.links],
+    ["supersedes", fields.supersedes],
+    ["branchEdges", (fields.branchEdges as { to: string }[] | undefined)?.map((edge) => edge.to)],
+    ["context", fields.context],
+    ["rules", fields.rules],
+    ["antiPatterns", fields.antiPatterns],
+    ["stepRefs", (fields.stepRefs as { refs: string[] }[] | undefined)?.flatMap((step) => step.refs)],
+  ];
+  return named.flatMap(([field, ids]) => ((ids as string[] | undefined) ?? []).map((to) => ({ from: note.id, field, to })));
+}

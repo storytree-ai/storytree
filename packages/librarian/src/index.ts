@@ -7,5 +7,7 @@ export { newNotes, retire } from "./catalogue/index.js";
 export type { NewNote } from "./catalogue/index.js";
 export { claudeCodeMemoryFolder, graduate, memoryWorklist, PARK_DAYS, park, processGaps } from "./graduation/index.js";
 export type { GraduationKind, MemoryItem, ProcessGaps } from "./graduation/index.js";
+export { DRAIN, frictionDrain, openQuestions, route } from "./queues/index.js";
+export type { Route } from "./queues/index.js";
 export { LibrarianRefusal } from "./notes.js";
 export type { Reference } from "./notes.js";

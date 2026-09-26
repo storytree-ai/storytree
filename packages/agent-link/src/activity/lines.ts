@@ -71,6 +71,8 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), branch: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("released"), ...part }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("landed"), capability: z.string().min(1) }).strict(),
+  /** An increment closed through storytree, with what the close meant: it ends any claim on it (ADR-0643 D1, 6). */
+  z.object({ ...common, kind: z.literal("closed"), increment: z.string().min(1), disposition: z.enum(["landed", "failed", "withdrawn"]) }).strict(),
   /**
    * A pull request from a claim's branch merged after the claim was taken, which ends it (ADR-0643
    * D3): the claim's holder, and the pull request. Written by whichever session saw it, never on

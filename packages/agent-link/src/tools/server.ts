@@ -41,6 +41,7 @@ import { Connections } from "./connections.js";
 import { registerNoteTools } from "./note-tools.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerSetupTools } from "./setup-tools.js";
+import { registerWorkTools } from "./work-tools.js";
 
 export { NOT_RUNNING_ANSWER };
 export type { Answer };
@@ -140,6 +141,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   });
   registerPlanTools(define);
   registerClaimTools(define);
+  registerWorkTools(define);
   registerNoteTools(define);
 
   return {

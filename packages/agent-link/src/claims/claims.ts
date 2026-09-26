@@ -13,6 +13,7 @@
  * - A session may hold more than one capability. Its edits count toward the one it claimed most
  *   recently of those it still holds; an edit or command from a session holding nothing is
  *   unplanned activity.
+ * - An increment's claim also ends when the increment is closed through storytree: a "closed" line.
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
@@ -89,7 +90,7 @@ export interface ClaimsOptions {
 }
 
 /** The kinds of line that decide who holds what. */
-const CLAIM_KINDS = ["claimed", "released", "landed", "merged", "session-ended"] as const;
+const CLAIM_KINDS = ["claimed", "released", "landed", "closed", "merged", "session-ended"] as const;
 
 /**
  * Claim `id`, a capability or an increment, for the context's session, with a one-line reason.
@@ -146,6 +147,14 @@ export async function land(context: ClaimContext, capability: string): Promise<L
   });
 }
 
+/**
+ * Record that `increment` closed, with what the close meant: the "closed" line, which ends any
+ * claim on it, whoever holds it. The library's own close is the caller's, done first.
+ */
+export async function closed(context: ClaimContext, increment: string, disposition: "landed" | "failed" | "withdrawn"): Promise<Line> {
+  return context.log.locked(context.project, (log) => log.append({ ...who(context), kind: "closed", increment, disposition }));
+}
+
 /** Who holds what, as `lines` show it, each holder judged live or idle at `options.now`. In the order they were claimed. */
 export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}): Claim[] {
   const ordered = [...lines].sort((a, b) => a.seq - b.seq);
@@ -185,6 +194,9 @@ export function attributeFrom(lines: readonly Line[]): Attributed[] {
         break;
       case "merged":
         drop(line.holder, idOf(line));
+        break;
+      case "closed":
+        for (const session of holding.keys()) drop(session, line.increment);
         break;
       case "session-ended":
         holding.delete(line.session);
@@ -257,6 +269,9 @@ function held(claimLines: readonly Line[], lastSeen: ReadonlyMap<string, string>
         break;
       case "merged":
         if (holders.get(idOf(line))?.session === line.holder) holders.delete(idOf(line));
+        break;
+      case "closed":
+        holders.delete(line.increment);
         break;
       case "session-ended":
         for (const [id, holder] of holders) if (holder.session === line.session) holders.delete(id);

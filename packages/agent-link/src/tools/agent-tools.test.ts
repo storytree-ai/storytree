@@ -20,7 +20,7 @@ import { connect, type Library } from "@storytree/library";
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
-import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
+import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { NOT_RUNNING_ANSWER } from "./index.js";
@@ -29,17 +29,25 @@ import { NOT_RUNNING_ANSWER } from "./index.js";
 const TOOLS = [
   "check_setup",
   "claim",
+  "clear_wait",
+  "close_increment",
   "edit_plan",
   "land",
   "open",
+  "park_arc",
+  "park_increment",
   "plan_arc",
   "plan_capability",
   "plan_contract",
   "plan_story",
+  "ready_increment",
+  "record_friction",
+  "record_resteer",
   "release",
   "report",
   "search_notes",
   "set_up_project",
+  "set_wait",
   "show_plan",
   "write_note",
 ];
@@ -199,6 +207,14 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["search_notes", { query: "mailgun" }],
         ["open", { id: "decision_000000000000" }],
         ["write_note", { kind: "memory", text: "Mailgun needs a verified domain" }],
+        ["park_increment", { arc: "arc_000000000000", title: "Email form", objective: "Build it", body: "Red then green" }],
+        ["ready_increment", { increment: "increment_000000000000" }],
+        ["close_increment", { increment: "increment_000000000000", disposition: "landed", pr: "#1" }],
+        ["park_arc", { arc: "arc_000000000000", parked: true }],
+        ["set_wait", { waiter: "increment_000000000000", on: "increment_000000000001", reason: "it comes first" }],
+        ["clear_wait", { waiter: "increment_000000000000", on: "increment_000000000001" }],
+        ["record_friction", { title: "Slow", description: "Slow", statement: "Slow", evidence: "`pnpm test` took 9 s", impact: "Slow" }],
+        ["record_resteer", { title: "Redirected", description: "Redirected", doing: "a", redirect: "b", evidence: '"not that"', disposition: "taste", judged_by: "owner" }],
       ];
       // Every tool but the setup check's two, which open storytree when it is closed (capability 8).
       const setupTools = ["check_setup", "set_up_project"];
@@ -372,3 +388,132 @@ async function noteFields(library: Library, id: string): Promise<{ links?: strin
   assert.ok(found !== undefined, `note ${id} is in the library`);
   return found.fields as { links?: string[] };
 }
+
+/** A story, an arc growing it, and a capability, planned through the tools. */
+async function planned(agent: Agent) {
+  const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
+  const arc = idOf(await agent.call("plan_arc", { title: "Launch v1", intent: "Ship sign-up", end_state: "Visitors can sign up", stories: [story] }));
+  const capability = idOf(await agent.call("plan_capability", { story, title: "Email form", ...FOUNDED }));
+  return { story, arc, capability };
+}
+
+test("6.9 it parks an increment, readies it, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, capability } = await planned(agent);
+      const incrementOf = async (id: string) => (await library.arcView(arc))?.increments.find((one) => one.id === id)?.fields;
+
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build the email form", body: "Red then green, contract by contract", touches: [capability] }));
+      assert.equal((await incrementOf(increment))?.status, "proposal");
+      assert.equal((await agent.call("ready_increment", { increment })).isError, false);
+      assert.equal((await incrementOf(increment))?.status, "ready");
+      const claimed = await agent.call("claim", { increment, reason: "driving the email form" });
+      assert.equal(claimed.isError, false, claimed.text);
+      assert.equal((await incrementOf(increment))?.status, "active", "claiming it started it");
+
+      const closed = await agent.call("close_increment", { increment, disposition: "landed", pr: "#12" });
+      assert.equal(closed.isError, false, closed.text);
+      assert.match(closed.text, /reads closed/);
+      assert.equal((await incrementOf(increment))?.outcome?.pr, "#12");
+      assert.deepEqual(await readClaims(log, project), [], "closing it ended the claim");
+      assert.equal((await library.arcView(arc))?.state, "closed");
+
+      const recorded = idOf(await agent.call("park_increment", { arc, title: "Hotfix", objective: "Fix the typo", body: "Fixed straight away", outcome: { disposition: "landed", pr: "#13" } }));
+      assert.equal((await incrementOf(recorded))?.status, "closed", "a landing never parked is born closed");
+
+      const reopening = await agent.call("park_increment", { arc, title: "Welcome email", objective: "Send one", body: "After sign-up" });
+      assert.equal(reopening.isError, false, reopening.text);
+      assert.match(reopening.text, /re-opens/);
+      assert.equal((await library.arcView(arc))?.state, "active");
+
+      assert.equal((await agent.call("park_arc", { arc, parked: true })).isError, false);
+      assert.equal((await library.arcView(arc))?.state, "parked");
+      assert.equal((await agent.call("park_arc", { arc, parked: false })).isError, false);
+      assert.equal((await library.arcView(arc))?.state, "active");
+    });
+  });
+});
+
+test("6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const park = async (title: string) => idOf(await agent.call("park_increment", { arc, title, objective: `Build ${title}`, body: `${title}, red then green` }));
+      const form = await park("Email form");
+      const confirm = await park("Confirmation email");
+
+      assert.equal((await agent.call("set_wait", { waiter: confirm, on: form, reason: "it sends what the form collects" })).isError, false);
+      const refused = await agent.call("claim", { increment: confirm, reason: "driving it" });
+      assert.equal(refused.isError, true);
+      assert.ok(refused.text.includes(form) && refused.text.includes("it sends what the form collects"), refused.text);
+
+      const loop = await agent.call("set_wait", { waiter: form, on: confirm, reason: "round and round" });
+      assert.equal(loop.isError, true);
+      assert.match(loop.text, /loop/);
+
+      assert.equal((await agent.call("clear_wait", { waiter: confirm, on: form })).isError, false);
+      assert.deepEqual(await library.waitHolds(confirm), []);
+      assert.equal((await agent.call("claim", { increment: confirm, reason: "driving it" })).isError, false);
+    });
+  });
+});
+
+test("6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const friction = idOf(
+        await agent.call("record_friction", {
+          title: "Tests need a running Postgres",
+          description: "The suite cannot run without one",
+          statement: "Running one test file starts a whole Postgres",
+          evidence: "`pnpm test -- src/a.test.ts` took 9 s, most of it in pg_ctl start",
+          impact: "Slow red-green loops",
+        }),
+      );
+      const resteer = idOf(
+        await agent.call("record_resteer", {
+          title: "Asked before building what he had directed",
+          description: "A proposal treated as waiting on the owner",
+          doing: "Asking the owner whether to build a proposal",
+          redirect: "Build what he directed without asking again",
+          evidence: "\"proposal means not built yet doesnt mean waiting on me\"",
+          self_report: "I read proposal as needing his yes",
+          disposition: "defect",
+          judged_by: "owner",
+          mode: "no-mast-home",
+        }),
+      );
+      assert.ok((await library.search("Postgres")).some((note) => note.id === friction));
+      const stored = (await library.search("waiting on me")).find((note) => note.id === resteer)?.fields as { evidence?: string; selfReport?: string } | undefined;
+      assert.equal(stored?.evidence, "\"proposal means not built yet doesnt mean waiting on me\"");
+      assert.equal(stored?.selfReport, "I read proposal as needing his yes", "the agent's account kept apart");
+
+      const vague = await agent.call("record_friction", { title: "Slowness", description: "Vaguely", statement: "It was slow", evidence: "it was slow and annoying", impact: "annoying" });
+      assert.equal(vague.isError, true);
+      assert.match(vague.text, /concrete/);
+      const unquoted = await agent.call("record_resteer", {
+        title: "Vaguely redirected",
+        description: "Vaguely",
+        doing: "something",
+        redirect: "something else",
+        evidence: "he wanted it done differently",
+        disposition: "taste",
+        judged_by: "owner",
+      });
+      assert.equal(unquoted.isError, true);
+      assert.match(unquoted.text, /quote/);
+      const modeless = await agent.call("record_resteer", {
+        title: "Vaguely wrong",
+        description: "Vaguely",
+        doing: "something",
+        redirect: "something else",
+        evidence: "\"not like that\"",
+        disposition: "defect",
+        judged_by: "agent",
+      });
+      assert.equal(modeless.isError, true);
+      assert.match(modeless.text, /mode/);
+      assert.deepEqual(await library.search("Vaguely"), [], "nothing written");
+    });
+  });
+});

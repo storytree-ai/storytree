@@ -463,6 +463,14 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     quoted as its evidence (a paraphrase is refused), whether it was a defect or taste, and who
     judged that (the owner, or the agent: never "owner" for an inference), with the agent's own
     account kept apart; a defect with no failure mode is the library's refusal (6.7).
+  - **As built (6.9, 6.10, 6.12):** `claim` and `release` take a `capability` or an `increment`,
+    exactly one. `close_increment` writes a `closed` line to the log after the library's close,
+    which ends any claim on the increment, whoever holds it. The capture functions are
+    `recordFriction` and `recordResteer` (`src/capture`), exported for the command line. 0.2's
+    floor for concrete evidence is ported as its list of patterns, with 0.2's own repository folders
+    widened to any path, since a user's project has its own. A re-steer's evidence must hold a
+    quoted excerpt of three characters or more. The library's own refusals (a lifecycle move
+    backwards, a wait loop) come back as readable answers.
   - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
     this one server, beside these, and can fill a "next" line that `land`'s answer ends with; until
     one does, the answer has none.

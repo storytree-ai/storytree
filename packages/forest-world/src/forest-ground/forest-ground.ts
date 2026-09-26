@@ -44,7 +44,7 @@ import {
   type SceneTerritoryInput,
   type SurfaceTheme,
 } from "../core/index.js";
-import { worldTo3D, type Descriptor3D } from "../world-to-3d.js";
+import { worldTo3D, type Descriptor3D, type InstanceDescriptor, type Transform3D } from "../world-to-3d.js";
 
 /**
  * How many of 0.2's ground units one of 0.3's place-widths spans. The spiral keeps places at least
@@ -177,7 +177,49 @@ export function forestDescriptors(scene: ForestScene): Descriptor3D[] {
   return worldTo3D(buildScene(groundInput(scene)));
 }
 
+function groundCells(descriptors: readonly Descriptor3D[]): InstanceDescriptor[] {
+  return descriptors.filter((d): d is InstanceDescriptor => d.kind === "cell-ground" && d.points !== undefined);
+}
+
+/** Whether (x, z) is inside the closed ring `ring` (even-odd rule). */
+function inside(ring: readonly Transform3D[], x: number, z: number): boolean {
+  let within = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.z > z !== b.z > z && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) within = !within;
+  }
+  return within;
+}
+
 /** The story whose ground is under (x, z), in 0.2 ground units, or undefined over open sea. */
-export function islandAt(_descriptors: readonly Descriptor3D[], _x: number, _z: number): string | undefined {
-  return undefined;
+export function islandAt(descriptors: readonly Descriptor3D[], x: number, z: number): string | undefined {
+  return groundCells(descriptors).find((cell) => inside(cell.points!, x, z))?.island;
+}
+
+/** Where each capability's parcel lies, as the middle of its cells, in 0.2 ground units: the tree stands on it. */
+export function parcelSpots(descriptors: readonly Descriptor3D[]): Map<string, { x: number; z: number }> {
+  const sums = new Map<string, { x: number; z: number; n: number }>();
+  for (const cell of groundCells(descriptors)) {
+    if (cell.parcel === undefined) continue;
+    const sum = sums.get(cell.parcel) ?? { x: 0, z: 0, n: 0 };
+    for (const point of cell.points!) {
+      sum.x += point.x;
+      sum.z += point.z;
+      sum.n += 1;
+    }
+    sums.set(cell.parcel, sum);
+  }
+  return new Map([...sums].map(([parcel, { x, z, n }]) => [parcel, { x: x / n, z: z / n }]));
+}
+
+/** How far each island's ground reaches from its middle, in 0.2 ground units. */
+export function islandReach(descriptors: readonly Descriptor3D[], centres: ReadonlyMap<string, { x: number; z: number }>): Map<string, number> {
+  const reach = new Map<string, number>();
+  for (const cell of groundCells(descriptors)) {
+    const centre = cell.island === undefined ? undefined : centres.get(cell.island);
+    if (centre === undefined) continue;
+    for (const point of cell.points!) reach.set(cell.island!, Math.max(reach.get(cell.island!) ?? 0, Math.hypot(point.x - centre.x, point.z - centre.z)));
+  }
+  return reach;
 }

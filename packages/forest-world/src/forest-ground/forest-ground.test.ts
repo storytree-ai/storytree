@@ -16,7 +16,7 @@ import type { AnnotatedCapability, AnnotatedStory, Change } from "@storytree/lib
 import { capabilityFactsFrom, stateForm } from "../kit-vocabulary.js";
 import { parcelCellsFrom } from "../parcel-cells.js";
 import type { Descriptor3D, InstanceDescriptor } from "../world-to-3d.js";
-import { forestDescriptors, GROUND_PER_PLACE, statusOf } from "./forest-ground.js";
+import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, statusOf } from "./forest-ground.js";
 
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
@@ -100,4 +100,21 @@ test("neighbouring story nodes never overlap, even when every story is large", (
       assert.ok(apart, "two islands' ground overlaps");
     }
   }
+});
+
+test("a capability landing changes only its own story node's ground, so only that island is redrawn", () => {
+  const before = forestDescriptors(scene([2, 2]));
+  const after = forestDescriptors(scene([2, 2], [{ kind: "landed", session: "s1", source: "tool", capability: "cap_1_0" }]));
+  assert.deepEqual(ground(after, "story_0"), ground(before, "story_0"), "story_0's ground is untouched");
+  assert.notDeepEqual(ground(after, "story_1"), ground(before, "story_1"), "story_1's ground shows the landing");
+});
+
+test("a click on the ground picks the story node whose land is under it, and open sea picks none", () => {
+  const forest = scene([3, 1]);
+  const descriptors = forestDescriptors(forest);
+  for (const island of forest.islands) {
+    assert.equal(islandAt(descriptors, island.x * GROUND_PER_WORLD_UNIT, island.z * GROUND_PER_WORLD_UNIT), island.story);
+  }
+  const [first] = forest.islands;
+  assert.equal(islandAt(descriptors, first!.x * GROUND_PER_WORLD_UNIT + GROUND_PER_PLACE * 0.45, first!.z * GROUND_PER_WORLD_UNIT), undefined, "the sea between places");
 });

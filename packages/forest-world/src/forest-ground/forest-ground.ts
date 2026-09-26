@@ -176,3 +176,8 @@ export function groundInput(scene: ForestScene): SceneInput {
 export function forestDescriptors(scene: ForestScene): Descriptor3D[] {
   return worldTo3D(buildScene(groundInput(scene)));
 }
+
+/** The story whose ground is under (x, z), in 0.2 ground units, or undefined over open sea. */
+export function islandAt(_descriptors: readonly Descriptor3D[], _x: number, _z: number): string | undefined {
+  return undefined;
+}

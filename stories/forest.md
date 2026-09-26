@@ -44,8 +44,10 @@ landing that changes it brings him a screenshot.
 - **P1:** a story node's place comes from its story alone, and is fixed for good.
 - **T1:** a story node is a grove, one tree per capability, the look endorsed for 0.2 (ADR-0508).
   This corrects the signed spec's "one tree per story".
-- **G1:** a tree's size follows the work state, and its leaves follow the agent's report, always
-  labelled as the agent's own (ADR-0630).
+- **G1:** a tree's form follows the work state, and its leaves follow the agent's report, always
+  labelled as the agent's own (ADR-0630). On seeing 0.2's engine draw it (2026-09-27, "looks good,
+  land this"), the owner kept 0.2's drawing: a seedling is a full-size pine in 0.2's yellow
+  building tint on yellow ground, not a smaller tree.
 - **U1:** unclaimed work is listed beside the forest, with a count on the forest view.
 - **N2:** it is called "unclaimed work", not "unplanned activity". The rule is unchanged: an edit or
   command made by a session that holds no claim at that moment. The owner called the name "a smell
@@ -161,7 +163,9 @@ own.
 ## 3 · Story node render
 
 Draws every story node with its capability tree, so the whole project shows as one 3D forest that
-you can pan, zoom and turn, and clicking a story node selects it. It is the view the app opens on, in
+you can pan and zoom, and clicking a story node selects it. It does not turn: 0.2's forest never
+did, because its land is shaded against one fixed light, and the owner kept that on seeing it
+(2026-09-27). It is the view the app opens on, in
 place of today's plain list.
 
 - **Depends on:** 1 and 2. It is kept current by the arc surface's live reading, and sits in the 0.3
@@ -200,7 +204,7 @@ place of today's plain list.
    its capability tree.
 2. A capability landing redraws just its story node, without a reload.
 3. Clicking a story node selects it.
-4. Each story node shows its story's name, readable as the camera pans, zooms and turns (ADR-0636
+4. Each story node shows its story's name, readable as the camera pans and zooms (ADR-0636
    D4: in 0.2 the names lived on the 2D map the owner cut, so the 3D forest carries them).
 
 ## 4 · Drill-down

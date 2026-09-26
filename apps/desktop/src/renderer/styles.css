@@ -331,13 +331,6 @@ body[data-surface="forest"] main {
   display: block;
 }
 
-.forest-labels {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
 .forest-label {
   padding: 0.1rem 0.55rem;
   border-radius: 999px;

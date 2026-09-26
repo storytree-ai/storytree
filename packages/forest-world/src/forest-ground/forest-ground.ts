@@ -31,6 +31,7 @@ import {
   buildScene,
   hexCenter,
   hexCorners,
+  hash,
   hexDist,
   ringsOf,
   smoothCoast,
@@ -44,15 +45,17 @@ import {
   type SceneTerritoryInput,
   type SurfaceTheme,
 } from "../core/index.js";
-import { worldTo3D, type Descriptor3D } from "../world-to-3d.js";
+import { worldTo3D, type Descriptor3D, type InstanceDescriptor, type Transform3D } from "../world-to-3d.js";
 
 /**
  * How many of 0.2's ground units one of 0.3's place-widths spans. The spiral keeps places at least
- * 0.97 of a width apart, and 0.2 gives each capability 318 square units of land, so at this width
- * two neighbouring stories of up to about 25 capabilities each never touch. It is fixed, never
- * fitted to the project, so a new story moves no island (P1).
+ * 0.97 of a width apart, and an island of 0.2's tiles reaches at most 11 units from its middle with
+ * one capability, 29 with up to six and 48 with up to nineteen (measured over twenty story ids each),
+ * so at this width neighbouring stories of up to nineteen capabilities never touch, and the sea
+ * between smaller ones stays close to 0.2's packed forest. It is fixed, never fitted to the
+ * project, so a new story moves no island (P1).
  */
-export const GROUND_PER_PLACE = 120;
+export const GROUND_PER_PLACE = 110;
 
 /** 0.3 world units (`forestScene`'s, a place-width of `PLACE_WIDTH`) to 0.2 ground units. */
 export const GROUND_PER_WORLD_UNIT = GROUND_PER_PLACE / PLACE_WIDTH;
@@ -92,9 +95,16 @@ function parcelId(island: Island, index: number): string {
 
 /** One island's ground: its relaxed cells and coast, centred on its place, in 0.2 ground units. */
 function groundFor(island: Island, owner: number, centre: Pt): { cells: RelaxedCell[]; coast: Pt[][]; radius: number } {
-  const rings = ringsOf(tileQuota(island.trees.length));
+  // 0.2 gave each island one hex tile per capability (`tileQuota`), grown out from its middle; which
+  // tiles of the outer ring it takes is seeded by the story, so each island has its own shape.
+  const quota = tileQuota(island.trees.length);
+  const rings = ringsOf(quota);
   const axis = Array.from({ length: rings * 2 + 1 }, (_, index) => index - rings);
-  const tiles = axis.flatMap((q) => axis.map((r) => ({ q, r }))).filter((h) => hexDist(h, { q: 0, r: 0 }) <= rings);
+  const tiles = axis
+    .flatMap((q) => axis.map((r) => ({ q, r })))
+    .filter((h) => hexDist(h, { q: 0, r: 0 }) <= rings)
+    .sort((a, b) => hexDist(a, { q: 0, r: 0 }) - hexDist(b, { q: 0, r: 0 }) || hash(`${island.story}:${a.q},${a.r}`) - hash(`${island.story}:${b.q},${b.r}`))
+    .slice(0, quota);
   const ground = { elevationDeg: PLAN_VIEW_ELEVATION_DEG };
   const drawTiles = tiles.map((h) => ({ h, owner }));
   const coarse = buildRelaxedCells(drawTiles, [], "mesh", undefined, ground);
@@ -121,6 +131,12 @@ function groundFor(island: Island, owner: number, centre: Pt): { cells: RelaxedC
     coast: coast.map((loop) => loop.map(place)),
     radius: coast.flat().reduce((extent, point) => Math.max(extent, Math.hypot(point.x, point.y)), 0),
   };
+}
+
+/** The cell the `index`th of `count` parcels is seeded on: spread evenly through the island's cells, so the
+ *  parcels (and the trees standing on them) share the island rather than crowding one side of it. */
+function spreadIndex(index: number, count: number, cells: number): number {
+  return Math.min(cells - 1, Math.floor(((index + 0.5) * cells) / count));
 }
 
 function centroid(poly: readonly Pt[]): Pt {
@@ -157,12 +173,18 @@ export function groundInput(scene: ForestScene): SceneInput {
         coastGroundLoops: coast,
         decor: [],
         plants: [],
-        parcels: island.trees.map(({ form }, index): SceneParcelInput => ({
-          capId: parcelId(island, index),
-          status: statusOf(form),
-          theme: THEMES[index % THEMES.length]!,
-          seed: centroid(cells[index]!.poly),
-        })),
+        parcels: island.trees.map(({ form, contracts }, index): SceneParcelInput => {
+          const parcel: SceneParcelInput = {
+            capId: parcelId(island, index),
+            status: statusOf(form),
+            theme: THEMES[index % THEMES.length]!,
+            seed: centroid(cells[spreadIndex(index, island.trees.length, cells.length)]!.poly),
+          };
+          // 0.2 grew a parcel's ground cover from its test count; 0.3's is its contracts. None
+          // reported leaves the count out, which 0.2 draws as bare ground rather than as zero tests.
+          if (contracts > 0) parcel.testCount = contracts;
+          return parcel;
+        }),
         treeTitle: island.title,
         wisps: [],
         claims: [],
@@ -175,4 +197,51 @@ export function groundInput(scene: ForestScene): SceneInput {
 /** The 3D stream 0.2's canvas draws for `scene`: its ground, coast and parcels, sized per capability as 0.2 sized them. */
 export function forestDescriptors(scene: ForestScene): Descriptor3D[] {
   return worldTo3D(buildScene(groundInput(scene)));
+}
+
+function groundCells(descriptors: readonly Descriptor3D[]): InstanceDescriptor[] {
+  return descriptors.filter((d): d is InstanceDescriptor => d.kind === "cell-ground" && d.points !== undefined);
+}
+
+/** Whether (x, z) is inside the closed ring `ring` (even-odd rule). */
+function inside(ring: readonly Transform3D[], x: number, z: number): boolean {
+  let within = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.z > z !== b.z > z && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) within = !within;
+  }
+  return within;
+}
+
+/** The story whose ground is under (x, z), in 0.2 ground units, or undefined over open sea. */
+export function islandAt(descriptors: readonly Descriptor3D[], x: number, z: number): string | undefined {
+  return groundCells(descriptors).find((cell) => inside(cell.points!, x, z))?.island;
+}
+
+/** Where each capability's parcel lies, as the middle of its cells, in 0.2 ground units: the tree stands on it. */
+export function parcelSpots(descriptors: readonly Descriptor3D[]): Map<string, { x: number; z: number }> {
+  const sums = new Map<string, { x: number; z: number; n: number }>();
+  for (const cell of groundCells(descriptors)) {
+    if (cell.parcel === undefined) continue;
+    const sum = sums.get(cell.parcel) ?? { x: 0, z: 0, n: 0 };
+    for (const point of cell.points!) {
+      sum.x += point.x;
+      sum.z += point.z;
+      sum.n += 1;
+    }
+    sums.set(cell.parcel, sum);
+  }
+  return new Map([...sums].map(([parcel, { x, z, n }]) => [parcel, { x: x / n, z: z / n }]));
+}
+
+/** How far each island's ground reaches from its middle, in 0.2 ground units. */
+export function islandReach(descriptors: readonly Descriptor3D[], centres: ReadonlyMap<string, { x: number; z: number }>): Map<string, number> {
+  const reach = new Map<string, number>();
+  for (const cell of groundCells(descriptors)) {
+    const centre = cell.island === undefined ? undefined : centres.get(cell.island);
+    if (centre === undefined) continue;
+    for (const point of cell.points!) reach.set(cell.island!, Math.max(reach.get(cell.island!) ?? 0, Math.hypot(point.x - centre.x, point.z - centre.z)));
+  }
+  return reach;
 }

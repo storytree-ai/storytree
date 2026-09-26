@@ -44,8 +44,10 @@ landing that changes it brings him a screenshot.
 - **P1:** a story node's place comes from its story alone, and is fixed for good.
 - **T1:** a story node is a grove, one tree per capability, the look endorsed for 0.2 (ADR-0508).
   This corrects the signed spec's "one tree per story".
-- **G1:** a tree's size follows the work state, and its leaves follow the agent's report, always
-  labelled as the agent's own (ADR-0630).
+- **G1:** a tree's form follows the work state, and its leaves follow the agent's report, always
+  labelled as the agent's own (ADR-0630). On seeing 0.2's engine draw it (2026-09-27, "looks good,
+  land this"), the owner kept 0.2's drawing: a seedling is a full-size pine in 0.2's yellow
+  building tint on yellow ground, not a smaller tree.
 - **U1:** unclaimed work is listed beside the forest, with a count on the forest view.
 - **N2:** it is called "unclaimed work", not "unplanned activity". The rule is unchanged: an edit or
   command made by a session that holds no claim at that moment. The owner called the name "a smell
@@ -161,7 +163,9 @@ own.
 ## 3 · Story node render
 
 Draws every story node with its capability tree, so the whole project shows as one 3D forest that
-you can pan, zoom and turn, and clicking a story node selects it. It is the view the app opens on, in
+you can pan and zoom, and clicking a story node selects it. It does not turn: 0.2's forest never
+did, because its land is shaded against one fixed light, and the owner kept that on seeing it
+(2026-09-27). It is the view the app opens on, in
 place of today's plain list.
 
 - **Depends on:** 1 and 2. It is kept current by the arc surface's live reading, and sits in the 0.3
@@ -182,20 +186,25 @@ place of today's plain list.
   middle like a sunflower's seeds in build order, and its name. `forestDrawn` says what was drawn as
   the smoke check reads it (`surface: "forest"`, with each tree's form and the names added),
   `changedIslands` names the islands a change touched, and `storyAt` is the island under a point on
-  the ground. The page (`apps/desktop/src/forest/forest-view.ts`) turns the plan into three.js
-  meshes: low-poly islands of sand and grass on a calm sea, one warm light with soft shadows, the
-  pines from the kit export 0.2 shipped (`dressing-kit.glb`, bundled as bytes; only that export
-  ships, never the kit), a seedling's needles in 0.2's building tint and a pale tree's washed, the
-  names as labels that face the camera, orbit controls to pan, zoom and turn, and a click that
-  selects the island under it (`data-selected`). The arc surface's live reading keeps it current:
-  the tree is read again only when the library changed, and only changed islands are rebuilt.
+  the ground. The page (`apps/desktop/src/forest/forest-view.tsx`) draws the plan with 0.2's own
+  forest canvas, ported whole with its engine in `packages/forest-world` (React and
+  react-three-fiber, as 0.2 used them). The one join, `forestDescriptors`, gives each island 0.2's
+  ground at its spiral place, 110 ground units per place-width: one hex tile per capability relaxed
+  into 0.2's mesh, a smoothed coast, and one parcel per capability wearing its tree's form (seedling,
+  pale, green and dead drawn as 0.2's building, mapped, healthy and unhealthy), with ground cover
+  grown from its contract count as 0.2 grew it from test counts. 0.2's kit pines stand on the parcels
+  (only the export `dressing-kit.glb` ships, never the kit), under 0.2's calibrated light. It opens on
+  0.2's resting view and pans and zooms as 0.2's did. Over the picture, in the same scene: the names,
+  a click that selects the island whose land is under it (`islandAt`, `data-selected`), a ring round
+  the selected island, and the claim markers. The arc surface's live reading keeps it current: the
+  tree is read again only when the library changed, and only changed islands are recomputed.
 
 **Contracts:**
 1. The app's smoke check opens a seeded project and finds one story node per story, each drawn with
    its capability tree.
 2. A capability landing redraws just its story node, without a reload.
 3. Clicking a story node selects it.
-4. Each story node shows its story's name, readable as the camera pans, zooms and turns (ADR-0636
+4. Each story node shows its story's name, readable as the camera pans and zooms (ADR-0636
    D4: in 0.2 the names lived on the 2D map the owner cut, so the 3D forest carries them).
 
 ## 4 · Drill-down

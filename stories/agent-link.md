@@ -12,6 +12,13 @@ log (`storytree-ai/storytree02`), approved through the question `oq-0-3-agent-li
 (revision 5), with the corrections ADR-0627 made the same day (the rabbit-hole knowledge rules).
 Names and scope come from those records; change them there first.
 
+**Revised** by the owner on 2026-09-27 (ADR-0643, through `oq-0-3-agent-link-revised-tree`), for what
+ADR-0633 brought back from 0.2: claims (5) grow to increments, refuse waiting work (W2) and end when
+a pull request merges (M); the agent tools (6) grow by the planning, question, wait, friction and
+re-steer tools; the habits card (7) and the setup check (8) grow with them. Its front cover is
+`decisions/agent-link-revised-tree.md`. The command line is not this story's: it is a story of its
+own (H), parked as `0-3-cli-story-tree`.
+
 **Rule for building it: port behaviour, not code.** Storytree 0.2's hooks and harness settings
 (`.claude/settings.json`, `.codex/`), its claim board (`packages/notice-board`,
 `stories/notice-board`) and the MCP servers it runs for its own build workers are the behavioural
@@ -298,9 +305,31 @@ idle.
 
 - **Depends on:** 4, sessions, and the library API (to check that the capability exists).
 - **Leaves out (vs 0.2):** the three claim grades (exploring, waiting, work), the waiting queue with
-  automatic promotion, typed roles, claims on arc increments, rules about stories versus
-  capabilities, and release when a pull request merges. 0.2's claim board is six capabilities and
-  about 3,800 lines of code, reworked across ten decisions.
+  automatic promotion, typed roles, and rules about stories versus capabilities. 0.2's claim board
+  is six capabilities and about 3,800 lines of code, reworked across ten decisions. *(Claims on arc
+  increments and release when a pull request merges were left out here too, until ADR-0633 brought
+  them back; ADR-0643 built them, below.)*
+- **Extended by ADR-0643 D1, D2 and D3** (the revised tree):
+  - **Increment claims.** An agent claims an increment as well as a capability, and both read the
+    same: harness, window, reason, live or idle. One holder each, no queue, and the same takeover
+    after idle. Claiming a proposal or a ready increment starts it, through the library's own
+    `advanceIncrement(id, "active")` (0.2's ADR-0386); a closed increment cannot be claimed. No
+    approval step anywhere: an agent readies and starts its own proposals (ADR-0638 D2). Closing an
+    increment with its outcome ends its claim, as landing does a capability's.
+  - **The wait refusal (the owner's W2).** Claiming or starting waiting work is refused, naming what
+    it waits for, and nothing is written. An increment waits when the library's `waitHolds` names a
+    blocker for it or for its arc, or when `heldOnQuestion` names an open question it is held on (it
+    is then waiting on the owner). A capability claim is refused when every open increment naming
+    that capability (its `touches`) is waiting; a capability no open increment names is never
+    refused. The agent link composes this from the library's own readings and keeps no copy of any
+    wait rule (ADR-0640 D5).
+  - **Release on merge (the owner's M).** Each claim records the git branch its session's folder was
+    on. At each tool call and each background hook line, the link asks GitHub, through `gh`, whether
+    a pull request from that branch has merged since the claim was taken, and ends each such claim
+    with a "merged" line. That catches squash merges, which git alone cannot see. The MVP assumes the
+    project is on GitHub with `gh` signed in (the setup check, 8, says so when it is not); a
+    git-only option is after the MVP. A merge is noticed at the next agent activity in the project,
+    not the moment it happens, since the database is local.
 - **As built:** claims are lines in the agent activity log (claimed, released, landed), and who
   holds what is worked out from them, with each holder's liveness from its session's latest line.
   Claiming, releasing and landing each check and write under the project's lock, so two claims at
@@ -321,6 +350,18 @@ idle.
    nothing counts as unplanned activity.
 6. While a command A started is still running, past the quiet time, B's claim on A's capability is
    refused, naming A.
+7. Session A claims a proposed increment, and the claim shows A and the reason while the library
+   shows the increment active; B's claim on it is refused, naming A. A ready one starts the same
+   way, an active one is not started again, and a closed one is refused.
+8. Claiming an increment whose own wait holds, or whose arc's wait holds, is refused, naming each
+   blocker and its reason, and one held on an open question is refused as waiting on the owner.
+   Nothing is written and the increment is not started. Once the wait releases, the claim succeeds.
+9. A claim on a capability is refused when every open increment naming it is waiting, naming what
+   they wait for. It succeeds when one of them is not waiting, and a capability no open increment
+   names is never refused.
+10. A claim taken on branch `feature/signup` ends with a "merged" line once GitHub shows a pull
+    request from that branch merged after the claim was taken, found at the next tool call or hook
+    line; a pull request merged before the claim, or still open, ends nothing.
 
 ## 6 · Agent tools (the MCP server)
 
@@ -375,6 +416,37 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
   server still holds the session id it was started with, while the hook before each call names the
   session the window is in now. So a call is recorded on the session its hook's line names, found
   by the call's id; a call no hook saw keeps the id the harness gave the tool server.
+- **Extended by ADR-0643 D1 (6) and D6** (the revised tree): the planning, question, wait, friction
+  and re-steer tools, every write through the library's own functions, so the tools keep no copy
+  of a library rule and a person's command line (`0-3-cli-story-tree`) reaches the same functions.
+  - **Increments:** `park_increment` parks a proposal on an arc, naming what it touches, or, given
+    its outcome, records a landing that was never parked (born closed); `ready_increment` readies a
+    proposal; `close_increment` closes one with its outcome (landed, failed or withdrawn), its pull
+    request, or a note when there is none, and ends the claim on it. Starting an increment is
+    claiming it (5), so a start is refused exactly as a claim is.
+  - **Arcs:** `edit_plan` corrects an arc (its intent and end state too); `park_arc` parks or
+    unparks one. There is no hand close or re-open (ADR-0640 R1, 10-b): an arc reads closed when its
+    last increment closes, which `close_increment` says, and re-opens when work is parked on it,
+    which `park_increment` says.
+  - **Waits:** `set_wait` makes an arc wait on an arc, or an increment on an increment, with a
+    reason; `clear_wait` takes one away. A loop is the library's to refuse.
+  - **Questions:** `raise_question` raises one on an arc (stakes, statement, context, options) and
+    can hold increments on it; `settle_question` settles it with the owner's answer, in his words;
+    `retire_question` retires one that was wrong, which the library refuses while an increment is
+    held on it.
+  - **Friction and re-steers,** with 0.2's evidence rules (the owner's n4, from 0.2's
+    `packages/cli/src/friction.ts` and `resteer.ts`), kept as this story's capture functions that
+    the tools and a person's command line both call, over the library's `writeKnowledge`:
+    `record_friction` takes the statement, the evidence and the impact, and refuses evidence that is
+    not concrete (a path, a pull request, a commit, a command and its output, an error, or a quoted
+    excerpt; vague prose is refused, 0.2's ADR-0168 D3); capture never classifies, so it takes no
+    route. `record_resteer` takes what the agent was doing, the redirect, and the owner's own words
+    quoted as its evidence (a paraphrase is refused), whether it was a defect or taste, and who
+    judged that (the owner, or the agent: never "owner" for an inference), with the agent's own
+    account kept apart; a defect with no failure mode is the library's refusal (6.7).
+  - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
+    this one server, beside these, and can fill a "next" line that `land`'s answer ends with; until
+    one does, the answer has none.
 
 **Contracts:**
 1. A test client talks to the server inside the test itself, with no real agent and no network. It
@@ -399,6 +471,20 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
 8. After Claude Code's `/clear`, which gives the window a new session id the tool server never
    sees, each call is recorded on the new session, as the hook before it named it; a call no hook
    saw keeps the id the tool server was started with.
+9. The test client parks an increment on an arc, readies it, starts it by claiming it, and closes
+   it landed with its pull request, which ends the claim; the library shows each step and the arc
+   reads closed. It records a landing that was never parked, parks a new increment on the closed
+   arc, which re-opens it, and parks and unparks the arc.
+10. It sets a wait with a reason, and a claim on the waiting increment is refused naming it; it
+    clears the wait, and the claim succeeds. A wait that would close a loop gets the library's
+    refusal as a readable answer.
+11. It raises a question on an arc and holds an increment on it, which a claim then finds waiting on
+    the owner; it settles the question with his answer, which releases the increment, and retiring
+    a question an increment is held on is refused.
+12. It records friction with concrete evidence and a re-steer with the owner's quoted words, the
+    agent's account kept apart; friction whose evidence is vague prose, a re-steer whose evidence
+    quotes nobody, and a defect with no failure mode are each refused as a readable answer, and
+    nothing is written.
 
 ## 7 · Instructions (the habits card)
 
@@ -418,6 +504,9 @@ project's CLAUDE.md or AGENTS.md, where people can read it too.
 - **As built:** the card is 19 lines, handed to every session as the tool server's MCP
   `instructions`. It names each tool in backticks and uses backticks for nothing else, which is how
   its test knows the tools it teaches. Adding it to a project's CLAUDE.md or AGENTS.md is not built.
+- **Extended by ADR-0643 D1 (7):** the card also teaches claiming the increment you drive, closing it
+  with its outcome, and raising a question on the arc instead of only asking in chat. It stays
+  under 60 lines, and contract 1 holds it to the grown toolbox.
 
 **Contracts:**
 1. The text names every tool the server has, and no tool the server lacks.
@@ -460,6 +549,15 @@ set one up.
   every answer's data carries its sentence; and opening storytree now waits until its database
   accepts connections. Codex's one-time approval was stood in for by `--dangerously-bypass-hook-trust`,
   since it cannot be clicked in a non-interactive run.
+- **Extended by ADR-0643 D1 (8) and D3:**
+  - **`gh` signed in.** Release on merge (5) asks GitHub through `gh`, so the check looks for `gh`
+    and whether it is signed in, and says plainly what to do when it is missing or signed out:
+    install it, or run `gh auth login`. Without it, claims still work and simply do not end on a
+    merge.
+  - **The `storytree` command on the path.** The check puts a `storytree` command on the user's
+    path, beside the hook and tool server scripts, once, and removing storytree takes it out. What
+    that command does is the command line's own story (`0-3-cli-story-tree`); this check only puts
+    it where the user can run it.
 
 **Contracts:**
 1. In a throwaway home with only the tool server installed, the first session start registers the
@@ -478,10 +576,29 @@ set one up.
    file shows up as unplanned activity. *Subscription-billed: run once, as the final proof.*
 7. A status line of the user's own is kept: storytree's is installed only where there is none, and
    removing storytree leaves theirs.
+8. With `gh` missing, or signed out, the check says so and names the fix; signed in, it says
+   nothing about it.
+9. In a throwaway home, the first start puts a `storytree` command on the path, a second changes
+   nothing, and removing storytree takes it out.
 
 ---
 
 ## Also out of this story
+
+- **The command line** for people over the library, arcs and increments, questions, decisions and
+  the notice board is a story of its own, as in 0.2 (the owner's H, ADR-0643 D5), parked as
+  `0-3-cli-story-tree`. It sends each verb to the function its owning story already has, as the
+  agent tools do, and records a person's writes as the person.
+- **Not brought over: did not last in 0.2** (ADR-0643 D4, measured under ADR-0639):
+  - increment plans, `increment check` and the planner hand-off (ADR-0639 D4);
+  - a question's park lease (`--lease-days`, `question check`): all 128 open questions carried one,
+    auto-stamped, sampled `verifiedAt` histories were never updated after creation, and `question
+    check` ran twice, both on its first day (2026-08-18);
+  - workspaces made by claiming (`worktree create --node`, `branch next`): 16 uses of the first,
+    2026-08-18 to 09-06, none in the 20 days before the freeze; the second never used in any of 145
+    transcripts;
+  - similarity search (`library related --unlinked`): 12 uses, all 2026-08-23/29 while it was being
+    built, none in September. Plain search lasted, and is the library's.
 
 - **Knowledge entrances** (each story's and capability's own shelf of front-cover decisions, none
   shared between nodes) are the library's ninth capability (ADR-0627 D1), with the forest showing

@@ -132,6 +132,12 @@ that supersedes it if it did; finished business is retired or consolidated.
   - **G1 (the owner's):** the decision health check is a report in the worklist. The library
     already refuses a bad status, a dangling edge and a supersession loop when each is written, so
     what the report finds is what a write cannot refuse: an edge whose record was retired later.
+- **As built:** `supersede`, `correct`, `annotate` and `brokenEdges` in
+  `packages/librarian/src/decision-log`. Consolidating is `supersede` with several old decisions.
+  Marking load-bearing is a correction in place (`correct(id, { loadBearing })`). An annotation
+  names the narrowing decision by its number and title, or its title when it has no number yet. The
+  health report reads every note-to-note reference, not only links and supersessions: a process's
+  hand-ons and an agent role's reading too.
 
 **Contracts:**
 1. `supersede(olds, decision)` records a new accepted decision naming the old ones in `supersedes`.

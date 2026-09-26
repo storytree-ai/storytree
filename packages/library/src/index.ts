@@ -11,7 +11,7 @@ export { ConnectionError, ProjectNameError } from "./project/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
-export type { FieldsOf, RecordType, SchemaRecord } from "./schema/index.js";
+export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord } from "./schema/index.js";
 export type { RecordEnvelope } from "./transactions/index.js";
 export type { ArcEdit, ArcNode, CapabilityEdit, ContractEdit, NewArc, NewCapability, NewContract, NewStory, StoryEdit } from "./work/index.js";
 export type {
@@ -26,4 +26,4 @@ export type {
   HealthState,
   NodeHealth,
 } from "./health/index.js";
-export type { NewDecision, NewDefinition, NewMemory, Note, NoteEdit, NoteType } from "./knowledge/index.js";
+export type { NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit, NoteType } from "./knowledge/index.js";

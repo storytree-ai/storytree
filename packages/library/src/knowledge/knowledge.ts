@@ -10,6 +10,11 @@
  * names the node it is a cover of in its one `frontCoverOf` field, so no decision can be the cover
  * of two, and nothing has to check for it.
  *
+ * ADR-0640 grows it by eight kinds, written with writeKnowledge: principles, guardrails, patterns,
+ * processes, agent roles, friction, re-steers and tech stack. They are notes like the first three:
+ * searched, linked only to notes, and edited with editNote. An agent role's required reading, rules,
+ * anti-patterns and step reading, and a process's branch edges, are links to notes too (6-a).
+ *
  * Knowledge is a layer over capability 3's SchemaRecords, so it runs unchanged on the in-memory
  * twin and on Postgres. Every link, and every front cover, is checked BEFORE the write, and a
  * broken one throws with nothing written; the note itself is then checked against its type inside
@@ -18,10 +23,12 @@
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
-import type { FieldsOf } from "../schema/types.js";
+import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 
-/** The three kinds of note. */
-export type NoteType = "memory" | "decision" | "definition";
+/** The kinds of note: memory notes, decisions, definitions, and the eight kinds of ADR-0640. */
+export type NoteType = "memory" | "decision" | "definition" | KnowledgeKind;
+/** A new note of one of the eight kinds: its fields. Every reference in it must name a live note. */
+export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = FieldsOf<K>;
 /** A stored note of any kind. */
 export type Note = SchemaRecord<NoteType>;
 /** A new memory note's fields. Every link must name a live note. */
@@ -35,7 +42,25 @@ export type NoteEdit = {
   [K in NoteType]: { [F in keyof FieldsOf<K>]?: FieldsOf<K>[F] | undefined };
 }[NoteType];
 
-const NOTE_TYPES: readonly NoteType[] = ["memory", "decision", "definition"];
+/** The eight kinds writeKnowledge writes. */
+export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
+  "principle",
+  "guardrail",
+  "pattern",
+  "process",
+  "agent",
+  "friction",
+  "resteer",
+  "techstack",
+];
+
+const NOTE_TYPES: readonly NoteType[] = ["memory", "decision", "definition", ...KNOWLEDGE_KINDS];
+
+/**
+ * The fields that name other notes rather than hold words: never searched. (`refs` sits inside an
+ * agent role's `stepRefs`, `to` inside a process's `branchEdges`.)
+ */
+const REFERENCE_FIELDS: ReadonlySet<string> = new Set(["links", "frontCoverOf", "context", "rules", "antiPatterns", "refs", "to"]);
 
 /** What a note may link to: another note, never the work (capability 9). */
 const NOTE: Expected = {
@@ -73,6 +98,19 @@ export class Knowledge {
     return this.#records.create("decision", decision);
   }
 
+  /**
+   * Write a note of one of the eight kinds (ADR-0640). Its links, and an agent role's or a process's
+   * other references, must each name a live note, as writeMemory checks links; its fields are then
+   * checked against its kind inside the write. A kind that is not one of the eight is refused.
+   */
+  async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>): Promise<SchemaRecord<K>> {
+    if (!KNOWLEDGE_KINDS.includes(kind)) {
+      throw new RangeError(`writeKnowledge writes ${KNOWLEDGE_KINDS.join(", ")}, not ${JSON.stringify(kind)}`);
+    }
+    await this.#checkNoteReferences(fields);
+    return this.#records.create(kind, fields);
+  }
+
   /** Define a term. Its links are checked as writeMemory checks them. */
   async defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">> {
     await this.#checkLinks(definition.links);
@@ -87,7 +125,7 @@ export class Knowledge {
    */
   async editNote(id: string, fields: NoteEdit): Promise<Note | null> {
     if ((await liveRecord(this.#records, id, NOTE_TYPES)) === null) return null;
-    await this.#checkLinks(fields.links);
+    await this.#checkNoteReferences(fields);
     if ("frontCoverOf" in fields) await this.#checkFrontCover(fields.frontCoverOf);
     return (await this.#records.edit(id, fields)) as Note | null;
   }
@@ -138,6 +176,19 @@ export class Knowledge {
     return lists.flat().sort(byCreation);
   }
 
+  /**
+   * Every reference a note's fields hold must name a live note: its links, and an agent role's
+   * required reading, rules, anti-patterns and step reading, and a process's branch edges.
+   */
+  async #checkNoteReferences(fields: object): Promise<void> {
+    const at = fields as Record<string, unknown>;
+    for (const field of ["links", "context", "rules", "antiPatterns"]) {
+      await checkReferences(this.#records, field, at[field], NOTE);
+    }
+    for (const step of listOf(at["stepRefs"])) await checkReferences(this.#records, "stepRefs", fieldOf(step, "refs"), NOTE);
+    for (const edge of listOf(at["branchEdges"])) await checkReference(this.#records, "branchEdges", fieldOf(edge, "to"), NOTE);
+  }
+
   /** A note may link to a live note, and to nothing else. */
   #checkLinks(links: unknown): Promise<void> {
     return checkReferences(this.#records, "links", links, NOTE);
@@ -149,14 +200,31 @@ export class Knowledge {
   }
 }
 
-/** The text a note is searched by. */
+/**
+ * The text a note is searched by: every piece of text in its fields, inside lists and objects
+ * included, except the ones that name other notes. So a memory note is searched by its text, a
+ * decision by its title and text, a definition by its term and meaning, and a friction by its
+ * statement, evidence and impact among the rest.
+ */
 function textsOf(note: Note): string[] {
-  switch (note.type) {
-    case "memory":
-      return [note.fields.text];
-    case "decision":
-      return [note.fields.title, note.fields.text];
-    case "definition":
-      return [note.fields.term, note.fields.meaning];
+  return textsIn(note.fields);
+}
+
+function textsIn(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(textsIn);
+  if (value !== null && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, item]) => (REFERENCE_FIELDS.has(key) ? [] : textsIn(item)));
   }
+  return [];
+}
+
+/** `value` when it is a list, and an empty one otherwise (the schema check refuses it inside the write). */
+function listOf(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+/** The field `key` of `value` when it is an object, and undefined otherwise. */
+function fieldOf(value: unknown, key: string): unknown {
+  return value !== null && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
 }

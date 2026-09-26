@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { connect } from "../project/index.js";
-import { SchemaError, SchemaRecords } from "../schema/index.js";
+import { SchemaError, SchemaRecords, type KnowledgeKind } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { Knowledge } from "./index.js";
@@ -108,7 +108,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(Object.keys(kinds).sort(), Object.keys(REQUIRED).sort());
 
     for (const [kind, fields] of Object.entries(kinds)) {
-      const saved = await knowledge.writeKnowledge(kind as never, fields as never);
+      const saved = await knowledge.writeKnowledge(kind as KnowledgeKind, fields as never);
       assert.equal(saved.type, kind);
       assert.deepEqual(saved.fields, fields, `${kind} is stored as given`);
       assert.deepEqual((await transactions.get(saved.id))?.fields, fields, `${kind} reads back`);
@@ -117,7 +117,7 @@ for (const backend of [memory, postgres]) {
         const { [field]: _left, ...without } = fields;
         const before = await transactions.history();
         await assert.rejects(
-          knowledge.writeKnowledge(kind as never, without as never),
+          knowledge.writeKnowledge(kind as KnowledgeKind, without as never),
           (error: unknown) => error instanceof SchemaError && error.fields.includes(field) && error.message.includes(`"${field}"`),
           `${kind} without ${field} is refused, naming it`,
         );
@@ -134,26 +134,26 @@ for (const backend of [memory, postgres]) {
 
     for (const evidence of [undefined, ""]) {
       await assert.rejects(
-        knowledge.writeKnowledge("friction" as never, { ...friction, evidence } as never),
+        knowledge.writeKnowledge("friction", { ...friction, evidence } as never),
         (error: unknown) => error instanceof SchemaError && error.fields.includes("evidence"),
         `friction with evidence ${JSON.stringify(evidence)} is refused`,
       );
     }
     // A recurrence is evidence too: one with none is refused.
     await assert.rejects(
-      knowledge.writeKnowledge("friction" as never, { ...friction, reinforcedBy: [{ branch: "b", date: "2026-09-27" }] } as never),
+      knowledge.writeKnowledge("friction", { ...friction, reinforcedBy: [{ branch: "b", date: "2026-09-27" }] } as never),
       (error: unknown) => error instanceof SchemaError && error.fields.includes("reinforcedBy"),
     );
     await assert.rejects(
-      knowledge.writeKnowledge("resteer" as never, { ...resteer, disposition: "defect" } as never),
+      knowledge.writeKnowledge("resteer", { ...resteer, disposition: "defect" } as never),
       (error: unknown) => error instanceof SchemaError && error.fields.includes("mode") && error.message.includes("defect"),
       "a defect with no failure mode is refused, saying why",
     );
     assert.deepEqual(await transactions.history(), before, "nothing was written");
 
     // A matter of taste has no failure mode, and a defect with one is kept.
-    await knowledge.writeKnowledge("resteer" as never, resteer as never);
-    const defect = await knowledge.writeKnowledge("resteer" as never, { ...resteer, disposition: "defect", mode: "tool-defect" } as never);
+    await knowledge.writeKnowledge("resteer", resteer as never);
+    const defect = await knowledge.writeKnowledge("resteer", { ...resteer, disposition: "defect", mode: "tool-defect" } as never);
     assert.equal((defect.fields as Record<string, unknown>).mode, "tool-defect");
   });
 }

@@ -40,14 +40,17 @@ const TOOLS = [
   "plan_capability",
   "plan_contract",
   "plan_story",
+  "raise_question",
   "ready_increment",
   "record_friction",
   "record_resteer",
   "release",
   "report",
+  "retire_question",
   "search_notes",
   "set_up_project",
   "set_wait",
+  "settle_question",
   "show_plan",
   "write_note",
 ];
@@ -215,6 +218,9 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["clear_wait", { waiter: "increment_000000000000", on: "increment_000000000001" }],
         ["record_friction", { title: "Slow", description: "Slow", statement: "Slow", evidence: "`pnpm test` took 9 s", impact: "Slow" }],
         ["record_resteer", { title: "Redirected", description: "Redirected", doing: "a", redirect: "b", evidence: '"not that"', disposition: "taste", judged_by: "owner" }],
+        ["raise_question", { arc: "arc_000000000000", title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" }],
+        ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],
+        ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
       ];
       // Every tool but the setup check's two, which open storytree when it is closed (capability 8).
       const setupTools = ["check_setup", "set_up_project"];
@@ -514,6 +520,37 @@ test("6.12 it records friction with concrete evidence and a re-steer with the ow
       assert.equal(modeless.isError, true);
       assert.match(modeless.text, /mode/);
       assert.deepEqual(await library.search("Vaguely"), [], "nothing written");
+    });
+  });
+});
+
+test("6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment, and retiring a question an increment is held on is refused", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const park = async (title: string) => idOf(await agent.call("park_increment", { arc, title, objective: `Build ${title}`, body: `${title}, red then green` }));
+      const welcome = await park("Welcome email");
+      const asked = { arc, title: "Which mailer?", stakes: "Cost and deliverability", statement: "Send through Mailgun or SES?", context: "Both work here", options: "Mailgun; SES" };
+      const question = idOf(await agent.call("raise_question", { ...asked, holds: [welcome] }));
+      assert.deepEqual(await library.heldOnQuestion(welcome), [question]);
+
+      const refused = await agent.call("claim", { increment: welcome, reason: "driving it" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /waiting on the owner/);
+
+      const retired = await agent.call("retire_question", { question, reason: "asked in error" });
+      assert.equal(retired.isError, true, "an increment is held on it");
+      assert.equal((await library.arcView(arc))?.questions.some((one) => one.id === question), true, "still there");
+
+      const settled = await agent.call("settle_question", { question, answer: "Mailgun: its API is the simplest" });
+      assert.equal(settled.isError, false, settled.text);
+      assert.equal((await library.arcView(arc))?.questions.find((one) => one.id === question)?.fields.answer, "Mailgun: its API is the simplest");
+      assert.deepEqual(await library.heldOnQuestion(welcome), [], "his answer released it");
+      assert.equal((await agent.call("claim", { increment: welcome, reason: "driving it" })).isError, false);
+
+      const wrong = idOf(await agent.call("raise_question", { ...asked, title: "Asked in error" }));
+      assert.equal((await agent.call("retire_question", { question: wrong, reason: "asked in error" })).isError, false);
+      assert.equal((await library.arcView(arc))?.questions.some((one) => one.id === wrong), false, "retired");
     });
   });
 });

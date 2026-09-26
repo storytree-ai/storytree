@@ -275,7 +275,7 @@ test("5.7 session A claims a proposed increment, which the claim shows while the
   });
 });
 
-test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds, is refused naming each blocker and its reason; nothing is written and it is not started; once the wait releases the claim succeeds", async () => {
+test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds, is refused naming each blocker and its reason, and one held on an open question is refused as waiting on the owner; nothing is written and it is not started; once the wait releases the claim succeeds", async () => {
   await withWorld(async ({ log, project, library, as }) => {
     const { arc, park } = await arcOf(library);
     const form = await park("email form");
@@ -301,6 +301,20 @@ test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds,
     await library.closeIncrement(form, { pr: "#4", disposition: "landed" });
     assert.equal((await claim(as("A"), confirm, "driving it")).ok, true, "the form landed, so the wait released");
     assert.equal(await statusOf(library, arc, confirm), "active");
+
+    const welcome = await park("welcome email");
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" });
+    await library.editIncrement(welcome, { heldOn: [question.id] });
+    const onOwner = await claim(as("B"), welcome, "driving it");
+    assert.ok(!onOwner.ok && onOwner.refused === "waiting");
+    assert.deepEqual(
+      onOwner.waits.map(({ increment, on, onOwner: his }) => ({ increment, on, his })),
+      [{ increment: welcome, on: question.id, his: true }],
+      "held on his open question, it waits on the owner",
+    );
+    assert.equal(await statusOf(library, arc, welcome), "proposal", "not started");
+    await library.settleQuestion(question.id, { answer: "Mailgun" });
+    assert.equal((await claim(as("B"), welcome, "driving it")).ok, true, "his answer released it");
   });
 });
 

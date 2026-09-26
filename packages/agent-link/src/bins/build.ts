@@ -18,6 +18,7 @@ const ENTRY_POINTS: Readonly<Record<string, string>> = {
   "storytree-hook": path.join(here, "storytree-hook.ts"),
   "storytree-mcp": path.join(here, "storytree-mcp.ts"),
   "storytree-setup": path.join(here, "storytree-setup.ts"),
+  storytree: path.join(here, "storytree.ts"),
 };
 
 /** Build every command into `outdir`, and return the path of each, by name. */

@@ -11,7 +11,7 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { z } from "zod";
 
 import { findProject, setUpProject } from "../routing/index.js";
-import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
+import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type CommandInstall, type GhState, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { lineOf, metaOf, seenCaller, type Caller } from "./server.js";
@@ -26,6 +26,27 @@ export interface SetupToolContext {
 }
 
 const HARNESS_NAMES = { "claude-code": "Claude Code", codex: "Codex" } as const;
+
+/** What the check says about `gh` (ADR-0643 D3): nothing while it is signed in. */
+const GH_SENTENCES: Readonly<Record<GhState, string[]>> = {
+  "signed in": [],
+  "signed out": ["GitHub's gh command is not signed in, so a claim will not end when its pull request merges: tell the user to run `gh auth login`."],
+  missing: ["GitHub's gh command is not installed, so a claim will not end when its pull request merges: tell the user to install it from https://cli.github.com and run `gh auth login`."],
+};
+
+/** What the check says about the `storytree` command (ADR-0643 D1, 8): nothing once it is in place. */
+function commandSentences(command: CommandInstall | undefined): string[] {
+  switch (command) {
+    case "installed":
+      return ["storytree put its storytree command on the user's path."];
+    case "another storytree kept":
+      return ["There is already a storytree command of the user's own on their path, so storytree did not put its own there."];
+    case "no folder of the user's on the path":
+      return ["storytree found no folder of the user's own on their PATH to put its storytree command in (such as ~/.local/bin): the user can add one, and the next session puts it there."];
+    default:
+      return [];
+  }
+}
 
 export function registerSetupTools({ server, folder, setup, connections, callerOf }: SetupToolContext): void {
   server.registerTool(
@@ -51,6 +72,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         if (report.hooks.statusLine === "installed") said.push("storytree's status line was installed in Claude Code: it shows from the next session.");
         if (report.hooks.statusLine === "the user's own kept") said.push("The user has a Claude Code status line of their own, so storytree's was not installed: storytree never replaces it.");
       }
+      said.push(...commandSentences(report.command), ...GH_SENTENCES[report.gh]);
       if (report.project.status === "ask") {
         said.push(
           `This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project ${quoted(report.project.suggestion)} or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on.`,

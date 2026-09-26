@@ -619,6 +619,17 @@ export async function syncDecisions(library, decisions, nodes) {
   return { counts, placed };
 }
 
+/**
+ * File each capability's founding book (stub).
+ * @param {import("@storytree/library").Library} library
+ * @param {{ file: string, story: ParsedStory }[]} stories
+ * @param {Map<string, { storyId: string, capabilityIds: Map<string, string> }>} nodes
+ * @param {ParsedDecision[]} decisions
+ */
+export async function syncFoundingBooks(library, stories, nodes, decisions) {
+  return { counts: { added: 0, updated: 0, unchanged: 0, offShelf: 0 } };
+}
+
 /** The id of the full record a decision's text ends with, as parseDecision writes it; undefined if it has none. */
 function recordOf(text) {
   return /^Full record: (ADR-\d+)\b/m.exec(text)?.[1];

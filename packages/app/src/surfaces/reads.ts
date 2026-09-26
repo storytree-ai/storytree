@@ -9,7 +9,7 @@
  * never created, since opening a project's library would create it.
  */
 import { openActivityLog, type ActivityLog, type LinesSince } from "@storytree/agent-link";
-import type { AnnotatedTree, Changes, Library, Storytree } from "@storytree/library";
+import type { AnnotatedTree, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
 export interface PageReads {
@@ -21,6 +21,10 @@ export interface PageReads {
   changesSince(project: unknown, cursor: unknown): Promise<Changes>;
   /** The agent activity log's lines for a project after `cursor` (0 for all), and the cursor to pass next time. */
   linesSince(project: unknown, cursor: unknown): Promise<LinesSince>;
+  /** A story's or capability's shelf of front covers in a project, founding book first. */
+  frontCovers(project: unknown, nodeId: unknown): Promise<SchemaRecord<"decision">[]>;
+  /** The notes in a project that link to a note. */
+  relatedNotes(project: unknown, noteId: unknown): Promise<Note[]>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;
 }
@@ -78,6 +82,8 @@ export function pageReads({ storytree, serverUrl }: PageReadsOptions): PageReads
       const known = await project(name);
       return (await activityLog()).since(known, cursor as number);
     },
+    frontCovers: () => Promise.resolve([]),
+    relatedNotes: () => Promise.resolve([]),
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];
       libraries.clear();

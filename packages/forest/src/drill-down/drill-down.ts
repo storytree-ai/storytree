@@ -14,7 +14,7 @@
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
 import type { PartState, WorkStates } from "@storytree/arc-surface";
-import type { AnnotatedContract, AnnotatedTree, Change, HealthColumn, HealthState } from "@storytree/library";
+import type { AnnotatedContract, AnnotatedTree, Change, HealthColumn, HealthState, Note, SchemaRecord } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 
@@ -43,6 +43,8 @@ export interface CapabilityLine {
   /** Where it stands, by the arc surface's work states. */
   state: PartState;
   contracts: ContractLine[];
+  /** Its shelf of front covers, once they are read (capability 7). */
+  shelf?: Shelf;
 }
 
 /** An arrow of the diagram: a capability pointing at one it builds on. */
@@ -65,7 +67,38 @@ export interface StoryPanel {
   /** In build order. */
   capabilities: CapabilityLine[];
   arrows: Arrow[];
+  /** The story's own shelf of front covers, once they are read (capability 7). */
+  shelf?: Shelf;
 }
+
+/** One book on a shelf, as its spine shows it: a front cover's title and first line. */
+export interface Spine {
+  id: string;
+  title: string;
+  firstLine: string;
+  /** Whether it is the shelf's founding book, its first. */
+  founding: boolean;
+}
+
+/** A story's or capability's shelf: its front covers as spines, founding book first, then oldest first. */
+export interface Shelf {
+  node: string;
+  spines: Spine[];
+  /** EMPTY_SHELF, when there are no spines. */
+  empty?: string;
+}
+
+/** A book opened: its full text, and the titles of the notes that link to it and that it links to. One step in, and no further. */
+export interface Book {
+  id: string;
+  title: string;
+  text: string;
+  linksIn: string[];
+  linksOut: string[];
+}
+
+/** What an empty shelf says. */
+export const EMPTY_SHELF = "no decisions on this shelf yet";
 
 /** What stands in for a description nobody has written. */
 export const NO_DESCRIPTION = "no description yet";
@@ -152,4 +185,14 @@ function trailWords(trail: readonly HealthState[]): string {
 
 function sentences(description: string | undefined): string {
   return description === undefined || description.trim() === "" ? NO_DESCRIPTION : description;
+}
+
+/** `panel` with the story's and each capability's shelf, from `covers`, the front covers read for them. */
+export function shelved(panel: StoryPanel, _covers: readonly SchemaRecord<"decision">[]): StoryPanel {
+  return panel;
+}
+
+/** `cover` opened: `linkingIn` are the notes that link to it (the library's relatedNotes), and `history` the project's changes, where the titles of the notes it links to are found. */
+export function openBook(cover: SchemaRecord<"decision">, _linkingIn: readonly Note[], _history: readonly Change[]): Book {
+  return { id: cover.id, title: "", text: "", linksIn: [], linksOut: [] };
 }

@@ -7,12 +7,23 @@
  * old version to the new one. Reads apply the steps in order, and the next write of the record
  * stores it upgraded, in place. A step is never removed: the history keeps records on every
  * version ever written.
- *
- * None yet: every type is still at version 1.
  */
 import { RECORD_SCHEMAS, SCHEMA_VERSIONS, type LibrarySchema, type UpgradeStep } from "./types.js";
 
-export const UPGRADES: readonly UpgradeStep[] = [];
+export const UPGRADES: readonly UpgradeStep[] = [
+  {
+    // Capability 10 (ADR-0640 D1): an arc is whole, with a required intent and end state. An arc
+    // written before had a title and perhaps a description, which said what it was for.
+    type: "arc",
+    from: 1,
+    name: "arc-intent-and-end-state",
+    up: (fields) => ({
+      ...fields,
+      intent: typeof fields["description"] === "string" && fields["description"] !== "" ? fields["description"] : fields["title"],
+      endState: "Not recorded: this arc was written before arcs carried an end state.",
+    }),
+  },
+];
 
 /** The schema the library runs on. */
 export const LIBRARY_SCHEMA: LibrarySchema = { versions: SCHEMA_VERSIONS, schemas: RECORD_SCHEMAS, upgrades: UPGRADES };

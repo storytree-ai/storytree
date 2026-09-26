@@ -46,6 +46,16 @@ const LIBRARY_API = [
   "editArc",
   "projectTree",
   "arcsFor",
+  "addIncrement",
+  "advanceIncrement",
+  "closeIncrement",
+  "editIncrement",
+  "parkArc",
+  "unparkArc",
+  "arcView",
+  "addWait",
+  "removeWait",
+  "waitHolds",
   "reportHealth",
   "recordVerified",
   "health",
@@ -70,16 +80,20 @@ const LIBRARY_API = [
  * reach or use as it is set up (a Cloud SQL instance without a Google sign-in, say), with a message
  * saying what to fix, so a caller catches every such refusal by its class. MissingUpgradeError
  * joined it with schema upgrades: how a record no upgrade step can bring up to date is refused.
+ * LifecycleError joined it with capability 10: how an increment asked to move backward is refused,
+ * and WaitLoopError with capability 11: how a wait that would close a loop is refused.
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
   "DependencyLoopError",
+  "LifecycleError",
   "MissingReferenceError",
   "MissingUpgradeError",
   "NewerSchemaError",
   "ProjectNameError",
   "SchemaError",
   "UnknownTypeError",
+  "WaitLoopError",
   "connect",
 ];
 
@@ -99,7 +113,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     // Add a story, and create an arc that grows it: the arc may list the story because it is there.
     // (An arc lists stories that exist, so the story comes first, as in the spec's own sketch.)
     const story = await lib.addStory({ title: "Visitor can sign up" });
-    const arc = await lib.createArc({ title: "Launch v1", stories: [story.id] });
+    const arc = await lib.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     assert.deepEqual(await lib.arcsFor(story.id), [arc], "the arc is found from its story");
 
     // A capability under the story, and a contract under that: each accepted because its parent is there.
@@ -390,7 +404,7 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
     const form = await lib.addCapability({ title: "Email form", story: story.id });
     const link = await lib.addCapability({ title: "Confirmation link", story: story.id });
     const contract = await lib.addContract({ title: "Rejects a bad email", capability: form.id, description: "Before sending" });
-    const arc = await lib.createArc({ title: "Launch v1", stories: [story.id] });
+    const arc = await lib.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
 
     // Only the named fields change; the others keep their stored values, and one set to undefined goes.
     assert.deepEqual((await lib.editStory(story.id, { title: "Visitor can sign up with email" }))?.fields, {
@@ -405,6 +419,8 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
     });
     assert.deepEqual((await lib.editArc(arc.id, { stories: [story.id, other.id], description: "The first release" }))?.fields, {
       title: "Launch v1",
+      intent: "An intent",
+      endState: "An end state",
       stories: [story.id, other.id],
       description: "The first release",
     });

@@ -15,7 +15,21 @@ import { couldBeId } from "../references.js";
 import type { SchemaRecord } from "../schema/index.js";
 import type { KnowledgeKind } from "../schema/types.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
-import type { ArcEdit, CapabilityEdit, ContractEdit, NewArc, NewCapability, NewContract, NewStory, StoryEdit } from "../work/index.js";
+import type {
+  ArcEdit,
+  ArcView,
+  CapabilityEdit,
+  CloseInput,
+  ContractEdit,
+  Hold,
+  IncrementEdit,
+  NewArc,
+  NewCapability,
+  NewContract,
+  NewIncrement,
+  NewStory,
+  StoryEdit,
+} from "../work/index.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
 export interface Storytree {
@@ -44,7 +58,10 @@ export interface Library {
    * written, if `id` is not a live story.
    */
   editStory(id: string, fields: StoryEdit): Promise<SchemaRecord<"story"> | null>;
-  /** Create an arc. Every story it lists must be a live story (MissingReferenceError otherwise); it may list none. */
+  /**
+   * Create an arc, with its intent and end state. Every story it lists must be a live story
+   * (MissingReferenceError otherwise); it may list none.
+   */
   createArc(arc: NewArc): Promise<SchemaRecord<"arc">>;
   /**
    * Change only the named fields of an arc. Every story a new `stories` lists must be a live story
@@ -69,6 +86,41 @@ export interface Library {
   projectTree(): Promise<AnnotatedTree>;
   /** The live arcs listing story `storyId`, in creation order. */
   arcsFor(storyId: string): Promise<SchemaRecord<"arc">[]>;
+
+  /**
+   * Add an increment to a live arc: a proposal, stamped with when it was parked, or, given an
+   * `outcome`, born closed. Everything it touches or remedies must be live.
+   */
+  addIncrement(increment: NewIncrement): Promise<SchemaRecord<"increment">>;
+  /** Move an increment on, to ready or active, only forward (LifecycleError otherwise). Null if `id` is not a live increment. */
+  advanceIncrement(id: string, to: "ready" | "active"): Promise<SchemaRecord<"increment"> | null>;
+  /**
+   * Close an increment with its pull request, note and what the close meant; a close with no pull
+   * request needs a note. Null if `id` is not a live increment.
+   */
+  closeIncrement(id: string, close: CloseInput): Promise<SchemaRecord<"increment"> | null>;
+  /** Change an increment's title, objective, body, or what it touches and remedies. Null if `id` is not a live increment. */
+  editIncrement(id: string, fields: IncrementEdit): Promise<SchemaRecord<"increment"> | null>;
+  /** Park an arc: it reads parked until unparked. Null if `id` is not a live arc. */
+  parkArc(id: string): Promise<SchemaRecord<"arc"> | null>;
+  /** Unpark an arc. Null if `id` is not a live arc. */
+  unparkArc(id: string): Promise<SchemaRecord<"arc"> | null>;
+  /** An arc whole: its state (worked out on every read, or parked) and its increments, oldest first. Null if `id` is not a live arc. */
+  arcView(id: string): Promise<ArcView | null>;
+
+  /**
+   * Make an arc wait on an arc, or an increment on an increment on any arc, with a reason. A wait
+   * that would close a loop across arcs and increments is refused (WaitLoopError). Null if `waiter`
+   * is not a live arc or increment.
+   */
+  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null>;
+  /** Stop `waiter` waiting on `blocker`. Null if `waiter` is not a live arc or increment. */
+  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null>;
+  /**
+   * The blockers still holding `id`, an arc or an increment, each with its reason and whether it can
+   * never release: the one answer to whether a wait holds.
+   */
+  waitHolds(id: string): Promise<Hold[]>;
 
   /** Write what the agent reported about a contract. Health is written on contracts only: anything else is refused. */
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry>;
@@ -224,6 +276,46 @@ class LibraryHandle implements Library {
 
   arcsFor(storyId: string): Promise<SchemaRecord<"arc">[]> {
     return this.#project.work.arcsFor(storyId);
+  }
+
+  addIncrement(increment: NewIncrement): Promise<SchemaRecord<"increment">> {
+    return this.#project.flight.addIncrement(increment);
+  }
+
+  advanceIncrement(id: string, to: "ready" | "active"): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.advanceIncrement(id, to);
+  }
+
+  closeIncrement(id: string, close: CloseInput): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.closeIncrement(id, close);
+  }
+
+  editIncrement(id: string, fields: IncrementEdit): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.editIncrement(id, fields);
+  }
+
+  parkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
+    return this.#project.flight.parkArc(id);
+  }
+
+  unparkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
+    return this.#project.flight.unparkArc(id);
+  }
+
+  arcView(id: string): Promise<ArcView | null> {
+    return this.#project.flight.arcView(id);
+  }
+
+  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#project.flight.addWait(waiter, blocker, reason);
+  }
+
+  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#project.flight.removeWait(waiter, blocker);
+  }
+
+  waitHolds(id: string): Promise<Hold[]> {
+    return this.#project.flight.waitHolds(id);
   }
 
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry> {

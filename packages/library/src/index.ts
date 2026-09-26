@@ -9,11 +9,30 @@ export type { CloudSqlConfig, ConnectionProblem, ConnectOptions } from "./projec
 
 export { ConnectionError, ProjectNameError } from "./project/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
+export { LifecycleError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord } from "./schema/index.js";
 export type { RecordEnvelope } from "./transactions/index.js";
-export type { ArcEdit, ArcNode, CapabilityEdit, ContractEdit, NewArc, NewCapability, NewContract, NewStory, StoryEdit } from "./work/index.js";
+export type {
+  ArcEdit,
+  ArcNode,
+  ArcState,
+  ArcView,
+  CapabilityEdit,
+  CloseInput,
+  ContractEdit,
+  Disposition,
+  Hold,
+  IncrementEdit,
+  IncrementStatus,
+  NewArc,
+  NewCapability,
+  NewContract,
+  NewIncrement,
+  NewStory,
+  StoryEdit,
+} from "./work/index.js";
 export type {
   AnnotatedCapability,
   AnnotatedContract,

@@ -2,7 +2,7 @@
  * Capability 3 · Data schema (stories/library.md): every record has a declared type with a fixed
  * set of fields, and is stamped with the schema version it was written on.
  *
- * This file declares the types, all at version 1. It describes field SHAPES only: whether the id
+ * This file declares the types, each at the version SCHEMA_VERSIONS gives it. It describes field SHAPES only: whether the id
  * in a `story`, `capability`, `node`, `stories`, `dependsOn`, `links` or `frontCoverOf` field (or
  * an agent role's `context`, `rules`, `antiPatterns` and `stepRefs`, or a process's `branchEdges`)
  * names a record that exists is for capabilities 4, 5, 6 and 9 to check.
@@ -25,7 +25,8 @@ export type RecordType =
   | "memory"
   | "decision"
   | "definition"
-  | KnowledgeKind;
+  | KnowledgeKind
+  | "increment";
 
 /**
  * Capability 6's eight kinds beyond memory notes, decisions and definitions (ADR-0640), each with
@@ -42,11 +43,20 @@ export type KnowledgeKind =
   | "resteer"
   | "techstack";
 
+/** An increment's lifecycle, in the only order it moves (capability 10). */
+export const INCREMENT_STATUSES = ["proposal", "ready", "active", "closed"] as const;
+
 /** A string that may not be empty: a title, a text, a term or a meaning. */
 const nonEmpty = z.string().min(1);
 
 /** Ids of other records. */
 const ids = z.array(z.string());
+
+/**
+ * What an arc or an increment waits on (capability 11): each blocker, an arc for an arc and an
+ * increment for an increment, with the reason. Absent means it waits on nothing.
+ */
+const waits = z.array(z.object({ on: z.string(), reason: nonEmpty }).strict()).optional();
 
 /**
  * What every one of the eight kinds carries (6-a): a title, a one-line description, and links to
@@ -91,11 +101,20 @@ const RESTEER_MODES = [
  * Every object is `.strict()`, so a field it does not declare is refused rather than stored.
  */
 export const RECORD_SCHEMAS = {
+  /**
+   * An arc, whole (capability 10): its intent and end state, required from version 2 (an older arc
+   * is upgraded, ./upgrades.ts). Whether it is active or closed is worked out from its increments on
+   * every read and never stored; only the owner's "parked" is (10-b).
+   */
   arc: z
     .object({
       title: nonEmpty,
       description: z.string().optional(),
       stories: ids.optional(),
+      intent: nonEmpty,
+      endState: nonEmpty,
+      parked: z.literal(true).optional(),
+      waits,
     })
     .strict(),
   story: z
@@ -239,11 +258,59 @@ export const RECORD_SCHEMAS = {
   techstack: z
     .object({ ...knowledgeHead, statement: nonEmpty, whatItIs: nonEmpty, whyThis: nonEmpty, constraints: nonEmpty.optional() })
     .strict(),
+  /**
+   * One increment of an arc's work (capability 10), from the moment it is decided until it closes;
+   * closed, it is the arc's log entry. It names the stories and capabilities it `touches` and the
+   * friction it `remedies` (10-a). The planning breakdown is written in `body`: 0.2's plan anchor
+   * did not last there and is not brought over (ADR-0639 D4).
+   */
+  increment: z
+    .object({
+      arc: z.string(),
+      title: nonEmpty,
+      objective: nonEmpty,
+      body: nonEmpty,
+      status: z.enum(INCREMENT_STATUSES),
+      /** When it was parked as a proposal (an ISO 8601 timestamp); absent on one born closed. */
+      parked: nonEmpty.optional(),
+      touches: ids.optional(),
+      remedies: ids.optional(),
+      waits,
+      /** How it closed: absent until it does. */
+      outcome: z
+        .object({
+          /** The day it closed (YYYY-MM-DD). */
+          date: nonEmpty,
+          pr: nonEmpty.optional(),
+          note: nonEmpty.optional(),
+          disposition: z.enum(["landed", "failed", "withdrawn"]),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict()
+    .superRefine((fields, context) => {
+      // 0.2's rules across an increment's fields (assertIncrementInvariants, ADR-0305 and ADR-0322).
+      const problem = (path: string[], message: string): void => context.addIssue({ code: "custom", path, message });
+      if (fields.status === "proposal" && fields.parked === undefined) {
+        problem(["parked"], 'a proposal needs field "parked", the time it was parked');
+      }
+      if (fields.status === "closed" && fields.outcome === undefined) {
+        problem(["outcome"], 'a closed increment needs field "outcome": how it closed');
+      }
+      if (fields.status !== "closed" && fields.outcome !== undefined) {
+        problem(["outcome"], `an increment that is ${fields.status}, not closed, has no "outcome" yet`);
+      }
+      const outcome = fields.outcome;
+      if (outcome !== undefined && outcome.pr === undefined && outcome.note === undefined && fields.parked !== undefined) {
+        problem(["outcome"], 'a close with no pull request needs a "note" saying why it closed');
+      }
+    }),
 } as const satisfies Record<RecordType, z.ZodType>;
 
 /** The schema version of each type: every record of the type is written on it. */
 export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
-  arc: 1,
+  arc: 2,
   story: 1,
   capability: 1,
   contract: 1,
@@ -259,6 +326,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   friction: 1,
   resteer: 1,
   techstack: 1,
+  increment: 1,
 };
 
 /** The fields of a record of type `T`, as its schema declares them. */

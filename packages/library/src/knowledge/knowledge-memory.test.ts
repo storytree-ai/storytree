@@ -126,7 +126,7 @@ for (const backend of [memory, postgres]) {
     const pricing = await knowledge.writeMemory({ text: "The pricing page needs a rewrite" });
     await records.create("story", { title: "Mailgun webhook", description: "Verified domain events" });
     await records.create("capability", { title: "Mailgun webhook receiver", story: story.id });
-    await records.create("arc", { title: "Mailgun migration" });
+    await records.create("arc", { title: "Mailgun migration", intent: "An intent", endState: "An end state" });
 
     const searches: [query: string, found: Note[]][] = [
       ["mailgun", [memory, decision]],

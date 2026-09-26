@@ -39,6 +39,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:^
         version: link:../../packages/forest
+      '@storytree/forest-world':
+        specifier: workspace:*
+        version: link:../../packages/forest-world
       '@storytree/library':
         specifier: workspace:*
         version: link:../../packages/library

@@ -18,7 +18,7 @@ import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRe
 
 import { changedIslands, type ForestScene, type Island, type Marker, type PlacedTree } from "@storytree/forest";
 
-import kitBytes from "./assets/dressing-kit.glb";
+import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 
 /** How tall a full tree stands, in world units. */
 const TREE_HEIGHT = 5.6;

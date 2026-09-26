@@ -182,13 +182,18 @@ place of today's plain list.
   middle like a sunflower's seeds in build order, and its name. `forestDrawn` says what was drawn as
   the smoke check reads it (`surface: "forest"`, with each tree's form and the names added),
   `changedIslands` names the islands a change touched, and `storyAt` is the island under a point on
-  the ground. The page (`apps/desktop/src/forest/forest-view.ts`) turns the plan into three.js
-  meshes: low-poly islands of sand and grass on a calm sea, one warm light with soft shadows, the
-  pines from the kit export 0.2 shipped (`dressing-kit.glb`, bundled as bytes; only that export
-  ships, never the kit), a seedling's needles in 0.2's building tint and a pale tree's washed, the
-  names as labels that face the camera, orbit controls to pan, zoom and turn, and a click that
-  selects the island under it (`data-selected`). The arc surface's live reading keeps it current:
-  the tree is read again only when the library changed, and only changed islands are rebuilt.
+  the ground. The page (`apps/desktop/src/forest/forest-view.tsx`) draws the plan with 0.2's own
+  forest canvas, ported whole with its engine in `packages/forest-world` (React and
+  react-three-fiber, as 0.2 used them). The one join, `forestDescriptors`, gives each island 0.2's
+  ground at its spiral place, 110 ground units per place-width: one hex tile per capability relaxed
+  into 0.2's mesh, a smoothed coast, and one parcel per capability wearing its tree's form (seedling,
+  pale, green and dead drawn as 0.2's building, mapped, healthy and unhealthy), with ground cover
+  grown from its contract count as 0.2 grew it from test counts. 0.2's kit pines stand on the parcels
+  (only the export `dressing-kit.glb` ships, never the kit), under 0.2's calibrated light. It opens on
+  0.2's resting view and pans and zooms as 0.2's did. Over the picture, in the same scene: the names,
+  a click that selects the island whose land is under it (`islandAt`, `data-selected`), a ring round
+  the selected island, and the claim markers. The arc surface's live reading keeps it current: the
+  tree is read again only when the library changed, and only changed islands are recomputed.
 
 **Contracts:**
 1. The app's smoke check opens a seeded project and finds one story node per story, each drawn with

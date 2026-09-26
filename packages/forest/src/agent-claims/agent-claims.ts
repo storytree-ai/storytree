@@ -27,14 +27,16 @@ export interface Marker {
 /** The markers `lines` show at time `now`: one per claim standing, in the order claimed. */
 export function claimMarkers(lines: readonly Line[], now: Date): Marker[] {
   const sessions = new Map(sessionsFrom(lines, { now }).map((session) => [session.session, session]));
-  return claimsFrom(lines, { now }).map((claim): Marker => {
+  // A marker stands at a capability; an increment's claim (ADR-0643) is the arc surface's to show.
+  return claimsFrom(lines, { now }).flatMap((claim): Marker[] => {
+    if (claim.capability === undefined) return [];
     const hooksNotRunning = sessions.get(claim.session)?.hooksRunning === false;
-    return {
+    return [{
       capability: claim.capability,
       session: claim.session,
       text: `${claim.label}: ${claim.reason}`,
       faded: claim.holder === "idle" && !hooksNotRunning,
       hooksNotRunning,
-    };
+    }];
   });
 }

@@ -330,6 +330,16 @@ idle.
     project is on GitHub with `gh` signed in (the setup check, 8, says so when it is not); a
     git-only option is after the MVP. A merge is noticed at the next agent activity in the project,
     not the moment it happens, since the database is local.
+- **As built (increment claims and the wait refusal, 5.7–5.9):** a `claimed`, `released` or
+  `merged` line names a `capability` or an `increment`, exactly one; lines from before name a
+  capability. `claim` takes either id and finds which it is in the library (an increment by reading
+  each arc's `arcView`). A closed increment is refused; so is waiting work, with each blocker and
+  its reason from the library's `waitHolds`, which already counts an increment's arc's waits. Only
+  the claim that wins starts a proposed or ready increment, under the project's lock. An edit counts
+  toward the capability and the increment its session holds; with neither it is unclaimed. The
+  forest's markers stand at capabilities only, and increment claims are the arc surface's to show.
+  The question half of 5.8 (held on an open question, through `heldOnQuestion`) waits for the
+  library's capability 12.
 - **As built (release on merge, 5.10):** a `claimed` line carries its `branch` (from `git rev-parse
   --abbrev-ref HEAD` in the session's folder; none on a detached head). The tool server looks at
   every call, and the hooks at every line but the one before a storytree tool call (which the

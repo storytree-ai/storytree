@@ -316,6 +316,21 @@ text and the titles of the notes it links to and from.
 - **Leaves out (vs 0.2), by the owner's decisions:** the library drawer, which is the note browser
   he cut from the MVP (ADR-0625 D4), and its lists of citations, which his rabbit-hole model replaces
   (ADR-0627): 0.2 offered agents 3,351 pointers to decisions and 156 were opened, 4.7% (ADR-0464).
+- **As built:** `shelved(panel, covers)` and `openBook(cover, linkingIn, history)` in
+  `packages/forest`. `shelved` puts each front cover on the shelf its mark names, the story's or one
+  of its capabilities', founding book first and then oldest first, and an empty shelf says so.
+  `openBook` gives the book's full text, the titles of the notes that link to it, and the titles of
+  the notes it links to, found in the change history. The page reads the shelves when a story opens,
+  through two new reads the app answers (`frontCovers` and `relatedNotes`, the app story's Surfaces).
+  It reads them again when a note changes. The panel shows each shelf as spines under "Front covers",
+  and a spine opens its book in place.
+- **Founding books on the shelves:** `pnpm seed:library` now files each capability's founding book,
+  the first item of its shelf in its story file, as that capability's first front cover. It is found
+  again on later runs by its last line, `Founding book of stories/<name>.md, capability N.` A
+  capability that a decision file already covers keeps that decision as its founding book (the app's
+  Updates, ADR-0637). The library and agent-link stories write no founding books, so their
+  capabilities' shelves read empty until they do, or until the library becomes the one copy of these
+  stories (`0-3-library-is-the-one-copy`).
 
 **Contracts:**
 1. A capability with three front covers shows three spines, founding book first, each with its

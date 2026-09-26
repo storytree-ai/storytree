@@ -120,6 +120,11 @@ export class WaitLoopError extends Error {
   }
 }
 
+/** A stub for the red run of capability 12. */
+export class RetireRefusedError extends Error {
+  readonly heldBy: readonly string[] = [];
+}
+
 /** One wait, as an arc or increment stores it. */
 type Wait = { readonly on: string; readonly reason: string };
 
@@ -243,6 +248,26 @@ export class WorkInFlight {
       ...holdsOf(record.fields.waits, (wait) => work.incrementHold(wait)),
       ...holdsOf(work.arcs.get(record.fields.arc)?.fields.waits, (wait) => work.arcHold(wait)),
     ];
+  }
+
+  raiseQuestion(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 12 is not built yet"));
+  }
+
+  settleQuestion(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 12 is not built yet"));
+  }
+
+  questions(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 12 is not built yet"));
+  }
+
+  heldOnQuestion(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 12 is not built yet"));
+  }
+
+  retire(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 12 is not built yet"));
   }
 
   /** Park an arc: it reads parked, whatever its work, until unparked. Null if `id` is not a live arc. */

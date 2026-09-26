@@ -48,11 +48,13 @@ import { worldTo3D, type Descriptor3D, type InstanceDescriptor, type Transform3D
 
 /**
  * How many of 0.2's ground units one of 0.3's place-widths spans. The spiral keeps places at least
- * 0.97 of a width apart, and 0.2 gives each capability 318 square units of land, so at this width
- * two neighbouring stories of up to about 25 capabilities each never touch. It is fixed, never
- * fitted to the project, so a new story moves no island (P1).
+ * 0.97 of a width apart, and 0.2 gives each capability 318 square units of land (an island reaches
+ * 11 units from its middle with one capability, 38 with twelve, 50 with twenty), so at this width
+ * two neighbouring stories of up to about 19 capabilities each never touch, and the sea between
+ * smaller ones stays close to 0.2's packed forest. It is fixed, never fitted to the project, so a
+ * new story moves no island (P1).
  */
-export const GROUND_PER_PLACE = 120;
+export const GROUND_PER_PLACE = 100;
 
 /** 0.3 world units (`forestScene`'s, a place-width of `PLACE_WIDTH`) to 0.2 ground units. */
 export const GROUND_PER_WORLD_UNIT = GROUND_PER_PLACE / PLACE_WIDTH;
@@ -123,6 +125,12 @@ function groundFor(island: Island, owner: number, centre: Pt): { cells: RelaxedC
   };
 }
 
+/** The cell the `index`th of `count` parcels is seeded on: spread evenly through the island's cells, so the
+ *  parcels (and the trees standing on them) share the island rather than crowding one side of it. */
+function spreadIndex(index: number, count: number, cells: number): number {
+  return Math.min(cells - 1, Math.floor(((index + 0.5) * cells) / count));
+}
+
 function centroid(poly: readonly Pt[]): Pt {
   return { x: poly.reduce((sum, p) => sum + p.x, 0) / poly.length, y: poly.reduce((sum, p) => sum + p.y, 0) / poly.length };
 }
@@ -161,7 +169,7 @@ export function groundInput(scene: ForestScene): SceneInput {
           capId: parcelId(island, index),
           status: statusOf(form),
           theme: THEMES[index % THEMES.length]!,
-          seed: centroid(cells[index]!.poly),
+          seed: centroid(cells[spreadIndex(index, island.trees.length, cells.length)]!.poly),
         })),
         treeTitle: island.title,
         wisps: [],

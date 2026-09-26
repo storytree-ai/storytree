@@ -237,6 +237,10 @@ nothing is closed without a reason.
   - **S (settled, ADR-0644 D3):** the routing judgement is the librarian's own, on this pass.
   - **The lease (settled, ADR-0644 D3):** no 7-day lease; every open question is looked at on each
     pass.
+- **As built:** `openQuestions`, `frictionDrain` and `route` in `packages/librarian/src/queues`. A
+  friction report with no provenance counts as another session's, as in 0.2, so the queue cannot
+  drain by going anonymous. A report is drained once it carries a route and its reason; what it is
+  routed to (a decision, a tool, a note, an edit) is then that route's own work.
 
 **Contracts:**
 1. The worklist lists every open question on every arc, oldest first.

@@ -7,7 +7,9 @@ forest and the arc surface, while agents reach it through the agent link.
 
 **Approved** by the owner on 2026-09-26. The tree below is ADR-0621 in storytree 0.2's decision log
 (`storytree-ai/storytree02`). Names and scope come from that record; change them there first.
-Capability 9 was added on 2026-09-26 by ADR-0627 in the same log.
+Capability 9 was added on 2026-09-26 by ADR-0627 in the same log. On 2026-09-27 ADR-0640 grew
+capability 6 by eight knowledge kinds and added capabilities 10 to 13, for what ADR-0633 brought
+back from 0.2: increments, waits, the owner's questions and the decision log.
 
 **Rule for building it: port behaviour, not code.** Storytree 0.2's `packages/library` and
 `packages/storage-protocol` are the behavioural reference. Nothing is copied from them wholesale.
@@ -27,6 +29,10 @@ flowchart BT
   D["7 · Library API"]
   C["8 · Cloud connection (GCP)"]
   E["9 · Knowledge entrances"]
+  I["10 · Work in flight"]
+  WT["11 · Waits"]
+  Q["12 · Owner questions"]
+  L["13 · Decision log"]
   R --> P
   F --> R
   W --> F
@@ -40,9 +46,18 @@ flowchart BT
   E --> W
   E --> K
   D --> E
+  I --> W
+  WT --> I
+  Q --> I
+  L --> K
+  D --> I
+  D --> WT
+  D --> Q
+  D --> L
 ```
 
-Build order: 1 → 2 → 3 → (4, 6) → 5 → 7, then 8, then 9.
+Build order: 1 → 2 → 3 → (4, 6) → 5 → 7, then 8, then 9, then (6's eight kinds, 10), then (11,
+12), then 13.
 
 ---
 
@@ -107,10 +122,16 @@ older record is upgraded automatically, step by step, and stored upgraded the ne
 written, because every user's library is their own database and nobody else can repair it.
 
 - **Depends on:** 2.
-- **Types at version 1:** `arc`, `story`, `capability`, `contract`, `health`, `memory`, `decision`,
-  `definition`. A decision's optional `frontCoverOf` field (capability 9) was added at version 1:
-  every decision written before it still fits the type, so it is not a new version.
-- **Leaves out (vs 0.2):** fourteen knowledge kinds, and generated renderers and templates.
+- **Types:** `arc`, `story`, `capability`, `contract`, `health`, `memory`, `decision` and
+  `definition`; capability 6's `principle`, `guardrail`, `pattern`, `process`, `agent`, `friction`,
+  `resteer` and `techstack`; capability 10's `increment`; and capability 12's `question`. A
+  decision's optional `frontCoverOf` field (capability 9) was added at version 1: every decision
+  written before it still fits the type, so it is not a new version. Two types reach version 2
+  (ADR-0640 D1): an arc gains a required intent and end state (capability 10), and a decision a
+  required status (capability 13). Each has its first upgrade step, so every older record carries
+  over untouched.
+- **Leaves out (vs 0.2):** generated renderers and templates, and 0.2's `uat-criterion` kind (UAT is
+  out of the MVP by the owner's scope decision, ADR-0625 D4).
 - **Brought back (ADR-0636 D1, a1, 2026-09-27):** 0.2's upgrade machinery, as automatic upgrading
   of older records (`packages/library/src/schema/upgrades.ts`). 0.3 starts at version 1 and adds
   an upgrade step only when the first real change needs one: making a field required, or renaming
@@ -142,8 +163,9 @@ Capabilities and contracts point at their parent. Stories belong to the project 
 structure.
 
 - **Depends on:** 3.
-- **Leaves out (vs 0.2):** story files mirrored from the repo (the library is the only copy), arc
-  increments, UAT walkthroughs, proof modes, code anchors, and ADR number lists.
+- **Leaves out (vs 0.2):** story files mirrored from the repo (the library is the only copy), UAT
+  walkthroughs, proof modes and code anchors. Arc increments, left out here at first, came back as
+  capability 10.
 
 **Contracts:**
 1. Add a story, a capability under it and a contract under that, and `projectTree()` returns them
@@ -186,14 +208,24 @@ as `passing`.
 ## 6 · Knowledge and memory
 
 Alongside the plan, the library keeps what the project has learned: memory notes, decisions and
-definitions of terms. Each can link to the other notes it relates to, and you can find them again
-by searching their words. A note never links straight to the work: capability 9 is how the work
-reaches its knowledge.
+definitions of terms, and principles, guardrails, patterns, processes, agent roles, friction,
+re-steers and tech stack, each with 0.2's fields. Each can link to the other notes it relates to,
+and you can find them again by searching their words; an edit keeps the old wording in history. A
+note never links straight to the work: capability 9 is how the work reaches its knowledge.
 
 - **Depends on:** 3.
-- **Leaves out (vs 0.2):** the ~1,200-artifact corpus (0.3 starts nearly empty), principles,
-  guardrails, agents, processes, friction and open questions as separate kinds, the graduation
-  lease, decision status and supersession tags, and ranked "related" search.
+- **Grown** on 2026-09-27 by ADR-0640 with the eight kinds 0.3 had left out (ADR-0633 D3 item 7).
+  They are written with `writeKnowledge(kind, fields)`, which joins 7's list of functions, and
+  edited with `editNote` like every other note.
+- **Its shelf,** founding book first:
+  - **Founding book (6-a):** the eight kinds keep 0.2's fields, plus a title and one-line
+    description; an agent role's rule and required-reading lists are links to those notes.
+  - **6-b:** friction keeps its adjudication fields, recurrences and discharge; re-steers keep
+    defect-or-taste, who judged it, the failure mode, and the owner's words as evidence apart from
+    the agent's account. The library stores them; counting rates is not its job.
+- **Leaves out (vs 0.2):** the ~1,200-artifact corpus (0.3 starts nearly empty), the graduation
+  lease, and ranked "related" search. Open questions are capability 12, and decision status and
+  supersession capability 13.
 
 **Contracts:**
 1. A memory note is found by `search` on any word it contains (case-insensitive).
@@ -203,6 +235,9 @@ reaches its knowledge.
 5. `definitions()` returns every live definition, and nothing else, in creation order. Added for
    the agent link's definition lookups at each prompt (ADR-0636 D1, b2), which adds `definitions`
    to 7's list of functions.
+6. Each of the eight kinds is saved with its required fields, and refused, naming the field,
+   without one.
+7. Friction with no evidence is refused, and so is a re-steer marked a defect with no failure mode.
 
 ## 7 · Library API
 
@@ -216,6 +251,8 @@ what just changed without re-reading everything.
 - **Extended** on 2026-09-26 by ADR-0626 with three edit functions, `editStory`, `editContract` and
   `editArc`, so that an agent can correct a plan through the agent link's tools without retiring and
   re-adding it. They edit the way `editCapability` and `editNote` already do.
+- **Extended** on 2026-09-27 by ADR-0640 with the functions of 6's eight kinds and of 10 to 13,
+  each listed under its capability. The change feed carries all of their records.
 
 **Contracts:**
 1. An end-to-end "agent's day" against a real local Postgres: open a project, create an arc, add a
@@ -279,6 +316,123 @@ into the knowledge is through a front cover.
 3. A note that links to a story, capability, contract, arc or health entry is refused, and nothing
    is written. Notes link only to other notes.
 
+## 10 · Work in flight
+
+Each arc is whole: its intent, its end state and its increments. An increment moves from proposal
+to ready to active to closed. An arc reads closed when its last increment closes, and reopens when
+new work is parked on it, unless the owner has parked the arc. A closed increment stays, as the
+arc's log entry: its date, pull request, note, and whether it landed, failed or was withdrawn.
+
+- **Added** on 2026-09-27 by ADR-0640 (ADR-0633 D3 items 1 and 8: increments, and arcs whole).
+- **Depends on:** 4.
+- **Its shelf,** founding book first:
+  - **Founding book (10-b):** an arc's closed or active state is worked out on every read, never
+    stored; only "parked" is stored.
+  - **10-a:** an increment names the stories and parts it touches and any friction it remedies; a
+    name that points at nothing is refused when written.
+  - **R1 (the owner's):** no hand re-open of an arc. An arc re-opens when work is parked on it; the
+    reason a closure was wrong is written on that increment.
+- **Not brought over: did not last in 0.2** (ADR-0639 D4, the owner's P1): the increment's plan
+  anchor, `storytree increment check` and the running planner agent. 78 of 1,694 increments ever
+  carried an anchor (4.6%), and 18 of 964 (1.9%) in the last 42 days before the freeze; no recorded
+  case of the check causing a re-plan (ADR-0334); the body fields it read were deleted by ADR-0305
+  D4 (live store, 2026-09-27). Planning stays: the breakdown is written in the increment's body.
+- **Boundaries** (ADR-0640 D5): the library stores these records and the arc surface only reads
+  them. Claims stay lines in the agent link's own activity log. Proposed to the agent link, not yet
+  agreed: claiming an increment calls the library's start on it (0.2's ADR-0386).
+- It adds `addIncrement`, `advanceIncrement`, `closeIncrement`, `editIncrement`, `parkArc`,
+  `unparkArc` and `arcView` to 7's list of functions, and gives `createArc` and `editArc` an intent
+  and an end state.
+
+**Contracts:**
+1. An increment belongs to one live arc. It is created as a proposal, stamped with the date it was
+   parked, or born closed.
+2. An increment moves only forward. Closing records the date, pull request, note and outcome
+   (landed, failed or withdrawn), and a close with no pull request needs a note.
+3. An arc with increments reads closed exactly when none is open and none of its questions waits on
+   the owner, and active otherwise; an arc with no increments yet reads active. A parked arc reads
+   parked until it is unparked.
+4. An arc's intent and end state are required, and an arc written before they were is upgraded to
+   carry them.
+
+## 11 · Waits
+
+An arc waits on an arc, and an increment on an increment on any arc, each with a reason. A loop
+across both kinds is refused when it is written. The library alone answers whether a wait holds
+(`waitHolds`), naming its blockers and saying when one can never release.
+
+- **Added** on 2026-09-27 by ADR-0640 (ADR-0633 D3 item 3; ADR-0523 and ADR-0628).
+- **Depends on:** 10.
+- **Its shelf,** founding book first:
+  - **Founding book (11-b):** the loop check walks arc and increment waits as one graph.
+  - **11-a:** a missing blocker holds for good; a missing question holds nothing.
+- **Boundaries** (ADR-0640 D5): the agent link's wait refusal at claim calls `waitHolds`; nobody
+  else works the answer out.
+- It adds `addWait`, `removeWait` and `waitHolds` to 7's list of functions.
+
+**Contracts:**
+1. An increment wait holds until the blocker closes as landed. A failed, withdrawn or missing
+   blocker holds for good, and says it will never release.
+2. An arc wait holds until that arc closes.
+3. A wait that would close a loop across arcs and increments is refused, naming the loop, and
+   nothing is written.
+4. `waitHolds(id)` returns the blockers still holding, each with its reason.
+
+## 12 · Owner questions
+
+A question is raised on an arc, with its stakes, statement, context and options, and settled with
+the owner's answer, which stays on the arc. An increment held on an open question reads as waiting
+on him (`heldOnQuestion`), and the library alone answers that.
+
+- **Added** on 2026-09-27 by ADR-0640 (ADR-0633 D3 item 2).
+- **Depends on:** 10.
+- **Its shelf,** founding book first:
+  - **Founding book (12-a):** a question's review-lease fields are stored; the lease drain belongs
+    to the librarian's lane.
+- It adds `raiseQuestion`, `settleQuestion`, `questions` and `heldOnQuestion` to 7's list of
+  functions, and an increment's `heldOn` list.
+
+**Contracts:**
+1. A question is raised with its required fields, and is open.
+2. Settling needs an answer and keeps it, with the date and the decision that carried it. A settled
+   question stays readable on its arc.
+3. An open increment held on an open question reads as waiting on the owner. Settling the question
+   releases it, with no write to the increment. A question that does not exist holds nothing.
+4. A question an increment is held on cannot be retired.
+
+## 13 · Decision log
+
+Decision numbers are handed out without collisions, even to writers working at the same time. A
+decision's status is proposed or accepted, and it can be superseded: the superseded decision is kept,
+and reads as superseded. A decision carries the load-bearing mark, who decided it, in their own
+words, and one composed statement.
+
+- **Added** on 2026-09-27 by ADR-0640 (ADR-0633 D3 items 5 and 6; the owner's N1 and C2).
+- **Depends on:** 6.
+- **Its shelf,** founding book first:
+  - **Founding book (13-a):** status is its own field, set directly.
+  - **13-b:** a superseded decision leaves the shelf it covered, and its successor may take its
+    place; its old wording stays readable and linked.
+  - **13-c:** a decision's links mean "rests on" (0.2's depends-on); `supersedes` is a separate
+    list, never counted as support.
+  - **N1 (the owner's):** the `storytree` project's decision numbers continue after 0.2's highest
+    number, so an ADR number means one thing across both generations; every other project starts
+    at 1. The one-copy lane sets the start when it loads 0.3's decisions.
+  - **C2 (the owner's):** composed statements come now, ported from 0.2's (ADR-0428, ADR-0533): one
+    maintained paragraph that never replaces the decision's text.
+- It adds `composeStatement` and `decision` to 7's list of functions, and gives `recordDecision` a
+  status.
+
+**Contracts:**
+1. Decisions recorded at once from separate connections get distinct numbers, each higher than any
+   before, and a number is never reused.
+2. A decision is superseded exactly when an accepted decision names it in `supersedes`. It stays
+   readable, and a supersession loop is refused.
+3. Status and the load-bearing mark are stored and read back, and a decision written before status
+   was is upgraded to carry one.
+4. A decision may carry one composed statement. A read returns it marked stale when the decision's
+   text changed after it was written, and the full text is always readable.
+
 ---
 
 ## The API later stories program against
@@ -291,15 +445,26 @@ await storytree.listProjects();                        // ["my-website"]
 const lib = await storytree.openProject("my-website"); // 1: created the first time
 
 const story = await lib.addStory({ title: "Visitor can sign up" });                  // 4
-const arc   = await lib.createArc({ title: "Launch v1", stories: [story.id] });        // 4
+const arc   = await lib.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] }); // 4, 10
 const cap   = await lib.addCapability({ title: "Email form", story: story.id });      // 4
 const k     = await lib.addContract({ title: "Rejects a bad email", capability: cap.id });
 await lib.editContract(k.id, { title: "Rejects an email with no @" }); // 7: correct the plan in place
 await lib.reportHealth(k.id, "passing", { by: "agent" });   // 5: what the agent says
 await lib.recordVerified(k.id, "failing", { by: "storytree" }); // 5: what storytree saw
-const cover = await lib.recordDecision({ title: "Send through Mailgun", text: "Simplest API", frontCoverOf: cap.id }); // 9
+const cover = await lib.recordDecision({ title: "Send through Mailgun", text: "Simplest API", status: "accepted", frontCoverOf: cap.id }); // 9, 13
 await lib.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] }); // 6: inside the cover
 await lib.frontCovers(cap.id);   // 9: the capability's shelf
+
+const inc = await lib.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…", touches: [cap.id] }); // 10
+await lib.advanceIncrement(inc.id, "active");                                            // 10
+const q = await lib.raiseQuestion({ arc: arc.id, title: "Which mailer?", stakes: "…", statement: "…", context: "…", options: "…" }); // 12
+await lib.editIncrement(inc.id, { heldOn: [q.id] });
+await lib.heldOnQuestion(inc.id);                              // 12: [q.id] until he answers
+await lib.settleQuestion(q.id, { answer: "Mailgun", decision: cover.id });
+await lib.closeIncrement(inc.id, { pr: "#12", disposition: "landed" }); // 10
+await lib.arcView(arc.id);                                     // 10: closed, with its log
+await lib.waitHolds(inc.id);                                   // 11: the blockers still holding
+await lib.decision(cover.id);                                  // 13: status, supersession, composed statement
 await lib.projectTree();          // 4 + 5: what the forest reads
 await lib.changesSince(cursor);   // 7: what just changed
 await storytree.close();

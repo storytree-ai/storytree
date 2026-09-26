@@ -15,6 +15,8 @@ export function spineOf(note: Note): string {
       return note.fields.term;
     case "memory":
       return firstLine(note.fields.text);
+    default:
+      return note.fields.title;
   }
 }
 
@@ -27,6 +29,8 @@ export function firstLineOf(note: Note): string {
       return firstLine(note.fields.meaning);
     case "memory":
       return "";
+    default:
+      return firstLine(note.fields.description);
   }
 }
 
@@ -39,8 +43,27 @@ export function wholeOf(note: Note): string {
       return `Definition of ${quoted(note.fields.term)} (${note.id}):\n${note.fields.meaning}`;
     case "memory":
       return `Memory (${note.id}):\n${note.fields.text}`;
+    default: {
+      // One of the library's eight further kinds (ADR-0640): its title, its one-line description,
+      // and each other field that holds words, by name.
+      const { title, description, ...rest } = note.fields as Record<string, unknown>;
+      const fields = Object.entries(rest).flatMap(([name, value]) => (typeof value === "string" ? [`${name}: ${value}`] : []));
+      return [`${KIND_NAMES[note.type] ?? note.type} ${quoted(String(title))} (${note.id}):`, String(description), ...fields].join("\n");
+    }
   }
 }
+
+/** What the eight further kinds are called in a sentence. */
+const KIND_NAMES: Readonly<Record<string, string>> = {
+  principle: "Principle",
+  guardrail: "Guardrail",
+  pattern: "Pattern",
+  process: "Process",
+  agent: "Agent role",
+  friction: "Friction",
+  resteer: "Re-steer",
+  techstack: "Tech stack",
+};
 
 function firstLine(text: string): string {
   const line = text.split(/\r?\n/, 1)[0] ?? "";

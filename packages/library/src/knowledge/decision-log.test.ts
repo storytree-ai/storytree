@@ -153,7 +153,7 @@ for (const backend of [memory, postgres]) {
       authority: { basis: "owner-directed", scribedBy: "cli@main", at: "2026-09-27", ownerSaid: "yes, Mailgun" },
     });
     const read = await records.get(marked.id);
-    assert.equal(read?.fields.status, "proposed");
+    assert.equal(read?.type === "decision" && read.fields.status, "proposed");
     assert.equal(read?.type === "decision" && read.fields.loadBearing, true);
     assert.equal(read?.type === "decision" && read.fields.authority?.ownerSaid, "yes, Mailgun", "who decided, in their own words");
     await assert.rejects(
@@ -166,7 +166,7 @@ for (const backend of [memory, postgres]) {
     await transactions.save({ id: "decision-old", type: "decision", version: 1, fields: { title: "Old", text: "Decided before status" } });
     const upgraded = await records.get("decision-old");
     assert.equal(upgraded?.version, 2);
-    assert.equal(upgraded?.fields.status, "accepted", "what was recorded as decided reads accepted");
+    assert.equal(upgraded?.type === "decision" && upgraded.fields.status, "accepted", "what was recorded as decided reads accepted");
   });
 
   contract("13.4", "a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable", async ({ knowledge }) => {

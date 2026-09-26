@@ -61,8 +61,8 @@ test("3.4 the page can ask the app for a story's or capability's shelf of front 
     const library = await storytree.openProject(shown);
     const story = await library.addStory({ title: "Visitor can sign up" });
     const other = await library.addStory({ title: "Visitor can sign in" });
-    const cover = await library.recordDecision({ title: "Sign-up asks for an email only", text: "Nothing else, to keep it short.", frontCoverOf: story.id });
-    await library.recordDecision({ title: "Sign-in remembers the device", text: "For thirty days.", frontCoverOf: other.id });
+    const cover = await library.recordDecision({ status: "accepted", title: "Sign-up asks for an email only", text: "Nothing else, to keep it short.", frontCoverOf: story.id });
+    await library.recordDecision({ status: "accepted", title: "Sign-in remembers the device", text: "For thirty days.", frontCoverOf: other.id });
     const why = await library.writeMemory({ text: "Asking for a name lost a third of visitors.", links: [cover.id] });
 
     assert.deepEqual((await reads.frontCovers(shown, story.id)).map(({ id }) => id), [cover.id], "the story's shelf, and no other's");

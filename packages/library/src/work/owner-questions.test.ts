@@ -115,7 +115,7 @@ for (const backend of [memory, postgres]) {
   contract("12.2", "settling needs an answer and keeps it, with the date and the decision that carried it; a settled question stays readable on its arc", async ({ work, flight, knowledge, transactions }) => {
     const arc = await work.createArc(ARC);
     const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
-    const decision = await knowledge.recordDecision({ title: "Send through Mailgun", text: "Its API is the simplest" });
+    const decision = await knowledge.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest" });
 
     const history = await transactions.history();
     await assert.rejects(

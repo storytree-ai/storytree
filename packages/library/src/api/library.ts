@@ -9,7 +9,7 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
+import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { SchemaRecord } from "../schema/index.js";
@@ -148,8 +148,10 @@ export interface Library {
   /** Write a memory note. Every link must name a live note: notes link only to notes. */
   writeMemory(memory: NewMemory): Promise<SchemaRecord<"memory">>;
   /**
-   * Record a decision. Every link must name a live note, and `frontCoverOf`, if given, the one live
-   * story or capability the decision is a front cover of.
+   * Record a decision, with its status. Every link must name a live note, `frontCoverOf`, if given,
+   * the one live story or capability the decision is a front cover of, and each decision it
+   * supersedes a live decision. It is numbered one past the highest number any decision has held,
+   * unless it is brought in under its own, which no other may have held (NumberTakenError).
    */
   recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">>;
   /**
@@ -173,6 +175,17 @@ export interface Library {
    * (oldest) first. This is how the work reaches its knowledge.
    */
   frontCovers(nodeId: string): Promise<SchemaRecord<"decision">[]>;
+  /**
+   * A decision as the decision log reads it: its record, full text included; its status, which is
+   * superseded exactly when an accepted decision names it in `supersedes`; and its composed
+   * statement, marked stale once its text has changed since. Null if `id` is not a live decision.
+   */
+  decision(id: string): Promise<DecisionView | null>;
+  /**
+   * Compose a decision's one statement: a maintained paragraph beside its text, never in its place,
+   * replacing any before it. Null if `id` is not a live decision.
+   */
+  composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null>;
 
   /**
    * Retire a record: it is gone from every read, and its history keeps it and `reason`. Retiring
@@ -399,6 +412,14 @@ class LibraryHandle implements Library {
 
   frontCovers(nodeId: string): Promise<SchemaRecord<"decision">[]> {
     return this.#project.knowledge.frontCovers(nodeId);
+  }
+
+  decision(id: string): Promise<DecisionView | null> {
+    return this.#project.knowledge.decision(id);
+  }
+
+  composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null> {
+    return this.#project.knowledge.composeStatement(id, statement);
   }
 
   /**

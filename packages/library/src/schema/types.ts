@@ -154,6 +154,13 @@ export const RECORD_SCHEMAS = {
       links: ids.optional(),
     })
     .strict(),
+  /**
+   * A decision, with the decision log's fields (capability 13): its `status`, required from version
+   * 2 (an older decision is upgraded, ./upgrades.ts), set directly (13-a); its `number`, handed out
+   * when it is recorded; the decisions it `supersedes`, never counted as support, which is what its
+   * `links` mean (13-c); the load-bearing mark; who decided it, in their own words; and one
+   * composed statement. Whether it is superseded is worked out on every read, never stored.
+   */
   decision: z
     .object({
       title: nonEmpty,
@@ -161,8 +168,40 @@ export const RECORD_SCHEMAS = {
       links: ids.optional(),
       /** The one story or capability this decision is a front cover of (capability 9). */
       frontCoverOf: z.string().optional(),
+      status: z.enum(["proposed", "accepted"]),
+      number: z.number().int().positive().optional(),
+      supersedes: ids.optional(),
+      loadBearing: z.boolean().optional(),
+      /** The day it was decided (YYYY-MM-DD). */
+      decided: nonEmpty.optional(),
+      /** Whose call it was (0.2's ADR-0519): a stamp claiming the owner quotes him, verbatim. */
+      authority: z
+        .object({
+          basis: z.enum(["owner-directed", "owner-ratified", "agent-derived", "agent-flipped"]),
+          scribedBy: nonEmpty,
+          at: nonEmpty,
+          ownerSaid: nonEmpty.optional(),
+        })
+        .strict()
+        .optional(),
+      /**
+       * The one composed statement (the owner's C2; 0.2's ADR-0428): a maintained paragraph that
+       * never replaces the text, with the fingerprint of the text it was composed against, so a
+       * read can say when the text has changed since.
+       */
+      composed: z.object({ statement: nonEmpty, composedAt: nonEmpty, fingerprint: nonEmpty }).strict().optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((fields, context) => {
+      const authority = fields.authority;
+      if (authority !== undefined && authority.basis.startsWith("owner-") && authority.ownerSaid === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["authority"],
+          message: `an "${authority.basis}" authority quotes the owner in "ownerSaid"; with no words of his to quote, the basis is "agent-derived"`,
+        });
+      }
+    }),
   definition: z
     .object({
       term: nonEmpty,
@@ -363,7 +402,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   contract: 1,
   health: 1,
   memory: 1,
-  decision: 1,
+  decision: 2,
   definition: 1,
   principle: 1,
   guardrail: 1,

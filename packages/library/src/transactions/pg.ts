@@ -4,7 +4,7 @@
  */
 import type { Pool, PoolClient } from "pg";
 
-import { check, editedRecord, historyEntry, now, savedRecord } from "./records.js";
+import { check, editedRecord, historyEntry, now, numbered, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -53,7 +53,7 @@ export class PgTransactions implements Transactions {
   save(input: SaveInput): Promise<RecordEnvelope> {
     return this.#write(async (client) => {
       const current = await lockCurrent(client, input.id);
-      const record = savedRecord(input, current, now());
+      const record = savedRecord(await numberedIn(client, input), current, now());
       check(record, input.validate);
       await appendEvent(client, current === undefined ? "created" : "updated", record, record.updatedAt, input.actor);
       await putRecord(client, record);
@@ -170,6 +170,31 @@ async function lockCurrent(client: PoolClient, id: string): Promise<RecordEnvelo
   const { rows } = await client.query<RecordRow>(`SELECT ${RECORD_COLUMNS} FROM record WHERE id = $1 FOR UPDATE`, [id]);
   const row = rows[0];
   return row === undefined ? undefined : recordOf(row);
+}
+
+/**
+ * `input` numbered from every number its type's records have held, as the history keeps them. It
+ * runs under the project's write lock, so no other write can take a number between this read and
+ * the save's own write.
+ */
+async function numberedIn(client: PoolClient, input: SaveInput): Promise<SaveInput> {
+  const field = input.sequence;
+  if (field === undefined) return input;
+  const { rows } = await client.query<{ highest: string }>(
+    `SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event
+     WHERE type = $1 AND jsonb_typeof(record->'fields'->$2::text) = 'number'`,
+    [input.type, field],
+  );
+  const given = input.fields[field];
+  let taken = false;
+  if (typeof given === "number") {
+    const found = await client.query(
+      `SELECT 1 FROM record_event WHERE type = $1 AND record_id <> $3 AND record->'fields'->$2::text = to_jsonb($4::numeric) LIMIT 1`,
+      [input.type, field, input.id, given],
+    );
+    taken = found.rows.length > 0;
+  }
+  return numbered(input, Number(rows[0]?.highest ?? 0), () => taken);
 }
 
 /** Write one change to the history: always first, before the record itself changes. */

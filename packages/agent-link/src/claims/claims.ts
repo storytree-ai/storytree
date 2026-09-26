@@ -13,6 +13,8 @@
  * - A session may hold more than one capability. Its edits count toward the one it claimed most
  *   recently of those it still holds; an edit or command from a session holding nothing is
  *   unplanned activity.
+ * - A claim also ends when a pull request from the branch it was taken on merges after it was
+ *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  */
 import type { Library } from "@storytree/library";
@@ -31,6 +33,8 @@ export interface Claim {
   reason: string;
   /** When it was claimed. */
   since: string;
+  /** The git branch it was claimed on, when its session's folder was on one: a pull request from it merging ends the claim (ADR-0643 D3). */
+  branch?: string;
   /** Whether the holding session is live, or idle past the quiet time (and so can be taken over). */
   holder: "live" | "idle";
 }
@@ -43,6 +47,8 @@ export interface ClaimContext {
   readonly session: string;
   readonly harness?: string;
   readonly folder?: string;
+  /** The git branch the session's folder is on, recorded with a claim so that its merge ends it (ADR-0643 D3). */
+  readonly branch?: string;
   /** How long a holder may be quiet before its claim can be taken over. By default, sessions' quiet time. */
   readonly quietMs?: number;
 }
@@ -73,7 +79,7 @@ export interface ClaimsOptions {
 }
 
 /** The kinds of line that decide who holds what. */
-const CLAIM_KINDS = ["claimed", "released", "landed", "session-ended"] as const;
+const CLAIM_KINDS = ["claimed", "released", "landed", "merged", "session-ended"] as const;
 
 /**
  * Claim `capability` for the context's session, with a one-line reason. Refused if the library has
@@ -92,8 +98,9 @@ export async function claim(context: ClaimContext, capability: string, reason: s
       capability,
       reason,
       ...(current === undefined ? {} : { takenOverFrom: current.session }),
+      ...(context.branch === undefined ? {} : { branch: context.branch }),
     });
-    const claimed: Claim = { ...claimOf(line.session, line.harness, capability, reason, line.at), holder: "live" };
+    const claimed: Claim = { ...claimOf(line.session, line.harness, capability, reason, line.at, context.branch), holder: "live" };
     return current === undefined ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });
 }
@@ -154,6 +161,9 @@ export function attributeFrom(lines: readonly Line[]): Attributed[] {
       case "landed":
         drop(line.session, line.capability);
         break;
+      case "merged":
+        drop(line.holder, line.capability);
+        break;
       case "session-ended":
         holding.delete(line.session);
         break;
@@ -190,11 +200,14 @@ function held(claimLines: readonly Line[], lastSeen: ReadonlyMap<string, string>
   for (const line of claimLines) {
     switch (line.kind) {
       case "claimed":
-        holders.set(line.capability, claimOf(line.session, line.harness, line.capability, line.reason, line.at));
+        holders.set(line.capability, claimOf(line.session, line.harness, line.capability, line.reason, line.at, line.branch));
         break;
       case "released":
       case "landed":
         if (holders.get(line.capability)?.session === line.session) holders.delete(line.capability);
+        break;
+      case "merged":
+        if (holders.get(line.capability)?.session === line.holder) holders.delete(line.capability);
         break;
       case "session-ended":
         for (const [capability, holder] of holders) if (holder.session === line.session) holders.delete(capability);
@@ -209,8 +222,8 @@ function held(claimLines: readonly Line[], lastSeen: ReadonlyMap<string, string>
   return claims;
 }
 
-function claimOf(session: string, harness: string | undefined, capability: string, reason: string, since: string): Omit<Claim, "holder"> {
-  return { capability, session, ...(harness === undefined ? {} : { harness }), label: labelOf(harness), reason, since };
+function claimOf(session: string, harness: string | undefined, capability: string, reason: string, since: string, branch: string | undefined): Omit<Claim, "holder"> {
+  return { capability, session, ...(harness === undefined ? {} : { harness }), label: labelOf(harness), reason, since, ...(branch === undefined ? {} : { branch }) };
 }
 
 /** The fields every line a claim writes carries: whose it is. */

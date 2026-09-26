@@ -18,6 +18,7 @@
  * - knows which of the session's agents made it (ADR-0629 D2), from what the harness revealed:
  *   the line the hook before the call left under the call's id, or, for Codex, the call's own
  *   thread (agentOf);
+ * - ends each claim whose pull request has merged since it was taken (ADR-0643 D3);
  * - turns a refusal from the library or the claims into a readable answer marked as an error,
  *   never a crash.
  */
@@ -29,6 +30,7 @@ import type { Library } from "@storytree/library";
 import type { z } from "zod";
 
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
+import { endMergedClaims, type MergeWatch } from "../claims/index.js";
 import { habitsCard } from "../instructions/index.js";
 import { route } from "../routing/index.js";
 import { QUIET_MS } from "../sessions/index.js";
@@ -53,6 +55,8 @@ export interface AgentToolOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
   /** How long a claim's holder may be quiet before it can be taken over. By default, sessions' quiet time. */
   readonly quietMs?: number;
+  /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
+  readonly merges?: MergeWatch;
   /** What the setup check (capability 8) works with: by default, the user's own homes and no hook command. */
   readonly setup?: Omit<SetupOptions, "folder">;
 }
@@ -110,6 +114,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         const { lines } = await log.since(where.project, 0);
         const caller = seenCaller(lines, callerOf(context), meta);
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name });
+        // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
+        await endMergedClaims({ log, project: where.project, folder: options.folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
         return result(await act(args as never, { library, log, project: where.project, caller, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
       } catch (error) {
         if (isUnreachable(error)) {

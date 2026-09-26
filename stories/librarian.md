@@ -168,6 +168,10 @@ never a near-copy. Guidance any capable agent would work out for itself is prune
   - **Proposed, approved:** a note is retired only if nothing points at it.
   - **Proposed, approved:** a rule that moved into a note stops being cited by decision number in
     the place it left. When in doubt, the citation stays.
+- **As built:** `retire` and `newNotes` in `packages/librarian/src/catalogue`. What points at a note:
+  any note's reference (links, supersessions, a process's hand-ons, an agent role's reading), an
+  increment's `remedies` and a question's `settledBy`. A title's words are those of four letters or
+  more, each searched on its own; a memory's text stands for its title, and a definition's term.
 
 **Contracts:**
 1. `retire(id, reason)` retires a note nothing points at. A note that another live record points at

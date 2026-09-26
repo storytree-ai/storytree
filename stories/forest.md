@@ -18,12 +18,18 @@ until he decides it by name. The forest's five, items c1 to c5 of
 `oq-0-3-cuts-awaiting-owner-decision`, were put to him by name the same day, and he cut all five
 (ADR-0635). So every "leaves out" line below now rests on a decision he made himself.
 
-**Rule for building it: port behaviour, not code.** Storytree 0.2's 3D forest map
-(`packages/forest-world-r3f`, with the grove look of ADR-0508) is the behavioural reference for the
-look: low-poly islands on a calm sea, the pine kit the owner bought, one warm light. It is ported as
-it stands, with no art research (ADR-0625 D4), and nothing is copied from it wholesale. Only meshes
-exported from the bought pine kit ship, never the kit itself: its licence allows derived output and
-forbids repackaging (ADR-0418's rule, as 0.2 applied it). The forest reads the library only through
+**Rule for building it: port 0.2's code, whole.** Storytree 0.2's forest drawing engine
+(`packages/forest-world-r3f`, with the grove look of ADR-0508) is brought over as it stands, as the
+package `packages/forest-world`: low-poly islands on a calm sea, the pine kit the owner bought, one
+warm light, with no art research (ADR-0625 D4). This follows ADR-0633 D2 (port what worked in 0.2
+whole; nothing is cut without the owner's decision) and ADR-0632 D2 ("the land look endorsed for
+0.2 is ported as it stands"). It corrects this line's first wording, "port behaviour, not code",
+which led capability 3 to redraw the forest by hand as an imitation (storytree-ai/storytree#41);
+the owner, on seeing it: "its not as good as 0.2 - i'm confused why we can't get our hard work
+from 0.2 and bring it over" (2026-09-27). What 0.3 decides is the input: each story node's place
+(P1) and its grove (G1), joined to 0.2's ground in `packages/forest-world/src/forest-ground`.
+Only meshes exported from the bought pine kit ship, never the kit itself: its licence allows
+derived output and forbids repackaging (ADR-0418's rule, as 0.2 applied it). The forest reads the library only through
 its public API (`stories/library.md`, capability 7), and the agent link only through what it already
 records (`stories/agent-link.md`, capabilities 2, 4 and 5). It adds nothing to either.
 

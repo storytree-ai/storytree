@@ -1,0 +1,26 @@
+{
+  "name": "@storytree/forest-world",
+  "private": true,
+  "type": "module",
+  "description": "0.2's forest drawing engine, ported whole (ADR-0633 D2, ADR-0632 D2): the plain three.js ground, coast, shore, shadow and kit-tree code of 0.2's packages/forest-world-r3f, the slice of 0.2's forest-world core its geometry needs (src/core), and the join that feeds it 0.3's story node places.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./assets/dressing-kit.glb": "./assets/dressing-kit.glb"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/forest": "workspace:*",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/three": "^0.185.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2",
+    "@storytree/agent-link": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/arc-surface": "workspace:*"
+  }
+}

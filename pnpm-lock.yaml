@@ -39,6 +39,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:^
         version: link:../../packages/forest
+      '@storytree/forest-world':
+        specifier: workspace:*
+        version: link:../../packages/forest-world
       '@storytree/library':
         specifier: workspace:*
         version: link:../../packages/library
@@ -163,6 +166,37 @@ importers:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/forest-world:
+    dependencies:
+      '@storytree/forest':
+        specifier: workspace:*
+        version: link:../forest
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+      '@storytree/arc-surface':
+        specifier: workspace:*
+        version: link:../arc-surface
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.4
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

@@ -7,6 +7,7 @@ import {
   MissingReferenceError,
   NewerSchemaError,
   ProjectNameError,
+  RetireRefusedError,
   SchemaError,
   UnknownTypeError,
   WaitLoopError,
@@ -39,7 +40,7 @@ export function result(answer: Answer): CallToolResult {
 
 /** A refusal the agent can read: the library's own message for the refusals it makes, said plainly otherwise. */
 export function refusalOf(error: unknown): string {
-  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ConnectionError, LifecycleError, WaitLoopError, CaptureError];
+  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ConnectionError, LifecycleError, WaitLoopError, RetireRefusedError, CaptureError];
   if (refusals.some((kind) => error instanceof kind)) return `storytree refused that: ${(error as Error).message}`;
   return `storytree could not do that: ${error instanceof Error ? error.message : String(error)}`;
 }

@@ -10,7 +10,7 @@
  *   commit, a command and its output, an error, or a quoted excerpt. Vague prose is refused. The
  *   check is deliberately dumb about truth: it only refuses what cannot be a citation.
  * - A re-steer's evidence is the owner's own words, quoted: a paraphrase is the agent's account,
- *   which goes in `selfReport`, apart (0.2's ADR-0513 D4). "Judged by the owner" is his call, never
+ *   which goes in `selfReport`, apart (0.2's ADR-0513 D4). "Judged by the owner" is the owner's call, never
  *   an inference of the agent's.
  * - Capture never classifies: friction is filed without a route, which is decided later by someone
  *   other than the session that filed it (0.2's ADR-0168 D4).
@@ -30,7 +30,7 @@ export interface NewFriction {
   readonly links?: string[];
 }
 
-/** A re-steer as it is filed: what the agent was doing, what the owner redirected it to, and his words. */
+/** A re-steer as it is filed: what the agent was doing, what the owner redirected it to, and the owner's words. */
 export interface NewResteer {
   readonly title: string;
   readonly description: string;
@@ -38,7 +38,7 @@ export interface NewResteer {
   readonly redirect: string;
   /** The owner's own words, quoted. */
   readonly evidence: string;
-  /** The agent's own account of it, kept apart from his words. */
+  /** The agent's own account of it, kept apart from the owner's words. */
   readonly selfReport?: string;
   readonly disposition: "defect" | "taste";
   /** Who judged it a defect or taste: the owner, or the agent. */
@@ -82,7 +82,7 @@ export async function recordFriction(library: Library, friction: NewFriction): P
 export async function recordResteer(library: Library, resteer: NewResteer): Promise<SchemaRecord<"resteer">> {
   if (!QUOTED.test(resteer.evidence)) {
     throw new CaptureError(
-      `a re-steer's evidence is the owner's own words: quote what he actually said. A paraphrase is your account of his words, which goes in the self-report. You gave: ${resteer.evidence}`,
+      `a re-steer's evidence is the owner's own words: quote what the owner actually said. A paraphrase is your account of those words, which goes in the self-report. You gave: ${resteer.evidence}`,
     );
   }
   // Its failure mode is checked against the library's own list of modes, inside the write.

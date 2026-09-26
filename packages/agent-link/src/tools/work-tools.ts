@@ -1,6 +1,6 @@
 /**
  * The work tools (ADR-0643 D1, 6): park, ready and close increments, park and unpark arcs, set and
- * clear waits, and record friction and re-steers. Each is a thin wrapper over the library's own
+ * clear waits, raise, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
  * functions, or this story's capture functions over them, so no library rule is kept here twice.
  * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is.
  *
@@ -12,7 +12,7 @@ import type { Library } from "@storytree/library";
 import { z } from "zod";
 
 import { recordFriction, recordResteer } from "../capture/index.js";
-import { closed } from "../claims/index.js";
+import { closed, increments } from "../claims/index.js";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -107,6 +107,56 @@ export function registerWorkTools(define: Define): void {
   );
 
   define(
+    "raise_question",
+    "Raise a question for the owner on an arc, instead of only asking in chat: what is at stake, the question, the context they need to answer it cold, and the options. Name the increments that cannot go on until they answer: those wait on the owner until it is settled.",
+    z.object({
+      arc: id("arc"),
+      title: z.string().min(1).describe("A short name for it"),
+      stakes: z.string().min(1).describe("What hangs on the answer"),
+      statement: z.string().min(1).describe("The question itself"),
+      context: z.string().min(1).describe("What the owner needs to know to answer it"),
+      options: z.string().min(1).describe("The options the owner has"),
+      recommendation: z.string().min(1).optional().describe("Which option you recommend, and why"),
+      holds: z.array(z.string().min(1)).optional().describe("The ids of the increments held until the owner answers"),
+    }),
+    async ({ holds, ...asked }, { library }) => {
+      const question = await library.raiseQuestion(defined(asked));
+      for (const increment of holds ?? []) {
+        const held = await heldOn(library, increment);
+        if (held === undefined) return { text: `Raised ${quoted(asked.title)} (${question.id}), but there is no increment ${increment} to hold on it.`, refused: true, data: { id: question.id } };
+        await library.editIncrement(increment, { heldOn: [...held, question.id] });
+      }
+      const holding = holds === undefined || holds.length === 0 ? "" : ` ${holds.join(", ")} ${holds.length === 1 ? "waits" : "wait"} on the answer.`;
+      return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${holding}`, data: { id: question.id } };
+    },
+  );
+
+  define(
+    "settle_question",
+    "Settle a question with the owner's answer, in their own words, and the decision that carried it if one did. Work held on it goes on.",
+    z.object({
+      question: id("question"),
+      answer: z.string().min(1).describe("The owner's answer, in their own words"),
+      decision: z.string().min(1).optional().describe("The id of the decision that carried it"),
+    }),
+    async ({ question, answer, decision }, { library }) => {
+      const settled = await library.settleQuestion(question, defined({ answer, decision }));
+      if (settled === null) return { text: `There is no question ${question} in this project.`, refused: true };
+      return { text: `Settled ${quoted(settled.fields.title)} (${question}). Work held on it goes on.`, data: { id: question } };
+    },
+  );
+
+  define(
+    "retire_question",
+    "Retire a question that was wrong to ask, with the reason. One that was answered is settled instead, and one that work is held on cannot be retired.",
+    z.object({ question: id("question"), reason: z.string().min(1).describe("Why it was wrong to ask") }),
+    async ({ question, reason }, { library }) => {
+      await library.retire(question, reason);
+      return { text: `Retired question ${question}.`, data: { id: question } };
+    },
+  );
+
+  define(
     "record_friction",
     "Record friction: something that got in the way, with concrete evidence (a path, a pull request, a commit, a command and its output, an error, or a quoted excerpt) and what it cost. Record it; do not decide what to do about it.",
     z.object({
@@ -124,16 +174,16 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "record_resteer",
-    "Record a re-steer: the owner redirected what you were doing. Quote his own words as the evidence; your own account of it goes in self_report. Say whether it was a defect or a matter of taste, and who judged that: the owner, or you. A defect needs its failure mode (no-mast-home when none fits).",
+    "Record a re-steer: the owner redirected what you were doing. Quote their own words as the evidence; your own account of it goes in self_report. Say whether it was a defect or a matter of taste, and who judged that: the owner, or you. A defect needs its failure mode (no-mast-home when none fits).",
     z.object({
       title: z.string().min(1).describe("A short name for it"),
       description: z.string().min(1).describe("One line on what it is"),
       doing: z.string().min(1).describe("What you were doing"),
-      redirect: z.string().min(1).describe("What he redirected you to"),
+      redirect: z.string().min(1).describe("What the owner redirected you to"),
       evidence: z.string().min(1).describe("His own words, quoted"),
       self_report: z.string().min(1).optional().describe("Your own account of it"),
       disposition: z.enum(["defect", "taste"]).describe("defect: something went wrong; taste: a preference"),
-      judged_by: z.enum(["owner", "agent"]).describe("Who judged it a defect or taste: owner only when he said so"),
+      judged_by: z.enum(["owner", "agent"]).describe("Who judged it a defect or taste: owner only when the owner said so"),
       mode: z.string().min(1).optional().describe("A defect's failure mode"),
     }),
     async ({ self_report: selfReport, judged_by: dispositionBy, ...fields }, { library }) => {
@@ -141,6 +191,12 @@ export function registerWorkTools(define: Define): void {
       return { text: `Recorded re-steer ${quoted(fields.title)} (${resteer.id}).`, data: { id: resteer.id } };
     },
   );
+}
+
+/** The questions increment `id` is held on now, or undefined when it is not a live increment. */
+async function heldOn(library: Library, id: string): Promise<string[] | undefined> {
+  const increment = (await increments(library)).find((one) => one.id === id);
+  return increment === undefined ? undefined : (increment.fields.heldOn ?? []);
 }
 
 function noIncrement(increment: string): Answer {

@@ -338,8 +338,8 @@ idle.
   the claim that wins starts a proposed or ready increment, under the project's lock. An edit counts
   toward the capability and the increment its session holds; with neither it is unclaimed. The
   forest's markers stand at capabilities only, and increment claims are the arc surface's to show.
-  The question half of 5.8 (held on an open question, through `heldOnQuestion`) waits for the
-  library's capability 12.
+  An increment held on an open question (the library's `heldOnQuestion`) is refused as waiting on
+  the owner, and counts as waiting when a capability's increments are weighed.
 - **As built (release on merge, 5.10):** a `claimed` line carries its `branch` (from `git rev-parse
   --abbrev-ref HEAD` in the session's folder; none on a detached head). The tool server looks at
   every call, and the hooks at every line but the one before a storytree tool call (which the
@@ -450,8 +450,8 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
   - **Waits:** `set_wait` makes an arc wait on an arc, or an increment on an increment, with a
     reason; `clear_wait` takes one away. A loop is the library's to refuse.
   - **Questions:** `raise_question` raises one on an arc (stakes, statement, context, options) and
-    can hold increments on it; `settle_question` settles it with the owner's answer, in his words;
-    `retire_question` retires one that was wrong, which the library refuses while an increment is
+    can hold increments on it; `settle_question` settles it with the owner's answer, in the owner's
+    own words; `retire_question` retires one that was wrong, which the library refuses while an increment is
     held on it.
   - **Friction and re-steers,** with 0.2's evidence rules (the owner's n4, from 0.2's
     `packages/cli/src/friction.ts` and `resteer.ts`), kept as this story's capture functions that
@@ -470,7 +470,9 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     floor for concrete evidence is ported as its list of patterns, with 0.2's own repository folders
     widened to any path, since a user's project has its own. A re-steer's evidence must hold a
     quoted excerpt of three characters or more. The library's own refusals (a lifecycle move
-    backwards, a wait loop) come back as readable answers.
+    backwards, a wait loop, retiring a question work is held on) come back as readable answers.
+    `raise_question` holds the increments it names by adding the question to each one's `heldOn`,
+    through the library's `editIncrement`, and `retire_question` is the library's `retire`.
   - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
     this one server, beside these, and can fill a "next" line that `land`'s answer ends with; until
     one does, the answer has none.

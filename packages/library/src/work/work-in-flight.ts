@@ -10,6 +10,10 @@
  * with a reason, and a wait that would close a loop across both kinds is refused when it is written.
  * waitHolds is the one answer to whether a wait still holds.
  *
+ * Capability 12 · Owner questions: a question is raised on an arc and settled with the owner's
+ * answer, which stays on it. An open increment held on an open question is waiting on him, and
+ * heldOnQuestion is the one answer to that. A question work is held on cannot be retired.
+ *
  * The increment's shape and the rules across its fields (a proposal carries when it was parked; a
  * closed increment its outcome; a close with no pull request a note) are capability 3's, checked
  * inside every write (schema/types.ts). What this layer checks before writing is what a schema
@@ -52,6 +56,8 @@ export interface NewIncrement {
   readonly touches?: string[];
   /** The friction it remedies: each must be live. */
   readonly remedies?: string[];
+  /** The open questions it is held on (capability 12): each must be a live question. */
+  readonly heldOn?: string[];
   readonly outcome?: CloseInput;
 }
 
@@ -62,13 +68,26 @@ export interface IncrementEdit {
   readonly body?: string;
   readonly touches?: string[] | undefined;
   readonly remedies?: string[] | undefined;
+  readonly heldOn?: string[] | undefined;
 }
 
-/** An arc whole: its record, its state, and its increments, oldest first. */
+/** A new question for the owner, on a live arc (capability 12). */
+export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;
+
+/** How a question is settled: the owner's answer, and the decision that carried it, if one did. */
+export interface Settlement {
+  readonly answer: string;
+  /** A live decision. */
+  readonly decision?: string;
+}
+
+/** An arc whole: its record, its state, its increments and its questions, oldest first. */
 export interface ArcView {
   readonly arc: SchemaRecord<"arc">;
   readonly state: ArcState;
   readonly increments: SchemaRecord<"increment">[];
+  /** Its questions, open and settled. */
+  readonly questions: SchemaRecord<"question">[];
 }
 
 /**
@@ -120,11 +139,31 @@ export class WaitLoopError extends Error {
   }
 }
 
+/**
+ * A question some increment is held on cannot be retired (12.4): retiring it would leave the work
+ * pointing at nothing. The message names the question and the increments held on it.
+ */
+export class RetireRefusedError extends Error {
+  readonly id: string;
+  /** The increments held on it. */
+  readonly heldBy: readonly string[];
+
+  constructor(id: string, heldBy: readonly string[]) {
+    super(
+      `question ${JSON.stringify(id)} cannot be retired: ${heldBy.map((held) => JSON.stringify(held)).join(", ")} ` +
+        "hold on it (take it off their heldOn first, or settle it instead)",
+    );
+    this.name = "RetireRefusedError";
+    this.id = id;
+    this.heldBy = [...heldBy];
+  }
+}
+
 /** One wait, as an arc or increment stores it. */
 type Wait = { readonly on: string; readonly reason: string };
 
 const TOUCHABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
-const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "touches", "remedies"]);
+const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "touches", "remedies", "heldOn"]);
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
@@ -245,6 +284,70 @@ export class WorkInFlight {
     ];
   }
 
+  /**
+   * Raise a question for the owner on a live arc (MissingReferenceError otherwise). It is open, and
+   * stamped as verified now: the start of its review lease (12-a).
+   */
+  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">> {
+    return this.#serially(async () => {
+      await checkReference(this.#records, "arc", question.arc, "arc");
+      return this.#records.create("question", { ...question, lifecycle: "open", verifiedAt: new Date().toISOString() });
+    });
+  }
+
+  /**
+   * Settle a question with the owner's answer, kept on it with when and the decision that carried
+   * it, which must be a live decision. A settlement with no answer is refused (SchemaError), and so
+   * is settling a settled question. Null, with nothing written, if `id` is not a live question.
+   */
+  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null> {
+    return this.#serially(async () => {
+      const question = await liveRecord(this.#records, id, ["question"]);
+      if (question === null) return null;
+      if (question.fields.lifecycle === "settled") throw new RangeError(`question ${JSON.stringify(id)} is already settled`);
+      await checkReference(this.#records, "decision", settlement.decision, "decision");
+      return (await this.#records.edit(id, {
+        lifecycle: "settled",
+        answer: settlement.answer,
+        settledAt: new Date().toISOString(),
+        settledBy: settlement.decision,
+      })) as SchemaRecord<"question"> | null;
+    });
+  }
+
+  /** The questions raised on arc `arcId`, open and settled, oldest first. */
+  async questions(arcId: string): Promise<SchemaRecord<"question">[]> {
+    return (await this.#records.list("question")).filter((question) => question.fields.arc === arcId).sort(byCreation);
+  }
+
+  /**
+   * The open questions an increment is held on, in the order it names them: the one answer to
+   * whether it is waiting on the owner. Empty when it is not: it is closed, it names none, each it
+   * names is settled, or names no question at all (11-a: a missing question holds nothing).
+   */
+  async heldOnQuestion(incrementId: string): Promise<string[]> {
+    const increment = await liveRecord(this.#records, incrementId, ["increment"]);
+    if (increment === null || increment.fields.status === "closed") return [];
+    const open = new Set(
+      (await this.#records.list("question")).filter((question) => question.fields.lifecycle === "open").map(({ id }) => id),
+    );
+    return [...new Set(increment.fields.heldOn ?? [])].filter((id) => open.has(id));
+  }
+
+  /**
+   * Retire a record, as capability 2's retire does, except a question an increment is held on,
+   * which is refused (RetireRefusedError) with nothing written.
+   */
+  retire(id: string, reason: string): Promise<void> {
+    return this.#serially(async () => {
+      if ((await liveRecord(this.#records, id, ["question"])) !== null) {
+        const heldBy = (await this.#records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true);
+        if (heldBy.length > 0) throw new RetireRefusedError(id, heldBy.sort(byCreation).map((increment) => increment.id));
+      }
+      await this.#records.retire(id, reason);
+    });
+  }
+
   /** Park an arc: it reads parked, whatever its work, until unparked. Null if `id` is not a live arc. */
   parkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
     return this.#setParked(id, true);
@@ -255,18 +358,23 @@ export class WorkInFlight {
     return this.#setParked(id, undefined);
   }
 
-  /** The arc whole, with its state and its increments, oldest first; null if `id` is not a live arc. */
+  /** The arc whole, with its state, its increments and its questions, oldest first; null if `id` is not a live arc. */
   async arcView(id: string): Promise<ArcView | null> {
     const arc = await liveRecord(this.#records, id, ["arc"]);
     if (arc === null) return null;
     const increments = (await this.#records.list("increment")).filter((increment) => increment.fields.arc === id).sort(byCreation);
-    return { arc, state: arcState(arc, increments), increments };
+    const questions = await this.questions(id);
+    return { arc, state: arcState(arc, increments, questions), increments, questions };
   }
 
-  /** Every live arc and increment, and what each wait of theirs reads as, now. */
+  /** Every live arc, increment and question, and what each wait of theirs reads as, now. */
   async #snapshot(): Promise<Snapshot> {
-    const [arcs, increments] = await Promise.all([this.#records.list("arc"), this.#records.list("increment")]);
-    return new Snapshot(arcs, increments);
+    const [arcs, increments, questions] = await Promise.all([
+      this.#records.list("arc"),
+      this.#records.list("increment"),
+      this.#records.list("question"),
+    ]);
+    return new Snapshot(arcs, increments, questions);
   }
 
   /**
@@ -301,10 +409,14 @@ export class WorkInFlight {
     });
   }
 
-  /** What an increment touches must be live stories or capabilities, and what it remedies live friction (10-a). */
-  async #checkNames(fields: { readonly touches?: unknown; readonly remedies?: unknown }): Promise<void> {
+  /**
+   * What an increment touches must be live stories or capabilities, what it remedies live friction
+   * (10-a), and what it is held on live questions (12).
+   */
+  async #checkNames(fields: { readonly touches?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown }): Promise<void> {
     await checkReferences(this.#records, "touches", fields.touches, TOUCHABLE);
     await checkReferences(this.#records, "remedies", fields.remedies, "friction");
+    await checkReferences(this.#records, "heldOn", fields.heldOn, "question");
   }
 
   /** Run `write` once every write queued through this layer before it has settled, so its checks and its write happen together. */
@@ -315,19 +427,29 @@ export class WorkInFlight {
   }
 }
 
-/** The live arcs and increments at one moment, and how their waits read then. */
+/** The live arcs, increments and questions at one moment, and how their waits read then. */
 class Snapshot {
   readonly arcs: ReadonlyMap<string, SchemaRecord<"arc">>;
   readonly increments: ReadonlyMap<string, SchemaRecord<"increment">>;
   readonly #byArc = new Map<string, SchemaRecord<"increment">[]>();
+  readonly #questionsByArc = new Map<string, SchemaRecord<"question">[]>();
 
-  constructor(arcs: readonly SchemaRecord<"arc">[], increments: readonly SchemaRecord<"increment">[]) {
+  constructor(
+    arcs: readonly SchemaRecord<"arc">[],
+    increments: readonly SchemaRecord<"increment">[],
+    questions: readonly SchemaRecord<"question">[],
+  ) {
     this.arcs = new Map(arcs.map((arc) => [arc.id, arc]));
     this.increments = new Map(increments.map((increment) => [increment.id, increment]));
     for (const increment of [...increments].sort(byCreation)) {
       const siblings = this.#byArc.get(increment.fields.arc);
       if (siblings === undefined) this.#byArc.set(increment.fields.arc, [increment]);
       else siblings.push(increment);
+    }
+    for (const question of questions) {
+      const siblings = this.#questionsByArc.get(question.fields.arc);
+      if (siblings === undefined) this.#questionsByArc.set(question.fields.arc, [question]);
+      else siblings.push(question);
     }
   }
 
@@ -340,7 +462,8 @@ class Snapshot {
   arcHold(wait: Wait): Hold | undefined {
     const arc = this.arcs.get(wait.on);
     if (arc === undefined) return { ...wait, forGood: true };
-    return arcState(arc, this.#byArc.get(arc.id) ?? []) === "closed" ? undefined : { ...wait, forGood: false };
+    const state = arcState(arc, this.#byArc.get(arc.id) ?? [], this.#questionsByArc.get(arc.id) ?? []);
+    return state === "closed" ? undefined : { ...wait, forGood: false };
   }
 
   /**
@@ -388,12 +511,19 @@ function loopThrough(start: string, next: (id: string) => readonly string[]): st
 
 /**
  * An arc's state (10.3): parked while the owner has parked it; otherwise closed exactly when it has
- * increments and none of them is open, and active while any is, or while it has none yet.
+ * increments, none of them is open and none of its questions waits on the owner, and active while
+ * any does, or while it has no increments yet. (A drained arc still waiting on an answer stays
+ * active, as 0.2's ADR-0526 settled: closed, it would leave every worklist with the question open.)
  */
-function arcState(arc: SchemaRecord<"arc">, increments: readonly SchemaRecord<"increment">[]): ArcState {
+function arcState(
+  arc: SchemaRecord<"arc">,
+  increments: readonly SchemaRecord<"increment">[],
+  questions: readonly SchemaRecord<"question">[],
+): ArcState {
   if (arc.fields.parked === true) return "parked";
   if (increments.length === 0) return "active";
-  return increments.some((increment) => increment.fields.status !== "closed") ? "active" : "closed";
+  if (increments.some((increment) => increment.fields.status !== "closed")) return "active";
+  return questions.some((question) => question.fields.lifecycle === "open") ? "active" : "closed";
 }
 
 /** Where `status` sits in the lifecycle. */

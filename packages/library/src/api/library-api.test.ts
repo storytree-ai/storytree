@@ -56,6 +56,10 @@ const LIBRARY_API = [
   "addWait",
   "removeWait",
   "waitHolds",
+  "raiseQuestion",
+  "settleQuestion",
+  "questions",
+  "heldOnQuestion",
   "reportHealth",
   "recordVerified",
   "health",
@@ -81,7 +85,8 @@ const LIBRARY_API = [
  * saying what to fix, so a caller catches every such refusal by its class. MissingUpgradeError
  * joined it with schema upgrades: how a record no upgrade step can bring up to date is refused.
  * LifecycleError joined it with capability 10: how an increment asked to move backward is refused,
- * and WaitLoopError with capability 11: how a wait that would close a loop is refused.
+ * WaitLoopError with capability 11: how a wait that would close a loop is refused, and
+ * RetireRefusedError with capability 12: how retiring a question work is held on is refused.
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
@@ -91,6 +96,7 @@ const RUNTIME_EXPORTS = [
   "MissingUpgradeError",
   "NewerSchemaError",
   "ProjectNameError",
+  "RetireRefusedError",
   "SchemaError",
   "UnknownTypeError",
   "WaitLoopError",

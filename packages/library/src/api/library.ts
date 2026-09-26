@@ -22,6 +22,8 @@ import type {
   CloseInput,
   ContractEdit,
   Hold,
+  NewQuestion,
+  Settlement,
   IncrementEdit,
   NewArc,
   NewCapability,
@@ -122,6 +124,18 @@ export interface Library {
    */
   waitHolds(id: string): Promise<Hold[]>;
 
+  /** Raise a question for the owner on a live arc: it is open. */
+  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">>;
+  /**
+   * Settle a question with the owner's answer, and the live decision that carried it, if one did.
+   * Null if `id` is not a live question.
+   */
+  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null>;
+  /** The questions on arc `arcId`, open and settled, oldest first. */
+  questions(arcId: string): Promise<SchemaRecord<"question">[]>;
+  /** The open questions an open increment is held on: the one answer to whether it waits on the owner. */
+  heldOnQuestion(incrementId: string): Promise<string[]>;
+
   /** Write what the agent reported about a contract. Health is written on contracts only: anything else is refused. */
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry>;
   /** Write what storytree verified about a contract, by seeing it for itself. */
@@ -162,7 +176,8 @@ export interface Library {
 
   /**
    * Retire a record: it is gone from every read, and its history keeps it and `reason`. Retiring
-   * a missing or already retired record is a harmless no-op.
+   * a missing or already retired record is a harmless no-op. A question an increment is held on is
+   * refused (RetireRefusedError): take it off the increment's heldOn first, or settle it instead.
    */
   retire(id: string, reason: string): Promise<void>;
   /**
@@ -318,6 +333,22 @@ class LibraryHandle implements Library {
     return this.#project.flight.waitHolds(id);
   }
 
+  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">> {
+    return this.#project.flight.raiseQuestion(question);
+  }
+
+  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null> {
+    return this.#project.flight.settleQuestion(id, settlement);
+  }
+
+  questions(arcId: string): Promise<SchemaRecord<"question">[]> {
+    return this.#project.flight.questions(arcId);
+  }
+
+  heldOnQuestion(incrementId: string): Promise<string[]> {
+    return this.#project.flight.heldOnQuestion(incrementId);
+  }
+
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry> {
     return this.#project.health.reportHealth(contractId, state, options);
   }
@@ -377,7 +408,7 @@ class LibraryHandle implements Library {
    */
   async retire(id: string, reason: string): Promise<void> {
     if (!couldBeId(id)) return;
-    await this.#project.records.retire(id, reason);
+    await this.#project.flight.retire(id, reason);
   }
 
   /**

@@ -5,5 +5,7 @@ export { annotate, brokenEdges, correct, supersede } from "./decision-log/index.
 export type { Annotation, BrokenEdge, Correction, Successor } from "./decision-log/index.js";
 export { newNotes, retire } from "./catalogue/index.js";
 export type { NewNote } from "./catalogue/index.js";
+export { claudeCodeMemoryFolder, graduate, memoryWorklist, PARK_DAYS, park, processGaps } from "./graduation/index.js";
+export type { GraduationKind, MemoryItem, ProcessGaps } from "./graduation/index.js";
 export { LibrarianRefusal } from "./notes.js";
 export type { Reference } from "./notes.js";

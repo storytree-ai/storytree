@@ -198,6 +198,19 @@ read: a principle, a process or a definition. Then the memory is deleted.
     a current process note.
   - **Proposed, approved:** every process matches a real tool or command, and every tool or command
     has a process behind it, or a stated reason why not.
+- **As built:** `memoryWorklist`, `park`, `graduate` and `processGaps` in
+  `packages/librarian/src/graduation`. A memory folder is laid out as Claude Code keeps one: a
+  Markdown file per memory and an index, `MEMORY.md`, whose line for a graduated memory goes with
+  it. The park ledger is 0.2's, `graduation-park.json` beside the folder, with each park's reason,
+  date and a fingerprint of the memory's text. Claude Code's folder for a project is
+  `claudeCodeMemoryFolder(project, home)`. A process names a tool when its `surfaces` holds the
+  tool's name as a word; a tool with a stated reason for having no process is the agent's call on
+  the report.
+- **Codex's memory, found 2026-09-27:** Codex keeps no memory folder. Its memories are an internal
+  database (`~/.codex/memories_1.sqlite`, the table `stage1_outputs`), holding none on the owner's
+  machine. Graduation reads any folder of memory files it is given, so nothing here is Claude
+  Code's alone, but reading Codex's database is not built: it is left open on the build's
+  increment for the owner, not cut.
 
 **Contracts:**
 1. The worklist lists each memory in the memory folders that is new, changed since it was parked, or

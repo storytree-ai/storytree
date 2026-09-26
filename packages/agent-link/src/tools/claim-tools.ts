@@ -95,7 +95,9 @@ async function refusalText(library: Library, id: string, answer: Exclude<ClaimAn
     case "closed":
       return `${await titleOf(library, id)} is closed: there is nothing left to claim. Pick other work.`;
     case "waiting": {
-      const waits = answer.waits.map((wait) => `${wait.increment} waits on ${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`);
+      const waits = answer.waits.map((wait) =>
+        wait.onOwner === true ? `${wait.increment} is waiting on the owner: it is held on their open question ${wait.on}` : `${wait.increment} waits on ${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`,
+      );
       return `${await titleOf(library, id)} is waiting work: ${waits.join("; ")}. Pick other work until it releases.`;
     }
     case "unknown-capability":

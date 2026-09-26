@@ -63,9 +63,15 @@ export type ClaimAnswer =
   | { ok: false; refused: "closed"; increment: string }
   | { ok: false; refused: "waiting"; waits: Waiting[] };
 
-/** An increment that waits (ADR-0643 D2), and a blocker still holding it, as the library's `waitHolds` names it. */
+/**
+ * An increment that waits (ADR-0643 D2), and what still holds it: a blocker, as the library's
+ * `waitHolds` names it, or an open question it is held on, as its `heldOnQuestion` names it, which
+ * is waiting on the owner.
+ */
 export interface Waiting extends Hold {
   readonly increment: string;
+  /** Held on the owner's open question (`on` names it), not on other work. */
+  readonly onOwner?: true;
 }
 
 export type ReleaseAnswer = { ok: true } | { ok: false; refused: "not-held"; holder?: Claim };
@@ -221,15 +227,19 @@ export async function readAttribution(log: ActivityLog, project: string): Promis
 
 /**
  * The waits that refuse a claim on `found` (ADR-0643 D2, the owner's W2), from the library's own
- * reading of whether a wait holds (`waitHolds`, which counts an increment's arc's waits too):
- * - an increment's blockers still holding it;
+ * two readings (ADR-0640 D5): whether a wait holds (`waitHolds`, which counts an increment's arc's
+ * waits too), and whether an increment is held on an open question (`heldOnQuestion`):
+ * - an increment's blockers still holding it, and the open questions it is held on;
  * - for a capability, those of every open increment naming it (its `touches`, ADR-0640 10-a), but
  *   only when every one of them waits: one that does not leaves the capability free, and a
  *   capability no open increment names is never refused.
  * The agent link keeps no copy of the rule for whether a wait holds.
  */
 async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
-  const holding = async (increment: string) => (await library.waitHolds(increment)).map((hold): Waiting => ({ increment, ...hold }));
+  const holding = async (increment: string): Promise<Waiting[]> => [
+    ...(await library.waitHolds(increment)).map((hold): Waiting => ({ increment, ...hold })),
+    ...(await library.heldOnQuestion(increment)).map((question): Waiting => ({ increment, on: question, reason: "waiting on the owner's answer", forGood: false, onOwner: true })),
+  ];
   const { capability, increment } = found.part;
   if (increment !== undefined) return holding(increment);
   const naming = (await increments(library)).filter((one) => one.fields.status !== "closed" && one.fields.touches?.includes(capability) === true);

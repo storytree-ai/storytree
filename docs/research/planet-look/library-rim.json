@@ -1,0 +1,127 @@
+{
+  "lighting": "L1",
+  "turn": 0,
+  "synthetic": false,
+  "radius": 210,
+  "clearance": 1.6921076480165318,
+  "plateRadius": 211.69210764801653,
+  "ready": true,
+  "stage": "descriptors ready",
+  "zoom": 3.196224793904956,
+  "viewport": {
+    "width": 899,
+    "height": 760
+  },
+  "stories": 5,
+  "trees": 37,
+  "resting": {
+    "scale": 3.196224793904956,
+    "islandPx": 183.35522463165128,
+    "extentShown": 1,
+    "bound": "whole-world"
+  },
+  "rim": {
+    "story": "library",
+    "radius": 51.58183193112155,
+    "curvatureLiftPx": 19.79652096085919,
+    "clearancePx": 5.4083564185466395,
+    "totalDatumGapPx": 25.20487737940583,
+    "restingZoom": 3.196224793904956,
+    "definition": "Radial distance from the outermost mesh footprint at local y=0 to the concentric sphere; shown edge-on. Surface relief and skirt depth are excluded."
+  },
+  "lightDirections": {
+    "flat": {
+      "world": [
+        -0.45058614322726115,
+        0.8210680832141203,
+        0.35045588917675863
+      ],
+      "local": [
+        -0.45058614322726115,
+        0.8210680832141203,
+        0.35045588917675863
+      ],
+      "view": [
+        -0.45058614322726126,
+        0.25930760413693676,
+        0.854243345873027
+      ],
+      "groundRevision": 0
+    },
+    "library": {
+      "world": [
+        -0.45058614322726115,
+        0.8210680832141204,
+        0.35045588917675874
+      ],
+      "local": [
+        0.8474857915393846,
+        -0.4505861432272614,
+        -0.28060641594668706
+      ],
+      "view": [
+        -0.45058614322726115,
+        0.2593076041369367,
+        0.854243345873027
+      ],
+      "groundRevision": 0
+    }
+  },
+  "plates": {
+    "flat": {
+      "radius": 51.58183193112155,
+      "rimPoint": [
+        29.737653732299805,
+        0,
+        42.146854400634766
+      ],
+      "projectedGapPx": 0,
+      "radialLift": 6.193719853062333,
+      "datumGap": 7.8858275010788645,
+      "vertices": 17712,
+      "groundBuildRevision": 0
+    },
+    "library": {
+      "radius": 51.58183193112155,
+      "rimPoint": [
+        29.737653732299805,
+        0,
+        42.146854400634766
+      ],
+      "projectedGapPx": 25.204877379405744,
+      "radialLift": 6.193719853062333,
+      "datumGap": 7.8858275010788645,
+      "vertices": 17712,
+      "groundBuildRevision": 0
+    }
+  },
+  "sides": {
+    "globe": {
+      "calls": 8,
+      "triangles": 137418,
+      "camera": [
+        176.69210764801653,
+        1378.8799976141604,
+        1157.0176974357707
+      ],
+      "zoom": 3.196224793904956,
+      "canvases": 2,
+      "renderer": "WebKit WebGL",
+      "unmaskedRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "flat": {
+      "calls": 6,
+      "triangles": 113092,
+      "camera": [
+        0,
+        1378.8799976141604,
+        1157.0176974357707
+      ],
+      "zoom": 3.196224793904956,
+      "canvases": 2,
+      "renderer": "WebKit WebGL",
+      "unmaskedRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
+  },
+  "labels": []
+}

@@ -1627,6 +1627,11 @@ function GrowthTextureUpload({ growth, values }: { growth: GrowthTexture; values
 const NO_HIDDEN_STATUSES: ReadonlySet<string> = new Set();
 const NO_TARGETS: readonly NativePropHitEnvelope[] = Object.freeze([]);
 
+// Throwaway planet-look branch only: mount the shipped ground and bought kit once per plate
+// inside a caller's ONE Canvas. Camera, lights, backdrop and controls remain with that caller.
+// No product call site uses these exports. See docs/research/planet-look/README.md.
+export { CellGround as SpikeCellGround, KitProps as SpikeKitProps, SHIPPED_GROUND_INPUT as SPIKE_GROUND_INPUT };
+
 /**
  * The minimal R3F canvas of the spike: descriptors → placeholder meshes under drei
  * `MapControls` (pan / zoom a top-down-ish world map — NOT rotate; the projection is fixed

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Storytree · planet look</title>
+<style>
+* { box-sizing: border-box; } body { margin: 0; color: #e1e6dc; background: #080c10; font: 17px/1.45 system-ui, sans-serif; }
+header { height: 120px; padding: 22px 34px 12px; } h1 { font-size: 28px; margin: 0 0 7px; font-weight: 550; }
+header p { margin: 0; color: #aab9bf; } main { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+section { position: relative; height: 760px; background: #101418; }
+.caption { position: absolute; top: 18px; left: 24px; z-index: 5; font-size: 20px; }
+.caption small { display: block; color: #9eabb2; font-size: 14px; margin-top: 4px; }
+.view { width: 100%; height: 100%; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+footer { height: 108px; padding: 18px 34px; color: #aab9bf; font-size: 15px; }
+.label { white-space: nowrap; color: #ecede6; background: #101418bf; border-radius: 3px; padding: 2px 5px; font-size: 13px; }
+.measure { position: absolute; bottom: 24px; left: 24px; color: #e2cc8a; max-width: 750px; }
+</style></head><body><header><h1 id="title"></h1><p id="subtitle"></p></header>
+<main><section><div class="caption">Flat forest<small id="flat-note"></small></div><div id="flat" class="view"></div><div id="flat-labels" class="labels"></div></section>
+<section><div class="caption" id="globe-caption"></div><div id="globe" class="view"></div><div id="globe-labels" class="labels"></div><div id="measure" class="measure"></div></section></main>
+<footer id="footer"></footer><script src="scene.js"></script></body></html>

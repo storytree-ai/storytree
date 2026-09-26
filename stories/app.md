@@ -212,6 +212,11 @@ surfaces when the project changes.
   only if every story and capability of the project is in it, and `pnpm desktop:smoke` runs it in
   the real app. The check no longer judges by the page's text, since a surface drawn on a canvas, as
   the forest will be, has none to search.
+- **As built** (the forest's capability 7, built under this capability's name, ADR-0632 D3): two
+  more reads for the forest's shelves. `window.storytree.frontCovers(project, nodeId)` returns a
+  story's or capability's front covers, founding book first (the library's `frontCovers`).
+  `window.storytree.relatedNotes(project, noteId)` returns the notes that link to a note (the
+  library's `relatedNotes`). A name that is not a project is refused, as for the other reads.
 
 **Contracts:**
 1. The page can ask the app for the library's changes and the agent log's new lines since a point,
@@ -219,6 +224,8 @@ surfaces when the project changes.
 2. A name that is not a project is refused, and never created.
 3. The smoke check, pointed at the surface on show, passes only if that surface says it drew every
    story and capability of the project.
+4. The page can ask the app for a story's or capability's shelf of front covers, and for the notes
+   that link to a note, for the project on show.
 
 ---
 

@@ -1,5 +1,6 @@
 /**
- * Capability 4 · Drill-down (stories/forest.md): what the panel a click opens says about a story.
+ * Capabilities 4 · Drill-down and 7 · Library entrypoints (stories/forest.md): what the panel a
+ * click opens says about a story, and the shelves of front covers inside it.
  * The library's tree and history, and the agent log's lines, are written out here as the app hands
  * them to the page, so no database is needed.
  */
@@ -8,9 +9,9 @@ import { test } from "node:test";
 
 import type { Line, NewLine } from "@storytree/agent-link";
 import { workStates } from "@storytree/arc-surface";
-import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState } from "@storytree/library";
+import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState, Note, SchemaRecord } from "@storytree/library";
 
-import { drillDown, NO_DESCRIPTION } from "./drill-down.js";
+import { drillDown, EMPTY_SHELF, NO_DESCRIPTION, openBook, shelved, type StoryPanel } from "./drill-down.js";
 
 const column = (state: HealthState, written = false): HealthColumn => (written ? { state, by: "someone", at: new Date(0).toISOString() } : { state });
 
@@ -98,4 +99,71 @@ test("4.5 storytree's own column shows beside the agent's only where something w
   assert.equal(line?.verified, "not-checked", "the capability shows storytree's column too, rolled up, since one of its contracts has an entry");
   const bare = drillDown({ stories: [story("t", capability("d", [], [contract("x", "failing")]))], arcs: [] }, "t", workStates([]), []);
   assert.equal(bare?.capabilities[0]?.verified, undefined);
+});
+
+// --- capability 7 · Library entrypoints -------------------------------------------------------
+
+/** A decision as the library's shelf read hands it over, a front cover of `cover`, created `minute` minutes in. */
+function decision(id: string, cover: string | undefined, minute: number, links?: string[]): SchemaRecord<"decision"> {
+  const at = new Date(Date.UTC(2026, 8, 27, 12, minute)).toISOString();
+  const fields = { title: `Cover ${id}`, text: `What ${id} decided.\n\nWhy it was decided.`, ...(links === undefined ? {} : { links }), ...(cover === undefined ? {} : { frontCoverOf: cover }) };
+  return { id, type: "decision", version: 1, fields, createdAt: at, updatedAt: at };
+}
+
+function memory(id: string, text: string, links: string[]): Note {
+  const at = new Date(0).toISOString();
+  return { id, type: "memory", version: 1, fields: { text, links }, createdAt: at, updatedAt: at };
+}
+
+/** The history's creation of each note, as the live reading hands it on. */
+function created(...notes: Note[]): Change[] {
+  return notes.map((record, index) => ({ seq: index + 1, recordId: record.id, type: record.type, action: "created", record }));
+}
+
+/** Story s's panel, with capabilities a, b (building on a) and empty, beside story t's capability x, given `covers`. */
+function opened(covers: SchemaRecord<"decision">[]): StoryPanel | undefined {
+  const tree: AnnotatedTree = { stories: [story("s", capability("a", []), capability("b", ["a"]), capability("empty", [])), story("t", capability("x", []))], arcs: [] };
+  const panel = drillDown(tree, "s", workStates([]), []);
+  return panel === undefined ? undefined : shelved(panel, covers);
+}
+
+test("7.1 a capability with three front covers shows three spines, founding book first, each with its title and first line", () => {
+  const panel = opened([decision("later", "a", 3), decision("founding", "a", 1), decision("middle", "a", 2)]);
+  const shelf = panel?.capabilities.find(({ id }) => id === "a")?.shelf;
+  assert.deepEqual(shelf?.spines.map(({ id, title, firstLine, founding }) => [id, title, firstLine, founding]), [
+    ["founding", "Cover founding", "What founding decided.", true],
+    ["middle", "Cover middle", "What middle decided.", false],
+    ["later", "Cover later", "What later decided.", false],
+  ]);
+  assert.equal(shelf?.empty, undefined);
+});
+
+test("7.2 opening a book shows its full text, and the titles of the notes that link to it and of those it links to", () => {
+  const inside = decision("inside", undefined, 0);
+  const term: Note = { id: "term", type: "definition", version: 1, fields: { term: "Grove", meaning: "Trees of one story." }, createdAt: inside.createdAt, updatedAt: inside.createdAt };
+  const cover = decision("cover", "a", 1, ["inside", "term"]);
+  const book = openBook(cover, [memory("why", "We tried a single tree first.\nIt read as one blob.", ["cover"])], created(inside, term, cover));
+  assert.deepEqual(book, {
+    id: "cover",
+    title: "Cover cover",
+    text: "What cover decided.\n\nWhy it was decided.",
+    linksIn: ["We tried a single tree first."],
+    linksOut: ["Cover inside", "Grove"],
+  });
+});
+
+test("7.3 an empty shelf says there are no decisions on it yet", () => {
+  const panel = opened([decision("one", "a", 1)]);
+  assert.equal(panel?.capabilities.find(({ id }) => id === "empty")?.shelf?.empty, EMPTY_SHELF);
+  assert.equal(EMPTY_SHELF, "no decisions on this shelf yet");
+  assert.deepEqual(panel?.shelf?.spines, [], "the story's own shelf, with nothing on it, says so too");
+  assert.equal(panel?.shelf?.empty, EMPTY_SHELF);
+});
+
+test("7.4 a decision on another capability's shelf never appears here", () => {
+  const panel = opened([decision("mine", "a", 1), decision("next-door", "b", 2), decision("other-story", "x", 3), decision("the-story", "s", 4), decision("no-shelf", undefined, 5)]);
+  const spines = (id: string): string[] | undefined => panel?.capabilities.find((line) => line.id === id)?.shelf?.spines.map((spine) => spine.id);
+  assert.deepEqual(spines("a"), ["mine"]);
+  assert.deepEqual(spines("b"), ["next-door"]);
+  assert.deepEqual(panel?.shelf?.spines.map(({ id }) => id), ["the-story"]);
 });

@@ -22,6 +22,7 @@ import {
   parseStory,
   recordHealth,
   syncDecisions,
+  syncFoundingBooks,
   syncStory,
 } from "./library-seed.mjs";
 
@@ -369,6 +370,47 @@ test("syncDecisions files a decision about the whole project on no shelf, found 
   });
 });
 
+test("parseStory reads each capability's founding book from its shelf, with its label, its words joined, and none where the shelf has none", () => {
+  const [first, second] = parseStory(SHELVED).capabilities;
+  assert.deepEqual(first.foundingBook, { label: "P1", text: "a place comes from its story alone, fixed for good." });
+  assert.deepEqual(second.foundingBook, { label: "ADR-0002 D1", text: "the second part follows the first." });
+  assert.equal(parseStory(TWO_PARTS).capabilities[0].foundingBook, undefined);
+});
+
+test("syncFoundingBooks files each capability's founding book on its shelf, first, except where a decision file already covers it; a second run writes nothing, a change is edited in place, and a book the file dropped leaves its shelf", async () => {
+  await withLibrary(async (lib) => {
+    const story = parseStory(SHELVED);
+    const { storyId, capabilityIds } = await syncStory(lib, story);
+    const stories = [{ file: "stories/two-parts.md", story }];
+    const nodes = new Map([["stories/two-parts.md", { storyId, capabilityIds }]]);
+    const covered = decisionFor("ADR-0002", "The second part", { story: "stories/two-parts.md", capability: 2 });
+
+    const first = await syncFoundingBooks(lib, stories, nodes, [covered]);
+    assert.deepEqual(first.counts, { added: 1, updated: 0, unchanged: 0, offShelf: 0 });
+    await syncDecisions(lib, [covered], nodes);
+    await lib.recordDecision({ title: "A later book", text: "Written through the tools.", frontCoverOf: capabilityIds.get("1") });
+    const shelf = await lib.frontCovers(capabilityIds.get("1"));
+    assert.deepEqual(shelf.map(({ fields }) => fields.title), ["1 · First: founding book (P1)", "A later book"], "the founding book first");
+    assert.equal(shelf[0].fields.text, "a place comes from its story alone, fixed for good.\n\nFounding book of stories/two-parts.md, capability 1.");
+    assert.deepEqual((await lib.frontCovers(capabilityIds.get("2"))).map(({ fields }) => fields.title), ["The second part"], "a decision file on a capability is its founding book, so nothing is filed twice");
+
+    const { cursor } = await lib.changesSince(0);
+    const again = await syncFoundingBooks(lib, stories, nodes, [covered]);
+    assert.deepEqual(again.counts, { added: 0, updated: 0, unchanged: 1, offShelf: 0 });
+    assert.deepEqual((await lib.changesSince(cursor)).changes, [], "the second run wrote nothing");
+
+    const reworded = parseStory(SHELVED.replace("fixed for good", "fixed forever"));
+    const changed = await syncFoundingBooks(lib, [{ file: "stories/two-parts.md", story: reworded }], nodes, [covered]);
+    assert.deepEqual(changed.counts, { added: 0, updated: 1, unchanged: 0, offShelf: 0 });
+    assert.deepEqual((await lib.frontCovers(capabilityIds.get("1"))).map(({ id }) => id), shelf.map(({ id }) => id), "edited in place, keeping its place");
+
+    const dropped = await syncFoundingBooks(lib, [{ file: "stories/two-parts.md", story: parseStory(TWO_PARTS) }], nodes, [covered]);
+    assert.deepEqual(dropped.counts, { added: 0, updated: 0, unchanged: 0, offShelf: 1 });
+    assert.deepEqual((await lib.frontCovers(capabilityIds.get("1"))).map(({ fields }) => fields.title), ["A later book"]);
+    assert.equal((await lib.search("Founding book of")).length, 1, "off its shelf but never retired");
+  });
+});
+
 // --- helpers ---------------------------------------------------------------------------------
 
 /** Node's junit reporter output, as it writes it (a crashed file, escaping, a skip, a failure, a suite, a todo). */
@@ -462,6 +504,22 @@ const TWO_PARTS = [
   "1. Does another.",
   "",
 ].join("\n");
+
+/** TWO_PARTS with a shelf on each capability: a founding book with its label in the bold, over two lines, and one with it after. */
+const SHELVED = TWO_PARTS.replace(
+  "- **Depends on:** nothing.\n",
+  [
+    "- **Depends on:** nothing.",
+    "- **Its shelf,** founding book first:",
+    "  - **Founding book (P1):** a place comes from its story alone,",
+    "    fixed for good.",
+    "  - A second book, not the founding one.",
+    "",
+  ].join("\n"),
+).replace(
+  "- **Depends on:** 1.\n",
+  ["- **Depends on:** 1.", "- **Its shelf,** founding book first:", "  - **Founding book** (ADR-0002 D1): the second part follows the first.", ""].join("\n"),
+);
 
 /** A decision as parseDecision reads one, a front cover of `cover`, or of nothing when it is undefined. */
 function decisionFor(record, title, cover) {

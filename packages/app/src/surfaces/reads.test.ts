@@ -45,11 +45,28 @@ test("3.2 a name that is not a project is refused, and never created", async () 
       ["its tree", () => reads.projectTree(missing)],
       ["its changes", () => reads.changesSince(missing, 0)],
       ["its lines", () => reads.linesSince(missing, 0)],
+      ["a shelf", () => reads.frontCovers(missing, "story_1")],
+      ["a note's related notes", () => reads.relatedNotes(missing, "decision_1")],
     ];
     for (const [what, ask] of asks) {
       await assert.rejects(ask(), new RegExp(`there is no project called "${missing}"`), `asking for ${what} is refused`);
     }
     assert.ok(!(await storytree.listProjects()).includes(missing), "and asking created no project");
+  });
+});
+
+test("3.4 the page can ask the app for a story's or capability's shelf of front covers, and for the notes that link to a note, for the project on show", async () => {
+  const shown = uniqueProjectName();
+  await withApp([shown], async ({ storytree, reads }) => {
+    const library = await storytree.openProject(shown);
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const other = await library.addStory({ title: "Visitor can sign in" });
+    const cover = await library.recordDecision({ title: "Sign-up asks for an email only", text: "Nothing else, to keep it short.", frontCoverOf: story.id });
+    await library.recordDecision({ title: "Sign-in remembers the device", text: "For thirty days.", frontCoverOf: other.id });
+    const why = await library.writeMemory({ text: "Asking for a name lost a third of visitors.", links: [cover.id] });
+
+    assert.deepEqual((await reads.frontCovers(shown, story.id)).map(({ id }) => id), [cover.id], "the story's shelf, and no other's");
+    assert.deepEqual((await reads.relatedNotes(shown, cover.id)).map(({ id }) => id), [why.id]);
   });
 });
 

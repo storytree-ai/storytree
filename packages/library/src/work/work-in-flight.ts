@@ -89,6 +89,11 @@ export class LifecycleError extends Error {
   }
 }
 
+/** A stub for the red run of capability 11. */
+export class WaitLoopError extends Error {
+  readonly path: readonly string[] = [];
+}
+
 const TOUCHABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
 const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "touches", "remedies"]);
 
@@ -160,6 +165,18 @@ export class WorkInFlight {
       await this.#checkNames(fields);
       return (await this.#records.edit(id, fields)) as SchemaRecord<"increment"> | null;
     });
+  }
+
+  addWait(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 11 is not built yet"));
+  }
+
+  removeWait(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 11 is not built yet"));
+  }
+
+  waitHolds(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 11 is not built yet"));
   }
 
   /** Park an arc: it reads parked, whatever its work, until unparked. Null if `id` is not a live arc. */

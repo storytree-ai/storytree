@@ -83,7 +83,7 @@ interface Prompted {
  * to, if storytree is running. Never throws. It prints nothing but what a prompt hook adds for the
  * agent (the project's definitions for the prompt's terms), which it returns: the command prints it.
  */
-export async function runHook({ argv, input, handOff }: HookInput): Promise<string | undefined> {
+export async function runHook({ argv, input, handOff, merges, locate }: HookInput): Promise<string | undefined> {
   try {
     const [harness = "", ...flags] = argv;
     const parsed = parse(input);
@@ -91,7 +91,7 @@ export async function runHook({ argv, input, handOff }: HookInput): Promise<stri
     if (asked !== undefined) return await withinTime(definitionsFor(asked));
     const made = hookLines(harness, parsed);
     if (made === undefined || made.lines.length === 0) return;
-    const where = route(made.folder);
+    const where = route(made.folder, locate);
     if (where.status !== "routed") return;
     if (flags.includes(BACKGROUND) && handOff !== undefined) {
       await handOff(harness, input);
@@ -103,6 +103,13 @@ export async function runHook({ argv, input, handOff }: HookInput): Promise<stri
     const log = await openActivityLog(where.url, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) });
     try {
       for (const line of made.lines) await log.append(where.project, line);
+      // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
+      // call, which the harness waits for and which looks for itself.
+      const [first] = made.lines;
+      if (first !== undefined && first.kind !== "tool-requested") {
+        const { endMergedClaims } = await import("../claims/index.js");
+        await endMergedClaims({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, merges);
+      }
     } finally {
       await log.close();
     }

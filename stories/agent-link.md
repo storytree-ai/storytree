@@ -330,6 +330,15 @@ idle.
     project is on GitHub with `gh` signed in (the setup check, 8, says so when it is not); a
     git-only option is after the MVP. A merge is noticed at the next agent activity in the project,
     not the moment it happens, since the database is local.
+- **As built (release on merge, 5.10):** a `claimed` line carries its `branch` (from `git rev-parse
+  --abbrev-ref HEAD` in the session's folder; none on a detached head). The tool server looks at
+  every call, and the hooks at every line but the one before a storytree tool call (which the
+  harness waits for, and whose call looks anyway); each project is asked about at most once a
+  minute, by a stamp in the temporary folder that every hook and tool server on the machine shares.
+  It runs `gh pr list --state merged --head <branch>` in the project's folder, giving up after 3 s,
+  and a pull request merged after the claim was taken ends it with a `merged` line naming the
+  holder and the pull request. That line is written on the session that saw it, so it never makes
+  an idle holder read as live. `gh` missing, signed out or slow means no merge seen, never an error.
 - **As built:** claims are lines in the agent activity log (claimed, released, landed), and who
   holds what is worked out from them, with each holder's liveness from its session's latest line.
   Claiming, releasing and landing each check and write under the project's lock, so two claims at

@@ -29,6 +29,7 @@ import type { Library } from "@storytree/library";
 import type { z } from "zod";
 
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
+import type { MergeWatch } from "../claims/index.js";
 import { habitsCard } from "../instructions/index.js";
 import { route } from "../routing/index.js";
 import { QUIET_MS } from "../sessions/index.js";
@@ -53,6 +54,8 @@ export interface AgentToolOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
   /** How long a claim's holder may be quiet before it can be taken over. By default, sessions' quiet time. */
   readonly quietMs?: number;
+  /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
+  readonly merges?: MergeWatch;
   /** What the setup check (capability 8) works with: by default, the user's own homes and no hook command. */
   readonly setup?: Omit<SetupOptions, "folder">;
 }

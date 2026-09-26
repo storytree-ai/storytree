@@ -22,7 +22,8 @@
  * inside one try: a failure anywhere means nothing is written, never an error the agent sees.
  */
 import type { NewLine } from "../activity/index.js";
-import { route } from "../routing/index.js";
+import type { MergeWatch } from "../claims/index.js";
+import { route, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { codexLines } from "./codex.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
@@ -36,6 +37,10 @@ export interface HookInput {
    * with `input` on its stdin, that outlives this one. Resolves once the input is handed over.
    */
   readonly handOff?: (harness: string, input: string) => Promise<void>;
+  /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
+  readonly merges?: MergeWatch;
+  /** Where storytree is. By default, where the app keeps its owner record. */
+  readonly locate?: LocateOptions;
 }
 
 /** The flag that makes a hook hand its writing to the background instead of doing it. */

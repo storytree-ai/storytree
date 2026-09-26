@@ -43,6 +43,8 @@ export interface ClaimContext {
   readonly session: string;
   readonly harness?: string;
   readonly folder?: string;
+  /** The git branch the session's folder is on, recorded with a claim so that its merge ends it (ADR-0643 D3). */
+  readonly branch?: string;
   /** How long a holder may be quiet before its claim can be taken over. By default, sessions' quiet time. */
   readonly quietMs?: number;
 }

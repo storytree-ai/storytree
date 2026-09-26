@@ -416,6 +416,17 @@ on him (`heldOnQuestion`), and the library alone answers that.
     to the librarian's lane.
 - It adds `raiseQuestion`, `settleQuestion`, `questions` and `heldOnQuestion` to 7's list of
   functions, and an increment's `heldOn` list.
+- **As built:** a `question` record names its `arc` and carries 0.2's fields: `stakes`,
+  `statement`, `context`, `options`, and optionally `analogy`, `diagram` and `recommendation`; its
+  `lifecycle`, open or settled; once settled, `answer`, `settledAt` and `settledBy` (the decision
+  that carried it, when one did); and its lease, `verifiedAt` (stamped when it is raised) and
+  `leaseDays`. A settled question needs its answer and date, and an open one has neither. An
+  increment's `heldOn` names live questions when it is written; it is a link, never a reading, so it
+  stays after settlement as the record of what the work waited on. `heldOnQuestion` answers for an
+  open increment only. The library's `retire` refuses a question any increment, open or closed,
+  is held on (`RetireRefusedError`), as 0.2's retire wall did. An arc whose work is all closed
+  still reads active while one of its questions is open (0.2's ADR-0526), which proves 10.3's
+  other half.
 
 **Contracts:**
 1. A question is raised with its required fields, and is open.

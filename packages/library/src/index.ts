@@ -9,7 +9,7 @@ export type { CloudSqlConfig, ConnectionProblem, ConnectOptions } from "./projec
 
 export { ConnectionError, ProjectNameError } from "./project/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
-export { LifecycleError, WaitLoopError } from "./work/index.js";
+export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord } from "./schema/index.js";
@@ -24,6 +24,8 @@ export type {
   ContractEdit,
   Disposition,
   Hold,
+  NewQuestion,
+  Settlement,
   IncrementEdit,
   IncrementStatus,
   NewArc,

@@ -275,6 +275,14 @@ reported.
     server through its one registration point, which also gives them a door on the people's command
     line. The habits card gains at most one line.
   - **U1 (the owner's):** on for 0.3's own library first.
+- **As built (6.1, 6.2):** `roundDue` and `worklist` in `packages/librarian/src/rounds`. The trigger
+  takes the change feed's cursor from when the session started; with none it fires. Matching
+  processes against tools is in the worklist when the tools served are given to it.
+- **Not built yet (6.3, 6.4, 6.5), waiting on the agent link:** the one registration point where
+  another story adds its tools to the tool server, and the "next" line `land`'s answer ends with
+  (ADR-0643 D6, the agent link's capability 6, `0-3-agent-link-revised-tree-build`). Neither had
+  landed on 2026-09-27. The librarian's tools, `land`'s next line and the subagent definition naming
+  those tools are built against that point when it lands, not against a copy of it.
 
 **Contracts:**
 1. The trigger fires when the change feed since the session started holds a write to a curated

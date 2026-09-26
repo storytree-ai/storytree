@@ -59,9 +59,16 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
-  z.object({ ...common, kind: z.literal("claimed"), capability: z.string().min(1), reason: z.string().min(1), takenOverFrom: z.string().min(1).optional() }).strict(),
+  /** A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3). */
+  z.object({ ...common, kind: z.literal("claimed"), capability: z.string().min(1), reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), branch: z.string().min(1).optional() }).strict(),
   z.object({ ...common, kind: z.literal("released"), capability: z.string().min(1) }).strict(),
   z.object({ ...common, kind: z.literal("landed"), capability: z.string().min(1) }).strict(),
+  /**
+   * A pull request from a claim's branch merged after the claim was taken, which ends it (ADR-0643
+   * D3): the claim's holder, and the pull request. Written by whichever session saw it, never on
+   * the holder's own session, so it makes no idle holder read as live.
+   */
+  z.object({ ...common, kind: z.literal("merged"), capability: z.string().min(1), holder: z.string().min(1), branch: z.string().min(1), pr: z.number().int().positive() }).strict(),
 ]);
 
 /** A line as it is written. */

@@ -5,14 +5,20 @@
  * activity log, as sessions A (Claude Code) and B (Codex) would.
  */
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { claim, land, readAttribution, readClaims, release, type ClaimContext } from "./index.js";
+import { runHook } from "../hooks/index.js";
+import { MARKER_FILE } from "../routing/index.js";
+import { claudeCode, withAgent } from "../testing/agent.js";
+import { withTempDir } from "../testing/folders.js";
+import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { claim, land, readAttribution, readClaims, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 
 interface World {
   log: ActivityLog;
@@ -23,7 +29,7 @@ interface World {
   /** The capability "Password reset". */
   passwordReset: string;
   /** Session A (Claude Code), or B (Codex), claiming in this project. */
-  as(session: "A" | "B", options?: { quietMs?: number; log?: ActivityLog }): ClaimContext;
+  as(session: "A" | "B", options?: { quietMs?: number; log?: ActivityLog; branch?: string }): ClaimContext;
 }
 
 /** Run `body` with a fresh project planned with two capabilities, and the log open on the test server. */
@@ -50,6 +56,7 @@ async function withWorld(body: (world: World) => Promise<void>): Promise<void> {
         session,
         harness: harnessOf[session],
         ...(options.quietMs === undefined ? {} : { quietMs: options.quietMs }),
+        ...(options.branch === undefined ? {} : { branch: options.branch }),
       }),
     });
   } finally {
@@ -179,5 +186,42 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
     const refused = await claim(as("B", { quietMs }), emailForm, "A went quiet; taking over");
     assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A" && refused.holder.holder === "live");
     assert.deepEqual((await readClaims(log, project, { quietMs })).map(({ session, holder }) => ({ session, holder })), [{ session: "A", holder: "live" }]);
+  });
+});
+
+test("5.10 a claim taken on branch feature/signup ends with a merged line once GitHub shows a pull request from that branch merged after the claim was taken, found at the next tool call or hook line; one merged before the claim, or still open, ends nothing", async () => {
+  await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
+    await withTempDir(async (folder) => {
+      writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}
+`);
+      // GitHub, as `gh` would answer: the merged pull requests from each branch.
+      const pulls = new Map<string, MergedPull[]>();
+      const merges: MergeWatch = { mergedPulls: async (_folder, branch) => pulls.get(branch) ?? [], everyMs: 0 };
+      const held = async () => (await readClaims(log, project)).map(({ capability, session }) => [capability, session]);
+
+      pulls.set("feature/signup", [{ number: 6, mergedAt: new Date(Date.now() - 3_600_000).toISOString() }]); // an earlier pull request from the same branch
+      assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
+      assert.equal((await claim(as("B", { branch: "feature/reset" }), passwordReset, "building the reset")).ok, true); // B's pull request is still open
+      await sleep(20);
+
+      await withAgent(folder, { ...claudeCode("C"), merges }, async (agent) => {
+        await agent.call("show_plan");
+        assert.deepEqual(await held(), [[emailForm, "A"], [passwordReset, "B"]], "a merge from before the claim, and an open pull request, end nothing");
+
+        pulls.set("feature/signup", [...pulls.get("feature/signup")!, { number: 7, mergedAt: new Date().toISOString() }]);
+        await agent.call("show_plan");
+      });
+      assert.deepEqual(await held(), [[passwordReset, "B"]], "the merge ended A's claim, at the next tool call");
+      const merged = (await log.since(project, 0)).lines.filter((line) => line.kind === "merged");
+      assert.deepEqual(
+        merged.map((line) => line.kind === "merged" && { capability: line.capability, holder: line.holder, branch: line.branch, pr: line.pr, session: line.session }),
+        [{ capability: emailForm, holder: "A", branch: "feature/signup", pr: 7, session: "C" }],
+      );
+
+      pulls.set("feature/reset", [{ number: 8, mergedAt: new Date().toISOString() }]);
+      const edit = JSON.parse(readFileSync(new URL("../hooks/fixtures/claude-code/post-tool-use-write.json", import.meta.url), "utf8")) as Record<string, unknown>;
+      await runHook({ argv: ["claude-code"], input: JSON.stringify({ ...edit, cwd: folder, session_id: "D" }), merges, locate: { dataDir: testServerDataDir() } });
+      assert.deepEqual(await held(), [], "the merge ended B's claim, at the next hook line");
+    });
   });
 });

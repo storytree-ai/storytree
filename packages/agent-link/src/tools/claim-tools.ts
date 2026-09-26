@@ -5,7 +5,7 @@
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
-import { claim, land, release, type Claim, type ClaimContext } from "../claims/index.js";
+import { claim, currentBranch, land, release, type Claim, type ClaimContext } from "../claims/index.js";
 import { lineOf, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -75,7 +75,8 @@ export function registerClaimTools(define: Define): void {
 }
 
 function claimContext({ log, library, project, caller, folder, quietMs }: Call): ClaimContext {
-  return { log, library, project, ...lineOf(caller), folder, quietMs };
+  const branch = currentBranch(folder);
+  return { log, library, project, ...lineOf(caller), folder, quietMs, ...(branch === undefined ? {} : { branch }) };
 }
 
 /** Who holds a claim, and why, as a sentence names them. */

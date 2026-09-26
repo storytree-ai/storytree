@@ -35,7 +35,7 @@ export function unclaimedWork(lines: readonly Line[]): UnclaimedWork {
   const harnesses = new Map<string, string>();
   for (const line of lines) if (line.harness !== undefined && !harnesses.has(line.session)) harnesses.set(line.session, line.harness);
   const entries = attributeFrom(lines)
-    .filter(({ capability }) => capability === undefined)
+    .filter(({ capability, increment }) => capability === undefined && increment === undefined)
     .map(({ line }): UnclaimedEntry => ({
       session: line.session,
       agent: labelOf(line.harness ?? harnesses.get(line.session)),

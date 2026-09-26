@@ -35,7 +35,7 @@ export interface WorkStates {
 export function workStates(lines: readonly Line[]): WorkStates {
   const parts = new Map<string, PartState>();
   for (const line of lines) {
-    if (line.kind === "claimed") parts.set(line.capability, "in-progress");
+    if (line.kind === "claimed" && line.capability !== undefined) parts.set(line.capability, "in-progress");
     else if (line.kind === "landed") parts.set(line.capability, "landed");
   }
   const part = (id: string): PartState => parts.get(id) ?? "planned";

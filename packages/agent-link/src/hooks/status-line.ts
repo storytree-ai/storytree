@@ -59,13 +59,15 @@ async function lineFor(url: string, project: string, session: string, folder: st
     const [{ lines }, library] = await Promise.all([log.since(project, 0), storytree.openProject(project)]);
     const now = Date.now();
     const titles = new Map<string, string>();
-    for (const story of (await library.projectTree()).stories) for (const capability of story.capabilities) titles.set(capability.id, capability.title);
+    const tree = await library.projectTree();
+    for (const story of tree.stories) for (const capability of story.capabilities) titles.set(capability.id, capability.title);
+    for (const arc of tree.arcs) for (const increment of (await library.arcView(arc.id))?.increments ?? []) titles.set(increment.id, increment.fields.title);
 
     const held = claimsFrom(lines, { now: new Date(now) }).filter((claim) => claim.session === session);
     const others = sessionsFrom(lines, { now: new Date(now) }).filter((other) => other.session !== session && other.state === "live");
     const parts = [
       "storytree",
-      held.length === 0 ? "holds nothing" : `holds ${held.map((claim) => titles.get(claim.capability) ?? claim.capability).join(", ")}`,
+      held.length === 0 ? "holds nothing" : `holds ${held.map((claim) => titles.get(claim.capability ?? claim.increment) ?? claim.capability ?? claim.increment).join(", ")}`,
       others.length === 0 ? "no other agents working" : `${others.length} other agent${others.length === 1 ? "" : "s"} working`,
     ];
     const shared = sharedFile(lines, session, new Set(others.map((other) => other.session)), now - QUIET_MS);

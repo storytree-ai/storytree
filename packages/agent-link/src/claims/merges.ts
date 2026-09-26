@@ -78,7 +78,7 @@ export async function endMergedClaims(context: MergeContext, watch: MergeWatch =
           source: context.source,
           folder: context.folder,
           kind: "merged",
-          capability: claim.capability,
+          ...(claim.increment === undefined ? { capability: claim.capability } : { increment: claim.increment }),
           holder: claim.session,
           branch: claim.branch,
           pr: pull.number,

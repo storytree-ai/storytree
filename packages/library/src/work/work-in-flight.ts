@@ -6,6 +6,10 @@
  * closed when none is open, active otherwise or while it has none, and parked, the one state that
  * is stored, while the owner has parked it (10-b). New work parked on a closed arc reopens it (R1).
  *
+ * Capability 11 · Waits: an arc waits on an arc, and an increment on an increment on any arc, each
+ * with a reason, and a wait that would close a loop across both kinds is refused when it is written.
+ * waitHolds is the one answer to whether a wait still holds.
+ *
  * The increment's shape and the rules across its fields (a proposal carries when it was parked; a
  * closed increment its outcome; a close with no pull request a note) are capability 3's, checked
  * inside every write (schema/types.ts). What this layer checks before writing is what a schema
@@ -13,7 +17,7 @@
  * and that an increment moves only forward. A refusal throws with nothing written.
  */
 import { byCreation } from "../creation-order.js";
-import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
+import { checkReference, checkReferences, liveRecord, recordNamed, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 
@@ -89,6 +93,36 @@ export class LifecycleError extends Error {
   }
 }
 
+/** A blocker still holding a wait (capability 11). */
+export interface Hold {
+  /** The arc or increment waited on. */
+  readonly on: string;
+  readonly reason: string;
+  /**
+   * True when it can never release: the blocking increment closed without landing (failed or
+   * withdrawn), or the blocker is missing or retired (11-a).
+   */
+  readonly forGood: boolean;
+}
+
+/**
+ * A wait would close a loop: the work would wait on itself, directly or through other arcs and
+ * increments. The message names the loop, from the work the loop was found at back round to it.
+ */
+export class WaitLoopError extends Error {
+  /** The arc and increment ids around the loop, starting and ending with the same one. */
+  readonly path: readonly string[];
+
+  constructor(path: readonly string[]) {
+    super(`wait loop: ${path.join(" → ")} (work may not wait on itself, directly or through other arcs and increments)`);
+    this.name = "WaitLoopError";
+    this.path = [...path];
+  }
+}
+
+/** One wait, as an arc or increment stores it. */
+type Wait = { readonly on: string; readonly reason: string };
+
 const TOUCHABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
 const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "touches", "remedies"]);
 
@@ -162,6 +196,55 @@ export class WorkInFlight {
     });
   }
 
+  /**
+   * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc, an increment on a live
+   * increment on any arc (MissingReferenceError otherwise). Waiting again on the same blocker
+   * replaces the reason. A wait that would close a loop across arcs and increments is refused with
+   * a WaitLoopError naming it. Null, with nothing written, if `waiter` is not a live arc or increment.
+   */
+  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#serially(async () => {
+      const record = await liveRecord(this.#records, waiter, ["arc", "increment"]);
+      if (record === null) return null;
+      await checkReference(this.#records, "on", blocker, record.type);
+      const stored: readonly Wait[] = record.fields.waits ?? [];
+      const waits = stored.some((wait) => wait.on === blocker)
+        ? stored.map((wait) => (wait.on === blocker ? { on: blocker, reason } : wait))
+        : [...stored, { on: blocker, reason }];
+      await this.#refuseLoop(waiter, waits);
+      return (await this.#records.edit(waiter, { waits })) as SchemaRecord<"arc" | "increment"> | null;
+    });
+  }
+
+  /** Stop `waiter` waiting on `blocker`. Null, with nothing written, if `waiter` is not a live arc or increment. */
+  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#serially(async () => {
+      const record = await liveRecord(this.#records, waiter, ["arc", "increment"]);
+      if (record === null) return null;
+      const waits = (record.fields.waits ?? []).filter((wait) => wait.on !== blocker);
+      return (await this.#records.edit(waiter, { waits: waits.length === 0 ? undefined : waits })) as SchemaRecord<"arc" | "increment"> | null;
+    });
+  }
+
+  /**
+   * The blockers still holding `id`'s waits, in the order its waits were written, each with its
+   * reason and whether it can never release. An increment wait holds until its blocker closes as
+   * landed; an arc wait until that arc closes. An open increment is also held by its arc's waits,
+   * after its own, since its arc's work cannot start; a closed increment is held by nothing. Empty
+   * when nothing holds, and for an id that is not a live arc or increment.
+   */
+  async waitHolds(id: string): Promise<Hold[]> {
+    const record = await recordNamed(this.#records, id);
+    if (record === null || !(record.type === "arc" || record.type === "increment")) return [];
+    const work = await this.#snapshot();
+    if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => work.arcHold(wait));
+    if (record.fields.status === "closed") return [];
+    return [
+      ...holdsOf(record.fields.waits, (wait) => work.incrementHold(wait)),
+      ...holdsOf(work.arcs.get(record.fields.arc)?.fields.waits, (wait) => work.arcHold(wait)),
+    ];
+  }
+
   /** Park an arc: it reads parked, whatever its work, until unparked. Null if `id` is not a live arc. */
   parkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
     return this.#setParked(id, true);
@@ -178,6 +261,37 @@ export class WorkInFlight {
     if (arc === null) return null;
     const increments = (await this.#records.list("increment")).filter((increment) => increment.fields.arc === id).sort(byCreation);
     return { arc, state: arcState(arc, increments), increments };
+  }
+
+  /** Every live arc and increment, and what each wait of theirs reads as, now. */
+  async #snapshot(): Promise<Snapshot> {
+    const [arcs, increments] = await Promise.all([this.#records.list("arc"), this.#records.list("increment")]);
+    return new Snapshot(arcs, increments);
+  }
+
+  /**
+   * Throw a WaitLoopError if `waiter` waiting on `waits` would close a loop. The graph is arc and
+   * increment waits as one (11-b): an arc waits on the arcs it names, and cannot close until each
+   * of its open increments has; an open increment waits on the increments it names, and on the
+   * arcs its arc waits on. A closed increment waits on nothing and holds up nothing, and it never
+   * reopens, so it can be in no loop. The loop is looked for from the waiter, and, for an arc, from
+   * each of its open increments, oldest first, since their waits change with it.
+   */
+  async #refuseLoop(waiter: string, waits: readonly Wait[]): Promise<void> {
+    const work = await this.#snapshot();
+    const waitsOf = (id: string): readonly Wait[] =>
+      id === waiter ? waits : (work.arcs.get(id)?.fields.waits ?? work.increments.get(id)?.fields.waits ?? []);
+    const next = (id: string): string[] => {
+      if (work.arcs.has(id)) return [...waitsOf(id).map(({ on }) => on), ...work.openIncrementsOf(id).map((open) => open.id)];
+      const increment = work.increments.get(id);
+      if (increment === undefined || increment.fields.status === "closed") return [];
+      return [...waitsOf(id), ...waitsOf(increment.fields.arc)].map(({ on }) => on);
+    };
+    const starts = [waiter, ...(work.arcs.has(waiter) ? work.openIncrementsOf(waiter).map((open) => open.id) : [])];
+    for (const start of starts) {
+      const loop = loopThrough(start, next);
+      if (loop !== undefined) throw new WaitLoopError(loop);
+    }
   }
 
   #setParked(id: string, parked: true | undefined): Promise<SchemaRecord<"arc"> | null> {
@@ -199,6 +313,77 @@ export class WorkInFlight {
     this.#lastWrite = result.catch(() => undefined);
     return result;
   }
+}
+
+/** The live arcs and increments at one moment, and how their waits read then. */
+class Snapshot {
+  readonly arcs: ReadonlyMap<string, SchemaRecord<"arc">>;
+  readonly increments: ReadonlyMap<string, SchemaRecord<"increment">>;
+  readonly #byArc = new Map<string, SchemaRecord<"increment">[]>();
+
+  constructor(arcs: readonly SchemaRecord<"arc">[], increments: readonly SchemaRecord<"increment">[]) {
+    this.arcs = new Map(arcs.map((arc) => [arc.id, arc]));
+    this.increments = new Map(increments.map((increment) => [increment.id, increment]));
+    for (const increment of [...increments].sort(byCreation)) {
+      const siblings = this.#byArc.get(increment.fields.arc);
+      if (siblings === undefined) this.#byArc.set(increment.fields.arc, [increment]);
+      else siblings.push(increment);
+    }
+  }
+
+  /** The arc's open increments, oldest first. */
+  openIncrementsOf(arc: string): SchemaRecord<"increment">[] {
+    return (this.#byArc.get(arc) ?? []).filter((increment) => increment.fields.status !== "closed");
+  }
+
+  /** An arc wait holds until the arc closes, and for good if the arc is missing (11.2, 11-a). */
+  arcHold(wait: Wait): Hold | undefined {
+    const arc = this.arcs.get(wait.on);
+    if (arc === undefined) return { ...wait, forGood: true };
+    return arcState(arc, this.#byArc.get(arc.id) ?? []) === "closed" ? undefined : { ...wait, forGood: false };
+  }
+
+  /**
+   * An increment wait holds until the blocker closes as landed, and for good if it closed any
+   * other way or is missing (11.1, 11-a).
+   */
+  incrementHold(wait: Wait): Hold | undefined {
+    const increment = this.increments.get(wait.on);
+    if (increment === undefined) return { ...wait, forGood: true };
+    const { status, outcome } = increment.fields;
+    if (status !== "closed") return { ...wait, forGood: false };
+    return outcome?.disposition === "landed" ? undefined : { ...wait, forGood: true };
+  }
+}
+
+/** The holds among `waits`, in order: each wait that `hold` says still holds. */
+function holdsOf(waits: readonly Wait[] | undefined, hold: (wait: Wait) => Hold | undefined): Hold[] {
+  return (waits ?? []).flatMap((wait) => {
+    const held = hold(wait);
+    return held === undefined ? [] : [{ on: held.on, reason: held.reason, forGood: held.forGood }];
+  });
+}
+
+/**
+ * A path along `next`'s edges from `start` back round to `start`, or undefined if there is none.
+ * Depth-first, following each node's edges in order, so the same loop is reported every time;
+ * iterative, so a long chain cannot overflow the stack.
+ */
+function loopThrough(start: string, next: (id: string) => readonly string[]): string[] | undefined {
+  const path = [{ id: start, next: next(start).values() }];
+  const reached = new Set([start]);
+  for (let step = path.at(-1); step !== undefined; step = path.at(-1)) {
+    const edge = step.next.next();
+    if (edge.done === true) {
+      path.pop();
+      continue;
+    }
+    if (edge.value === start) return [...path.map(({ id }) => id), start];
+    if (reached.has(edge.value)) continue;
+    reached.add(edge.value);
+    path.push({ id: edge.value, next: next(edge.value).values() });
+  }
+  return undefined;
 }
 
 /**

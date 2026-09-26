@@ -386,6 +386,14 @@ across both kinds is refused when it is written. The library alone answers wheth
 - **Boundaries** (ADR-0640 D5): the agent link's wait refusal at claim calls `waitHolds`; nobody
   else works the answer out.
 - It adds `addWait`, `removeWait` and `waitHolds` to 7's list of functions.
+- **As built:** an arc's and an increment's optional `waits` field lists what it waits on, each
+  with its reason; waiting again on the same blocker replaces the reason. A blocker must be live
+  when the wait is written. `waitHolds` answers in the order the waits were written, each hold
+  saying whether it is `forGood`. An open increment is also held by its arc's waits, after its own,
+  since its arc's work cannot start; a closed increment is held by nothing. The loop check's one
+  graph: an arc waits on the arcs it names and cannot close before its open increments do; an open
+  increment waits on the increments it names and on what its arc waits on. A closed increment can
+  be in no loop, since it never reopens. The refusal is a `WaitLoopError` naming the loop.
 
 **Contracts:**
 1. An increment wait holds until the blocker closes as landed. A failed, withdrawn or missing

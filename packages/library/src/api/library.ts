@@ -21,6 +21,7 @@ import type {
   CapabilityEdit,
   CloseInput,
   ContractEdit,
+  Hold,
   IncrementEdit,
   NewArc,
   NewCapability,
@@ -106,6 +107,20 @@ export interface Library {
   unparkArc(id: string): Promise<SchemaRecord<"arc"> | null>;
   /** An arc whole: its state (worked out on every read, or parked) and its increments, oldest first. Null if `id` is not a live arc. */
   arcView(id: string): Promise<ArcView | null>;
+
+  /**
+   * Make an arc wait on an arc, or an increment on an increment on any arc, with a reason. A wait
+   * that would close a loop across arcs and increments is refused (WaitLoopError). Null if `waiter`
+   * is not a live arc or increment.
+   */
+  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null>;
+  /** Stop `waiter` waiting on `blocker`. Null if `waiter` is not a live arc or increment. */
+  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null>;
+  /**
+   * The blockers still holding `id`, an arc or an increment, each with its reason and whether it can
+   * never release: the one answer to whether a wait holds.
+   */
+  waitHolds(id: string): Promise<Hold[]>;
 
   /** Write what the agent reported about a contract. Health is written on contracts only: anything else is refused. */
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry>;
@@ -289,6 +304,18 @@ class LibraryHandle implements Library {
 
   arcView(id: string): Promise<ArcView | null> {
     return this.#project.flight.arcView(id);
+  }
+
+  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#project.flight.addWait(waiter, blocker, reason);
+  }
+
+  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#project.flight.removeWait(waiter, blocker);
+  }
+
+  waitHolds(id: string): Promise<Hold[]> {
+    return this.#project.flight.waitHolds(id);
   }
 
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry> {

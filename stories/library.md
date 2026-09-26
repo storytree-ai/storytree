@@ -223,6 +223,11 @@ note never links straight to the work: capability 9 is how the work reaches its 
   - **6-b:** friction keeps its adjudication fields, recurrences and discharge; re-steers keep
     defect-or-taste, who judged it, the failure mode, and the owner's words as evidence apart from
     the agent's account. The library stores them; counting rates is not its job.
+- **As built (6.6, 6.7):** each kind is a record type of its own at version 1, with 0.2's fields
+  (`packages/library/src/schema/types.ts`). An agent role's `context`, `rules`, `antiPatterns` and
+  `stepRefs`, and a process's `branchEdges`, must name live notes, as links do. `search` reads every
+  piece of text in a note except the fields that name other notes. A re-steer's "a defect needs a
+  mode" is a rule across two fields, so its refusal names `mode` in the rule's own words.
 - **Leaves out (vs 0.2):** the ~1,200-artifact corpus (0.3 starts nearly empty), the graduation
   lease, and ranked "related" search. Open questions are capability 12, and decision status and
   supersession capability 13.

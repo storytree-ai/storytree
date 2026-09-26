@@ -185,6 +185,8 @@ function describeIssue(issue: z.core.$ZodIssue, fields: unknown): FieldProblem[]
     return [{ field: undefined, problem: `the fields must be an object, not ${kindOf(fields)}` }];
   }
   const field = String(head);
+  // A rule across fields (a re-steer's "a defect needs a mode") says in its own words what is wrong.
+  if (issue.code === "custom") return [{ field, problem: issue.message }];
   if (rest.length === 0 && !hasOwnField(fields, field)) {
     return [{ field, problem: `missing required field ${quote(field)}` }];
   }

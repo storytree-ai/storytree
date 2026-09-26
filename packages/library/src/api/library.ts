@@ -9,10 +9,11 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { NewDecision, NewDefinition, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
+import type { NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { SchemaRecord } from "../schema/index.js";
+import type { KnowledgeKind } from "../schema/types.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
 import type { ArcEdit, CapabilityEdit, ContractEdit, NewArc, NewCapability, NewContract, NewStory, StoryEdit } from "../work/index.js";
 
@@ -85,6 +86,12 @@ export interface Library {
    * story or capability the decision is a front cover of.
    */
   recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">>;
+  /**
+   * Write a principle, guardrail, pattern, process, agent role, friction, re-steer or tech stack,
+   * with its kind's fields. Every link, and an agent role's or process's other references, must name
+   * a live note.
+   */
+  writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>): Promise<SchemaRecord<K>>;
   /** Define a term. Every link must name a live note. */
   defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">>;
   /** Change only the named fields of a note, keeping its old wording in history. Null if `id` is not a live note. */
@@ -241,6 +248,10 @@ class LibraryHandle implements Library {
 
   recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">> {
     return this.#project.knowledge.recordDecision(decision);
+  }
+
+  writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>): Promise<SchemaRecord<K>> {
+    return this.#project.knowledge.writeKnowledge(kind, fields);
   }
 
   defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">> {

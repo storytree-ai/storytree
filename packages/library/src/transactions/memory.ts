@@ -2,7 +2,7 @@
  * MemoryTransactions: the in-memory twin of PgTransactions. The behaviour suite runs unchanged on
  * both, so later stories can test against this one without a database.
  */
-import { check, editedRecord, historyEntry, jsonCopy, now, savedRecord } from "./records.js";
+import { check, editedRecord, historyEntry, jsonCopy, now, numbered, savedRecord } from "./records.js";
 import type {
   EditInput,
   HistoryEntry,
@@ -27,7 +27,7 @@ export class MemoryTransactions implements Transactions {
 
   async save(input: SaveInput): Promise<RecordEnvelope> {
     const current = this.#records.get(input.id);
-    const record = savedRecord(input, current, now());
+    const record = savedRecord(this.#numbered(input), current, now());
     check(record, input.validate);
     this.#append(current === undefined ? "created" : "updated", record, record.updatedAt, input.actor);
     this.#records.set(record.id, record);
@@ -68,6 +68,15 @@ export class MemoryTransactions implements Transactions {
     return this.#history
       .filter((entry) => (id === undefined || entry.recordId === id) && (since === undefined || entry.seq > since))
       .map((entry) => jsonCopy(entry));
+  }
+
+  /** `input` numbered from every number its type's records have held, as the history keeps them. */
+  #numbered(input: SaveInput): SaveInput {
+    const field = input.sequence;
+    if (field === undefined) return input;
+    const held = this.#history.filter((entry) => entry.type === input.type && typeof entry.record.fields[field] === "number");
+    const highest = Math.max(0, ...held.map((entry) => entry.record.fields[field] as number));
+    return numbered(input, highest, (number) => held.some((entry) => entry.recordId !== input.id && entry.record.fields[field] === number));
   }
 
   /** Append one history entry, numbered one past the last. */

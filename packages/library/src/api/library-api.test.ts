@@ -73,6 +73,8 @@ const LIBRARY_API = [
   "search",
   "relatedNotes",
   "frontCovers",
+  "decision",
+  "composeStatement",
   "retire",
   "changesSince",
   "close",
@@ -87,6 +89,8 @@ const LIBRARY_API = [
  * LifecycleError joined it with capability 10: how an increment asked to move backward is refused,
  * WaitLoopError with capability 11: how a wait that would close a loop is refused, and
  * RetireRefusedError with capability 12: how retiring a question work is held on is refused.
+ * NumberTakenError and SupersessionLoopError joined it with capability 13: how a decision number
+ * already held, and a decision superseding itself, are refused.
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
@@ -95,9 +99,11 @@ const RUNTIME_EXPORTS = [
   "MissingReferenceError",
   "MissingUpgradeError",
   "NewerSchemaError",
+  "NumberTakenError",
   "ProjectNameError",
   "RetireRefusedError",
   "SchemaError",
+  "SupersessionLoopError",
   "UnknownTypeError",
   "WaitLoopError",
   "connect",
@@ -163,7 +169,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
 
     // A decision that is the email form's front cover, and a memory filed inside it: the cover is on
     // the capability's shelf, the memory is found from the cover, and both are found by their words.
-    const cover = await lib.recordDecision({ title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
+    const cover = await lib.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
     const memory = await lib.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] });
     assert.deepEqual(await lib.frontCovers(capability.id), [cover]);
     assert.deepEqual(await lib.relatedNotes(cover.id), [memory]);
@@ -261,7 +267,7 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
     const memory = await lib.writeMemory({ text: "Mailgun needs a verified domain" });
     const reworded = await lib.editNote(memory.id, { text: "Mailgun needs a verified sending domain" });
     await lib.retire(memory.id, "folded into a decision");
-    const decision = await lib.recordDecision({ title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
+    const decision = await lib.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
     assert.equal(await lib.editCapability("capability_000000000000", { title: "Nothing" }), null);
     assert.equal(await lib.editNote(memory.id, { text: "Retired, so not edited" }), null);
     await lib.retire(memory.id, "already retired");

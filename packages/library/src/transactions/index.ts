@@ -1,4 +1,5 @@
 export { MemoryTransactions } from "./memory.js";
+export { NumberTakenError } from "./records.js";
 export { PgTransactions } from "./pg.js";
 export type {
   EditInput,

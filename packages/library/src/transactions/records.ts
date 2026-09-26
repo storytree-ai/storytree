@@ -75,3 +75,35 @@ export function historyEntry(entry: {
 export function jsonCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
+
+/**
+ * A save gave its record a number that another record of its type has held, now or before it was
+ * retired: a number is never used twice.
+ */
+export class NumberTakenError extends Error {
+  readonly type: string;
+  readonly field: string;
+  readonly number: number;
+
+  constructor(type: string, field: string, number: number) {
+    super(`${type} number ${number} is taken: another ${type} has held it in field ${JSON.stringify(field)}, and a number is never used twice`);
+    this.name = "NumberTakenError";
+    this.type = type;
+    this.field = field;
+    this.number = number;
+  }
+}
+
+/**
+ * The save `input` numbered, for a save with a `sequence` field: the fields with that field stamped
+ * one past `highest` when they leave it out. A number they give that `taken` says another record
+ * has held is refused. (One that is not a number is left for the writer's check to refuse.)
+ */
+export function numbered(input: SaveInput, highest: number, taken: (number: number) => boolean): SaveInput {
+  const field = input.sequence;
+  if (field === undefined) return input;
+  const given = input.fields[field];
+  if (given === undefined) return { ...input, fields: { ...input.fields, [field]: highest + 1 } };
+  if (typeof given === "number" && taken(given)) throw new NumberTakenError(input.type, field, given);
+  return input;
+}

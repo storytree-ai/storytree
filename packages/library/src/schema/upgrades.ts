@@ -23,6 +23,14 @@ export const UPGRADES: readonly UpgradeStep[] = [
       endState: "Not recorded: this arc was written before arcs carried an end state.",
     }),
   },
+  {
+    // Capability 13 (ADR-0640 D1): a decision carries a required status. One written before was
+    // recorded as decided, so it reads accepted.
+    type: "decision",
+    from: 1,
+    name: "decision-status",
+    up: (fields) => ({ ...fields, status: "accepted" }),
+  },
 ];
 
 /** The schema the library runs on. */

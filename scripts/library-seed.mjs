@@ -626,7 +626,7 @@ export async function syncDecisions(library, decisions, nodes) {
     const frontCoverOf = placed.get(record);
     const old = filed.get(record);
     if (old === undefined) {
-      await library.recordDecision({ title, text, ...(frontCoverOf === undefined ? {} : { frontCoverOf }) });
+      await library.recordDecision({ title, text, status: "accepted", ...(frontCoverOf === undefined ? {} : { frontCoverOf }) });
       counts.added++;
       continue;
     }
@@ -693,7 +693,7 @@ export async function syncFoundingBooks(library, stories, nodes, decisions) {
   for (const [where, book] of wanted) {
     const old = filed.get(where);
     if (old === undefined) {
-      await library.recordDecision(book);
+      await library.recordDecision({ ...book, status: "accepted" });
       counts.added++;
       continue;
     }

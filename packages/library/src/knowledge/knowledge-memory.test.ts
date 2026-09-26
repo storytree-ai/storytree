@@ -20,7 +20,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
-import { SchemaError, SchemaRecords, type RecordType } from "../schema/index.js";
+import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordType } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { Knowledge, type Note } from "./index.js";
@@ -119,7 +119,7 @@ for (const backend of [memory, postgres]) {
     // Beside other notes: exactly the notes holding every word, of all three kinds, in creation
     // order. A decision is searched by its title and its text, a definition by its term and its
     // meaning. Records that are not notes are never returned, whatever words they hold.
-    const decision = await knowledge.recordDecision({ title: "Use Mailgun", text: "Its API is the simplest to call", links: [signup.id] });
+    const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest to call", links: [signup.id] });
     await laterThan(decision);
     const definition = await knowledge.defineTerm({ term: "Verified domain", meaning: "A domain whose DNS records prove we own it" });
     await laterThan(definition);
@@ -172,11 +172,11 @@ for (const backend of [memory, postgres]) {
     const linking = await createInOrder<Note>(3, (n) => {
       if (n % 3 === 0) return knowledge.defineTerm({ term: `Term ${n}`, meaning: "Defined", links: [target.id] });
       if (n % 3 === 1) return knowledge.writeMemory({ text: `Memory ${n}`, links: [target.id] });
-      return knowledge.recordDecision({ title: `Decision ${n}`, text: "Chosen", links: [other.id, target.id] });
+      return knowledge.recordDecision({ status: "accepted", title: `Decision ${n}`, text: "Chosen", links: [other.id, target.id] });
     });
     // Notes that do not link to it: one with no links, one listing none, one linking elsewhere.
     const unlinked = await knowledge.writeMemory({ text: "Links nothing" });
-    await knowledge.recordDecision({ title: "Nothing to link", text: "Yet", links: [] });
+    await knowledge.recordDecision({ status: "accepted", title: "Nothing to link", text: "Yet", links: [] });
     const elsewhere = await knowledge.defineTerm({ term: "Sign in", meaning: "Coming back", links: [other.id] });
 
     assert.deepEqual(
@@ -217,7 +217,7 @@ for (const backend of [memory, postgres]) {
   contract("6.3", "editing a decision keeps its old wording in history", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
     const domain = await knowledge.defineTerm({ term: "Sending domain", meaning: "The domain our mail comes from" });
-    const decision = await knowledge.recordDecision({ title: "Use Mailgun", text: "Its API is the simplest to call", links: [domain.id] });
+    const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest to call", links: [domain.id] });
     await assertCreated(transactions, decision, "decision", { title: "Use Mailgun", text: "Its API is the simplest to call", links: [domain.id] });
 
     // Reworded, then retitled: each edit changes only the fields it names.
@@ -225,11 +225,11 @@ for (const backend of [memory, postgres]) {
     assert.ok(reworded);
     assert.deepEqual(reworded, {
       ...decision,
-      fields: { title: "Use Mailgun", text: "Postmark delivers more of our mail", links: [domain.id] },
+      fields: { ...decision.fields, text: "Postmark delivers more of our mail" },
       updatedAt: reworded.updatedAt,
     });
     const retitled = await knowledge.editNote(decision.id, { title: "Use Postmark" });
-    assert.deepEqual(retitled?.fields, { title: "Use Postmark", text: "Postmark delivers more of our mail", links: [domain.id] });
+    assert.deepEqual(retitled?.fields, { ...decision.fields, title: "Use Postmark", text: "Postmark delivers more of our mail" });
     assert.deepEqual(await records.get(decision.id), retitled, "get reads the latest wording");
 
     // history({ id }) keeps every wording, oldest first: the old text and the old title are still there.
@@ -283,7 +283,7 @@ for (const backend of [memory, postgres]) {
     // A live note of every kind, and a retired one. (A link to a work record is refused as well,
     // since notes link only to notes: that is capability 9's contract 9.3.)
     const memory = await knowledge.writeMemory({ text: "Mailgun needs a verified domain" });
-    const decision = await knowledge.recordDecision({ title: "Use Mailgun", text: "Its API is the simplest" });
+    const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest" });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message sent back" });
     const retired = await knowledge.writeMemory({ text: "Postmark is cheaper" });
     await records.retire(retired.id, "out of date");
@@ -292,9 +292,9 @@ for (const backend of [memory, postgres]) {
     const refused: [attempt: () => Promise<unknown>, id: string][] = [
       [() => knowledge.writeMemory({ text: "Linked to nothing", links: [NO_STORY] }), NO_STORY],
       [() => knowledge.writeMemory({ text: "Linked to nothing", links: [decision.id, NO_MEMORY] }), NO_MEMORY],
-      [() => knowledge.recordDecision({ title: "Use Postmark", text: "Better delivery", links: [retired.id] }), retired.id],
+      [() => knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", links: [retired.id] }), retired.id],
       [
-        () => knowledge.recordDecision({ title: "Use Postmark", text: "Better delivery", links: [memory.id, memory.id.toUpperCase()] }),
+        () => knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", links: [memory.id, memory.id.toUpperCase()] }),
         memory.id.toUpperCase(),
       ],
       [() => knowledge.defineTerm({ term: "Hard bounce", meaning: "A permanent failure", links: [""] }), ""],
@@ -325,7 +325,7 @@ for (const backend of [memory, postgres]) {
     const notes = [memory, decision, definition].map((record) => record.id);
     const linked = await knowledge.writeMemory({ text: "Links to every kind", links: notes });
     await assertCreated(transactions, linked, "memory", { text: "Links to every kind", links: notes });
-    const decided = await knowledge.recordDecision({ title: "Keep it all", text: "Linked", links: notes });
+    const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it all", text: "Linked", links: notes });
     await assertCreated(transactions, decided, "decision", { title: "Keep it all", text: "Linked", links: notes });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
@@ -337,7 +337,7 @@ for (const backend of [memory, postgres]) {
     const claim = await knowledge.defineTerm({ term: "Claim", meaning: "Holding a capability while you build it" });
     await laterThan(claim);
     await knowledge.writeMemory({ text: "Claim before you build" });
-    await knowledge.recordDecision({ title: "Claims have no queue", text: "A second agent picks other work" });
+    await knowledge.recordDecision({ status: "accepted", title: "Claims have no queue", text: "A second agent picks other work" });
     const quiet = await knowledge.defineTerm({ term: "Quiet time", meaning: "How long a session may say nothing before it reads as idle" });
     const retired = await knowledge.defineTerm({ term: "Wisp", meaning: "0.2's picture of a claim" });
     await records.retire(retired.id, "not in 0.3");
@@ -357,9 +357,14 @@ async function assertCreated(
   fields: Record<string, unknown>,
 ): Promise<void> {
   assert.match(record.id, new RegExp(`^${type}_[0-9a-f]{12}$`), `a generated ${type} id: ${record.id}`);
+  // A decision also carries its status (these tests record them accepted) and the number the
+  // decision log handed it (capability 13).
+  const number = record.fields["number"];
+  if (type === "decision") assert.ok(Number.isSafeInteger(number) && (number as number) > 0, `a decision is numbered: ${String(number)}`);
+  const expected = type === "decision" ? { status: "accepted", ...fields, number } : fields;
   assert.deepEqual(
     record,
-    { id: record.id, type, version: 1, fields, createdAt: record.createdAt, updatedAt: record.createdAt },
+    { id: record.id, type, version: SCHEMA_VERSIONS[type], fields: expected, createdAt: record.createdAt, updatedAt: record.createdAt },
     `a new ${type}, holding exactly the fields given`,
   );
   assert.deepEqual(await transactions.get(record.id), record, `the ${type} is stored as returned`);

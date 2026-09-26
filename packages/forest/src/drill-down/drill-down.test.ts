@@ -106,8 +106,8 @@ test("4.5 storytree's own column shows beside the agent's only where something w
 /** A decision as the library's shelf read hands it over, a front cover of `cover`, created `minute` minutes in. */
 function decision(id: string, cover: string | undefined, minute: number, links?: string[]): SchemaRecord<"decision"> {
   const at = new Date(Date.UTC(2026, 8, 27, 12, minute)).toISOString();
-  const fields = { title: `Cover ${id}`, text: `What ${id} decided.\n\nWhy it was decided.`, ...(links === undefined ? {} : { links }), ...(cover === undefined ? {} : { frontCoverOf: cover }) };
-  return { id, type: "decision", version: 1, fields, createdAt: at, updatedAt: at };
+  const fields = { status: "accepted" as const, title: `Cover ${id}`, text: `What ${id} decided.\n\nWhy it was decided.`, ...(links === undefined ? {} : { links }), ...(cover === undefined ? {} : { frontCoverOf: cover }) };
+  return { id, type: "decision", version: 2, fields, createdAt: at, updatedAt: at };
 }
 
 function memory(id: string, text: string, links: string[]): Note {

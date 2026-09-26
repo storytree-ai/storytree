@@ -49,6 +49,14 @@ export interface SaveInput {
   readonly version?: number;
   readonly actor?: string;
   readonly validate?: Validate;
+  /**
+   * A field holding the record's number within its type (capability 13's decision numbers). When
+   * the fields leave it out, the save stamps it with one more than the highest number any record
+   * of the type has ever held, retired ones included; when they give one, no other record of the
+   * type may ever have held it (NumberTakenError). Worked out inside the write, so writers at the
+   * same time, on any connection, never get the same number.
+   */
+  readonly sequence?: string;
 }
 
 export interface EditInput {

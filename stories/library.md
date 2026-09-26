@@ -348,6 +348,18 @@ arc's log entry: its date, pull request, note, and whether it landed, failed or 
 - It adds `addIncrement`, `advanceIncrement`, `closeIncrement`, `editIncrement`, `parkArc`,
   `unparkArc` and `arcView` to 7's list of functions, and gives `createArc` and `editArc` an intent
   and an end state.
+- **As built:** `WorkInFlight` in `packages/library/src/work/work-in-flight.ts`, over capability
+  3's records. An `increment` record names its `arc`, and carries a `title`, `objective`, `body`,
+  `status`, `parked` (when it was parked, on a proposal), `touches`, `remedies` and, once closed,
+  its `outcome`: the day, a pull request, a note and `landed`, `failed` or `withdrawn`. 0.2's rules
+  across those fields are part of the type, so every write checks them: a proposal carries when it
+  was parked, a closed increment its outcome, and a parked one closed with no pull request a note
+  (one born closed tells its outcome in its body, as 0.2's ADR-0322 settled). The arc is at version
+  2; its upgrade step takes an older arc's description, or its title, as its intent, and records
+  that its end state was not recorded. `arcView` works the state out on every read; only `parked`
+  is stored; 10.3's half about questions waiting on the owner is proved with capability 12. The
+  agent link's `plan_arc` asks for the intent and end state, and `edit_plan` can
+  correct them.
 
 **Contracts:**
 1. An increment belongs to one live arc. It is created as a proposal, stamped with the date it was

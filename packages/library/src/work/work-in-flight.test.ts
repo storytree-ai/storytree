@@ -17,7 +17,7 @@ import { MissingReferenceError } from "../references.js";
 import { SchemaError, SchemaRecords } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
-import { LifecycleError, WorkInFlight, WorkModel } from "./index.js";
+import { LifecycleError, WorkInFlight, WorkModel, type NewIncrement } from "./index.js";
 
 interface Library {
   readonly work: WorkModel;
@@ -107,7 +107,7 @@ for (const backend of [memory, postgres]) {
       [{ arc: retired.id, ...WORK }, "arc"],
       [{ arc: arc.id, ...WORK, touches: ["capability_000000000000"] }, "touches"],
       [{ arc: arc.id, ...WORK, remedies: [story.id] }, "remedies"],
-    ] as const) {
+    ] as Array<[NewIncrement, string]>) {
       await assert.rejects(flight.addIncrement(fields), (error: unknown) => error instanceof MissingReferenceError && error.field === field);
     }
     assert.deepEqual(await transactions.history(), history, "nothing was written");
@@ -126,8 +126,8 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.advanceIncrement(increment.id, "active"), LifecycleError, "never in place");
     await assert.rejects(
       flight.closeIncrement(increment.id, { disposition: "withdrawn" }),
-      (error: unknown) => error instanceof SchemaError && error.fields.includes("note"),
-      "a close with no pull request and no note is refused",
+      (error: unknown) => error instanceof SchemaError && error.fields.includes("outcome") && error.message.includes('"note"'),
+      "a close with no pull request and no note is refused, naming the note it needs",
     );
     await assert.rejects(
       flight.closeIncrement(increment.id, { pr: "#3" } as never),

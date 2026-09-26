@@ -16,8 +16,11 @@ import type { FieldsOf } from "../schema/types.js";
 
 /** A new story's fields. */
 export type NewStory = FieldsOf<"story">;
-/** A new arc's fields. `stories`, when given, lists existing stories; an arc may list none. */
-export type NewArc = FieldsOf<"arc">;
+/**
+ * A new arc's fields: its intent and end state (capability 10), and the stories it grows, when
+ * given, each an existing story; an arc may list none. Parking is capability 10's parkArc.
+ */
+export type NewArc = Omit<FieldsOf<"arc">, "parked">;
 /** A new capability's fields: `story` and every `dependsOn` id must name existing records. */
 export type NewCapability = FieldsOf<"capability">;
 /** A new contract's fields: `capability` must name an existing capability. */
@@ -29,7 +32,7 @@ export type StoryEdit = { [F in keyof FieldsOf<"story">]?: FieldsOf<"story">[F] 
 /** An edit of a contract: some of its fields. A field set to undefined is removed. */
 export type ContractEdit = { [F in keyof FieldsOf<"contract">]?: FieldsOf<"contract">[F] | undefined };
 /** An edit of an arc: some of its fields. A field set to undefined is removed. */
-export type ArcEdit = { [F in keyof FieldsOf<"arc">]?: FieldsOf<"arc">[F] | undefined };
+export type ArcEdit = { [F in keyof NewArc]?: NewArc[F] | undefined };
 
 /** The plan of work as the forest reads it: story › capability › contract, and the arcs. */
 export interface ProjectTree {

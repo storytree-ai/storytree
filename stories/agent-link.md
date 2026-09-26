@@ -512,6 +512,12 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     agent's account kept apart; friction whose evidence is vague prose, a re-steer whose evidence
     quotes nobody, and a defect with no failure mode are each refused as a readable answer, and
     nothing is written.
+13. It corrects a note's wording in place: the note keeps its id and takes the new words, only the
+    fields given change, and a note that is not there, or a field its kind does not have, gets a
+    readable refusal.
+14. It retires a contract and then a capability with a reason, and each is gone from the plan, its
+    history keeping it. An id that is not a capability or a contract gets a readable refusal, and
+    nothing is retired.
 
 ## 7 · Instructions (the habits card)
 

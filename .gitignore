@@ -10,3 +10,6 @@ dist/
 # the desktop app: its packaged builds and the smoke check's screenshots
 apps/desktop/release/
 apps/desktop/smoke*.png
+
+# `pnpm library:export`: the library printed as story and decision files, and its round trip
+library-export/

@@ -89,6 +89,15 @@ behind the covers that rest on them.
     notes in 0.3, so carry none either).
   - **R (settled, ADR-0644 D3):** neighbours nobody linked are found with the library's plain
     `search`.
+- **As built:** `link` and `unrestedDecisions` in `packages/librarian/src/links`. The library itself
+  lets friction and re-steers carry links, so these rules are the librarian's, kept at its own
+  write. A superseded or proposed decision on no shelf is not on the worklist.
+- **ADR-0631 D2's links, drawn 2026-09-27** in 0.3's own library, each from the cover's own
+  recorded "Depends on" in 0.2's decision log: the agent link's tree (ADR-0626), knowledge entrances
+  (ADR-0627), the forest's tree (ADR-0632) and the app's tree (ADR-0634) rest on the MVP spec
+  (ADR-0625); the app's tree also rests on minimal viable TDD (ADR-0623). No cover's record depends
+  on the license (ADR-0617; ADR-0621 only cites it under References), so it has no link and stays on
+  the worklist, as ADR-0631's context expected.
 
 **Contracts:**
 1. `link(from, to)` makes note `from` rest on note `to`, keeping its other links. Linking it again

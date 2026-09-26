@@ -29,6 +29,8 @@ export interface PlacedTree {
   /** The capability's id; undefined for the one seedling of a story with no capabilities yet. */
   capability: string | undefined;
   form: TreeForm;
+  /** How many contracts its capability has: 0.2's engine grows that much ground cover on its parcel. */
+  contracts: number;
   x: number;
   z: number;
   /** How tall it stands, 1 for a full tree. */
@@ -82,18 +84,20 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
     const squeeze = reach + 2.4 > MAX_RADIUS ? (MAX_RADIUS - 2.4) / reach : 1;
     const x = (node?.at.x ?? 0) * PLACE_WIDTH;
     const z = (node?.at.y ?? 0) * PLACE_WIDTH;
+    const contractsOf = new Map(story.capabilities.map(({ id, contracts }) => [id, contracts.length]));
     const placed = trees.map(({ capability, form }, index): PlacedTree => {
       const spot = spots[index] ?? { r: 0, angle: 0 };
       return {
         capability,
         form,
+        contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
         x: x + Math.cos(spot.angle) * spot.r * squeeze,
         z: z + Math.sin(spot.angle) * spot.r * squeeze,
         scale: HEIGHT[form],
         turn: (index * 2.39996) % (2 * Math.PI),
       };
     });
-    const key = JSON.stringify([story.title, x, z, trees.map(({ capability, form }) => [capability, form])]);
+    const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, contracts }) => [capability, form, contracts])]);
     return { story: story.id, title: story.title, x, z, radius, trees: placed, key };
   });
   return { islands };

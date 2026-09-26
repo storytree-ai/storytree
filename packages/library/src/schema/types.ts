@@ -53,6 +53,12 @@ const nonEmpty = z.string().min(1);
 const ids = z.array(z.string());
 
 /**
+ * What an arc or an increment waits on (capability 11): each blocker, an arc for an arc and an
+ * increment for an increment, with the reason. Absent means it waits on nothing.
+ */
+const waits = z.array(z.object({ on: z.string(), reason: nonEmpty }).strict()).optional();
+
+/**
  * What every one of the eight kinds carries (6-a): a title, a one-line description, and links to
  * the other notes it relates to, as every note has.
  */
@@ -108,6 +114,7 @@ export const RECORD_SCHEMAS = {
       intent: nonEmpty,
       endState: nonEmpty,
       parked: z.literal(true).optional(),
+      waits,
     })
     .strict(),
   story: z
@@ -268,6 +275,7 @@ export const RECORD_SCHEMAS = {
       parked: nonEmpty.optional(),
       touches: ids.optional(),
       remedies: ids.optional(),
+      waits,
       /** How it closed: absent until it does. */
       outcome: z
         .object({

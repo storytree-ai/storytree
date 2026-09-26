@@ -53,6 +53,9 @@ const LIBRARY_API = [
   "parkArc",
   "unparkArc",
   "arcView",
+  "addWait",
+  "removeWait",
+  "waitHolds",
   "reportHealth",
   "recordVerified",
   "health",
@@ -77,7 +80,8 @@ const LIBRARY_API = [
  * reach or use as it is set up (a Cloud SQL instance without a Google sign-in, say), with a message
  * saying what to fix, so a caller catches every such refusal by its class. MissingUpgradeError
  * joined it with schema upgrades: how a record no upgrade step can bring up to date is refused.
- * LifecycleError joined it with capability 10: how an increment asked to move backward is refused.
+ * LifecycleError joined it with capability 10: how an increment asked to move backward is refused,
+ * and WaitLoopError with capability 11: how a wait that would close a loop is refused.
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
@@ -89,6 +93,7 @@ const RUNTIME_EXPORTS = [
   "ProjectNameError",
   "SchemaError",
   "UnknownTypeError",
+  "WaitLoopError",
   "connect",
 ];
 

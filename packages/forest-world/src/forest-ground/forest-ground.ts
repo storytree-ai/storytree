@@ -31,6 +31,7 @@ import {
   buildScene,
   hexCenter,
   hexCorners,
+  hash,
   hexDist,
   ringsOf,
   smoothCoast,
@@ -48,13 +49,13 @@ import { worldTo3D, type Descriptor3D, type InstanceDescriptor, type Transform3D
 
 /**
  * How many of 0.2's ground units one of 0.3's place-widths spans. The spiral keeps places at least
- * 0.97 of a width apart, and 0.2 gives each capability 318 square units of land (an island reaches
- * 11 units from its middle with one capability, 38 with twelve, 50 with twenty), so at this width
- * two neighbouring stories of up to about 19 capabilities each never touch, and the sea between
- * smaller ones stays close to 0.2's packed forest. It is fixed, never fitted to the project, so a
- * new story moves no island (P1).
+ * 0.97 of a width apart, and an island of 0.2's tiles reaches at most 11 units from its middle with
+ * one capability, 29 with up to six and 48 with up to nineteen (measured over twenty story ids each),
+ * so at this width neighbouring stories of up to nineteen capabilities never touch, and the sea
+ * between smaller ones stays close to 0.2's packed forest. It is fixed, never fitted to the
+ * project, so a new story moves no island (P1).
  */
-export const GROUND_PER_PLACE = 100;
+export const GROUND_PER_PLACE = 110;
 
 /** 0.3 world units (`forestScene`'s, a place-width of `PLACE_WIDTH`) to 0.2 ground units. */
 export const GROUND_PER_WORLD_UNIT = GROUND_PER_PLACE / PLACE_WIDTH;
@@ -94,9 +95,16 @@ function parcelId(island: Island, index: number): string {
 
 /** One island's ground: its relaxed cells and coast, centred on its place, in 0.2 ground units. */
 function groundFor(island: Island, owner: number, centre: Pt): { cells: RelaxedCell[]; coast: Pt[][]; radius: number } {
-  const rings = ringsOf(tileQuota(island.trees.length));
+  // 0.2 gave each island one hex tile per capability (`tileQuota`), grown out from its middle; which
+  // tiles of the outer ring it takes is seeded by the story, so each island has its own shape.
+  const quota = tileQuota(island.trees.length);
+  const rings = ringsOf(quota);
   const axis = Array.from({ length: rings * 2 + 1 }, (_, index) => index - rings);
-  const tiles = axis.flatMap((q) => axis.map((r) => ({ q, r }))).filter((h) => hexDist(h, { q: 0, r: 0 }) <= rings);
+  const tiles = axis
+    .flatMap((q) => axis.map((r) => ({ q, r })))
+    .filter((h) => hexDist(h, { q: 0, r: 0 }) <= rings)
+    .sort((a, b) => hexDist(a, { q: 0, r: 0 }) - hexDist(b, { q: 0, r: 0 }) || hash(`${island.story}:${a.q},${a.r}`) - hash(`${island.story}:${b.q},${b.r}`))
+    .slice(0, quota);
   const ground = { elevationDeg: PLAN_VIEW_ELEVATION_DEG };
   const drawTiles = tiles.map((h) => ({ h, owner }));
   const coarse = buildRelaxedCells(drawTiles, [], "mesh", undefined, ground);
@@ -165,12 +173,18 @@ export function groundInput(scene: ForestScene): SceneInput {
         coastGroundLoops: coast,
         decor: [],
         plants: [],
-        parcels: island.trees.map(({ form }, index): SceneParcelInput => ({
-          capId: parcelId(island, index),
-          status: statusOf(form),
-          theme: THEMES[index % THEMES.length]!,
-          seed: centroid(cells[spreadIndex(index, island.trees.length, cells.length)]!.poly),
-        })),
+        parcels: island.trees.map(({ form, contracts }, index): SceneParcelInput => {
+          const parcel: SceneParcelInput = {
+            capId: parcelId(island, index),
+            status: statusOf(form),
+            theme: THEMES[index % THEMES.length]!,
+            seed: centroid(cells[spreadIndex(index, island.trees.length, cells.length)]!.poly),
+          };
+          // 0.2 grew a parcel's ground cover from its test count; 0.3's is its contracts. None
+          // reported leaves the count out, which 0.2 draws as bare ground rather than as zero tests.
+          if (contracts > 0) parcel.testCount = contracts;
+          return parcel;
+        }),
         treeTitle: island.title,
         wisps: [],
         claims: [],

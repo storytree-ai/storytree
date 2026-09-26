@@ -16,7 +16,7 @@ import type { AnnotatedCapability, AnnotatedStory, Change } from "@storytree/lib
 import { capabilityFactsFrom, stateForm } from "../kit-vocabulary.js";
 import { parcelCellsFrom } from "../parcel-cells.js";
 import type { Descriptor3D, InstanceDescriptor } from "../world-to-3d.js";
-import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, statusOf } from "./forest-ground.js";
+import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, islandReach, statusOf } from "./forest-ground.js";
 
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
@@ -95,15 +95,13 @@ test("a story with no capabilities yet still gets ground and its one seedling", 
 test("neighbouring story nodes never overlap, even when every story is large", () => {
   const forest = scene(Array.from({ length: 12 }, () => 12));
   const descriptors = forestDescriptors(forest);
-  const boxes = forest.islands.map((island) => {
-    const cells = ground(descriptors, island.story);
-    assert.ok(cells.length > 0, `${island.story} has ground`);
-    return extent(cells);
-  });
-  for (const [i, a] of boxes.entries()) {
-    for (const b of boxes.slice(i + 1)) {
-      const apart = a.maxX < b.minX || b.maxX < a.minX || a.maxZ < b.minZ || b.maxZ < a.minZ;
-      assert.ok(apart, "two islands' ground overlaps");
+  const centres = new Map(forest.islands.map((island) => [island.story, { x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT }]));
+  const reach = islandReach(descriptors, centres);
+  for (const [i, a] of forest.islands.entries()) {
+    assert.ok((reach.get(a.story) ?? 0) > 0, `${a.story} has ground`);
+    for (const b of forest.islands.slice(i + 1)) {
+      const apart = Math.hypot(centres.get(a.story)!.x - centres.get(b.story)!.x, centres.get(a.story)!.z - centres.get(b.story)!.z);
+      assert.ok(apart > reach.get(a.story)! + reach.get(b.story)!, `${a.story} and ${b.story} overlap`);
     }
   }
 });

@@ -1,0 +1,90 @@
+/**
+ * Friction and re-steer capture, with storytree 0.2's evidence rules (ADR-0643 D1, the owner's n4;
+ * 0.2's `packages/cli/src/friction.ts` and `resteer.ts`). These are this story's functions: the
+ * agent tools call them, and a person's command line (`0-3-cli-story-tree`) calls the same ones.
+ * They write through the library's `writeKnowledge`, which keeps the rules of the records
+ * themselves (a friction's evidence, a defect's failure mode: the library's 6.7); what is added here
+ * is only the capture's own floor.
+ *
+ * - Evidence must be concrete (0.2's ADR-0168 D3): a path, a pull request or issue number, a
+ *   commit, a command and its output, an error, or a quoted excerpt. Vague prose is refused. The
+ *   check is deliberately dumb about truth: it only refuses what cannot be a citation.
+ * - A re-steer's evidence is the owner's own words, quoted: a paraphrase is the agent's account,
+ *   which goes in `selfReport`, apart (0.2's ADR-0513 D4). "Judged by the owner" is his call, never
+ *   an inference of the agent's.
+ * - Capture never classifies: friction is filed without a route, which is decided later by someone
+ *   other than the session that filed it (0.2's ADR-0168 D4).
+ */
+import type { Library, NewKnowledge, SchemaRecord } from "@storytree/library";
+
+/** A capture refused before anything is written: its message says what to fix. */
+export class CaptureError extends Error {}
+
+/** Friction as it is filed: what went wrong, the evidence for it, and what it cost. */
+export interface NewFriction {
+  readonly title: string;
+  readonly description: string;
+  readonly statement: string;
+  readonly evidence: string;
+  readonly impact: string;
+  readonly links?: string[];
+}
+
+/** A re-steer as it is filed: what the agent was doing, what the owner redirected it to, and his words. */
+export interface NewResteer {
+  readonly title: string;
+  readonly description: string;
+  readonly doing: string;
+  readonly redirect: string;
+  /** The owner's own words, quoted. */
+  readonly evidence: string;
+  /** The agent's own account of it, kept apart from his words. */
+  readonly selfReport?: string;
+  readonly disposition: "defect" | "taste";
+  /** Who judged it a defect or taste: the owner, or the agent. */
+  readonly dispositionBy: "owner" | "agent";
+  /** Its failure mode, needed for a defect ("no-mast-home" when none describes it). */
+  readonly mode?: string;
+  readonly links?: string[];
+}
+
+/** 0.2's floor for concrete evidence (ADR-0168 D3), with its repository paths made any project's. */
+const CONCRETE_EVIDENCE: readonly RegExp[] = [
+  /`[^`]+`/, // a code, command or output span
+  /\b[\w-]+\.(ts|tsx|js|mjs|cjs|json|md|sql|sh|yml|yaml|css|html|py|txt|toml|mts|cts)\b/, // a file with a known extension
+  /\b[\w.-]+\/[\w./-]+/, // a path
+  /#\d+/, // a pull request or issue number
+  /\b[0-9a-f]{7,40}\b/, // a commit
+  /\b(Error|Exception|Traceback|TS\d{2,}|ERR_[A-Z][A-Z_]+|exit code|non-zero|refused|assert(?:ion)?|FAIL(?:ED)?|throws?)\b/, // an error
+  /["'“][^"'”]{3,}["'”]/, // a quoted excerpt
+  /\b(pnpm|npm|npx|node|git|storytree|tsx|gh|python|pip|cargo|go)\s+[\w-]/, // a command
+];
+
+/** True when `text` carries at least one concrete citation. */
+export function hasConcreteEvidence(text: string): boolean {
+  return CONCRETE_EVIDENCE.some((pattern) => pattern.test(text));
+}
+
+/** A quoted excerpt: the only evidence a re-steer takes. */
+const QUOTED = /["“][^"”]{3,}["”]/;
+
+/** File friction, if its evidence is concrete. */
+export async function recordFriction(library: Library, friction: NewFriction): Promise<SchemaRecord<"friction">> {
+  if (!hasConcreteEvidence(friction.evidence)) {
+    throw new CaptureError(
+      `friction's evidence must be concrete: a path, a pull request, a commit, a command and its output, an error, or a quoted excerpt. Vague prose is refused. You gave: ${friction.evidence}`,
+    );
+  }
+  return library.writeKnowledge("friction", { ...friction });
+}
+
+/** File a re-steer, if its evidence quotes the owner. */
+export async function recordResteer(library: Library, resteer: NewResteer): Promise<SchemaRecord<"resteer">> {
+  if (!QUOTED.test(resteer.evidence)) {
+    throw new CaptureError(
+      `a re-steer's evidence is the owner's own words: quote what he actually said. A paraphrase is your account of his words, which goes in the self-report. You gave: ${resteer.evidence}`,
+    );
+  }
+  // Its failure mode is checked against the library's own list of modes, inside the write.
+  return library.writeKnowledge("resteer", { ...resteer } as NewKnowledge<"resteer">);
+}

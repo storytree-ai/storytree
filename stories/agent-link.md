@@ -471,6 +471,15 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     widened to any path, since a user's project has its own. A re-steer's evidence must hold a
     quoted excerpt of three characters or more. The library's own refusals (a lifecycle move
     backwards, a wait loop) come back as readable answers.
+  - **Correcting a note and retiring a capability or contract (ADR-0641 D2 step 3, E1), as built
+    (6.13, 6.14):** `correct_note` changes only the wording fields given (a memory's or decision's
+    text, a decision's title, a definition's term or meaning) through the library's `editNote`,
+    which keeps the old wording in history and refuses a field the note's kind does not have.
+    `retire_from_plan` retires a capability or a contract, with its reason, through the library's
+    `retire`; any other id is refused, since a question has its own retire and an arc or increment
+    closes instead. The repo wiring ADR-0641 E1 also names (ADR-0636 b5) is not in this landing: the
+    tool server registers its hooks in the user's own homes and opens the app, so it stays with
+    `0-3-own-development-setup`.
   - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
     this one server, beside these, and can fill a "next" line that `land`'s answer ends with; until
     one does, the answer has none.

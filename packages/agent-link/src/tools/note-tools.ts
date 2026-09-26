@@ -9,13 +9,15 @@
  *   opened without having been shown was found by its id. Each read names the agent that made it,
  *   as the harness revealed it (ADR-0629 D2). The record says what was reached, never what helped
  *   (ADR-0624 D3).
+ * - A note is corrected in place through the library's editNote (ADR-0641 D2 step 3): only the
+ *   fields given change, and its old wording stays in its history.
  * - A new note with no place named goes onto the shelf of the capability the session claimed most
  *   recently (ADR-0627 D4): a decision becomes one of its front covers; a memory or definition
  *   links to the cover the session last opened on that shelf, else to the shelf's first book; with
  *   an empty shelf nothing is added, and the agent is told. A session holding no claim gets no
  *   default, and a place the agent names always wins.
  */
-import type { Library, Note, SchemaRecord } from "@storytree/library";
+import type { Library, Note, NoteEdit, SchemaRecord } from "@storytree/library";
 import { z } from "zod";
 
 import type { Line, NewLine } from "../activity/index.js";
@@ -61,6 +63,25 @@ export function registerNoteTools(define: Define): void {
       front_cover_of: z.string().min(1).optional().describe("A decision only: the story or capability it is a front cover of"),
     }),
     async (args, call) => writeNote(args, call),
+  );
+
+  define(
+    "correct_note",
+    "Correct a note's wording in place: change only the fields you give (a memory's or a decision's text, a decision's title, a definition's term or meaning). It keeps its id, and its old wording stays in its history.",
+    z.object({
+      id: z.string().min(1).describe("The id of the note to correct"),
+      text: z.string().min(1).optional().describe("A memory's text, or a decision's"),
+      title: z.string().min(1).optional().describe("A decision's title"),
+      term: z.string().min(1).optional().describe("A definition's term"),
+      meaning: z.string().min(1).optional().describe("A definition's meaning"),
+    }),
+    async ({ id, ...wording }, { library }) => {
+      const fields = Object.fromEntries(Object.entries(wording).filter(([, value]) => value !== undefined));
+      if (Object.keys(fields).length === 0) return { text: "Give the words to change: text, title, term or meaning.", refused: true };
+      const note = await library.editNote(id, fields as NoteEdit);
+      if (note === null) return { text: `There is no note ${id} in this project.`, refused: true };
+      return { text: `Corrected ${quoted(spineOf(note))} (${id}).`, data: { id } };
+    },
   );
 }
 

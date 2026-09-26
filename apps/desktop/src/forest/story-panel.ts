@@ -1,30 +1,67 @@
 /**
  * The drill-down's panel (stories/forest.md, capability 4): @storytree/forest's drillDown, as HTML.
  * It explains the story in plain words, then each capability with its health as the agent reports
- * it, and its contracts on request, with a small diagram of which capability builds on which. Every
- * word from the library is written as text, never as HTML.
+ * it, and its contracts on request, with a small diagram of which capability builds on which. Inside
+ * it, the story's and each capability's shelf of front covers shows as spines (capability 7), and the
+ * book opened shows its text and the titles of its links, one step in and no further. Every word from
+ * the library is written as text, never as HTML.
  */
-import type { Arrow, CapabilityLine, StoryPanel } from "@storytree/forest";
+import type { Arrow, Book, CapabilityLine, Shelf, StoryPanel } from "@storytree/forest";
 import type { HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 const STATE = { planned: "planned", "in-progress": "in progress", landed: "landed" } as const;
 
-/** The panel's HTML. */
-export function renderStoryPanel(panel: StoryPanel): string {
+/** The panel's HTML, with `book` open on its shelf, if one is. */
+export function renderStoryPanel(panel: StoryPanel, book?: Book): string {
   return `
     <header class="panel-head">
       <h2>${text(panel.title)}</h2>
       <button type="button" class="panel-close" aria-label="Close">×</button>
     </header>
     <p class="panel-sentences">${text(panel.description)}</p>
+    ${shelf(panel.shelf, book)}
     ${panel.capabilities.length === 0 ? "" : diagram(panel)}
     <ol class="panel-capabilities">
-      ${panel.capabilities.map(capability).join("")}
+      ${panel.capabilities.map((line) => capability(line, book)).join("")}
     </ol>`;
 }
 
-function capability(line: CapabilityLine): string {
+/** A shelf: its spines, each a button that opens its book, or what an empty shelf says. Nothing until it is read. */
+function shelf(on: Shelf | undefined, book: Book | undefined): string {
+  if (on === undefined) return "";
+  const spines = on.spines.map((spine) => {
+    const open = book?.id === spine.id;
+    return `
+      <li>
+        <button type="button" class="panel-spine" data-book-id="${attribute(spine.id)}" aria-expanded="${open}">
+          <span class="spine-title">${text(spine.title)}</span>${spine.founding ? ` <span class="spine-founding">founding book</span>` : ""}
+          <span class="spine-line">${text(spine.firstLine)}</span>
+        </button>
+        ${open && book !== undefined ? opened(book) : ""}
+      </li>`;
+  });
+  return `
+    <section class="panel-shelf" data-shelf="${attribute(on.node)}">
+      <h4>Front covers</h4>
+      ${on.empty === undefined ? `<ol class="panel-spines">${spines.join("")}</ol>` : `<p class="panel-muted">${text(on.empty)}</p>`}
+    </section>`;
+}
+
+/** A book opened: its text, then the titles of what links to it and of what it links to. */
+function opened(book: Book): string {
+  const titles = (label: string, list: readonly string[], none: string): string => `
+    <p class="panel-muted">${text(label)}</p>
+    ${list.length === 0 ? `<p class="panel-muted">${text(none)}</p>` : `<ul class="panel-links">${list.map((title) => `<li>${text(title)}</li>`).join("")}</ul>`}`;
+  return `
+    <div class="panel-book">
+      ${book.text.split(/\n\s*\n/).map((paragraph) => `<p>${text(paragraph)}</p>`).join("")}
+      ${titles("Linked from", book.linksIn, "No note links here yet.")}
+      ${titles("Links to", book.linksOut, "It links to no note.")}
+    </div>`;
+}
+
+function capability(line: CapabilityLine, book: Book | undefined): string {
   const contracts = line.contracts.length === 0
     ? `<p class="panel-muted">No contracts yet.</p>`
     : `<ul class="panel-contracts">${line.contracts
@@ -49,6 +86,7 @@ function capability(line: CapabilityLine): string {
         ${line.verified === undefined ? "" : badge("storytree saw", line.verified)}
       </p>
       <details><summary>${line.contracts.length} contract${line.contracts.length === 1 ? "" : "s"}</summary>${contracts}</details>
+      ${shelf(line.shelf, book)}
     </li>`;
 }
 

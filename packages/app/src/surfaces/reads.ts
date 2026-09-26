@@ -1,8 +1,9 @@
 /**
  * Capability 3 · Surfaces (stories/app.md): what the app answers when the page asks. The page runs
  * sandboxed and cannot reach the database, so every read a surface makes comes through here: the
- * projects, a project's tree, and the two the live reading asks for (ADR-0634 D3), the library's
- * changes and the agent activity log's new lines since a point. The live reading, which decides when
+ * projects, a project's tree, the two the live reading asks for (ADR-0634 D3), the library's
+ * changes and the agent activity log's new lines since a point, and the two the forest's shelves
+ * ask for, a node's front covers and the notes that link to a note. The live reading, which decides when
  * to ask, is the arc surface's; the app only answers.
  *
  * Only a project the library already has is read: a name that is not a project is refused, and
@@ -82,8 +83,8 @@ export function pageReads({ storytree, serverUrl }: PageReadsOptions): PageReads
       const known = await project(name);
       return (await activityLog()).since(known, cursor as number);
     },
-    frontCovers: () => Promise.resolve([]),
-    relatedNotes: () => Promise.resolve([]),
+    frontCovers: async (name, nodeId) => (await library(await project(name))).frontCovers(nodeId as string),
+    relatedNotes: async (name, noteId) => (await library(await project(name))).relatedNotes(noteId as string),
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];
       libraries.clear();

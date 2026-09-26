@@ -11,6 +11,9 @@
  * live reading hands on the library's changes, health saves included. Storytree's own column shows
  * only where something wrote it.
  *
+ * Capability 7 · Library entrypoints adds each shelf of front-cover decisions, as spines, and a
+ * book opened one step in: its text and the titles of its links, and no note browser (ADR-0625 D4).
+ *
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
 import type { PartState, WorkStates } from "@storytree/arc-surface";
@@ -187,12 +190,51 @@ function sentences(description: string | undefined): string {
   return description === undefined || description.trim() === "" ? NO_DESCRIPTION : description;
 }
 
-/** `panel` with the story's and each capability's shelf, from `covers`, the front covers read for them. */
-export function shelved(panel: StoryPanel, _covers: readonly SchemaRecord<"decision">[]): StoryPanel {
-  return panel;
+/**
+ * `panel` with the story's and each capability's shelf (capability 7), from `covers`, the front
+ * covers read for them. A cover goes only on the shelf its mark names, so another node's never appears; each
+ * shelf is founding book first, then oldest first (ADR-0627 D2), and an empty one says so.
+ */
+export function shelved(panel: StoryPanel, covers: readonly SchemaRecord<"decision">[]): StoryPanel {
+  const ordered = [...covers].sort((a, b) => (a.createdAt === b.createdAt ? (a.id < b.id ? -1 : 1) : a.createdAt < b.createdAt ? -1 : 1));
+  const shelf = (node: string): Shelf => {
+    const spines = ordered
+      .filter(({ fields }) => fields.frontCoverOf === node)
+      .map(({ id, fields }, index): Spine => ({ id, title: fields.title, firstLine: firstLine(fields.text), founding: index === 0 }));
+    return { node, spines, ...(spines.length === 0 ? { empty: EMPTY_SHELF } : {}) };
+  };
+  return { ...panel, shelf: shelf(panel.story), capabilities: panel.capabilities.map((line) => ({ ...line, shelf: shelf(line.id) })) };
 }
 
-/** `cover` opened: `linkingIn` are the notes that link to it (the library's relatedNotes), and `history` the project's changes, where the titles of the notes it links to are found. */
-export function openBook(cover: SchemaRecord<"decision">, _linkingIn: readonly Note[], _history: readonly Change[]): Book {
-  return { id: cover.id, title: "", text: "", linksIn: [], linksOut: [] };
+/**
+ * `cover` opened, one step in and no further: its full text, the titles of `linkingIn` (the library's
+ * relatedNotes of it), and the titles of the notes it links to, found in `history`, the project's
+ * changes, since the library has no "read one note". A note since retired, or never seen, is left out.
+ */
+export function openBook(cover: SchemaRecord<"decision">, linkingIn: readonly Note[], history: readonly Change[]): Book {
+  const latest = new Map<string, Change>();
+  for (const change of history) latest.set(change.recordId, change);
+  const linksOut = (cover.fields.links ?? []).flatMap((id) => {
+    const change = latest.get(id);
+    return change === undefined || change.action === "retired" ? [] : [noteTitle(change.record.type, change.record.fields)];
+  });
+  return {
+    id: cover.id,
+    title: cover.fields.title,
+    text: cover.fields.text,
+    linksIn: linkingIn.map((note) => noteTitle(note.type, note.fields)),
+    linksOut,
+  };
+}
+
+/** A note's title: a decision's title, a definition's term, a memory's first line. */
+function noteTitle(type: string, fields: Record<string, unknown>): string {
+  const of = (field: string): string => (typeof fields[field] === "string" ? (fields[field] as string) : "");
+  if (type === "decision") return of("title");
+  if (type === "definition") return of("term");
+  return firstLine(of("text"));
+}
+
+function firstLine(text: string): string {
+  return text.split("\n").find((line) => line.trim() !== "")?.trim() ?? "";
 }

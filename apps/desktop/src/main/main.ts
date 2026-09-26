@@ -93,6 +93,8 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.projectTree, (_event, name: unknown) => open().projectTree(name));
   ipcMain.handle(CHANNELS.changesSince, (_event, name: unknown, cursor: unknown) => open().changesSince(name, cursor));
   ipcMain.handle(CHANNELS.linesSince, (_event, name: unknown, cursor: unknown) => open().linesSince(name, cursor));
+  ipcMain.handle(CHANNELS.frontCovers, (_event, name: unknown, nodeId: unknown) => open().frontCovers(name, nodeId));
+  ipcMain.handle(CHANNELS.relatedNotes, (_event, name: unknown, noteId: unknown) => open().relatedNotes(name, noteId));
 
   let problem: string | undefined;
   try {

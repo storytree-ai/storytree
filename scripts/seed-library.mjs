@@ -1,8 +1,9 @@
 // `pnpm seed:library`: put this repo's own stories and decisions into the project `storytree` in
 // the desktop app's library (~/.storytree/0.3/pgdata). Every story file (stories/*.md) becomes a
-// story with its capabilities and contracts, and every decision file (decisions/*.md) a front cover
-// of the story or capability it decided, or, for a decision about the whole project, a decision on
-// no shelf. Then each story's tests are run, and each contract's VERIFIED health is recorded from
+// story with its capabilities and contracts, each capability's founding book (its shelf's first
+// item in the story file) a front cover of that capability, and every decision file (decisions/*.md)
+// a front cover of the story or capability it decided, or, for a decision about the whole project,
+// a decision on no shelf. Then each story's tests are run, and each contract's VERIFIED health is recorded from
 // what they showed.
 //
 // The app's Postgres is started here, on the app's own data directory, and stopped again at the
@@ -35,6 +36,7 @@ import {
   parseStory,
   recordHealth,
   syncDecisions,
+  syncFoundingBooks,
   syncStory,
   VERIFIED_BY,
 } from "./library-seed.mjs";
@@ -116,6 +118,13 @@ async function main() {
     for (const other of (await library.projectTree()).stories.filter(({ title }) => !titles.has(title))) {
       console.log(`note: the library also has the story "${other.title}", which no story file names; it is left as it is`);
     }
+
+    // Founding books before decision files, so on a new library each is its shelf's first.
+    const books = (await syncFoundingBooks(library, stories, synced, decisions)).counts;
+    console.log(
+      `\nfounding books: ${books.added} added, ${books.updated} updated, ${books.unchanged} unchanged, ` +
+        `${books.offShelf} taken off their shelves`,
+    );
 
     const filed = await syncDecisions(library, decisions, synced);
     const { added, updated, unchanged, offShelf } = filed.counts;

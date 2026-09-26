@@ -21,7 +21,8 @@ export const VERIFIED_BY = "storytree test run";
 
 /**
  * @typedef {{ number: string, text: string, title: string }} ParsedContract
- * @typedef {{ number: number, name: string, title: string, description: string | undefined, dependsOn: number[], contracts: ParsedContract[] }} ParsedCapability
+ * @typedef {{ label?: string, text: string }} FoundingBook
+ * @typedef {{ number: number, name: string, title: string, description: string | undefined, dependsOn: number[], contracts: ParsedContract[], foundingBook?: FoundingBook }} ParsedCapability
  * @typedef {{ title: string, description: string | undefined, capabilities: ParsedCapability[] }} ParsedStory
  */
 
@@ -29,7 +30,8 @@ export const VERIFIED_BY = "storytree test run";
  * Read a story file: its `# Story: <name>` title and the paragraph under it; each `## N · Name`
  * heading as a capability, with the first paragraph under it as its description, its
  * `**Depends on:**` line as its dependencies, and the numbered items under `**Contracts**` as its
- * contracts, numbered N.M. Capabilities come in the order the file's `Build order:` line gives
+ * contracts, numbered N.M; and the `**Founding book**` item under its `**Its shelf**` line as its
+ * founding book, with the label in brackets that follows the words `Founding book`, if any. Capabilities come in the order the file's `Build order:` line gives
  * (heading order without one), which must put every capability after the ones it depends on.
  * Numbers go in titles: `N · Name`, `N.M · <the contract's words>`.
  * @param {string} markdown
@@ -87,7 +89,33 @@ function capabilityAt(lines, at, number, name) {
     }
   }
   for (const contract of contracts) contract.title = `${contract.number} · ${contract.text}`;
-  return { number, name, title: `${number} · ${name}`, description, dependsOn, contracts };
+  const foundingBook = foundingBookIn(section);
+  return { number, name, title: `${number} · ${name}`, description, dependsOn, contracts, ...(foundingBook === undefined ? {} : { foundingBook }) };
+}
+
+/**
+ * The founding book of a capability's section: the first `**Founding book**` item under its
+ * `**Its shelf**` line, its lines joined; its label is what the brackets after `Founding book`
+ * hold, inside the bold (`**Founding book (P1):**`) or after it (`**Founding book** (ADR-0621 D4):`).
+ * @param {string[]} section
+ * @returns {FoundingBook | undefined}
+ */
+function foundingBookIn(section) {
+  const shelf = section.findIndex((line) => /^- \*\*Its shelf/.test(line));
+  if (shelf < 0) return undefined;
+  for (let index = shelf + 1; index < section.length && /^\s+\S/.test(section[index]); index++) {
+    const item = /^(\s+)- \*\*Founding book(?: \(([^)]*)\))?:?\*\*:?\s*(?:\(([^)]*)\):?\s*)?(.*)$/.exec(section[index]);
+    if (item === null) continue;
+    const words = [item[4].trim()];
+    for (let next = index + 1; next < section.length; next++) {
+      const line = section[next];
+      if (!line.startsWith(`${item[1]}  `) || /^\s*- /.test(line)) break;
+      words.push(line.trim());
+    }
+    const label = item[2] ?? item[3];
+    return { ...(label === undefined ? {} : { label }), text: words.join(" ") };
+  }
+  return undefined;
 }
 
 /** The paragraph starting at or after `lines[from]` (blank lines skipped), its lines joined; undefined if none. */
@@ -620,14 +648,68 @@ export async function syncDecisions(library, decisions, nodes) {
 }
 
 /**
- * File each capability's founding book (stub).
+ * File each capability's founding book, as its story file writes it, as a front cover of that
+ * capability, through the library's public API, idempotently (ADR-0627 D5: a node's first book says
+ * what it is for, and the one choice that shapes it). Run it before syncDecisions, so on a new
+ * library the founding book is its shelf's oldest, and so its first.
+ *
+ * A capability a decision file already covers keeps that decision as its founding book, and nothing
+ * is filed from the story file, so no decision stands on a shelf twice. A founding book is found
+ * again by its text's last line, `Founding book of stories/<name>.md, capability N.`, as a decision
+ * file's is by its full record. What is missing is added, a changed one is edited in place, and one
+ * whose story file no longer has it leaves its shelf and stays in the library, never retired, as
+ * syncDecisions does. When the library becomes the one copy of these stories, the books it filed are
+ * ordinary decisions on their shelves, and stay as they are.
  * @param {import("@storytree/library").Library} library
  * @param {{ file: string, story: ParsedStory }[]} stories
- * @param {Map<string, { storyId: string, capabilityIds: Map<string, string> }>} nodes
- * @param {ParsedDecision[]} decisions
+ * @param {Map<string, { storyId: string, capabilityIds: Map<string, string> }>} nodes story file -> ids
+ * @param {ParsedDecision[]} decisions the decision files, for the capabilities they already cover
  */
 export async function syncFoundingBooks(library, stories, nodes, decisions) {
-  return { counts: { added: 0, updated: 0, unchanged: 0, offShelf: 0 } };
+  const counts = { added: 0, updated: 0, unchanged: 0, offShelf: 0 };
+  const covered = new Set(
+    decisions.flatMap(({ cover }) => (cover?.capability === undefined ? [] : [`${cover.story}, capability ${cover.capability}`])),
+  );
+  /** @type {Map<string, { title: string, text: string, frontCoverOf: string }>} where -> the book */
+  const wanted = new Map();
+  for (const { file, story } of stories) {
+    for (const capability of story.capabilities) {
+      const where = `${file}, capability ${capability.number}`;
+      const book = capability.foundingBook;
+      const frontCoverOf = nodes.get(file)?.capabilityIds.get(String(capability.number));
+      if (book === undefined || frontCoverOf === undefined || covered.has(where)) continue;
+      const label = book.label === undefined ? "" : ` (${book.label})`;
+      wanted.set(where, { title: `${capability.title}: founding book${label}`, text: `${book.text}\n\nFounding book of ${where}.`, frontCoverOf });
+    }
+  }
+
+  /** @type {Map<string, import("@storytree/library").Note>} where -> the book filed for it */
+  const filed = new Map();
+  for (const note of await library.search("Founding book of")) {
+    const where = note.type === "decision" ? /^Founding book of (stories\/\S+\.md, capability \d+)\.$/m.exec(note.fields.text)?.[1] : undefined;
+    if (where !== undefined && !filed.has(where)) filed.set(where, note);
+  }
+
+  for (const [where, book] of wanted) {
+    const old = filed.get(where);
+    if (old === undefined) {
+      await library.recordDecision(book);
+      counts.added++;
+      continue;
+    }
+    const edit = {};
+    for (const field of /** @type {const} */ (["title", "text", "frontCoverOf"])) if (old.fields[field] !== book[field]) edit[field] = book[field];
+    if (Object.keys(edit).length > 0) {
+      await library.editNote(old.id, edit);
+      counts.updated++;
+    } else counts.unchanged++;
+  }
+  for (const [where, old] of filed) {
+    if (wanted.has(where) || old.fields.frontCoverOf === undefined) continue;
+    await library.editNote(old.id, { frontCoverOf: undefined });
+    counts.offShelf++;
+  }
+  return { counts };
 }
 
 /** The id of the full record a decision's text ends with, as parseDecision writes it; undefined if it has none. */

@@ -10,11 +10,14 @@ import {
   forestDescriptors, groundInput, islandReach, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT,
 } from '../../packages/forest-world/src/forest-ground/forest-ground.ts';
 import { clipToCoast, rimLoops, SHIPPED_COAST } from '../../packages/forest-world/src/coast-clip.ts';
+import { measureShore } from './shore-geometry.mjs';
 
 const OUT = new URL('./results/', import.meta.url);
 const COUNTS = [5, 36, 100];
 const CAPABILITIES = [1, 6, 19];
-const SAMPLE_COUNT = 100;
+// Continue beyond the requested pictures so the large-island failure at the
+// recommended R is observed, as well as the conservative circular capacity.
+const SAMPLE_COUNT = 256;
 const SCAN_COUNT = 10000;
 const health = { reported: { state: 'not-checked' }, verified: { state: 'not-checked' } };
 function tree(count, caps) {
@@ -117,9 +120,12 @@ const measurements = radii.map(candidate => {
   assert.ok(afterPole > 0);
   const before = places[afterPole - 1], after = places[afterPole];
   const backPolePlace = before.place + ((Math.PI * R) ** 2 - before.distance ** 2) / (after.distance ** 2 - before.distance ** 2);
+  const shores = shapes.map(s => ({ capabilities: s.capabilities, ...measureShore(s.islands, wrapped, R, COUNTS) }));
+  console.log(JSON.stringify({ radius: R, shores }));
   return {
     ...candidate, radiusPlaceWidths: R / GROUND_PER_PLACE,
     backPolePlace, firstPlacePastBackPole: after.place,
+    shores,
     counts: COUNTS.map(count => ({
       count, lastPolarDegrees: wrapped[count - 1].polarRadians * 180 / Math.PI,
       frontCentres: wrapped.slice(0, count).filter(p => p.normal[2] >= 0).length,
@@ -134,6 +140,7 @@ const measurements = radii.map(candidate => {
         rimLiftRadialExact: Math.hypot(R, r) - R,
         rimLiftNormalExact: R - Math.sqrt(R * R - r * r),
         capacity: capacity(wrapped, R, r),
+        tangentCapCapacity: capacity(wrapped, R, R * Math.atan(r / R)),
       };
     }),
     places: wrapped.slice(0, SAMPLE_COUNT),
@@ -146,13 +153,31 @@ const sourcePaths = [
   'packages/forest-world/src/forest-ground/forest-ground.ts',
   'packages/forest-world/src/coast-clip.ts',
 ];
+// A radius threshold is a measurement for this shore bound, not a fit applied
+// by placement. The recommendation remains one fixed constant for every project.
+let low = 500, high = 2000;
+const biggest = shapes.at(-1).shoreRadius.max;
+for (let step = 0; step < 45; step++) {
+  const R = (low + high) / 2;
+  if (closest(places.slice(0, 100).map(p => wrap(p, R)), 100, R, biggest).gap > 0) high = R;
+  else low = R;
+}
+let flatMinimum = Infinity;
+for (let i = 1; i < 100; i++) for (let j = 0; j < i; j++) {
+  flatMinimum = Math.min(flatMinimum, Math.hypot(places[i].x - places[j].x, places[i].y - places[j].y));
+}
 const output = {
   groundPerPlace: GROUND_PER_PLACE, counts: COUNTS, capabilities: CAPABILITIES,
-  sample: '100 deterministic ids, story_0 through story_99, at consecutive historical places 1 through 100; each size measured separately.',
+  sample: `${SAMPLE_COUNT} deterministic ids, story_0 through story_${SAMPLE_COUNT - 1}, at consecutive historical places 1 through ${SAMPLE_COUNT}; each size measured separately. Requested gap/picture counts remain 5, 36 and 100.`,
+  minimumRadiusFor100Envelope: high,
+  flat100: { centreGap: flatMinimum, biggestEnvelopeGap: flatMinimum - 2 * biggest },
   method: 'R * great-circle angle - 2 * largest measured shore radius: a conservative signed shore-envelope clearance. Negative means the envelopes overlap, not necessarily the irregular coasts. tangentCapGap uses R * atan(r / R), the exact radial footprint of a rigid tangent disc. Capacity is the first envelope conflict in the consecutive place prefix, not a count of surviving stories.',
+  actualShoreMethod: 'Project the shipped coast from rigid tangent plates radially onto the globe, with the shortest rotation from the front normal. Measure the minimum great-circle arc separation of polygon edges, including intersections and containment. Overlap is reported as zero actual gap and an overlap flag; signed negative depths are only for the enclosing circles. This measures surface footprints, not tree crowns, relief or 3D plate/mesh intersections.',
   sources: Object.fromEntries(sourcePaths.map(p => [p, createHash('sha256').update(readFileSync(new URL(`../../${p}`, import.meta.url))).digest('hex')])),
   shapes, measurements,
 };
 await mkdir(OUT, { recursive: true });
-await writeFile(new URL('measurements.json', OUT), `${JSON.stringify(output, null, 2)}\n`);
+// One line per island keeps the raw coast coordinates reviewable without a 200k-line file.
+const serialised = JSON.stringify(output, null, 2).replace(/"coast": \[[\s\S]*?\n {10}\]/g, value => value.replace(/\s+/g, ' '));
+await writeFile(new URL('measurements.json', OUT), `${serialised}\n`);
 console.log(JSON.stringify(measurements.map(({ places, ...m }) => m), null, 2));

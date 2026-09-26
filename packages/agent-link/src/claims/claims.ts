@@ -17,14 +17,16 @@
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  */
-import type { Library } from "@storytree/library";
+import type { Hold, Library } from "@storytree/library";
 
 import type { ActivityLog, Line, LockedLog } from "../activity/index.js";
 import { COMMAND_KINDS, commandRunning, labelOf, QUIET_MS } from "../sessions/index.js";
 
-/** A capability held by a session, as the log shows it. */
-export interface Claim {
-  capability: string;
+/** A capability, or an increment (ADR-0643 D1), held by a session, as the log shows it. */
+export type Claim = ClaimOn & ({ capability: string; increment?: undefined } | { increment: string; capability?: undefined });
+
+/** What every claim shows, whatever it holds. */
+interface ClaimOn {
   /** The holding session. */
   session: string;
   harness?: string;
@@ -56,7 +58,14 @@ export interface ClaimContext {
 export type ClaimAnswer =
   | { ok: true; claim: Claim; takenOverFrom?: Claim }
   | { ok: false; refused: "held"; holder: Claim }
-  | { ok: false; refused: "unknown-capability"; capability: string };
+  | { ok: false; refused: "unknown-capability"; capability: string }
+  | { ok: false; refused: "closed"; increment: string }
+  | { ok: false; refused: "waiting"; waits: Waiting[] };
+
+/** An increment that waits (ADR-0643 D2), and a blocker still holding it, as the library's `waitHolds` names it. */
+export interface Waiting extends Hold {
+  readonly increment: string;
+}
 
 export type ReleaseAnswer = { ok: true } | { ok: false; refused: "not-held"; holder?: Claim };
 

@@ -225,3 +225,108 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
     });
   });
 });
+
+/** An arc of work in `library`, and a way to park increments on it, each touching what it names. */
+async function arcOf(library: Library, title = "Launch sign-up") {
+  const [story] = (await library.projectTree()).stories;
+  const arc = await library.createArc({ title, intent: "Ship sign-up", endState: "Visitors sign up", stories: [story!.id] });
+  return {
+    arc: arc.id,
+    park: async (name: string, touches: string[] = []) =>
+      (await library.addIncrement({ arc: arc.id, title: name, objective: `Build ${name}`, body: `${name}, red then green`, touches })).id,
+  };
+}
+
+/** Where increment `id` is in its lifecycle, as the library reads it. */
+async function statusOf(library: Library, arc: string, id: string): Promise<string | undefined> {
+  return (await library.arcView(arc))?.increments.find((increment) => increment.id === id)?.fields.status;
+}
+
+test("5.7 session A claims a proposed increment, which the claim shows while the library shows it active, and B's claim on it is refused naming A; a ready one starts the same way, an active one is not started again, and a closed one is refused", async () => {
+  await withWorld(async ({ log, project, library, as }) => {
+    const { arc, park } = await arcOf(library);
+    const proposed = await park("email form");
+    const answer = await claim(as("A"), proposed, "driving the email form");
+    assert.equal(answer.ok, true);
+    assert.deepEqual(
+      (await readClaims(log, project)).map(({ increment, session, label, reason, holder }) => ({ increment, session, label, reason, holder })),
+      [{ increment: proposed, session: "A", label: "Claude Code", reason: "driving the email form", holder: "live" }],
+    );
+    assert.equal(await statusOf(library, arc, proposed), "active", "claiming it started it");
+
+    const refused = await claim(as("B"), proposed, "I want it too");
+    assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A");
+
+    const ready = await park("password reset");
+    await library.advanceIncrement(ready, "ready");
+    assert.equal((await claim(as("B"), ready, "driving the reset")).ok, true);
+    assert.equal(await statusOf(library, arc, ready), "active");
+
+    const active = await park("welcome email");
+    await library.advanceIncrement(active, "active");
+    assert.equal((await claim(as("B"), active, "picking it up")).ok, true, "an active one is claimed, not started again");
+    assert.equal(await statusOf(library, arc, active), "active");
+
+    const closed = await park("old form");
+    await library.closeIncrement(closed, { pr: "#3", disposition: "landed" });
+    const lines = (await log.since(project, 0)).lines.length;
+    assert.deepEqual(await claim(as("A"), closed, "one more go"), { ok: false, refused: "closed", increment: closed });
+    assert.equal((await log.since(project, 0)).lines.length, lines, "nothing written for it");
+  });
+});
+
+test("5.8 claiming an increment whose own wait holds, or whose arc's wait holds, is refused naming each blocker and its reason; nothing is written and it is not started; once the wait releases the claim succeeds", async () => {
+  await withWorld(async ({ log, project, library, as }) => {
+    const { arc, park } = await arcOf(library);
+    const form = await park("email form");
+    const confirm = await park("confirmation email");
+    await library.addWait(confirm, form, "it sends what the form collects");
+
+    const lines = (await log.since(project, 0)).lines.length;
+    assert.deepEqual(await claim(as("A"), confirm, "driving it"), {
+      ok: false,
+      refused: "waiting",
+      waits: [{ increment: confirm, on: form, reason: "it sends what the form collects", forGood: false }],
+    });
+    assert.equal((await log.since(project, 0)).lines.length, lines, "nothing written");
+    assert.equal(await statusOf(library, arc, confirm), "proposal", "not started");
+
+    const later = await arcOf(library, "Launch v2");
+    const polish = await later.park("polish");
+    await library.addWait(later.arc, arc, "v2 follows v1");
+    const refused = await claim(as("A"), polish, "driving it");
+    assert.ok(!refused.ok && refused.refused === "waiting");
+    assert.deepEqual(refused.waits, [{ increment: polish, on: arc, reason: "v2 follows v1", forGood: false }], "its arc's wait holds it");
+
+    await library.closeIncrement(form, { pr: "#4", disposition: "landed" });
+    assert.equal((await claim(as("A"), confirm, "driving it")).ok, true, "the form landed, so the wait released");
+    assert.equal(await statusOf(library, arc, confirm), "active");
+  });
+});
+
+test("5.9 a claim on a capability is refused when every open increment naming it is waiting, naming what they wait for; it succeeds when one of them is not waiting, and a capability no open increment names is never refused", async () => {
+  await withWorld(async ({ library, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const design = await park("design");
+    const first = await park("form, first cut", [emailForm]);
+    const second = await park("form, second cut", [emailForm]);
+    await library.addWait(first, design, "the design comes first");
+    await library.addWait(second, design, "the design comes first");
+    const done = await park("form, long ago", [emailForm]);
+    await library.closeIncrement(done, { pr: "#1", disposition: "landed" }); // a closed increment waits on nothing
+
+    const refused = await claim(as("A"), emailForm, "building the form");
+    assert.ok(!refused.ok && refused.refused === "waiting");
+    assert.deepEqual(
+      refused.waits.map(({ increment, on, reason }) => [increment, on, reason]),
+      [
+        [first, design, "the design comes first"],
+        [second, design, "the design comes first"],
+      ],
+    );
+
+    await library.removeWait(second, design);
+    assert.equal((await claim(as("A"), emailForm, "building the form")).ok, true, "one of them is not waiting");
+    assert.equal((await claim(as("B"), passwordReset, "building the reset")).ok, true, "no open increment names it");
+  });
+});

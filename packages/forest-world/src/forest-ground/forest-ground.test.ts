@@ -21,12 +21,18 @@ import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, s
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
 /** A project of `sizes.length` stories, story i holding sizes[i] capabilities, as the app hands it to the page. */
-function scene(sizes: number[], lines: NewLine[] = []): ForestScene {
+function scene(sizes: number[], lines: NewLine[] = [], contracts = 0): ForestScene {
   const stories = sizes.map((size, s): AnnotatedStory => ({
     id: `story_${s}`,
     title: `Story ${s}`,
     health: NO_HEALTH,
-    capabilities: Array.from({ length: size }, (_, c): AnnotatedCapability => ({ id: `cap_${s}_${c}`, title: `Cap ${s}.${c}`, dependsOn: [], contracts: [], health: NO_HEALTH })),
+    capabilities: Array.from({ length: size }, (_, c): AnnotatedCapability => ({
+      id: `cap_${s}_${c}`,
+      title: `Cap ${s}.${c}`,
+      dependsOn: [],
+      contracts: Array.from({ length: contracts }, (_, k) => ({ id: `con_${s}_${c}_${k}`, title: `Contract ${k}`, health: NO_HEALTH })),
+      health: NO_HEALTH,
+    })),
   }));
   const history = stories.map(({ id, title }, index): Change => {
     const at = new Date(Date.UTC(2026, 8, 27, 12, 0, index)).toISOString();
@@ -117,4 +123,11 @@ test("a click on the ground picks the story node whose land is under it, and ope
   }
   const [first] = forest.islands;
   assert.equal(islandAt(descriptors, first!.x * GROUND_PER_WORLD_UNIT + GROUND_PER_PLACE * 0.45, first!.z * GROUND_PER_WORLD_UNIT), undefined, "the sea between places");
+});
+
+test("a capability's contracts grow ground cover on its parcel, as 0.2's test counts did, and a capability with none grows none", () => {
+  const cover = (contracts: number): string[] =>
+    forestDescriptors(scene([2], [], contracts)).flatMap((d) => (d.kind === "coverage-flora" && "capability" in d ? [d.capability] : []));
+  assert.deepEqual([...new Set(cover(4))].sort(), ["cap_0_0", "cap_0_1"]);
+  assert.deepEqual(cover(0), []);
 });

@@ -473,6 +473,15 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     backwards, a wait loop, retiring a question work is held on) come back as readable answers.
     `raise_question` holds the increments it names by adding the question to each one's `heldOn`,
     through the library's `editIncrement`, and `retire_question` is the library's `retire`.
+  - **Correcting a note and retiring a capability or contract (ADR-0641 D2 step 3, E1), as built
+    (6.13, 6.14):** `correct_note` changes only the wording fields given (a memory's or decision's
+    text, a decision's title, a definition's term or meaning) through the library's `editNote`,
+    which keeps the old wording in history and refuses a field the note's kind does not have.
+    `retire_from_plan` retires a capability or a contract, with its reason, through the library's
+    `retire`; any other id is refused, since a question has its own retire and an arc or increment
+    closes instead. The repo wiring ADR-0641 E1 also names (ADR-0636 b5) is not in this landing: the
+    tool server registers its hooks in the user's own homes and opens the app, so it stays with
+    `0-3-own-development-setup`.
   - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
     this one server, beside these, and can fill a "next" line that `land`'s answer ends with. *Not
     built yet:* no other story has tools or a "next" line to give, so the way in is made when the
@@ -515,6 +524,12 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     agent's account kept apart; friction whose evidence is vague prose, a re-steer whose evidence
     quotes nobody, and a defect with no failure mode are each refused as a readable answer, and
     nothing is written.
+13. It corrects a note's wording in place: the note keeps its id and takes the new words, only the
+    fields given change, and a note that is not there, or a field its kind does not have, gets a
+    readable refusal.
+14. It retires a contract and then a capability with a reason, and each is gone from the plan, its
+    history keeping it. An id that is not a capability or a contract gets a readable refusal, and
+    nothing is retired.
 
 ## 7 · Instructions (the habits card)
 

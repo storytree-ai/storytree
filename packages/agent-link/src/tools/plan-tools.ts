@@ -1,8 +1,8 @@
 /**
- * The planning tools: plan an arc, a story, a capability or a contract, correct any of them, and
- * see the plan with its health, who holds what and which sessions are about. A story or capability
- * is planned with its founding decision, the first book on its shelf, so none planned here starts
- * with an empty shelf (ADR-0627 D5).
+ * The planning tools: plan an arc, a story, a capability or a contract, correct any of them, retire
+ * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what
+ * and which sessions are about. A story or capability is planned with its founding decision, the
+ * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
 import type { AnnotatedTree, HealthState, NodeHealth } from "@storytree/library";
 import { z } from "zod";
@@ -100,6 +100,18 @@ export function registerPlanTools(define: Define): void {
       end_state: endState.optional(),
     }),
     async ({ id: target, ...changes }, call) => editPlan(target, changes, call),
+  );
+
+  define(
+    "retire_from_plan",
+    "Retire a capability or a contract that is no longer wanted, with the reason: it leaves the plan, and its history keeps it and the reason.",
+    z.object({ id: id("capability or contract to retire"), reason: z.string().min(1).describe("Why it is retired, in a line") }),
+    async ({ id: target, reason }, { library }) => {
+      const found = partOf(await library.projectTree(), target);
+      if (found === undefined) return { text: `${target} is not a capability or a contract in this project's plan: only those are retired here.`, refused: true };
+      await library.retire(target, reason);
+      return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };
+    },
   );
 
   define("show_plan", "See the plan: every story, capability and contract with its health, who holds what, and which sessions are about.", z.object({}), async (_args, call) =>
@@ -207,4 +219,14 @@ function said(state: HealthState): string {
 /** `fields` without the ones that are undefined: the library's inputs take no undefined values. */
 function optional<T extends Record<string, unknown>>(fields: T): { [K in keyof T]: Exclude<T[K], undefined> } {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)) as { [K in keyof T]: Exclude<T[K], undefined> };
+}
+
+/** The capability or contract `id` names in the plan, if it names one. */
+function partOf(tree: AnnotatedTree, id: string): { kind: "capability" | "contract"; title: string } | undefined {
+  for (const capability of tree.stories.flatMap((story) => story.capabilities)) {
+    if (capability.id === id) return { kind: "capability", title: capability.title };
+    const contract = capability.contracts.find((node) => node.id === id);
+    if (contract !== undefined) return { kind: "contract", title: contract.title };
+  }
+  return undefined;
 }

@@ -12,7 +12,7 @@ Start every session with \`check_setup\`, and do what it says. If this folder is
 
 Plan first.
 - \`show_plan\` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about.
-- Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`.
+- Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`, and \`retire_from_plan\` a capability or contract no longer wanted, with the reason.
 - Break an arc's work into increments with \`park_increment\` (the breakdown goes in its body), and \`ready_increment\` one once it can start. \`park_arc\` parks or unparks an arc.
 - When one piece of work must wait for another, \`set_wait\` with the reason; \`clear_wait\` when it no longer must.
 - When only the owner can decide, \`raise_question\` on the arc instead of only asking in chat, holding the increments that need the answer. \`settle_question\` with the answer, in the owner's own words; \`retire_question\` one that was wrong to ask.
@@ -28,7 +28,7 @@ Red, then green, then landed.
 - When the increment is done, \`close_increment\` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with \`park_increment\` and its outcome.
 
 Note what you learned.
-- \`write_note\` a memory, a decision or a definition when you learn something worth keeping. With no place named, it goes onto the shelf of the capability you hold.
+- \`write_note\` a memory, a decision or a definition when you learn something worth keeping. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes a note's wording in place.
 - \`record_friction\` when something got in your way, with concrete evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
 
 If storytree says it isn't running, carry on without it.`;

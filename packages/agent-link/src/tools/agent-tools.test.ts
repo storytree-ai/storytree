@@ -31,6 +31,7 @@ const TOOLS = [
   "claim",
   "clear_wait",
   "close_increment",
+  "correct_note",
   "edit_plan",
   "land",
   "open",
@@ -46,6 +47,7 @@ const TOOLS = [
   "record_resteer",
   "release",
   "report",
+  "retire_from_plan",
   "retire_question",
   "search_notes",
   "set_up_project",
@@ -210,6 +212,8 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["search_notes", { query: "mailgun" }],
         ["open", { id: "decision_000000000000" }],
         ["write_note", { kind: "memory", text: "Mailgun needs a verified domain" }],
+        ["correct_note", { id: "memory_000000000000", text: "Mailgun needs a verified sending domain" }],
+        ["retire_from_plan", { id: "contract_000000000000", reason: "no longer promised" }],
         ["park_increment", { arc: "arc_000000000000", title: "Email form", objective: "Build it", body: "Red then green" }],
         ["ready_increment", { increment: "increment_000000000000" }],
         ["close_increment", { increment: "increment_000000000000", disposition: "landed", pr: "#1" }],
@@ -520,6 +524,54 @@ test("6.12 it records friction with concrete evidence and a re-steer with the ow
       assert.equal(modeless.isError, true);
       assert.match(modeless.text, /mode/);
       assert.deepEqual(await library.search("Vaguely"), [], "nothing written");
+    });
+  });
+});
+
+test("6.13 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { capability } = await planned(agent);
+      const decision = idOf(await agent.call("write_note", { kind: "decision", title: "Validate on the server", text: "Clients lie", front_cover_of: capability }));
+      const memory = idOf(await agent.call("write_note", { kind: "memory", text: "The form tiemout is 30 s", links: [decision] }));
+
+      assert.equal(idOf(await agent.call("correct_note", { id: memory, text: "The form timeout is 30 s" })), memory);
+      assert.equal(idOf(await agent.call("correct_note", { id: decision, title: "Validate on the server too" })), decision);
+      const [cover] = await library.frontCovers(capability).then((shelf) => shelf.filter((note) => note.id === decision));
+      assert.deepEqual([cover?.fields.title, cover?.fields.text], ["Validate on the server too", "Clients lie"], "only the title changed");
+      assert.deepEqual((await library.search("timeout")).map((note) => note.id), [memory]);
+      assert.deepEqual(await library.search("tiemout"), []);
+
+      const missing = await agent.call("correct_note", { id: "no-such-note", text: "anything" });
+      assert.equal(missing.isError, true);
+      assert.match(missing.text, /no-such-note/);
+      const wrongField = await agent.call("correct_note", { id: memory, title: "A memory has no title" });
+      assert.equal(wrongField.isError, true);
+      assert.deepEqual(await library.search("has no title"), [], "nothing written");
+    });
+  });
+});
+
+test("6.14 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, capability } = await planned(agent);
+      const kept = idOf(await agent.call("plan_contract", { capability, title: "Rejects a bad email" }));
+      const dropped = idOf(await agent.call("plan_contract", { capability, title: "Rejects a long email" }));
+      const contractsOf = async () => (await library.projectTree()).stories[0]?.capabilities.find((node) => node.id === capability)?.contracts.map((node) => node.id);
+
+      const retired = await agent.call("retire_from_plan", { id: dropped, reason: "the library caps length already" });
+      assert.equal(retired.isError, false, retired.text);
+      assert.deepEqual(await contractsOf(), [kept]);
+      const { changes } = await library.changesSince(0);
+      assert.ok(changes.some((change) => change.recordId === dropped && change.action === "retired"));
+
+      const wrong = await agent.call("retire_from_plan", { id: arc, reason: "not a capability" });
+      assert.equal(wrong.isError, true);
+      assert.equal((await library.arcView(arc))?.arc.id, arc, "the arc is not retired");
+
+      assert.equal((await agent.call("retire_from_plan", { id: capability, reason: "folded into the sign-up page" })).isError, false);
+      assert.deepEqual((await library.projectTree()).stories[0]?.capabilities, []);
     });
   });
 });

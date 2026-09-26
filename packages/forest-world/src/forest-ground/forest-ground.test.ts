@@ -16,17 +16,23 @@ import type { AnnotatedCapability, AnnotatedStory, Change } from "@storytree/lib
 import { capabilityFactsFrom, stateForm } from "../kit-vocabulary.js";
 import { parcelCellsFrom } from "../parcel-cells.js";
 import type { Descriptor3D, InstanceDescriptor } from "../world-to-3d.js";
-import { forestDescriptors, GROUND_PER_PLACE, statusOf } from "./forest-ground.js";
+import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, islandReach, statusOf } from "./forest-ground.js";
 
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 
 /** A project of `sizes.length` stories, story i holding sizes[i] capabilities, as the app hands it to the page. */
-function scene(sizes: number[], lines: NewLine[] = []): ForestScene {
+function scene(sizes: number[], lines: NewLine[] = [], contracts = 0): ForestScene {
   const stories = sizes.map((size, s): AnnotatedStory => ({
     id: `story_${s}`,
     title: `Story ${s}`,
     health: NO_HEALTH,
-    capabilities: Array.from({ length: size }, (_, c): AnnotatedCapability => ({ id: `cap_${s}_${c}`, title: `Cap ${s}.${c}`, dependsOn: [], contracts: [], health: NO_HEALTH })),
+    capabilities: Array.from({ length: size }, (_, c): AnnotatedCapability => ({
+      id: `cap_${s}_${c}`,
+      title: `Cap ${s}.${c}`,
+      dependsOn: [],
+      contracts: Array.from({ length: contracts }, (_, k) => ({ id: `con_${s}_${c}_${k}`, title: `Contract ${k}`, health: NO_HEALTH })),
+      health: NO_HEALTH,
+    })),
   }));
   const history = stories.map(({ id, title }, index): Change => {
     const at = new Date(Date.UTC(2026, 8, 27, 12, 0, index)).toISOString();
@@ -89,15 +95,37 @@ test("a story with no capabilities yet still gets ground and its one seedling", 
 test("neighbouring story nodes never overlap, even when every story is large", () => {
   const forest = scene(Array.from({ length: 12 }, () => 12));
   const descriptors = forestDescriptors(forest);
-  const boxes = forest.islands.map((island) => {
-    const cells = ground(descriptors, island.story);
-    assert.ok(cells.length > 0, `${island.story} has ground`);
-    return extent(cells);
-  });
-  for (const [i, a] of boxes.entries()) {
-    for (const b of boxes.slice(i + 1)) {
-      const apart = a.maxX < b.minX || b.maxX < a.minX || a.maxZ < b.minZ || b.maxZ < a.minZ;
-      assert.ok(apart, "two islands' ground overlaps");
+  const centres = new Map(forest.islands.map((island) => [island.story, { x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT }]));
+  const reach = islandReach(descriptors, centres);
+  for (const [i, a] of forest.islands.entries()) {
+    assert.ok((reach.get(a.story) ?? 0) > 0, `${a.story} has ground`);
+    for (const b of forest.islands.slice(i + 1)) {
+      const apart = Math.hypot(centres.get(a.story)!.x - centres.get(b.story)!.x, centres.get(a.story)!.z - centres.get(b.story)!.z);
+      assert.ok(apart > reach.get(a.story)! + reach.get(b.story)!, `${a.story} and ${b.story} overlap`);
     }
   }
+});
+
+test("a capability landing changes only its own story node's ground, so only that island is redrawn", () => {
+  const before = forestDescriptors(scene([2, 2]));
+  const after = forestDescriptors(scene([2, 2], [{ kind: "landed", session: "s1", source: "tool", capability: "cap_1_0" }]));
+  assert.deepEqual(ground(after, "story_0"), ground(before, "story_0"), "story_0's ground is untouched");
+  assert.notDeepEqual(ground(after, "story_1"), ground(before, "story_1"), "story_1's ground shows the landing");
+});
+
+test("a click on the ground picks the story node whose land is under it, and open sea picks none", () => {
+  const forest = scene([3, 1]);
+  const descriptors = forestDescriptors(forest);
+  for (const island of forest.islands) {
+    assert.equal(islandAt(descriptors, island.x * GROUND_PER_WORLD_UNIT, island.z * GROUND_PER_WORLD_UNIT), island.story);
+  }
+  const [first] = forest.islands;
+  assert.equal(islandAt(descriptors, first!.x * GROUND_PER_WORLD_UNIT + GROUND_PER_PLACE * 0.45, first!.z * GROUND_PER_WORLD_UNIT), undefined, "the sea between places");
+});
+
+test("a capability's contracts grow ground cover on its parcel, as 0.2's test counts did, and a capability with none grows none", () => {
+  const cover = (contracts: number): string[] =>
+    forestDescriptors(scene([2], [], contracts)).flatMap((d) => (d.kind === "coverage-flora" && "capability" in d ? [d.capability] : []));
+  assert.deepEqual([...new Set(cover(4))].sort(), ["cap_0_0", "cap_0_1"]);
+  assert.deepEqual(cover(0), []);
 });

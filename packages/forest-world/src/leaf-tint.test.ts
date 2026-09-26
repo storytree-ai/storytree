@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { parseHex } from './shade-ladder.js';
 import {
@@ -22,9 +24,78 @@ import type { Rgb } from './texture-convention.js';
  */
 const FOLIAGE_MEAN: Rgb = { r: 70, g: 90, b: 69 };
 
+/**
+ * THE SHIPPED CANVAS'S OWN TOKEN TABLES, read out of its source.
+ *
+ * ⚠⚠ RE-ASKED AGAINST THE SHIPPED TOKENS, NOT INHERITED FROM THE HARNESS'S. Before this module
+ * crossed, these assertions bound `LEAF_TINT_TOKEN` to `harness/palette-band.ts`'s `STATUS_TOKENS`
+ * / `TREE_TOKENS`. Those are a MIRROR of what `ForestWorldCanvas` draws, not the thing itself —
+ * and the fourth crossing on this arc established that a derived constant carried across on the
+ * harness's authority is unfounded even when the number turns out identical (`SHADOW_RUNG`, which
+ * agreed at 0.77 and had to be re-derived to say so). A crown's tint is a claim about a
+ * capability's proof state on the SHIPPED map; the tables that map draws from are the ones it has
+ * to agree with.
+ *
+ * They agree today and that agreement is MEASURED here rather than assumed: it will move the day
+ * either palette does, and this test is what says so.
+ *
+ * ⚠ Parsed rather than transcribed, for the reason `shipped-baseline.ts` gives: a fourth
+ * uncheckable copy of the palette would be strictly worse than none.
+ */
+function canvasPalette(binding: string): Map<string, string> {
+  const source = readFileSync(
+    fileURLToPath(new URL('./ForestWorldCanvas.tsx', import.meta.url)),
+    'utf8',
+  );
+  // Located by INDEX rather than by an interpolated RegExp: a binding name spliced into a pattern
+  // is one stray metacharacter away from matching something else, and the failure would be a
+  // palette silently read from the wrong table.
+  const opens = `const ${binding}: ReadonlyMap<string, string> = new Map([`;
+  const from = source.indexOf(opens);
+  assert.notEqual(from, -1, `${binding} is no longer a ReadonlyMap literal in ForestWorldCanvas.tsx`);
+  const to = source.indexOf(']);', from);
+  assert.notEqual(to, -1, `${binding}'s literal is not closed`);
+  const block = source.slice(from + opens.length, to);
+  const out = new Map<string, string>();
+  for (const [, key, hex] of block.matchAll(/\['([a-z]+)',\s*'(#[0-9a-f]{6})'\]/g)) {
+    out.set(key!, hex!);
+  }
+  assert.ok(out.size >= 6, `${binding} parsed to ${out.size} entries — the parse, not the palette`);
+  return out;
+}
 
+test('every declared tint is an EXISTING authored token, not a colour invented here', () => {
+  // ⚠ ADR-0392 D5 / ADR-0398 D7: an art change may not decide a semantic question, and a crown's
+  // colour is a claim about a capability's proof state. Three new hues authored in this file
+  // would be exactly that. Both entries point at a table the SHIPPED map already draws from.
+  const ground = canvasPalette('GROUND_COLOUR');
+  const crown = canvasPalette('CROWN_COLOUR');
+  assert.equal(LEAF_TINT_TOKEN.get('proposed'), ground.get('proposed'));
+  assert.equal(LEAF_TINT_TOKEN.get('building'), ground.get('building'));
+  assert.equal(LEAF_TINT_TOKEN.get('mapped'), crown.get('mapped'));
+});
 
+test('proposed and building share ONE token, because ADR-0462 holds them as one', () => {
+  assert.equal(LEAF_TINT_TOKEN.get('proposed'), LEAF_TINT_TOKEN.get('building'));
+  // And the SHIPPED ground table is where that sharing is decided — five colours over six states.
+  const ground = canvasPalette('GROUND_COLOUR');
+  assert.equal(ground.get('proposed'), ground.get('building'));
+});
 
+test('⚠ the palette parse can fail — it is not a regex that matches anything', () => {
+  // NON-VACUITY. A parse that silently returned an empty map would make both tests above pass by
+  // comparing `undefined` with `undefined`, which is the exact shape of a green check that
+  // verified nothing. The floor inside `canvasPalette` is what refuses that; this proves the
+  // floor binds, and that the two tables are genuinely DIFFERENT tables rather than one read twice.
+  const ground = canvasPalette('GROUND_COLOUR');
+  const crown = canvasPalette('CROWN_COLOUR');
+  for (const status of ['healthy', 'mapped', 'building', 'proposed', 'unhealthy', 'unknown']) {
+    assert.match(ground.get(status) ?? '', /^#[0-9a-f]{6}$/, `no ground token for ${status}`);
+    assert.match(crown.get(status) ?? '', /^#[0-9a-f]{6}$/, `no crown token for ${status}`);
+  }
+  assert.notDeepEqual([...ground], [...crown], 'the two bindings parsed to the same table');
+  assert.throws(() => canvasPalette('NO_SUCH_BINDING'), 'a missing binding parsed to something');
+});
 
 test('healthy and unhealthy declare NO tint, and that is the vocabulary rather than an omission', () => {
   // A green pine is the kit's own needles — the arm the owner looked at and approved — and a

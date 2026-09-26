@@ -5,22 +5,29 @@
   "description": "0.2's forest drawing engine, ported whole (ADR-0633 D2, ADR-0632 D2): the plain three.js ground, coast, shore, shadow and kit-tree code of 0.2's packages/forest-world-r3f, the slice of 0.2's forest-world core its geometry needs (src/core), and the join that feeds it 0.3's story node places.",
   "exports": {
     ".": "./src/index.ts",
-    "./assets/dressing-kit.glb": "./assets/dressing-kit.glb"
+    "./assets/dressing-kit.glb": "./assets/dressing-kit.glb",
+    "./canvas": "./src/ForestWorldCanvas.tsx"
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@storytree/forest": "workspace:*",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@storytree/agent-link": "workspace:*",
+    "@storytree/arc-surface": "workspace:*",
+    "@storytree/library": "workspace:*",
     "@types/node": "^24.13.6",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "@types/three": "^0.185.0",
     "tsx": "^4.23.15",
-    "typescript": "~7.0.2",
-    "@storytree/agent-link": "workspace:*",
-    "@storytree/library": "workspace:*",
-    "@storytree/arc-surface": "workspace:*"
+    "typescript": "~7.0.2"
   }
 }

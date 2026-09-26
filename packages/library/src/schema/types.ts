@@ -26,7 +26,8 @@ export type RecordType =
   | "decision"
   | "definition"
   | KnowledgeKind
-  | "increment";
+  | "increment"
+  | "question";
 
 /**
  * Capability 6's eight kinds beyond memory notes, decisions and definitions (ADR-0640), each with
@@ -153,6 +154,13 @@ export const RECORD_SCHEMAS = {
       links: ids.optional(),
     })
     .strict(),
+  /**
+   * A decision, with the decision log's fields (capability 13): its `status`, required from version
+   * 2 (an older decision is upgraded, ./upgrades.ts), set directly (13-a); its `number`, handed out
+   * when it is recorded; the decisions it `supersedes`, never counted as support, which is what its
+   * `links` mean (13-c); the load-bearing mark; who decided it, in their own words; and one
+   * composed statement. Whether it is superseded is worked out on every read, never stored.
+   */
   decision: z
     .object({
       title: nonEmpty,
@@ -160,8 +168,40 @@ export const RECORD_SCHEMAS = {
       links: ids.optional(),
       /** The one story or capability this decision is a front cover of (capability 9). */
       frontCoverOf: z.string().optional(),
+      status: z.enum(["proposed", "accepted"]),
+      number: z.number().int().positive().optional(),
+      supersedes: ids.optional(),
+      loadBearing: z.boolean().optional(),
+      /** The day it was decided (YYYY-MM-DD). */
+      decided: nonEmpty.optional(),
+      /** Whose call it was (0.2's ADR-0519): a stamp claiming the owner quotes him, verbatim. */
+      authority: z
+        .object({
+          basis: z.enum(["owner-directed", "owner-ratified", "agent-derived", "agent-flipped"]),
+          scribedBy: nonEmpty,
+          at: nonEmpty,
+          ownerSaid: nonEmpty.optional(),
+        })
+        .strict()
+        .optional(),
+      /**
+       * The one composed statement (the owner's C2; 0.2's ADR-0428): a maintained paragraph that
+       * never replaces the text, with the fingerprint of the text it was composed against, so a
+       * read can say when the text has changed since.
+       */
+      composed: z.object({ statement: nonEmpty, composedAt: nonEmpty, fingerprint: nonEmpty }).strict().optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((fields, context) => {
+      const authority = fields.authority;
+      if (authority !== undefined && authority.basis.startsWith("owner-") && authority.ownerSaid === undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["authority"],
+          message: `an "${authority.basis}" authority quotes the owner in "ownerSaid"; with no words of his to quote, the basis is "agent-derived"`,
+        });
+      }
+    }),
   definition: z
     .object({
       term: nonEmpty,
@@ -276,6 +316,12 @@ export const RECORD_SCHEMAS = {
       touches: ids.optional(),
       remedies: ids.optional(),
       waits,
+      /**
+       * The questions this work is held on (capability 12): a link, never a reading. Whether it is
+       * waiting on the owner is worked out from each question's lifecycle, so settling one releases
+       * the work with no write here, and the link stays as the record of what it waited on.
+       */
+      heldOn: ids.optional(),
       /** How it closed: absent until it does. */
       outcome: z
         .object({
@@ -306,6 +352,46 @@ export const RECORD_SCHEMAS = {
         problem(["outcome"], 'a close with no pull request needs a "note" saying why it closed');
       }
     }),
+  /**
+   * A question for the owner, raised on an arc (capability 12), with 0.2's fields: why it matters,
+   * the question, its context and options, and optionally an analogy, a diagram and a
+   * recommendation. Settled, it keeps his answer, when, and the decision that carried it. Its
+   * review lease (`verifiedAt`, `leaseDays`) is stored here and drained by the librarian (12-a).
+   */
+  question: z
+    .object({
+      arc: z.string(),
+      title: nonEmpty,
+      stakes: nonEmpty,
+      statement: nonEmpty,
+      context: nonEmpty,
+      options: nonEmpty,
+      analogy: nonEmpty.optional(),
+      diagram: nonEmpty.optional(),
+      recommendation: nonEmpty.optional(),
+      lifecycle: z.enum(["open", "settled"]),
+      answer: nonEmpty.optional(),
+      /** When it was settled (an ISO 8601 timestamp). */
+      settledAt: nonEmpty.optional(),
+      /** The decision that carried the answer. */
+      settledBy: z.string().optional(),
+      /** When it was last checked to still hold (an ISO 8601 timestamp): first when it was raised. */
+      verifiedAt: nonEmpty.optional(),
+      /** How many days that check is trusted for. */
+      leaseDays: z.number().int().positive().optional(),
+    })
+    .strict()
+    .superRefine((fields, context) => {
+      const problem = (path: string[], message: string): void => context.addIssue({ code: "custom", path, message });
+      if (fields.lifecycle === "settled") {
+        if (fields.answer === undefined) problem(["answer"], 'a settled question needs field "answer": the owner\'s answer');
+        if (fields.settledAt === undefined) problem(["settledAt"], 'a settled question needs field "settledAt": when it was settled');
+      } else {
+        for (const field of ["answer", "settledAt", "settledBy"] as const) {
+          if (fields[field] !== undefined) problem([field], `an open question has no "${field}" yet`);
+        }
+      }
+    }),
 } as const satisfies Record<RecordType, z.ZodType>;
 
 /** The schema version of each type: every record of the type is written on it. */
@@ -316,7 +402,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   contract: 1,
   health: 1,
   memory: 1,
-  decision: 1,
+  decision: 2,
   definition: 1,
   principle: 1,
   guardrail: 1,
@@ -327,6 +413,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   resteer: 1,
   techstack: 1,
   increment: 1,
+  question: 1,
 };
 
 /** The fields of a record of type `T`, as its schema declares them. */

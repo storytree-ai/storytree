@@ -9,7 +9,7 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
+import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { SchemaRecord } from "../schema/index.js";
@@ -22,6 +22,8 @@ import type {
   CloseInput,
   ContractEdit,
   Hold,
+  NewQuestion,
+  Settlement,
   IncrementEdit,
   NewArc,
   NewCapability,
@@ -122,6 +124,18 @@ export interface Library {
    */
   waitHolds(id: string): Promise<Hold[]>;
 
+  /** Raise a question for the owner on a live arc: it is open. */
+  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">>;
+  /**
+   * Settle a question with the owner's answer, and the live decision that carried it, if one did.
+   * Null if `id` is not a live question.
+   */
+  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null>;
+  /** The questions on arc `arcId`, open and settled, oldest first. */
+  questions(arcId: string): Promise<SchemaRecord<"question">[]>;
+  /** The open questions an open increment is held on: the one answer to whether it waits on the owner. */
+  heldOnQuestion(incrementId: string): Promise<string[]>;
+
   /** Write what the agent reported about a contract. Health is written on contracts only: anything else is refused. */
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry>;
   /** Write what storytree verified about a contract, by seeing it for itself. */
@@ -134,8 +148,10 @@ export interface Library {
   /** Write a memory note. Every link must name a live note: notes link only to notes. */
   writeMemory(memory: NewMemory): Promise<SchemaRecord<"memory">>;
   /**
-   * Record a decision. Every link must name a live note, and `frontCoverOf`, if given, the one live
-   * story or capability the decision is a front cover of.
+   * Record a decision, with its status. Every link must name a live note, `frontCoverOf`, if given,
+   * the one live story or capability the decision is a front cover of, and each decision it
+   * supersedes a live decision. It is numbered one past the highest number any decision has held,
+   * unless it is brought in under its own, which no other may have held (NumberTakenError).
    */
   recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">>;
   /**
@@ -159,10 +175,22 @@ export interface Library {
    * (oldest) first. This is how the work reaches its knowledge.
    */
   frontCovers(nodeId: string): Promise<SchemaRecord<"decision">[]>;
+  /**
+   * A decision as the decision log reads it: its record, full text included; its status, which is
+   * superseded exactly when an accepted decision names it in `supersedes`; and its composed
+   * statement, marked stale once its text has changed since. Null if `id` is not a live decision.
+   */
+  decision(id: string): Promise<DecisionView | null>;
+  /**
+   * Compose a decision's one statement: a maintained paragraph beside its text, never in its place,
+   * replacing any before it. Null if `id` is not a live decision.
+   */
+  composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null>;
 
   /**
    * Retire a record: it is gone from every read, and its history keeps it and `reason`. Retiring
-   * a missing or already retired record is a harmless no-op.
+   * a missing or already retired record is a harmless no-op. A question an increment is held on is
+   * refused (RetireRefusedError): take it off the increment's heldOn first, or settle it instead.
    */
   retire(id: string, reason: string): Promise<void>;
   /**
@@ -318,6 +346,22 @@ class LibraryHandle implements Library {
     return this.#project.flight.waitHolds(id);
   }
 
+  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">> {
+    return this.#project.flight.raiseQuestion(question);
+  }
+
+  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null> {
+    return this.#project.flight.settleQuestion(id, settlement);
+  }
+
+  questions(arcId: string): Promise<SchemaRecord<"question">[]> {
+    return this.#project.flight.questions(arcId);
+  }
+
+  heldOnQuestion(incrementId: string): Promise<string[]> {
+    return this.#project.flight.heldOnQuestion(incrementId);
+  }
+
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry> {
     return this.#project.health.reportHealth(contractId, state, options);
   }
@@ -370,6 +414,14 @@ class LibraryHandle implements Library {
     return this.#project.knowledge.frontCovers(nodeId);
   }
 
+  decision(id: string): Promise<DecisionView | null> {
+    return this.#project.knowledge.decision(id);
+  }
+
+  composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null> {
+    return this.#project.knowledge.composeStatement(id, statement);
+  }
+
   /**
    * Capability 2's retire. An id holding text the library cannot store names no record, so
    * retiring it is the same harmless no-op as retiring a missing one; it is never looked up, since
@@ -377,7 +429,7 @@ class LibraryHandle implements Library {
    */
   async retire(id: string, reason: string): Promise<void> {
     if (!couldBeId(id)) return;
-    await this.#project.records.retire(id, reason);
+    await this.#project.flight.retire(id, reason);
   }
 
   /**

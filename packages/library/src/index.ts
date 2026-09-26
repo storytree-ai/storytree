@@ -8,8 +8,10 @@ export type { Change, Changes, Library, Storytree } from "./api/index.js";
 export type { CloudSqlConfig, ConnectionProblem, ConnectOptions } from "./project/index.js";
 
 export { ConnectionError, ProjectNameError } from "./project/index.js";
+export { SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
-export { LifecycleError, WaitLoopError } from "./work/index.js";
+export { NumberTakenError } from "./transactions/index.js";
+export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord } from "./schema/index.js";
@@ -24,6 +26,8 @@ export type {
   ContractEdit,
   Disposition,
   Hold,
+  NewQuestion,
+  Settlement,
   IncrementEdit,
   IncrementStatus,
   NewArc,
@@ -45,4 +49,4 @@ export type {
   HealthState,
   NodeHealth,
 } from "./health/index.js";
-export type { NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit, NoteType } from "./knowledge/index.js";
+export type { DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit, NoteType } from "./knowledge/index.js";

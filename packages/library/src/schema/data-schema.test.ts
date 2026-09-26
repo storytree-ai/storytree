@@ -94,7 +94,7 @@ const MINIMAL: { readonly [T in TableType]: FieldsOf<T> } = {
   contract: { title: "Rejects a bad email", capability: "capability-1" },
   health: { node: "contract-1", column: "reported", state: "not-checked" },
   memory: { text: "Mailgun needs a verified domain" },
-  decision: { title: "Use Mailgun", text: "Its API is the simplest" },
+  decision: { title: "Use Mailgun", text: "Its API is the simplest", status: "accepted" },
   definition: { term: "arc", meaning: "An initiative that grows stories" },
 };
 
@@ -111,7 +111,7 @@ const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
   contract: { title: "Rejects a bad email", capability: "capability-1", description: "An address with no @ is refused" },
   health: { node: "contract-1", column: "verified", state: "failing", by: "storytree", note: "2 of 3 cases fail" },
   memory: { text: "Mailgun needs a verified domain", links: ["story-1", "decision-1"] },
-  decision: { title: "Use Mailgun", text: "Its API is the simplest", links: ["story-1"] },
+  decision: { title: "Use Mailgun", text: "Its API is the simplest", links: ["story-1"], status: "proposed", number: 7, supersedes: [], loadBearing: true },
   definition: { term: "arc", meaning: "An initiative that grows stories", links: [] },
 };
 
@@ -127,7 +127,7 @@ const EMPTIEST: { readonly [T in TableType]: FieldsOf<T> } = {
   contract: { title: "K", capability: "", description: "" },
   health: { node: "", column: "verified", state: "passing", by: "", note: "" },
   memory: { text: "M", links: [""] },
-  decision: { title: "D", text: "T", links: [] },
+  decision: { title: "D", text: "T", links: [], status: "accepted" },
   definition: { term: "X", meaning: "Y", links: [""] },
 };
 

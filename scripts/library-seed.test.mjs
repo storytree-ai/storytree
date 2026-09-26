@@ -298,7 +298,7 @@ test("syncDecisions files each decision as a front cover of the node it names; a
     const { storyId, capabilityIds } = await syncStory(lib, parseStory(TWO_PARTS));
     const nodes = new Map([["stories/two-parts.md", { storyId, capabilityIds }]]);
     // A cover an agent wrote for itself before the seed ran, which the seed never touches.
-    const agents = await lib.recordDecision({ title: "An agent's own cover", text: "Written through the tools.", frontCoverOf: capabilityIds.get("2") });
+    const agents = await lib.recordDecision({ status: "accepted", title: "An agent's own cover", text: "Written through the tools.", frontCoverOf: capabilityIds.get("2") });
     const tree = decisionFor("ADR-0001", "The tree", { story: "stories/two-parts.md" });
     const second = decisionFor("ADR-0002", "The second part", { story: "stories/two-parts.md", capability: 2 });
 
@@ -388,7 +388,7 @@ test("syncFoundingBooks files each capability's founding book on its shelf, firs
     const first = await syncFoundingBooks(lib, stories, nodes, [covered]);
     assert.deepEqual(first.counts, { added: 1, updated: 0, unchanged: 0, offShelf: 0 });
     await syncDecisions(lib, [covered], nodes);
-    await lib.recordDecision({ title: "A later book", text: "Written through the tools.", frontCoverOf: capabilityIds.get("1") });
+    await lib.recordDecision({ status: "accepted", title: "A later book", text: "Written through the tools.", frontCoverOf: capabilityIds.get("1") });
     const shelf = await lib.frontCovers(capabilityIds.get("1"));
     assert.deepEqual(shelf.map(({ fields }) => fields.title), ["1 · First: founding book (P1)", "A later book"], "the founding book first");
     assert.equal(shelf[0].fields.text, "a place comes from its story alone, fixed for good.\n\nFounding book of stories/two-parts.md, capability 1.");

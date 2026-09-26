@@ -36,6 +36,8 @@ export interface CreateOptions {
   readonly id?: string;
   /** Who is writing, kept in the history. */
   readonly actor?: string;
+  /** A field the record is numbered in, within its type: capability 2's save `sequence`. */
+  readonly sequence?: string;
 }
 
 export interface WriteOptions {
@@ -68,6 +70,7 @@ export class SchemaRecords {
       version: this.#version(type),
       validate: this.#check,
       ...actorOf(options),
+      ...(options.sequence === undefined ? {} : { sequence: options.sequence }),
     });
     return record as SchemaRecord<T>;
   }

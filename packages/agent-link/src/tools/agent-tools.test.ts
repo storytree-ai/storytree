@@ -282,7 +282,7 @@ test("6.6 searching and opening a note leaves a log line saying which session re
   await withProject(async ({ folder, project, library, log }) => {
     const story = await library.addStory({ title: "Visitor can sign up" });
     const form = await library.addCapability({ title: "Email form", story: story.id });
-    const cover = await library.recordDecision({ title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: form.id });
+    const cover = await library.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: form.id });
     const inside = await library.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] });
     const other = await library.writeMemory({ text: "Bounces arrive by webhook" });
     const unrelated = await library.defineTerm({ term: "Double opt-in", meaning: "Confirming a signup by email" });

@@ -47,7 +47,7 @@ export function registerPlanTools(define: Define): void {
     z.object({ title, description, founding }),
     async ({ title: name, description: about, founding: decision }, { library }) => {
       const story = await library.addStory({ title: name, ...optional({ description: about }) });
-      const book = await library.recordDecision({ ...decision, frontCoverOf: story.id });
+      const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: story.id });
       return {
         text: `Planned story ${quoted(name)} (${story.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its capabilities next.`,
         data: { id: story.id, founding: book.id },
@@ -67,7 +67,7 @@ export function registerPlanTools(define: Define): void {
     }),
     async ({ story, title: name, description: about, depends_on: dependsOn, founding: decision }, { library }) => {
       const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn }) });
-      const book = await library.recordDecision({ ...decision, frontCoverOf: capability.id });
+      const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id });
       return {
         text: `Planned capability ${quoted(name)} (${capability.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its contracts, then claim it before you build it.`,
         data: { id: capability.id, founding: book.id },

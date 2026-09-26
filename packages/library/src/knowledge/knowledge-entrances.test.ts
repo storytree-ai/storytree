@@ -22,7 +22,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
-import { SchemaError, SchemaRecords, type RecordType } from "../schema/index.js";
+import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordType } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { Knowledge, type NewDefinition, type NewMemory } from "./index.js";
@@ -101,17 +101,17 @@ for (const backend of [memory, postgres]) {
     // their ids' order, so the order frontCovers returns can only be the order they were written.
     const titles = ["Check the address on the server", "Send mail through a queue", "Show the error beside the field"];
     const shelf = await createInOrder(titles.length, (n) =>
-      knowledge.recordDecision({ title: titles[n % titles.length] ?? "Another cover", text: "Chosen for the email form", frontCoverOf: form.id }),
+      knowledge.recordDecision({ status: "accepted", title: titles[n % titles.length] ?? "Another cover", text: "Chosen for the email form", frontCoverOf: form.id }),
     );
     const founding = at(shelf, 0);
     await assertCreated(transactions, founding, "decision", { title: titles[0], text: "Chosen for the email form", frontCoverOf: form.id });
 
     // A story has a shelf of its own, and so has every other capability.
-    const storyCover = await knowledge.recordDecision({ title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
-    const loginCover = await knowledge.recordDecision({ title: "Magic links, no passwords", text: "Nothing to forget", frontCoverOf: login.id });
+    const storyCover = await knowledge.recordDecision({ status: "accepted", title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
+    const loginCover = await knowledge.recordDecision({ status: "accepted", title: "Magic links, no passwords", text: "Nothing to forget", frontCoverOf: login.id });
     // Behind the entrances, notes link to notes freely: a decision that is no node's cover, linked
     // from covers on two shelves, and a memory filed inside a cover.
-    const shared = await knowledge.recordDecision({ title: "Keep queues in Postgres", text: "One database to run", links: [at(shelf, 1).id, loginCover.id] });
+    const shared = await knowledge.recordDecision({ status: "accepted", title: "Keep queues in Postgres", text: "One database to run", links: [at(shelf, 1).id, loginCover.id] });
     const inside = await knowledge.writeMemory({ text: "The check rejects plus-addresses", links: [founding.id] });
 
     assert.deepEqual(await knowledge.frontCovers(form.id), shelf, "the email form's covers, founding first, as stored");
@@ -143,13 +143,14 @@ for (const backend of [memory, postgres]) {
     // still reached, one step in, from the cover that replaced it, with what was filed inside it.
     await clockPast(moved?.updatedAt ?? assert.fail("the cover was not moved"));
     const replacement = await knowledge.recordDecision({
+      status: "accepted",
       title: "Check the address on the server and in the browser",
       text: "Faster feedback",
       frontCoverOf: form.id,
       links: [founding.id],
     });
     const unshelved = await knowledge.editNote(founding.id, { frontCoverOf: undefined });
-    assert.deepEqual(unshelved?.fields, { title: titles[0], text: "Chosen for the email form" }, "the mark is gone, and nothing else changed");
+    assert.deepEqual(unshelved?.fields, { status: "accepted", number: founding.fields.number, title: titles[0], text: "Chosen for the email form" }, "the mark is gone, and nothing else changed");
     assert.deepEqual(await knowledge.frontCovers(form.id), [...kept.slice(1), moved, replacement]);
     assert.deepEqual(await knowledge.relatedNotes(founding.id), [inside, replacement]);
   });
@@ -161,7 +162,7 @@ for (const backend of [memory, postgres]) {
     const contract = await records.create("contract", { title: "Rejects a bad email", capability: capability.id });
     const health = await records.create("health", { node: contract.id, column: "reported", state: "passing" });
     const note = await knowledge.writeMemory({ text: "Mailgun needs a verified domain" });
-    const decision = await knowledge.recordDecision({ title: "Use Mailgun", text: "Its API is the simplest" });
+    const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest" });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message sent back" });
     const retired = await records.create("story", { title: "Visitor can pay" });
     await records.retire(retired.id, "out of scope");
@@ -182,13 +183,13 @@ for (const backend of [memory, postgres]) {
       ["", undefined],
     ];
     for (const [id, found] of refused) {
-      await assert.rejects(knowledge.recordDecision({ title: "Use Postmark", text: "Better delivery", frontCoverOf: id }), missingCover(id, found));
+      await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", frontCoverOf: id }), missingCover(id, found));
       await assert.rejects(knowledge.editNote(decision.id, { text: "Reconsidered", frontCoverOf: id }), missingCover(id, found));
     }
     // One field names one node: a list of nodes is refused by the schema check, naming the field.
     // So no decision can be the cover of two.
     const both = [story.id, capability.id] as unknown as string;
-    await assert.rejects(knowledge.recordDecision({ title: "Use Postmark", text: "Better delivery", frontCoverOf: both }), schemaError("decision", ["frontCoverOf"]));
+    await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", frontCoverOf: both }), schemaError("decision", ["frontCoverOf"]));
     await assert.rejects(knowledge.editNote(decision.id, { frontCoverOf: both }), schemaError("decision", ["frontCoverOf"]));
     // Only a decision can be a front cover: a memory note or a definition has no such field.
     await assert.rejects(
@@ -202,16 +203,16 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(knowledge.editNote(note.id, { frontCoverOf: story.id }), schemaError("memory", ["frontCoverOf"]));
     // An id holding text the library cannot store is never looked up: the schema check refuses it.
     for (const bad of UNSTORABLE) {
-      await assert.rejects(knowledge.recordDecision({ title: "Odd", text: "Cover", frontCoverOf: bad }), schemaError("decision", ["frontCoverOf"]));
+      await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Odd", text: "Cover", frontCoverOf: bad }), schemaError("decision", ["frontCoverOf"]));
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
     assert.deepEqual(await transactions.get(decision.id), decision, "the edited decision is unchanged");
 
     // Control: a live story and a live capability are accepted, by a new decision and by an edit.
-    const storyCover = await knowledge.recordDecision({ title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
+    const storyCover = await knowledge.recordDecision({ status: "accepted", title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
     await assertCreated(transactions, storyCover, "decision", { title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
     const covered = await knowledge.editNote(decision.id, { frontCoverOf: capability.id });
-    assert.deepEqual(covered?.fields, { title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
+    assert.deepEqual(covered?.fields, { ...decision.fields, frontCoverOf: capability.id });
   });
 
   contract("9.3", "a note linking to a story, capability, contract, arc or health entry is refused, and nothing is written", async ({ knowledge, records, transactions }) => {
@@ -221,7 +222,7 @@ for (const backend of [memory, postgres]) {
     const contract = await records.create("contract", { title: "Rejects a bad email", capability: capability.id });
     const health = await records.create("health", { node: contract.id, column: "reported", state: "passing" });
     const note = await knowledge.writeMemory({ text: "Mailgun needs a verified domain" });
-    const decision = await knowledge.recordDecision({ title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
+    const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message sent back" });
     const before = await transactions.history();
 
@@ -230,7 +231,7 @@ for (const backend of [memory, postgres]) {
     for (const work of [story, capability, arc, contract, health]) {
       const attempts: (() => Promise<unknown>)[] = [
         () => knowledge.writeMemory({ text: "About the work", links: [work.id] }),
-        () => knowledge.recordDecision({ title: "About the work", text: "Linked", links: [note.id, work.id] }),
+        () => knowledge.recordDecision({ status: "accepted", title: "About the work", text: "Linked", links: [note.id, work.id] }),
         () => knowledge.defineTerm({ term: "Work", meaning: "Linked", links: [definition.id, work.id, story.id] }),
         () => knowledge.editNote(note.id, { links: [decision.id, work.id] }),
         () => knowledge.editNote(decision.id, { text: "Reconsidered", links: [work.id] }),
@@ -247,7 +248,7 @@ for (const backend of [memory, postgres]) {
     const notes = [note.id, decision.id, definition.id];
     const linked = await knowledge.writeMemory({ text: "Links to every kind", links: notes });
     await assertCreated(transactions, linked, "memory", { text: "Links to every kind", links: notes });
-    const decided = await knowledge.recordDecision({ title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
+    const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
     await assertCreated(transactions, decided, "decision", { title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
@@ -267,9 +268,14 @@ async function assertCreated(
   fields: Record<string, unknown>,
 ): Promise<void> {
   assert.match(record.id, new RegExp(`^${type}_[0-9a-f]{12}$`), `a generated ${type} id: ${record.id}`);
+  // A decision also carries its status (these tests record them accepted) and the number the
+  // decision log handed it (capability 13).
+  const number = record.fields["number"];
+  if (type === "decision") assert.ok(Number.isSafeInteger(number) && (number as number) > 0, `a decision is numbered: ${String(number)}`);
+  const expected = type === "decision" ? { status: "accepted", ...fields, number } : fields;
   assert.deepEqual(
     record,
-    { id: record.id, type, version: 1, fields, createdAt: record.createdAt, updatedAt: record.createdAt },
+    { id: record.id, type, version: SCHEMA_VERSIONS[type], fields: expected, createdAt: record.createdAt, updatedAt: record.createdAt },
     `a new ${type}, holding exactly the fields given`,
   );
   assert.deepEqual(await transactions.get(record.id), record, `the ${type} is stored as returned`);

@@ -160,7 +160,7 @@ function write(library: Library, args: NoteArgs, place: { links?: string[]; fron
     case "memory":
       return library.writeMemory({ text: args.text!, ...(place.links === undefined ? {} : { links: place.links }) });
     case "decision":
-      return library.recordDecision({ title: args.title!, text: args.text!, ...place });
+      return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place });
     case "definition":
       return library.defineTerm({ term: args.term!, meaning: args.meaning!, ...(place.links === undefined ? {} : { links: place.links }) });
   }

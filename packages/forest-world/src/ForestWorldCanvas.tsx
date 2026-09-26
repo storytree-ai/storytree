@@ -1114,6 +1114,12 @@ const kit = (): Promise<LoadedKit> => {
   return (kitPromise ??= loadEmbeddedKit(kitSource));
 };
 
+/** 0.3: parse the kit ahead of the first frame, so a host can wait until its trees can stand. */
+export function preloadKit(bytes: Uint8Array): Promise<LoadedKit> {
+  kitSource ??= bytes;
+  return kit();
+}
+
 /**
  * ONE BOUGHT OBJECT PER CAPABILITY, ITS SPECIES AND LEAF TINT CARRYING THAT CAPABILITY'S STATE.
  *

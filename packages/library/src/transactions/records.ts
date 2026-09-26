@@ -75,3 +75,6 @@ export function historyEntry(entry: {
 export function jsonCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
+
+/** A stub for the red run of capability 13. */
+export class NumberTakenError extends Error {}

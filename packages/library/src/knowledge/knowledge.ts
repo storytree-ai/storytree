@@ -111,6 +111,14 @@ export class Knowledge {
     return this.#records.create(kind, fields);
   }
 
+  decision(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 13 is not built yet"));
+  }
+
+  composeStatement(..._args: unknown[]): Promise<never> {
+    return Promise.reject(new Error("capability 13 is not built yet"));
+  }
+
   /** Define a term. Its links are checked as writeMemory checks them. */
   async defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">> {
     await this.#checkLinks(definition.links);
@@ -228,3 +236,6 @@ function listOf(value: unknown): unknown[] {
 function fieldOf(value: unknown, key: string): unknown {
   return value !== null && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
 }
+
+/** A stub for the red run of capability 13. */
+export class SupersessionLoopError extends Error {}

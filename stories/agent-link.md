@@ -474,8 +474,9 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     `raise_question` holds the increments it names by adding the question to each one's `heldOn`,
     through the library's `editIncrement`, and `retire_question` is the library's `retire`.
   - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
-    this one server, beside these, and can fill a "next" line that `land`'s answer ends with; until
-    one does, the answer has none.
+    this one server, beside these, and can fill a "next" line that `land`'s answer ends with. *Not
+    built yet:* no other story has tools or a "next" line to give, so the way in is made when the
+    first one does, rather than as an unused hook now (ADR-0623 D4).
 
 **Contracts:**
 1. A test client talks to the server inside the test itself, with no real agent and no network. It
@@ -587,6 +588,15 @@ set one up.
     path, beside the hook and tool server scripts, once, and removing storytree takes it out. What
     that command does is the command line's own story (`0-3-cli-story-tree`); this check only puts
     it where the user can run it.
+- **As built (8.8, 8.9):** `gh auth status` answers whether `gh` is there and signed in; the check
+  says nothing while it is. The command is a launcher, `storytree` (a shell script) or
+  `storytree.cmd` on Windows, that runs `storytree.mjs`, built beside the hook and tool server
+  scripts, with the same Node. It goes into the first folder on the PATH that is inside the user's
+  home and can be written (such as `~/.local/bin`), so no setting of theirs is changed; with none,
+  the check says so. A marker line inside it makes it storytree's: a `storytree` of the user's own
+  anywhere on the path is kept, never replaced or shadowed. `storytree-setup remove` takes it out.
+  Until the command line's story fills it, `storytree.mjs` answers only `storytree setup install |
+  remove`.
 
 **Contracts:**
 1. In a throwaway home with only the tool server installed, the first session start registers the

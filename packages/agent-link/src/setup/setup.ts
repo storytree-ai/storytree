@@ -3,7 +3,8 @@
  * server, and every session start checks storytree's setup and fixes whatever is missing on the
  * spot: it opens storytree if it is closed, registers the hooks if they are missing, and, in a
  * folder that isn't a project yet, has the agent ask the user whether to set one up. Nothing is
- * created without that yes (ADR-0626 D5).
+ * created without that yes (ADR-0626 D5). It also puts the `storytree` command on the user's path,
+ * and looks for GitHub's `gh`, signed in, which a claim's release on merge needs (ADR-0643 D1, D3).
  *
  * The tool server runs this at its start, and again whenever the agent calls check_setup; the
  * agent's part (asking the user, and firing each hook to verify it) goes through check_setup's
@@ -14,7 +15,7 @@ import path from "node:path";
 import { findProject } from "../routing/index.js";
 import { defaultHomes, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
-import type { CommandInstall, CommandPath, GhState } from "./command.js";
+import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";
 export type { CommandInstall, CommandPath, GhState } from "./command.js";
@@ -62,7 +63,10 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const hooks = options.hook === undefined ? undefined : registerHooks(options.homes ?? defaultHomes(), options.hook);
   const found = findProject(options.folder);
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
-  return { storytree, hooks, project, command: undefined, gh: "signed in" };
+  // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
+  const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"));
+  const gh = await (options.gh ?? ghState)();
+  return { storytree, hooks, project, command, gh };
 }
 
 /** A project name to suggest for `folder`: its own name, as the library's project-name rule allows. */

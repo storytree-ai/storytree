@@ -231,7 +231,7 @@ test("opening storytree waits until it accepts connections, not only until it ha
   });
 });
 
-test("8.4 in a folder that isn't a project, the agent is told to ask the user, and nothing is created until the user says yes", async () => {
+test("8.4 setup records the chosen project only after a successful yes, never on an existing-project check", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -239,18 +239,31 @@ test("8.4 in a folder that isn't a project, the agent is told to ask the user, a
     mkdirSync(folder);
     const storytree = await connect({ url: testServerUrl() });
     try {
+      const choice = path.join(home.storytreeHome, "project-choice.json");
       await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
         const checked = await agent.call("check_setup");
         assert.equal(checked.isError, false, checked.text);
         assert.deepEqual(checked.data.project, { status: "ask", suggestion: name });
         assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, "no marker before a yes");
         assert.equal((await storytree.listProjects()).includes(name), false, "no project before a yes");
+        assert.equal(existsSync(choice), false, "no choice before a yes");
+        const refused = await agent.call("set_up_project", { name: "Invalid Name" });
+        assert.equal(refused.isError, true);
+        assert.equal(existsSync(choice), false, "a refused setup records no choice");
 
         const yes = await agent.call("set_up_project", { name });
         assert.equal(yes.isError, false, yes.text);
         assert.deepEqual(readJson(path.join(folder, MARKER_FILE)), { project: name });
         assert.ok((await storytree.listProjects()).includes(name), "the project, once the user said yes");
+        assert.equal(readJson(choice).current, name, "yes records the choice in the app's home");
+        writeFileSync(choice, JSON.stringify({ current: "another-project" }));
         assert.deepEqual((await agent.call("check_setup")).data.project, { status: "set up", name });
+        await agent.call("set_up_project", { name });
+        assert.equal(readJson(choice).current, "another-project", "neither an existing-project check nor a repeated tool call chooses it");
+      });
+      await withAgent(folder, claudeCode("claude-2", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+        await agent.call("check_setup");
+        assert.equal(readJson(choice).current, "another-project", "an ordinary new agent session records no choice");
       });
     } finally {
       await storytree.close();

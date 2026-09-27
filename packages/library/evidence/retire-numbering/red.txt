@@ -1,0 +1,122 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/retire-numbering
+> node --import tsx scripts/test.mjs "packages/cli/src/decisions.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/retire-numbering/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:37943 (started in 0.1 s)
+✔ 6.3 a superseded decision drops out of `--current`; filters use the library's status (888.187485ms)
+✔ 6.5 `adr pull` names a decision by id, number, or ADR number (651.254199ms)
+✔ 6.1 two `adr new` run at once get different, increasing numbers (362.611675ms)
+✔ 6.2 pull then push with no edit changes nothing (348.698856ms)
+✔ 6.4 a composed statement reads stale after its decision's text changes (626.800989ms)
+✔ 6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers (943.816923ms)
+✖ 6.7 `adr number` and its dry run refuse projects other than storytree (199.569289ms)
+✖ 6.8 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations (124.205003ms)
+✖ 6.9 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects (122.786142ms)
+✖ 6.10 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects (123.175711ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 6
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4691.859157
+
+✖ failing tests:
+
+test at packages/cli/src/decisions.test.ts:2:3389
+✖ 6.7 `adr number` and its dry run refuse projects other than storytree (199.569289ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  2 !== 1
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:144:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:138:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/decisions.test.ts:2:3939
+✖ 6.8 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations (124.205003ms)
+  AssertionError [ERR_ASSERTION]: storytree adr has no "renumber"
+
+  next:
+    - storytree adr   (its verbs)
+
+
+  2 !== 0
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:154:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:152:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/decisions.test.ts:2:5236
+✖ 6.9 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects (122.786142ms)
+  AssertionError [ERR_ASSERTION]: storytree adr has no "set-floor"
+
+  next:
+    - storytree adr   (its verbs)
+
+
+  2 !== 0
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:185:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:183:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/decisions.test.ts:2:6505
+✖ 6.10 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects (123.175711ms)
+  AssertionError [ERR_ASSERTION]: storytree adr has no "renumber"
+
+  next:
+    - storytree adr   (its verbs)
+
+
+  2 !== 0
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:219:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/retire-numbering/packages/cli/src/decisions.test.ts:217:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

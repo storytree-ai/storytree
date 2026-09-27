@@ -1,0 +1,98 @@
+✖ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (6.792927ms)
+✖ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (103.558419ms)
+✖ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (1.341037ms)
+✖ 1.5: absent owner and failed registration report an untracked launch instead of guessing (0.987149ms)
+✖ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (2.666363ms)
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/process/index.js' imported from /home/mickh/code/storytree03-wt/own-foundation/packages/own/src/process/index.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///home/mickh/code/storytree03-wt/own-foundation/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+    at resolveDirectorySync (file:///home/mickh/code/storytree03-wt/own-foundation/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+    at resolveTsPathsSync (file:///home/mickh/code/storytree03-wt/own-foundation/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+    at resolve (file:///home/mickh/code/storytree03-wt/own-foundation/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/mickh/code/storytree03-wt/own-foundation/packages/own/src/process/index.js'
+}
+
+Node.js v24.19.0
+✖ packages/own/src/process/index.test.ts (105.229423ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.156889
+
+✖ failing tests:
+
+test at packages/own/src/foundation.test.ts:1:1393
+✖ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (6.792927ms)
+  TypeError: own.ownerFromCall is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/foundation.test.ts:37:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at packages/own/src/foundation.test.ts:1:2452
+✖ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (103.558419ms)
+  Error: Command failed: /home/mickh/.nvm/versions/node/v24.19.0/bin/node --import tsx /home/mickh/code/storytree03-wt/own-foundation/packages/own/src/testing/detached-launcher.ts /tmp/own-foundation-KuJO5t
+  /home/mickh/code/storytree03-wt/own-foundation/packages/own/src/testing/detached-launcher.ts:1
+  import { launchOwned } from '../index.js';
+           ^
+  SyntaxError: The requested module '../index.js' does not provide an export named 'launchOwned'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)
+      at async node:internal/modules/esm/loader:643:26
+      at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+  
+  Node.js v24.19.0
+  
+      at genericNodeError (node:internal/errors:985:15)
+      at wrappedFn (node:internal/errors:539:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:509:28)
+      at maybeClose (node:internal/child_process:1141:16)
+      at ChildProcess._handle.onexit (node:internal/child_process:306:5) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: '/home/mickh/.nvm/versions/node/v24.19.0/bin/node --import tsx /home/mickh/code/storytree03-wt/own-foundation/packages/own/src/testing/detached-launcher.ts /tmp/own-foundation-KuJO5t',
+    stdout: '',
+    stderr: "/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/testing/detached-launcher.ts:1\nimport { launchOwned } from '../index.js';\n         ^\nSyntaxError: The requested module '../index.js' does not provide an export named 'launchOwned'\n    at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)\n    at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)\n    at async node:internal/modules/esm/loader:643:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v24.19.0\n"
+  }
+
+test at packages/own/src/foundation.test.ts:1:3847
+✖ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (1.341037ms)
+  TypeError: own.launchOwned is not a function
+      at launch (/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/foundation.test.ts:27:28)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/foundation.test.ts:84:24)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/foundation.test.ts:1:4743
+✖ 1.5: absent owner and failed registration report an untracked launch instead of guessing (0.987149ms)
+  TypeError: own.launchOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/foundation.test.ts:101:28)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/foundation.test.ts:1:5445
+✖ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (2.666363ms)
+  TypeError: own.launchOwned is not a function
+      at launch (/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/foundation.test.ts:27:28)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/foundation.test.ts:116:21)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/process/index.test.ts:1:1
+✖ packages/own/src/process/index.test.ts (105.229423ms)
+  'test failed'

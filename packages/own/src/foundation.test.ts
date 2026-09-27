@@ -125,3 +125,24 @@ test('2.3/2.5: uncertainty and unreadable records remain visible beside readable
   assert.ok((await own.readLedger({ home: blocked })).gaps.some(gap => /read/.test(gap.reason)));
   assert.ok((await readdir(path.join(root, 'runs'))).includes(`${run.id}.json`));
 });
+
+test('1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading', async t => {
+  const root = await home(t);
+  let observedAt = 0;
+  const result = await own.launchOwned({ ...command, home: root, owner: { session: 'short-lived' } }, {
+    readProcess: async pid => {
+      const original = await own.readProcess(pid);
+      assert.equal(original.state, 'live');
+      if (original.state !== 'live') throw new Error('test child has no identity');
+      await cleanup(pid);
+      await new Promise(resolve => setTimeout(resolve, 30));
+      observedAt = Date.now();
+      return { state: 'live', identity: { ...original.identity, started: 'replacement-lifetime' } };
+    },
+  });
+  assert.equal(result.status, 'tracked');
+  if (result.status !== 'tracked') return;
+  assert.deepEqual(result.run.birth, { state: 'gone' });
+  assert.ok(Date.parse(result.run.startedAt) < observedAt - 20);
+  assert.equal((await own.observeRuns({ home: root })).runs[0]?.process.state, 'gone');
+});

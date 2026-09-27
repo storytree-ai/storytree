@@ -14,3 +14,5 @@ export type { Build, RunningBuild, Slot } from "./updates/follow-main.js";
 export { SEED_CONNECTION, seedWriting } from "./updates/seed-writing.js";
 export { buildLabel, launchToRecord } from "./lifecycle/launch.js";
 export type { LaunchRecord } from "./lifecycle/launch.js";
+export { quitApp } from "./lifecycle/quit.js";
+export type { QuitResult } from "./lifecycle/quit.js";

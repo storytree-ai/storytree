@@ -38,9 +38,10 @@ export interface Background {
   /**
    * The app was started again. While it runs, its window is to be shown ("show"). While it is
    * stopping, the start is held, not lost ("reopen"): once the database has stopped, the app is
-   * started again with its window.
+   * started again with its window. A start asking it to `quit` quits it, as the tray's Quit does
+   * (ADR-0656 D1), and is never held for a reopen.
    */
-  secondStart(): "show" | "reopen";
+  secondStart(request?: { quit?: boolean }): "show" | "reopen" | "quit";
 }
 
 export interface BackgroundOptions {
@@ -75,7 +76,11 @@ export function background({ stopDatabase, exit, relaunch }: BackgroundOptions):
       if (quitting === undefined) next = { target, shown: showing };
       return stop(0);
     },
-    secondStart() {
+    secondStart(request) {
+      if (request?.quit === true) {
+        void stop(0);
+        return "quit";
+      }
       if (quitting === undefined) return "show";
       next = { target: next?.target, shown: true };
       return "reopen";

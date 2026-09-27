@@ -4,6 +4,7 @@
  */
 import type { Family } from "../door.js";
 import { decisions } from "./adr.js";
+import { appFamily } from "./app.js";
 import { arcs } from "./arc.js";
 import { friction, resteer } from "./capture.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
@@ -20,6 +21,7 @@ export const FAMILIES: readonly Family[] = [
   decisions,
   noticeboard,
   doctorFamily,
+  appFamily,
   friction,
   resteer,
   plan,

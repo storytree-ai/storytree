@@ -87,7 +87,8 @@ Build order: 1 → 2 → 3 → 4.
 
 When the app opens it starts the database that holds every project's library, and it keeps it running
 until the app is quit: closing the window leaves both running in the background, with a tray icon
-whose Quit is the one way to stop them, so agents' work is still recorded. There is one owner at a time: opening the app again brings its window forward, another
+whose Quit stops them, so agents' work is still recorded. The app can also be controlled from
+outside (ADR-0656 D0): asking it to quit from the command line stops it as the tray's Quit does. There is one owner at a time: opening the app again brings its window forward, another
 program holding the database is named, and while it runs the app leaves records saying where the
 database is and how to open the app, which is how an agent's session finds it or opens it.
 
@@ -103,6 +104,9 @@ database is and how to open the app, which is how an agent's session finds it or
     `oq-0-3-cuts-awaiting-owner-decision`): closing the window leaves the app and its database
     running, with a tray icon to quit. 0.2 never had the gap, because its database never stopped.
   - The app updates itself (ADR-0637 D2, the owner's, answering d2): capability 4, Updates.
+  - The app can be controlled from outside (ADR-0656 D0 and D1, the owner's, 2026-09-27): what a
+    person can do to the running app, an agent can ask it to do from the command line, so frontend
+    agents can test it and a model can drive its UAT. First: `storytree app quit`.
   - Noticing a stopped database and starting it again in place, as 0.2's studio did, waits
     (ADR-0637 D3, d3): revisit if the database proves unstable in use.
 - **As built** (`0-3-desktop-app-shows-the-library`): `apps/desktop`'s main process starts the
@@ -130,6 +134,11 @@ database is and how to open the app, which is how an agent's session finds it or
   - On Windows, the app that follows merged main keeps a Start menu entry, "storytree 0.3", on the
     build now running, so opening it never means reading `app.json` by hand. An app pointed at a
     throwaway home (`STORYTREE_HOME`) leaves the Start menu alone.
+  - **Quit from outside** (ADR-0656 D1, the owner's: "the app should be able to be controlled from
+    the outside - this allows frontend agents to better test the app and helps with model driven uat
+    testing"): `storytree app quit` hands the running app a second start with `--quit`, through
+    `app.json`, and answers once its database has stopped (`quitApp`); the app quits as the tray's
+    Quit does (`background().secondStart({ quit })`). A stopped app is never started by it.
   - `pnpm seed:library`, `library:move`, `library:export` and `library:restore` no longer need the
     app quit: they use the running app's database
     (`scripts/library-server.mjs`), wait their turn behind one another instead of refusing, and two
@@ -151,8 +160,9 @@ database is and how to open the app, which is how an agent's session finds it or
 5. A leftover address from a crashed app counts as not running: the answer comes in well under a
    second and never hangs.
 6. With storytree closed, an agent's session start opens it.
-7. Closing the window leaves the app and its database running, and the tray's Quit is the one way
-   to stop them: it stops the database once, and the app exits only after it has stopped.
+7. Closing the window leaves the app and its database running; the tray's Quit, or asking the app
+   to quit from outside (`storytree app quit`), stops them: it stops the database once, and the app
+   exits only after it has stopped.
 8. When the app starts, and once a day while it runs, it writes a snapshot of each project to
    `~/.storytree/0.3/backups/<project>/`, keeping that project's newest 14 (ADR-0641 B1).
 

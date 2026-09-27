@@ -20,4 +20,3 @@
 +++ new/The library/capability 1/ADD contract under capability_5e0362aae607/title
 @@ -0,0 +1 @@
 +1.9 · A local database that accepts TCP but never completes a fresh handshake is refused at a 3-second connection deadline by default, for both the server and project pools, with an actionable "storytree isn't reachable" answer. This includes library opens made by the CLI. A later call recovers once the database answers.
-

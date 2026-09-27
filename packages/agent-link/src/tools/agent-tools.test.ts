@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server): contracts 6.1-6.20 in
+ * Capability 6 · Agent tools (the MCP server): contracts 6.1-6.21 in
  * the agent link story. A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
  * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
@@ -24,7 +24,7 @@ import { roundDue, worklist } from "@storytree/librarian";
 import pg from "pg";
 import { z } from "zod";
 
-import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
+import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
 import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
@@ -158,6 +158,130 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
     }
   });
 });
+
+// 5.15 / 6.21: exercise both lock queues and the admission boundary through real MCP calls.
+for (const scenario of [
+  { tool: "claim", boundary: "library", target: "proposal" },
+  { tool: "make_workspace", boundary: "library", target: "ready" },
+  { tool: "attach_workspace", boundary: "library", target: "proposal" },
+  { tool: "claim", boundary: "activity", target: "capability" },
+  { tool: "claim", boundary: "activity", target: "active" },
+  { tool: "claim", boundary: "admitted", target: "proposal" },
+  { tool: "make_workspace", boundary: "admitted", target: "proposal" },
+  { tool: "attach_workspace", boundary: "admitted", target: "proposal" },
+] as const) {
+  test(`6.21 cancelling ${scenario.tool} at ${scenario.boundary} (${scenario.target}) ${scenario.boundary === "admitted" ? "completes the admitted claim" : "leaves no claim, activation or workspace change"}`, async () => {
+    await withProject(async ({ folder, project, library, log }) => {
+      const { tool, boundary, target } = scenario;
+      const arc = await library.createArc({ title: "Cancellation", intent: "Claim only wanted work", endState: "No abandoned claim" });
+      const increment = await library.addIncrement({ arc: arc.id, title: "Queued work", objective: "Build", body: "Red then green" });
+      if (target === "ready" || target === "active") await library.advanceIncrement(increment.id, target);
+      const id = target === "capability"
+        ? (await library.addCapability({ story: (await library.addStory({ title: "Signup" })).id, title: "Form" })).id
+        : increment.id;
+      const before = await library.get(id);
+      const history = await library.history({ id });
+      const origin = path.join(path.dirname(folder), "origin.git");
+      git(path.dirname(folder), "init", "--bare", "-b", "main", origin);
+      git(folder, "init", "-b", "main");
+      git(folder, "add", ".");
+      git(folder, "commit", "-m", "first");
+      git(folder, "remote", "add", "origin", origin);
+      git(folder, "push", "origin", "main");
+      const ref = git(folder, "rev-parse", "HEAD").trim();
+      const appFolder = path.join(path.dirname(folder), "app worktree");
+      if (tool === "attach_workspace") git(folder, "worktree", "add", "--detach", appFolder, ref);
+      const worktrees = git(folder, "worktree", "list", "--porcelain");
+      const branches = git(folder, "for-each-ref", "refs/heads");
+      const url = new URL(testServerUrl());
+      url.pathname = `/${boundary === "activity" ? ACTIVITY_DATABASE : projectDatabase(project)}`;
+      const pool = new pg.Pool({ connectionString: url.href });
+      const blocker = await pool.connect();
+      const session = "cancelled-claimant";
+      const isCodex = tool === "attach_workspace";
+      const meta = isCodex ? { sessionId: session, threadId: session } : {};
+      const tools = createAgentTools({ folder, dataDir: testServerDataDir(), env: isCodex ? {} : { CLAUDE_CODE_SESSION_ID: session } });
+      const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: isCodex ? "codex-mcp-client" : "claude-code", version: "test" });
+      try {
+        await tools.server.connect(serverSide);
+        let cancellationReceived = false;
+        const receive = serverSide.onmessage!;
+        serverSide.onmessage = (message, extra) => {
+          if ("method" in message && message.method === "notifications/cancelled") cancellationReceived = true;
+          receive(message, extra);
+        };
+        await client.connect(clientSide);
+        await client.callTool({ name: "show_plan", arguments: {}, _meta: meta });
+        await blocker.query("BEGIN");
+        if (boundary === "activity") {
+          await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
+        } else if (boundary === "library") {
+          await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+        } else {
+          // A row lock blocks activation AFTER the library admits it through the advisory lock.
+          await blocker.query("SELECT id FROM record WHERE id = $1 FOR UPDATE", [id]);
+        }
+        const abort = new AbortController();
+        const pending = client.callTool({
+          name: tool,
+          arguments: {
+            ...(target === "capability" ? { capability: id } : { increment: id }), reason: "Build queued work",
+            ...(isCodex ? { folder: appFolder, ref, name: "queued-work" } : {}),
+          },
+          _meta: meta,
+        }, { signal: abort.signal });
+        const cancelled = assert.rejects(pending, /cancel/i);
+        const deadline = Date.now() + 10_000;
+        while (true) {
+          const waiting = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = $1", [boundary === "admitted" ? "transactionid" : "advisory"]);
+          if (waiting.rowCount) break;
+          assert.ok(Date.now() < deadline, `${tool} reached the ${boundary} lock`);
+          await delay(10);
+        }
+        abort.abort(new Error("cancel claim"));
+        await cancelled;
+        await client.ping();
+        assert.equal(cancellationReceived, true);
+        await blocker.query("COMMIT");
+        // Drain the library writer, then the claim's log transaction, before observing effects.
+        await library.addStory({ title: "Following write" });
+        await log.locked(project, async () => {});
+        await client.callTool({ name: "show_plan", arguments: {}, _meta: meta });
+        const claimed = (await log.since(project, 0)).lines.filter((line) => line.kind === "claimed");
+        if (boundary !== "admitted") {
+          assert.deepEqual(await library.get(id), before);
+          assert.deepEqual(await library.history({ id }), history);
+          assert.deepEqual(claimed, [], "cancellation leaves no claimed line, including a released claim");
+          assert.deepEqual(await readClaims(log, project), []);
+          assert.equal(git(folder, "worktree", "list", "--porcelain"), worktrees);
+          assert.equal(git(folder, "for-each-ref", "refs/heads"), branches);
+        } else {
+          assert.equal((await library.get(id))?.fields.status, "active");
+          const after = await library.history({ id });
+          assert.equal(after.length, history.length + 1);
+          assert.equal(after.at(-1)?.actor, `session:${session}`);
+          assert.equal(claimed.length, 1);
+          const [held] = await readClaims(log, project);
+          assert.equal(held?.session, session);
+          assert.equal(held?.increment, id);
+          if (tool === "make_workspace") {
+            assert.ok(held?.branch);
+            assert.ok(git(folder, "worktree", "list", "--porcelain").includes(`branch refs/heads/${held.branch}`));
+          } else if (isCodex) {
+            assert.equal(git(appFolder, "branch", "--show-current").trim(), "codex/queued-work");
+          }
+        }
+      } finally {
+        await blocker.query("ROLLBACK");
+        blocker.release();
+        await client.close();
+        await tools.close();
+        await pool.end();
+      }
+    });
+  });
+}
 
 test("6.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them", async () => {
   await withProject(async ({ folder, library }) => {

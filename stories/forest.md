@@ -237,11 +237,13 @@ place of today's plain list.
 
 - **Packed globe, as built:** the page's `planetLayout` selects the frozen packed spots, and
   `PlanetWorldCanvas` mounts each unchanged island as a tangent plate above a radius-160 shell.
-  The shell is light grey (`#bfbfbf`), double-sided, at 0.18 opacity, with depth writing off, so
-  far land and a future core can show through it. Its ray hits still hide back-side labels and
+  The shell is light grey (`#bfbfbf`), double-sided, at 0.08 opacity, with depth writing off, so
+  far land and a future core can show through it. The owner asked for more transparency after
+  #90: the two faces now retain 84.6% of the far-side blend contribution, up from 67.2%.
+  Its ray hits still hide back-side labels and
   claims and stop clicks selecting a hidden island. Opening turns, edge markers, story selection
-  and the flat Forest button keep working. [Headless Chromium evidence](../apps/desktop/src/forest/evidence/packed/README.md)
-  shows the actual seeded page, with the renderer named.
+  and the flat Forest button keep working. [Headless Chromium comparisons](../apps/desktop/src/forest/evidence/shell/README.md)
+  show the actual seeded page before and after tuning, with the renderer named.
 
 **Contracts:**
 1. The app's smoke check opens a seeded project and finds one story node per story, each drawn with

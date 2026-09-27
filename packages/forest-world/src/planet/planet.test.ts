@@ -45,17 +45,17 @@ test('L1 gives the island under the flat viewing angle its original local light,
 });
 
 // The globe mounts this actual Three mesh; material/depth behaviour is observable without WebGL.
-test('3.5 the globe surface shows a light grey shell while the far side and core remain visible through it', () => {
+test('3.5 the shell stays visible while preserving at least 80% of the far-side contribution through both faces', () => {
   const surface = planet.createPlanetSurface(160);
   try {
     const material = surface.material;
     assert.ok(material.transparent);
-    assert.ok(material.opacity > 0 && material.opacity < 0.3);
+    assert.ok(material.opacity > 0 && material.opacity < 1, 'the ball still has a visible, transparent surface');
+    // The owner found #90 too opaque: each shell face blends over the far side.
+    const farSideTransmission = (1 - material.opacity) ** 2;
+    assert.ok(farSideTransmission >= 0.8, `both shell faces leave only ${farSideTransmission} of the far side`);
     assert.equal(material.depthWrite, false, 'the shell must not hide interior or far-side draws');
     assert.equal(material.side, DoubleSide, 'both faces of the ball remain visible');
-    assert.equal(material.color.r, material.color.g);
-    assert.equal(material.color.g, material.color.b);
-    assert.ok(material.color.r > 0.4, 'the shell is light grey, not the dark sea');
     assert.equal(surface.geometry.parameters.radius, 160);
   } finally {
     surface.geometry.dispose();

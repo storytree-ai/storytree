@@ -60,6 +60,8 @@ export interface AgentToolOptions {
   readonly merges?: MergeWatch;
   /** What the setup check (capability 8) works with: by default, the user's own homes and no hook command. */
   readonly setup?: Omit<SetupOptions, "folder">;
+  /** Other stories' tools, served through the same routing, session attribution and refusals. */
+  readonly extensions?: readonly ToolExtension[];
 }
 
 /** A tool server, and how to close it with every connection it opened. */
@@ -95,8 +97,17 @@ export interface Call {
 /** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
 export type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: Call) => Promise<Answer>) => void;
 
+/** Another story's contribution to the one tool server (ADR-0643 D6). */
+export interface ToolExtension {
+  readonly registerTools?: (define: Define) => void;
+  /** A short addition to the habits card, naming the added tools in backticks. */
+  readonly instructions?: string;
+}
+
 export function createAgentTools(options: AgentToolOptions): AgentTools {
-  const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions: habitsCard() });
+  const extensions = options.extensions ?? [];
+  const instructions = [habitsCard(), ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");
+  const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions });
   const connections = new Connections();
   const env = options.env ?? process.env;
   const quietMs = options.quietMs ?? QUIET_MS;
@@ -145,6 +156,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   registerClaimTools(define);
   registerWorkTools(define);
   registerNoteTools(define);
+  for (const extension of extensions) extension.registerTools?.(define);
 
   return {
     server,

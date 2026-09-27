@@ -13,6 +13,8 @@ const health = { reported: { state: 'not-checked' as const }, verified: { state:
 // Actual story ids and counts from spike/globe-land's spacing.json. Coast shape depends on id.
 const seed = ['story_c49a3e654505', 'story_5575e4b90dd3', 'story_f9e22610d77a', 'story_af6675767df3',
   'story_3112ce58d261', 'story_430046bf71e9', 'story_3fb7c1773675'];
+// Regression: a fresh seed on 2026-09-27 overlapped places 1/2 under the look-only table.
+const freshSeed = ["story_a9a21c44a1e7", "story_a1c7adb510b4", "story_730a208989d1", "story_c9107adf051c", "story_4280df77bc0e", "story_3c99aeeade44", "story_1e9d6400be09"];
 const counts = [8, 4, 5, 10, 7, 6, 13];
 
 function inside(point: Vector2, polygon: Vector2[]): boolean {
@@ -48,7 +50,7 @@ function separated(a: Vector3[], b: Vector3[], na: Vector3, nb: Vector3): boolea
 }
 
 test('1.6 packed neighbours never overlap through all 36 measured places, at their real shore sizes including beaches', () => {
-  for (const ids of [seed, Array.from({ length: 36 }, (_, i) => `synthetic-story-${i + 1}`)]) {
+  for (const ids of [seed, freshSeed, Array.from({ length: 36 }, (_, i) => `synthetic-story-${i + 1}`)]) {
     const shores = ids.map((id, i) => {
       const story = { id, title: id, health, capabilities: Array.from({ length: counts[i % counts.length]! }, (_, c) => ({
         id: `${id}-cap-${c}`, title: `Capability ${c}`, dependsOn: [], contracts: [], health,

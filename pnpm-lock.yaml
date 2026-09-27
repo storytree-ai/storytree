@@ -106,6 +106,9 @@ importers:
       '@modelcontextprotocol/client':
         specifier: ^2.1.0
         version: 2.1.0
+      '@storytree/librarian':
+        specifier: workspace:^
+        version: link:../librarian
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

@@ -16,9 +16,11 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
+import { worklist } from "@storytree/librarian";
+import { z } from "zod";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
-import { recordFriction, reinforceFriction } from "../index.js";
+import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
@@ -647,6 +649,33 @@ test("6.15 reinforce appends dated concrete evidence to the existing friction, p
         assert.match(refused.text, /concrete|friction/i);
       }
       assert.deepEqual(await library.history(), before, "refused recurrences wrote nothing");
+    });
+  });
+});
+
+test("6.17 another story registers its tools on this server, sharing routing, the session log and its instructions", async () => {
+  await withProject(async ({ folder, library, log, project }) => {
+    const decision = await library.recordDecision({ title: "One mailer", text: "Use Mailgun", status: "accepted" });
+    const extension: ToolExtension = {
+      instructions: "Use `librarian_worklist` to see what needs the librarian's attention.",
+      registerTools(define) {
+        define("librarian_worklist", "Read the librarian's worklist", z.object({}), async (_args, call) => ({
+          text: "The librarian's worklist.", data: { worklist: await worklist(call.library, {}) },
+        }));
+      },
+    };
+    await withAgent(folder, claudeCode("librarian-reader", { extensions: [extension] }), async (agent) => {
+      assert.deepEqual(await agent.tools(), [...TOOLS, "librarian_worklist"].sort());
+      const result = await agent.call("librarian_worklist");
+      assert.equal(result.isError, false, result.text);
+      assert.deepEqual(result.data.worklist, await worklist(library, {}));
+      assert.ok(JSON.stringify(result.data.worklist).includes(decision.id));
+      const calls = (await log.since(project, 0)).lines.filter((line) => line.kind === "tool-called");
+      assert.deepEqual(calls.map((line) => [line.session, line.kind === "tool-called" && line.tool]), [["librarian-reader", "librarian_worklist"]]);
+      const instructions = agent.instructions()!;
+      assert.ok(instructions.includes(extension.instructions!));
+      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), await agent.tools());
+      assert.ok(instructions.split("\n").length <= 60);
     });
   });
 });

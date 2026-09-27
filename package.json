@@ -16,9 +16,12 @@
     "desktop": "pnpm --filter @storytree/desktop start",
     "desktop:smoke": "pnpm --filter @storytree/desktop smoke",
     "desktop:dist": "pnpm --filter @storytree/desktop dist",
-    "app:follow-main": "node --import tsx scripts/follow-main.mjs"
+    "app:follow-main": "node --import tsx scripts/follow-main.mjs",
+    "build:guidance": "node --import tsx scripts/build-guidance.mjs",
+    "check:guidance": "node --import tsx scripts/build-guidance.mjs --check"
   },
   "devDependencies": {
+    "@storytree/agent-link": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "pg": "^8.23.0",

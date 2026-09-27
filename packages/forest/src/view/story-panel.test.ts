@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Drill-down (stories/forest.md), as the page draws it (ADR-0659): the story's
+ * Capability 4 · Drill-down (the forest story), as the page draws it (ADR-0659): the story's
  * sentences and its capability diagram, and below the diagram the one capability selected. Another
  * story's capability is in the diagram but cannot be clicked, and no front cover shows anywhere.
  * The panel is HTML text, so it is read here without a browser.

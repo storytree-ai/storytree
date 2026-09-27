@@ -26,3 +26,24 @@ The production change stays in the MCP handler and library write path. SchemaRec
 health are the verbs forwarding options to transactions; no project connection, numbering,
 CLI, app or script code changes are needed. Cancellation is checked when a blocked lock
 wait finishes, before any record work; it does not terminate the SQL wait itself.
+
+## Supervisor residue: cancellation during claim activation
+
+[claim-gap-red.txt](claim-gap-red.txt) confirms a related gap outside the lane's file fence:
+`packages/agent-link/src/claims/claims.ts` reconstructs actor-only options when it calls
+`advanceIncrement`. A cancelled MCP `claim` waiting for that library write still changes the
+increment from `proposal` to `active`. `make_workspace` and `attach_workspace` use the same
+claim path; they were identified by code review, not separately exercised by this probe.
+
+The direct fix needs `ClaimContext` to carry the caller's writer options and use them for
+`advanceIncrement`; `tools/claim-tools.ts` must pass those options. The reviewable patch is
+`/tmp/cancel-write-claims-extension.patch`, and the probe is `/tmp/cancel-write-claim.probe.ts`.
+This lane requested a fence extension but did not receive approval, so neither is applied.
+The new tool contract is therefore specifically about `edit_plan`; the library contract
+applies to writes supplied with a signal. Do not describe all MCP tools as cancellation-safe.
+
+Supervisor action: retain this claim-activation gap as residue on the owning arc and schedule
+the claim-path repair with authority to edit `claims/claims.ts`. The isolated probe can be
+copied back to `packages/agent-link/src/tools/cancel-claim.probe.ts` and run with the existing
+database runner. No separate cleanup session is requested for the pinned health-scanner test:
+replace that assertion's real-suite fixture when its owning scripts are next changed.

@@ -1,0 +1,58 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/cancel-write
+> node --import tsx scripts/test.mjs "packages/agent-link/src/tools/cancel-claim.probe.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:42207 (started in 0.1 s)
+✖ probe: cancelling an MCP claim queued for activation leaves the increment and history unchanged (224.196669ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 627.269979
+
+✖ failing tests:
+
+test at packages/agent-link/src/tools/cancel-claim.probe.ts:2:322
+✖ probe: cancelling an MCP claim queued for activation leaves the increment and history unchanged (224.196669ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      createdAt: '2026-09-27T14:44:50.303Z',
+      fields: {
+        arc: 'arc_eb3bc1344445',
+        body: 'Queued claim',
+        objective: 'Probe',
+        parked: '2026-09-27T14:44:50.302Z',
+  +     status: 'active',
+  -     status: 'proposal',
+        title: 'Before cancellation'
+      },
+      id: 'increment_5f49609f32e3',
+      type: 'increment',
+  +   updatedAt: '2026-09-27T14:44:50.396Z',
+  -   updatedAt: '2026-09-27T14:44:50.303Z',
+      version: 1
+    }
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/cancel-claim.probe.ts:145:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/cancel-claim.probe.ts:90:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/cancel-claim.probe.ts:83:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/cancel-claim.probe.ts:103:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'increment_5f49609f32e3', type: 'increment', version: 1, fields: { arc: 'arc_eb3bc1344445', body: 'Queued claim', title: 'Before cancellation', parked: '2026-09-27T14:44:50.302Z', status: 'active', objective: 'Probe' }, createdAt: '2026-09-27T14:44:50.303Z', updatedAt: '2026-09-27T14:44:50.396Z' },
+    expected: { id: 'increment_5f49609f32e3', type: 'increment', version: 1, fields: { arc: 'arc_eb3bc1344445', title: 'Before cancellation', objective: 'Probe', body: 'Queued claim', status: 'proposal', parked: '2026-09-27T14:44:50.302Z' }, createdAt: '2026-09-27T14:44:50.303Z', updatedAt: '2026-09-27T14:44:50.303Z' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

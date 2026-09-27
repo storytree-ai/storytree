@@ -5,7 +5,7 @@
    it shown (search, shelf or link), else by its id. The artifact tools were built after the library's
    knowledge entrances landed (its capability 9), on ADR-0627 D4 from their first version.
 +  Each call carries the MCP request abort signal in its writer options alongside the resolved
-+  session actor. Library writes cancelled before admission to the project write lock leave no
++  session actor. Writes using those options, cancelled before taking the write lock, leave no
 +  record change or history entry; writes already admitted finish and retain their attribution.
 +  The Postgres-backed MCP test observes an edit queued on the advisory lock, sends the actual
 +  cancellation notice, then proves the unchanged record and history after the queue drains.
@@ -26,7 +26,7 @@
 --- old/The agent link/6 · Agent tools (the MCP server)/ADD contract under capability_11fe600afeda/title
 +++ new/The agent link/6 · Agent tools (the MCP server)/ADD contract under capability_11fe600afeda/title
 @@ -0,0 +1 @@
-+6.20 · A write tool call cancelled by MCP while its library write is still queued for the project write lock leaves that write uncommitted, with no record change or history entry. A write already admitted completes normally and remains attributed to the calling session.
++6.20 · An edit_plan call cancelled by MCP while its library write is still queued for the project write lock leaves the record and its history unchanged. A write already admitted completes normally and remains attributed to the calling session.
 
 --- old/The library/2 · Library transactions/ADD contract under capability_5a80222c88c4/title
 +++ new/The library/2 · Library transactions/ADD contract under capability_5a80222c88c4/title

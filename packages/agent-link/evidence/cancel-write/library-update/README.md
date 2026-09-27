@@ -11,6 +11,7 @@ Read current records before applying; preserve their IDs, other fields, newer te
 - [ ] Add one contract under library transactions `capability_5a80222c88c4` (snapshot next number: 2.11).
 - [ ] Check current numbering before adding; retain the contract wording if a sibling used that number.
 - [ ] Read back each edited field and new contract, checking history and existing shelf links.
+- [ ] Retain the confirmed claim-activation cancellation gap as arc residue; see the parent README.
 - [ ] Close the increment with the merged PR and `/tmp/cancel-write-close.md`; release any remaining claims.
 
 The contract boundary is each library transaction's admission to the write lock. Cancellation

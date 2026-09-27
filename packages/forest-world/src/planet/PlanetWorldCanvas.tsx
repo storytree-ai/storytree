@@ -30,6 +30,10 @@ export interface PlanetWorldCanvasProps {
   plateChildren?: (island: Island, descriptors: readonly Descriptor3D[]) => ReactNode;
   /** R3F children can use the default orbit controls for host-driven focus. */
   children?: ReactNode;
+  /** False hides the sea and every plate, for looking inside the globe (the knowledge core, E1). */
+  surface?: boolean;
+  /** Drawn inside the turning globe, in its own coordinates: the knowledge core. */
+  inside?: ReactNode;
 }
 
 const ALPHA: ReadonlyMap<KitPlacement, number> = new Map();
@@ -95,7 +99,7 @@ function Framing({ radius }: { radius: number }) {
 
 /** A second mount of 0.2's ground and pines: one Canvas and one calibrated sun for all plates.
  * The flat ForestWorldCanvas retains its own camera, controls, material defaults and lighting. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children, surface = true, inside }: PlanetWorldCanvasProps) {
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
   const onCreated = useCallback(({ camera }: { camera: Camera }) => {
@@ -110,12 +114,13 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <Lights />
     <Framing radius={radius} />
     <group quaternion={rotation}>
-      <Surface radius={radius} />
-      {scene.islands.map(island => {
+      {surface && <Surface radius={radius} />}
+      {surface && scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
         return <Plate key={island.story} island={island} spot={spot} radius={radius} children={plateChildren} />;
       })}
+      {inside}
     </group>
     <OrbitControls makeDefault enablePan={false} minZoom={0.1} maxZoom={30} />
     {children}

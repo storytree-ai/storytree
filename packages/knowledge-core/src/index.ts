@@ -7,3 +7,7 @@ export { EMPTY_SHELF, LOOP_LABEL, underShelves } from "./shelves/shelves.js";
 export type { Core, Loop, Placement, Shelf } from "./shelves/shelves.js";
 export { NO_RECORDED_READS, ReadRecord } from "./reads/reads.js";
 export type { AgentReplay, Jump, Lit, Replay } from "./reads/reads.js";
+export { coreScene, legend, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS } from "./look-inside/look-inside.js";
+export type { Card, CoreInput, CoreScene, DrawnNote, Entrance, LegendEntry, Link, Point, ReplayFrame, SizeBy } from "./look-inside/look-inside.js";
+export { lookInside, returnToGlobe, shown, toForest } from "./look-inside/view-state.js";
+export type { CoreViewState, Shown } from "./look-inside/view-state.js";

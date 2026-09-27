@@ -11,6 +11,8 @@ import { claimMarkers, drillDown, forestDrawn, forestScene, openBook, shelved, s
 import type { AnnotatedTree, Change, SchemaRecord } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
+import { createKnowledgeCore } from "@storytree/knowledge-core/view";
+
 import { openForestView, type ForestView } from "../forest/forest-view.js";
 import { renderStoryPanel } from "../forest/story-panel.js";
 import { renderUnclaimed } from "../forest/unclaimed-list.js";
@@ -137,12 +139,13 @@ async function showForest(name: string): Promise<void> {
       showPanel();
     });
   };
+  const core = createKnowledgeCore(name);
   const view = await openForestView(holder, (story) => {
     if (story === undefined) delete document.body.dataset.selected;
     else document.body.dataset.selected = story;
     book = undefined;
     showPanel();
-  });
+  }, core);
   if (showing !== mine) return view.dispose();
   mine.view = view;
 
@@ -165,6 +168,7 @@ async function showForest(name: string): Promise<void> {
         const scene = forestScene(tree, history, workStates(lines));
         view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
         view.showMarkers(claimMarkers(lines, new Date()));
+        core.take(history, news.lines);
         const work = unclaimedWork(lines);
         unclaimed.innerHTML = renderUnclaimed(work, unclaimed.querySelector("details")?.open === true);
         sayWhatWasDrawn({ ...forestDrawn(scene), unclaimed: work.count });

@@ -54,7 +54,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         const note = await knowledge.writeMemory({ text: "Verify the domain" }, options);
         await knowledge.editNote(note.id, { text: "Verify the sending domain" }, options);
         await knowledge.defineTerm({ term: "Sender", meaning: "The sending domain" }, options);
-        await knowledge.writeKnowledge("principle", { title: "Keep it simple", statement: "Use one mailer", why: "Less setup", howToApply: "Reuse it" }, options);
+        await knowledge.writeKnowledge("principle", { title: "Keep it simple", description: "One mailer", statement: "Use one mailer", why: "Less setup", howToApply: "Reuse it" }, options);
         await health.reportHealth(contract.id, "failing", options);
         await health.reportHealth(contract.id, "passing", options); // another save of the same health record
         await health.recordVerified(contract.id, "passing", options);

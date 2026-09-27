@@ -1,0 +1,55 @@
+Tested source commit: 5308a77d2ce0f63da1cb266ff295db5453952763
+After merging origin/main and pnpm install.
+
+$ flock /tmp/storytree-heavy.lock pnpm typecheck
+Exit: 0
+> storytree@ typecheck /home/mickh/code/storytree03-wt/retire-numbering
+> pnpm -r typecheck
+
+Scope: 11 of 12 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+$ flock /tmp/storytree-heavy.lock pnpm test
+Exit: 0
+scope: full — everything — packages/library/evidence/retire-numbering/README.md changed in @storytree/library, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, scripts
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.170875ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.556726ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+$ pnpm test-ratio
+  all                       39,459           30,346    1.30

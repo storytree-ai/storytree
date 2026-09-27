@@ -25,11 +25,11 @@ unchanged, on memory and Postgres. The existing floor tests remain green.
 
 Final validation uses `flock /tmp/storytree-heavy.lock pnpm typecheck` and
 `flock /tmp/storytree-heavy.lock pnpm test`. Test scope is full because the library supports the
-test harness; all 12 units pass. Live Cloud SQL is visibly skipped without credentials.
+test harness; all 12 units pass. Live Cloud SQL is visibly skipped without credentials; the Windows-only wrapper test is skipped on Linux.
 The exact green SHA and CI result are recorded in the PR and `/tmp/retire-numbering-close.md`.
 
 `pnpm test-ratio` reports (test / implementation code lines / ratio):
 
 ```text
-  all                       39,370           30,278    1.30
+  all                       39,459           30,346    1.30
 ```

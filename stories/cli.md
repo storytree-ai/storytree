@@ -157,6 +157,10 @@ increment wait on another with a reason, or clear the wait.
 - **Depends on:** 1, 2, and the library's 10 and 11 (and 12, for the questions shown on an arc).
 - **Not here:** `increment start` (starting is claiming, the agent tools'), `increment ready`
   (ADR-0645 D5), and a hand close or re-open of an arc (R1).
+- **As built:** `storytree arc show | new | edit | park | unpark | wait | unwait` and `storytree arc
+  increment new | add | close | edit | wait | unwait`, each the library's own function. `arc show`
+  is `arcView`, with `waitHolds` and `heldOnQuestion` for each open increment. `arc list` waits on the
+  library's `list(kind)`.
 
 **Contracts:**
 1. An arc with no intent is refused.
@@ -172,6 +176,10 @@ answer in his words and the decision that carried it, retire one that was wrong,
 ones.
 
 - **Depends on:** 1, 2 and the library's 12.
+- **As built:** `storytree question new | settle | retire | list`, each the library's own function.
+  `--hold <increment>` on `new` holds increments on the question's arc (the library's
+  `editIncrement` of their `heldOn`); another arc's is held with `arc increment edit --held-on`.
+  `list` takes `--arc`; every arc's open questions wait on the library's `list(kind)`.
 
 **Contracts:**
 1. A question with no stakes is refused.
@@ -188,6 +196,12 @@ file, edit it, push it back, and write its composed statement (the owner's C2).
 - **Depends on:** 1, 2 and the library's 13.
 - **Folded in from 0.2:** `adr authority` became fields on `adr new` and what `adr pull` shows; `adr
   compose` stays.
+- **As built:** `storytree adr new | pull | push | compose`, each the library's own function.
+  `pull` writes a front matter of `key: <JSON>` lines, then `# <title>` and the text; the lines
+  under `# read only` (id, number, how it reads, authority, the composed statement and whether it
+  is stale) are never pushed. `push` hands `editNote` only what differs, so a push with no edit
+  writes nothing. A decision is named by its id. `adr list` (6.3) and naming one by number wait on
+  the library's `list(kind)`.
 
 **Contracts:**
 1. Two `adr new` run at once get different, increasing numbers.

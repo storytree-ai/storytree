@@ -176,6 +176,16 @@ export async function readClaims(log: ActivityLog, project: string, options: Cla
   return claimsFrom((await log.since(project, 0)).lines, options);
 }
 
+/** The current holder of one capability or increment, or undefined when nobody holds it. */
+export function claimFrom(lines: readonly Line[], id: string, options: ClaimsOptions = {}): Claim | undefined {
+  return claimsFrom(lines, options).find((claim) => idOf(claim) === id);
+}
+
+/** Who holds one capability or increment in `project`, using the same reading as the board. */
+export async function readClaim(log: ActivityLog, project: string, id: string, options: ClaimsOptions = {}): Promise<Claim | undefined> {
+  return claimFrom((await log.since(project, 0)).lines, id, options);
+}
+
 /**
  * Every edit and command in `lines`, with the capability and the increment it counts toward, each
  * the one its session claimed most recently of those it still holds; both undefined for unplanned

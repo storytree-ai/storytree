@@ -6,7 +6,7 @@ export { ACTIVITY_DATABASE, NEW_LINE, openActivityLog } from "./activity/index.j
 export type { ActivityLog, Agent, Line, LineKind, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { labelOf, QUIET_MS, readSessions, sessionsFrom } from "./sessions/index.js";
 export type { Session, SessionOptions, SessionState } from "./sessions/index.js";
-export { attributeFrom, claim, claimsFrom, land, readAttribution, readClaims, release } from "./claims/index.js";
+export { attributeFrom, claim, claimFrom, claimsFrom, land, readAttribution, readClaim, readClaims, release } from "./claims/index.js";
 export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, ReleaseAnswer } from "./claims/index.js";
 export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER } from "./tools/index.js";
 export type { AgentToolOptions, AgentTools } from "./tools/index.js";

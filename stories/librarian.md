@@ -106,6 +106,9 @@ behind the covers that rest on them.
    link is refused, naming the rule, and nothing is written.
 3. The worklist names each accepted decision on no shelf that no artifact rests on, and drops it once
    one does.
+4. For each live artifact written since the session's cursor, including edits, the worklist lists
+   neighbours ranked by likeness that no link joins in either direction. It uses the library's
+   related-but-unlinked search and writes no links; the agent decides which are real dependencies.
 
 ## 2 · Decision log
 

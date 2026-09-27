@@ -278,11 +278,12 @@ reported.
 - **As built (6.1, 6.2):** `roundDue` and `worklist` in `packages/librarian/src/rounds`. The trigger
   takes the change feed's cursor from when the session started; with none it fires. Matching
   processes against tools is in the worklist when the tools served are given to it.
-- **Not built yet (6.3, 6.4, 6.5), waiting on the agent link:** the one registration point where
-  another story adds its tools to the tool server, and the "next" line `land`'s answer ends with
-  (ADR-0643 D6, the agent link's capability 6, `0-3-agent-link-revised-tree-build`). Neither had
-  landed on 2026-09-27. The librarian's tools, `land`'s next line and the subagent definition naming
-  those tools are built against that point when it lands, not against a copy of it.
+- **Not built yet (6.3, 6.4, 6.5):** the librarian's tool catalogue, conditional next line in the
+  installed server and subagent definition. The agent link now supplies their registration point
+  (ADR-0643 D6): `createAgentTools({ extensions })`, with a `ToolExtension`'s `registerTools`,
+  short `instructions` and `landNext(capability, call)`. Its contract proof already serves this
+  story's `worklist` and asks `roundDue` for a conditional next line. Build the librarian's tools
+  against that public point, using the call's library and session writer, without another server.
 
 **Contracts:**
 1. The trigger fires when the change feed since the session started holds a write to a curated

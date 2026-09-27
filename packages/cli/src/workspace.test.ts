@@ -136,8 +136,8 @@ test("11.5 `workspace release` ends the calling session's increment or capabilit
     const library = await world.library();
     const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
     const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
-    const story = await library.createStory({ title: "Sign-up" });
-    const capability = await library.createCapability({ story: story.id, title: "Email form" });
+    const story = await library.addStory({ title: "Sign-up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
     const log = await openActivityLog(testServerUrl());
     try {
       for (const [id, env, session, harness] of [
@@ -165,8 +165,8 @@ test("11.5 `workspace release` ends the calling session's increment or capabilit
 test("11.6 `workspace release` refuses another session's claim, an unheld target, and a shell without an agent session", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
-    const story = await library.createStory({ title: "Sign-up" });
-    const capability = await library.createCapability({ story: story.id, title: "Email form" });
+    const story = await library.addStory({ title: "Sign-up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
     const log = await openActivityLog(testServerUrl());
     try {
       assert.equal((await claim({ log, library, project: world.project, session: "holder", harness: "codex" }, capability.id, "building the form")).ok, true);

@@ -516,7 +516,7 @@ function fakeTool(bin: string, name: string, answers: Record<string, { out?: str
     const cases = Object.entries(answers).map(([args, { out, code }]) => `if "%*"=="${args}" (${out === undefined ? "" : `echo ${out}& `}exit /b ${code})`);
     writeFileSync(path.join(bin, `${name}.cmd`), `@echo off\r\n${cases.join("\r\n")}\r\n"%SystemRoot%\\System32\\PING.EXE" -n 60 127.0.0.1 >nul\r\n`);
   } else {
-    const cases = Object.entries(answers).map(([args, { out, code }]) => `if [ "$*" = "${args}" ]; then ${out === undefined ? "" : `echo ${out}; `}exit ${code}; fi`);
+    const cases = Object.entries(answers).map(([args, { out, code }]) => `if [ "$*" = "${args}" ]; then ${out === undefined ? "" : `echo '${out}'; `}exit ${code}; fi`);
     writeFileSync(path.join(bin, name), `#!/bin/sh\n${cases.join("\n")}\nexec /bin/sleep 60\n`);
     chmodSync(path.join(bin, name), 0o755);
   }

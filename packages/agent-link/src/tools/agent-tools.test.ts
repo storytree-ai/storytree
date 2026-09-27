@@ -12,6 +12,7 @@
 import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
+import { createServer, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -252,6 +253,36 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
       }
     });
   });
+});
+
+test("6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers", async (t) => {
+  const held = new Set<Socket>();
+  const silent = createServer((socket) => {
+    held.add(socket);
+    socket.resume();
+    setTimeout(() => socket.destroy(), 10_000).unref();
+  });
+  await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+  try {
+    await withProject(async ({ folder }) => {
+      const dataDir = path.join(folder, "pgdata");
+      writeFileSync(`${dataDir}.owner.json`, JSON.stringify({ pid: process.pid, port: (silent.address() as AddressInfo).port, token: "stalled-db", owner: "test", startedAt: new Date().toISOString() }));
+      await withAgent(folder, claudeCode("stalled-db", { dataDir }), async (agent) => {
+        const started = performance.now();
+        const answer = await agent.call("show_plan");
+        const waited = performance.now() - started;
+        t.diagnostic(`show_plan answered after ${waited.toFixed(0)} ms: ${answer.text}`);
+        assert.ok(waited >= 2_500 && waited < 4_000, `the 3 s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
+        assert.match(answer.text, /storytree isn't reachable/i);
+        assert.match(answer.text, /check.*app.*try again/i);
+        copyFileSync(`${testServerDataDir()}.owner.json`, `${dataDir}.owner.json`);
+        assert.equal((await agent.call("show_plan")).isError, false, "the same tool server recovers");
+      });
+    });
+  } finally {
+    for (const socket of held) socket.destroy();
+    await new Promise<void>((resolve) => silent.close(() => resolve()));
+  }
 });
 
 test("6.5 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place", async () => {

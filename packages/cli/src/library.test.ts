@@ -146,3 +146,31 @@ test("3.7 `related <artifact> --unlinked` lists the artifacts most like it that 
     assert.match(missing.stderr, /no artifact/);
   });
 });
+
+test("3.8 `library retire` retires records with a reason and their writer", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Sign up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email" });
+    const contract = await library.addContract({ capability: capability.id, title: "Sends mail" });
+    const note = await library.defineTerm({ term: "Mailer", meaning: "Sends mail" });
+    const { cursor } = await library.changesSince(0);
+    const bare = await world.run(["library", "retire", contract.id]);
+    assert.equal(bare.code, 2);
+    assert.match(bare.stderr, /needs --reason/);
+    assert.deepEqual((await library.changesSince(cursor)).changes, []);
+
+    for (const record of [contract, note]) {
+      const env = record === note ? { CODEX_THREAD_ID: "retire-record" } : undefined;
+      const actor = record === note ? "session:retire-record" : `person:${userInfo().username}`;
+      const ran = await world.run(["library", "retire", record.id, "--reason", "Covered elsewhere"], env);
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.ok(ran.stdout.includes(`Retired ${record.id}`), ran.stdout);
+      assert.equal(await library.get(record.id), null);
+      const retired = (await library.history({ id: record.id })).at(-1);
+      assert.equal(retired?.action, "retired");
+      assert.equal(retired?.reason, "Covered elsewhere");
+      assert.equal(retired?.actor, actor);
+    }
+  });
+});

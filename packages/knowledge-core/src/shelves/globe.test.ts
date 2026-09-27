@@ -61,7 +61,7 @@ test("1.6 a larger library keeps 2,000 loose dots separately clickable inside th
   assertLooseSpacing(points, []);
 });
 
-test("1.7 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge", () => {
+test("1.8 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge", () => {
   const history = new History().story("front")
     .create("shelved-story-text", "definition", { term: "Story text: stories/forest.md", frontCoverOf: "front" })
     .create("loose-story-text", "definition", { title: "Story text: stories/knowledge-core.md" })

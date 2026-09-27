@@ -16,7 +16,7 @@ import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
 import { GlobePoints } from "./globe-points.js";
-import { CoreInside, CorePanel } from "./drawing.js";
+import { CoreInside, CorePanel, NoteCard } from "./drawing.js";
 
 /** How fast the replay steps, one read a step. */
 const REPLAY_STEP_MS = 700;
@@ -40,6 +40,8 @@ interface State {
 export interface KnowledgeCore {
   /** The library's whole change history and the activity log's lines since the last call. */
   take(history: readonly Change[], lines: readonly Line[]): void;
+  /** The same pin is shared by the globe card and the inspection view. */
+  pin(note: string | undefined): void;
   /** Stop the replay's timer. */
   dispose(): void;
 }
@@ -63,6 +65,7 @@ export function createKnowledgeCore(project: string): KnowledgeCore {
   let timer: ReturnType<typeof setInterval> | undefined;
   const store: Store = {
     reads,
+    pin: pinned => store.set({ pinned }),
     get: () => state,
     set(next) {
       state = { ...state, ...next };
@@ -176,12 +179,27 @@ function sessionLabel(id: string, agents: readonly AgentReplay[]): string {
   return `${when} · ${plural(reads.length, "read")} · ${plural(agents.length, "agent")}`;
 }
 
-/** Faint knowledge under the globe's visible islands; no inspection, ghosts or replay. */
+/** The shared card alone, mounted in the globe's right-side story-panel slot. */
+export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onClose: () => void }) {
+  const none = useMemo(() => new Map<string, Point>(), []);
+  const { state, input } = useCore(core, none, 1);
+  const card = state.pinned === undefined ? undefined : noteCard(state.pinned, input);
+  useEffect(() => {
+    // A live retirement removes the card as well as its dot. Defer until React's commit ends.
+    let mounted = true;
+    if (state.pinned !== undefined && card === undefined) queueMicrotask(() => { if (mounted) onClose(); });
+    return () => { mounted = false; };
+  }, [state.pinned, card, onClose]);
+  return card === undefined ? null : <NoteCard card={card} onClose={onClose} />;
+}
+
+/** Faint knowledge under the globe's islands, without story text, ghosts or replay. */
 export function KnowledgeGlobePoints({ core, spots, radius }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
 }) {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
-  const points = useMemo(() => globePoints(underShelves(state.history, knowledge(state.history)), spots, radius), [state.history, spots, radius]);
-  return <GlobePoints points={points} radius={radius} />;
+  const known = useMemo(() => knowledge(state.history), [state.history]);
+  const points = useMemo(() => globePoints(underShelves(state.history, known), spots, radius, known.notes), [state.history, known, spots, radius]);
+  return <GlobePoints points={points} radius={radius} notes={known.notes} />;
 }

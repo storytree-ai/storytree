@@ -526,6 +526,33 @@ body[data-surface="forest"] main {
   color: #d4d2cb;
 }
 
+.core-card-kind {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.story-panel .core-card {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.story-panel .core-card-text {
+  max-height: none;
+  color: var(--text);
+}
+
+.knowledge-tooltip {
+  max-width: 260px;
+  padding: 6px 9px;
+  border: 1px solid #586775;
+  border-radius: 5px;
+  background: #17212bef;
+  color: #edf4f8;
+  font: 12px/1.35 system-ui, sans-serif;
+}
+
 .core-entrance,
 .core-pinned-label {
   padding: 0.05rem 0.45rem;

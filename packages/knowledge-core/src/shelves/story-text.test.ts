@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { isStoryText } from "@storytree/knowledge-core";
 import type { RecordEnvelope } from "@storytree/library";
 
-test("1.7 isStoryText recognizes only definitions whose term or title starts with the stored story-text prefix", () => {
+test("1.8 isStoryText recognizes only definitions whose term or title starts with the stored story-text prefix", () => {
   const record = (type: string, fields: Record<string, unknown>): RecordEnvelope => ({
     id: "example", type, version: 1, fields, createdAt: "2026-09-27T00:00:00.000Z", updatedAt: "2026-09-27T00:00:00.000Z",
   });

@@ -32,6 +32,11 @@ does, and an edit is live when it is written. There are no story or decision fil
 
 Each of these starts the app's own Postgres, so quit the app first.
 
+Since cutover (2026-09-27) the plan lives here too: 0.3's arcs, their increments and the owner's
+questions. `pnpm storytree …` is 0.3's command line run from this checkout, whose `.storytree.json`
+names the project `storytree`; it joins the running app rather than starting one. `pnpm storytree arc
+list` reads the plan, and `pnpm storytree workspace <increment> --reason …` claims a piece of it.
+
 ## How changes land
 
 Every change reaches `main` through a pull request. CI
@@ -63,8 +68,9 @@ prompt to check that each test still protects something the product does. It is 
 
 - **0.1**: the original Rust project.
 - **0.2**: the TypeScript storytree, frozen, at
-  [`storytree-ai/storytree02`](https://github.com/storytree-ai/storytree02). It is the tool that
-  builds 0.3, and its behaviour is the reference 0.3 ports from. Its code is never copied wholesale.
+  [`storytree-ai/storytree02`](https://github.com/storytree-ai/storytree02). Its sessions still
+  drive 0.3's development, but 0.3's plan lives only in 0.3's own library since cutover, and 0.2's
+  behaviour is the reference 0.3 ports from. Its code is never copied wholesale.
 - **0.3**: this repo, a stripped-down rebuild with its own desktop app and its own local database.
 
 ## License

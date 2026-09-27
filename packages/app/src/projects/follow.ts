@@ -13,9 +13,10 @@ export function followProjects(options: {
   let pending: Promise<void> | undefined;
   let last: string | undefined;
 
-  function refresh(): Promise<void> {
-    if (pending !== undefined) return pending;
+  function refresh(redraw = false): Promise<void> {
+    if (pending !== undefined) return redraw ? pending.then(() => refresh(true)) : pending;
     if (stopped) return Promise.resolve();
+    if (redraw) last = undefined;
     clearTimeout(timer);
     pending = options.read().then(async (selection) => {
       if (stopped) return;
@@ -25,6 +26,7 @@ export function followProjects(options: {
         last = next;
       }
     }).catch((error: unknown) => {
+      last = undefined;
       if (!stopped) options.onError(error);
     }).finally(() => {
       pending = undefined;

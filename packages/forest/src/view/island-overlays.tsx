@@ -1,7 +1,7 @@
 /** Names, claims and selection use the same drawing on flat ground and on a globe plate. */
-import { Html, type HtmlProps } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { DoubleSide } from "three";
 import type { Island, Marker } from "@storytree/forest";
 import { GROUND_PER_WORLD_UNIT, islandReach, parcelSpots, type Descriptor3D } from "@storytree/forest-world";
@@ -10,7 +10,7 @@ const NAME_HEIGHT = 30;
 const MARKER_HEIGHT = 24;
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
-export function Overlay(props: HtmlProps) {
+export function Overlay(props: ComponentProps<typeof Html>) {
   const gl = useThree((state) => state.gl);
   const [portal] = useState(() => ({ current: gl.domElement.parentElement! }));
   return <Html {...props} portal={portal} />;

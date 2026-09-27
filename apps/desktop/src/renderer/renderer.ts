@@ -59,7 +59,10 @@ async function show({ current: name, projects }: ProjectSelection): Promise<void
     if (!projects.includes(name ?? "")) select.selectedIndex = -1;
     select.addEventListener("change", () => {
       void window.storytree.chooseProject(select.value).then(() => following?.refresh())
-        .catch((error: unknown) => showMessage("error", "The project could not be selected", messageOf(error)));
+        .catch((error: unknown) => {
+          showMessage("error", "The project could not be selected", messageOf(error));
+          void following?.refresh(true);
+        });
     });
   }
   if (name === undefined) {

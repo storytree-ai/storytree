@@ -44,12 +44,17 @@ try {
     args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
   });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  context.setDefaultTimeout(60000);
   const errors = [];
   const calls = {};
+  let failChoice = true;
   await context.exposeBinding('bridge', async (_source, method, args) => {
     calls[method] = (calls[method] ?? 0) + 1;
     if (method === 'projectSelection') return selection.read();
-    if (method === 'chooseProject') return selection.choose(...args);
+    if (method === 'chooseProject') {
+      if (failChoice) { failChoice = false; throw new Error('temporary choice failure'); }
+      return selection.choose(...args);
+    }
     return reads[method](...args);
   });
   await context.addInitScript(() => {
@@ -87,6 +92,8 @@ try {
   mkdirSync(second);
   await setUpProject({ folder: second, project: 'other-site', storytree: library });
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'other-site', undefined, { timeout: 30000 });
+  await page.selectOption('#project', 'my-site');
+  await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.querySelector('#project').value === 'other-site');
   await page.selectOption('#project', 'my-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.close();

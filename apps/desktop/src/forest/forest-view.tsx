@@ -9,6 +9,11 @@
  * is under it (3.3), the selected island's ring, and the claim markers over each held capability's
  * tree (capability 5). A change recomputes only the islands it touched (3.2, `changedIslands`).
  *
+ * The globe opens onto its knowledge core ("Look inside", stories/knowledge-core.md capability 4):
+ * the globe's surface and islands hide; the turn, the failure markers and the selection stay. The
+ * core is the knowledge-core story's own surface (@storytree/knowledge-core/view); this view only
+ * mounts it (ADR-0649 D2).
+ *
  * The look is 0.2's, ported as it stands (ADR-0632 D2, ADR-0633 D2), and judged by the owner's eye.
  * Only the export of the bought pine kit ships (dressing-kit.glb, sha256 9479bc81…), never the kit.
  */
@@ -17,7 +22,9 @@ import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Plane, Raycaster, Vector2, Vector3 } from "three";
 
-import { changedIslands, type ForestScene, type Marker } from "@storytree/forest";
+import { changedIslands, PLANET_RADIUS, type ForestScene, type Marker } from "@storytree/forest";
+import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "@storytree/knowledge-core";
+import { KnowledgeCoreInside, KnowledgeCorePanel, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { forestDescriptors, islandAt, type Descriptor3D } from "@storytree/forest-world";
 import { ForestWorldCanvas, preloadKit } from "@storytree/forest-world/canvas";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
@@ -37,23 +44,26 @@ export interface ForestView {
 }
 
 /** What the page draws, as one value handed to React on every change. */
-interface Drawn {
+interface Drawn extends CoreViewState {
   places: ReadonlyMap<string, number>;
-  mode: "globe" | "forest";
   scene: ForestScene;
   descriptors: Descriptor3D[];
   markers: readonly Marker[];
-  selected: string | undefined;
   viewport: { width: number; height: number } | undefined;
 }
 
-/** Open the forest in `container`. `onSelect` hears which story a click picked (undefined for the sea). */
-export async function openForestView(container: HTMLElement, onSelect: (story: string | undefined) => void): Promise<ForestView> {
+/**
+ * Open the forest in `container`. `onSelect` hears which story a click picked (undefined for the
+ * sea). `core` is the project's knowledge core, mounted while looking inside.
+ */
+export async function openForestView(container: HTMLElement, onSelect: (story: string | undefined) => void, core: KnowledgeCore): Promise<ForestView> {
   await preloadKit(kitBytes);
   const root = createRoot(container);
   /** Each island's descriptors, kept until its island changes. */
   const cache = new Map<string, { key: string; descriptors: Descriptor3D[] }>();
-  let drawn: Drawn = { places: new Map(), mode: "globe", scene: { islands: [] }, descriptors: [], markers: [], selected: undefined, viewport: undefined };
+  let drawn: Drawn = {
+    places: new Map(), mode: "globe", scene: { islands: [] }, descriptors: [], markers: [], selected: undefined, pinned: undefined, viewport: undefined,
+  };
 
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
@@ -61,14 +71,12 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
     container.dataset.view = drawn.mode;
     root.render(<>
       <nav className="forest-views" aria-label="Forest view">
-        {(["globe", "forest"] as const).map(mode => <button key={mode} type="button" data-view={mode}
-          aria-pressed={drawn.mode === mode} onClick={() => render({ mode })}>
-          {mode === "globe" ? "Globe" : "Forest"}
+        {(["globe", "inside", "forest"] as const).map(mode => <button key={mode} type="button" data-view={mode}
+          aria-pressed={drawn.mode === mode} onClick={() => render(VIEWS[mode](drawn))}>
+          {VIEW_LABELS[mode]}
         </button>)}
       </nav>
-      {drawn.mode === "globe"
-        ? <PlanetView scene={drawn.scene} places={drawn.places} markers={drawn.markers} selected={drawn.selected} onPick={pick} />
-        : <Forest drawn={drawn} onPick={pick} />}
+      {drawn.mode === "forest" ? <Forest drawn={drawn} onPick={pick} /> : <Globe drawn={drawn} core={core} onPick={pick} />}
     </>);
   };
   const pick = (story: string | undefined): void => {
@@ -100,11 +108,26 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
       render({ selected: story });
     },
     dispose() {
+      core.dispose();
       observer.disconnect();
       root.unmount();
       container.replaceChildren();
     },
   };
+}
+
+const VIEWS = { globe: returnToGlobe, inside: lookInside, forest: toForest } as const;
+const VIEW_LABELS = { globe: "Globe", inside: "Look inside", forest: "Forest" } as const;
+
+/** The globe, and while looking inside, the knowledge core in it and its panel beside it. */
+function Globe({ drawn, core, onPick }: { drawn: Drawn; core: KnowledgeCore; onPick: (story: string | undefined) => void }) {
+  const view = shown(drawn);
+  return <>
+    <PlanetView scene={drawn.scene} places={drawn.places} markers={drawn.markers} selected={drawn.selected}
+      onPick={view.entrances ? undefined : onPick} surface={view.sea}
+      inside={view.entrances ? (spots) => <KnowledgeCoreInside core={core} spots={spots} radius={PLANET_RADIUS} selected={drawn.selected} /> : undefined} />
+    {view.entrances && <KnowledgeCorePanel core={core} />}
+  </>;
 }
 
 function Forest({ drawn, onPick }: { drawn: Drawn; onPick: (story: string | undefined) => void }) {

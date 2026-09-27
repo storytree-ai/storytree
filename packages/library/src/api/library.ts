@@ -10,7 +10,7 @@
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
 import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
-import { connect as connectServer, type ConnectOptions, type Project, type Storytree as Server } from "../project/index.js";
+import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { KnowledgeKind } from "../schema/types.js";
@@ -44,6 +44,17 @@ export interface Storytree {
   openProject(name: string): Promise<Library>;
   /** The names of the storytree projects on the server, sorted. No other database is listed. */
   listProjects(): Promise<string[]>;
+  /**
+   * A snapshot of the project called `name`: every record and its whole history, as they stood at
+   * one moment, read while writes go on. It is plain data, to be kept as a file (ADR-0641 B1).
+   */
+  snapshot(name: string): Promise<ProjectSnapshot>;
+  /**
+   * Restore `snapshot` into the project called `name`, creating it if it is missing. A project that
+   * holds any record or any history is refused (RestoreRefusedError) and nothing is written, so a
+   * restore can never overwrite live edits.
+   */
+  restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
   /** Close this connection and every library opened through it. */
   close(): Promise<void>;
 }
@@ -259,6 +270,14 @@ class ServerHandle implements Storytree {
 
   listProjects(): Promise<string[]> {
     return this.#server.listProjects();
+  }
+
+  snapshot(_name: string): Promise<ProjectSnapshot> {
+    throw new Error("snapshot is not built yet");
+  }
+
+  restore(_name: string, _snapshot: ProjectSnapshot): Promise<void> {
+    throw new Error("restore is not built yet");
   }
 
   close(): Promise<void> {

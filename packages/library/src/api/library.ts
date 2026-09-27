@@ -9,7 +9,7 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Related, RelatedOptions } from "../knowledge/index.js";
+import type { DecisionNumberPlan, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Related, RelatedOptions } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
@@ -188,8 +188,13 @@ export interface Library {
    * the one live story or capability the decision is a front cover of, and each decision it
    * supersedes a live decision. It is numbered one past the highest number any decision has held,
    * unless it is brought in under its own, which no other may have held (NumberTakenError).
+   * The storytree project requires an explicit number from 0.2 until cutover.
    */
   recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">>;
+  /** One-time storytree repair from its own Full record line; keeps old numbers reserved in history. */
+  numberDecision(id: string, number: number, options?: WriteOptions): Promise<SchemaRecord<"decision">>;
+  /** Read-only Full record proposals, including reasons any would be refused. */
+  decisionNumberPlan(): Promise<DecisionNumberPlan[]>;
   /**
    * Write a principle, guardrail, pattern, process, agent role, friction, re-steer or tech stack,
    * with its kind's fields. Every link, and an agent role's or process's other references, must name
@@ -452,6 +457,14 @@ class LibraryHandle implements Library {
     return this.#project.health.healthHistory(contractId);
   }
 
+
+  numberDecision(id: string, number: number, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
+    return this.#project.knowledge.numberDecision(id, number, options);
+  }
+
+  decisionNumberPlan(): Promise<DecisionNumberPlan[]> {
+    return this.#project.knowledge.decisionNumberPlan();
+  }
 
   recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     return this.#project.knowledge.recordDecision(decision, options);

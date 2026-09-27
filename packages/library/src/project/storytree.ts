@@ -237,7 +237,7 @@ class ProjectLibrary implements Project {
     this.records = new SchemaRecords(this.transactions);
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records);
-    this.knowledge = new Knowledge(this.records);
+    this.knowledge = new Knowledge(this.records, name);
     this.health = new HealthRecord(this.records, this.work);
     this.#forget = forget;
   }

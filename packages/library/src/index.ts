@@ -50,4 +50,4 @@ export type {
   HealthState,
   NodeHealth,
 } from "./health/index.js";
-export type { DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";
+export type { DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";

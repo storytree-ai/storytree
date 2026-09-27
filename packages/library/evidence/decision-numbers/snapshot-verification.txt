@@ -1,0 +1,1 @@
+PASS: 29 proposed, 29 numbered, 0 refusals; ADR-0169 included; all 53 founding books and every other record untouched; old history preserved; rerun and automatic numbering refused; explicit adr new --number 660 accepted on the throwaway copy.

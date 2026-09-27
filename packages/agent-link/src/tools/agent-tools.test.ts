@@ -639,3 +639,61 @@ test("6.15 reinforce appends dated concrete evidence to the existing friction, p
     });
   });
 });
+
+test("6.16 every library write from a tool names the calling session, including compound writes, claims, and a session changed by the harness", async () => {
+  await withProject(async ({ folder, library, log, project }) => {
+    await withAgent(folder, claudeCode("claude-writer"), async (agent) => {
+      const write = async (tool: string, args: Record<string, unknown>, count = 1) => {
+        const since = (await library.history()).at(-1)?.seq ?? 0;
+        const answer = await agent.call(tool, args);
+        assert.equal(answer.isError, false, answer.text);
+        const history = await library.history({ since });
+        assert.equal(history.length, count, `${tool} wrote ${count} records`);
+        for (const entry of history) assert.equal(entry.actor, "session:claude-writer", `${tool}: ${entry.type} ${entry.action}`);
+        return String(answer.data.id ?? "");
+      };
+      const story = await write("plan_story", { title: "Signup", ...FOUNDED }, 2);
+      const capability = await write("plan_capability", { story, title: "Email", ...FOUNDED }, 2);
+      const contract = await write("plan_contract", { capability, title: "Validates email" });
+      const arc = await write("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" });
+      for (const id of [story, capability, contract, arc]) await write("edit_plan", { id, description: "Corrected" });
+      const increment = await write("park_increment", { arc, title: "Form", objective: "Build it", body: "Red then green" });
+      await write("ready_increment", { increment });
+      await write("claim", { increment, reason: "driving it" });
+      for (const parked of [true, false]) await write("park_arc", { arc, parked });
+      const blocker = await write("park_increment", { arc, title: "Mailer", objective: "Send mail", body: "Connect it" });
+      await write("set_wait", { waiter: increment, on: blocker, reason: "Needs mail" });
+      await write("clear_wait", { waiter: increment, on: blocker });
+      const questionArgs = { arc, title: "Mailer?", stakes: "Delivery", statement: "Which?", context: "Signup", options: "Mailgun or SES" };
+      const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 2);
+      await write("settle_question", { question, answer: "Mailgun" });
+      const mistaken = await write("raise_question", questionArgs);
+      await write("retire_question", { question: mistaken, reason: "Already asked" });
+      await write("close_increment", { increment, disposition: "landed", pr: "#82" });
+      await write("park_increment", { arc, title: "Already done", objective: "Done", body: "Finished", outcome: { disposition: "landed", pr: "#83" } });
+      for (const result of ["red", "green"]) await write("report", { contract, result });
+      for (const fields of [{ kind: "memory", text: "Verify the sender" }, { kind: "decision", title: "Mailgun", text: "One mailer" }, { kind: "definition", term: "Sender", meaning: "The mail domain" }]) {
+        const id = await write("write_note", fields);
+        await write("correct_note", { id, ...(fields.kind === "definition" ? { meaning: "The verified domain" } : { text: "Verify the domain" }) });
+      }
+      const friction = await write("record_friction", { title: "Slow mail", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Delayed signup" });
+      await write("reinforce", { friction, evidence: "#82: Timeout again" });
+      await write("record_resteer", { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", evidence: '"Use just email"', disposition: "taste", judged_by: "owner" });
+      for (const id of [contract, capability]) await write("retire_from_plan", { id, reason: "Replaced" });
+
+      await log.append(project, { session: "after-clear", harness: "claude-code", source: "hook", kind: "tool-requested", tool: "write_note", call: "new-window", agent: "orchestrator" });
+      const afterClear = idOf(await agent.call("write_note", { kind: "memory", text: "New window" }, { "claudecode/toolUseId": "new-window" }));
+      assert.equal((await library.history({ id: afterClear }))[0]?.actor, "session:after-clear");
+      await write("write_note", { kind: "memory", text: "No hook saw this call" });
+      const before = await library.history();
+      assert.equal((await agent.call("reinforce", { friction, evidence: "Still annoying" })).isError, true);
+      assert.deepEqual(await library.history(), before, "a refusal cannot invent an attributed write");
+    });
+    await withAgent(folder, codex("codex-writer"), async (agent) => {
+      for (const session of ["codex-writer", "codex-next"]) {
+        const id = idOf(await agent.call("write_note", { kind: "memory", text: session }, { sessionId: session, threadId: "subagent-thread" }));
+        assert.equal((await library.history({ id }))[0]?.actor, `session:${session}`, "the session owns the write, including its subagent's");
+      }
+    });
+  });
+});

@@ -19,8 +19,9 @@ record; change them there first. Its front cover is `decisions/knowledge-core-ca
   cover has no route down from that shelf, so it orbits outside.
 - **L3 (ADR-0647 D2):** the knowledge graph refuses loops. The library refuses a note-to-note link
   that would close one, naming the chain it would close; that is the library's own increment
-  (`0-3-library-refuses-loops`), not this story's. Until it lands, capability 1 draws a loop it
-  meets as a visible, labelled error, never a supported shape, so the layout never breaks.
+  (`0-3-library-refuses-loops`, landed as storytree-ai/storytree#87), not this story's. Capability 1
+  still draws a loop it meets, one written before the refusal, as a visible, labelled error, never
+  a supported shape, so the layout never breaks.
 - **G2:** a ghost comes from the decision log's explicit supersession, plus the older write-history
   recipe, labelled "earlier cover". Proposed decisions are not ghosts in this slice.
 - **R1:** reads come from the agent link's existing activity log, read from the start and then its
@@ -89,8 +90,8 @@ labelled error, and a note no shelf reaches orbits outside with "no depth".
     appears once, at its greatest depth, and names both entrances. A front cover keeps its own
     shelf as its home; another shared note hangs under the oldest reachable shelf, ties broken by
     id. Ghosts and proposed decisions are left out of depth.
-  - **Loops (L3, ADR-0647 D2):** the graph is a DAG, and the library will refuse a loop-closing
-    link. Until then, a group of notes that all lead back to one another is drawn as one knot,
+  - **Loops (L3, ADR-0647 D2):** the graph is a DAG, and the library refuses a loop-closing link
+    (storytree-ai/storytree#87). For a loop stored before that, a group of notes that all lead back to one another is drawn as one knot,
     labelled as a refused shape, at one group depth; notes beyond it still get their longest-chain
     depth. An unreachable loop, like any unreachable note, stays outside with no depth.
   - **Outside means only "no recorded route from a shelf"**, never "unimportant": several

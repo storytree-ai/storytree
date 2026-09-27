@@ -50,7 +50,7 @@ test('3.5 the shell stays visible while preserving at least 80% of the far-side 
   try {
     const material = surface.material;
     assert.ok(material.transparent);
-    assert.ok(material.opacity > 0, 'the ball still has a visible surface');
+    assert.ok(material.opacity > 0 && material.opacity < 1, 'the ball still has a visible, transparent surface');
     // The owner found #90 too opaque: each shell face blends over the far side.
     const farSideTransmission = (1 - material.opacity) ** 2;
     assert.ok(farSideTransmission >= 0.8, `both shell faces leave only ${farSideTransmission} of the far side`);

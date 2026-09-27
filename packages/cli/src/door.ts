@@ -123,8 +123,7 @@ function families(): Answer {
 /** `storytree <family>`: its verbs, and those of the families within it. */
 function verbsOf(family: Family, path: string): Answer {
   const verbs = [...(family.bare === undefined ? [] : [family.bare]), ...family.verbs, ...(family.families ?? []).flatMap((inner) => inner.verbs)];
-  const width = Math.max(...verbs.map((verb) => verb.usage.length));
-  const lines = verbs.map((verb) => `  storytree ${verb.usage.padEnd(width)}   ${verb.summary}`);
+  const lines = verbs.flatMap((verb) => [`  storytree ${verb.usage}`, `      ${verb.summary}`]);
   return { text: [`storytree ${family.name}: ${family.summary}.`, "", ...lines].join("\n") };
 }
 

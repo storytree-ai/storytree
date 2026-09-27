@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Agent capability claims (stories/forest.md): which agent holds which capability
+ * Capability 5 · Agent capability claims (the forest story): which agent holds which capability
  * right now, with the agent's one-line reason, as a marker at that capability's tree. It follows
  * the agent link's own readings of the log (claims and sessions, through its browser-safe
  * `readings` entry), so the forest and the claim tool always agree.

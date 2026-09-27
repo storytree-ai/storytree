@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project routing (stories/agent-link.md): the first time an agent session starts in
+ * Capability 1 · Project routing (the agent link story): the first time an agent session starts in
  * a folder that isn't a storytree project, storytree asks the user whether to set one up, and a yes
  * leaves a marker naming the project. From then on everything an agent does anywhere in that folder
  * is routed to that project. It never picks a project by itself, and when storytree isn't running

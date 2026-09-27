@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Work in flight (ADR-0640): one test per contract 10.1-10.4 in stories/library.md,
+ * Capability 10 · Work in flight (ADR-0640): one test per contract 10.1-10.4 in the library story,
  * each run on BOTH backends:
  *
  * - memory: a WorkModel and a WorkInFlight over SchemaRecords over a fresh MemoryTransactions;

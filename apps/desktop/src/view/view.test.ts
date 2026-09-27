@@ -159,11 +159,14 @@ test("the story heads the page with its title, description and rolled-up health,
   assert.match(html, /1\.1 · <code>openProject\(&quot;site&quot;\)<\/code> creates it/);
 });
 
-test("a project with no stories says so, and with no projects at all the page says how to add this repo's own stories", () => {
+test("a project with no stories says so, and with no projects at all the page says how to bring this repo's own stories back from a snapshot", () => {
   const empty = renderProject("site", { stories: [], arcs: [] });
   assert.match(empty, /site has no stories yet/);
   assert.doesNotMatch(empty, /data-story-id/);
-  assert.match(renderNoProjects(), /<code>pnpm seed:library<\/code>/);
+  const none = renderNoProjects();
+  assert.match(none, /<code>pnpm library:restore &lt;snapshot&gt;<\/code>/);
+  assert.match(none, /~\/\.storytree\/0\.3\/backups/);
+  assert.doesNotMatch(none, /seed:library/, "the seed is gone: the library is the one copy (ADR-0641)");
 });
 
 test("the project switcher lists every project, the one shown selected, names escaped", () => {

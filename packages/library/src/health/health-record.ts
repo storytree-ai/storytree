@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Health record (stories/library.md): every story, capability and contract has a
+ * Capability 5 · Health record (the library story): every story, capability and contract has a
  * health record with two separate columns, what the agent REPORTED and what storytree VERIFIED by
  * seeing it for itself, each `passing`, `failing` or `not-checked`. A missing entry always reads
  * as `not-checked`, never as `passing`.

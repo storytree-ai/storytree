@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Cloud connection (GCP), contract 8.2 in stories/library.md: a missing or bad
+ * Capability 8 · Cloud connection (GCP), contract 8.2 in the library story: a missing or bad
  * Google sign-in, and every other way reaching a Cloud SQL instance can fail, is refused with a
  * message saying what to fix, never a hang. (8.1, the live proof, is in
  * src/transactions/cloud-sql.test.ts.)

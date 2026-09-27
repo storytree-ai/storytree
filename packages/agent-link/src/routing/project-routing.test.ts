@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project routing: one test per contract 1.1-1.5 in stories/agent-link.md.
+ * Capability 1 · Project routing: one test per contract 1.1-1.5 in the agent link story.
  *
  * The folders are throwaway directories. Setting one up opens its project in the library on the
  * real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and its

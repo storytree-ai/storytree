@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check (stories/agent-link.md): the user installs only the storytree tool
+ * Capability 8 · Setup check (the agent link story): the user installs only the storytree tool
  * server, and every session start checks storytree's setup and fixes whatever is missing on the
  * spot: it opens storytree if it is closed, registers the hooks if they are missing, and, in a
  * folder that isn't a project yet, has the agent ask the user whether to set one up. Nothing is

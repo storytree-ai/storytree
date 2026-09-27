@@ -1,7 +1,7 @@
 /**
  * Capability 4 · Updates, contract 4.1: when merged main moves, the app restarts into the new build.
- * The restart stops the database, so it waits while a seed (`pnpm seed:library`, which now writes
- * into the running app's database) is connected: a restart mid-seed would cut it off (seen
+ * The restart stops the database, so it waits while a writing library script (`pnpm check:own-health`,
+ * `pnpm library:restore`, which write into the running app's database) is connected: a restart mid-seed would cut it off (seen
  * 2026-09-27, when the updater restarted the app under a reseed). Against the Postgres `pnpm test`
  * provides.
  */

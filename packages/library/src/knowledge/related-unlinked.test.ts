@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge artifacts, grown by ADR-0654: contract 6.10 in stories/library.md, the
+ * Capability 6 · Knowledge artifacts, grown by ADR-0654: contract 6.10 in the library story, the
  * related-but-unlinked search 0.2's librarian used for its Links round, run on BOTH backends, as
  * 6.1-6.7 are (knowledge-memory.test.ts).
  */

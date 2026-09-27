@@ -1,5 +1,5 @@
 /**
- * The knowledge core's drawing (stories/knowledge-core.md, capability 4 · Look inside and inspect a note): the
+ * The knowledge core's drawing (the knowledge core story, capability 4 · Look inside and inspect a note): the
  * project's notes drawn inside the globe at @storytree/knowledge-core's positions, and the panel
  * beside it that pins a note, chooses a session to replay and says what size counts.
  *

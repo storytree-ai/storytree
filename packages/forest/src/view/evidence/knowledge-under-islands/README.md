@@ -57,6 +57,16 @@ Diagnostic state never reaches the database or [real seed](seed.json).
 - [Hidden failure](production-synthetic-failure-hidden.png)
 - [Revealed failure and claim](production-synthetic-failure-focused.png)
 
+## Main's library migration during landing
+
+The initial checks and captures below used `6460b9c`. Main then merged #118
+(`2717808`), removing the file-backed seed and making the live library authoritative.
+This branch merged it and retained those deletions. The completed exit-0 seed is
+historical evidence, not an available command on the resulting main. The
+[reviewed library update](library-update/README.md) is preserved for the supervisor
+with access to the migrated app library. The capture continues to reproduce from
+its committed real-seed snapshot.
+
 ## Red, green and checks
 
 - Red **c7a7edb** was committed, pushed and [seen failing](red.txt) before implementation.
@@ -70,8 +80,8 @@ Diagnostic state never reaches the database or [real seed](seed.json).
 
 The unit proofs cover longest-chain depth, shared artifacts, their own island, filtering
 of ghosts/proposals/retired artifacts, and the bounded distinct centre pool. Existing
-inspection and failure-navigation tests stay green. The front-cover record is uniquely
-ADR-0658; ADR-0647 and ADR-0655's narrowed clauses are corrected in place.
+inspection and failure-navigation tests stay green. The preserved front-cover record is uniquely
+ADR-0658; ADR-0647 and ADR-0655's narrowed prose is in the library-update evidence.
 
 ## Reproduce
 
@@ -83,9 +93,10 @@ node --import tsx packages/forest/src/view/evidence/knowledge-under-islands/meas
 flock /tmp/storytree-heavy.lock node packages/forest/src/view/evidence/knowledge-under-islands/capture.mjs
 ```
 
-To replace the seed, first run `STORYTREE_HOME=$(mktemp -d) pnpm seed:library` under
-the shared lock, retaining that path, then run `export.mjs` with `node --import tsx`
-and the same `STORYTREE_HOME`. `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` override the
+To reproduce the original file-backed seed, use commit `6460b9c`, run
+`STORYTREE_HOME=$(mktemp -d) pnpm seed:library` under the shared lock, retaining that
+path, then run `export.mjs` with `node --import tsx` and the same `STORYTREE_HOME`.
+After #118, export from a restored isolated snapshot of the actual library instead. `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` override the
 Mint paths in the capture. Append a case name or `interactions` to capture only it.
 Browser, HTTP server and export Postgres close in `finally` blocks.
 

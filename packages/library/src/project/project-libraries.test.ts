@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project libraries: one test per contract in stories/library.md.
+ * Capability 1 · Project libraries: one test per contract in the library story.
  *
  * These run against the real Postgres that `pnpm test` provides. Every project a test makes is
  * named with uniqueProjectName() and its databases are dropped at the end, pass or fail, so tests

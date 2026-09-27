@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Doctor: one test per contract 8.1-8.4 in stories/cli.md, each running the real,
+ * Capability 8 · Doctor: one test per contract 8.1-8.4 in the command line story, each running the real,
  * built `storytree doctor`.
  *
  * Every run is in a throwaway user home: HOME and USERPROFILE, Claude Code's and Codex's settings

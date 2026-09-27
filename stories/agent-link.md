@@ -675,6 +675,13 @@ set one up.
   anywhere on the path is kept, never replaced or shadowed. `storytree-setup remove` takes it out.
   Until the command line's story fills it, `storytree.mjs` answers only `storytree setup install |
   remove`.
+- **Windows removal (regression from storytree-ai/storytree#83):** the `.cmd` launcher ends its
+  batch context before launching Node on the same parsed line, using npm's command-shim handoff:
+  a jump to a deliberately absent label, with its diagnostic suppressed, followed by the Node
+  command. Node can then remove the wrapper without cmd.exe trying to read it again, and its
+  exit code reaches the caller. The Windows CI test installs in a throwaway home, runs
+  `storytree setup remove` through the real wrapper, and checks exit 0, the wrapper gone and the
+  user's own settings kept; an invalid command still exits 2.
 - **Outside a session (ADR-0645 D6, 8.10):** the public `runSetupCheck({ folder, ...options })`
   runs the same check for a terminal. Its report adds `lines`, each with `check`, `state`
   (`ok`, `fixed`, `needs-attention` or `skipped`), `message` and an optional `fix`. These cover
@@ -704,7 +711,9 @@ set one up.
 8. With `gh` missing, or signed out, the check says so and names the fix; signed in, it says
    nothing about it.
 9. In a throwaway home, the first start puts a `storytree` command on the path, a second changes
-   nothing, and removing storytree takes it out.
+   nothing, and removing storytree takes it out. On Windows, `storytree setup remove` through
+   that `.cmd` wrapper exits 0 with the wrapper gone and the user's own settings kept (regression:
+   storytree-ai/storytree#83; proven on Windows CI, skipped with a named reason on other systems).
 10. A terminal runs the shared check without an agent session and gets diagnostic lines and
     fixes, including when the app is stopped. Checking creates no project; an explicit setup
     request creates it, and the next check reports it ready.

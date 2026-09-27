@@ -5,3 +5,5 @@ export { knowledge } from "./ghosts/ghosts.js";
 export type { Ghost, GhostEvidence, Knowledge } from "./ghosts/ghosts.js";
 export { EMPTY_SHELF, LOOP_LABEL, underShelves } from "./shelves/shelves.js";
 export type { Core, Loop, Placement, Shelf } from "./shelves/shelves.js";
+export { NO_RECORDED_READS, ReadRecord } from "./reads/reads.js";
+export type { AgentReplay, Jump, Lit, Replay } from "./reads/reads.js";

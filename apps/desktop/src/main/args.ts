@@ -12,6 +12,8 @@ export interface AppArgs {
   background: boolean;
   quit: boolean;
   screenshot?: string;
+  /** Smoke-only choice; ordinary launches always open Forest. */
+  forestMode?: "forest" | "library";
 }
 
 export function parseArgs(argv: readonly string[]): AppArgs {
@@ -26,6 +28,10 @@ export function parseArgs(argv: readonly string[]): AppArgs {
     else if (flag === "--project") {
       const project = value();
       if (project !== undefined) args.project = project;
+    } else if (flag === "--forest-mode") {
+      const mode = value();
+      if (mode !== "forest" && mode !== "library") throw new Error("--forest-mode must be forest or library");
+      args.forestMode = mode;
     } else if (flag === "--screenshot") {
       const screenshot = value();
       if (screenshot !== undefined) args.screenshot = screenshot;

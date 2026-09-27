@@ -82,13 +82,33 @@ async function measure(page) {
       return { text: el.textContent, visible: !hidden && opacity > 0 && rect.width > 0 && rect.height > 0,
         opacity, bounds: rect.toJSON() };
     }
-    gl.info.reset(); gl.render(scene, camera);
+    // Count actual renderer submissions, separately from scene inventory and pixel occlusion.
+    const submittedIslands = new Set(), submittedPoints = new Set(), submittedOther = new Set();
+    const restore = [];
+    scene.traverse(object => {
+      if (!object.isMesh) return;
+      const original = object.onBeforeRender;
+      restore.push(() => { object.onBeforeRender = original; });
+      object.onBeforeRender = function (...args) {
+        original.apply(this, args);
+        if (object.name.startsWith('knowledge-point:')) submittedPoints.add(object.userData.id);
+        else {
+          let plate = object;
+          while (plate && !plate.name.startsWith('planet:story_')) plate = plate.parent;
+          if (plate) submittedIslands.add(plate.name.slice(7));
+          else submittedOther.add(object.name || object.type);
+        }
+      };
+    });
+    gl.info.reset();
+    try { gl.render(scene, camera); } finally { for (const reset of restore) reset(); }
+    const drawn = { islands: [...submittedIslands].sort(), points: [...submittedPoints].sort(), otherMeshes: [...submittedOther].sort() };
     const ctx = gl.getContext(), debug = ctx.getExtension('WEBGL_debug_renderer_info');
     return {
       renderer: debug && ctx.getParameter(debug.UNMASKED_RENDERER_WEBGL),
       sceneId: scene.uuid, cameraId: camera.uuid, pointLayerId: scene.getObjectByName('knowledge-points')?.uuid,
       zoom: camera.zoom, camera: camera.position.toArray(), cameraQuaternion: camera.quaternion.toArray(), rotation: window.__nav.rotation.toArray(),
-      canvas: size, plates, pathways, points, threads, knowledgeObjects, render: { ...gl.info.render }, memory: { ...gl.info.memory },
+      canvas: size, plates, pathways, points, threads, knowledgeObjects, drawn, render: { ...gl.info.render }, memory: { ...gl.info.memory },
       shellPresent: !!scene.getObjectByName('planet:shell'),
       seaPresent: !!scene.getObjectByName('planet:sea'), corePresent: !!scene.getObjectByName('placeholder-core'),
       labels: [...document.querySelectorAll('.forest-label')].map(el => ({
@@ -104,7 +124,7 @@ async function measure(page) {
   });
 }
 
-function checkPoints(result, variant) {
+function checkPoints(result) {
   const expectedPoints = census.notes.map(note => note.id).sort();
   assert.deepEqual(result.points.map(point => point.id).sort(), expectedPoints);
   assert.equal(result.threads.length, 0);
@@ -165,12 +185,15 @@ function checkMode(result, mode) {
   checkPoints(result);
   assert.equal(result.points.length, census.drawn);
   assert.equal(result.points.filter(point => point.depth === null).length, census.noShelf);
-  assert.equal(result.plates.length, mode === 'forest' ? seed.stats.stories : 0, 'islands actually drawn');
+  assert.equal(result.plates.length, mode === 'forest' ? seed.stats.stories : 0, 'islands mounted');
+  assert.deepEqual(result.drawn.islands, mode === 'forest' ? seed.tree.stories.map(s => s.id).sort() : [], 'islands submitted to renderer');
+  assert.deepEqual(result.drawn.points, census.notes.map(n => n.id).sort(), 'every point submitted to renderer');
   assert.equal(result.labels.length, mode === 'forest' ? seed.stats.stories : 0, 'island DOM overlays follow mode');
   assert.equal(result.shellPresent, mode === 'forest', 'Library shows only the core');
   assert.equal(result.seaPresent, false);
   assert.equal(result.corePresent, false);
   if (mode === 'library') {
+    assert.deepEqual(result.drawn.otherMeshes, [], 'Library submits only knowledge meshes');
     assert.equal(result.pathways.length, 0);
     assert.equal(result.markers.length, 0);
     assert.equal(result.panelVisible, false);
@@ -207,7 +230,7 @@ async function turn(page, radians) {
 async function capture(page, browser, name, result) {
   result.browser = await browser.version();
   result.seed = seed.stats;
-  result.counts = { islandsDrawn: result.plates.length, pointsDrawn: result.points.length,
+  result.counts = { islandsDrawn: result.drawn.islands.length, pointsDrawn: result.drawn.points.length,
     shelfPoints: result.points.filter(p => p.depth !== null).length,
     centreCluster: result.points.filter(p => p.depth === null).length };
   await page.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 });
@@ -217,7 +240,7 @@ async function capture(page, browser, name, result) {
 
 async function failureJourney(browser) {
   const data = structuredClone(seed);
-  const story = data.tree.stories.find(s => s.title === 'Forest');
+  const story = data.tree.stories.find(s => /forest/i.test(s.title));
   const [failed, claimed] = story.capabilities;
   failed.health.reported.state = 'failing'; story.health.reported.state = 'failing';
   let seq = data.lines.cursor;

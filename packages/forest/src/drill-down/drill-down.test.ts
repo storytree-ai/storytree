@@ -11,7 +11,7 @@ import type { Line, NewLine } from "@storytree/agent-link";
 import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState, Note, SchemaRecord } from "@storytree/library";
 
-import { drillDown, EMPTY_SHELF, NO_DESCRIPTION, openBook, shelved, type StoryPanel } from "./drill-down.js";
+import { drillDown, EMPTY_SHELF, NO_DESCRIPTION, openBook, selectedCapability, shelved, type StoryPanel } from "./drill-down.js";
 
 const column = (state: HealthState, written = false): HealthColumn => (written ? { state, by: "someone", at: new Date(0).toISOString() } : { state });
 
@@ -99,6 +99,26 @@ test("4.5 storytree's own column shows beside the agent's only where something w
   assert.equal(line?.verified, "not-checked", "the capability shows storytree's column too, rolled up, since one of its contracts has an entry");
   const bare = drillDown({ stories: [story("t", capability("d", [], [contract("x", "failing")]))], arcs: [] }, "t", workStates([]), []);
   assert.equal(bare?.capabilities[0]?.verified, undefined);
+});
+
+test("4.7 the panel shows one capability below its diagram: the one chosen, else the first in build order not yet landed", () => {
+  const tree: AnnotatedTree = { stories: [story("s", capability("base", []), capability("next", ["base"]), capability("last", ["next"])), story("t", capability("away", []))], arcs: [] };
+  const opened = (lines: Line[]) => drillDown(tree, "s", workStates(lines), []);
+  const fresh = opened([]);
+  assert.ok(fresh !== undefined);
+  assert.equal(selectedCapability(fresh), "base", "nothing landed: the first in build order");
+  const part = opened(log(claimed("base"), landed("base")));
+  assert.ok(part !== undefined);
+  assert.equal(selectedCapability(part), "next", "the first not yet landed");
+  assert.equal(selectedCapability(part, "last"), "last", "a chosen capability of the story stays chosen");
+  assert.equal(selectedCapability(part, "away"), "next", "another story's capability is never chosen here");
+  assert.equal(selectedCapability(part, "gone"), "next", "a choice that has left the story falls back");
+  const done = opened(log(...["base", "next", "last"].flatMap((id) => [claimed(id), landed(id)])));
+  assert.ok(done !== undefined);
+  assert.equal(selectedCapability(done), "base", "everything landed: the first");
+  const empty = drillDown({ stories: [story("e")], arcs: [] }, "e", workStates([]), []);
+  assert.ok(empty !== undefined);
+  assert.equal(selectedCapability(empty), undefined, "a story with no capabilities selects none");
 });
 
 // --- capability 7 · Library entrypoints -------------------------------------------------------

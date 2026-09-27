@@ -26,7 +26,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import type { Library } from "@storytree/library";
+import type { Library, WriteOptions } from "@storytree/library";
 import type { z } from "zod";
 
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
@@ -83,6 +83,8 @@ export interface Call {
   readonly log: ActivityLog;
   readonly project: string;
   readonly caller: Caller;
+  /** Library history names the session resolved for this call, including a hook's /clear change. */
+  readonly writer: WriteOptions;
   /** The folder the agent works in. */
   readonly folder: string;
   readonly quietMs: number;
@@ -117,7 +119,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name });
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder: options.folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
-        return result(await act(args as never, { library, log, project: where.project, caller, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
+        return result(await act(args as never, { library, log, project: where.project, caller, writer: { actor: `session:${caller.session}` }, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

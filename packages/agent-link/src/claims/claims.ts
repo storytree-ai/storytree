@@ -124,7 +124,7 @@ export async function claim(context: ClaimContext, id: string, reason: string): 
       ...(context.branch === undefined ? {} : { branch: context.branch }),
     });
     // Started only by the claim that won, under the lock; one already active is left as it is.
-    if (found.status === "proposal" || found.status === "ready") await context.library.advanceIncrement(id, "active");
+    if (found.status === "proposal" || found.status === "ready") await context.library.advanceIncrement(id, "active", { actor: `session:${context.session}` });
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
     return current === undefined ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });

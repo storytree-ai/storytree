@@ -91,7 +91,7 @@ async function seedKettle(library) {
   return tree;
 }
 
-test("each block only the file holds is filed as a note behind its node's cover, in file order, so the round trip is empty but for a node with no cover, which is named and gets nothing", async () => {
+test("each block only the file holds is filed as a definition behind its node's cover, in file order, so the round trip is empty but for a node with no cover, which is named and gets nothing", async () => {
   await withLibrary(async (library) => {
     const tree = await seedKettle(library);
     const committed = new Map([["stories/kettle.md", STORY]]);
@@ -124,9 +124,9 @@ test("each block only the file holds is filed as a note behind its node's cover,
       [["## 3 · Pouring", "- **As built:** a spout with a lip.", "3 · Pouring has no front cover to file it behind"]],
       "a block whose node has no cover is named, and nothing is filed for it",
     );
-    const memories = (await library.search("")).filter(({ type }) => type === "memory");
-    assert.equal(memories.length, moved.filed.length, "one memory note per block filed, and nothing else");
-    assert.ok(!memories.some(({ fields }) => fields.text.includes("spout")), "the unplaced block is not written");
+    const definitions = (await library.search("")).filter(({ type }) => type === "definition");
+    assert.equal(definitions.length, moved.filed.length, "one definition per block filed, and nothing else");
+    assert.ok(!definitions.some(({ fields }) => fields.meaning.includes("spout")), "the unplaced block is not written");
 
     const printed = await exportLibrary(library);
     assert.deepEqual(
@@ -160,7 +160,7 @@ test("each block only the file holds is filed as a note behind its node's cover,
 
     const again = await moveStoryText(library, committed);
     assert.deepEqual([again.filed.length, again.unplaced.length], [0, 1], "a second run files nothing");
-    assert.equal((await library.search("")).filter(({ type }) => type === "memory").length, memories.length);
+    assert.equal((await library.search("")).filter(({ type }) => type === "definition").length, definitions.length);
   });
 });
 

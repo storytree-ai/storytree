@@ -115,7 +115,7 @@ test("a story and its decision print back from the library, and the round trip l
     const [storyCover] = await library.frontCovers((await library.projectTree()).stories[0].id);
     const [heating] = (await library.projectTree()).stories[0].capabilities;
     const [heatingCover] = await library.frontCovers(heating.id);
-    const behind = (cover, text) => library.writeMemory({ text, links: [cover.id] });
+    const behind = (cover, text) => library.defineTerm({ term: `Story text: ${cover.fields.title}`, meaning: text, links: [cover.id] });
     await behind(storyCover, "**Approved** by the owner on 2026-01-01, as drawn.");
     await behind(storyCover, "Build order: 1 → 2.");
     await behind(storyCover, "## Also out of this story\n\n- **A whistle** is left out.");
@@ -124,6 +124,7 @@ test("a story and its decision print back from the library, and the round trip l
     await behind(heatingCover, "- **As built:** one element, switched by a relay.");
     await behind(heatingCover, "**Contracts** (each one a test):");
 
+    await library.defineTerm({ term: "Relay", meaning: "An electrical switch.", links: [heatingCover.id] });
     const printed = await exportLibrary(library);
     const after = roundTrip(committed, printed);
     assert.deepEqual(

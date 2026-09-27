@@ -38,9 +38,9 @@ test("8.5 setup installs the full command beside its hooks; the launcher reads t
       process.platform === "win32" ? ["/d", "/s", "/c", `""${launcher}" ${args.join(" ")}"`] : args,
       { cwd: world.folder, env: { ...inherited, ...env, STORYTREE_HOME: world.home }, windowsVerbatimArguments: true, timeout: 20_000 },
     );
-    const memory = await (await world.library()).writeMemory({ text: "The installed command reaches the real library." });
-    const read = await run(["library", "read", memory.id]);
-    assert.ok(read.stdout.includes(memory.fields.text), read.stdout);
+    const definition = await (await world.library()).defineTerm({ term: "Installed command", meaning: "The installed command reaches the real library." });
+    const read = await run(["library", "read", definition.id]);
+    assert.ok(read.stdout.includes(definition.fields.meaning), read.stdout);
     const checked = await run(["doctor"]);
     assert.match(checked.stdout, /storytree is running/);
     assert.match(checked.stdout, /Hooks for Claude Code: registered/);

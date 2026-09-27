@@ -61,7 +61,7 @@ test("2.3 annotate adds a dated note to the target naming the decision that narr
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const narrowing = await library.recordDecision({ title: "Transactional email only", text: "Mailgun sends receipts, never newsletters.", status: "accepted" });
-    const memory = await library.writeMemory({ text: "Newsletters go elsewhere." });
+    const definition = await library.defineTerm({ term: "Newsletters", meaning: "Newsletters go elsewhere." });
 
     await annotate(library, cover.id, { by: narrowing.id, note: "Mailgun now sends transactional email only.", date: "2026-09-27" });
     const text = (await library.decision(cover.id))?.record.fields.text ?? "";
@@ -69,7 +69,7 @@ test("2.3 annotate adds a dated note to the target naming the decision that narr
     assert.match(text, /Annotated 2026-09-27 by .*Transactional email only.*Mailgun now sends transactional email only\./s);
 
     const { cursor } = await library.changesSince(0);
-    await assert.rejects(annotate(library, cover.id, { by: memory.id, note: "Not a decision." }), /not a live decision/);
+    await assert.rejects(annotate(library, cover.id, { by: definition.id, note: "Not a decision." }), /not a live decision/);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
   });
 });
@@ -77,7 +77,7 @@ test("2.3 annotate adds a dated note to the target naming the decision that narr
 test("2.4 the health report names each link or supersession pointing at a record no longer live, with both ends", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
-    const memory = await library.writeMemory({ text: "Mailgun needs a verified domain.", links: [cover.id] });
+    const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [cover.id] });
     const old = await library.recordDecision({ title: "Send nothing", text: "No email yet.", status: "accepted" });
     const successor = await library.recordDecision({ title: "Send email", text: "Email is sent.", status: "accepted", supersedes: [old.id] });
     assert.deepEqual(await brokenEdges(library), []);
@@ -85,7 +85,7 @@ test("2.4 the health report names each link or supersession pointing at a record
     await library.retire(cover.id, "wrongly recorded");
     await library.retire(old.id, "finished business");
     assert.deepEqual(await brokenEdges(library), [
-      { from: memory.id, field: "links", to: cover.id },
+      { from: definition.id, field: "links", to: cover.id },
       { from: successor.id, field: "supersedes", to: old.id },
     ]);
   });

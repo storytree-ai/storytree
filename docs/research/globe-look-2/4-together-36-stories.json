@@ -1,0 +1,2373 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "zoom": 0.989175901781834,
+  "canvas": {
+    "width": 1440,
+    "height": 910.4375,
+    "top": 49.5625,
+    "left": 0
+  },
+  "plates": [
+    {
+      "story": "synthetic-story-1",
+      "facing": 0.07968085056625351,
+      "at": [
+        -0.34258785380425355,
+        0.6528568284415248,
+        -0.21603649339597553
+      ],
+      "meshes": 6,
+      "vertices": 78463
+    },
+    {
+      "story": "synthetic-story-2",
+      "facing": -0.07211829517948298,
+      "at": [
+        0.3426730359692206,
+        -0.6533817036777075,
+        -0.1855441590610869
+      ],
+      "meshes": 5,
+      "vertices": 41556
+    },
+    {
+      "story": "synthetic-story-3",
+      "facing": -0.9658071988843087,
+      "at": [
+        -0.12908095624562077,
+        -0.08373509355644132,
+        -0.006026278975039268
+      ],
+      "meshes": 5,
+      "vertices": 52752
+    },
+    {
+      "story": "synthetic-story-4",
+      "facing": 0.8751675974804651,
+      "at": [
+        -0.16227184556880284,
+        -0.322028313429477,
+        -0.3758282216479265
+      ],
+      "meshes": 5,
+      "vertices": 90021
+    },
+    {
+      "story": "synthetic-story-5",
+      "facing": 0.232295785917712,
+      "at": [
+        0.3906152628299442,
+        0.55103350221525,
+        -0.24669269775320446
+      ],
+      "meshes": 6,
+      "vertices": 52493
+    },
+    {
+      "story": "synthetic-story-6",
+      "facing": -0.0743280826597062,
+      "at": [
+        -0.31370003647926753,
+        -0.688656033495361,
+        -0.1851002726457518
+      ],
+      "meshes": 5,
+      "vertices": 54751
+    },
+    {
+      "story": "synthetic-story-7",
+      "facing": -0.6782234351391856,
+      "at": [
+        0.383626599253372,
+        0.15177910124798003,
+        -0.06379406304472124
+      ],
+      "meshes": 5,
+      "vertices": 138399
+    },
+    {
+      "story": "synthetic-story-8",
+      "facing": 0.7457096025838763,
+      "at": [
+        0.338554092411551,
+        -0.18668644369942589,
+        -0.3498236190309718
+      ],
+      "meshes": 5,
+      "vertices": 91487
+    },
+    {
+      "story": "synthetic-story-9",
+      "facing": 0.7917444472649766,
+      "at": [
+        -0.026976263234485678,
+        0.5181639128567086,
+        -0.35907077169559865
+      ],
+      "meshes": 6,
+      "vertices": 30846
+    },
+    {
+      "story": "synthetic-story-10",
+      "facing": -0.5952400746363969,
+      "at": [
+        0.06349665148519074,
+        0.6765134731336698,
+        -0.08046317116290513
+      ],
+      "meshes": 5,
+      "vertices": 51739
+    },
+    {
+      "story": "synthetic-story-11",
+      "facing": -0.4335099150163908,
+      "at": [
+        -0.48457216544215626,
+        0.029611323398285216,
+        -0.11295037703577893
+      ],
+      "meshes": 5,
+      "vertices": 91781
+    },
+    {
+      "story": "synthetic-story-12",
+      "facing": 0.57296972906143,
+      "at": [
+        -0.43964138279924875,
+        0.055457208177634096,
+        -0.31512486001927453
+      ],
+      "meshes": 5,
+      "vertices": 68831
+    },
+    {
+      "story": "synthetic-story-13",
+      "facing": -0.7303253816175711,
+      "at": [
+        0.08233989024750855,
+        -0.5666359158185942,
+        -0.05332819405901246
+      ],
+      "meshes": 6,
+      "vertices": 41272
+    },
+    {
+      "story": "synthetic-story-14",
+      "facing": -0.06977925970452359,
+      "at": [
+        0.536805108738576,
+        0.005558771592890827,
+        -0.18601400789569822
+      ],
+      "meshes": 5,
+      "vertices": 138535
+    },
+    {
+      "story": "synthetic-story-15",
+      "facing": 0.43711965882944126,
+      "at": [
+        0.10598782673493341,
+        -0.7469327756667945,
+        -0.2878362627048313
+      ],
+      "meshes": 5,
+      "vertices": 95078
+    },
+    {
+      "story": "synthetic-story-16",
+      "facing": -0.667330180749487,
+      "at": [
+        -0.28459282058306484,
+        0.4463232264189287,
+        -0.06598222262370901
+      ],
+      "meshes": 5,
+      "vertices": 41498
+    },
+    {
+      "story": "synthetic-story-17",
+      "facing": 0.0036109997006858463,
+      "at": [
+        0.013331685643589141,
+        0.8508677363671592,
+        -0.2007561219946552
+      ],
+      "meshes": 6,
+      "vertices": 39350
+    },
+    {
+      "story": "synthetic-story-18",
+      "facing": -0.1572985055742664,
+      "at": [
+        -0.015062771739381663,
+        -0.8402011346937677,
+        -0.16843376333840987
+      ],
+      "meshes": 5,
+      "vertices": 91085
+    },
+    {
+      "story": "synthetic-story-19",
+      "facing": 0.36373665262129146,
+      "at": [
+        -0.4278481504803824,
+        -0.413097492830548,
+        -0.2730956055765882
+      ],
+      "meshes": 5,
+      "vertices": 68988
+    },
+    {
+      "story": "synthetic-story-20",
+      "facing": -0.9462525150926802,
+      "at": [
+        0.10754413731960517,
+        0.21644060679126195,
+        -0.009954284979671879
+      ],
+      "meshes": 5,
+      "vertices": 54740
+    },
+    {
+      "story": "synthetic-story-21",
+      "facing": -0.318669778029304,
+      "at": [
+        0.3366295663592823,
+        0.6061182757981175,
+        -0.13601864817045384
+      ],
+      "meshes": 6,
+      "vertices": 108605
+    },
+    {
+      "story": "synthetic-story-22",
+      "facing": 0.9975464870044031,
+      "at": [
+        0.010945392433271164,
+        0.057015220889808156,
+        -0.4004108238527292
+      ],
+      "meshes": 5,
+      "vertices": 96304
+    },
+    {
+      "story": "synthetic-story-23",
+      "facing": -0.6784555607507394,
+      "at": [
+        -0.32840782823112025,
+        -0.3480910523309873,
+        -0.06374743530040539
+      ],
+      "meshes": 5,
+      "vertices": 40531
+    },
+    {
+      "story": "synthetic-story-24",
+      "facing": 0.7021344851000457,
+      "at": [
+        0.32961255111152743,
+        0.30903396559508123,
+        -0.341070558896993
+      ],
+      "meshes": 5,
+      "vertices": 51803
+    },
+    {
+      "story": "synthetic-story-25",
+      "facing": 0.3563741856619855,
+      "at": [
+        0.4348784961126277,
+        -0.39914559513878317,
+        -0.2716166855013147
+      ],
+      "meshes": 6,
+      "vertices": 66531
+    },
+    {
+      "story": "synthetic-story-26",
+      "facing": 0.10240796702236526,
+      "at": [
+        -0.4979889181943996,
+        0.31055374501840366,
+        -0.22060175514394664
+      ],
+      "meshes": 5,
+      "vertices": 68909
+    },
+    {
+      "story": "synthetic-story-27",
+      "facing": -0.4849292009484657,
+      "at": [
+        0.38437485563054985,
+        -0.4295036622448251,
+        -0.10262163605242536
+      ],
+      "meshes": 5,
+      "vertices": 55184
+    },
+    {
+      "story": "synthetic-story-28",
+      "facing": 0.5711507893499391,
+      "at": [
+        -0.2415856576110646,
+        0.5848987791999922,
+        -0.3147594843279602
+      ],
+      "meshes": 5,
+      "vertices": 137719
+    },
+    {
+      "story": "synthetic-story-29",
+      "facing": 0.4349015306819937,
+      "at": [
+        0.04195200014758478,
+        0.7635502321715217,
+        -0.28739070087549856
+      ],
+      "meshes": 6,
+      "vertices": 70301
+    },
+    {
+      "story": "synthetic-story-30",
+      "facing": 0.7061308178999531,
+      "at": [
+        0.20221710853194605,
+        -0.510801072757007,
+        -0.34187331384827824
+      ],
+      "meshes": 5,
+      "vertices": 41547
+    },
+    {
+      "story": "synthetic-story-31",
+      "facing": -0.3384660048678765,
+      "at": [
+        -0.10160068951929932,
+        0.7846121070183915,
+        -0.13204212271396576
+      ],
+      "meshes": 5,
+      "vertices": 51503
+    },
+    {
+      "story": "synthetic-story-32",
+      "facing": 0.5191878434928161,
+      "at": [
+        -0.10857027605961184,
+        -0.7068715804293391,
+        -0.30432153679988183
+      ],
+      "meshes": 5,
+      "vertices": 91178
+    },
+    {
+      "story": "synthetic-story-33",
+      "facing": -0.02838914311368232,
+      "at": [
+        -0.537910845709183,
+        0.001254555514103128,
+        -0.1943281605679531
+      ],
+      "meshes": 6,
+      "vertices": 52100
+    },
+    {
+      "story": "synthetic-story-34",
+      "facing": 0.0034125024420536276,
+      "at": [
+        0.4991808455556955,
+        -0.3178981598441405,
+        -0.20071624927504905
+      ],
+      "meshes": 5,
+      "vertices": 54992
+    },
+    {
+      "story": "synthetic-story-35",
+      "facing": -0.4035032178499268,
+      "at": [
+        -0.34476388817560216,
+        -0.5559962333943551,
+        -0.11897790925798357
+      ],
+      "meshes": 5,
+      "vertices": 139097
+    },
+    {
+      "story": "synthetic-story-36",
+      "facing": 0.91158477659833,
+      "at": [
+        0.18239724336096957,
+        0.1980196911608338,
+        -0.38314344595791994
+      ],
+      "meshes": 5,
+      "vertices": 97480
+    }
+  ],
+  "labels": [
+    {
+      "text": "Story 01",
+      "visible": true,
+      "bounds": {
+        "x": 419.2180480957031,
+        "y": 141.3888702392578,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 141.3888702392578,
+        "right": 489.6711730957031,
+        "bottom": 164.2638702392578,
+        "left": 419.2180480957031
+      }
+    },
+    {
+      "text": "Story 02",
+      "visible": true,
+      "bounds": {
+        "x": 950.3948364257812,
+        "y": 781.5558471679688,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 781.5558471679688,
+        "right": 1020.8479614257812,
+        "bottom": 804.4308471679688,
+        "left": 950.3948364257812
+      }
+    },
+    {
+      "text": "Story 03",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 04",
+      "visible": true,
+      "bounds": {
+        "x": 558.9891967773438,
+        "y": 619.164794921875,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 619.164794921875,
+        "right": 629.4423217773438,
+        "bottom": 642.039794921875,
+        "left": 558.9891967773438
+      }
+    },
+    {
+      "text": "Story 05",
+      "visible": true,
+      "bounds": {
+        "x": 987.5570678710938,
+        "y": 191.29087829589844,
+        "width": 70.45318603515625,
+        "height": 22.875,
+        "top": 191.29087829589844,
+        "right": 1058.01025390625,
+        "bottom": 214.16587829589844,
+        "left": 987.5570678710938
+      }
+    },
+    {
+      "text": "Story 06",
+      "visible": true,
+      "bounds": {
+        "x": 441.6103210449219,
+        "y": 798.84326171875,
+        "width": 70.45315551757812,
+        "height": 22.875,
+        "top": 798.84326171875,
+        "right": 512.0634765625,
+        "bottom": 821.71826171875,
+        "left": 441.6103210449219
+      }
+    },
+    {
+      "text": "Story 07",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 08",
+      "visible": true,
+      "bounds": {
+        "x": 947.2020874023438,
+        "y": 552.8358154296875,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 552.8358154296875,
+        "right": 1017.6552124023438,
+        "bottom": 575.7108154296875,
+        "left": 947.2020874023438
+      }
+    },
+    {
+      "text": "Story 09",
+      "visible": true,
+      "bounds": {
+        "x": 663.8629150390625,
+        "y": 207.39974975585938,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 207.39974975585938,
+        "right": 734.3160400390625,
+        "bottom": 230.27474975585938,
+        "left": 663.8629150390625
+      }
+    },
+    {
+      "text": "Story 10",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 11",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 12",
+      "visible": true,
+      "bounds": {
+        "x": 343.9874572753906,
+        "y": 434.1650390625,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 434.1650390625,
+        "right": 414.4405822753906,
+        "bottom": 457.0400390625,
+        "left": 343.9874572753906
+      }
+    },
+    {
+      "text": "Story 13",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 14",
+      "visible": true,
+      "bounds": {
+        "x": 1100.8753662109375,
+        "y": 458.6194763183594,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 458.6194763183594,
+        "right": 1171.3284912109375,
+        "bottom": 481.4944763183594,
+        "left": 1100.8753662109375
+      }
+    },
+    {
+      "text": "Story 15",
+      "visible": true,
+      "bounds": {
+        "x": 766.9293823242188,
+        "y": 827.40380859375,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 827.40380859375,
+        "right": 837.3825073242188,
+        "bottom": 850.27880859375,
+        "left": 766.9293823242188
+      }
+    },
+    {
+      "text": "Story 16",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 17",
+      "visible": true,
+      "bounds": {
+        "x": 695.107421875,
+        "y": 44.34682846069336,
+        "width": 70.453125,
+        "height": 22.875003814697266,
+        "top": 44.34682846069336,
+        "right": 765.560546875,
+        "bottom": 67.22183227539062,
+        "left": 695.107421875
+      }
+    },
+    {
+      "text": "Story 18",
+      "visible": true,
+      "bounds": {
+        "x": 673.0975952148438,
+        "y": 873.1131591796875,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 873.1131591796875,
+        "right": 743.5507202148438,
+        "bottom": 895.9881591796875,
+        "left": 673.0975952148438
+      }
+    },
+    {
+      "text": "Story 19",
+      "visible": true,
+      "bounds": {
+        "x": 353.1289367675781,
+        "y": 663.7963256835938,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 663.7963256835938,
+        "right": 423.5820617675781,
+        "bottom": 686.6713256835938,
+        "left": 353.1289367675781
+      }
+    },
+    {
+      "text": "Story 20",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 21",
+      "visible": true,
+      "bounds": {
+        "x": 945.7102661132812,
+        "y": 164.29469299316406,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 164.29469299316406,
+        "right": 1016.1633911132812,
+        "bottom": 187.16969299316406,
+        "left": 945.7102661132812
+      }
+    },
+    {
+      "text": "Story 22",
+      "visible": true,
+      "bounds": {
+        "x": 693.2576904296875,
+        "y": 433.4014892578125,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 433.4014892578125,
+        "right": 763.7108154296875,
+        "bottom": 456.2764892578125,
+        "left": 693.2576904296875
+      }
+    },
+    {
+      "text": "Story 23",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 24",
+      "visible": true,
+      "bounds": {
+        "x": 940.2710571289062,
+        "y": 309.89105224609375,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 309.89105224609375,
+        "right": 1010.7241821289062,
+        "bottom": 332.76605224609375,
+        "left": 940.2710571289062
+      }
+    },
+    {
+      "text": "Story 25",
+      "visible": true,
+      "bounds": {
+        "x": 1021.867431640625,
+        "y": 656.958740234375,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 656.958740234375,
+        "right": 1092.320556640625,
+        "bottom": 679.833740234375,
+        "left": 1021.867431640625
+      }
+    },
+    {
+      "text": "Story 26",
+      "visible": true,
+      "bounds": {
+        "x": 298.7596435546875,
+        "y": 309.146240234375,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 309.146240234375,
+        "right": 369.2127685546875,
+        "bottom": 332.021240234375,
+        "left": 298.7596435546875
+      }
+    },
+    {
+      "text": "Story 27",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 28",
+      "visible": true,
+      "bounds": {
+        "x": 497.50946044921875,
+        "y": 174.6940460205078,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 174.6940460205078,
+        "right": 567.9625854492188,
+        "bottom": 197.5690460205078,
+        "left": 497.50946044921875
+      }
+    },
+    {
+      "text": "Story 29",
+      "visible": true,
+      "bounds": {
+        "x": 717.2923583984375,
+        "y": 87.13976287841797,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 87.13976287841797,
+        "right": 787.7454833984375,
+        "bottom": 110.01476287841797,
+        "left": 717.2923583984375
+      }
+    },
+    {
+      "text": "Story 30",
+      "visible": true,
+      "bounds": {
+        "x": 841.5211181640625,
+        "y": 711.6793212890625,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 711.6793212890625,
+        "right": 911.9742431640625,
+        "bottom": 734.5543212890625,
+        "left": 841.5211181640625
+      }
+    },
+    {
+      "text": "Story 31",
+      "visible": true,
+      "bounds": {
+        "x": 606.0181274414062,
+        "y": 76.81767272949219,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 76.81767272949219,
+        "right": 676.4712524414062,
+        "bottom": 99.69267272949219,
+        "left": 606.0181274414062
+      }
+    },
+    {
+      "text": "Story 32",
+      "visible": true,
+      "bounds": {
+        "x": 600.61572265625,
+        "y": 807.7704467773438,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 807.7704467773438,
+        "right": 671.06884765625,
+        "bottom": 830.6454467773438,
+        "left": 600.61572265625
+      }
+    },
+    {
+      "text": "Story 33",
+      "visible": true,
+      "bounds": {
+        "x": 267.8143310546875,
+        "y": 460.7289123535156,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 460.7289123535156,
+        "right": 338.2674560546875,
+        "bottom": 483.6039123535156,
+        "left": 267.8143310546875
+      }
+    },
+    {
+      "text": "Story 34",
+      "visible": true,
+      "bounds": {
+        "x": 1071.711181640625,
+        "y": 617.140625,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 617.140625,
+        "right": 1142.164306640625,
+        "bottom": 640.015625,
+        "left": 1071.711181640625
+      }
+    },
+    {
+      "text": "Story 35",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "Story 36",
+      "visible": true,
+      "bounds": {
+        "x": 826.1578369140625,
+        "y": 364.2973937988281,
+        "width": 70.453125,
+        "height": 22.875,
+        "top": 364.2973937988281,
+        "right": 896.6109619140625,
+        "bottom": 387.1723937988281,
+        "left": 826.1578369140625
+      }
+    }
+  ],
+  "markers": [],
+  "drew": {
+    "surface": "forest",
+    "stories": [
+      "synthetic-story-1",
+      "synthetic-story-2",
+      "synthetic-story-3",
+      "synthetic-story-4",
+      "synthetic-story-5",
+      "synthetic-story-6",
+      "synthetic-story-7",
+      "synthetic-story-8",
+      "synthetic-story-9",
+      "synthetic-story-10",
+      "synthetic-story-11",
+      "synthetic-story-12",
+      "synthetic-story-13",
+      "synthetic-story-14",
+      "synthetic-story-15",
+      "synthetic-story-16",
+      "synthetic-story-17",
+      "synthetic-story-18",
+      "synthetic-story-19",
+      "synthetic-story-20",
+      "synthetic-story-21",
+      "synthetic-story-22",
+      "synthetic-story-23",
+      "synthetic-story-24",
+      "synthetic-story-25",
+      "synthetic-story-26",
+      "synthetic-story-27",
+      "synthetic-story-28",
+      "synthetic-story-29",
+      "synthetic-story-30",
+      "synthetic-story-31",
+      "synthetic-story-32",
+      "synthetic-story-33",
+      "synthetic-story-34",
+      "synthetic-story-35",
+      "synthetic-story-36"
+    ],
+    "capabilities": [
+      "synthetic-1-cap-1",
+      "synthetic-1-cap-2",
+      "synthetic-1-cap-3",
+      "synthetic-1-cap-4",
+      "synthetic-1-cap-5",
+      "synthetic-1-cap-6",
+      "synthetic-1-cap-7",
+      "synthetic-1-cap-8",
+      "synthetic-2-cap-1",
+      "synthetic-2-cap-2",
+      "synthetic-2-cap-3",
+      "synthetic-2-cap-4",
+      "synthetic-3-cap-1",
+      "synthetic-3-cap-2",
+      "synthetic-3-cap-3",
+      "synthetic-3-cap-4",
+      "synthetic-3-cap-5",
+      "synthetic-4-cap-1",
+      "synthetic-4-cap-2",
+      "synthetic-4-cap-3",
+      "synthetic-4-cap-4",
+      "synthetic-4-cap-5",
+      "synthetic-4-cap-6",
+      "synthetic-4-cap-7",
+      "synthetic-4-cap-8",
+      "synthetic-4-cap-9",
+      "synthetic-4-cap-10",
+      "synthetic-5-cap-1",
+      "synthetic-5-cap-2",
+      "synthetic-5-cap-3",
+      "synthetic-5-cap-4",
+      "synthetic-5-cap-5",
+      "synthetic-5-cap-6",
+      "synthetic-5-cap-7",
+      "synthetic-6-cap-1",
+      "synthetic-6-cap-2",
+      "synthetic-6-cap-3",
+      "synthetic-6-cap-4",
+      "synthetic-6-cap-5",
+      "synthetic-6-cap-6",
+      "synthetic-7-cap-1",
+      "synthetic-7-cap-2",
+      "synthetic-7-cap-3",
+      "synthetic-7-cap-4",
+      "synthetic-7-cap-5",
+      "synthetic-7-cap-6",
+      "synthetic-7-cap-7",
+      "synthetic-7-cap-8",
+      "synthetic-7-cap-9",
+      "synthetic-7-cap-10",
+      "synthetic-7-cap-11",
+      "synthetic-7-cap-12",
+      "synthetic-7-cap-13",
+      "synthetic-8-cap-1",
+      "synthetic-8-cap-2",
+      "synthetic-8-cap-3",
+      "synthetic-8-cap-4",
+      "synthetic-8-cap-5",
+      "synthetic-8-cap-6",
+      "synthetic-8-cap-7",
+      "synthetic-8-cap-8",
+      "synthetic-9-cap-1",
+      "synthetic-9-cap-2",
+      "synthetic-9-cap-3",
+      "synthetic-9-cap-4",
+      "synthetic-10-cap-1",
+      "synthetic-10-cap-2",
+      "synthetic-10-cap-3",
+      "synthetic-10-cap-4",
+      "synthetic-10-cap-5",
+      "synthetic-11-cap-1",
+      "synthetic-11-cap-2",
+      "synthetic-11-cap-3",
+      "synthetic-11-cap-4",
+      "synthetic-11-cap-5",
+      "synthetic-11-cap-6",
+      "synthetic-11-cap-7",
+      "synthetic-11-cap-8",
+      "synthetic-11-cap-9",
+      "synthetic-11-cap-10",
+      "synthetic-12-cap-1",
+      "synthetic-12-cap-2",
+      "synthetic-12-cap-3",
+      "synthetic-12-cap-4",
+      "synthetic-12-cap-5",
+      "synthetic-12-cap-6",
+      "synthetic-12-cap-7",
+      "synthetic-13-cap-1",
+      "synthetic-13-cap-2",
+      "synthetic-13-cap-3",
+      "synthetic-13-cap-4",
+      "synthetic-13-cap-5",
+      "synthetic-13-cap-6",
+      "synthetic-14-cap-1",
+      "synthetic-14-cap-2",
+      "synthetic-14-cap-3",
+      "synthetic-14-cap-4",
+      "synthetic-14-cap-5",
+      "synthetic-14-cap-6",
+      "synthetic-14-cap-7",
+      "synthetic-14-cap-8",
+      "synthetic-14-cap-9",
+      "synthetic-14-cap-10",
+      "synthetic-14-cap-11",
+      "synthetic-14-cap-12",
+      "synthetic-14-cap-13",
+      "synthetic-15-cap-1",
+      "synthetic-15-cap-2",
+      "synthetic-15-cap-3",
+      "synthetic-15-cap-4",
+      "synthetic-15-cap-5",
+      "synthetic-15-cap-6",
+      "synthetic-15-cap-7",
+      "synthetic-15-cap-8",
+      "synthetic-16-cap-1",
+      "synthetic-16-cap-2",
+      "synthetic-16-cap-3",
+      "synthetic-16-cap-4",
+      "synthetic-17-cap-1",
+      "synthetic-17-cap-2",
+      "synthetic-17-cap-3",
+      "synthetic-17-cap-4",
+      "synthetic-17-cap-5",
+      "synthetic-18-cap-1",
+      "synthetic-18-cap-2",
+      "synthetic-18-cap-3",
+      "synthetic-18-cap-4",
+      "synthetic-18-cap-5",
+      "synthetic-18-cap-6",
+      "synthetic-18-cap-7",
+      "synthetic-18-cap-8",
+      "synthetic-18-cap-9",
+      "synthetic-18-cap-10",
+      "synthetic-19-cap-1",
+      "synthetic-19-cap-2",
+      "synthetic-19-cap-3",
+      "synthetic-19-cap-4",
+      "synthetic-19-cap-5",
+      "synthetic-19-cap-6",
+      "synthetic-19-cap-7",
+      "synthetic-20-cap-1",
+      "synthetic-20-cap-2",
+      "synthetic-20-cap-3",
+      "synthetic-20-cap-4",
+      "synthetic-20-cap-5",
+      "synthetic-20-cap-6",
+      "synthetic-21-cap-1",
+      "synthetic-21-cap-2",
+      "synthetic-21-cap-3",
+      "synthetic-21-cap-4",
+      "synthetic-21-cap-5",
+      "synthetic-21-cap-6",
+      "synthetic-21-cap-7",
+      "synthetic-21-cap-8",
+      "synthetic-21-cap-9",
+      "synthetic-21-cap-10",
+      "synthetic-21-cap-11",
+      "synthetic-21-cap-12",
+      "synthetic-21-cap-13",
+      "synthetic-22-cap-1",
+      "synthetic-22-cap-2",
+      "synthetic-22-cap-3",
+      "synthetic-22-cap-4",
+      "synthetic-22-cap-5",
+      "synthetic-22-cap-6",
+      "synthetic-22-cap-7",
+      "synthetic-22-cap-8",
+      "synthetic-23-cap-1",
+      "synthetic-23-cap-2",
+      "synthetic-23-cap-3",
+      "synthetic-23-cap-4",
+      "synthetic-24-cap-1",
+      "synthetic-24-cap-2",
+      "synthetic-24-cap-3",
+      "synthetic-24-cap-4",
+      "synthetic-24-cap-5",
+      "synthetic-25-cap-1",
+      "synthetic-25-cap-2",
+      "synthetic-25-cap-3",
+      "synthetic-25-cap-4",
+      "synthetic-25-cap-5",
+      "synthetic-25-cap-6",
+      "synthetic-25-cap-7",
+      "synthetic-25-cap-8",
+      "synthetic-25-cap-9",
+      "synthetic-25-cap-10",
+      "synthetic-26-cap-1",
+      "synthetic-26-cap-2",
+      "synthetic-26-cap-3",
+      "synthetic-26-cap-4",
+      "synthetic-26-cap-5",
+      "synthetic-26-cap-6",
+      "synthetic-26-cap-7",
+      "synthetic-27-cap-1",
+      "synthetic-27-cap-2",
+      "synthetic-27-cap-3",
+      "synthetic-27-cap-4",
+      "synthetic-27-cap-5",
+      "synthetic-27-cap-6",
+      "synthetic-28-cap-1",
+      "synthetic-28-cap-2",
+      "synthetic-28-cap-3",
+      "synthetic-28-cap-4",
+      "synthetic-28-cap-5",
+      "synthetic-28-cap-6",
+      "synthetic-28-cap-7",
+      "synthetic-28-cap-8",
+      "synthetic-28-cap-9",
+      "synthetic-28-cap-10",
+      "synthetic-28-cap-11",
+      "synthetic-28-cap-12",
+      "synthetic-28-cap-13",
+      "synthetic-29-cap-1",
+      "synthetic-29-cap-2",
+      "synthetic-29-cap-3",
+      "synthetic-29-cap-4",
+      "synthetic-29-cap-5",
+      "synthetic-29-cap-6",
+      "synthetic-29-cap-7",
+      "synthetic-29-cap-8",
+      "synthetic-30-cap-1",
+      "synthetic-30-cap-2",
+      "synthetic-30-cap-3",
+      "synthetic-30-cap-4",
+      "synthetic-31-cap-1",
+      "synthetic-31-cap-2",
+      "synthetic-31-cap-3",
+      "synthetic-31-cap-4",
+      "synthetic-31-cap-5",
+      "synthetic-32-cap-1",
+      "synthetic-32-cap-2",
+      "synthetic-32-cap-3",
+      "synthetic-32-cap-4",
+      "synthetic-32-cap-5",
+      "synthetic-32-cap-6",
+      "synthetic-32-cap-7",
+      "synthetic-32-cap-8",
+      "synthetic-32-cap-9",
+      "synthetic-32-cap-10",
+      "synthetic-33-cap-1",
+      "synthetic-33-cap-2",
+      "synthetic-33-cap-3",
+      "synthetic-33-cap-4",
+      "synthetic-33-cap-5",
+      "synthetic-33-cap-6",
+      "synthetic-33-cap-7",
+      "synthetic-34-cap-1",
+      "synthetic-34-cap-2",
+      "synthetic-34-cap-3",
+      "synthetic-34-cap-4",
+      "synthetic-34-cap-5",
+      "synthetic-34-cap-6",
+      "synthetic-35-cap-1",
+      "synthetic-35-cap-2",
+      "synthetic-35-cap-3",
+      "synthetic-35-cap-4",
+      "synthetic-35-cap-5",
+      "synthetic-35-cap-6",
+      "synthetic-35-cap-7",
+      "synthetic-35-cap-8",
+      "synthetic-35-cap-9",
+      "synthetic-35-cap-10",
+      "synthetic-35-cap-11",
+      "synthetic-35-cap-12",
+      "synthetic-35-cap-13",
+      "synthetic-36-cap-1",
+      "synthetic-36-cap-2",
+      "synthetic-36-cap-3",
+      "synthetic-36-cap-4",
+      "synthetic-36-cap-5",
+      "synthetic-36-cap-6",
+      "synthetic-36-cap-7",
+      "synthetic-36-cap-8"
+    ],
+    "labels": [
+      "Story 01",
+      "Story 02",
+      "Story 03",
+      "Story 04",
+      "Story 05",
+      "Story 06",
+      "Story 07",
+      "Story 08",
+      "Story 09",
+      "Story 10",
+      "Story 11",
+      "Story 12",
+      "Story 13",
+      "Story 14",
+      "Story 15",
+      "Story 16",
+      "Story 17",
+      "Story 18",
+      "Story 19",
+      "Story 20",
+      "Story 21",
+      "Story 22",
+      "Story 23",
+      "Story 24",
+      "Story 25",
+      "Story 26",
+      "Story 27",
+      "Story 28",
+      "Story 29",
+      "Story 30",
+      "Story 31",
+      "Story 32",
+      "Story 33",
+      "Story 34",
+      "Story 35",
+      "Story 36"
+    ],
+    "trees": [
+      {
+        "capability": "synthetic-1-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-1-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-1-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-1-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-1-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-1-cap-6",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-1-cap-7",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-1-cap-8",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-2-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-2-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-2-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-2-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-3-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-3-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-3-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-3-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-3-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-4-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-5-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-5-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-5-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-5-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-5-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-5-cap-6",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-5-cap-7",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-6-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-6-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-6-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-6-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-6-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-6-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-11",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-12",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-7-cap-13",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-8-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-9-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-9-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-9-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-9-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-10-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-10-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-10-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-10-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-10-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-11-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-12-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-12-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-12-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-12-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-12-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-12-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-12-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-13-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-13-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-13-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-13-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-13-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-13-cap-6",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-14-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-11",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-12",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-14-cap-13",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-15-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-16-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-16-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-16-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-16-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-17-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-17-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-17-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-17-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-17-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-18-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-18-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-19-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-19-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-19-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-19-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-19-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-19-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-19-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-20-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-20-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-20-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-20-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-20-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-20-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-21-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-6",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-7",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-8",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-9",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-10",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-11",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-12",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-21-cap-13",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-22-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-22-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-22-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-22-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-22-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-22-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-22-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-22-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-23-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-23-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-23-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-23-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-24-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-24-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-24-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-24-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-24-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-25-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-6",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-7",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-8",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-9",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-25-cap-10",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-26-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-26-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-26-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-26-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-26-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-26-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-26-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-27-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-27-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-27-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-27-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-27-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-27-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-11",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-12",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-28-cap-13",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-29-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-29-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-29-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-29-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-29-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-29-cap-6",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-29-cap-7",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-29-cap-8",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-30-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-30-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-30-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-30-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-31-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-31-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-31-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-31-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-31-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-32-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-33-cap-1",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-33-cap-2",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-33-cap-3",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-33-cap-4",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-33-cap-5",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-33-cap-6",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-33-cap-7",
+        "form": "seedling"
+      },
+      {
+        "capability": "synthetic-34-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-34-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-34-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-34-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-34-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-34-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-8",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-9",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-10",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-11",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-12",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-35-cap-13",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-1",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-2",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-3",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-4",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-5",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-6",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-7",
+        "form": "green"
+      },
+      {
+        "capability": "synthetic-36-cap-8",
+        "form": "green"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "sphereRadiusPixels": 385.77860169491527,
+  "view": "globe",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
+    "[.WebGL-0x2a6c00158200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  ]
+}

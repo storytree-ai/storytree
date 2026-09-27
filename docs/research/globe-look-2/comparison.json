@@ -1,0 +1,81 @@
+{
+  "source": "c2ba18f",
+  "viewport": [
+    1440,
+    960
+  ],
+  "pictures": [
+    {
+      "picture": "0-today",
+      "zoom": 0.989175901781834,
+      "percentMoreScale": 0.0,
+      "frontCentres": 3,
+      "faceOnCentres": 1,
+      "sphereCropPixels": 0,
+      "size": [
+        1440,
+        960
+      ]
+    },
+    {
+      "picture": "1-middle",
+      "zoom": 0.989175901781834,
+      "percentMoreScale": 0.0,
+      "frontCentres": 4,
+      "faceOnCentres": 3,
+      "sphereCropPixels": 0,
+      "size": [
+        1440,
+        960
+      ]
+    },
+    {
+      "picture": "2-fit",
+      "zoom": 1.0012407596962638,
+      "percentMoreScale": 1.219687812116832,
+      "frontCentres": 3,
+      "faceOnCentres": 1,
+      "sphereCropPixels": 0,
+      "size": [
+        1440,
+        960
+      ]
+    },
+    {
+      "picture": "3-sea",
+      "zoom": 0.989175901781834,
+      "percentMoreScale": 0.0,
+      "frontCentres": 3,
+      "faceOnCentres": 1,
+      "sphereCropPixels": 0,
+      "size": [
+        1440,
+        960
+      ]
+    },
+    {
+      "picture": "4-together",
+      "zoom": 1.1746141363028715,
+      "percentMoreScale": 18.74674000721224,
+      "frontCentres": 4,
+      "faceOnCentres": 3,
+      "sphereCropPixels": 2.880763158119862,
+      "size": [
+        1440,
+        960
+      ]
+    },
+    {
+      "picture": "4-together-36-stories",
+      "zoom": 0.989175901781834,
+      "percentMoreScale": 0.0,
+      "frontCentres": 19,
+      "faceOnCentres": 10,
+      "sphereCropPixels": 0,
+      "size": [
+        1440,
+        960
+      ]
+    }
+  ]
+}

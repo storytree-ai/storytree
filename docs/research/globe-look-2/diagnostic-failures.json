@@ -1,0 +1,1009 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "zoom": 1.0012407596962638,
+  "canvas": {
+    "width": 1440,
+    "height": 910.4375,
+    "top": 49.5625,
+    "left": 0
+  },
+  "plates": [
+    {
+      "story": "story_c91d064b1240",
+      "facing": 1,
+      "at": [
+        9.880893729848672e-18,
+        -3.750764740068045e-16,
+        -0.40090366811867817
+      ],
+      "meshes": 8,
+      "vertices": 74682
+    },
+    {
+      "story": "story_737e634135b5",
+      "facing": -0.9999712012042388,
+      "at": [
+        0.00012475524232272115,
+        -0.0065352825600133516,
+        0.0008363431816238442
+      ],
+      "meshes": 8,
+      "vertices": 28387
+    },
+    {
+      "story": "story_32161da86c70",
+      "facing": 0.0002897587127286272,
+      "at": [
+        -0.16929439812370783,
+        0.8188472277474974,
+        -0.20008897469211928
+      ],
+      "meshes": 6,
+      "vertices": 39398
+    },
+    {
+      "story": "story_6b20406fd95f",
+      "facing": -0.028503604213816258,
+      "at": [
+        -0.22580625706697416,
+        -0.7836144122284054,
+        -0.19430516843504975
+      ],
+      "meshes": 6,
+      "vertices": 67395
+    },
+    {
+      "story": "story_6ceeb28cef5d",
+      "facing": 0.05298696166153398,
+      "at": [
+        0.5365267372450746,
+        -0.141425612418329,
+        -0.21067441457015346
+      ],
+      "meshes": 6,
+      "vertices": 52505
+    },
+    {
+      "story": "story_f07e4a2c4ddb",
+      "facing": -0.2554194501558221,
+      "at": [
+        -0.5265982264684974,
+        -0.008330863533264102,
+        -0.14872392483610775
+      ],
+      "meshes": 6,
+      "vertices": 41284
+    },
+    {
+      "story": "story_02c09607a566",
+      "facing": -0.37110446007375825,
+      "at": [
+        0.33665586473427184,
+        0.5970465744056823,
+        -0.125485941627288
+      ],
+      "meshes": 6,
+      "vertices": 104101
+    }
+  ],
+  "labels": [
+    {
+      "text": "The agent link",
+      "visible": true,
+      "bounds": {
+        "x": 664.3125,
+        "y": 461.34375,
+        "width": 111.375,
+        "height": 22.875,
+        "top": 461.34375,
+        "right": 775.6875,
+        "bottom": 484.21875,
+        "left": 664.3125
+      }
+    },
+    {
+      "text": "The app",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "The arc surface",
+      "visible": true,
+      "bounds": {
+        "x": 530.139404296875,
+        "y": 60.03957748413086,
+        "width": 117.265625,
+        "height": 22.875003814697266,
+        "top": 60.03957748413086,
+        "right": 647.405029296875,
+        "bottom": 82.91458129882812,
+        "left": 530.139404296875
+      }
+    },
+    {
+      "text": "The command line",
+      "visible": true,
+      "bounds": {
+        "x": 475.88922119140625,
+        "y": 845.380859375,
+        "width": 138.15625,
+        "height": 22.875,
+        "top": 845.380859375,
+        "right": 614.0454711914062,
+        "bottom": 868.255859375,
+        "left": 475.88922119140625
+      }
+    },
+    {
+      "text": "The forest",
+      "visible": true,
+      "bounds": {
+        "x": 1093.98779296875,
+        "y": 530.6542358398438,
+        "width": 83.796875,
+        "height": 22.875,
+        "top": 530.6542358398438,
+        "right": 1177.78466796875,
+        "bottom": 553.5292358398438,
+        "left": 1093.98779296875
+      }
+    },
+    {
+      "text": "The librarian",
+      "visible": true,
+      "bounds": {
+        "x": 261.1379699707031,
+        "y": 465.42657470703125,
+        "width": 101.34375,
+        "height": 22.875,
+        "top": 465.42657470703125,
+        "right": 362.4817199707031,
+        "bottom": 488.30157470703125,
+        "left": 261.1379699707031
+      }
+    },
+    {
+      "text": "The library",
+      "visible": true,
+      "bounds": {
+        "x": 936.8165893554688,
+        "y": 168.7406005859375,
+        "width": 88.28131103515625,
+        "height": 22.875,
+        "top": 168.7406005859375,
+        "right": 1025.097900390625,
+        "bottom": 191.6156005859375,
+        "left": 936.8165893554688
+      }
+    }
+  ],
+  "markers": [
+    {
+      "story": "story_737e634135b5",
+      "visible": true,
+      "bounds": {
+        "x": 716,
+        "y": 895.5625,
+        "width": 32,
+        "height": 32,
+        "top": 895.5625,
+        "right": 748,
+        "bottom": 927.5625,
+        "left": 716
+      },
+      "withinViewport": true
+    }
+  ],
+  "drew": {
+    "surface": "forest",
+    "stories": [
+      "story_c91d064b1240",
+      "story_737e634135b5",
+      "story_32161da86c70",
+      "story_6b20406fd95f",
+      "story_6ceeb28cef5d",
+      "story_f07e4a2c4ddb",
+      "story_02c09607a566"
+    ],
+    "capabilities": [
+      "capability_a98ff2e91958",
+      "capability_f559923202f8",
+      "capability_d5c48ab4f555",
+      "capability_95d5c9f623b1",
+      "capability_d348e1451640",
+      "capability_6afec2acf58f",
+      "capability_1a26adf230ca",
+      "capability_f9362ed15e30",
+      "capability_f226569a0281",
+      "capability_57d076baeaee",
+      "capability_e1a3b254e51b",
+      "capability_351e5c4fba98",
+      "capability_5e5b866f04c3",
+      "capability_34fc460338e9",
+      "capability_350391d91948",
+      "capability_7f5fedc884e7",
+      "capability_6da9b03f3cdc",
+      "capability_8e520b330cbf",
+      "capability_a6d1c58c31e5",
+      "capability_0fce064dc3aa",
+      "capability_35987c7c3ada",
+      "capability_6bb5e0442a10",
+      "capability_8cb2767e3664",
+      "capability_c1db2826e6e1",
+      "capability_37acc5e8f27c",
+      "capability_88a79f1d616a",
+      "capability_a7b373bb38f5",
+      "capability_3663af2e57ea",
+      "capability_e195caca52f1",
+      "capability_87bf28803cbd",
+      "capability_2908746c28b3",
+      "capability_e16d107be1f4",
+      "capability_85f7262e74c3",
+      "capability_a3c6b5789944",
+      "capability_2b4375e1cdf3",
+      "capability_61e0d0fa4848",
+      "capability_e3e884f57a0f",
+      "capability_cfa2acd69d5c",
+      "capability_b33b1f2ad9fe",
+      "capability_b72a68accce6",
+      "capability_db6168dc3602",
+      "capability_644d64f2fe33",
+      "capability_e701b33f61d1",
+      "capability_35655a448fd1",
+      "capability_4b2ce3f97da8",
+      "capability_b61cd815c8a9",
+      "capability_d5761b22f80d",
+      "capability_4e28a73643cd",
+      "capability_faf568630048",
+      "capability_2a7585e89da7",
+      "capability_1d3934231c59",
+      "capability_c9966c8f881a",
+      "capability_1fda4f36d538"
+    ],
+    "labels": [
+      "The agent link",
+      "The app",
+      "The arc surface",
+      "The command line",
+      "The forest",
+      "The librarian",
+      "The library"
+    ],
+    "trees": [
+      {
+        "capability": "capability_a98ff2e91958",
+        "form": "dead"
+      },
+      {
+        "capability": "capability_f559923202f8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d5c48ab4f555",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_95d5c9f623b1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d348e1451640",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6afec2acf58f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1a26adf230ca",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f9362ed15e30",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f226569a0281",
+        "form": "dead"
+      },
+      {
+        "capability": "capability_57d076baeaee",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e1a3b254e51b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_351e5c4fba98",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5e5b866f04c3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_34fc460338e9",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_350391d91948",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7f5fedc884e7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6da9b03f3cdc",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8e520b330cbf",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a6d1c58c31e5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_0fce064dc3aa",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_35987c7c3ada",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6bb5e0442a10",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8cb2767e3664",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c1db2826e6e1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_37acc5e8f27c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_88a79f1d616a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a7b373bb38f5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3663af2e57ea",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e195caca52f1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_87bf28803cbd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2908746c28b3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e16d107be1f4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_85f7262e74c3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a3c6b5789944",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2b4375e1cdf3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_61e0d0fa4848",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e3e884f57a0f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_cfa2acd69d5c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b33b1f2ad9fe",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b72a68accce6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_db6168dc3602",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_644d64f2fe33",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e701b33f61d1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_35655a448fd1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4b2ce3f97da8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b61cd815c8a9",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d5761b22f80d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4e28a73643cd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_faf568630048",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2a7585e89da7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1d3934231c59",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c9966c8f881a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1fda4f36d538",
+        "form": "seedling"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "sphereRadiusPixels": 390.4838962815429,
+  "view": "globe",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
+    "[.WebGL-0x2a6c00133e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  ],
+  "afterMarker": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 1.0012407596962638,
+    "canvas": {
+      "width": 1440,
+      "height": 910.4375,
+      "top": 49.5625,
+      "left": 0
+    },
+    "plates": [
+      {
+        "story": "story_c91d064b1240",
+        "facing": -0.9999712012042387,
+        "at": [
+          -0.00012475883195454092,
+          -0.006535282388587962,
+          0.0008363431816236222
+        ],
+        "meshes": 8,
+        "vertices": 74682
+      },
+      {
+        "story": "story_737e634135b5",
+        "facing": 1,
+        "at": [
+          1.0868983102833539e-16,
+          -1.8753823700340226e-16,
+          -0.40090366811867806
+        ],
+        "meshes": 8,
+        "vertices": 28387
+      },
+      {
+        "story": "story_32161da86c70",
+        "facing": -0.00757102997221254,
+        "at": [
+          0.16929435753302807,
+          0.8188213085172981,
+          -0.19850995528763182
+        ],
+        "meshes": 6,
+        "vertices": 39398
+      },
+      {
+        "story": "story_6b20406fd95f",
+        "facing": 0.03530769543235607,
+        "at": [
+          0.2258098072202719,
+          -0.7834062070688165,
+          -0.20712312912643582
+        ],
+        "meshes": 6,
+        "vertices": 67395
+      },
+      {
+        "story": "story_6ceeb28cef5d",
+        "facing": -0.051514553621916294,
+        "at": [
+          -0.5365333337630146,
+          -0.14176635356393066,
+          -0.1896828923394367
+        ],
+        "meshes": 6,
+        "vertices": 52505
+      },
+      {
+        "story": "story_f07e4a2c4ddb",
+        "facing": 0.25526401906775087,
+        "at": [
+          0.5266300784876841,
+          -0.00666283274804512,
+          -0.2513063933102647
+        ],
+        "meshes": 6,
+        "vertices": 41284
+      },
+      {
+        "story": "story_02c09607a566",
+        "facing": 0.3659782343070139,
+        "at": [
+          -0.3366095573445597,
+          0.5994555934531721,
+          -0.27354587858612467
+        ],
+        "meshes": 6,
+        "vertices": 104101
+      }
+    ],
+    "labels": [
+      {
+        "text": "The agent link",
+        "visible": false,
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      {
+        "text": "The app",
+        "visible": true,
+        "bounds": {
+          "x": 685.265625,
+          "y": 461.34375,
+          "width": 69.46875,
+          "height": 22.875,
+          "top": 461.34375,
+          "right": 754.734375,
+          "bottom": 484.21875,
+          "left": 685.265625
+        }
+      },
+      {
+        "text": "The arc surface",
+        "visible": true,
+        "bounds": {
+          "x": 792.5949096679688,
+          "y": 60.05228042602539,
+          "width": 117.265625,
+          "height": 22.874996185302734,
+          "top": 60.05228042602539,
+          "right": 909.8605346679688,
+          "bottom": 82.92727661132812,
+          "left": 792.5949096679688
+        }
+      },
+      {
+        "text": "The command line",
+        "visible": true,
+        "bounds": {
+          "x": 825.957275390625,
+          "y": 845.27880859375,
+          "width": 138.15625,
+          "height": 22.875,
+          "top": 845.27880859375,
+          "right": 964.113525390625,
+          "bottom": 868.15380859375,
+          "left": 825.957275390625
+        }
+      },
+      {
+        "text": "The forest",
+        "visible": true,
+        "bounds": {
+          "x": 262.2102355957031,
+          "y": 530.8212280273438,
+          "width": 83.796875,
+          "height": 22.875,
+          "top": 530.8212280273438,
+          "right": 346.0071105957031,
+          "bottom": 553.6962280273438,
+          "left": 262.2102355957031
+        }
+      },
+      {
+        "text": "The librarian",
+        "visible": true,
+        "bounds": {
+          "x": 1077.54296875,
+          "y": 464.6091003417969,
+          "width": 101.34375,
+          "height": 22.875,
+          "top": 464.6091003417969,
+          "right": 1178.88671875,
+          "bottom": 487.4841003417969,
+          "left": 1077.54296875
+        }
+      },
+      {
+        "text": "The library",
+        "visible": true,
+        "bounds": {
+          "x": 414.93804931640625,
+          "y": 167.55996704101562,
+          "width": 88.28125,
+          "height": 22.875,
+          "top": 167.55996704101562,
+          "right": 503.21929931640625,
+          "bottom": 190.43496704101562,
+          "left": 414.93804931640625
+        }
+      }
+    ],
+    "markers": [
+      {
+        "story": "story_c91d064b1240",
+        "visible": true,
+        "bounds": {
+          "x": 692,
+          "y": 895.5625,
+          "width": 32,
+          "height": 32,
+          "top": 895.5625,
+          "right": 724,
+          "bottom": 927.5625,
+          "left": 692
+        },
+        "withinViewport": true
+      }
+    ],
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_c91d064b1240",
+        "story_737e634135b5",
+        "story_32161da86c70",
+        "story_6b20406fd95f",
+        "story_6ceeb28cef5d",
+        "story_f07e4a2c4ddb",
+        "story_02c09607a566"
+      ],
+      "capabilities": [
+        "capability_a98ff2e91958",
+        "capability_f559923202f8",
+        "capability_d5c48ab4f555",
+        "capability_95d5c9f623b1",
+        "capability_d348e1451640",
+        "capability_6afec2acf58f",
+        "capability_1a26adf230ca",
+        "capability_f9362ed15e30",
+        "capability_f226569a0281",
+        "capability_57d076baeaee",
+        "capability_e1a3b254e51b",
+        "capability_351e5c4fba98",
+        "capability_5e5b866f04c3",
+        "capability_34fc460338e9",
+        "capability_350391d91948",
+        "capability_7f5fedc884e7",
+        "capability_6da9b03f3cdc",
+        "capability_8e520b330cbf",
+        "capability_a6d1c58c31e5",
+        "capability_0fce064dc3aa",
+        "capability_35987c7c3ada",
+        "capability_6bb5e0442a10",
+        "capability_8cb2767e3664",
+        "capability_c1db2826e6e1",
+        "capability_37acc5e8f27c",
+        "capability_88a79f1d616a",
+        "capability_a7b373bb38f5",
+        "capability_3663af2e57ea",
+        "capability_e195caca52f1",
+        "capability_87bf28803cbd",
+        "capability_2908746c28b3",
+        "capability_e16d107be1f4",
+        "capability_85f7262e74c3",
+        "capability_a3c6b5789944",
+        "capability_2b4375e1cdf3",
+        "capability_61e0d0fa4848",
+        "capability_e3e884f57a0f",
+        "capability_cfa2acd69d5c",
+        "capability_b33b1f2ad9fe",
+        "capability_b72a68accce6",
+        "capability_db6168dc3602",
+        "capability_644d64f2fe33",
+        "capability_e701b33f61d1",
+        "capability_35655a448fd1",
+        "capability_4b2ce3f97da8",
+        "capability_b61cd815c8a9",
+        "capability_d5761b22f80d",
+        "capability_4e28a73643cd",
+        "capability_faf568630048",
+        "capability_2a7585e89da7",
+        "capability_1d3934231c59",
+        "capability_c9966c8f881a",
+        "capability_1fda4f36d538"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The librarian",
+        "The library"
+      ],
+      "trees": [
+        {
+          "capability": "capability_a98ff2e91958",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_f559923202f8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d5c48ab4f555",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_95d5c9f623b1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d348e1451640",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6afec2acf58f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1a26adf230ca",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f9362ed15e30",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f226569a0281",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_57d076baeaee",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e1a3b254e51b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_351e5c4fba98",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5e5b866f04c3",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_34fc460338e9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_350391d91948",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7f5fedc884e7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6da9b03f3cdc",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8e520b330cbf",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a6d1c58c31e5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_0fce064dc3aa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_35987c7c3ada",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6bb5e0442a10",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8cb2767e3664",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c1db2826e6e1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_37acc5e8f27c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_88a79f1d616a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a7b373bb38f5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3663af2e57ea",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e195caca52f1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_87bf28803cbd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2908746c28b3",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e16d107be1f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_85f7262e74c3",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a3c6b5789944",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2b4375e1cdf3",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_61e0d0fa4848",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e3e884f57a0f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_cfa2acd69d5c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b33b1f2ad9fe",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b72a68accce6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_db6168dc3602",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_644d64f2fe33",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e701b33f61d1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_35655a448fd1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4b2ce3f97da8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b61cd815c8a9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d5761b22f80d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4e28a73643cd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_faf568630048",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2a7585e89da7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1d3934231c59",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c9966c8f881a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1fda4f36d538",
+          "form": "seedling"
+        }
+      ],
+      "unclaimed": 0
+    },
+    "sphereRadiusPixels": 390.4838962815429,
+    "view": "globe"
+  },
+  "selectedAfterTurn": true,
+  "dragTurns": true,
+  "wheelZooms": true,
+  "flatForestAvailable": true
+}

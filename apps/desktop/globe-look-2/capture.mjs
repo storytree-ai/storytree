@@ -41,6 +41,7 @@ function synthetic() {
     const remap = value => {
       if (typeof value === 'string') return ids.get(value) ?? value;
       if (Array.isArray(value)) return value.map(remap);
+      if (value?.reported && value?.verified) return { reported: { state: 'not-checked' }, verified: { state: 'not-checked' } };
       if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, remap(v)]));
       return value;
     };
@@ -169,9 +170,29 @@ try {
       const after = await measure(page);
       if (after.plates[1].facing < 0.9999) throw new Error('Failure marker did not turn its island to the front');
       result.afterMarker = after;
+      // Select the now-front island through the page's own pointer handler, then exercise orbit/zoom.
+      const front = after.plates[1].at;
+      await page.mouse.click((front[0] + 1) * after.canvas.width / 2,
+        after.canvas.top + (1 - front[1]) * after.canvas.height / 2);
+      await page.waitForFunction(id => document.body.dataset.selected === id, input.tree.stories[1].id);
+      result.selectedAfterTurn = true;
+      await page.locator('.panel-close').click();
+      const beforeDrag = await page.evaluate(() => window.__globe.camera.quaternion.toArray());
+      await page.mouse.move(760, 490); await page.mouse.down();
+      await page.mouse.move(950, 560, { steps: 12 }); await page.mouse.up(); await settle(page);
+      const afterDrag = await page.evaluate(() => window.__globe.camera.quaternion.toArray());
+      result.dragTurns = Math.hypot(...beforeDrag.map((v, i) => v - afterDrag[i])) > 0.01;
+      const beforeZoom = await page.evaluate(() => window.__globe.camera.zoom);
+      await page.mouse.wheel(0, -200); await settle(page);
+      result.wheelZooms = await page.evaluate(before => window.__globe.camera.zoom > before, beforeZoom);
+      await page.locator('[data-view="forest"]').click();
+      await page.waitForFunction(() => document.querySelector('.forest')?.dataset.view === 'forest');
+      result.flatForestAvailable = true;
+      if (!result.dragTurns || !result.wheelZooms) throw new Error('Orbit or zoom stopped working');
     } else {
       await page.screenshot({ path: path.join(out, `${name}.png`) });
     }
+    if (errors.length) throw new Error(`${name}: ${errors.join('\n')}`);
     writeFileSync(path.join(out, `${name}.json`), JSON.stringify(result, null, 2) + '\n');
     console.log(JSON.stringify({ name, zoom: result.zoom, front: result.plates.filter(p => p.facing > 0).length, stories: result.plates.length, trees: result.drew.trees.length, errors, warnings: result.warnings }));
     await page.close();

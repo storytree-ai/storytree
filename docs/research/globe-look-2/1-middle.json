@@ -1,0 +1,490 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "zoom": 0.989175901781834,
+  "canvas": {
+    "width": 1440,
+    "height": 910.4375,
+    "top": 49.5625,
+    "left": 0
+  },
+  "plates": [
+    {
+      "story": "story_c91d064b1240",
+      "facing": -0.7322740293469449,
+      "at": [
+        0.07860055181733788,
+        0.5661422818376216,
+        -0.052936763542239196
+      ],
+      "meshes": 6,
+      "vertices": 75116
+    },
+    {
+      "story": "story_737e634135b5",
+      "facing": 0.7271276937735468,
+      "at": [
+        -0.07872021833085047,
+        -0.5708860395288146,
+        -0.34609101715603063
+      ],
+      "meshes": 6,
+      "vertices": 29214
+    },
+    {
+      "story": "story_32161da86c70",
+      "facing": 0.6724637380179321,
+      "at": [
+        0.16548344045909633,
+        0.5730013141041936,
+        -0.33511050994184854
+      ],
+      "meshes": 6,
+      "vertices": 39398
+    },
+    {
+      "story": "story_6b20406fd95f",
+      "facing": -0.5458811552140945,
+      "at": [
+        0.2184523937082156,
+        -0.6238412935454378,
+        -0.09037804035429486
+      ],
+      "meshes": 6,
+      "vertices": 67395
+    },
+    {
+      "story": "story_6ceeb28cef5d",
+      "facing": -0.2556739263379537,
+      "at": [
+        -0.5202120908560048,
+        0.008910382607748842,
+        -0.1486728074679059
+      ],
+      "meshes": 6,
+      "vertices": 52505
+    },
+    {
+      "story": "story_f07e4a2c4ddb",
+      "facing": 0.2850612793341698,
+      "at": [
+        0.4945971094945267,
+        -0.231508212046314,
+        -0.25729185533538856
+      ],
+      "meshes": 6,
+      "vertices": 41284
+    },
+    {
+      "story": "story_02c09607a566",
+      "facing": 0.6708933679553221,
+      "at": [
+        -0.35820118629232117,
+        0.2781815665710001,
+        -0.3347950651562841
+      ],
+      "meshes": 6,
+      "vertices": 104101
+    }
+  ],
+  "labels": [
+    {
+      "text": "The agent link",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "The app",
+      "visible": true,
+      "bounds": {
+        "x": 624.2460327148438,
+        "y": 741.1260375976562,
+        "width": 69.46875,
+        "height": 22.875,
+        "top": 741.1260375976562,
+        "right": 693.7147827148438,
+        "bottom": 764.0010375976562,
+        "left": 624.2460327148438
+      }
+    },
+    {
+      "text": "The arc surface",
+      "visible": true,
+      "bounds": {
+        "x": 789.6409301757812,
+        "y": 180.52479553222656,
+        "width": 117.265625,
+        "height": 22.875,
+        "top": 180.52479553222656,
+        "right": 906.9065551757812,
+        "bottom": 203.39979553222656,
+        "left": 789.6409301757812
+      }
+    },
+    {
+      "text": "The command line",
+      "visible": false,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      }
+    },
+    {
+      "text": "The forest",
+      "visible": true,
+      "bounds": {
+        "x": 274.861572265625,
+        "y": 456.9768981933594,
+        "width": 83.796875,
+        "height": 22.875,
+        "top": 456.9768981933594,
+        "right": 358.658447265625,
+        "bottom": 479.8518981933594,
+        "left": 274.861572265625
+      }
+    },
+    {
+      "text": "The librarian",
+      "visible": true,
+      "bounds": {
+        "x": 1052.7127685546875,
+        "y": 574.8023071289062,
+        "width": 101.34375,
+        "height": 22.875,
+        "top": 574.8023071289062,
+        "right": 1154.0565185546875,
+        "bottom": 597.6773071289062,
+        "left": 1052.7127685546875
+      }
+    },
+    {
+      "text": "The library",
+      "visible": true,
+      "bounds": {
+        "x": 398.2013854980469,
+        "y": 325.0113220214844,
+        "width": 88.28125,
+        "height": 22.875,
+        "top": 325.0113220214844,
+        "right": 486.4826354980469,
+        "bottom": 347.8863220214844,
+        "left": 398.2013854980469
+      }
+    }
+  ],
+  "markers": [],
+  "drew": {
+    "surface": "forest",
+    "stories": [
+      "story_c91d064b1240",
+      "story_737e634135b5",
+      "story_32161da86c70",
+      "story_6b20406fd95f",
+      "story_6ceeb28cef5d",
+      "story_f07e4a2c4ddb",
+      "story_02c09607a566"
+    ],
+    "capabilities": [
+      "capability_a98ff2e91958",
+      "capability_f559923202f8",
+      "capability_d5c48ab4f555",
+      "capability_95d5c9f623b1",
+      "capability_d348e1451640",
+      "capability_6afec2acf58f",
+      "capability_1a26adf230ca",
+      "capability_f9362ed15e30",
+      "capability_f226569a0281",
+      "capability_57d076baeaee",
+      "capability_e1a3b254e51b",
+      "capability_351e5c4fba98",
+      "capability_5e5b866f04c3",
+      "capability_34fc460338e9",
+      "capability_350391d91948",
+      "capability_7f5fedc884e7",
+      "capability_6da9b03f3cdc",
+      "capability_8e520b330cbf",
+      "capability_a6d1c58c31e5",
+      "capability_0fce064dc3aa",
+      "capability_35987c7c3ada",
+      "capability_6bb5e0442a10",
+      "capability_8cb2767e3664",
+      "capability_c1db2826e6e1",
+      "capability_37acc5e8f27c",
+      "capability_88a79f1d616a",
+      "capability_a7b373bb38f5",
+      "capability_3663af2e57ea",
+      "capability_e195caca52f1",
+      "capability_87bf28803cbd",
+      "capability_2908746c28b3",
+      "capability_e16d107be1f4",
+      "capability_85f7262e74c3",
+      "capability_a3c6b5789944",
+      "capability_2b4375e1cdf3",
+      "capability_61e0d0fa4848",
+      "capability_e3e884f57a0f",
+      "capability_cfa2acd69d5c",
+      "capability_b33b1f2ad9fe",
+      "capability_b72a68accce6",
+      "capability_db6168dc3602",
+      "capability_644d64f2fe33",
+      "capability_e701b33f61d1",
+      "capability_35655a448fd1",
+      "capability_4b2ce3f97da8",
+      "capability_b61cd815c8a9",
+      "capability_d5761b22f80d",
+      "capability_4e28a73643cd",
+      "capability_faf568630048",
+      "capability_2a7585e89da7",
+      "capability_1d3934231c59",
+      "capability_c9966c8f881a",
+      "capability_1fda4f36d538"
+    ],
+    "labels": [
+      "The agent link",
+      "The app",
+      "The arc surface",
+      "The command line",
+      "The forest",
+      "The librarian",
+      "The library"
+    ],
+    "trees": [
+      {
+        "capability": "capability_a98ff2e91958",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f559923202f8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d5c48ab4f555",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_95d5c9f623b1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d348e1451640",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6afec2acf58f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1a26adf230ca",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f9362ed15e30",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f226569a0281",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_57d076baeaee",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e1a3b254e51b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_351e5c4fba98",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5e5b866f04c3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_34fc460338e9",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_350391d91948",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7f5fedc884e7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6da9b03f3cdc",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8e520b330cbf",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a6d1c58c31e5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_0fce064dc3aa",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_35987c7c3ada",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6bb5e0442a10",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8cb2767e3664",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c1db2826e6e1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_37acc5e8f27c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_88a79f1d616a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a7b373bb38f5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3663af2e57ea",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e195caca52f1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_87bf28803cbd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2908746c28b3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e16d107be1f4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_85f7262e74c3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a3c6b5789944",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2b4375e1cdf3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_61e0d0fa4848",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e3e884f57a0f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_cfa2acd69d5c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b33b1f2ad9fe",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b72a68accce6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_db6168dc3602",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_644d64f2fe33",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e701b33f61d1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_35655a448fd1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4b2ce3f97da8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b61cd815c8a9",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d5761b22f80d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4e28a73643cd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_faf568630048",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2a7585e89da7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1d3934231c59",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c9966c8f881a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1fda4f36d538",
+        "form": "seedling"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "sphereRadiusPixels": 385.77860169491527,
+  "view": "globe",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
+    "[.WebGL-0x389c00158200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  ]
+}

@@ -58,8 +58,7 @@ for (const [name, middle, zoom, water] of [['0-today', false, false, false], ['1
         if (zoom) contents = fit(contents);
         if (water) contents = sea(contents);
         // A read-only view of the actual mounted R3F objects, never a replacement drawing.
-        contents = contents.replace('camera.lookAt(0, 0, 0);', 'camera.lookAt(0, 0, 0);')
-          .replace('    <Lights />', `    <Lights />\n    <CaptureProbe />`);
+        contents = contents.replace('    <Lights />', `    <Lights />\n    <CaptureProbe />`);
         contents += '\nfunction CaptureProbe() { const state = useThree(); globalThis.__globe = state; return null; }\n';
         return { contents, loader: 'tsx', resolveDir: path.dirname(path.join(root, canvasPath)) };
       });

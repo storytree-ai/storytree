@@ -72,11 +72,12 @@ flowchart BT
 
 Build order: 1 → 2 → 3 → 4 → 5 (4 and 5 in either order).
 
-**What is built so far.** Capability 1 at part grain (contracts 1.1 to 1.3), and the live reading
-of capability 3, in `packages/arc-surface` (`@storytree/arc-surface`). The forest reads both
-(`stories/forest.md`, ADR-0632 D3), and the forest's lane built them here, under this tree's names. The increment and arc
-grains of Work states, and capabilities 2, 4 and 5, wait for the library's and the agent link's
-revised trees, which store and read increments, questions and waits (ADR-0638 D4).
+**What is built so far.** Capability 1 at part, increment and arc grain (contracts 1.1 to 1.6),
+and the live reading of capability 3, in `packages/arc-surface` (`@storytree/arc-surface`). The
+forest reads the part states and live reading (`stories/forest.md`, ADR-0632 D3), which its lane
+built here under this tree's names. Capabilities 2, 4 and 5 and the overlay remain to be built.
+Their library and agent-link prerequisites now store and read increments, questions and waits
+(ADR-0638 D4).
 
 ---
 
@@ -107,6 +108,11 @@ blocked, claimed, idle, quiet, parked or closed.
 - **As built (part grain):** `workStates(lines)` in `packages/arc-surface`, a pure function of the
   agent activity log's lines, so the page can run it. A part's state follows its own claimed and
   landed lines, the latest winning; a story's follows its parts.
+- **As built (increment and arc grains):** `incrementState(fields, facts)` and
+  `arcState(lifecycle, facts)` in the same package. They consume the library's current wait and
+  question readings and the agent link's claims. Closed increments keep their disposition; open
+  increments keep started progress separately from who holds them. Arc states use the approved
+  precedence, including idle holders.
 
 **Contracts:**
 1. A part no line names is planned. A claim makes it in progress, a landed report makes it landed,

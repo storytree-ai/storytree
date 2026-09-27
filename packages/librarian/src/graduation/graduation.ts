@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Graduation (stories/librarian.md): a durable lesson moves out of the agent's
+ * Capability 4 · Graduation (the librarian story): a durable lesson moves out of the agent's
  * private memory into a principle, process or definition, and then the memory is deleted. Whether a
  * memory is durable is the agent's judgement (0.2's ADR-0095 D8); this is the worklist it judges
  * from, the park that keeps a reviewed memory quiet for 60 days (0.2's ADR-0202), the write that

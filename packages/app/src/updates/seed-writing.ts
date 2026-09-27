@@ -1,6 +1,7 @@
 /**
  * Capability 4 · Updates: the restart into a new build waits while a seed is writing the app's
- * library. `pnpm seed:library` writes into the running app's database, holding its writing lock on
+ * library. A library script that writes (`pnpm check:own-health`, `pnpm library:restore`) writes into
+ * the running app's database, holding its writing lock on
  * a connection it names SEED_CONNECTION; restarting stops that database, so the updater asks first.
  */
 import pg from "pg";

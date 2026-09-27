@@ -1,5 +1,5 @@
 /**
- * Capability 9 · Knowledge entrances: one test per contract 9.1-9.4 in stories/library.md, each
+ * Capability 9 · Knowledge entrances: one test per contract 9.1-9.4 in the library story, each
  * run on BOTH backends, as capability 6's tests are:
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;

@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (stories/forest.md): the plan the page draws the 3D forest from.
+ * Capability 3 · Story node render (the forest story): the plan the page draws the 3D forest from.
  * Every story node is an island at its place, carrying its grove, and named; what the page drew is
  * said as the smoke check reads it; a change redraws only the islands it changed; and a click on the
  * ground picks the island there. The library's tree and history, and the agent log's lines, are

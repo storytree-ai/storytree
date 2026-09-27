@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project libraries, contracts 1.6 to 1.8 (stories/library.md): a project's
+ * Capability 1 · Project libraries, contracts 1.6 to 1.8 (the library story): a project's
  * snapshot, and restoring one only into an empty project (ADR-0641 D2 step 4, choice B1). Through
  * the public API, against the real Postgres `pnpm test` provides.
  */

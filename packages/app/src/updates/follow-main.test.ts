@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Updates: the app follows merged main, contracts 4.1 and 4.2 in stories/app.md
+ * Capability 4 · Updates: the app follows merged main, contracts 4.1 and 4.2 in the app story
  * (ADR-0637 D2, the half for storytree 0.3's own development). Against real git: a throwaway
  * "origin" repository stands in for GitHub, and the build is a stand-in that records where it ran,
  * since a real one installs and bundles the whole app.

@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Graduation: one test per contract 4.1-4.4 in stories/librarian.md. The memory
+ * Capability 4 · Graduation: one test per contract 4.1-4.4 in the librarian story. The memory
  * folders are throwaway ones, laid out as Claude Code keeps its own; the library is a fresh
  * project's on the real Postgres `pnpm test` provides.
  */

@@ -1,6 +1,6 @@
 /**
  * Capability 1 · Lifecycle: the app keeps running in the background, contract 1.7 in
- * stories/app.md (ADR-0636 D3). It is plain logic, apart from Electron, so it is tested without it;
+ * the app story (ADR-0636 D3). It is plain logic, apart from Electron, so it is tested without it;
  * apps/desktop wires it to the window's close, the tray's menu and a second start of the app.
  */
 import assert from "node:assert/strict";

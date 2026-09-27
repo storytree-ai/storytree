@@ -1,4 +1,4 @@
-/** Capability 4 · Look inside and inspect a note (stories/knowledge-core.md). */
+/** Capability 4 · Look inside and inspect a note (the knowledge core story). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

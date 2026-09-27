@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Work states (stories/arc-surface.md), at part grain: one state for each part, from
+ * Capability 1 · Work states (the arc surface story), at part grain: one state for each part, from
  * the agent activity log's claimed and landed lines, and one for each story, from its parts. The
  * log's lines are written out here as the log hands them out, so no database is needed.
  */

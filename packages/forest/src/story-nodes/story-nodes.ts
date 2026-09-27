@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Story nodes (stories/forest.md): the forest keeps one story node for every story
+ * Capability 1 · Story nodes (the forest story): the forest keeps one story node for every story
  * in the project: where the story sits in the forest, with its title and its overall health. Nodes
  * follow the library, so a new story appears as a new node and a retired story's node goes, with
  * nothing arranged by hand.

@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Surfaces (stories/app.md): what the app answers when the page asks. The page runs
+ * Capability 3 · Surfaces (the app story): what the app answers when the page asks. The page runs
  * sandboxed and cannot reach the database, so every read a surface makes comes through here: the
  * projects, a project's tree, the two the live reading asks for (ADR-0634 D3), the library's
  * changes and the agent activity log's new lines since a point, and the two the forest's shelves

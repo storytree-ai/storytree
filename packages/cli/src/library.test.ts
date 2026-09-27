@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Library: one test per contract in stories/cli.md, each running the real, built
+ * Capability 3 · Library: one test per contract in the command line story, each running the real, built
  * `storytree` command against a throwaway project.
  */
 import assert from "node:assert/strict";

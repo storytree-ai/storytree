@@ -1,5 +1,5 @@
 /**
- * The one join between 0.3's forest and 0.2's drawing engine (stories/forest.md, capability 3):
+ * The one join between 0.3's forest and 0.2's drawing engine (the forest story, capability 3):
  * 0.3 places each story node on its spiral (P1) and grows its grove (G1); 0.2's engine draws the
  * ground, coast and kit trees from islands it is handed. These tests hold what the join decides:
  * where each island's ground lands, that every capability gets its own parcel of it, and which of

@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions (stories/library.md): the only data actions the library
+ * Capability 2 · Library transactions (the library story): the only data actions the library
  * allows. A record is saved, fetched, listed by type, edited field by field, or retired with a
  * reason. Every change is all-or-nothing and is written first to an append-only history, so
  * nothing is ever truly erased.

@@ -1,6 +1,6 @@
 # Arc surface over the forest
 
-Capability 3 of `stories/arc-surface.md`, 2026-09-27. This captures the actual desktop renderer,
+Capability 3 of the arc surface story, 2026-09-27. This captures the actual desktop renderer,
 HTML and CSS with the app's `pageReads` backed by a fresh, isolated Postgres. The fixture has one
 story and five arcs: waiting on an owner question, claimed work with a landing, a queued release,
 a parked arc, and a closed experiment. All fixture data is discarded after the run.

@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Hooks: one test per contract 3.1-3.8 in stories/agent-link.md.
+ * Capability 3 · Hooks: one test per contract 3.1-3.8 in the agent link story.
  *
  * The hook runs the way a harness runs it: the built command (`storytree-hook.mjs`, a plain Node
  * script) started directly, with no shell, the hook's input on its stdin. The inputs are real ones,

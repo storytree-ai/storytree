@@ -23,6 +23,7 @@ cover is `decisions/cli-capability-tree.md`. ADR-0643 D5 made the command line a
 - **M1:** ADR-0643's leave-outs n2 (`question check`), n3 (`worktree create`) and n5 (`library
   related --unlinked`) are re-measured by their lanes. The command line adds the matching verb for
   anything the owner brings back.
+  The owner brought n3 back as K1 (ADR-0653): capability 11, `storytree workspace`.
 
 **Not brought over: did not last in 0.2** (ADR-0639; the drafting session's call, ADR-0645 D5):
 `library repoint`, `library --check`, `library artifact retire` (`question retire` stays), `arc
@@ -64,6 +65,7 @@ flowchart BT
   F8["8 · Doctor"]
   F9["9 · Friction and re-steers"]
   F10["10 · Plan view"]
+  F11["11 · Workspace"]
   F2 --> F1
   F3 --> F2
   F4 --> F2
@@ -73,6 +75,7 @@ flowchart BT
   F7 --> F1
   F8 --> F1
   F10 --> F1
+  F11 --> F1
 ```
 
 Build order: 1, 2, 3; then 4, 5 and 6 as the library's 10 to 13 land; then 7 and 8 as the agent
@@ -335,3 +338,30 @@ that story.
 **Contracts:**
 1. A story with a capability and a contract prints in order with "agent says passing".
 2. An unknown story says so.
+
+## 11 · Workspace
+
+`storytree workspace <increment> --reason <text>` makes a workspace already claimed for that work,
+in one step: a fresh branch from `origin`'s main as just fetched, a git worktree for it where the
+agent's harness keeps its own, and the claim, held by the agent session the command runs in. It is
+refused if the work is held or waiting.
+
+- **Depends on:** 1, and the agent link's `makeWorkspace` (its 5.12-5.14).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0653 D1, the owner's K1):** making a workspace for a piece of work and
+    claiming it are one step, refused if the work is held or waiting, so a workspace is never made
+    and left unclaimed. It is the agent link's claims tool; this is a front door onto it.
+- **As built:** `packages/cli/src/families/workspace.ts` hands the folder, the id and the reason to the agent link's
+  `makeWorkspace`, and prints the folder, the branch and how to enter it. The claim is the shell's
+  agent session's (CLAUDE_CODE_SESSION_ID, else CODEX_THREAD_ID, as capability 2 reads them): a
+  claim belongs to the session that will work in the workspace, so from a shell no agent runs it is
+  refused, saying to run it from the agent. This is the only claiming verb here; the board (7) stays
+  read only.
+
+**Contracts:**
+1. From an agent's shell, `workspace <increment> --reason` makes a worktree on a fresh branch from
+   `origin`'s main and claims the increment for that session on that branch, naming the folder to
+   work in.
+2. Work another live session holds is refused naming its holder, and no worktree is made.
+3. From a shell no agent session runs, it is refused saying to run it from the agent, and nothing is
+   claimed.

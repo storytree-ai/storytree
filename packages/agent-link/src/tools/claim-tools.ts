@@ -1,12 +1,13 @@
 /**
  * The claiming and reporting tools: claim or release a capability or an increment (claiming an
  * increment starts it, ADR-0643 D1), report a contract red or green, and report a capability
- * landed. A claim on waiting work is refused, naming what it waits for (W2, ADR-0643 D2).
+ * landed. A claim on waiting work is refused, naming what it waits for (W2, ADR-0643 D2). And make
+ * a workspace already claimed for a piece of work, in one step (ADR-0653, the owner's K1).
  */
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
-import { claim, currentBranch, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "../claims/index.js";
+import { claim, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext } from "../claims/index.js";
 import { refusalOf } from "./answers.js";
 import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
 import { quoted } from "./text.js";
@@ -36,6 +37,34 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
           ? "Write each contract's failing test and report it red, make it pass and report it green, then land it."
           : "It is active now. When it is done, close it with its outcome and its pull request.";
       return { text: `You hold ${name} now.${taken} ${next}`, data: { held: true } };
+    },
+  );
+
+  define(
+    "make_workspace",
+    "Make a workspace for the increment you are about to drive, already claimed: a fresh branch from the project's main as just fetched, a worktree for it where your harness keeps its own, and your claim on it, in one step. Refused, with nothing made, if another live session holds it or it waits on other work; then pick other work.",
+    z.object({ ...part, reason: z.string().min(1).describe("One line: what you are about to do") }),
+    async ({ capability, increment, reason }, call) => {
+      const id = capability ?? increment;
+      if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { made: false } };
+      const made = await makeWorkspace(claimContext(call), id, reason);
+      if (!made.ok) {
+        const text =
+          made.refused === "yours"
+            ? `You already hold ${await titleOf(call.library, id)}${made.claim.branch === undefined ? "" : `, on branch ${made.claim.branch}`}: work there, or release it first.`
+            : made.refused === "no-workspace"
+              ? `No workspace was made, and nothing was claimed: ${made.why}.`
+              : await refusalText(call.library, id, made);
+        return { text, refused: true, data: { made: false } };
+      }
+      const enter =
+        call.caller.harness === "claude-code"
+          ? `Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it`
+          : `Work in ${made.folder} from now on, as your working folder`;
+      return {
+        text: `Made a workspace at ${made.folder}, on branch ${made.branch} from ${made.base} as just fetched, and you hold ${await titleOf(call.library, id)} there. ${enter}, and set it up as this project does at session start (install its packages).`,
+        data: { made: true, folder: made.folder, branch: made.branch, base: made.base },
+      };
     },
   );
 
@@ -99,7 +128,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
   );
 }
 
-function claimContext({ log, library, project, caller, folder, quietMs }: Call): ClaimContext {
+function claimContext({ log, library, project, caller, folder, quietMs }: Call): ClaimContext & { readonly folder: string } {
   const branch = currentBranch(folder);
   return { log, library, project, ...lineOf(caller), folder, quietMs, ...(branch === undefined ? {} : { branch }) };
 }

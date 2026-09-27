@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card (stories/agent-link.md): one short text, a screen or
+ * Capability 7 · Instructions, the habits card (the agent link story): one short text, a screen or
  * less, that teaches the agent storytree's habits. The tool server hands it to the agent at the
  * start of every session, as its instructions; Claude Code and Codex both read it from there.
  *

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Unclaimed work (stories/forest.md): the edits and commands of sessions holding no
+ * Capability 6 · Unclaimed work (the forest story): the edits and commands of sessions holding no
  * claim, listed beside the forest with a count, and never guessed onto a story. The agent log's
  * lines and the library's tree are written out here as the app hands them to the page, so no
  * database is needed.

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge and memory: one test per contract 6.1-6.5 in stories/library.md, each
+ * Capability 6 · Knowledge and memory: one test per contract 6.1-6.5 in the library story, each
  * run on BOTH backends, as capabilities 2-4 are:
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
@@ -7,7 +7,7 @@
  *   `pnpm test` provides and named with uniqueProjectName(). Its database is dropped afterwards,
  *   pass or fail. Other test files share that server, so a test only ever reads its own project.
  *
- * Notes link only to other notes (capability 9, stories/library.md). The few work records these
+ * Notes link only to other notes (capability 9, the library story). The few work records these
  * tests need are written straight through the typed layer (capability 3), since capability 6
  * depends on 3 alone.
  * Whether anything was written is judged one layer down, through the same project's

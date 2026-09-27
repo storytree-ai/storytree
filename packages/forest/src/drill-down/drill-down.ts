@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Drill-down (stories/forest.md): what the panel a click on a story node opens says.
+ * Capability 4 · Drill-down (the forest story): what the panel a click on a story node opens says.
  * It explains the story in plain words: its sentences, then each capability's sentences with its
  * health as the agent reports it, and its contracts on request; and a small diagram of how the
  * capabilities connect, each pointing at the ones it builds on, including any in other stories,

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge and memory (stories/library.md): alongside the plan, the library keeps
+ * Capability 6 · Knowledge and memory (the library story): alongside the plan, the library keeps
  * what the project has learned: memory notes, decisions and definitions of terms, together
  * "notes". A note links to the other notes it relates to, and is found again by searching its
  * words.

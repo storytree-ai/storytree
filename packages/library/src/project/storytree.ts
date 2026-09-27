@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project libraries (stories/library.md): one Postgres server holds many
+ * Capability 1 · Project libraries (the library story): one Postgres server holds many
  * projects, each in its own database, created the first time the project is opened. The server is
  * at a URL, or it is a Cloud SQL instance reached with Google sign-in (capability 8): either way it
  * is reached through a ServerAccess, and everything here works the same on both.

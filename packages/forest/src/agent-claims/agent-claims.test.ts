@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Agent capability claims (stories/forest.md): which agent holds which capability
+ * Capability 5 · Agent capability claims (the forest story): which agent holds which capability
  * right now, with its reason, as a marker at that capability's tree. The agent log's lines are
  * written out here as the app hands them to the page, with a stand-in clock, so no database is
  * needed.

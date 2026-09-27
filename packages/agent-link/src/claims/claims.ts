@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Claims (stories/agent-link.md): before building a capability, the agent claims it
+ * Capability 5 · Claims (the agent link story): before building a capability, the agent claims it
  * with a one-line reason, and its session's edits count toward it. One live session holds a
  * capability at a time: a second is refused with the holder's name and picks other work, with no
  * queue (the owner's C1, ADR-0626 D3). A claim ends when its holder lands or releases it, when the

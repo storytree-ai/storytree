@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Catalogue (stories/librarian.md): each note that lands is new, or an edit to the
+ * Capability 3 · Catalogue (the librarian story): each note that lands is new, or an edit to the
  * note that covers it. Whether one covers it, whether a piece is shared by two current notes, and
  * whether a note fails the blind test are the agent's judgements; what is code is the worklist that
  * puts each new note beside what might already cover it, and the one rule a write can keep: a note

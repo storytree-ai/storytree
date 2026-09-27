@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Arcs and increments: one test per contract 4.1-4.4 in stories/cli.md, each running
+ * Capability 4 · Arcs and increments: one test per contract 4.1-4.4 in the command line story, each running
  * the real, built `storytree` command. `arc list` waits on the library's list(kind) and has no
  * contract of its own.
  */

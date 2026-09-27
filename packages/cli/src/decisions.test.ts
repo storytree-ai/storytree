@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Decisions: one test per contract in stories/cli.md, each running the real, built
+ * Capability 6 · Decisions: one test per contract in the command line story, each running the real, built
  * `storytree` command. Contract 6.3 (a superseded decision drops out of `adr list --current`) waits
  * on the library's list(kind) on its public API (0-3-library-writer-and-public-reads), and is
  * written when that lands.

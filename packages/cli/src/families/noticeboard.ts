@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Board, read only (stories/cli.md): who is on what right now, each claim on an
+ * Capability 7 · Board, read only (the command line story): who is on what right now, each claim on an
  * increment or a capability with its agent's harness, window and reason, and whether it is live or
  * idle; or who holds one piece of work. Claiming and releasing stay with the agents' tools.
  *

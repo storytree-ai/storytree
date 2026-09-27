@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Setup check: one test per contract 8.1-8.5 and 8.7 in stories/agent-link.md. Contract 8.6,
+ * Capability 8 · Setup check: one test per contract 8.1-8.5 and 8.7 in the agent link story. Contract 8.6,
  * the live check with a real Claude Code and a real Codex, is subscription-billed, and is run once
  * by hand as the story's final proof rather than here.
  *

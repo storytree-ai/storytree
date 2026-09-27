@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Rounds (stories/librarian.md): when the librarian's pass runs, and what it looks
+ * Capability 6 · Rounds (the librarian story): when the librarian's pass runs, and what it looks
  * at. Graduation is due at every landing, because only this session knows what it learned; the
  * rest is due when the library's change feed since the session started shows a write to a curated
  * kind, and when there is no start to read from, since the trigger fires when unsure (0.2's

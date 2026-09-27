@@ -1,6 +1,6 @@
 /**
  * The page's glue: it asks the main process (through the preload's functions) for the projects, and
- * draws the project on show as its 3D forest (stories/forest.md, capability 3), kept current by the
+ * draws the project on show as its 3D forest (the forest story, capability 3), kept current by the
  * arc surface's live reading (@storytree/arc-surface). `data-state` on the body says where it got to
  * (loading, ready, empty, missing, error), and `data-drew` what the forest drew, both of which the
  * smoke check reads. `data-selected` names the story node a click selected.

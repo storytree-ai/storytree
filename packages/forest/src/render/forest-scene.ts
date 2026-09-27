@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Story node render (stories/forest.md): the plan the page draws the 3D forest from.
+ * Capability 3 · Story node render (the forest story): the plan the page draws the 3D forest from.
  * The page itself (apps/desktop) only turns this plan into meshes, so everything the forest decides
  * about what is drawn where is here, and tested without a browser.
  *

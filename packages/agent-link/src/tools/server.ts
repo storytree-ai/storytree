@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools, the MCP server (stories/agent-link.md): the toolbox the agent calls
+ * Capability 6 · Agent tools, the MCP server (the agent link story): the toolbox the agent calls
  * to plan work, see the plan and who is on what, claim, report red, green and landed, and search,
  * read and write notes. Each tool is a thin wrapper over the library's API and the claims, and
  * answers in a short plain sentence the agent can act on, with what it made or found as data too.

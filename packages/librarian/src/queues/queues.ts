@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Queues (stories/librarian.md): open questions and friction are looked at on each
+ * Capability 5 · Queues (the librarian story): open questions and friction are looked at on each
  * pass, and nothing is closed without a reason. There is no question lease (ADR-0644 D3): every open
  * question is on every worklist. The friction drain is 0.2's bounded one (ADR-0168 D4): at most the
  * three oldest reports not yet routed, never one the session's own branch filed, so the librarian

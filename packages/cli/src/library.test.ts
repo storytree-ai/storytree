@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Library: one test per contract in stories/cli.md, each running the real, built
+ * Capability 3 · Library: one test per contract in the command line story, each running the real, built
  * `storytree` command. Contracts 3.1 (read), 3.2 (edit) and 3.4 (history) wait on the library's
  * `get`, `list` and `history` on its public API (0-3-library-writer-and-public-reads), and are
  * written when those land.

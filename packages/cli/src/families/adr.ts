@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Decisions (stories/cli.md): record a new decision with the next number, its
+ * Capability 6 · Decisions (the command line story): record a new decision with the next number, its
  * status, who decided it in their own words, and what it supersedes. Pull a decision out as a
  * markdown file, edit it, push it back, and write its composed statement (the owner's C2).
  *

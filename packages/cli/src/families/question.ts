@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Questions (stories/cli.md): raise a question for the owner on an arc, optionally
+ * Capability 5 · Questions (the command line story): raise a question for the owner on an arc, optionally
  * holding increments on it; settle it with his answer in his words and the decision that carried
  * it, retire one that was wrong, or list the open ones.
  *

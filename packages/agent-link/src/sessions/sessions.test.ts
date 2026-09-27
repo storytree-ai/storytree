@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Sessions: one test per contract 4.1-4.5 in stories/agent-link.md. Lines are written
+ * Capability 4 · Sessions: one test per contract 4.1-4.5 in the agent link story. Lines are written
  * to the real agent activity log on the Postgres `pnpm test` provides, under projects named with
  * uniqueProjectName(), and the sessions are read back from it, judged at a chosen time.
  */

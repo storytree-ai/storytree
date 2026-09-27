@@ -1,5 +1,5 @@
 /**
- * The drill-down's panel (stories/forest.md, capability 4): @storytree/forest's drillDown, as HTML.
+ * The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
  * It explains the story in plain words, then each capability with its health as the agent reports
  * it, and its contracts on request, with a small diagram of which capability builds on which. Inside
  * it, the story's and each capability's shelf of front covers shows as spines (capability 7), and the

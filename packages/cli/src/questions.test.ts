@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Questions: one test per contract 5.1-5.4 in stories/cli.md, each running the real,
+ * Capability 5 · Questions: one test per contract 5.1-5.4 in the command line story, each running the real,
  * built `storytree` command.
  */
 import assert from "node:assert/strict";

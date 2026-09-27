@@ -1,6 +1,6 @@
 /**
  * Capability 6 · Agent tools (the MCP server): one test per contract 6.1-6.8 in
- * stories/agent-link.md. A test client talks to the server inside the test itself, over an
+ * the agent link story. A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
  * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
  * call's `_meta` carries its id as that harness sends it.

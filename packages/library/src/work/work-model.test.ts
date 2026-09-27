@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model: one test per contract 4.1-4.5 in stories/library.md, each run on
+ * Capability 4 · Work model: one test per contract 4.1-4.5 in the library story, each run on
  * BOTH backends, as capabilities 2 and 3 are:
  *
  * - memory: a WorkModel over SchemaRecords over a fresh MemoryTransactions;

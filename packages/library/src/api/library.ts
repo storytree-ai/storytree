@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Library API (stories/library.md): one small, fixed list of functions is the only
+ * Capability 7 · Library API (the library story): one small, fixed list of functions is the only
  * way anything outside the library reads or writes it. The agent link, the arc surface, the forest
  * and the desktop app all call these, and changesSince lets them see what just changed without
  * re-reading everything.

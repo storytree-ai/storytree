@@ -1,5 +1,5 @@
 /**
- * The forest's 3D picture (stories/forest.md, capability 3 · Story node render): 0.2's own forest
+ * The forest's 3D picture (the forest story, capability 3 · Story node render): 0.2's own forest
  * canvas (`ForestWorldCanvas`, ported whole in @storytree/forest-world), fed @storytree/forest's plan.
  * Every story node is one of 0.2's islands at its place on the spiral, its ground, coast and kit
  * trees drawn as 0.2 drew them, lit by 0.2's calibrated light. It pans and zooms as 0.2's did.

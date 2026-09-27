@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Rounds: contracts 6.1-6.2 in stories/librarian.md, each in a fresh project's
+ * Capability 6 · Rounds: contracts 6.1-6.2 in the librarian story, each in a fresh project's
  * library on the real Postgres `pnpm test` provides. Contracts 6.3-6.5 need the agent link's
  * registration point (ADR-0643 D6), which has not landed.
  */

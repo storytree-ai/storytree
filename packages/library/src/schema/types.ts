@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Data schema (stories/library.md): every record has a declared type with a fixed
+ * Capability 3 · Data schema (the library story): every record has a declared type with a fixed
  * set of fields, and is stamped with the schema version it was written on.
  *
  * This file declares the types, each at the version SCHEMA_VERSIONS gives it. It describes field SHAPES only: whether the id

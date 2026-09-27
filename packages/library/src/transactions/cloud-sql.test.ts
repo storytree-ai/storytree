@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Cloud connection (GCP), contract 8.1 in stories/library.md: capability 2's
+ * Capability 8 · Cloud connection (GCP), contract 8.1 in the library story: capability 2's
  * behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in.
  * Each test gets a fresh project, opened through the cloud path (connect({ cloudSql })) and named
  * with uniqueProjectName(), and a PgTransactions on that project's pool. Its database is dropped on

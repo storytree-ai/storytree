@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Links (stories/librarian.md): a note links to another only where it rests on it.
+ * Capability 1 · Links (the librarian story): a note links to another only where it rests on it.
  * A link means "rests on" and nothing weaker; a definition rests only on the decision that created
  * its term; friction and re-steers carry no links. Neighbours nobody linked are found with the
  * library's plain search (ADR-0644 D3, R), so this capability adds no search of its own.

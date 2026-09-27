@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Decision log (stories/librarian.md): every accepted decision stays true in full.
+ * Capability 2 · Decision log (the librarian story): every accepted decision stays true in full.
  * The dividing question is the agent's: did the decision change? No, and it is corrected in place
  * (`correct`); yes, and a successor supersedes it (`supersede`); a decision that narrows another
  * leaves a note in it (`annotate`). Finished business nothing points at is retired (capability 3's

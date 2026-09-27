@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Data schema: one test per contract 3.1-3.6 in stories/library.md, plus one
+ * Capability 3 · Data schema: one test per contract 3.1-3.6 in the library story, plus one
  * robustness check, each run on BOTH backends. SchemaRecords is a layer over any Transactions,
  * so it must behave the same over each:
  *

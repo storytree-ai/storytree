@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DoubleSide, Quaternion, ShaderMaterial, Vector3 } from 'three';
+import { DoubleSide, Quaternion, Vector3 } from 'three';
 import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 import { LIGHT_DIRECTION } from '../shade-ladder.js';
 import { landHeightRange } from '../land-relief.js';
@@ -50,7 +50,7 @@ test('3.5 the glass has a nearly clear middle, retaining the 80% far-side minimu
   try {
     const material = surface.material;
     assert.ok(material.transparent);
-    const opacity = material instanceof ShaderMaterial ? material.uniforms.opacity!.value as number : material.opacity;
+    const opacity = material.uniforms.opacity!.value as number;
     assert.ok(opacity > 0 && opacity < 1, 'the ball still has a visible, transparent surface');
     // The owner found #90 too opaque: each shell face blends over the far side.
     const farSideTransmission = (1 - opacity) ** 2;

@@ -37,8 +37,7 @@ As built, the 36 directions use the spike's spiral, with no live repacking. The 
 corrected before first landing because a fresh seed's different ids made its first two shores
 overlap under the look-only table. Both seed shapes and all 36 sample shores now pass. The page uses
 `placeOnPackedGlobe`. The even-spread implementation is retired; `placeOnGlobe` remains a
-compatibility alias for existing callers. The shell uses light grey, 0.08 opacity, both faces,
-and no depth writing. It keeps ray hits for the near-side labels and picking rule.
+compatibility alias for existing callers. The shell uses the glass tuning below, both faces, and no depth writing. It keeps ray hits for the near-side labels and picking rule.
 
 **Shell tuning, 2026-09-27.** After seeing #90's 0.18 shell in the real app, the owner said
 “needs to be more transparent”. Increment `0-3-planet-shell-more-transparent` lowers opacity to
@@ -49,6 +48,24 @@ or opacity. The ball's outline remains visible in the
 [front and quarter-turn comparisons](../apps/desktop/src/forest/evidence/shell/README.md).
 The future core's drawing is still unbuilt; these captures show the seeded islands through the
 shell, with no core placeholder.
+
+**Glass tuning, 2026-09-27.** After #93 the owner said “doesnt look seethrough, maybe try
+making it look like a glass ball, if thats hard dw about it its not something we need to
+worry about right now”. Increment `0-3-planet-glass-shell` tunes D2 on that direct instruction.
+The same shell mesh now has a small shader: a nearly clear centre, a light grey Fresnel rim,
+and one soft highlight aligned with the existing L1 lamp. Only the near face carries the
+highlight, so there is no second reflection behind it. The orthographic view and view-space
+normal keep the highlight with the light while the globe turns.
+
+The centre's base opacity is 0.012 (97.6% background contribution through two faces before
+the highlight); the highlight is capped at 0.16 added opacity. The shader keeps the existing
+back-face/front-face draws and ray hits, with depth writing off. It needs no transmission
+buffer, refraction, post-processing, extra mesh or render target. Placement, islands, kit,
+light, labels, claims and picking retain their existing code. The earlier 80% test remains,
+with a 95% clear-centre base target added red then green; the rim and highlight are judged in
+the [matched seeded captures](../apps/desktop/src/forest/evidence/glass/README.md), with an
+actual shader pixel readback checking the composited transparency. These are shell changes
+only; the knowledge core's separate “Look inside” view is unchanged.
 
 The clearance proof is bounded to the look's seed, a fresh seven-story seed, and all 36 sample shores at
 their real sizes, including beaches (4–13 capabilities, original ids). It does not inherit W2's

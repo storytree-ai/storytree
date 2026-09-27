@@ -206,7 +206,8 @@ place of today's plain list.
     Pure tests prove opening toward failure, a hidden island's marker bringing it to the front,
     and no marker for a failure already in front. The globe page adds the drawing in its own lane.
   - **Packed land on a see-through grey ball (ADR-0648):** the globe has a light grey transparent
-    shell, with no sea, bridges or filled continent. The far side shows through empty areas;
+    shell with a clear middle, a bright rim and one soft highlight under L1 (the owner’s
+    glass-ball tuning after #93), with no sea, bridges or filled continent. The far side shows through empty areas;
     names, claims and clicks keep their near-side rule. The islands and kit pines keep their
     existing drawing, and L1 keeps the light over the viewer's shoulder. The knowledge core's
     interior drawing is still unbuilt. See [the decision](../decisions/planet-packed-see-through.md).
@@ -237,13 +238,14 @@ place of today's plain list.
 
 - **Packed globe, as built:** the page's `planetLayout` selects the frozen packed spots, and
   `PlanetWorldCanvas` mounts each unchanged island as a tangent plate above a radius-160 shell.
-  The shell is light grey (`#bfbfbf`), double-sided, at 0.08 opacity, with depth writing off, so
-  far land and a future core can show through it. The owner asked for more transparency after
-  #90: the two faces now retain 84.6% of the far-side blend contribution, up from 67.2%.
-  Its ray hits still hide back-side labels and
-  claims and stop clicks selecting a hidden island. Opening turns, edge markers, story selection
-  and the flat Forest button keep working. [Headless Chromium comparisons](../apps/desktop/src/forest/evidence/shell/README.md)
-  show the actual seeded page before and after tuning, with the renderer named.
+  A small shader on the same double-sided shell makes it read as glass: a nearly clear middle,
+  a brighter Fresnel rim, and one soft highlight from L1's lamp over the viewer's shoulder.
+  The centre's base opacity is 0.012; the highlight stays faint enough to retain at least 80%
+  of the far-side contribution through the middle. Depth writing stays off. Its ray hits still
+  hide back-side labels and claims and stop clicks selecting a hidden island. Opening turns,
+  edge markers, story selection and the flat Forest button keep working.
+  [Headless Chromium comparisons](../apps/desktop/src/forest/evidence/glass/README.md) show the
+  seeded page before (#93) and after this tuning, with the renderer named.
 
 **Contracts:**
 1. The app's smoke check opens a seeded project and finds one story node per story, each drawn with
@@ -252,8 +254,8 @@ place of today's plain list.
 3. Clicking a story node selects it.
 4. Each story node shows its story's name, readable as the camera pans and zooms (ADR-0636
    D4: in 0.2 the names lived on the 2D map the owner cut, so the 3D forest carries them).
-5. The globe's surface is a light grey transparent shell, admitting the far side and the future
-   core through it, with no opaque sea.
+5. The globe’s glass shell has a nearly clear middle, admitting at least 80% of the far-side
+   contribution through both faces, with a bright rim and one soft highlight; there is no opaque sea.
 
 ## 4 · Drill-down
 

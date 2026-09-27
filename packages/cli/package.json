@@ -1,0 +1,27 @@
+{
+  "name": "@storytree/cli",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "storytree": "./dist/storytree.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "build": "tsx src/bins/build.ts"
+  },
+  "dependencies": {
+    "@storytree/agent-link": "workspace:*",
+    "@storytree/library": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "esbuild": "^0.28.2",
+    "pg": "^8.23.0",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

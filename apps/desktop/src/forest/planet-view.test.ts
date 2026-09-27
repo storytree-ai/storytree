@@ -1,7 +1,7 @@
 /** The page's planet joins: permanent places, mesh picking, and failure markers after orbiting. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Euler, Group, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
+import { DoubleSide, Euler, Group, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
 import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, placeOnGlobe, PLANET_RADIUS, storyNodes, type FacingIsland } from "@storytree/forest";
@@ -44,7 +44,7 @@ test("a click picks the rotated island mesh, while the opaque sea blocks islands
   plate.name = "planet:story";
   plate.position.x = -11;
   plate.rotation.y = -Math.PI / 2;
-  plate.add(new Mesh(new PlaneGeometry(4, 4), new MeshBasicMaterial()));
+  plate.add(new Mesh(new PlaneGeometry(4, 4), new MeshBasicMaterial({ side: DoubleSide })));
   globe.add(plate);
   const camera = new OrthographicCamera(-15, 15, 15, -15, 0.1, 100);
   camera.position.z = 40;

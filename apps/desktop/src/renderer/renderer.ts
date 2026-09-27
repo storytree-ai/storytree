@@ -9,8 +9,8 @@ import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
-import { claimMarkers, drillDown, forestDrawn, forestScene, openBook, shelved, storyNodes, unclaimedWork, type Book, type ForestDrawn } from "@storytree/forest";
-import type { AnnotatedTree, Change, SchemaRecord } from "@storytree/library";
+import { claimMarkers, drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, unclaimedWork, type ForestDrawn } from "@storytree/forest";
+import type { AnnotatedTree, Change } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
@@ -110,54 +110,36 @@ async function showForest(name: string): Promise<void> {
   const lines: Line[] = [];
   let tree: AnnotatedTree | undefined;
   /**
-   * The front covers of each story and its capabilities, as asked for and as read (capability 7),
-   * asked again when the knowledge changes; and the book open on them.
+   * The capability shown below the open story's diagram (ADR-0659 D2): the one clicked, or the one
+   * the panel opened on, so it holds while the live reading redraws. Cleared when another story opens.
    */
-  const asked = new Set<string>();
-  const shelvesRead = new Map<string, SchemaRecord<"decision">[]>();
-  let book: Book | undefined;
+  let chosen: string | undefined;
 
-  /** Read the front covers of `story` and its capabilities, once, and show the panel again when they come. */
-  const readShelves = (story: string, nodes: readonly string[]): void => {
-    if (asked.has(story)) return;
-    asked.add(story);
-    Promise.all(nodes.map((node) => window.storytree.frontCovers(name, node))).then(
-      (shelves) => {
-        shelvesRead.set(story, shelves.flat());
-        showPanel();
-      },
-      () => asked.delete(story),
-    );
-  };
-
-  /** Open the book `id` on the panel's shelves, or close it if it is the one open. */
-  const toggleBook = async (id: string): Promise<void> => {
-    if (book?.id === id) {
-      book = undefined;
-      return showPanel();
-    }
-    const cover = [...shelvesRead.values()].flat().find((each) => each.id === id);
-    if (cover === undefined) return;
-    book = openBook(cover, await window.storytree.relatedNotes(name, id), history);
-    showPanel();
-  };
-
-  /** The drill-down for the selected story node, or none (capability 4), with its shelves once read (capability 7). */
+  /** The drill-down for the selected story node, or none (capability 4), with one capability shown below its diagram. */
   const showPanel = (): void => {
     const story = document.body.dataset.selected;
     const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, workStates(lines), history);
     panel.hidden = drilled === undefined;
     if (story === undefined || drilled === undefined) return panel.replaceChildren();
-    readShelves(story, [drilled.story, ...drilled.capabilities.map(({ id }) => id)]);
-    const read = shelvesRead.get(story);
-    const opened = read === undefined ? drilled : shelved(drilled, read);
+    const selected = selectedCapability(drilled, chosen);
+    chosen = selected;
     const open = new Set([...panel.querySelectorAll<HTMLElement>("details[open]")].map((node) => node.closest<HTMLElement>("[data-capability-id]")?.dataset.capabilityId));
-    panel.innerHTML = renderStoryPanel(opened, book);
-    for (const node of panel.querySelectorAll<HTMLElement>("[data-capability-id]")) {
+    panel.innerHTML = renderStoryPanel(drilled, selected);
+    for (const node of panel.querySelectorAll<HTMLElement>(".panel-detail")) {
       if (open.has(node.dataset.capabilityId)) node.querySelector("details")?.setAttribute("open", "");
     }
-    for (const spine of panel.querySelectorAll<HTMLElement>("[data-book-id]")) {
-      spine.addEventListener("click", () => void toggleBook(spine.dataset.bookId ?? "").catch(() => {}));
+    for (const box of panel.querySelectorAll<SVGGElement>(".panel-diagram [data-capability-id]")) {
+      const choose = (): void => {
+        chosen = box.dataset.capabilityId;
+        showPanel();
+        panel.querySelector<SVGGElement>(".panel-diagram .selected")?.focus();
+      };
+      box.addEventListener("click", choose);
+      box.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        choose();
+      });
     }
     panel.querySelector(".panel-close")?.addEventListener("click", () => {
       delete document.body.dataset.selected;
@@ -169,7 +151,7 @@ async function showForest(name: string): Promise<void> {
   const view = await openForestView(holder, (story) => {
     if (story === undefined) delete document.body.dataset.selected;
     else document.body.dataset.selected = story;
-    book = undefined;
+    chosen = undefined;
     showPanel();
   }, core);
   if (showing !== mine) return view.dispose();
@@ -183,11 +165,6 @@ async function showForest(name: string): Promise<void> {
       // One news at a time, in the order it came, so a slow tree read never draws over a newer one.
       drawing = drawing.then(async () => {
         history.push(...news.changes);
-        // A note written or edited may change a shelf, or the book open: read them again.
-        if (news.changes.some(({ type }) => type === "decision" || type === "memory" || type === "definition")) {
-          asked.clear(); // the shelves on show stay until they are read again, so they never blink
-          book = undefined;
-        }
         lines.push(...news.lines);
         if (tree === undefined || news.changes.length > 0) tree = await window.storytree.projectTree(name);
         if (showing !== mine) return;

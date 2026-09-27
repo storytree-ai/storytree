@@ -602,23 +602,19 @@ body[data-surface="forest"] main {
   font-weight: 400;
 }
 
-.panel-capabilities {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
+/* The one capability selected in the diagram, shown below it (ADR-0659 D2). */
 
-.panel-capability {
+.panel-detail {
   padding: 0.7rem 0;
   border-top: 1px solid var(--line);
 }
 
-.panel-capability h3 {
+.panel-detail h3 {
   margin: 0 0 0.2rem;
   font-size: 1rem;
 }
 
-.panel-capability p {
+.panel-detail p {
   margin: 0.2rem 0;
 }
 
@@ -666,15 +662,48 @@ body[data-surface="forest"] main {
   margin: 0.6rem 0 0.8rem;
 }
 
+/* Each of the story's boxes is tinted by the agent's reported health and dashed until it lands;
+   another story's box is muted context, not a button (ADR-0659 D3, D5). */
+
 .panel-diagram .box rect {
+  fill: var(--none-bg);
+  stroke: var(--none-line);
+}
+
+.panel-diagram .box.health-passing rect {
   fill: var(--pass-bg);
   stroke: var(--pass-line);
 }
 
+.panel-diagram .box.health-failing rect {
+  fill: var(--fail-bg);
+  stroke: var(--fail-line);
+}
+
 .panel-diagram .box.pending rect {
-  fill: var(--none-bg);
-  stroke: var(--none-line);
   stroke-dasharray: 4 3;
+}
+
+.panel-diagram .box[role="button"] {
+  cursor: pointer;
+}
+
+.panel-diagram .box[role="button"]:hover rect {
+  stroke: var(--muted);
+}
+
+.panel-diagram .box[role="button"]:focus {
+  outline: none;
+}
+
+.panel-diagram .box[role="button"]:focus-visible rect,
+.panel-diagram .box.selected rect {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.panel-diagram .box.elsewhere {
+  opacity: 0.55;
 }
 
 .panel-diagram .box.elsewhere rect {
@@ -695,74 +724,6 @@ body[data-surface="forest"] main {
 
 .panel-diagram marker path {
   fill: var(--muted);
-}
-
-/* Library entrypoints (the forest story, capability 7): each shelf of front covers, as spines. */
-
-.panel-shelf h4 {
-  margin: 0.6rem 0 0.3rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-
-.panel-spines {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.panel-spine {
-  display: block;
-  width: 100%;
-  margin: 0.25rem 0;
-  padding: 0.35rem 0.6rem;
-  font: inherit;
-  text-align: left;
-  color: var(--text);
-  background: var(--code-bg);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--none-line);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.panel-spine:hover,
-.panel-spine[aria-expanded="true"] {
-  background: var(--row-hover);
-  border-left-color: var(--muted);
-}
-
-.spine-title {
-  font-weight: 600;
-}
-
-.spine-founding {
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.spine-line {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.panel-book {
-  margin: 0.2rem 0 0.6rem 0.6rem;
-  padding-left: 0.7rem;
-  border-left: 1px solid var(--line);
-}
-
-.panel-book p {
-  white-space: pre-line; /* a list item in a book's text is on a line of its own */
-}
-
-.panel-links {
-  margin: 0.2rem 0 0.4rem;
-  padding-left: 1rem;
 }
 
 /* Agent capability claims (the forest story, capability 5): who holds a tree, over it. */

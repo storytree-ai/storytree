@@ -6,6 +6,10 @@ this project's library (ADR-0636 D1); edit those, not this file, then run `pnpm 
 The text above that marker is written by hand, and it counts toward the file's 40,000-byte budget.
 
 - A fresh or stale worktree is installed at session start (`scripts/provision-worktree.mjs`).
+- `pnpm gate` runs typecheck, scoped tests and the guidance check in one foreground run, with a
+  PASS / FAIL / NOT RUN table. Guidance runs when generated roles changed; otherwise it is NOT RUN
+  with the reason. After editing a role or note in the library, use `pnpm gate -- --guidance`, even
+  if regeneration left no Git diff. A failure does not stop the remaining checks.
 - `pnpm test` runs the packages a change can reach (its first line, `scope: ...`, says which) against a
   throwaway local Postgres; `-- --full` runs everything, `-- --rerun-failed` only what failed.
   `pnpm typecheck` checks types.

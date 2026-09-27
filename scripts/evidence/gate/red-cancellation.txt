@@ -1,0 +1,32 @@
+✖ cancelling the foreground gate stops the typecheck process and its compiler descendant (2630.056644ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2677.45393
+
+✖ failing tests:
+
+test at scripts/gate.test.mjs:113:1
+✖ cancelling the foreground gate stops the typecheck process and its compiler descendant (2630.056644ms)
+  AssertionError [ERR_ASSERTION]: no typecheck child survives the completed gate
+  + actual - expected
+  
+  + [
+  +   1233902
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/mickh/code/storytree03-wt/gate/scripts/gate.test.mjs:148:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 1233902 ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

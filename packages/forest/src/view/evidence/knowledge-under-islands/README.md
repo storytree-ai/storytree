@@ -44,8 +44,9 @@ claim/failure markers, island/tree geometry and transforms, and all pathway geom
 and metadata are compared against the same seed/view without the layer. Every native
 cross-story link has drawable ribbon geometry. The quarter turn is measured at 90°.
 Per-view JSON records the renderer, draw counts, warnings and errors. All captures have
-zero page, asset or shader errors. Existing Three.Clock deprecation, drei/React root
-cleanup and SwiftShader readback warnings appear in both baseline and production.
+zero page, asset or shader errors. Existing Three.Clock deprecation and SwiftShader readback warnings appear in both
+baseline and production. The earlier drei/React root-cleanup warning is gone after
+main's #121 overlay-host fix.
 
 The real seed has no failing islands or claims. A separately labelled **browser-only
 copy** adds one landed failing capability and one current Codex claim. The
@@ -70,10 +71,14 @@ were repeated against `afafede`, with all assertions passing and unchanged PNGs.
 `pnpm install`, locked typecheck passed again, and locked `pnpm test` reported affected
 scope: desktop, arc-surface, forest, forest-world and knowledge-core, plus the package
 boundary check; all six selected units PASS. This narrower run is not a fresh full-suite
-proof. The final test-ratio all row is:
+proof. Main then merged #121 (`8d8a73d`) while CI was finishing; this branch merged
+it at `6304348`, preserving both the stable overlay host and the knowledge component.
+The browser bridge now provides the project-selection reads used by the updated page.
+Installation, locked typecheck and the same six scoped units (1,562 tests) passed again.
+All captures were repeated on this merged renderer. The final test-ratio all row is:
 
 ```text
-  all                       38,312           28,115    1.36
+  all                       38,402           28,379    1.35
 ```
 
 ## Initial red, green and checks (before #118)

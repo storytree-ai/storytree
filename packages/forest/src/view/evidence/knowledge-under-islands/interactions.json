@@ -5349,8 +5349,7 @@
       },
       "errors": [],
       "warnings": [
-        "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
-        "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition."
+        "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
       ],
       "checks": {
         "openingFacesFailure": true,
@@ -21009,8 +21008,7 @@
       },
       "errors": [],
       "warnings": [
-        "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
-        "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition."
+        "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
       ],
       "checks": {
         "openingFacesFailure": true,

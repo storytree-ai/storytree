@@ -3890,8 +3890,7 @@
   "errors": [],
   "warnings": [
     "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
-    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
-    "[.WebGL-0x388c0012da00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    "[.WebGL-0xc4400130800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
   ],
   "seed": {
     "stories": 8,

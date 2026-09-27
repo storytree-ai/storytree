@@ -175,3 +175,16 @@ test("a story file named apart from its story's title pairs with its printout by
     [["stories/cli.md", "stories/command-line.md", 0, 0]],
   );
 });
+
+test("a decision covering a story file named apart from its title compares under the committed file name", () => {
+  const story = ["# Story: the command line", "", "**What it is.** It types.", ""].join("\n");
+  const decision = (file) => ["# It is a front door", "", `- **Front cover of:** ${file}, capability 2`, "- **Full record:** ADR-0645", "", "It is.", ""].join("\n");
+  const diffs = roundTrip(
+    new Map([["stories/cli.md", story], ["decisions/front-door.md", decision("stories/cli.md")]]),
+    new Map([["stories/command-line.md", story], ["decisions/adr-0645.md", decision("stories/command-line.md")]]),
+  );
+  assert.deepEqual(
+    diffs.map(({ file, missing, extra }) => [file, missing.length, extra.length]),
+    [["stories/cli.md", 0, 0], ["decisions/front-door.md", 0, 0]],
+  );
+});

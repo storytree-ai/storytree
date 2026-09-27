@@ -40,6 +40,7 @@ import {
   launchToRecord,
   pageReads,
   projectSelection,
+  refreshOwnHealth,
   seedWriting,
   slotOf,
   slotSha,
@@ -177,11 +178,15 @@ async function followMain(): Promise<void> {
   const dir = path.join(home.runtime, slot);
   const running: RunningBuild = { slot, dir, sha: await slotSha(dir) };
   console.log(`updates: following merged main from slot ${slot} (${running.sha.slice(0, 7)})`);
+  // The new slot is running and the window is open. Check its health in this background task
+  // before polling for another update, including the gap before the child takes the writing lock.
+  if (storytree !== undefined) await refreshOwnHealth({ running, home: home.dir, log: (line) => console.log(line) });
+  if (shutDown !== undefined) return;
   let checking = false;
   /** A new build waiting to be restarted into, while a seed writes the library. */
   let ready: RunningBuild | undefined;
   const check = async (): Promise<void> => {
-    if (checking) return;
+    if (checking || shutDown !== undefined) return;
     checking = true;
     try {
       const next = ready ?? (await updateToMain({ runtimeDir: home.runtime, running, build: buildApp }));

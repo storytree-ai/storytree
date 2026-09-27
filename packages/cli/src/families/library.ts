@@ -53,7 +53,6 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   arc: (library, fields, options) => library.createArc(fields as never, options),
   increment: (library, fields, options) => library.addIncrement(fields as never, options),
   question: (library, fields, options) => library.raiseQuestion(fields as never, options),
-  memory: (library, fields, options) => library.writeMemory(fields as never, options),
   decision: (library, fields, options) => library.recordDecision(fields as never, options),
   definition: (library, fields, options) => library.defineTerm(fields as never, options),
   ...Object.fromEntries(
@@ -106,6 +105,7 @@ const create: Verb = {
   summary: "write a new record of any kind, the library judging its fields",
   async act(args, context): Promise<Answer> {
     const kind = args.word(0, "the kind of record", this.usage);
+    if (kind === "memory") throw new Refusal("memory belongs to the agent harness, not the library (ADR-0650); write an artifact kind such as decision, definition or principle", { code: 2 });
     const elsewhere = ELSEWHERE[kind];
     if (elsewhere !== undefined) throw new Refusal(`a ${kind} is written with \`${elsewhere}\`, under its evidence rules`, { code: 2 });
     const write = WRITERS[kind];

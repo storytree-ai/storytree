@@ -61,11 +61,11 @@ export async function exportLibrary(library) {
   /** @type {Map<string, string[]>} node id -> the texts of the memory notes behind its covers, in creation order */
   const behind = new Map();
   for (const note of notes) {
-    if (note.type !== "memory") continue;
+    if (note.type !== "definition" || !note.fields.term.startsWith("Story text: ")) continue;
     const cover = note.fields.links?.find((id) => coverOf.has(id));
     if (cover === undefined) continue;
     const node = coverOf.get(cover);
-    behind.set(node, [...(behind.get(node) ?? []), note.fields.text]);
+    behind.set(node, [...(behind.get(node) ?? []), note.fields.meaning]);
   }
 
   /** @type {Map<string, string>} */

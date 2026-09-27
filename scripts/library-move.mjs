@@ -88,7 +88,7 @@ export async function moveStoryText(library, committed, { dryRun = false } = {})
         skip(block, `${node.title} has no front cover to file it behind`);
         continue;
       }
-      if (!dryRun) await library.writeMemory({ text, links: [cover] });
+      if (!dryRun) await library.defineTerm({ term: `Story text: ${file} ${block.section}`, meaning: text, links: [cover] });
       filed.push({ file, section: block.section, node: node.id, cover, text });
     }
   }

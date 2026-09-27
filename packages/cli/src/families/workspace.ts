@@ -1,5 +1,5 @@
 /** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace. */
-import { makeWorkspace, type WorkspaceAnswer } from "@storytree/agent-link";
+import { attachWorkspace, makeWorkspace, type WorkspaceAnswer } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -7,7 +7,7 @@ import type { Family, Verb } from "../door.js";
 const make: Verb = {
   name: "workspace",
   usage: "workspace <increment|capability> --reason <text>",
-  summary: "make a fresh workspace and claim its work for this agent session",
+  summary: "make a claimed Claude Code workspace or prepare a Codex app workspace",
   async act(args, context) {
     const id = args.word(0, "the work's id", this.usage);
     const reason = args.need("reason", this.usage).trim();
@@ -15,12 +15,30 @@ const make: Verb = {
     const caller = await context.claimContext();
     const made = await makeWorkspace(caller, id, reason);
     if (!made.ok) throw new Refusal(refusal(id, made));
-    const enter = caller.harness === "claude-code"
-      ? `Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it.`
-      : `Use ${made.folder} as your agent's working folder.`;
+    if (made.status === "prepared") {
+      const { ref, name } = made;
+      return { text: `Work is available; nothing is claimed yet. Call the Codex desktop app's create_worktree with ${JSON.stringify({ ref, name })}, from freshly fetched ${made.base}. Then run storytree workspace attach ${id} --folder <returned-directory> --ref ${ref} --name ${name} --reason <text>. Use the returned directory explicitly; creation does not change your cwd or permissions. If the app returns a directory with a registration error, attach it; do not create another. If create_worktree is unavailable, continue in the Codex desktop app.` };
+    }
+    const enter = `Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it.`;
     return {
       text: `Made workspace ${made.folder}\nBranch: ${made.branch}, from freshly fetched ${made.base}.\n${caller.session} holds ${id}: ${reason}\n${enter}\nSet it up as this project does at session start.`,
     };
+  },
+};
+
+const attach: Verb = {
+  name: "attach",
+  usage: "workspace attach <increment|capability> --folder <directory> --ref <commit> --name <name> --reason <text>",
+  summary: "attach the Codex app's returned worktree and claim its work",
+  async act(args, context) {
+    const id = args.word(0, "the work's id", this.usage);
+    const reason = args.need("reason", this.usage).trim();
+    if (!reason) throw new Refusal(`this needs a non-empty --reason\nusage: storytree ${this.usage}`, { code: 2 });
+    const attachment = { folder: args.need("folder", this.usage), ref: args.need("ref", this.usage), name: args.need("name", this.usage) };
+    const caller = await context.claimContext();
+    const attached = await attachWorkspace(caller, id, reason, attachment);
+    if (!attached.ok) throw new Refusal(`${refusal(id, attached)} The app's worktree is kept.`);
+    return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${caller.session} holds ${id}: ${reason}\nUse that directory explicitly for commands. Set it up as this project does at session start.` };
   },
 };
 
@@ -38,13 +56,13 @@ function refusal(id: string, answer: Exclude<WorkspaceAnswer, { ok: true }>): st
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan. Find its id with storytree tree.`;
     case "no-workspace":
-      return `No workspace was made: ${answer.why}.`;
+      return `Workspace setup refused: ${answer.why}.`;
   }
 }
 
 export const workspace: Family = {
   name: "workspace",
-  summary: "make a workspace already claimed for its work",
-  verbs: [],
+  summary: "prepare or attach a workspace for this agent session",
+  verbs: [attach],
   bare: make,
 };

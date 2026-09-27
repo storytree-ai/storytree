@@ -380,21 +380,24 @@ idle.
   toward the one it claimed most recently of those it still holds. Landing a capability another
   session holds is refused, naming the holder. A holder whose command is still running
   (capability 4) is live, so its claim cannot be taken mid-run (ADR-0636 D2).
-- **As built: a workspace already claimed (ADR-0653, the owner's K1, 5.12-5.14).**
-  `makeWorkspace` in `packages/agent-link/src/claims/workspace.ts`, also exposed as the
-  `make_workspace` agent tool. "Make a workspace for this
-  work" is one step: fetch the project's main from `origin`, cut a fresh branch from it into a new git
-  worktree, and claim the increment (or capability) for the calling session, the claim naming the new
-  branch so its merge ends it. It is refused as a claim is (held, waiting, closed, unknown), and also
-  for work the session already holds, naming the branch it holds it on; a refusal makes no folder, no
-  branch and no line. It wraps the harness's own worktree feature rather than replacing it: the
-  folder is where that harness keeps its worktrees, so the harness can enter it. For Claude Code that
-  is `.claude/worktrees/<name>` in the main checkout, on a `claude/<name>` branch, entered with its
-  `EnterWorktree` tool; for Codex, `<CODEX_HOME>/worktrees/<name>/<repository>`, on `codex/<name>`.
-  The name is the work's id, cut short, and six random hex digits. Installing the new folder's
-  packages is left to the project's own session start. If main cannot be fetched, nothing is
-  claimed; if git then fails to make the worktree, the claim is released (an increment the claim
-  started stays active).
+- **As built: claimed workspaces (ADR-0653, K1 with owner A2/B1, 5.12-5.14).**
+  `makeWorkspace` and `attachWorkspace` in `packages/agent-link/src/claims/workspace.ts` are
+  exposed as `make_workspace` and `attach_workspace`. Both refuse held, waiting, closed, unknown
+  or already-owned work. Claude Code keeps its fetch/claim/create path: a new branch from freshly
+  fetched main in `.claude/worktrees/<name>`, on `claude/<name>`, entered with `EnterWorktree`.
+  Codex preparation only fetches main and returns its exact commit (`ref`) and a name derived
+  from the work id with six random hex digits. The agent calls the desktop app's `create_worktree`
+  with that ref and name, then attaches its returned folder. Storytree checks the Git common
+  directory, linked worktree root and exact HEAD, keeps an existing named branch or names a
+  detached HEAD `codex/<name>`, and claims the work naming that branch so its merge releases it.
+  Preparation does not reserve work: attachment checks again, and a lost race names the holder.
+  The expected base is the returned commit, even when a later fetch moves `origin/main`.
+  Storytree no longer creates Codex folders under `CODEX_HOME`. The app owns creation and
+  lifetime; refusals keep its worktree, and a failure after claiming releases that claim (a started
+  increment stays active). The agent uses the returned directory explicitly and installs packages
+  as its project requires. An app registration error with a returned directory does not warrant
+  another creation. The app's measured tool contract is recorded in settled question
+  `oq-0-3-codex-app-workspace-api-gap`; the CLI on its own does not supply `create_worktree`.
 - **Public readings (ADR-0645 D6, 5.11):** `readClaims(log, project, options?)` returns the current
   capability and increment claims, each with its harness, session (the window), label, reason,
   time claimed, branch when known, and live or idle holder. `readClaim(log, project, id, options?)`

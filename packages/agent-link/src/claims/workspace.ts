@@ -1,75 +1,66 @@
 /**
- * A workspace already claimed (ADR-0653, the owner's K1): "make a workspace for this work" is one
- * step, so a workspace is never made and left unclaimed. Storytree 0.2's `worktree create --node`
- * (its ADR-0200 D3) is the behavioural reference.
- *
- * - The steps, each one's failure stopping the rest: the claim's own refusals (held, waiting,
- *   closed, unknown, and work the session already holds); fetch main from `origin`; claim, naming
- *   the new branch, so that its pull request merging ends the claim (ADR-0643 D3); then
- *   `git worktree add` on that branch from the main just fetched. No claim, no workspace: a refusal
- *   makes no folder, branch or line, and if git fails to make the worktree the claim is released.
- * - It wraps the harness's own worktree feature rather than replacing it: the folder is where that
- *   harness keeps its worktrees, so the harness can enter it as one of its own. Claude Code keeps
- *   them in `.claude/worktrees/<name>` of the main checkout on `claude/<name>` branches, and enters
- *   one with its `EnterWorktree` tool; Codex keeps them in `<CODEX_HOME>/worktrees/<name>/<repo>`.
- * - Installing the new folder's packages is not done here: that is the project's own session start,
- *   whatever its stack.
+ * Capability 5.12–5.14 · Claimed workspaces (ADR-0653, owner A2/B1).
+ * Claude Code keeps its original fetch/claim/create path. Codex preparation only checks and
+ * fetches: the agent calls the desktop app's create_worktree, then attaches that returned folder.
+ * Storytree never creates or removes a Codex folder. App creation does not change the agent's cwd.
  */
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import { claim, claimRefusal, readClaim, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
 
-export interface WorkspaceOptions {
-  /** Codex's home, where it keeps its worktrees. By default CODEX_HOME, else ~/.codex. */
-  readonly codexHome?: string;
+type WorkspaceContext = ClaimContext & { readonly folder: string };
+
+export interface WorkspaceAttachment {
+  /** The directory returned by the Codex app's create_worktree, used explicitly. */
+  readonly folder: string;
+  /** The exact commit returned by preparation and passed to create_worktree. */
+  readonly ref: string;
+  /** The work-derived name returned by preparation. */
+  readonly name: string;
 }
 
-export type WorkspaceAnswer =
-  | {
-      ok: true;
-      claim: Claim;
-      /** The new workspace's folder. */
-      folder: string;
-      /** Its new branch, which the claim names. */
-      branch: string;
-      /** What it was cut from: `origin/<main>`, as just fetched. */
-      base: string;
-      takenOverFrom?: Claim;
-    }
+export type WorkspaceRefusal =
   | Exclude<ClaimAnswer, { ok: true }>
   | { ok: false; refused: "yours"; claim: Claim }
   | { ok: false; refused: "no-workspace"; why: string };
 
-/** How long fetching main may take before it counts as not fetched. */
+export interface ClaimedWorkspace {
+  ok: true;
+  status: "ready";
+  claim: Claim;
+  folder: string;
+  branch: string;
+  /** The fresh remote branch (Claude Code), or the pinned commit (Codex attachment). */
+  base: string;
+  takenOverFrom?: Claim;
+}
+
+export type WorkspaceAnswer =
+  | ClaimedWorkspace
+  | { ok: true; status: "prepared"; ref: string; name: string; base: string }
+  | WorkspaceRefusal;
+
 const FETCH_TIMEOUT_MS = 120_000;
-/** How much of the work's id goes into the workspace's name. */
 const NAME_PART_MAX = 32;
 
-/**
- * Make a workspace for `id`, a capability or an increment, already claimed by the context's session
- * with `reason`: a fresh branch from `origin`'s main as just fetched, a git worktree for it where the
- * session's harness keeps its own, and the claim. `context.folder` is anywhere in the project's
- * repository.
- */
-export async function makeWorkspace(context: ClaimContext & { readonly folder: string }, id: string, reason: string, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
-  const mine = await readClaim(context.log, context.project, id);
-  if (mine?.session === context.session) return { ok: false, refused: "yours", claim: mine };
-  const refused = await claimRefusal(context, id);
+/** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
+export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string): Promise<WorkspaceAnswer> {
+  const refused = await workspaceRefusal(context, id);
   if (refused !== undefined) return refused;
-
   const repository = repositoryOf(context.folder);
   if (typeof repository !== "string") return repository;
   const main = defaultBranch(repository);
   const fetched = fetchMain(repository, main);
   if (fetched !== undefined) return fetched;
   const base = `origin/${main}`;
+  if (context.harness === "codex") {
+    return { ok: true, status: "prepared", ref: run(repository, ["rev-parse", `refs/remotes/${base}`]).trim(), name: nameFor(id).replace(/-+/g, "-"), base };
+  }
 
-  const codex = context.harness === "codex";
-  const where = placeFor(repository, id, codex ? (options.codexHome ?? codexHomeOf()) : undefined);
+  const where = placeFor(repository, id);
   const claimed = await claim({ ...context, branch: where.branch }, id, reason);
   if (!claimed.ok) return claimed;
   try {
@@ -79,14 +70,53 @@ export async function makeWorkspace(context: ClaimContext & { readonly folder: s
     await release(context, id);
     return { ok: false, refused: "no-workspace", why: `git could not make the worktree: ${firstLine(error)}` };
   }
-  return {
-    ok: true,
-    claim: claimed.claim,
-    folder: where.folder,
-    branch: where.branch,
-    base,
-    ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }),
-  };
+  return { ok: true, status: "ready", claim: claimed.claim, ...where, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
+}
+
+/** Attach an app-created Codex worktree to this session's work, leaving its lifetime to the app. */
+export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment): Promise<ClaimedWorkspace | WorkspaceRefusal> {
+  const refused = await workspaceRefusal(context, id);
+  if (refused !== undefined) return refused;
+  if (context.harness !== "codex") return { ok: false, refused: "no-workspace", why: "only a Codex agent attaches an app-created worktree; Claude Code uses make_workspace" };
+
+  let folder: string;
+  let existingBranch: string;
+  try {
+    if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(attachment.ref)) throw new Error("ref must be the exact commit returned by make_workspace");
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(attachment.name)) throw new Error("name must be the lowercase hyphenated name returned by make_workspace");
+    folder = realpathSync(path.resolve(context.folder, attachment.folder));
+    const common = (where: string) => realpathSync(run(where, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
+    if (path.relative(common(context.folder), common(folder)) !== "") throw new Error("the returned directory belongs to another repository");
+    const root = realpathSync(run(folder, ["rev-parse", "--show-toplevel"]).trim());
+    const gitDir = realpathSync(run(folder, ["rev-parse", "--absolute-git-dir"]).trim());
+    if (path.relative(root, folder) !== "" || path.relative(gitDir, common(folder)) === "") throw new Error("the returned directory must be the root of a linked worktree, not the main checkout or a subdirectory");
+    if (run(folder, ["rev-parse", "HEAD"]).trim() !== attachment.ref) throw new Error(`the worktree HEAD is not the expected base ${attachment.ref}`);
+    existingBranch = run(folder, ["branch", "--show-current"]).trim();
+  } catch (error) {
+    return { ok: false, refused: "no-workspace", why: `cannot attach the app worktree: ${firstLine(error)}` };
+  }
+
+  const branch = existingBranch || `codex/${attachment.name}`;
+  const claimed = await claim({ ...context, branch }, id, reason);
+  if (!claimed.ok) return claimed; // Another session may have claimed since preparation.
+  // A claim this session took elsewhere while checking must not be retargeted or released.
+  if (claimed.alreadyHeld) return { ok: false, refused: "yours", claim: claimed.claim };
+  try {
+    if (run(folder, ["rev-parse", "HEAD"]).trim() !== attachment.ref || run(folder, ["branch", "--show-current"]).trim() !== existingBranch) {
+      throw new Error("the app worktree changed while its claim was being taken");
+    }
+    if (!existingBranch) run(folder, ["switch", "-c", branch]);
+  } catch (error) {
+    await release(context, id);
+    return { ok: false, refused: "no-workspace", why: `could not attach the app worktree; the claim was released: ${firstLine(error)}` };
+  }
+  return { ok: true, status: "ready", claim: claimed.claim, folder, branch, base: attachment.ref, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
+}
+
+async function workspaceRefusal(context: WorkspaceContext, id: string): Promise<WorkspaceRefusal | undefined> {
+  const mine = await readClaim(context.log, context.project, id);
+  if (mine?.session === context.session) return { ok: false, refused: "yours", claim: mine };
+  return claimRefusal(context, id);
 }
 
 /** The main checkout of the repository `folder` is in, or why there is none to make a workspace from. */
@@ -126,15 +156,17 @@ function fetchMain(repository: string, main: string): { ok: false; refused: "no-
   }
 }
 
-/** Where the workspace goes and its branch: a name no folder or branch has yet, in the harness's place. */
-function placeFor(repository: string, id: string, codexHome: string | undefined): { folder: string; branch: string } {
+/** A work-derived app-compatible name; the random suffix separates parallel preparations. */
+function nameFor(id: string): string {
   const stem = id.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, NAME_PART_MAX).replace(/^-+|-+$/g, "") || "work";
+  return `${stem}-${randomBytes(3).toString("hex")}`;
+}
+
+/** Claude Code's existing placement: a name no folder or branch has yet. */
+function placeFor(repository: string, id: string): { folder: string; branch: string } {
   for (;;) {
-    const name = `${stem}-${randomBytes(3).toString("hex")}`;
-    const place =
-      codexHome === undefined
-        ? { folder: path.join(repository, ".claude", "worktrees", name), branch: `claude/${name}` }
-        : { folder: path.join(codexHome, "worktrees", name, path.basename(repository)), branch: `codex/${name}` };
+    const name = nameFor(id);
+    const place = { folder: path.join(repository, ".claude", "worktrees", name), branch: `claude/${name}` };
     if (!existsSync(place.folder) && !branchExists(repository, place.branch)) return place;
   }
 }
@@ -146,10 +178,6 @@ function branchExists(repository: string, branch: string): boolean {
   } catch {
     return false;
   }
-}
-
-function codexHomeOf(): string {
-  return process.env.CODEX_HOME || path.join(homedir(), ".codex");
 }
 
 /** Run git in `cwd`, and return what it printed; throws when it fails. */

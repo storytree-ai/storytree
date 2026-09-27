@@ -359,17 +359,18 @@ exact ref and name for the agent to pass to the app's `create_worktree`; the age
 --reason <text>`. Storytree verifies the worktree and claims its branch; only the app creates the
 Codex folder. Both steps refuse held or waiting work, and only a running agent session may claim.
 
-- **Depends on:** 1, and the agent link's `makeWorkspace` (its 5.12-5.14).
+- **Depends on:** 1, and the agent link's `makeWorkspace` / `attachWorkspace` (its 5.12-5.14).
 - **Its shelf,** founding book first:
-  - **Founding book (ADR-0653 D1, the owner's K1):** making a workspace for a piece of work and
-    claiming it are one step, refused if the work is held or waiting, so a workspace is never made
-    and left unclaimed. It is the agent link's claims tool; this is a front door onto it.
-- **As built:** `packages/cli/src/families/workspace.ts` hands the folder, the id and the reason to the agent link's
-  `makeWorkspace`, and prints the folder, the branch and how to enter it. The claim is the shell's
-  agent session's (CLAUDE_CODE_SESSION_ID, else CODEX_THREAD_ID, as capability 2 reads them): a
-  claim belongs to the session that will work in the workspace, so from a shell no agent runs it is
-  refused, saying to run it from the agent. This is the only claiming verb here; the board (7) stays
-  read only.
+  - **Founding book (ADR-0653 D1, K1 with owner A2/B1):** the agent sets up a workspace and
+    claims its work in one flow, refused if held or waiting. The Codex app creates its folder;
+    attachment rechecks availability, and a lost claim race leaves the app's folder unclaimed.
+- **As built:** `packages/cli/src/families/workspace.ts` passes the work id and reason to
+  `makeWorkspace`. For Claude Code it prints the claimed folder and branch and how to enter it.
+  For Codex it prints the app's exact creation arguments and the `workspace attach` invocation;
+  that verb passes the returned directory, ref, name and reason to `attachWorkspace` and prints
+  its verified branch and working directory. The command owns no Git or claiming rules.
+  Both verbs require the shell's agent session (CLAUDE_CODE_SESSION_ID, else CODEX_THREAD_ID,
+  as capability 2 reads them). A shell with no agent is refused. The board (7) stays read only.
 
 **Contracts:**
 1. From a Claude Code agent's shell, `workspace <increment> --reason` makes a worktree on a fresh branch from

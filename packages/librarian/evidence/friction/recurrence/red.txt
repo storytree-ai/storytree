@@ -1,0 +1,50 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/friction-trio-recurrence
+> node --import tsx scripts/test.mjs "packages/librarian/src/queues/queues.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/friction-trio-recurrence/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:40341 (started in 0.1 s)
+✔ 5.1 the worklist drains only lapsed open questions across arcs, longest lapsed first (168.188849ms)
+✖ 5.2 the friction drain takes three unrouted reports from other branches, most recurrences first and oldest first on ties (129.851339ms)
+✔ 5.3 route records the routing judgement with its reason, and refuses a route with no reason (89.755061ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 694.13474
+
+✖ failing tests:
+
+test at packages/librarian/src/queues/queues.test.ts:1:2165
+✖ 5.2 the friction drain takes three unrouted reports from other branches, most recurrences first and oldest first on ties (129.851339ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'friction_762c9519d354',
+  +   'friction_43ec098970e3',
+      'friction_5dca247637b6',
+  -   'friction_43ec098970e3',
+  -   'friction_a155903b273a'
+    ]
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/friction-trio-recurrence/packages/librarian/src/queues/queues.test.ts:68:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withLibrary (/home/mickh/code/storytree03-wt/friction-trio-recurrence/packages/librarian/src/testing/pg.ts:31:7)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/friction-trio-recurrence/packages/librarian/src/queues/queues.test.ts:52:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'friction_762c9519d354', 'friction_43ec098970e3', 'friction_5dca247637b6' ],
+    expected: [ 'friction_5dca247637b6', 'friction_43ec098970e3', 'friction_a155903b273a' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

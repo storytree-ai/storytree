@@ -2,7 +2,7 @@
  * Capability 5 · Queues (the librarian story): lapsed open questions and friction are looked at on
  * each pass, and nothing is closed without a reason. The library owns the question review lease
  * and its lapsed-date drain (ADR-0654). The friction drain is 0.2's bounded one (ADR-0168 D4): at most the
- * three oldest reports not yet routed, never one the session's own branch filed, so the librarian
+ * three reports not yet routed, most recurrences first (ADR-0716), oldest first on ties, never one the session's own branch filed, so the librarian
  * never marks its own homework; a report with no provenance counts as another's, so the queue
  * cannot drain by going anonymous. The routing judgement is the librarian's own (ADR-0644 D3, S).
  * Settling and retiring a question are the agent link's tools.
@@ -22,11 +22,13 @@ export function openQuestions(library: Library, at?: Date): Promise<SchemaRecord
   return library.lapsedQuestions(at);
 }
 
-/** The worklist's friction drain: the three oldest reports not yet routed, filed from any branch but `branch`. */
+/** Three unrouted reports from other branches, most recurrences first and oldest first on ties. */
 export async function frictionDrain(library: Library, { branch }: { branch?: string }): Promise<SchemaRecord<"friction">[]> {
   return (await allNotes(library))
     .filter((note): note is SchemaRecord<"friction"> => note.type === "friction")
     .filter((report) => report.fields.route === undefined && (branch === undefined || report.fields.provenance?.branch !== branch))
+    // allNotes is in creation order; stable sorting keeps that order when recurrence counts tie.
+    .sort((a, b) => (b.fields.reinforcedBy?.length ?? 0) - (a.fields.reinforcedBy?.length ?? 0))
     .slice(0, DRAIN);
 }
 

@@ -165,9 +165,18 @@ importers:
         specifier: workspace:*
         version: link:../library
     devDependencies:
+      '@storytree/app':
+        specifier: workspace:*
+        version: link:../app
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

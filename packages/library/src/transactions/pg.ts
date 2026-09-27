@@ -81,6 +81,9 @@ export class PgTransactions implements Transactions {
       const current = await lockCurrent(client, input.id);
       if (current === undefined) return null;
       const record = editedRecord(current, input.fields, now(), input.upgrade);
+      if (input.sequence !== undefined) {
+        record.fields = (await numberedIn(client, { ...record, sequence: input.sequence })).fields;
+      }
       check(record, input.validate);
       await appendEvent(client, "updated", record, record.updatedAt, input.actor);
       await putRecord(client, record);

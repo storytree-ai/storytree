@@ -25,6 +25,7 @@ import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
+import { NumberTakenError, type HistoryEntry } from "../transactions/index.js";
 import { relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
 
 /**
@@ -97,7 +98,7 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
 
 /** A decision's fields that change only through their own verbs, never editNote. */
 const OWN_VERBS: Readonly<Record<string, string>> = {
-  number: "a decision's number never changes",
+  number: "use numberDecision only for the one-time storytree Full record repair",
   composed: "a composed statement is written with composeStatement",
 };
 
@@ -111,11 +112,21 @@ const NOTE: Expected = {
 /** What a decision may be the front cover of (capability 9). */
 const COVERABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
 
+/** A read-only proposal from a decision's own Full record line; refusals are never hidden. */
+export interface DecisionNumberPlan {
+  readonly id: string;
+  readonly oldNumber: number | undefined;
+  readonly number: number | undefined;
+  readonly refusal?: string;
+}
+
 export class Knowledge {
   readonly #records: SchemaRecords;
+  readonly #project: string | undefined;
 
-  constructor(records: SchemaRecords) {
+  constructor(records: SchemaRecords, project?: string) {
     this.#records = records;
+    this.#project = project;
   }
 
   /**
@@ -124,12 +135,74 @@ export class Knowledge {
    * It is numbered inside the write: one past the highest number any decision has ever held, so
    * writers at the same time never share one and a retired decision's is never reused. A decision
    * brought in with its own number keeps it, unless another has held it (NumberTakenError).
+   * The storytree project requires an explicit number allocated by 0.2 until cutover.
    */
   async recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
+    if (this.#project === "storytree" && decision.number === undefined) {
+      throw new RangeError("In the storytree project, numbers come from 0.2's adr new until cutover; pass the number explicitly.");
+    }
     await this.#checkLinks(decision.links);
     await this.#checkFrontCover(decision.frontCoverOf);
     await checkReferences(this.#records, "supersedes", decision.supersedes, "decision");
     return this.#records.create("decision", decision, { ...options, sequence: "number" });
+  }
+
+  /**
+   * Repair an imported storytree decision once. The record stays live and keeps its identity,
+   * fields and old number in history. The sequence check runs under the same lock as new decisions.
+   */
+  async numberDecision(id: string, number: number, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
+    this.#requireStorytree();
+    const record = await liveRecord(this.#records, id, ["decision"]);
+    if (record === null) throw new RangeError(`${id} is not a live decision`);
+    this.#checkNumber(record, number, await this.#records.history());
+    const updated = await this.#records.edit(id, { number }, {
+      ...options,
+      sequence: "number",
+      checkCurrent: (current) => {
+        if (current.type !== "decision" || current.fields.number !== record.fields.number || current.fields.text !== record.fields.text) {
+          throw new RangeError(`${id} changed or was already numbered; read it again before numbering`);
+        }
+      },
+    });
+    if (updated === null) throw new RangeError(`${id} is not a live decision`);
+    return updated as SchemaRecord<"decision">;
+  }
+
+  /** Propose every Full record repair without writing. No Full record line means no proposal. */
+  async decisionNumberPlan(): Promise<DecisionNumberPlan[]> {
+    this.#requireStorytree();
+    const records = await this.#records.list("decision");
+    const history = await this.#records.history();
+    const rows = records.filter((record) => fullRecordLines(record.fields.text).length > 0).map((record) => {
+      const number = fullRecordNumber(record.fields.text);
+      try {
+        this.#checkNumber(record, number, history);
+        return { id: record.id, oldNumber: record.fields.number, number };
+      } catch (error) {
+        if (!(error instanceof RangeError || error instanceof NumberTakenError)) throw error;
+        return { id: record.id, oldNumber: record.fields.number, number, refusal: error.message };
+      }
+    });
+    return rows.map((row) => row.refusal === undefined && rows.some((other) => other.id !== row.id && other.number === row.number)
+      ? { ...row, refusal: "another decision proposes the same Full record number" }
+      : row);
+  }
+
+  #requireStorytree(): void {
+    if (this.#project !== "storytree") throw new RangeError("numberDecision is only available in the storytree project");
+  }
+
+  #checkNumber(record: SchemaRecord<"decision">, number: number | undefined, history: HistoryEntry[]): void {
+    if (number === undefined || !Number.isSafeInteger(number) || number < 1 || fullRecordNumber(record.fields.text) !== number) {
+      throw new RangeError(`${record.id}: number must match its own single Full record: ADR-NNNN line`);
+    }
+    if (record.fields.number === number || history.some((entry) => entry.recordId === record.id && entry.record.fields.number !== record.fields.number)) {
+      throw new RangeError(`${record.id} has already been numbered; the Full record repair is one-time`);
+    }
+    if (history.some((entry) => entry.type === "decision" && entry.recordId !== record.id && entry.record.fields.number === number)) {
+      throw new NumberTakenError("decision", "number", number);
+    }
   }
 
   /**
@@ -445,4 +518,16 @@ export class LinkLoopError extends Error {
 /** A fingerprint of a decision's text: what a composed statement remembers, to tell when it changed. */
 function fingerprintOf(text: string): string {
   return createHash("sha256").update(text).digest("hex").slice(0, 16);
+}
+
+/** Only an explicit line in the decision itself authorizes the repair, never an incidental mention. */
+function fullRecordLines(text: string): string[] {
+  return text.split(/\r?\n/).filter((line) => /^[ \t]*Full record:/.test(line));
+}
+
+function fullRecordNumber(text: string): number | undefined {
+  const lines = fullRecordLines(text);
+  if (lines.length !== 1) return undefined;
+  const digits = /^[ \t]*Full record:[ \t]+ADR-(\d{4,})(?=[ \t.,;]|$)/.exec(lines[0]!)?.[1];
+  return digits === undefined ? undefined : Number(digits);
 }

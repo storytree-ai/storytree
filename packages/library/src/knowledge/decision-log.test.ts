@@ -115,18 +115,23 @@ for (const backend of [memory, postgres]) {
   contract("13.5", "storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
     const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Summary.\nFull record: ADR-0621 in 0.2." });
-    const unnumbered = await records.create("decision", { ...DECIDE, text: "Full record: ADR-0169 in 0.2." });
+    const unnumbered = await transactions.save({ id: "legacy-decision", type: "decision", version: 1, fields: { title: "Legacy import", text: "Full record: ADR-0169 in 0.2." } });
     const founding = await records.create("decision", { ...DECIDE, number: 2 });
     const retired = await records.create("decision", { ...DECIDE, number: 3, text: "Full record: ADR-0623" });
     await records.retire(retired.id, "retired");
     const taken = await records.create("decision", { ...DECIDE, number: 640 });
     await records.retire(taken.id, "still reserves its number");
     const collision = await records.create("decision", { ...DECIDE, number: 4, text: "Full record: ADR-0640" });
+    const malformed = [];
+    for (const text of ["Mention Full record: ADR-0621", "Full record: ADR-0621x", "Full record: ADR-0621\nFull record: ADR-0622", "Full record: ADR-0000"]) {
+      malformed.push(await records.create("decision", { ...DECIDE, text }));
+    }
     const before = await transactions.history();
     const plan = await own.decisionNumberPlan();
     assert.deepEqual(plan.find((row) => row.id === imported.id), { id: imported.id, oldNumber: 1, number: 621 });
     assert.match(plan.find((row) => row.id === collision.id)?.refusal ?? "", /taken/);
     assert.ok(!plan.some((row) => row.id === founding.id || row.id === retired.id));
+    for (const record of malformed) await assert.rejects(own.numberDecision(record.id, 621), /Full record/);
     await assert.rejects(own.numberDecision(imported.id, 622), /Full record/);
     await assert.rejects(own.numberDecision(founding.id, 622), /Full record/);
     await assert.rejects(own.numberDecision(retired.id, 623), /live decision/);
@@ -138,7 +143,9 @@ for (const backend of [memory, postgres]) {
 
     const repaired = await own.numberDecision(imported.id, 621, { actor: "supervisor" });
     assert.deepEqual(repaired.fields, { ...imported.fields, number: 621 });
-    assert.equal((await own.numberDecision(unnumbered.id, 169)).fields.number, 169);
+    const upgraded = await own.numberDecision(unnumbered.id, 169);
+    assert.equal(upgraded.fields.number, 169);
+    assert.equal(upgraded.fields.status, "accepted", "normal legacy schema upgrade is preserved");
     assert.deepEqual(await records.get(founding.id), founding, "founding book is untouched");
     const history = await records.history({ id: imported.id });
     assert.deepEqual(history.map((entry) => entry.record.fields.number), [1, 621]);

@@ -95,6 +95,18 @@ labelled error, and a note no shelf reaches orbits outside with "no depth".
     depth. An unreachable loop, like any unreachable note, stays outside with no depth.
   - **Outside means only "no recorded route from a shelf"**, never "unimportant": several
     whole-project decisions sit on no shelf (ADR-0631).
+- **As built:** `underShelves(changes, knowledge)` in `packages/knowledge-core`, a pure function of
+  the library's `changesSince(0)` and capability 2's `knowledge`. Each live story and capability is
+  a shelf on its story's island, oldest first, holding its active front covers, oldest first; an
+  empty one says "no knowledge on this shelf yet". Links are followed between active notes only.
+  Notes that all lead back to one another (Tarjan's strongly connected groups), or a note linking
+  to itself, form one loop with one depth and the label "loop: a refused shape"; depth is the
+  longest chain over the groups. Each placed note carries its depth, home, entrances (oldest
+  first) and loop; the rest are outside, by id.
+- **On the real seed** (this repo's stories and decisions synced into a scratch project on
+  2026-09-27, with this story added): 74 notes and 65 shelves, all with a cover; 69 notes at depth
+  1; the five outside are the planet, licence, testing-rule, MVP-spec and verified-health
+  decisions, as the review measured; no loops and no ghosts.
 
 **Contracts:**
 1. With a cover A, links A → B → C and a shortcut A → C, C stays at depth 3: the shelf-to-cover

@@ -236,7 +236,8 @@ links, replay the selected session, and size notes by visits or incoming links w
     Okabe-Ito order, then unknown in pale grey.
   - `lookInside`, `returnToGlobe`, `toForest` and `shown` are the view rules.
   - The desktop app draws it all. The globe canvas gained `surface` and `inside` props
-    (`packages/forest-world`). The page has a third view button, "Look inside". The drawing
+    (`packages/forest-world`); `surface={false}` hides ADR-0648's see-through shell, which
+    replaced the sea, and every island. The page has a third view button, "Look inside". The drawing
     (`apps/desktop/src/forest/core-view.tsx`) has balls for notes, named entrances, white arrows
     for the pinned note's links, dashed bowed arcs for jumps, and a red cage and label for a
     loop. The panel has counts, the session picker, the size toggle, play, pause and restart,

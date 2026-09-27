@@ -36,7 +36,7 @@ export function lightForCamera(camera: Quaternion, target = new Vector3()): Vect
  * while retaining ray hits for the page's existing near-side selection and label rule. */
 export function createPlanetSurface(radius: number) {
   const surface = new Mesh(new SphereGeometry(radius, 96, 64), new MeshStandardMaterial({
-    color: '#bfbfbf', roughness: 1, transparent: true, opacity: 0.18,
+    color: '#bfbfbf', roughness: 1, transparent: true, opacity: 0.08,
     depthWrite: false, side: DoubleSide,
   }));
   surface.name = 'planet:shell';

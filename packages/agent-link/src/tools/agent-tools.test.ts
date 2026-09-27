@@ -781,3 +781,22 @@ test("6.16 every library write from a tool names the calling session, including 
     });
   });
 });
+
+test("ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("artifact-writer"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Mail", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Sender", ...FOUNDED }));
+      await agent.call("claim", { capability, reason: "Build the sender" });
+      const [cover] = await library.frontCovers(capability);
+      const fields = { title: "Verify senders", description: "Check the sending domain", statement: "Verify before sending", why: "Mail must arrive", howToApply: "Verify the domain before enabling delivery" };
+      const id = idOf(await agent.call("write_note", { kind: "principle", fields }));
+      assert.deepEqual((await library.get(id))?.fields, { ...fields, links: [cover!.id] });
+      const before = await library.history();
+      const refused = await agent.call("write_note", { kind: "memory", text: "Remember this" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.content.map((item) => item.type === "text" ? item.text : "").join("\n"), /memory.*harness.*artifact/i);
+      assert.deepEqual(await library.history(), before);
+    });
+  });
+});

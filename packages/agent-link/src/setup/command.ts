@@ -73,10 +73,10 @@ export function ghState(): Promise<GhState> {
 
 /** The launcher's text: run `target` with `node`, passing every argument on. */
 function launcherFor(node: string, target: string): string {
-  // setup remove deletes this file. Parse the exit with the command so cmd never reads it again.
-  // Keep ! literal in paths and args, then restore delayed expansion to read Node's exit code.
+  // A missing GOTO label ends the batch before Node runs: setup remove can delete this file.
+  // The same parsed line hands off to Node and keeps its exit code (npm/cmd-shim's handoff).
   return process.platform === "win32"
-    ? `@echo off\r\nrem ${MARKER}\r\nsetlocal EnableDelayedExpansion\r\nsetlocal DisableDelayedExpansion\r\n"${node}" "${target}" %* & endlocal & exit /b !errorlevel!\r\n`
+    ? `@echo off\r\nrem ${MARKER}\r\ngoto #_storytree_handoff_# 2>nul || "${node}" "${target}" %*\r\n`
     : `#!/bin/sh\n# ${MARKER}\nexec "${node}" "${target}" "$@"\n`;
 }
 

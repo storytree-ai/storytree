@@ -675,12 +675,13 @@ set one up.
   anywhere on the path is kept, never replaced or shadowed. `storytree-setup remove` takes it out.
   Until the command line's story fills it, `storytree.mjs` answers only `storytree setup install |
   remove`.
-- **Windows removal (regression from storytree-ai/storytree#83):** the `.cmd` launcher runs Node
-  and `exit /b` on the same parsed line. Delayed expansion is off for Node's paths and arguments,
-  then restored for the exit code, so cmd.exe exits with Node's result without reading the deleted
-  file. The Windows CI test installs in a throwaway home, runs `storytree setup remove` through
-  the real wrapper, and checks
-  exit 0, the wrapper gone and the user's own settings kept; an invalid command still exits 2.
+- **Windows removal (regression from storytree-ai/storytree#83):** the `.cmd` launcher ends its
+  batch context before launching Node on the same parsed line, using npm's command-shim handoff:
+  a jump to a deliberately absent label, with its diagnostic suppressed, followed by the Node
+  command. Node can then remove the wrapper without cmd.exe trying to read it again, and its
+  exit code reaches the caller. The Windows CI test installs in a throwaway home, runs
+  `storytree setup remove` through the real wrapper, and checks exit 0, the wrapper gone and the
+  user's own settings kept; an invalid command still exits 2.
 - **Outside a session (ADR-0645 D6, 8.10):** the public `runSetupCheck({ folder, ...options })`
   runs the same check for a terminal. Its report adds `lines`, each with `check`, `state`
   (`ok`, `fixed`, `needs-attention` or `skipped`), `message` and an optional `fix`. These cover

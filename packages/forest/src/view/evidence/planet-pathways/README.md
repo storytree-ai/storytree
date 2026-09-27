@@ -66,13 +66,6 @@ The capacity sample and frozen directions are verified by product tests, not by
 inventing more stories in these pictures. Clearance remains a bounded proof of
 the measured island shapes, not a guarantee for unlimited future island growth.
 
-`pnpm test-ratio`'s current `all` row (a report, not a gate):
-
-```text
-                              test   implementation   ratio
-  all                       38,631           28,122    1.37
-```
-
 ## Reproduce
 
 The instrument is adapted from `origin/spike/globe-pathways`; the spike branch

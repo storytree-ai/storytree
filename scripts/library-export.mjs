@@ -14,17 +14,17 @@
 // `**Founding book (label):**` item. A decision with a full record prints as a decision file of its
 // own, named after the record (decisions/adr-0621.md), and as a pointer on its node's shelf.
 //
-// Where a artifact prints (so that the story text moved into the library, ADR-0641 D2 step 2, prints
+// Where an artifact prints (so that the story text moved into the library, ADR-0641 D2 step 2, prints
 // back in its place): a definition whose term starts `Story text: ` prints in a story when
 // its first link that names a front cover names one of that story's covers, or of its
 // capabilities'. Other definitions are not story blocks. Its meaning is the block as the file
 // writes it, list marker, bold label, line breaks and indentation included, and it prints verbatim.
 // - Behind a capability's cover, it prints in that capability's section, after the shelf and
 //   before the contracts, in the order the artifacts were written. So an indented item (`  - …`)
-//   written first continues the shelf's list. A artifact starting with a line the export makes takes
+//   written first continues the shelf's list. An artifact starting with a line the export makes takes
 //   that line's place: `- **Depends on:**` the line it would make from the capability's
 //   dependencies, and `**Contracts**` the header of its contracts.
-// - Behind the story's cover, a artifact starting with a `## ` heading is a closing section, heading
+// - Behind the story's cover, an artifact starting with a `## ` heading is a closing section, heading
 //   and all, printed after the last capability; any other is an opening block, printed after the
 //   description.
 //
@@ -107,7 +107,7 @@ async function printStory(library, story, behind) {
       list.push("- **Its shelf,** founding book first:");
       for (const cover of covers) list.push(`  - ${shelfItem(cover)}`);
     }
-    // A artifact that is a list item continues the list; any other stands apart, and the list starts again after it.
+    // An artifact that is a list item continues the list; any other stands apart, and the list starts again after it.
     for (const text of own) {
       if (/^\s*- /.test(text)) list.push(text);
       else {

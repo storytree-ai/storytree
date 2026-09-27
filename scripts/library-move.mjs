@@ -24,7 +24,7 @@ import { exportLibrary, roundTrip } from "./library-export.mjs";
  */
 
 /**
- * File every block the committed story files hold and the library does not as a artifact behind its
+ * File every block the committed story files hold and the library does not as an artifact behind its
  * node's cover. With `dryRun` nothing is written, and the result says what would be.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} committed repo path (`stories/app.md`) -> markdown

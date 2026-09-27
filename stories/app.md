@@ -190,6 +190,10 @@ on show when the app opens.
 - **Proved by** the page's existing switcher test for contract 1, and the app package's
   `projects/selection.test.ts` and `projects/follow.test.ts` for contracts 2–4. Contract 5 is
   checked in the rendered page; its prose is not pinned by a wording test (ADR-0623).
+  `packages/app/evidence/project-switch-smoke.mjs` runs the actual renderer with a throwaway
+  library and the unchanged setup yes. It checks first-run discovery, canvas preservation on
+  unchanged polls, switching and reopening. That proof exposed a forest-overlay teardown race:
+  the forest now keeps each HTML overlay's host stable when its canvas disconnects.
 
 **Contracts:**
 1. The Project list lists every project, with the one on show selected.
@@ -283,8 +287,8 @@ installed app does the same from published releases.
     session's.
   - 0.2's reference and its pain: ADR-0181's pinned-main runtime, refreshed by hand as main moved,
     and ADR-0207's electron-updater feed, planned and never built.
-  - **Parked** with the users' work (`0-3-app-users-own-projects`, due before first users): the
-    users' half. It needs an installer (NSIS on Windows), since electron-updater cannot update
+  - **Un-parked by ADR-0657 D1** (`0-3-app-updates-itself-for-users`, due before first users):
+    the users' half. It needs an installer (NSIS on Windows), since electron-updater cannot update
     today's portable exe, and `dist.mjs`'s Windows arm64 7z workaround will matter there.
 - **Approved** by the owner on 2026-09-27, as worded above ("Yes, build it"), added to the tree
   ADR-0634 approved. The capability is ADR-0637 D2, the owner's answer to d2: "Can't we also bring
@@ -321,8 +325,6 @@ installed app does the same from published releases.
 - **The overlay.** The forest hosts the arc surface as an overlay (ADR-0633 D3 item 14), and the arc
   surface draws it.
 - **Replacing the plain list with the forest** is the forest's (`stories/forest.md`, capability 3).
-- **Users' own projects** wait until storytree 0.3 is in a good place (ADR-0634 D4), parked as
-  `0-3-app-users-own-projects`, due before first users.
 - **The app's agent-written cuts**, d1 to d3, are decided (ADR-0636 D3, ADR-0637): d1, keeping
   the app recording with its window closed, is built (Lifecycle, contract 7); d2, the app updating
   itself, is capability 4, Updates; d3 waits.

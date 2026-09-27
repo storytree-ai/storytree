@@ -55,8 +55,8 @@ try {
   await context.addInitScript(() => {
     window.storytree = Object.fromEntries(['projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'].map(name => [name, (...args) => window.bridge(name, args)]));
   });
+  context.on('page', page => page.on('pageerror', error => errors.push(error.stack ?? String(error))));
   let page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.stack ?? String(error))); 
   const url = `http://127.0.0.1:${server.address().port}/`;
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'empty');
@@ -71,6 +71,11 @@ try {
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site', undefined, { timeout: 30000 });
   const firstProjectMs = Date.now() - before;
   assert.equal(await page.locator('#project').inputValue(), 'my-site');
+  const plan = await library.openProject('my-site');
+  const story = await plan.addStory({ title: 'My site' });
+  await plan.addCapability({ story: story.id, title: 'Home page' });
+  await plan.close();
+  await page.waitForFunction(() => JSON.parse(document.body.dataset.drew ?? '{}').stories?.length === 1);
   await page.screenshot({ path: path.join(out, 'first-project.png') });
   await page.evaluate(() => { window.originalCanvas = document.querySelector('canvas'); });
   const initialPolls = calls.projectSelection;
@@ -87,7 +92,6 @@ try {
   await page.close();
   selection = projectSelection(preferences);
   page = await context.newPage();
-  page.on('pageerror', error => errors.push(error.stack ?? String(error))); 
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.screenshot({ path: path.join(out, 'remembered-choice.png') });

@@ -31,23 +31,26 @@ look unchanged. Land between them is not filled. A later pathways decision will 
 ADR-0646's H1 (books on the forest's shelves), L1 (the light follows the eye) and the failing
 island rule stand. The globe opens toward a failing island; edge markers bring a hidden failure
 to the front. Names and claim markers keep their current rule and hide when behind. The flat
-forest remains unchanged. The knowledge core is still unbuilt and reviewed separately.
+forest remains unchanged. The knowledge core is now built behind its separate “Look inside”
+view (ADR-0647 E1). The owner’s K1 choice on 2026-09-27
+(`oq-0-3-knowledge-core-through-the-shell`) keeps it out of the ordinary Globe view;
+D2’s readiness for a future visible core does not add that overlay.
 
 As built, the 36 directions use the spike's spiral, with no live repacking. The table was
 corrected before first landing because a fresh seed's different ids made its first two shores
 overlap under the look-only table. Both seed shapes and all 36 sample shores now pass. The page uses
 `placeOnPackedGlobe`. The even-spread implementation is retired; `placeOnGlobe` remains a
-compatibility alias for existing callers. The shell uses the glass tuning below, both faces, and no depth writing. It keeps ray hits for the near-side labels and picking rule.
+compatibility alias for existing callers. The shell uses the glass tuning below, both faces,
+and no depth writing. It keeps ray hits for the near-side labels and picking rule.
 
 **Shell tuning, 2026-09-27.** After seeing #90's 0.18 shell in the real app, the owner said
-“needs to be more transparent”. Increment `0-3-planet-shell-more-transparent` lowers opacity to
-0.08, tuning D2 rather than making a new decision. Both faces together retain 84.6% of the
+“needs to be more transparent”. Increment `0-3-planet-shell-more-transparent` lowered opacity to
+0.08, tuning D2 rather than making a new decision. Both faces together then retained 84.6% of the
 far-side blend contribution (`0.92²`), compared with 67.2% before (`0.82²`). The existing shell
 test protects at least 80% transmission and a nonzero shell, without pinning the exact colour
 or opacity. The ball's outline remains visible in the
 [front and quarter-turn comparisons](../apps/desktop/src/forest/evidence/shell/README.md).
-The future core's drawing is still unbuilt; these captures show the seeded islands through the
-shell, with no core placeholder.
+The shell comparison showed the seeded islands through the shell, with no core placeholder.
 
 **Glass tuning, 2026-09-27.** After #93 the owner said “doesnt look seethrough, maybe try
 making it look like a glass ball, if thats hard dw about it its not something we need to

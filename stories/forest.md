@@ -208,10 +208,12 @@ place of today's plain list.
     and no marker for a failure already in front. The globe page adds the drawing in its own lane.
   - **Packed land on a see-through grey ball (ADR-0648):** the globe has a light grey transparent
     shell with a clear middle, a bright rim and one soft highlight under L1 (the owner’s
-    glass-ball tuning after #93), with no sea, bridges or filled continent. The far side shows through empty areas;
+    glass-ball tuning after #93), with no sea, bridges or filled continent. The far side shows
+    through empty areas;
     names, claims and clicks keep their near-side rule. The islands and kit pines keep their
-    existing drawing, and L1 keeps the light over the viewer's shoulder. The knowledge core's
-    interior drawing is still unbuilt. See [the decision](../decisions/planet-packed-see-through.md).
+    existing drawing, and L1 keeps the light over the viewer's shoulder. The knowledge core
+    appears only in its separate “Look inside” view (ADR-0647 E1, the owner’s K1 choice).
+    See [the decision](../decisions/planet-packed-see-through.md).
   - Only meshes exported from the bought pine kit ship, never the kit itself. Its licence allows
     derived output and forbids repackaging, as 0.2 applied it (ADR-0418).
   - The look is judged by the owner's eye, with a screenshot at each landing that changes it.

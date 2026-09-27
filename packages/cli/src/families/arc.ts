@@ -9,7 +9,7 @@
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
  * owner (`heldOnQuestion`), and an arc's state, which `arcView` works out. There is no `increment
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5), and no hand
- * close or re-open of an arc (the owner's R1). `arc list` waits on the library's list(kind).
+ * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
 import type { Library } from "@storytree/library";
 
@@ -233,9 +233,18 @@ const increment: Family = {
 const list: Verb = {
   name: "list",
   usage: "arc list",
-  summary: "every arc (not yet)",
-  act() {
-    throw new Refusal("storytree arc list is not built yet: it waits on the library's list(kind) on its public API (0-3-library-writer-and-public-reads)");
+  summary: "every live arc and its state",
+  async act(_args, context) {
+    const library = await context.library();
+    const lines: string[] = [];
+    for (const arc of await library.list("arc")) {
+      const view = await library.arcView(arc.id);
+      if (view !== null) lines.push(`  ${arc.id}  [${view.state}]  ${view.arc.fields.title}`);
+    }
+    return {
+      text: lines.length === 0 ? "No arcs in this project." : [`${lines.length} arcs:`, ...lines].join("\n"),
+      next: [{ command: "storytree arc show <arc>", why: "see one whole" }],
+    };
   },
 };
 

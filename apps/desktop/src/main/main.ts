@@ -84,12 +84,14 @@ const lifecycle = background({ stopDatabase: shutdown, exit: (code) => app.exit(
 if (slot !== undefined && !args.smoke) logTo(path.join(home.dir, "app.log"));
 
 if (!args.smoke && !app.requestSingleInstanceLock()) {
-  app.quit(); // the app is already open: that one is focused instead
+  app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
+} else if (args.quit) {
+  app.exit(0); // asked to quit, and none is running: start nothing
 } else {
   // A second start shows the window; one that arrives while the app is quitting or restarting opens
   // it again once it has stopped, instead of being lost.
-  app.on("second-instance", () => {
-    if (lifecycle.secondStart() === "show") showWindow();
+  app.on("second-instance", (_event, argv) => {
+    if (lifecycle.secondStart({ quit: parseArgs(argv).quit }) === "show") showWindow();
   });
   app.on("activate", () => showWindow());
   // Closing the last window leaves the app, and its database, running in the background.

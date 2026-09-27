@@ -76,3 +76,21 @@ test("1.7 restarting into an update stops the database once, and the new build s
   assert.deepEqual(await runs(true, false), ["database stopping", "relaunch b/app with its window", "exit 0"]);
   assert.deepEqual(await runs(false, true), ["database stopping", "relaunch b/app with its window", "exit 0"], "a start during the restart is not swallowed");
 });
+
+test("1.7 asking the app to quit from outside stops it as the tray's Quit does: the database once, then exit, and it does not open again", async () => {
+  const done: string[] = [];
+  let finishStopping = (): void => {};
+  const app = background({
+    stopDatabase: () => {
+      done.push("database stopping");
+      return new Promise<void>((resolve) => (finishStopping = resolve));
+    },
+    exit: (code) => done.push(`exit ${code}`),
+    relaunch: () => done.push("relaunch"),
+  });
+  assert.equal(app.secondStart({ quit: true }), "quit", "a start asking it to quit quits it");
+  assert.equal(app.secondStart({ quit: true }), "quit", "asking again waits for the same quit");
+  finishStopping();
+  await app.quit();
+  assert.deepEqual(done, ["database stopping", "exit 0"], "the database is stopped once, the app exits, and nothing is started again");
+});

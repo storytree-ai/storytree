@@ -70,3 +70,40 @@ export async function holdSeedLock(url, { log }) {
   }
   return { release: () => client.end() };
 }
+
+/**
+ * The app's library for one of this repo's library scripts (`pnpm seed:library`, `library:move`,
+ * `library:export`, `library:restore`): the running app's database, or one started for the script,
+ * waiting its turn behind another script. A script that `writes` also takes the writing lock, so
+ * two never write at once and the app does not restart under it. `stop()` lets go of both.
+ */
+export async function appLibraryServer(command, { writes, log = (line) => console.log(line) }) {
+  const [{ start }, { locateStorytree }, { APP_OWNER, appHome }] = await Promise.all([
+    import("@storytree/local-postgres"),
+    import("@storytree/agent-link"),
+    import("../apps/desktop/src/home.ts"),
+  ]);
+  const server = await libraryServer({
+    dataDir: appHome().pgdata,
+    owner: command,
+    appOwner: APP_OWNER,
+    start: (options) => start({ ...options, log: (message) => log(`Postgres: ${message}`) }),
+    locate: locateStorytree,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    log,
+  });
+  let lock;
+  try {
+    if (writes) lock = await holdSeedLock(server.url, { log });
+  } catch (error) {
+    await server.stop();
+    throw error;
+  }
+  return {
+    url: server.url,
+    stop: async () => {
+      await lock?.release();
+      await server.stop();
+    },
+  };
+}

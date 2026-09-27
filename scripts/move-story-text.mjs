@@ -6,17 +6,17 @@
 //
 // Each block it cannot place (its node has no front cover, or the library lacks its story or
 // capability) is listed by name and not written. Check the result with `pnpm library:export`.
-// Like the seed, it starts the app's Postgres on the app's own data directory and stops it again,
-// so quit the app first. The rules live in scripts/library-move.mjs.
+// Like the seed, it writes into the running app's database, or starts the app's Postgres itself
+// when the app is not running (scripts/library-server.mjs). The rules live in scripts/library-move.mjs.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
-import { DataDirInUseError, start } from "@storytree/local-postgres";
 
-import { APP_OWNER, appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../apps/desktop/src/home.ts";
+import { appLibraryServer } from "./library-server.mjs";
 import { moveStoryText } from "./library-move.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -50,19 +50,7 @@ async function main() {
   );
   const home = appHome();
   console.log(`the app's library: ${home.pgdata}${dryRun ? " (dry run: nothing is written)" : ""}`);
-  try {
-    server = await start({ dataDir: home.pgdata, owner: COMMAND, log: (message) => console.log(`Postgres: ${message}`) });
-  } catch (error) {
-    if (!(error instanceof DataDirInUseError)) throw error;
-    console.error(
-      error.owner === APP_OWNER
-        ? `\nThe storytree 0.3 app is running (pid ${error.pid}) and holds its library in ${home.pgdata}.\n` +
-            `Quit the app, then run \`${COMMAND}\` again.`
-        : `\nThe app's library in ${home.pgdata} is in use by process ${error.pid}` +
-            `${error.owner === undefined ? "" : ` (${error.owner})`}. When it has finished, run \`${COMMAND}\` again.`,
-    );
-    return 1;
-  }
+  server = await appLibraryServer(COMMAND, { writes: true });
 
   let moved;
   let storytree;

@@ -25,11 +25,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { locateStorytree } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
-import { start } from "@storytree/local-postgres";
 
-import { APP_OWNER, appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../apps/desktop/src/home.ts";
 import {
   contractsCoveredBy,
   judge,
@@ -42,7 +40,7 @@ import {
   syncStories,
   VERIFIED_BY,
 } from "./library-seed.mjs";
-import { holdSeedLock, libraryServer } from "./library-server.mjs";
+import { appLibraryServer } from "./library-server.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const PROJECT = "storytree";
@@ -80,20 +78,10 @@ async function main() {
   console.log(`${DECISIONS}/: ${decisions.length} decision${decisions.length === 1 ? "" : "s"}`);
   console.log(`the app's library: ${home.pgdata}`);
 
-  server = await libraryServer({
-    dataDir: home.pgdata,
-    owner: SEED,
-    appOwner: APP_OWNER,
-    start: (options) => start({ ...options, log: (message) => console.log(`Postgres: ${message}`) }),
-    locate: locateStorytree,
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    log: (line) => console.log(line),
-  });
+  server = await appLibraryServer(SEED, { writes: true });
 
   let storytree;
-  let lock;
   try {
-    lock = await holdSeedLock(server.url, { log: (line) => console.log(line) });
     storytree = await connect({ url: server.url });
     const existed = (await storytree.listProjects()).includes(PROJECT);
     const library = await storytree.openProject(PROJECT);
@@ -142,7 +130,6 @@ async function main() {
     return code;
   } finally {
     await storytree?.close();
-    await lock?.release();
     await server.stop();
   }
 }

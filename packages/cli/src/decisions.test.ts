@@ -147,3 +147,34 @@ test("6.7 `adr number` and its dry run refuse projects other than storytree", as
     assert.deepEqual(await library.history(), before);
   });
 });
+
+test("6.7 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations", async () => {
+  await inWorld(command, async (world) => {
+    const help = await world.run(["adr", "renumber", "--help"]);
+    assert.equal(help.code, 0, help.stderr);
+    assert.match(help.stdout, /one-time N1/);
+    assert.match(help.stdout, /--apply/);
+    const library = await world.library();
+    const decision = await library.recordDecision({ title: "Imported", text: "Full record: ADR-0621", status: "accepted" });
+    const before = await library.history();
+    for (const args of [["--from-full-record"], ["--from-full-record", "--dry-run"], ["--from-full-record", "--apply"], [decision.id, "--number", "621"]]) {
+      const refused = await world.run(["adr", "renumber", ...args]);
+      assert.equal(refused.code, 1, refused.stdout);
+      assert.match(refused.stderr, /storytree project/);
+    }
+    for (const args of [
+      ["--from-full-record", "--apply", "--dry-run"],
+      ["--from-full-record", "--number", "621"],
+      ["--from-full-record", decision.id],
+      ["--from-full-record", "--apply=false"],
+      [decision.id, "--number", "621", "--dry-run"],
+      [decision.id, "--number", "621", "--apply"],
+      [decision.id, "--number", "621", "--unknown", "flag"],
+    ]) {
+      const refused = await world.run(["adr", "renumber", ...args]);
+      assert.equal(refused.code, 2, refused.stderr);
+      assert.match(refused.stderr, /usage:/);
+    }
+    assert.deepEqual(await library.history(), before);
+  });
+});

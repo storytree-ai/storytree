@@ -1,5 +1,5 @@
 /**
- * Capability 9 · Knowledge entrances: one test per contract 9.1-9.3 in stories/library.md, each
+ * Capability 9 · Knowledge entrances: one test per contract 9.1-9.4 in stories/library.md, each
  * run on BOTH backends, as capability 6's tests are:
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
@@ -244,7 +244,7 @@ for (const backend of [memory, postgres]) {
     }
 
     // Control: links to live notes of all three kinds are accepted, by every kind of note and by an
-    // edit (which may link a note to itself). A front cover links to notes like any other decision.
+    // edit. A front cover links to notes like any other decision.
     const notes = [note.id, decision.id, definition.id];
     const linked = await knowledge.writeMemory({ text: "Links to every kind", links: notes });
     await assertCreated(transactions, linked, "memory", { text: "Links to every kind", links: notes });
@@ -252,9 +252,50 @@ for (const backend of [memory, postgres]) {
     await assertCreated(transactions, decided, "decision", { title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
-    const relinked = await knowledge.editNote(note.id, { links: [note.id, linked.id, ...notes] });
-    assert.deepEqual(relinked?.fields, { text: "Mailgun needs a verified domain", links: [note.id, linked.id, ...notes] });
+    const relinked = await knowledge.editNote(note.id, { links: [decision.id, definition.id] });
+    assert.deepEqual(relinked?.fields, { text: "Mailgun needs a verified domain", links: [decision.id, definition.id] });
   });
+
+  contract("9.4", "a link that would close a loop between notes, a note linking to itself included, is refused, naming the chain it closes, and nothing is written", async ({ knowledge, records, transactions }) => {
+    const story = await records.create("story", { title: "Visitor can sign up" });
+    // A cover, a note filed under it, and one under that: cover ← below ← deepest, each resting on the one above.
+    const cover = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: story.id });
+    const below = await knowledge.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] });
+    const deepest = await knowledge.defineTerm({ term: "Verified domain", meaning: "One Mailgun may send from", links: [below.id] });
+    const role = await knowledge.writeKnowledge("agent", { title: "Mailer", description: "Sends mail", oneLine: "Sends mail", role: "Mailer", outcome: "Mail sent", context: [deepest.id], tools: "Mailgun", workflow: "Send" });
+    const before = await transactions.history();
+
+    // Each would close a loop: the chain named runs from the note being edited back round to it.
+    const loops: [() => Promise<unknown>, string[]][] = [
+      [() => knowledge.editNote(cover.id, { links: [cover.id] }), [cover.id, cover.id]],
+      [() => knowledge.editNote(cover.id, { text: "Reconsidered", links: [below.id] }), [cover.id, below.id, cover.id]],
+      [() => knowledge.editNote(cover.id, { links: [deepest.id] }), [cover.id, deepest.id, below.id, cover.id]],
+      // An agent role's required reading, rules and step reading are links too (6-a).
+      [() => knowledge.editNote(below.id, { links: [cover.id, role.id] }), [below.id, role.id, deepest.id, below.id]],
+      [() => knowledge.editNote(role.id, { rules: [role.id] }), [role.id, role.id]],
+      [() => knowledge.editNote(role.id, { stepRefs: [{ step: "Send", refs: [role.id] }] }), [role.id, role.id]],
+    ];
+    for (const [attempt, chain] of loops) await assert.rejects(attempt(), linkLoop(chain));
+    assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
+
+    // Control: a note may rest on many, and many on one, without a loop; shared ground is not a loop.
+    const also = await knowledge.writeMemory({ text: "Mailgun bills per message", links: [cover.id, below.id, deepest.id] });
+    const relinked = await knowledge.editNote(role.id, { context: [deepest.id, below.id, also.id], rules: [cover.id] });
+    assert.deepEqual(relinked?.type === "agent" && [relinked.fields.context, relinked.fields.rules], [[deepest.id, below.id, also.id], [cover.id]]);
+  });
+}
+
+/**
+ * An assert.rejects check: the library refused a link that would close a loop between notes
+ * (ADR-0647 D2), naming the chain from the note being written back round to it.
+ */
+function linkLoop(chain: readonly string[]): (error: unknown) => true {
+  return (error) => {
+    assert.ok(error instanceof Error && error.name === "LinkLoopError", `expected a LinkLoopError, got: ${String(error)}`);
+    assert.deepEqual((error as Error & { path?: unknown }).path, chain, error.message);
+    assert.ok(error.message.includes(chain.join(" → ")), `the message names the chain: ${error.message}`);
+    return true;
+  };
 }
 
 /**

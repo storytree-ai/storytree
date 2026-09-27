@@ -396,6 +396,9 @@ into the knowledge is through a front cover.
    written. Only a decision can be a front cover.
 3. A note that links to a story, capability, contract, arc or health entry is refused, and nothing
    is written. Notes link only to other notes.
+4. A link that would close a loop between notes, a note linking to itself included, is refused
+   with the chain it would close named, and nothing is written. The knowledge is a DAG under its
+   covers (ADR-0647 D2).
 
 ## 10 · Work in flight
 

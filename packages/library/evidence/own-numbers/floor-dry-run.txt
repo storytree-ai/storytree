@@ -1,0 +1,6 @@
+$ node --import tsx packages/cli/src/bins/storytree.ts adr set-floor --number 662 --dry-run
+Dry run: nothing changed. Review this output, then use --apply. The floor is not set by this preview.
+storytree decision number floor: ADR-0662  READY
+1 ready; 0 refused. New decisions will be numbered above this floor and every number already held.
+
+exit: 0

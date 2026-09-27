@@ -1,0 +1,7 @@
+$ node --import tsx packages/cli/src/bins/storytree.ts adr set-floor --number 662 --apply
+One-time ADR-0662 move: decision number floor set.
+storytree decision number floor: ADR-0662  SET
+1 changed; 0 refused. New decisions will be numbered above this floor and every number already held.
+Writer: person:mickh
+
+exit: 0

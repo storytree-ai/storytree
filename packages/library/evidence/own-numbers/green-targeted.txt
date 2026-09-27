@@ -1,0 +1,47 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/own-numbers
+> node --import tsx scripts/test.mjs "packages/library/src/knowledge/decision-log.test.ts" "packages/cli/src/decisions.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:35977 (started in 0.1 s)
+✔ 6.3 a superseded decision drops out of `--current`; filters use the library's status (902.534507ms)
+✔ 6.5 `adr pull` names a decision by id, number, or ADR number (639.057505ms)
+✔ 6.1 two `adr new` run at once get different, increasing numbers (363.416429ms)
+✔ 6.2 pull then push with no edit changes nothing (357.10746ms)
+✔ 6.4 a composed statement reads stale after its decision's text changes (626.73489ms)
+✔ 6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers (939.169439ms)
+✔ 6.7 `adr number` and its dry run refuse projects other than storytree (343.304465ms)
+✔ 6.8 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations (1549.277121ms)
+✔ 6.9 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects (1890.666178ms)
+✔ 6.10 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects (1433.130255ms)
+✔ 13.1 [memory] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (7.75867ms)
+✔ 13.5 [memory] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (8.135596ms)
+✔ 13.5 [memory] simultaneous repairs cannot share a number or repair the same decision twice (1.141417ms)
+✔ 13.6 [memory] storytree switches once to a stored floor; concurrent decisions exceed it and every held number (2.053759ms)
+✔ 13.8 [memory] founding books preview in creation order, preserve history, skip Full record decisions and finish once (3.475839ms)
+✔ 13.8 [memory] concurrent founding moves cannot share numbers or move a book twice (0.71137ms)
+✔ 13.7 [memory] Full record bulk repair previews by default, reports refusals, and skips completed repairs (2.205657ms)
+✔ 13.5 [memory] repair refuses numbers any record ever held, including a collision arriving after preview (2.734932ms)
+✔ 13.2 [memory] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (2.551825ms)
+✔ 13.3 [memory] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (3.786599ms)
+✔ 13.4 [memory] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (1.712701ms)
+✔ 13.1 [postgres] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (205.524189ms)
+✔ 13.5 [postgres] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (134.042109ms)
+✔ 13.5 [postgres] simultaneous repairs cannot share a number or repair the same decision twice (95.810377ms)
+✔ 13.6 [postgres] storytree switches once to a stored floor; concurrent decisions exceed it and every held number (107.921279ms)
+✔ 13.8 [postgres] founding books preview in creation order, preserve history, skip Full record decisions and finish once (112.413237ms)
+✔ 13.8 [postgres] concurrent founding moves cannot share numbers or move a book twice (95.118934ms)
+✔ 13.7 [postgres] Full record bulk repair previews by default, reports refusals, and skips completed repairs (109.794946ms)
+✔ 13.5 [postgres] repair refuses numbers any record ever held, including a collision arriving after preview (134.253421ms)
+✔ 13.2 [postgres] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (105.133456ms)
+✔ 13.3 [postgres] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (87.613875ms)
+✔ 13.4 [postgres] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (92.494411ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9302.861191
+test Postgres: stopped (0.1 s)

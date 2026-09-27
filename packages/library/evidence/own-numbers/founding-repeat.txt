@@ -1,0 +1,6 @@
+$ node --import tsx packages/cli/src/bins/storytree.ts adr renumber --founding-books --apply
+One-time ADR-0662 move: applied with every write rechecked.
+0 renumbered; 0 refused. Decisions with a Full record line, created after switch-on, or already moved by this command are untouched.
+Writer: person:mickh
+
+exit: 0

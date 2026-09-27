@@ -21,7 +21,7 @@ function story(index: number, capabilities = 0): AnnotatedStory {
 
 const distance = (a: PlanetPoint, b: PlanetPoint): number => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
-test("globe 1: the same places always give the same spots, spread across a fixed sphere", () => {
+test("1.4 the same places always give the same globe spots, spread across a fixed sphere", () => {
   const spots = Array.from({ length: PLANET_CAPACITY }, (_, i) => placeOnGlobe(i + 1));
   for (let i = spots.length - 1; i >= 0; i--) {
     assert.deepEqual(placeOnGlobe(i + 1), spots[i], "reading in another order changes nothing");
@@ -46,7 +46,7 @@ test("globe 1: the same places always give the same spots, spread across a fixed
   for (const invalid of [0, -1, 1.5, 129, NaN, Infinity]) assert.throws(() => placeOnGlobe(invalid), RangeError);
 });
 
-test("globe 2: adding or retiring a story moves no other island and never reuses a retired spot", () => {
+test("1.5 adding or retiring a story moves no other globe island and never reuses a retired spot", () => {
   const stories = Array.from({ length: 6 }, (_, i) => story(i));
   const at = "2026-09-27T00:00:00.000Z";
   const history = stories.map(({ id, title }, i): Change => ({
@@ -65,7 +65,7 @@ test("globe 2: adding or retiring a story moves no other island and never reuses
   for (const point of before.values()) assert.notDeepEqual(after.get("story_5"), point);
 });
 
-test("globe 3: the first 100 historical places fit islands with up to 19 capabilities, including their beaches", () => {
+test("1.6 the first 100 historical globe places fit islands with up to 19 capabilities, including their beaches", () => {
   // Build at zero, as the globe mounts each rigid plate. Use the shipped coast operation as well
   // as descriptors: the beach reaches beyond the descriptor mesh. Nothing is drawn in a browser.
   const shores = Array.from({ length: 100 }, (_, s) => {

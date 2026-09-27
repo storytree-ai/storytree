@@ -105,6 +105,12 @@ node and a retired story's node goes, with nothing arranged by hand.
     in the order stories were created, fixed for good, and a retired story leaves open sea. So
     nothing ever moves a node, and the planet (ADR-0629) will be a new placement book, not a
     rewrite.
+  - **Places on a globe (W2, ADR-0646):** the same permanent place number also names a fixed spot
+    on a sphere. There are 128 spots spread over the whole globe, dealt from the largest empty
+    patch so a young project's islands already surround it. Retired stories keep their places.
+    This is a new book on this shelf (H1), alongside the flat spiral. The bounded proof is the
+    first 100 historical places with islands of up to 19 capabilities; a later book decides what
+    happens after the last spot. See [the first-slice decision](../decisions/planet-first-slice.md).
 - **Leaves out (vs 0.2), by the owner's pick P1** over P2, a layout that packs stories by how they
   relate: 0.2's layout engine, which ranked stories by their dependencies, packed them onto a hex
   grid and nudged neighbours apart as islands grew, so one story's change could move another's island.
@@ -114,6 +120,12 @@ node and a retired story's node goes, with nothing arranged by hand.
   and where that place is, in place-widths from the centre. The spiral's turns are one place-width
   apart and its places one width apart along it, so no two places are closer than 0.97 of a width,
   and a hundred stories sit within 5.7 widths of the centre.
+- **Globe book, as built:** `placeOnGlobe(node.place)` in `packages/forest` returns `{ x, y, z }`
+  in the drawing engine's ground units, on a sphere of fixed radius `PLANET_RADIUS = 390`.
+  Dividing by the radius gives the island's outward normal. The fixed Fibonacci sphere has
+  `PLANET_CAPACITY = 128` spots; invalid or exhausted place numbers raise `RangeError`, never
+  reuse a retired spot. The radius is measured against the engine's real shores, including the
+  beach, in [the placement measurements](../packages/forest/src/planet-places/measurements.md).
 
 **Contracts** (each one a test):
 1. Three stories give three story nodes, each with its title and its overall health as the agent
@@ -122,6 +134,11 @@ node and a retired story's node goes, with nothing arranged by hand.
 3. The same stories always get the same places: the first story sits at the centre and each later
    one takes the next place on a spiral. Adding or retiring a story never moves another node, and a
    retired story's place is never given to another.
+4. On the globe, the same stories always get the same spots on a fixed sphere, spread around it
+   even when the project is young.
+5. Adding or retiring a story never moves another globe island, and a retired spot is never reused.
+6. The first 100 historical globe places, with islands of up to 19 capabilities at their real
+   sizes including the beach, never overlap.
 
 ## 2 · Capability tree
 

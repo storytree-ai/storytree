@@ -37,7 +37,7 @@ import {
   recordHealth,
   syncDecisions,
   syncFoundingBooks,
-  syncStory,
+  syncStories,
   VERIFIED_BY,
 } from "./library-seed.mjs";
 
@@ -98,13 +98,11 @@ async function main() {
     const library = await storytree.openProject(PROJECT);
     console.log(`project "${PROJECT}": ${existed ? "opened" : "created"}`);
 
-    /** @type {Map<string, { storyId: string, capabilityIds: Map<string, string>, contractIds: Map<string, string> }>} */
-    const synced = new Map();
+    const { synced, crossStoryLinks, dependenciesUpdated } = await syncStories(library, stories);
     /** @type {Map<string, string>} node id -> how to name it */
     const names = new Map();
     for (const { file, story } of stories) {
-      const result = await syncStory(library, story, { source: file });
-      synced.set(file, result);
+      const result = synced.get(file);
       const { capabilities: caps, contracts: ks } = result.counts;
       console.log(`\nstory "${story.title}" (${file}): ${result.counts.story}`);
       console.log(`  capabilities: ${caps.added} added, ${caps.updated} updated, ${caps.unchanged} unchanged, ${caps.retired} retired`);
@@ -114,6 +112,7 @@ async function main() {
         names.set(result.capabilityIds.get(String(capability.number)), `"${story.title}" › ${capability.title}`);
       }
     }
+    console.log(`\ndependencies: ${crossStoryLinks} cross-story links; ${dependenciesUpdated} capabilities' links updated`);
     const titles = new Set(stories.map(({ story }) => story.title));
     for (const other of (await library.projectTree()).stories.filter(({ title }) => !titles.has(title))) {
       console.log(`note: the library also has the story "${other.title}", which no story file names; it is left as it is`);

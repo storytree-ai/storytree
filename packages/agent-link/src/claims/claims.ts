@@ -57,7 +57,7 @@ export interface ClaimContext {
 }
 
 export type ClaimAnswer =
-  | { ok: true; claim: Claim; takenOverFrom?: Claim }
+  | { ok: true; claim: Claim; takenOverFrom?: Claim; alreadyHeld?: true }
   | { ok: false; refused: "held"; holder: Claim }
   | { ok: false; refused: "unknown-capability"; capability: string }
   | { ok: false; refused: "closed"; increment: string }
@@ -110,7 +110,7 @@ export async function claim(context: ClaimContext, id: string, reason: string): 
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
-    if (current?.session === context.session) return { ok: true, claim: current };
+    if (current?.session === context.session) return { ok: true, claim: current, alreadyHeld: true };
     if (current?.holder === "live") return { ok: false, refused: "held", holder: current };
     const line = await log.append({
       ...who(context),

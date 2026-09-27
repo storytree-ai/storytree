@@ -1,8 +1,8 @@
 {
   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
-  "sceneId": "7990ac60-c9fa-40ac-beef-2e2e3f1f2e61",
-  "cameraId": "4bd49ba6-a0e5-49d2-ad28-9375d3d90411",
-  "pointLayerId": "e7ce9df4-e050-46b3-b870-74fac5b5b564",
+  "sceneId": "ed76d8fc-a76f-411e-b75b-7f1ded8f20c6",
+  "cameraId": "a9aab9e3-e667-469b-a5c0-f87cacff9502",
+  "pointLayerId": "e4db423f-0c2a-46c7-9ae6-d85a4e8b8695",
   "zoom": 1.7696266132794276,
   "camera": [
     0,

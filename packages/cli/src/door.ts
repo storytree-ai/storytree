@@ -23,6 +23,8 @@ import { FAMILIES } from "./families/index.js";
 /** Where a command runs, and where its answer goes. */
 export interface Io {
   readonly cwd: string;
+  /** The command's own script, as Node ran it: storytree's other commands sit beside an installed one. */
+  readonly script?: string;
   out(text: string): void;
   err(text: string): void;
 }
@@ -30,6 +32,8 @@ export interface Io {
 /** What a verb is handed besides its words: the folder, and the project's library on first use. */
 export interface Context {
   readonly cwd: string;
+  /** The command's own script, when known. */
+  readonly script?: string;
   /** The project's library: the project the folder belongs to, on the running storytree. */
   library(): Promise<Library>;
   /** Who holds what in the project right now: the agent link's reading of its activity log. */
@@ -64,7 +68,7 @@ export interface Family {
 export async function run(argv: readonly string[], io: Io): Promise<number> {
   const opened = new Opened(io.cwd);
   try {
-    const answer = await dispatch(argv, { cwd: io.cwd, library: () => opened.library(), claims: () => opened.claims() });
+    const answer = await dispatch(argv, { cwd: io.cwd, ...(io.script === undefined ? {} : { script: io.script }), library: () => opened.library(), claims: () => opened.claims() });
     io.out(render(answer));
     return 0;
   } catch (error) {

@@ -232,6 +232,12 @@ storytree running, are the hooks registered and last seen firing, is this folder
 fix for the rest, and it sets a folder up as a project only when you tell it to.
 
 - **Depends on:** 1 and the agent link's setup check (its 8).
+- **As built:** `storytree doctor [--set-up <project>]` runs the agent link's public
+  `runSetupCheck`, and `setUpProject` only for `--set-up`. Registering hooks and putting the command
+  on the path need storytree's hook script, which an installed storytree keeps beside this command;
+  run from elsewhere, the doctor says it cannot. The hooks last seen firing is the latest hook line in
+  the project's activity log. `storytree setup install | remove` stays the agent link's command,
+  run from beside this one.
 
 **Contracts:**
 1. With storytree closed, it opens it.

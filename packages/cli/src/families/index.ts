@@ -5,13 +5,11 @@
 import type { Family } from "../door.js";
 import { decisions } from "./adr.js";
 import { arcs } from "./arc.js";
+import { doctorFamily, setupFamily } from "./doctor.js";
 import { library } from "./library.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { plan } from "./tree.js";
-
-/** Not built yet: this increment builds it next. */
-const BEING_BUILT = "it is being built (0-3-cli-build)";
 
 export const FAMILIES: readonly Family[] = [
   library,
@@ -19,7 +17,7 @@ export const FAMILIES: readonly Family[] = [
   questions,
   decisions,
   noticeboard,
-  { name: "doctor", summary: "storytree's setup check, from a terminal", verbs: [], waitsOn: BEING_BUILT },
+  doctorFamily,
   {
     name: "friction",
     summary: "file friction with its evidence, or add a recurrence",
@@ -33,4 +31,5 @@ export const FAMILIES: readonly Family[] = [
     waitsOn: "it waits on the agent link's capture functions (0-3-agent-link-cli-seams)",
   },
   plan,
+  setupFamily,
 ];

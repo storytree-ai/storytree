@@ -20,6 +20,7 @@ import { WorkModel } from "../work/work-model.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { cannotCreateDatabases, ConnectionError, isInsufficientPrivilege } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, projectDatabase } from "./names.js";
+import { upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
 import { localServer, type ServerAccess } from "./server.js";
@@ -267,7 +268,9 @@ async function applySchema(pool: Pool, name: string): Promise<void> {
       "INSERT INTO library_meta (key, value) VALUES ('project', $1) ON CONFLICT (key) DO NOTHING",
       [name],
     );
+    const warnings = await upgradeMemories(client, name);
     await client.query("COMMIT");
+    for (const warning of warnings) console.warn(warning);
   } catch (error) {
     failed = true;
     await client.query("ROLLBACK").catch(() => undefined);

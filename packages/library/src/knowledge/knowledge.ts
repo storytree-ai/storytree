@@ -35,13 +35,11 @@ import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges"] as const;
 
 /** The kinds of note: memory notes, decisions, definitions, and the eight kinds of ADR-0640. */
-export type NoteType = "memory" | "decision" | "definition" | KnowledgeKind;
+export type NoteType = "decision" | "definition" | KnowledgeKind;
 /** A new note of one of the eight kinds: its fields. Every reference in it must name a live note. */
 export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = FieldsOf<K>;
 /** A stored note of any kind. */
 export type Note = SchemaRecord<NoteType>;
-/** A new memory note's fields. Every link must name a live note. */
-export type NewMemory = FieldsOf<"memory">;
 /**
  * A new decision's fields. Every link must name a live note, `frontCoverOf` a live story or
  * capability, and each decision it supersedes a live decision. Its number is handed out when it is
@@ -79,7 +77,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "techstack",
 ];
 
-const NOTE_TYPES: readonly NoteType[] = ["memory", "decision", "definition", ...KNOWLEDGE_KINDS];
+const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 
 /**
  * The fields that name other notes rather than hold words: never searched. (`refs` sits inside an
@@ -118,15 +116,6 @@ export class Knowledge {
 
   constructor(records: SchemaRecords) {
     this.#records = records;
-  }
-
-  /**
-   * Write a memory note. Every link must name a live note: otherwise a MissingReferenceError names
-   * the first that does not, and nothing is written.
-   */
-  async writeMemory(memory: NewMemory, options?: WriteOptions): Promise<SchemaRecord<"memory">> {
-    await this.#checkLinks(memory.links);
-    return this.#records.create("memory", memory, options);
   }
 
   /**

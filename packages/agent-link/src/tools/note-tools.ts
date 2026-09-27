@@ -17,7 +17,7 @@
  *   an empty shelf nothing is added, and the agent is told. A session holding no claim gets no
  *   default, and a place the agent names always wins.
  */
-import type { Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { KnowledgeKind, Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
 import { z } from "zod";
 
 import type { Line, NewLine } from "../activity/index.js";
@@ -54,7 +54,8 @@ export function registerNoteTools(define: Define): void {
     "write_note",
     "Write down something worth remembering: a memory (text), a decision (title and text) or a definition (term and meaning). With no place named, it goes onto the shelf of the capability you claimed most recently.",
     z.object({
-      kind: z.enum(["memory", "decision", "definition"]),
+      kind: z.string().min(1).describe("decision, definition, principle, guardrail, pattern, process, agent or techstack; friction and resteer have capture tools"),
+      fields: z.record(z.string(), z.unknown()).optional().describe("Required fields of a principle, guardrail, pattern, process, agent or techstack"),
       text: z.string().min(1).optional().describe("A memory's text, or a decision's"),
       title: z.string().min(1).optional().describe("A decision's title"),
       term: z.string().min(1).optional().describe("A definition's term"),
@@ -128,7 +129,8 @@ async function openShelf(kind: "Story" | "Capability", title: string, id: string
 }
 
 interface NoteArgs {
-  kind: "memory" | "decision" | "definition";
+  kind: string;
+  fields?: Record<string, unknown> | undefined;
   text?: string | undefined;
   title?: string | undefined;
   term?: string | undefined;
@@ -138,10 +140,17 @@ interface NoteArgs {
 }
 
 /** What each kind of note is written with. */
-const FIELDS = { memory: ["text"], decision: ["title", "text"], definition: ["term", "meaning"] } as const;
+const FIELDS = { decision: ["title", "text"], definition: ["term", "meaning"] } as const;
 
 async function writeNote(args: NoteArgs, call: Call): Promise<Answer> {
-  const needs: readonly string[] = FIELDS[args.kind];
+  if (args.kind === "memory") return { text: "memory belongs to the agent harness, not the library (ADR-0650); write a proper artifact kind such as decision, definition or principle.", refused: true };
+  if (args.kind === "friction" || args.kind === "resteer") return { text: `Use record_${args.kind} to write this artifact under its evidence rules.`, refused: true };
+  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack"].includes(args.kind);
+  if (!further && args.kind !== "decision" && args.kind !== "definition") return { text: `Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent or techstack.`, refused: true };
+  const needs: readonly string[] = further ? [] : FIELDS[args.kind as keyof typeof FIELDS];
+  if (further && args.fields === undefined) return { text: `Give the required fields for a ${args.kind} in fields.`, refused: true };
+  if (!further && args.fields !== undefined) return { text: `A ${args.kind} takes ${needs.join(" and ")} directly.`, refused: true };
+  if (args.fields && ["links", "frontCoverOf"].some((key) => key in args.fields!)) return { text: "Give links or front_cover_of directly to name the artifact's place.", refused: true };
   const given = (["text", "title", "term", "meaning"] as const).filter((field) => args[field] !== undefined);
   const missing = needs.filter((field) => args[field as keyof NoteArgs] === undefined);
   const extra = given.filter((field) => !needs.includes(field));
@@ -178,12 +187,12 @@ async function writeNote(args: NoteArgs, call: Call): Promise<Answer> {
 
 function write(library: Library, args: NoteArgs, place: { links?: string[]; frontCoverOf?: string }, writer: WriteOptions): Promise<Note> {
   switch (args.kind) {
-    case "memory":
-      return library.writeMemory({ text: args.text!, ...(place.links === undefined ? {} : { links: place.links }) }, writer);
     case "decision":
       return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place }, writer);
     case "definition":
       return library.defineTerm({ term: args.term!, meaning: args.meaning!, ...(place.links === undefined ? {} : { links: place.links }) }, writer);
+    default:
+      return library.writeKnowledge(args.kind as KnowledgeKind, { ...args.fields, ...place } as never, writer);
   }
 }
 

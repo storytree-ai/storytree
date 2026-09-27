@@ -13,8 +13,6 @@ export function spineOf(note: Note): string {
       return note.fields.title;
     case "definition":
       return note.fields.term;
-    case "memory":
-      return firstLine(note.fields.text);
     default:
       return note.fields.title;
   }
@@ -27,8 +25,6 @@ export function firstLineOf(note: Note): string {
       return firstLine(note.fields.text);
     case "definition":
       return firstLine(note.fields.meaning);
-    case "memory":
-      return "";
     default:
       return firstLine(note.fields.description);
   }
@@ -41,8 +37,6 @@ export function wholeOf(note: Note): string {
       return `Decision ${quoted(note.fields.title)} (${note.id}):\n${note.fields.text}`;
     case "definition":
       return `Definition of ${quoted(note.fields.term)} (${note.id}):\n${note.fields.meaning}`;
-    case "memory":
-      return `Memory (${note.id}):\n${note.fields.text}`;
     default: {
       // One of the library's eight further kinds (ADR-0640): its title, its one-line description,
       // and each other field that holds words, by name.

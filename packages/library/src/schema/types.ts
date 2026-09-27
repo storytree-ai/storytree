@@ -22,7 +22,6 @@ export type RecordType =
   | "capability"
   | "contract"
   | "health"
-  | "memory"
   | "decision"
   | "definition"
   | KnowledgeKind
@@ -146,12 +145,6 @@ export const RECORD_SCHEMAS = {
       state: z.enum(["passing", "failing", "not-checked"]),
       by: z.string().optional(),
       note: z.string().optional(),
-    })
-    .strict(),
-  memory: z
-    .object({
-      text: nonEmpty,
-      links: ids.optional(),
     })
     .strict(),
   /**
@@ -401,7 +394,6 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   capability: 1,
   contract: 1,
   health: 1,
-  memory: 1,
   decision: 2,
   definition: 1,
   principle: 1,

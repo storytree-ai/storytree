@@ -95,8 +95,8 @@ for (const backend of [memory, postgres]) {
     // A note for the memory to link to, holding none of the words searched for below.
     const signup = await knowledge.defineTerm({ term: "Signup", meaning: "Joining the site" });
     await laterThan(signup);
-    const memory = await knowledge.writeMemory({ text: "Mailgun needs a verified domain", links: [signup.id] });
-    await assertCreated(transactions, memory, "memory", { text: "Mailgun needs a verified domain", links: [signup.id] });
+    const memory = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [signup.id] });
+    await assertCreated(transactions, memory, "definition", { term: "Delivery", meaning: "Mailgun needs a verified domain", links: [signup.id] });
 
     // Each word it contains finds it, in any case.
     for (const word of ["Mailgun", "needs", "a", "verified", "domain"]) {
@@ -123,7 +123,7 @@ for (const backend of [memory, postgres]) {
     await laterThan(decision);
     const definition = await knowledge.defineTerm({ term: "Verified domain", meaning: "A domain whose DNS records prove we own it" });
     await laterThan(definition);
-    const pricing = await knowledge.writeMemory({ text: "The pricing page needs a rewrite" });
+    const pricing = await knowledge.defineTerm({ term: "Delivery", meaning: "The pricing page needs a rewrite" });
     await records.create("story", { title: "Mailgun webhook", description: "Verified domain events" });
     await records.create("capability", { title: "Mailgun webhook receiver", story: story.id });
     await records.create("arc", { title: "Mailgun migration", intent: "An intent", endState: "An end state" });
@@ -150,7 +150,7 @@ for (const backend of [memory, postgres]) {
     // found by its new words and no longer by its old ones.
     await records.retire(pricing.id, "rewritten");
     assert.deepEqual(await knowledge.search("pricing"), []);
-    const edited = await knowledge.editNote(memory.id, { text: "Postmark needs a verified sender" });
+    const edited = await knowledge.editNote(memory.id, { meaning: "Postmark needs a verified sender" });
     assert.deepEqual(await knowledge.search("postmark SENDER"), [edited]);
     assert.deepEqual(await knowledge.search("mailgun"), [decision]);
     // The edited note keeps its place: results come in creation order, not in order of the latest change.
@@ -164,18 +164,18 @@ for (const backend of [memory, postgres]) {
 
   contract("6.2", "relatedNotes(noteId) returns every note, decision and definition that links to that note", async ({ knowledge, records }) => {
     const target = await knowledge.defineTerm({ term: "Signup", meaning: "Joining the site" });
-    const other = await knowledge.writeMemory({ text: "Sign in comes next" });
-    const quiet = await knowledge.writeMemory({ text: "Nothing links here" });
+    const other = await knowledge.defineTerm({ term: "Delivery", meaning: "Sign in comes next" });
+    const quiet = await knowledge.defineTerm({ term: "Delivery", meaning: "Nothing links here" });
 
     // Notes of all three kinds linking to the target, created one after another in an order that
     // is neither their ids' order nor grouped by kind. The decisions list the other note first.
     const linking = await createInOrder<Note>(3, (n) => {
       if (n % 3 === 0) return knowledge.defineTerm({ term: `Term ${n}`, meaning: "Defined", links: [target.id] });
-      if (n % 3 === 1) return knowledge.writeMemory({ text: `Memory ${n}`, links: [target.id] });
+      if (n % 3 === 1) return knowledge.defineTerm({ term: "Delivery", meaning: `Memory ${n}`, links: [target.id] });
       return knowledge.recordDecision({ status: "accepted", title: `Decision ${n}`, text: "Chosen", links: [other.id, target.id] });
     });
     // Notes that do not link to it: one with no links, one listing none, one linking elsewhere.
-    const unlinked = await knowledge.writeMemory({ text: "Links nothing" });
+    const unlinked = await knowledge.defineTerm({ term: "Delivery", meaning: "Links nothing" });
     await knowledge.recordDecision({ status: "accepted", title: "Nothing to link", text: "Yet", links: [] });
     const elsewhere = await knowledge.defineTerm({ term: "Sign in", meaning: "Coming back", links: [other.id] });
 
@@ -195,7 +195,7 @@ for (const backend of [memory, postgres]) {
     // to the target. A story has no related notes: no note may link to one (capability 9), and its
     // knowledge is reached through its front covers instead.
     const decision = at(linking, 2);
-    const followUp = await knowledge.writeMemory({ text: "Revisit this decision", links: [decision.id] });
+    const followUp = await knowledge.defineTerm({ term: "Delivery", meaning: "Revisit this decision", links: [decision.id] });
     const story = await records.create("story", { title: "Visitor can sign up" });
     assert.deepEqual(await knowledge.relatedNotes(decision.id), [followUp]);
     assert.deepEqual(await knowledge.relatedNotes(story.id), []);
@@ -246,14 +246,14 @@ for (const backend of [memory, postgres]) {
     assert.equal(kept[1]?.record.fields.title, "Use Mailgun", "and so is the old title");
 
     // A memory note and a definition keep their old wording the same way; a link can be removed.
-    const memory = await knowledge.writeMemory({ text: "Mailgun needs a verified domain", links: [decision.id] });
+    const memory = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [decision.id] });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message the server sent back" });
-    const rewritten = await knowledge.editNote(memory.id, { text: "Postmark needs a verified sender", links: undefined });
-    assert.deepEqual(rewritten?.fields, { text: "Postmark needs a verified sender" });
+    const rewritten = await knowledge.editNote(memory.id, { meaning: "Postmark needs a verified sender", links: undefined });
+    assert.deepEqual(rewritten?.fields, { term: "Delivery", meaning: "Postmark needs a verified sender" });
     await knowledge.editNote(definition.id, { meaning: "A message that could not be delivered" });
     assert.deepEqual(
       (await records.history({ id: memory.id })).map(({ record }) => record.fields),
-      [{ text: "Mailgun needs a verified domain", links: [decision.id] }, { text: "Postmark needs a verified sender" }],
+      [{ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [decision.id] }, { term: "Delivery", meaning: "Postmark needs a verified sender" }],
     );
     assert.deepEqual(
       (await records.history({ id: definition.id })).map(({ record }) => record.fields),
@@ -267,13 +267,13 @@ for (const backend of [memory, postgres]) {
     // through it; it returns null and writes nothing. A field the note's kind does not have, or an
     // edit that would leave it invalid, is refused by the schema check, naming the field.
     const capability = await records.create("capability", { title: "Email form", story: story.id });
-    const dropped = await knowledge.writeMemory({ text: "Dropped" });
+    const dropped = await knowledge.defineTerm({ term: "Delivery", meaning: "Dropped" });
     await records.retire(dropped.id, "written by mistake");
     const before = await transactions.history();
     for (const id of [story.id, capability.id, dropped.id, NO_MEMORY, ...UNSTORABLE]) {
       assert.equal(await knowledge.editNote(id, { title: "Renamed" }), null, `editNote(${JSON.stringify(id)})`);
     }
-    await assert.rejects(knowledge.editNote(memory.id, { title: "Memories have no title" }), schemaError("memory", ["title"]));
+    await assert.rejects(knowledge.editNote(memory.id, { title: "Memories have no title" }), schemaError("definition", ["title"]));
     await assert.rejects(knowledge.editNote(decision.id, { text: "" }), schemaError("decision", ["text"]));
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
     assert.deepEqual(await transactions.get(story.id), story, "the story keeps its title");
@@ -282,16 +282,16 @@ for (const backend of [memory, postgres]) {
   contract("6.4", "a link to a record that does not exist is refused", async ({ knowledge, records, transactions }) => {
     // A live note of every kind, and a retired one. (A link to a work record is refused as well,
     // since notes link only to notes: that is capability 9's contract 9.3.)
-    const memory = await knowledge.writeMemory({ text: "Mailgun needs a verified domain" });
+    const memory = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
     const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest" });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message sent back" });
-    const retired = await knowledge.writeMemory({ text: "Postmark is cheaper" });
+    const retired = await knowledge.defineTerm({ term: "Delivery", meaning: "Postmark is cheaper" });
     await records.retire(retired.id, "out of date");
     const before = await transactions.history();
 
     const refused: [attempt: () => Promise<unknown>, id: string][] = [
-      [() => knowledge.writeMemory({ text: "Linked to nothing", links: [NO_STORY] }), NO_STORY],
-      [() => knowledge.writeMemory({ text: "Linked to nothing", links: [decision.id, NO_MEMORY] }), NO_MEMORY],
+      [() => knowledge.defineTerm({ term: "Delivery", meaning: "Linked to nothing", links: [NO_STORY] }), NO_STORY],
+      [() => knowledge.defineTerm({ term: "Delivery", meaning: "Linked to nothing", links: [decision.id, NO_MEMORY] }), NO_MEMORY],
       [() => knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", links: [retired.id] }), retired.id],
       [
         () => knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", links: [memory.id, memory.id.toUpperCase()] }),
@@ -312,7 +312,7 @@ for (const backend of [memory, postgres]) {
     // An id holding text the library cannot store is never looked up (Postgres cannot even be
     // asked for one): the write's schema check refuses it, naming links, on both backends.
     for (const bad of UNSTORABLE) {
-      await assert.rejects(knowledge.writeMemory({ text: "Odd link", links: [bad] }), schemaError("memory", ["links"]));
+      await assert.rejects(knowledge.defineTerm({ term: "Delivery", meaning: "Odd link", links: [bad] }), schemaError("definition", ["links"]));
       await assert.rejects(knowledge.editNote(definition.id, { links: [memory.id, bad] }), schemaError("definition", ["links"]));
     }
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
@@ -323,20 +323,20 @@ for (const backend of [memory, postgres]) {
     // Control: links to live notes of every kind are accepted, by every kind of note and by an
     // edit. (A link closing a loop is refused: that is capability 9's contract 9.4.)
     const notes = [memory, decision, definition].map((record) => record.id);
-    const linked = await knowledge.writeMemory({ text: "Links to every kind", links: notes });
-    await assertCreated(transactions, linked, "memory", { text: "Links to every kind", links: notes });
+    const linked = await knowledge.defineTerm({ term: "Delivery", meaning: "Links to every kind", links: notes });
+    await assertCreated(transactions, linked, "definition", { term: "Delivery", meaning: "Links to every kind", links: notes });
     const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it all", text: "Linked", links: notes });
     await assertCreated(transactions, decided, "decision", { title: "Keep it all", text: "Linked", links: notes });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
     const relinked = await knowledge.editNote(memory.id, { links: [decision.id, definition.id] });
-    assert.deepEqual(relinked?.fields, { text: "Mailgun needs a verified domain", links: [decision.id, definition.id] });
+    assert.deepEqual(relinked?.fields, { term: "Delivery", meaning: "Mailgun needs a verified domain", links: [decision.id, definition.id] });
   });
 
   contract("6.5", "definitions() returns every live definition, and nothing else, in creation order", async ({ knowledge, records }) => {
     const claim = await knowledge.defineTerm({ term: "Claim", meaning: "Holding a capability while you build it" });
     await laterThan(claim);
-    await knowledge.writeMemory({ text: "Claim before you build" });
+    await knowledge.recordDecision({ status: "accepted", title: "Claim first", text: "Claim before you build" });
     await knowledge.recordDecision({ status: "accepted", title: "Claims have no queue", text: "A second agent picks other work" });
     const quiet = await knowledge.defineTerm({ term: "Quiet time", meaning: "How long a session may say nothing before it reads as idle" });
     const retired = await knowledge.defineTerm({ term: "Wisp", meaning: "0.2's picture of a claim" });

@@ -81,7 +81,7 @@ const postgres: Backend = {
  * later have their own capability's tests (6.6 for the eight knowledge kinds of ADR-0640), so these
  * tables do not grow with every new type.
  */
-type TableType = "arc" | "story" | "capability" | "contract" | "health" | "memory" | "decision" | "definition";
+type TableType = "arc" | "story" | "capability" | "contract" | "health" | "decision" | "definition";
 
 /**
  * One record of every type holding only its required fields: the brief's table of fields,
@@ -93,7 +93,6 @@ const MINIMAL: { readonly [T in TableType]: FieldsOf<T> } = {
   capability: { title: "Email form", story: "story-1" },
   contract: { title: "Rejects a bad email", capability: "capability-1" },
   health: { node: "contract-1", column: "reported", state: "not-checked" },
-  memory: { text: "Mailgun needs a verified domain" },
   decision: { title: "Use Mailgun", text: "Its API is the simplest", status: "accepted" },
   definition: { term: "arc", meaning: "An initiative that grows stories" },
 };
@@ -110,7 +109,6 @@ const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
   },
   contract: { title: "Rejects a bad email", capability: "capability-1", description: "An address with no @ is refused" },
   health: { node: "contract-1", column: "verified", state: "failing", by: "storytree", note: "2 of 3 cases fail" },
-  memory: { text: "Mailgun needs a verified domain", links: ["story-1", "decision-1"] },
   decision: { title: "Use Mailgun", text: "Its API is the simplest", links: ["story-1"], status: "proposed", number: 7, supersedes: [], loadBearing: true },
   definition: { term: "arc", meaning: "An initiative that grows stories", links: [] },
 };
@@ -126,7 +124,6 @@ const EMPTIEST: { readonly [T in TableType]: FieldsOf<T> } = {
   capability: { title: "C", story: "", description: "", dependsOn: [""] },
   contract: { title: "K", capability: "", description: "" },
   health: { node: "", column: "verified", state: "passing", by: "", note: "" },
-  memory: { text: "M", links: [""] },
   decision: { title: "D", text: "T", links: [], status: "accepted" },
   definition: { term: "X", meaning: "Y", links: [""] },
 };
@@ -189,8 +186,6 @@ for (const backend of [memory, postgres]) {
       ["health", { ...MINIMAL.health, state: "Passing" }, "state"],
       ["health", { ...MINIMAL.health, by: 1 }, "by"],
       ["health", { ...MINIMAL.health, note: false }, "note"],
-      ["memory", { text: "" }, "text"],
-      ["memory", { ...MINIMAL.memory, links: [["story-1"]] }, "links"],
       ["decision", { ...MINIMAL.decision, text: "" }, "text"],
       ["definition", { ...MINIMAL.definition, term: "" }, "term"],
       ["definition", { ...MINIMAL.definition, meaning: { text: "An initiative" } }, "meaning"],
@@ -224,7 +219,6 @@ for (const backend of [memory, postgres]) {
     );
     // Another type's field is unknown here, and every type refuses a field it does not declare.
     await assert.rejects(records.create("story", untyped({ ...MINIMAL.story, story: "story-0" })), schemaError("story", ["story"]));
-    await assert.rejects(records.create("memory", untyped({ ...MINIMAL.memory, title: "A note" })), schemaError("memory", ["title"]));
     for (const type of TYPES) {
       await assert.rejects(
         records.create(type, untyped({ ...FULL[type], extra: "?" })),
@@ -367,24 +361,24 @@ for (const backend of [memory, postgres]) {
       fields: { title: "From the future", audience: "everyone" },
     });
     const lookalike = await transactions.save({
-      id: "memory-future",
-      type: "memory",
+      id: "definition-future",
+      type: "definition",
       version: 7,
-      fields: { text: "Fits version 1 exactly" },
+      fields: { term: "Future", meaning: "Fits version 1 exactly" },
     });
 
     await assert.rejects(records.get("story-future"), newerVersion("story-future", "story", 2));
-    await assert.rejects(records.get("memory-future"), newerVersion("memory-future", "memory", 7));
+    await assert.rejects(records.get("definition-future"), newerVersion("definition-future", "definition", 7));
     // A list holding one is refused whole: never handed out with that record missing or misread.
     await assert.rejects(records.list("story"), newerVersion("story-future", "story", 2));
-    await assert.rejects(records.list("memory"), newerVersion("memory-future", "memory", 7));
+    await assert.rejects(records.list("definition"), newerVersion("definition-future", "definition", 7));
 
     // Editing one would check it by rules older than the ones it was written on, so an edit is
     // refused the same way, and writes nothing.
     const before = await transactions.history();
-    await assert.rejects(records.edit("memory-future", { text: "Rewritten" }), newerVersion("memory-future", "memory", 7));
+    await assert.rejects(records.edit("definition-future", { meaning: "Rewritten" }), newerVersion("definition-future", "definition", 7));
     await assert.rejects(records.edit("story-future", { title: "Rewritten" }), newerVersion("story-future", "story", 2));
-    assert.deepEqual(await transactions.get("memory-future"), lookalike, "the record is unchanged");
+    assert.deepEqual(await transactions.get("definition-future"), lookalike, "the record is unchanged");
     assert.deepEqual(await transactions.get("story-future"), future, "the record is unchanged");
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
 
@@ -453,7 +447,6 @@ for (const backend of [memory, postgres]) {
         ["health", "node", () => records.create("health", { ...MINIMAL.health, node: text })],
         ["definition", "meaning", () => records.create("definition", { ...MINIMAL.definition, meaning: text })],
         ["arc", "stories", () => records.create("arc", { ...MINIMAL.arc, stories: ["story-1", text] })],
-        ["memory", "links", () => records.create("memory", { ...MINIMAL.memory, links: [text] })],
         ["story", "description", () => records.edit("story-1", { description: text })],
       ];
       for (const [type, field, attempt] of attempts) {

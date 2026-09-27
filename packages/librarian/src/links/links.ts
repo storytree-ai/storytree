@@ -2,9 +2,9 @@
  * Capability 1 · Links (the librarian story): a note links to another only where it rests on it.
  * A link means "rests on" and nothing weaker; a definition rests only on the decision that created
  * its term; friction and re-steers carry no links. Neighbours nobody linked are found with the
- * library's plain search (ADR-0644 D3, R), so this capability adds no search of its own.
+ * library's related-but-unlinked search (ADR-0654), alongside plain search when the agent needs it.
  */
-import type { Library, Note, SchemaRecord } from "@storytree/library";
+import type { Library, Note, Related, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal, noteOf } from "../notes.js";
 
@@ -15,7 +15,7 @@ const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
  * Make note `from` rest on note `to`, keeping its other links. A link it already has writes nothing.
  * Refused, with nothing written, when either is not a live note or the link breaks a rule above.
  */
-export async function link(library: Library, from: string, to: string): Promise<Note> {
+export async function link(library: Library, from: string, to: string, writer?: WriteOptions): Promise<Note> {
   const note = await noteOf(library, from);
   const target = await noteOf(library, to);
   if (note.type === "friction" || note.type === "resteer") {
@@ -26,7 +26,7 @@ export async function link(library: Library, from: string, to: string): Promise<
   }
   const links = note.fields.links ?? [];
   if (links.includes(to)) return note;
-  const linked = await library.editNote(from, { links: [...links, to] });
+  const linked = await library.editNote(from, { links: [...links, to] }, writer);
   if (linked === null) throw new LibrarianRefusal(`there is no live note ${from}`);
   return linked;
 }
@@ -45,4 +45,16 @@ export async function unrestedDecisions(library: Library): Promise<SchemaRecord<
     if ((await library.decision(note.id))?.status === "accepted") unrested.push(note);
   }
   return unrested;
+}
+
+/** Related but unlinked neighbours for each live note written since `cursor`, including edits. */
+export async function relatedUnlinked(library: Library, cursor: number): Promise<Related[]> {
+  const written = new Set((await library.changesSince(cursor)).changes.map((change) => change.recordId));
+  const related: Related[] = [];
+  for (const note of await allNotes(library)) {
+    if (!written.has(note.id)) continue;
+    const result = await library.related(note.id, { unlinked: true });
+    if (result !== null) related.push(result);
+  }
+  return related;
 }

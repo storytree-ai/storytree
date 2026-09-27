@@ -8,7 +8,9 @@
  * retired. Holding an increment is the library's `editIncrement` of its `heldOn`, read from the
  * arc's own view, so only increments on the question's arc are held when it is raised; another is
  * held with `storytree arc increment edit <increment> --held-on <question>`. Listing the open
- * questions of every arc waits on the library's list(kind); `--arc` lists one arc's.
+ * questions uses list(kind); `--arc` reads one arc's questions. `check` reads a question's review
+ * lease through the library's checkQuestion, and `renew` re-stamps it through renewQuestion, which
+ * refuses a settled question (ADR-0654).
  */
 import { labelOf, Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -37,9 +39,9 @@ const raise: Verb = {
       }
       return increment;
     });
-    const question = await library.raiseQuestion(fields as never);
+    const question = await library.raiseQuestion(fields as never, context.writer());
     for (const increment of held) {
-      await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] });
+      await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] }, context.writer());
     }
     return {
       text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.`,
@@ -58,7 +60,7 @@ const settle: Verb = {
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
     const decision = args.text("decision");
-    const settled = await (await context.library()).settleQuestion(id, { answer: args.text("answer") as string, ...(decision === undefined ? {} : { decision }) });
+    const settled = await (await context.library()).settleQuestion(id, { answer: args.text("answer") as string, ...(decision === undefined ? {} : { decision }) }, context.writer());
     if (settled === null) throw new Refusal(`no question "${id}" in this project`);
     return { text: `Settled question ${id}.`, next: [{ command: `storytree arc show ${settled.fields.arc}`, why: "see what it released" }] };
   },
@@ -70,30 +72,63 @@ const retire: Verb = {
   summary: "retire a question that was wrong",
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
-    await (await context.library()).retire(id, args.need("reason", this.usage));
+    await (await context.library()).retire(id, args.need("reason", this.usage), context.writer());
     return { text: `Retired ${id}.` };
   },
 };
 
 const list: Verb = {
   name: "list",
-  usage: "question list --arc <arc>",
-  summary: "the open questions on an arc",
+  usage: "question list [--arc <arc>]",
+  summary: "the open questions across arcs, or on one arc",
   async act(args, context) {
     const arc = args.text("arc");
-    if (arc === undefined) {
-      throw new Refusal(
-        "listing every arc's questions is not built yet: it waits on the library's list(kind) on its public API (0-3-library-writer-and-public-reads); give --arc <arc>",
-      );
-    }
-    const open = (await (await context.library()).questions(arc)).filter((question) => question.fields.lifecycle === "open");
-    if (open.length === 0) return { text: `No question on ${arc} waits on the owner.` };
-    return { text: [`${open.length} open on ${arc}:`, ...open.map((question) => `  - ${question.id}  ${labelOf(question.fields)}`)].join("\n") };
+    const library = await context.library();
+    const open = (await (arc === undefined ? library.list("question") : library.questions(arc))).filter((question) => question.fields.lifecycle === "open");
+    const where = arc === undefined ? "across arcs" : `on ${arc}`;
+    if (open.length === 0) return { text: `No question ${where} waits on the owner.` };
+    return { text: [`${open.length} open ${where}:`, ...open.map((question) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`)].join("\n") };
+  },
+};
+
+const check: Verb = {
+  name: "check",
+  usage: "question check <question>",
+  summary: "whether a question's review is still fresh, or its lease has lapsed",
+  async act(args, context) {
+    const id = args.word(0, "the question's id", this.usage);
+    const lease = await (await context.library()).checkQuestion(id);
+    if (lease === null) throw new Refusal(`no question "${id}" in this project`);
+    const checked = lease.verifiedAt === undefined ? "never checked" : `last checked ${lease.verifiedAt}`;
+    if (lease.state === "settled") return { text: `${id} is settled: its answer stands, and its lease no longer applies.` };
+    const runs = lease.lapsesAt === undefined ? "" : `, ${lease.state === "fresh" ? "runs out" : "ran out"} ${lease.lapsesAt}`;
+    const line = `${id} is ${lease.state}: ${checked}, ${lease.leaseDays}-day lease${runs}.`;
+    if (lease.state === "fresh") return { text: line };
+    return {
+      text: line,
+      next: [
+        { command: `storytree library read ${id}`, why: "re-read it: does it still hold?" },
+        { command: `storytree question renew ${id}`, why: "if it still holds, as asked" },
+        { command: `storytree question retire ${id} --reason <why>`, why: "if it no longer does" },
+      ],
+    };
+  },
+};
+
+const renew: Verb = {
+  name: "renew",
+  usage: "question renew <question>",
+  summary: "stamp an open question as checked to still hold, starting its lease again",
+  async act(args, context) {
+    const id = args.word(0, "the question's id", this.usage);
+    const renewed = await (await context.library()).renewQuestion(id, context.writer());
+    if (renewed === null) throw new Refusal(`no question "${id}" in this project`);
+    return { text: `Renewed ${id}: checked ${renewed.fields.verifiedAt ?? "now"}, for ${renewed.fields.leaseDays ?? 7} days.` };
   },
 };
 
 export const questions: Family = {
   name: "question",
-  summary: "the owner's questions: raise, settle, retire, list",
-  verbs: [raise, settle, retire, list],
+  summary: "the owner's questions: raise, settle, retire, list, check, renew",
+  verbs: [raise, settle, retire, list, check, renew],
 };

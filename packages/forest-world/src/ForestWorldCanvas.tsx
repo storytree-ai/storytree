@@ -102,6 +102,7 @@ import { WHEAT_STATUS_GATE, wheatAnchor, wheatLift } from './land-wheat.js';
 import { BLIGHT_STATUS_GATE, blightRung } from './land-blight.js';
 import { ROCK_SLOPE_RAMP } from './land-rock.js';
 import { SAND_FIELD_WIDTH, buildAtlasShore } from './shore-atlas.js';
+import type { CoastPoint } from './coast-clip.js';
 import { dockedTrailStrips, islandPaths } from './island-path.js';
 import { WEAR_FIELD_WIDTH, buildAtlasWear } from './wear-atlas.js';
 import { DETAIL_TILE_UNITS, detailNormalTexture } from './detail-normal-texture.js';
@@ -875,6 +876,8 @@ export function shippedGroundBuild(
   /** How far the contact pools spread — `CONTACT_SPREAD` unless a COMPARISON arm asks for a rung
    *  of its ladder; the canvas never passes it. */
   contactSpread: number = CONTACT_SPREAD,
+  /** Globe routes carry the actual capability-to-shore paths in local plate coordinates. */
+  paths?: ReadonlyMap<string, readonly (readonly CoastPoint[])[]>,
 ): ShippedGroundBuild {
   // ⚠⚠ THE COAST IS CLIPPED FIRST, AND EVERYTHING DOWNSTREAM READS THE CLIPPED PARCELS.
   // The occlusion atlas is packed over the ground's own bounds, so packing it over the PRE-clip
@@ -944,7 +947,7 @@ export function shippedGroundBuild(
   let wearMemo: AtlasField | null | undefined;
   const wear = (): AtlasField | null => {
     if (wearMemo === undefined) {
-      wearMemo = field === null ? null : buildAtlasWear(islandPaths(clipped, strips), field);
+      wearMemo = field === null ? null : buildAtlasWear(paths ?? islandPaths(clipped, strips), field);
     }
     return wearMemo;
   };
@@ -1016,7 +1019,7 @@ function anchorsForGround(
   return anchors;
 }
 
-function CellGround({ ground, growth, plateLight }: { ground: GroundInput; growth: GrowthTexture; plateLight?: Vector3 }) {
+function CellGround({ ground, growth, plateLight, paths }: { ground: GroundInput; growth: GrowthTexture; plateLight?: Vector3; paths?: ReadonlyMap<string, readonly (readonly CoastPoint[])[]> }) {
   // ⚠ ONE DEPENDENCY, NOT THREE. The parcels, the casters and the strips are derived together by
   // `createGroundInputCache` and handed over as one object, so this memo cannot be re-entered for a
   // ground that did not change — and, just as important, cannot be SKIPPED for one that did. Three
@@ -1024,7 +1027,7 @@ function CellGround({ ground, growth, plateLight }: { ground: GroundInput; growt
   // this memo runs, and it is what `ground-dependency.test.ts` asserts in both directions.
   const built = useMemo(() => {
     const { cells, casters, strips } = ground;
-    const { field, shore, wear, input } = shippedGroundBuild(cells, casters, strips);
+    const { field, shore, wear, input } = shippedGroundBuild(cells, casters, strips, undefined, undefined, undefined, paths);
     const geo = cellGroundGeometry({
       ...input,
       // Slot `growth.width - 1` is deliberately reserved for data without an island identity.
@@ -1052,7 +1055,7 @@ function CellGround({ ground, growth, plateLight }: { ground: GroundInput; growt
     const material = buildGroundMaterial(field, SHIPPED_GRASS, shore(), SHIPPED_SAND_MIX, extras, SHIPPED_SHADOW_DEPTH, SHIPPED_WHEAT, SHIPPED_BLIGHT, plateLight);
     installGroundGrowth(material.material, growth);
     return { geo, anchors: anchorsForGround(geo.islandSlots, ground.growthLayout), ...material };
-  }, [ground, growth, plateLight]);
+  }, [ground, growth, plateLight, paths]);
   // ⚠ THE MATERIAL AND ITS TEXTURE ARE DISPOSED, WHICH THE MODULE-SCOPE SINGLETON NEVER NEEDED
   // TO BE. The occlusion field is about 107 KB of GPU memory for one island, and a canvas that
   // re-mounts on every navigation would strand one copy per visit — a leak that grows with use

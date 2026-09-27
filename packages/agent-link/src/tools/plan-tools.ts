@@ -35,8 +35,8 @@ export function registerPlanTools(define: Define): void {
       end_state: endState,
       stories: z.array(z.string().min(1)).optional().describe("The ids of the stories it grows"),
     }),
-    async ({ title: name, description: about, intent: aim, end_state: end, stories }, { library }) => {
-      const arc = await library.createArc({ title: name, intent: aim, endState: end, ...optional({ description: about, stories }) });
+    async ({ title: name, description: about, intent: aim, end_state: end, stories }, { library, writer }) => {
+      const arc = await library.createArc({ title: name, intent: aim, endState: end, ...optional({ description: about, stories }) }, writer);
       return { text: `Planned arc ${quoted(name)} (${arc.id}).`, data: { id: arc.id } };
     },
   );
@@ -45,9 +45,9 @@ export function registerPlanTools(define: Define): void {
     "plan_story",
     "Plan a story: something a user of the project can do, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next.",
     z.object({ title, description, founding }),
-    async ({ title: name, description: about, founding: decision }, { library }) => {
-      const story = await library.addStory({ title: name, ...optional({ description: about }) });
-      const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: story.id });
+    async ({ title: name, description: about, founding: decision }, { library, writer }) => {
+      const story = await library.addStory({ title: name, ...optional({ description: about }) }, writer);
+      const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: story.id }, writer);
       return {
         text: `Planned story ${quoted(name)} (${story.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its capabilities next.`,
         data: { id: story.id, founding: book.id },
@@ -65,9 +65,9 @@ export function registerPlanTools(define: Define): void {
       depends_on: z.array(z.string().min(1)).optional().describe("The ids of capabilities it needs first"),
       founding,
     }),
-    async ({ story, title: name, description: about, depends_on: dependsOn, founding: decision }, { library }) => {
-      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn }) });
-      const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id });
+    async ({ story, title: name, description: about, depends_on: dependsOn, founding: decision }, { library, writer }) => {
+      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn }) }, writer);
+      const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id }, writer);
       return {
         text: `Planned capability ${quoted(name)} (${capability.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its contracts, then claim it before you build it.`,
         data: { id: capability.id, founding: book.id },
@@ -79,8 +79,8 @@ export function registerPlanTools(define: Define): void {
     "plan_contract",
     "Plan a contract: one testable promise a capability makes. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
-    async ({ capability, title: name, description: about }, { library }) => {
-      const contract = await library.addContract({ title: name, capability, ...optional({ description: about }) });
+    async ({ capability, title: name, description: about }, { library, writer }) => {
+      const contract = await library.addContract({ title: name, capability, ...optional({ description: about }) }, writer);
       return { text: `Planned contract ${quoted(name)} (${contract.id}). Write its test, see it fail, and report it red.`, data: { id: contract.id } };
     },
   );
@@ -106,10 +106,10 @@ export function registerPlanTools(define: Define): void {
     "retire_from_plan",
     "Retire a capability or a contract that is no longer wanted, with the reason: it leaves the plan, and its history keeps it and the reason.",
     z.object({ id: id("capability or contract to retire"), reason: z.string().min(1).describe("Why it is retired, in a line") }),
-    async ({ id: target, reason }, { library }) => {
+    async ({ id: target, reason }, { library, writer }) => {
       const found = partOf(await library.projectTree(), target);
       if (found === undefined) return { text: `${target} is not a capability or a contract in this project's plan: only those are retired here.`, refused: true };
-      await library.retire(target, reason);
+      await library.retire(target, reason, writer);
       return { text: `Retired ${found.kind} ${quoted(found.title)} (${target}): ${reason}.`, data: { id: target } };
     },
   );
@@ -138,7 +138,7 @@ const EDITABLE = {
   arc: ["title", "description", "stories", "intent", "end_state"],
 } as const;
 
-async function editPlan(target: string, changes: Changes, { library }: Call): Promise<Answer> {
+async function editPlan(target: string, changes: Changes, { library, writer }: Call): Promise<Answer> {
   const kind = kindOf(await library.projectTree(), target);
   if (kind === undefined) return { text: `Nothing in the plan has the id ${target}; show_plan lists every id.`, refused: true };
   const given = Object.entries(changes).filter(([, value]) => value !== undefined);
@@ -150,12 +150,12 @@ async function editPlan(target: string, changes: Changes, { library }: Call): Pr
   const fields = optional({ ...rest, dependsOn, endState });
   const edited =
     kind === "story"
-      ? await library.editStory(target, fields)
+      ? await library.editStory(target, fields, writer)
       : kind === "capability"
-        ? await library.editCapability(target, fields)
+        ? await library.editCapability(target, fields, writer)
         : kind === "contract"
-          ? await library.editContract(target, fields)
-          : await library.editArc(target, fields);
+          ? await library.editContract(target, fields, writer)
+          : await library.editArc(target, fields, writer);
   if (edited === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   return { text: `Corrected ${kind} ${quoted(edited.fields.title)} (${target}).`, data: { id: target } };
 }
@@ -165,20 +165,27 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
   const { lines } = await log.since(project, 0);
   const claims = claimsFrom(lines, { quietMs });
   const sessions = sessionsFrom(lines, { quietMs });
-  const holderOf = new Map(claims.map((claim) => [claim.capability, claim]));
+  const holderOf = new Map(claims.map((claim) => [claim.capability ?? claim.increment, claim]));
+  const heldBy = (id: string) => {
+    const claim = holderOf.get(id);
+    return claim === undefined ? "nobody holds it" : `held by ${claim.label} ${claim.session}${claim.holder === "idle" ? " (idle)" : ""}: ${claim.reason}`;
+  };
 
   const out: string[] = [];
   if (tree.stories.length === 0) out.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
   for (const story of tree.stories) {
     out.push(`Story ${quoted(story.title)} (${story.id}): ${healthOf(story.health)}`);
     for (const capability of story.capabilities) {
-      const claim = holderOf.get(capability.id);
-      const held = claim === undefined ? "nobody holds it" : `held by ${claim.label} ${claim.session}${claim.holder === "idle" ? " (idle)" : ""}: ${claim.reason}`;
-      out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${held}`);
+      out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);
     }
   }
-  for (const arc of tree.arcs) out.push(`Arc ${quoted(arc.title)} (${arc.id}) grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+  for (const arc of tree.arcs) {
+    out.push(`Arc ${quoted(arc.title)} (${arc.id}) grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+    for (const increment of (await library.arcView(arc.id))?.increments ?? []) {
+      out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
+    }
+  }
   out.push(
     sessions.length === 0
       ? "No sessions yet."
@@ -189,7 +196,7 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
     data: {
       stories: tree.stories,
       arcs: tree.arcs,
-      claims: claims.map(({ capability, session, label, reason, since, holder }) => ({ capability, session, label, reason, since, holder })),
+      claims,
       sessions,
     },
   };

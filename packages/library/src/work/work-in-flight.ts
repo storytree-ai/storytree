@@ -12,7 +12,10 @@
  *
  * Capability 12 · Owner questions: a question is raised on an arc and settled with the owner's
  * answer, which stays on it. An open increment held on an open question is waiting on him, and
- * heldOnQuestion is the one answer to that. A question work is held on cannot be retired.
+ * heldOnQuestion is the one answer to that. A question work is held on cannot be retired. An open
+ * question carries a review lease (12-a, restored by ADR-0654): the day it was last checked to still
+ * hold and how many days that is trusted for, 7 unless given. checkQuestion reads it fresh or lapsed,
+ * renewQuestion re-stamps it, refusing a settled question, and lapsedQuestions is the librarian's drain.
  *
  * The increment's shape and the rules across its fields (a proposal carries when it was parked; a
  * closed increment its outcome; a close with no pull request a note) are capability 3's, checked
@@ -79,6 +82,24 @@ export interface Settlement {
   readonly answer: string;
   /** A live decision. */
   readonly decision?: string;
+}
+
+/** How long a question's review is trusted for, in days, unless it is raised with its own (12-a). */
+export const DEFAULT_QUESTION_LEASE_DAYS = 7;
+
+/** A question's review lease as read at one moment (12-a). */
+export interface QuestionLease {
+  readonly id: string;
+  /**
+   * Fresh while its lease runs, lapsed once it has run out (or it was never stamped), and settled
+   * once the owner has answered it: a settled question's lease no longer applies.
+   */
+  readonly state: "fresh" | "lapsed" | "settled";
+  /** When it was last checked to still hold (ISO 8601), if it ever was. */
+  readonly verifiedAt?: string;
+  readonly leaseDays: number;
+  /** When its lease runs out (ISO 8601): verifiedAt plus leaseDays. Absent if it was never stamped. */
+  readonly lapsesAt?: string;
 }
 
 /** An arc whole: its record, its state, its increments and its questions, oldest first. */
@@ -291,8 +312,50 @@ export class WorkInFlight {
   raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "arc", question.arc, "arc");
-      return this.#records.create("question", { ...question, lifecycle: "open", verifiedAt: new Date().toISOString() }, options);
+      return this.#records.create(
+        "question",
+        { ...question, lifecycle: "open", verifiedAt: new Date().toISOString(), leaseDays: question.leaseDays ?? DEFAULT_QUESTION_LEASE_DAYS },
+        options,
+      );
     });
+  }
+
+  /**
+   * Question `id`'s review lease as it reads at `at` (now, unless given): fresh, lapsed or settled
+   * (12-a). Null if `id` is not a live question. A read: it writes nothing.
+   */
+  async checkQuestion(id: string, at: Date = new Date()): Promise<QuestionLease | null> {
+    const question = await liveRecord(this.#records, id, ["question"]);
+    return question === null ? null : leaseOf(question, at);
+  }
+
+  /**
+   * Stamp open question `id` as checked to still hold, now: its lease starts again, as long as it was.
+   * Renewing a settled question is refused (RangeError), with nothing written: it has its answer, and
+   * re-stamping it would only make an answered question look live (0.2's date-only renewals).
+   * Null, with nothing written, if `id` is not a live question.
+   */
+  renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#serially(async () => {
+      const question = await liveRecord(this.#records, id, ["question"]);
+      if (question === null) return null;
+      if (question.fields.lifecycle === "settled") {
+        throw new RangeError(`question ${JSON.stringify(id)} is settled, so there is nothing to renew: its answer stands`);
+      }
+      return (await this.#records.edit(id, { verifiedAt: new Date().toISOString() }, options)) as SchemaRecord<"question"> | null;
+    });
+  }
+
+  /**
+   * The open questions whose lease has lapsed at `at` (now, unless given), across every arc, longest
+   * lapsed first (one never stamped before any): the librarian's Queues drain (12-a).
+   */
+  async lapsedQuestions(at: Date = new Date()): Promise<SchemaRecord<"question">[]> {
+    const lapsed = (await this.#records.list("question"))
+      .map((question) => ({ question, lease: leaseOf(question, at) }))
+      .filter(({ lease }) => lease.state === "lapsed");
+    const runOut = (lease: QuestionLease): number => (lease.lapsesAt === undefined ? -Infinity : Date.parse(lease.lapsesAt));
+    return lapsed.sort((a, b) => runOut(a.lease) - runOut(b.lease) || byCreation(a.question, b.question)).map(({ question }) => question);
   }
 
   /**
@@ -425,6 +488,21 @@ export class WorkInFlight {
     this.#lastWrite = result.catch(() => undefined);
     return result;
   }
+}
+
+/** A question's review lease at `at` (12-a): an unparseable stamp reads as never stamped. */
+function leaseOf(question: SchemaRecord<"question">, at: Date): QuestionLease {
+  const { verifiedAt, leaseDays = DEFAULT_QUESTION_LEASE_DAYS, lifecycle } = question.fields;
+  const stamped = verifiedAt === undefined ? Number.NaN : Date.parse(verifiedAt);
+  const lapsesAt = Number.isNaN(stamped) ? undefined : stamped + leaseDays * 86_400_000;
+  const state = lifecycle === "settled" ? "settled" : lapsesAt !== undefined && at.getTime() < lapsesAt ? "fresh" : "lapsed";
+  return {
+    id: question.id,
+    state,
+    ...(verifiedAt === undefined ? {} : { verifiedAt }),
+    leaseDays,
+    ...(lapsesAt === undefined ? {} : { lapsesAt: new Date(lapsesAt).toISOString() }),
+  };
 }
 
 /** The live arcs, increments and questions at one moment, and how their waits read then. */

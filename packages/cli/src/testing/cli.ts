@@ -68,9 +68,9 @@ export class BuiltCommand {
   #dir: string | undefined;
   #script: string | undefined;
 
-  async build(): Promise<void> {
+  async build(builder: (dir: string) => Promise<string> = buildCommand): Promise<void> {
     this.#dir = mkdtempSync(path.join(tmpdir(), "storytree-cli-bin-"));
-    this.#script = await buildCommand(this.#dir);
+    this.#script = await builder(this.#dir);
   }
 
   remove(): void {
@@ -111,7 +111,8 @@ export function storytree(script: string, args: readonly string[], options: RunO
   return new Promise((resolve, reject) => {
     const started = performance.now();
     // A variable given replaces the test's own of the same name in any case (Windows spells PATH `Path`).
-    const given = { ...options.env, STORYTREE_HOME: options.home };
+    // The shell running the tests may itself belong to an agent; each world starts as a person.
+    const given = { CLAUDE_CODE_SESSION_ID: "", CODEX_THREAD_ID: "", ...options.env, STORYTREE_HOME: options.home };
     const env: Record<string, string | undefined> = { ...process.env };
     for (const name of Object.keys(given)) for (const own of Object.keys(env)) if (own.toLowerCase() === name.toLowerCase()) delete env[own];
     const child = spawn(process.execPath, [script, ...args], {

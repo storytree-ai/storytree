@@ -11,8 +11,8 @@
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
-import { recordFriction, recordResteer } from "../capture/index.js";
-import { closed, increments } from "../claims/index.js";
+import { recordFriction, recordResteer, reinforceFriction } from "../capture/index.js";
+import { closed, currentBranch, increments } from "../claims/index.js";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -33,7 +33,7 @@ export function registerWorkTools(define: Define): void {
       touches: z.array(z.string().min(1)).optional().describe("The ids of the stories and capabilities it touches"),
       outcome: z.object({ disposition, pr, note }).optional().describe("Only for work that already landed without being parked: how it closed"),
     }),
-    async ({ arc, title, objective, body, touches, outcome }, { library }) => {
+    async ({ arc, title, objective, body, touches, outcome }, { library, writer }) => {
       const before = (await library.arcView(arc))?.state;
       const increment = await library.addIncrement({
         arc,
@@ -42,15 +42,15 @@ export function registerWorkTools(define: Define): void {
         body,
         ...(touches === undefined ? {} : { touches }),
         ...(outcome === undefined ? {} : { outcome: defined(outcome) }),
-      });
+      }, writer);
       const reopened = before === "closed" && (await library.arcView(arc))?.state === "active" ? ` Its arc ${await arcName(library, arc)} re-opens.` : "";
       const said = outcome === undefined ? `Parked ${quoted(title)} (${increment.id}) as a proposal. Claim it to start it.` : `Recorded ${quoted(title)} (${increment.id}), ${outcome.disposition}.`;
       return { text: `${said}${reopened}`, data: { id: increment.id } };
     },
   );
 
-  define("ready_increment", "Mark a proposed increment ready: planned and able to start.", z.object({ increment: id("increment") }), async ({ increment }, { library }) => {
-    const readied = await library.advanceIncrement(increment, "ready");
+  define("ready_increment", "Mark a proposed increment ready: planned and able to start.", z.object({ increment: id("increment") }), async ({ increment }, { library, writer }) => {
+    const readied = await library.advanceIncrement(increment, "ready", writer);
     if (readied === null) return noIncrement(increment);
     return { text: `${quoted(readied.fields.title)} (${increment}) is ready. Claim it to start it.`, data: { id: increment } };
   });
@@ -60,7 +60,7 @@ export function registerWorkTools(define: Define): void {
     "Close an increment with its outcome: landed, failed or withdrawn, with its pull request, or a note when there is none. Any claim on it ends.",
     z.object({ increment: id("increment"), disposition, pr, note }),
     async ({ increment, disposition: meant, pr: pull, note: why }, call) => {
-      const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }));
+      const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }), call.writer);
       if (done === null) return noIncrement(increment);
       await closed(claimContext(call), increment, meant);
       const view = await call.library.arcView(done.fields.arc);
@@ -73,8 +73,8 @@ export function registerWorkTools(define: Define): void {
     "park_arc",
     "Park an arc, so that it reads parked whatever its work, or unpark it (parked: false).",
     z.object({ arc: id("arc"), parked: z.boolean().describe("true to park it, false to unpark it") }),
-    async ({ arc, parked }, { library }) => {
-      const done = parked ? await library.parkArc(arc) : await library.unparkArc(arc);
+    async ({ arc, parked }, { library, writer }) => {
+      const done = parked ? await library.parkArc(arc, writer) : await library.unparkArc(arc, writer);
       if (done === null) return { text: `There is no arc ${arc} in this project's plan.`, refused: true };
       return { text: parked ? `Parked arc ${quoted(done.fields.title)} (${arc}).` : `Unparked arc ${quoted(done.fields.title)} (${arc}).`, data: { id: arc } };
     },
@@ -88,8 +88,8 @@ export function registerWorkTools(define: Define): void {
       on: z.string().min(1).describe("The id of the increment or arc it waits on"),
       reason: z.string().min(1).describe("Why it waits, in a line"),
     }),
-    async ({ waiter, on, reason }, { library }) => {
-      const done = await library.addWait(waiter, on, reason);
+    async ({ waiter, on, reason }, { library, writer }) => {
+      const done = await library.addWait(waiter, on, reason, writer);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
       return { text: `${waiter} now waits on ${on}: ${reason}.`, data: { id: waiter } };
     },
@@ -99,8 +99,8 @@ export function registerWorkTools(define: Define): void {
     "clear_wait",
     "Stop an increment or arc waiting on another.",
     z.object({ waiter: z.string().min(1).describe("The id of the increment or arc that waits"), on: z.string().min(1).describe("The id of what it waits on") }),
-    async ({ waiter, on }, { library }) => {
-      const done = await library.removeWait(waiter, on);
+    async ({ waiter, on }, { library, writer }) => {
+      const done = await library.removeWait(waiter, on, writer);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
       return { text: `${waiter} no longer waits on ${on}.`, data: { id: waiter } };
     },
@@ -119,15 +119,20 @@ export function registerWorkTools(define: Define): void {
       recommendation: z.string().min(1).optional().describe("Which option you recommend, and why"),
       holds: z.array(z.string().min(1)).optional().describe("The ids of the increments held until the owner answers"),
     }),
-    async ({ holds, ...asked }, { library }) => {
-      const question = await library.raiseQuestion(defined(asked));
+    async ({ holds, ...asked }, { library, writer }) => {
+      // Check the entire request before the first write: a refusal must leave no question or hold.
+      const holding = new Map<string, string[]>();
       for (const increment of holds ?? []) {
         const held = await heldOn(library, increment);
-        if (held === undefined) return { text: `Raised ${quoted(asked.title)} (${question.id}), but there is no increment ${increment} to hold on it.`, refused: true, data: { id: question.id } };
-        await library.editIncrement(increment, { heldOn: [...held, question.id] });
+        if (held === undefined) return { text: `There is no increment ${increment} to hold on the question. Nothing was written.`, refused: true };
+        holding.set(increment, held);
       }
-      const holding = holds === undefined || holds.length === 0 ? "" : ` ${holds.join(", ")} ${holds.length === 1 ? "waits" : "wait"} on the answer.`;
-      return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${holding}`, data: { id: question.id } };
+      const question = await library.raiseQuestion(defined(asked), writer);
+      for (const [increment, held] of holding) {
+        await library.editIncrement(increment, { heldOn: [...held, question.id] }, writer);
+      }
+      const waiting = holding.size === 0 ? "" : ` ${[...holding.keys()].join(", ")} ${holding.size === 1 ? "waits" : "wait"} on the answer.`;
+      return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${waiting}`, data: { id: question.id } };
     },
   );
 
@@ -139,8 +144,8 @@ export function registerWorkTools(define: Define): void {
       answer: z.string().min(1).describe("The owner's answer, in their own words"),
       decision: z.string().min(1).optional().describe("The id of the decision that carried it"),
     }),
-    async ({ question, answer, decision }, { library }) => {
-      const settled = await library.settleQuestion(question, defined({ answer, decision }));
+    async ({ question, answer, decision }, { library, writer }) => {
+      const settled = await library.settleQuestion(question, defined({ answer, decision }), writer);
       if (settled === null) return { text: `There is no question ${question} in this project.`, refused: true };
       return { text: `Settled ${quoted(settled.fields.title)} (${question}). Work held on it goes on.`, data: { id: question } };
     },
@@ -150,8 +155,8 @@ export function registerWorkTools(define: Define): void {
     "retire_question",
     "Retire a question that was wrong to ask, with the reason. One that was answered is settled instead, and one that work is held on cannot be retired.",
     z.object({ question: id("question"), reason: z.string().min(1).describe("Why it was wrong to ask") }),
-    async ({ question, reason }, { library }) => {
-      await library.retire(question, reason);
+    async ({ question, reason }, { library, writer }) => {
+      await library.retire(question, reason, writer);
       return { text: `Retired question ${question}.`, data: { id: question } };
     },
   );
@@ -166,9 +171,19 @@ export function registerWorkTools(define: Define): void {
       evidence: z.string().min(1).describe("The concrete evidence for it"),
       impact: z.string().min(1).describe("What it cost"),
     }),
-    async (fields, { library }) => {
-      const friction = await recordFriction(library, fields);
+    async (fields, { library, writer }) => {
+      const friction = await recordFriction(library, fields, writer);
       return { text: `Recorded friction ${quoted(fields.title)} (${friction.id}).`, data: { id: friction.id } };
+    },
+  );
+
+  define(
+    "reinforce",
+    "Record a recurrence of existing friction with its own concrete evidence. It appends the date and this session's branch, keeping the original item and its route.",
+    z.object({ friction: id("friction"), evidence: z.string().min(1).describe("Concrete evidence of what happened this time") }),
+    async ({ friction, evidence }, { library, folder, writer }) => {
+      const saved = await reinforceFriction(library, friction, { branch: currentBranch(folder) ?? "(no branch)", evidence }, writer);
+      return { text: `Reinforced friction ${quoted(saved.fields.title)} (${saved.id}).`, data: { id: saved.id } };
     },
   );
 
@@ -186,8 +201,8 @@ export function registerWorkTools(define: Define): void {
       judged_by: z.enum(["owner", "agent"]).describe("Who judged it a defect or taste: owner only when the owner said so"),
       mode: z.string().min(1).optional().describe("A defect's failure mode"),
     }),
-    async ({ self_report: selfReport, judged_by: dispositionBy, ...fields }, { library }) => {
-      const resteer = await recordResteer(library, defined({ ...fields, selfReport, dispositionBy }));
+    async ({ self_report: selfReport, judged_by: dispositionBy, ...fields }, { library, writer }) => {
+      const resteer = await recordResteer(library, defined({ ...fields, selfReport, dispositionBy }), writer);
       return { text: `Recorded re-steer ${quoted(fields.title)} (${resteer.id}).`, data: { id: resteer.id } };
     },
   );

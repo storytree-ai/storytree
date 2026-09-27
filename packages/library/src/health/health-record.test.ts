@@ -126,7 +126,7 @@ for (const backend of [memory, postgres]) {
 
     // An id naming no live story, capability or contract has no entries either, and reads the same:
     // never passing, and never an error.
-    const note = await records.create("memory", { text: "Mailgun needs a verified domain", links: [story.id] });
+    const note = await records.create("definition", { term: "Delivery", meaning: "Mailgun needs a verified domain", links: [story.id] });
     const dropped = await work.addContract({ title: "Accepts a plus address", capability: capability.id });
     await records.retire(dropped.id, "out of scope");
     const history = await transactions.history();
@@ -402,7 +402,7 @@ for (const backend of [memory, postgres]) {
     // library cannot store), or for a record that is not a contract. For a story or a capability the
     // error says why: their health is rolled up from their contracts. Nothing is written.
     const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
-    const note = await records.create("memory", { text: "Mailgun needs a verified domain" });
+    const note = await records.create("definition", { term: "Delivery", meaning: "Mailgun needs a verified domain" });
     const healthRecord = at(await healthRecordsOf(transactions, contract.id), 0);
     const retired = await work.addContract({ title: "Accepts a plus address", capability: capability.id });
     await records.retire(retired.id, "out of scope");
@@ -416,7 +416,7 @@ for (const backend of [memory, postgres]) {
       [story.id, "story"],
       [capability.id, "capability"],
       [arc.id, "arc"],
-      [note.id, "memory"],
+      [note.id, "definition"],
       [healthRecord.id, "health"],
     ];
     for (const [id, found] of refused) {

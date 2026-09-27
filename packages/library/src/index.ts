@@ -5,10 +5,10 @@
 // nothing but this entry, so the internals behind it cannot be imported at all.
 export { connect } from "./api/index.js";
 export type { Change, Changes, Library, Storytree } from "./api/index.js";
-export type { CloudSqlConfig, ConnectionProblem, ConnectOptions } from "./project/index.js";
+export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
-export { ConnectionError, ProjectNameError } from "./project/index.js";
-export { SupersessionLoopError } from "./knowledge/index.js";
+export { ConnectionError, ProjectNameError, RestoreRefusedError } from "./project/index.js";
+export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";
@@ -27,6 +27,7 @@ export type {
   Disposition,
   Hold,
   NewQuestion,
+  QuestionLease,
   Settlement,
   IncrementEdit,
   IncrementStatus,
@@ -49,4 +50,4 @@ export type {
   HealthState,
   NodeHealth,
 } from "./health/index.js";
-export type { DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit, NoteType } from "./knowledge/index.js";
+export type { DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";

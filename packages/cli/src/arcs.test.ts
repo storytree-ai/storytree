@@ -1,7 +1,6 @@
 /**
- * Capability 4 · Arcs and increments: one test per contract 4.1-4.4 in the command line story, each running
- * the real, built `storytree` command. `arc list` waits on the library's list(kind) and has no
- * contract of its own.
+ * Capability 4 · Arcs and increments: one test per contract in the command line story, each running
+ * the real, built `storytree` command.
  */
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
@@ -12,6 +11,25 @@ const command = new BuiltCommand();
 
 before(() => command.build());
 after(() => command.remove());
+
+test("4.5 `arc list` names each live arc with the library's state", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const first = await anArc(world);
+    const parked = await anArc(world);
+    await library.parkArc(parked);
+    const retired = await anArc(world);
+    await library.retire(retired, "Duplicate plan");
+    const ran = await world.run(["arc", "list"]);
+    assert.equal(ran.code, 0, ran.stderr);
+    for (const id of [first, parked]) {
+      const view = await library.arcView(id);
+      const line = ran.stdout.split("\n").find((line) => line.includes(id));
+      assert.ok(line?.includes(view!.arc.fields.title) && line.includes(view!.state), ran.stdout);
+    }
+    assert.ok(!ran.stdout.includes(retired), ran.stdout);
+  });
+});
 
 /** An arc written straight into the library, for a test that is about something else. */
 async function anArc(world: World): Promise<string> {

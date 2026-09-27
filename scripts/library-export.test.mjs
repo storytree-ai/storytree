@@ -1,5 +1,5 @@
 // The export's rules (scripts/library-export.mjs): a project in a library prints as read-only story
-// and decision files, each note in its place, and printing writes nothing to the library. The test
+// and decision files, each story block in its place, and printing writes nothing to the library. The test
 // builds its project through the library's public API, as 0.3's own sessions now write stories, and
 // runs against the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), in a project of its own
 // that is dropped afterwards.
@@ -12,7 +12,7 @@ import pg from "pg";
 
 import { exportLibrary } from "./library-export.mjs";
 
-test("a story and its decisions print as files, each note in its place, and printing writes nothing to the library", async () => {
+test("a story and its decisions print as files, each story block in its place, and printing writes nothing to the library", async () => {
   await withLibrary(async (library) => {
     const story = await library.addStory({ title: "The kettle", description: "The kettle boils water." });
     const heating = await library.addCapability({ story: story.id, title: "1 · Heating", description: "It heats the water." });
@@ -32,7 +32,7 @@ test("a story and its decisions print as files, each note in its place, and prin
       frontCoverOf: heating.id,
     });
     await library.recordDecision({ title: "The whole project is PolyForm", text: "It is.\n\nFull record: ADR-0998 in storytree 0.2's decision log.", status: "accepted" });
-    const behind = (cover, text) => library.writeMemory({ text, links: [cover.id] });
+    const behind = (cover, text) => library.defineTerm({ term: `Story text: ${cover.fields.title}`, meaning: text, links: [cover.id] });
     await behind(storyCover, "**Approved** by the owner on 2026-01-01, as drawn.");
     await behind(storyCover, "## Also out of this story\n\n- **A whistle** is left out.");
     await behind(book, "- **Depends on:** nothing in this story. It heats\n  through the base.");
@@ -40,6 +40,7 @@ test("a story and its decisions print as files, each note in its place, and prin
     await behind(book, "- **As built:** one element, switched by a relay.");
     await behind(book, "A paragraph about the element.");
     await behind(book, "**Contracts** (each one a test):");
+    await library.defineTerm({ term: "Relay", meaning: "An electrical switch.", links: [book.id] }); // not a story block
 
     const { cursor } = await library.changesSince(0);
     const printed = await exportLibrary(library);

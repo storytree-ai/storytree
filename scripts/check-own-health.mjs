@@ -12,9 +12,10 @@
 // Only the verified column is written. The reported column is what an agent says through the agent
 // link, and this never writes it: showing the two apart is the point of the two columns.
 //
-// The app's Postgres is started here, on the app's own data directory, and stopped again at the
-// end. While the app is running it holds that directory, so this says so and exits non-zero: quit
-// the app first. The rules for what counts as passing live in scripts/own-health.mjs.
+// It joins the running app's database, or starts the app's Postgres itself when the app is not
+// running, and holds the one-writer lock while it records (scripts/library-server.mjs), so the app
+// never restarts into an update mid-write. The rules for what counts as passing live in
+// scripts/own-health.mjs.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -23,9 +24,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
-import { DataDirInUseError, start } from "@storytree/local-postgres";
 
-import { APP_OWNER, appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../apps/desktop/src/home.ts";
+import { appLibraryServer } from "./library-server.mjs";
 import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, VERIFIED_BY } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -51,19 +52,7 @@ main().then(
 async function main() {
   const home = appHome();
   console.log(`the app's library: ${home.pgdata}`);
-  try {
-    server = await start({ dataDir: home.pgdata, owner: COMMAND, log: (message) => console.log(`Postgres: ${message}`) });
-  } catch (error) {
-    if (!(error instanceof DataDirInUseError)) throw error;
-    console.error(
-      error.owner === APP_OWNER
-        ? `\nThe storytree 0.3 app is running (pid ${error.pid}) and holds its library in ${home.pgdata}.\n` +
-            `Quit the app, then run \`${COMMAND}\` again.`
-        : `\nThe app's library in ${home.pgdata} is in use by process ${error.pid}` +
-            `${error.owner === undefined ? "" : ` (${error.owner})`}. When it has finished, run \`${COMMAND}\` again.`,
-    );
-    return 1;
-  }
+  server = await appLibraryServer(COMMAND, { writes: true });
 
   let storytree;
   try {

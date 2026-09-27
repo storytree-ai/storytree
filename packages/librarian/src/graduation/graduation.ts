@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Library, Note } from "@storytree/library";
+import type { Library, Note, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal } from "../notes.js";
 
@@ -88,13 +88,13 @@ export async function park(file: string, reason: string, { now = new Date() }: {
  * then delete it, with its index line and any park. A write the library refuses leaves the memory
  * as it was; any other kind is refused.
  */
-export async function graduate(library: Library, file: string, kind: string, fields: Record<string, unknown>): Promise<Note> {
+export async function graduate(library: Library, file: string, kind: string, fields: Record<string, unknown>, writer?: WriteOptions): Promise<Note> {
   if (kind !== "principle" && kind !== "process" && kind !== "definition") {
     throw new LibrarianRefusal(`a lesson graduates into a principle, process or definition, not a ${kind}`);
   }
   if (!existsSync(file)) throw new LibrarianRefusal(`there is no memory ${file}`);
   const note: Note =
-    kind === "definition" ? await library.defineTerm(fields as Parameters<Library["defineTerm"]>[0]) : await library.writeKnowledge(kind, fields as never);
+    kind === "definition" ? await library.defineTerm(fields as Parameters<Library["defineTerm"]>[0], writer) : await library.writeKnowledge(kind, fields as never, writer);
   forget(file);
   return note;
 }

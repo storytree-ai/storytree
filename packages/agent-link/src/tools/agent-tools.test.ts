@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server): one test per contract 6.1-6.8 in
+ * Capability 6 · Agent tools (the MCP server): one test per contract 6.1-6.19 in
  * the agent link story. A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
  * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
@@ -16,17 +16,21 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
+import { roundDue, worklist } from "@storytree/librarian";
+import { z } from "zod";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
+import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
-import { withTempDir } from "../testing/folders.js";
+import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 
 /** The toolbox: every tool the server offers. */
 const TOOLS = [
+  "attach_workspace",
   "check_setup",
   "claim",
   "clear_wait",
@@ -34,6 +38,7 @@ const TOOLS = [
   "correct_note",
   "edit_plan",
   "land",
+  "make_workspace",
   "open",
   "park_arc",
   "park_increment",
@@ -45,6 +50,7 @@ const TOOLS = [
   "ready_increment",
   "record_friction",
   "record_resteer",
+  "reinforce",
   "release",
   "report",
   "retire_from_plan",
@@ -135,16 +141,23 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
 
       const claimed = await agent.call("claim", { capability, reason: "building the email form" });
       assert.equal(claimed.isError, false, claimed.text);
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the signup release" })).isError, false);
       const plan = await agent.call("show_plan");
       assert.deepEqual(
-        (plan.data.claims as { capability: string; session: string; label: string; reason: string }[]).map(({ capability: held, session, label, reason }) => ({
-          held,
+        (plan.data.claims as { capability?: string; increment?: string; session: string; label: string; reason: string }[]).map(({ capability, increment, session, label, reason }) => ({
+          held: capability ?? increment,
           session,
           label,
           reason,
         })),
-        [{ held: capability, session: "claude-1", label: "Claude Code", reason: "building the email form" }],
+        [
+          { held: capability, session: "claude-1", label: "Claude Code", reason: "building the email form" },
+          { held: increment, session: "claude-1", label: "Claude Code", reason: "driving the signup release" },
+        ],
       );
+      assert.ok(plan.text.split("\n").some((line) => line.includes(increment) && line.includes("Signup release") && line.includes("Claude Code claude-1") && line.includes("driving the signup release")), plan.text);
       assert.deepEqual((plan.data.sessions as { session: string; state: string }[]).map(({ session, state }) => ({ session, state })), [
         { session: "claude-1", state: "live" },
       ]);
@@ -155,6 +168,7 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
       assert.deepEqual(await library.health(contract).then(({ reported, verified }) => [reported.state, verified.state]), ["passing", "not-checked"]);
 
       assert.equal((await agent.call("land", { capability })).isError, false);
+      assert.equal((await agent.call("release", { increment })).isError, false);
       assert.deepEqual(await readClaims(log, project), [], "landing ended the claim");
       const landed = (await log.since(project, 0)).lines.filter((line) => line.kind === "landed");
       assert.deepEqual(landed.map((line) => line.session), ["claude-1"]);
@@ -207,11 +221,13 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["show_plan", {}],
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],
+        ["make_workspace", { increment: "increment_000000000000", reason: "building it" }],
+        ["attach_workspace", { increment: "increment_000000000000", reason: "building it", folder, ref: "a".repeat(40), name: "form" }],
         ["report", { contract: "contract_000000000000", result: "red" }],
         ["land", { capability: "capability_000000000000" }],
         ["search_notes", { query: "mailgun" }],
         ["open", { id: "decision_000000000000" }],
-        ["write_note", { kind: "memory", text: "Mailgun needs a verified domain" }],
+        ["write_note", { kind: "definition", term: "Delivery", meaning: "Mailgun needs a verified domain" }],
         ["correct_note", { id: "memory_000000000000", text: "Mailgun needs a verified sending domain" }],
         ["retire_from_plan", { id: "contract_000000000000", reason: "no longer promised" }],
         ["park_increment", { arc: "arc_000000000000", title: "Email form", objective: "Build it", body: "Red then green" }],
@@ -221,6 +237,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["set_wait", { waiter: "increment_000000000000", on: "increment_000000000001", reason: "it comes first" }],
         ["clear_wait", { waiter: "increment_000000000000", on: "increment_000000000001" }],
         ["record_friction", { title: "Slow", description: "Slow", statement: "Slow", evidence: "`pnpm test` took 9 s", impact: "Slow" }],
+        ["reinforce", { friction: "friction_000000000000", evidence: "#81: timed out again" }],
         ["record_resteer", { title: "Redirected", description: "Redirected", doing: "a", redirect: "b", evidence: '"not that"', disposition: "taste", judged_by: "owner" }],
         ["raise_question", { arc: "arc_000000000000", title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" }],
         ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],
@@ -246,18 +263,21 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
       assert.ok(founding !== undefined, "the capability is born with its founding decision on its shelf");
 
       // No claim: no default place.
-      const loose = idOf(await agent.call("write_note", { kind: "memory", text: "Written before any claim" }));
+      const loose = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Written before any claim" }));
       assert.deepEqual((await noteFields(library, loose)).links, undefined);
 
       await agent.call("claim", { capability: form, reason: "building the email form" });
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the release too" })).isError, false);
       // A memory, with no cover opened yet this session, goes inside the shelf's first book: its founding decision.
-      const first = idOf(await agent.call("write_note", { kind: "memory", text: "Mailgun needs a verified domain" }));
+      const first = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Mailgun needs a verified domain" }));
       // A new decision becomes another front cover of the claimed capability; once this session has opened it, a new memory goes inside that one.
       const second = idOf(await agent.call("write_note", { kind: "decision", title: "Validate on the client first", text: "Before any request" }));
       await agent.call("open", { id: second });
       const latest = idOf(await agent.call("write_note", { kind: "definition", term: "Bounce", meaning: "An email that could not be delivered" }));
       // A place the agent names itself always wins.
-      const named = idOf(await agent.call("write_note", { kind: "memory", text: "Filed where I say", links: [founding] }));
+      const named = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Filed where I say", links: [founding] }));
 
       assert.deepEqual((await library.frontCovers(form)).map((cover) => cover.id), [founding, second]);
       assert.deepEqual((await noteFields(library, first)).links, [founding]);
@@ -267,7 +287,7 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
       // Holding a capability whose shelf is empty, as one made through the library itself can be: nothing is added, and the agent is told.
       const link = (await library.addCapability({ title: "Confirmation link", story })).id;
       await agent.call("claim", { capability: link, reason: "building the confirmation link" });
-      const unshelved = await agent.call("write_note", { kind: "memory", text: "Links expire after a day" });
+      const unshelved = await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Links expire after a day" });
       assert.equal(unshelved.isError, false);
       assert.deepEqual((await noteFields(library, idOf(unshelved))).links, undefined);
       assert.equal(unshelved.data.shelf, "empty", "the answer says the shelf is empty");
@@ -293,8 +313,8 @@ test("6.6 searching and opening a note leaves a log line saying which session re
     const story = await library.addStory({ title: "Visitor can sign up" });
     const form = await library.addCapability({ title: "Email form", story: story.id });
     const cover = await library.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: form.id });
-    const inside = await library.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] });
-    const other = await library.writeMemory({ text: "Bounces arrive by webhook" });
+    const inside = await library.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [cover.id] });
+    const other = await library.defineTerm({ term: "Delivery", meaning: "Bounces arrive by webhook" });
     const unrelated = await library.defineTerm({ term: "Double opt-in", meaning: "Confirming a signup by email" });
 
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
@@ -326,7 +346,7 @@ test("6.6 searching and opening a note leaves a log line saying which session re
 
 test("6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing", async () => {
   await withProject(async ({ folder, project, library, log }) => {
-    const note = await library.writeMemory({ text: "Mailgun needs a verified domain" });
+    const note = await library.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
     // What Claude Code's hooks leave (capability 3): a subagent's start, and who asked for each storytree call, by the call's id.
     const claudeHook = { session: "claude-1", harness: "claude-code", source: "hook", folder } as const;
     await log.append(project, { ...claudeHook, kind: "subagent-started", subagent: "a5b1", type: "Explore", task: "find the mail setup" });
@@ -533,9 +553,9 @@ test("6.13 it corrects a note's wording in place: the note keeps its id with the
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { capability } = await planned(agent);
       const decision = idOf(await agent.call("write_note", { kind: "decision", title: "Validate on the server", text: "Clients lie", front_cover_of: capability }));
-      const memory = idOf(await agent.call("write_note", { kind: "memory", text: "The form tiemout is 30 s", links: [decision] }));
+      const memory = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "The form tiemout is 30 s", links: [decision] }));
 
-      assert.equal(idOf(await agent.call("correct_note", { id: memory, text: "The form timeout is 30 s" })), memory);
+      assert.equal(idOf(await agent.call("correct_note", { id: memory, meaning: "The form timeout is 30 s" })), memory);
       assert.equal(idOf(await agent.call("correct_note", { id: decision, title: "Validate on the server too" })), decision);
       const [cover] = await library.frontCovers(capability).then((shelf) => shelf.filter((note) => note.id === decision));
       assert.deepEqual([cover?.fields.title, cover?.fields.text], ["Validate on the server too", "Clients lie"], "only the title changed");
@@ -545,7 +565,7 @@ test("6.13 it corrects a note's wording in place: the note keeps its id with the
       const missing = await agent.call("correct_note", { id: "no-such-note", text: "anything" });
       assert.equal(missing.isError, true);
       assert.match(missing.text, /no-such-note/);
-      const wrongField = await agent.call("correct_note", { id: memory, title: "A memory has no title" });
+      const wrongField = await agent.call("correct_note", { id: memory, title: "A definition has no title" });
       assert.equal(wrongField.isError, true);
       assert.deepEqual(await library.search("has no title"), [], "nothing written");
     });
@@ -603,6 +623,256 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
       const wrong = idOf(await agent.call("raise_question", { ...asked, title: "Asked in error" }));
       assert.equal((await agent.call("retire_question", { question: wrong, reason: "asked in error" })).isError, false);
       assert.equal((await library.arcView(arc))?.questions.some((one) => one.id === wrong), false, "retired");
+    });
+  });
+});
+
+test("6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences", async () => {
+  await withProject(async ({ folder, library }) => {
+    const friction = await recordFriction(library, { title: "Slow mail", description: "Mail takes too long", statement: "The mailer timed out", evidence: "src/mail.ts: TimeoutError", impact: "Signup was delayed" });
+    await library.editNote(friction.id, { route: "nothing", routeReason: "An upstream outage" });
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      assert.equal(idOf(await agent.call("reinforce", { friction: friction.id, evidence: "#81: mail still times out" })), friction.id);
+      const first = await library.get(friction.id);
+      assert.ok(first?.type === "friction");
+      assert.equal(first.fields.reinforcedBy?.[0]?.date, new Date().toISOString().slice(0, 10));
+      assert.equal(first.fields.reinforcedBy?.[0]?.evidence, "#81: mail still times out");
+      const second = await reinforceFriction(library, friction.id, { branch: "fix/mail", evidence: "src/mail.ts: TimeoutError again" }, { actor: "person:Sam" });
+      assert.equal(second.id, friction.id);
+      assert.deepEqual(second.fields, { ...first.fields, reinforcedBy: [
+        ...first.fields.reinforcedBy!, { branch: "fix/mail", date: new Date().toISOString().slice(0, 10), evidence: "src/mail.ts: TimeoutError again" },
+      ] });
+      assert.equal((await library.list("friction")).length, 1, "no twin was created");
+      assert.equal((await library.history({ id: friction.id })).at(-1)?.actor, "person:Sam");
+      const note = await library.defineTerm({ term: "Delivery", meaning: "Not friction" });
+      const before = await library.history();
+      for (const [id, evidence] of [[friction.id, "It happened again"], [note.id, "src/mail.ts"], ["missing", "src/mail.ts"]]) {
+        await assert.rejects(reinforceFriction(library, id!, { branch: "fix/mail", evidence: evidence! }));
+        const refused = await agent.call("reinforce", { friction: id, evidence });
+        assert.equal(refused.isError, true, refused.text);
+        assert.match(refused.text, /concrete|friction/i);
+      }
+      assert.deepEqual(await library.history(), before, "refused recurrences wrote nothing");
+    });
+  });
+});
+
+test("6.17 another story registers its tools on this server, sharing routing, the session log and its instructions", async () => {
+  await withProject(async ({ folder, library, log, project }) => {
+    const decision = await library.recordDecision({ title: "One mailer", text: "Use Mailgun", status: "accepted" });
+    const extension: ToolExtension = {
+      instructions: "Use `librarian_worklist` to see what needs the librarian's attention.",
+      registerTools(define) {
+        define("librarian_worklist", "Read the librarian's worklist", z.object({}), async (_args, call) => ({
+          text: "The librarian's worklist.", data: { worklist: await worklist(call.library, {}) },
+        }));
+      },
+    };
+    await withAgent(folder, claudeCode("librarian-reader", { extensions: [extension] }), async (agent) => {
+      assert.deepEqual(await agent.tools(), [...TOOLS, "librarian_worklist"].sort());
+      const result = await agent.call("librarian_worklist");
+      assert.equal(result.isError, false, result.text);
+      assert.deepEqual(result.data.worklist, await worklist(library, {}));
+      assert.ok(JSON.stringify(result.data.worklist).includes(decision.id));
+      const calls = (await log.since(project, 0)).lines.filter((line) => line.kind === "tool-called");
+      assert.deepEqual(calls.map((line) => [line.session, line.kind === "tool-called" && line.tool]), [["librarian-reader", "librarian_worklist"]]);
+      const instructions = agent.instructions()!;
+      assert.ok(instructions.includes(extension.instructions!));
+      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), await agent.tools());
+      assert.ok(instructions.split("\n").length <= 60);
+    });
+  });
+});
+
+test("6.18 another story supplies land's next line only when needed; a refused landing asks for none", async () => {
+  await withProject(async ({ folder, library }) => {
+    const story = await library.addStory({ title: "Signup" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const { cursor: since } = await library.changesSince(0);
+    let calls = 0;
+    let unavailable = false;
+    const extension: ToolExtension = {
+      async landNext(id, call) {
+        calls++;
+        assert.equal(id, capability.id);
+        assert.equal(call.writer.actor, "session:builder");
+        if (unavailable) throw new Error("The librarian is unavailable");
+        return (await roundDue(call.library, { since })).rest ? "run the librarian's pass" : undefined;
+      },
+    };
+    await withAgent(folder, claudeCode("builder", { extensions: [extension] }), async (agent) => {
+      const quiet = await agent.call("land", { capability: capability.id });
+      assert.equal(quiet.data.landed, true);
+      assert.doesNotMatch(quiet.text, /Next:/);
+      await agent.call("write_note", { kind: "definition", term: "Sender", meaning: "The mail domain" });
+      const due = await agent.call("land", { capability: capability.id });
+      assert.equal(due.data.landed, true);
+      assert.ok(due.text.endsWith("Next: run the librarian's pass"), due.text);
+      assert.deepEqual(due.data.next, ["run the librarian's pass"]);
+      const refused = await agent.call("land", { capability: "missing" });
+      assert.equal(refused.isError, true);
+      assert.doesNotMatch(refused.text, /Next:/);
+      assert.equal(calls, 2, "only successful landings ask for the next step");
+      unavailable = true;
+      const landed = await agent.call("land", { capability: capability.id });
+      assert.equal(landed.isError, false, "a follow-up failure cannot turn a recorded landing into a refusal");
+      assert.equal(landed.data.landed, true);
+      assert.match(landed.text, /next step.*unavailable/i);
+    });
+  });
+});
+
+test("6.16 every library write from a tool names the calling session, including compound writes, claims, and a session changed by the harness", async () => {
+  await withProject(async ({ folder, library, log, project }) => {
+    await withAgent(folder, claudeCode("claude-writer"), async (agent) => {
+      const write = async (tool: string, args: Record<string, unknown>, count = 1) => {
+        const since = (await library.history()).at(-1)?.seq ?? 0;
+        const answer = await agent.call(tool, args);
+        assert.equal(answer.isError, false, answer.text);
+        const history = await library.history({ since });
+        assert.equal(history.length, count, `${tool} wrote ${count} records`);
+        for (const entry of history) assert.equal(entry.actor, "session:claude-writer", `${tool}: ${entry.type} ${entry.action}`);
+        return String(answer.data.id ?? "");
+      };
+      const story = await write("plan_story", { title: "Signup", ...FOUNDED }, 2);
+      const capability = await write("plan_capability", { story, title: "Email", ...FOUNDED }, 2);
+      const contract = await write("plan_contract", { capability, title: "Validates email" });
+      const arc = await write("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" });
+      for (const id of [story, capability, contract, arc]) await write("edit_plan", { id, description: "Corrected" });
+      const increment = await write("park_increment", { arc, title: "Form", objective: "Build it", body: "Red then green" });
+      await write("ready_increment", { increment });
+      await write("claim", { increment, reason: "driving it" });
+      for (const parked of [true, false]) await write("park_arc", { arc, parked });
+      const blocker = await write("park_increment", { arc, title: "Mailer", objective: "Send mail", body: "Connect it" });
+      await write("set_wait", { waiter: increment, on: blocker, reason: "Needs mail" });
+      await write("clear_wait", { waiter: increment, on: blocker });
+      const questionArgs = { arc, title: "Mailer?", stakes: "Delivery", statement: "Which?", context: "Signup", options: "Mailgun or SES" };
+      const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 2);
+      await write("settle_question", { question, answer: "Mailgun" });
+      const mistaken = await write("raise_question", questionArgs);
+      await write("retire_question", { question: mistaken, reason: "Already asked" });
+      await write("close_increment", { increment, disposition: "landed", pr: "#82" });
+      await write("park_increment", { arc, title: "Already done", objective: "Done", body: "Finished", outcome: { disposition: "landed", pr: "#83" } });
+      for (const result of ["red", "green"]) await write("report", { contract, result });
+      for (const fields of [{ kind: "definition", term: "Delivery", meaning: "Verify the sender" }, { kind: "decision", title: "Mailgun", text: "One mailer" }, { kind: "definition", term: "Sender", meaning: "The mail domain" }]) {
+        const id = await write("write_note", fields);
+        await write("correct_note", { id, ...(fields.kind === "definition" ? { meaning: "The verified domain" } : { text: "Verify the domain" }) });
+      }
+      const friction = await write("record_friction", { title: "Slow mail", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Delayed signup" });
+      await write("reinforce", { friction, evidence: "#82: Timeout again" });
+      await write("record_resteer", { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", evidence: '"Use just email"', disposition: "taste", judged_by: "owner" });
+      for (const id of [contract, capability]) await write("retire_from_plan", { id, reason: "Replaced" });
+
+      await log.append(project, { session: "after-clear", harness: "claude-code", source: "hook", kind: "tool-requested", tool: "write_note", call: "new-window", agent: "orchestrator" });
+      const afterClear = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "New window" }, { "claudecode/toolUseId": "new-window" }));
+      assert.equal((await library.history({ id: afterClear }))[0]?.actor, "session:after-clear");
+      await write("write_note", { kind: "definition", term: "Delivery", meaning: "No hook saw this call" });
+      const before = await library.history();
+      assert.equal((await agent.call("reinforce", { friction, evidence: "Still annoying" })).isError, true);
+      assert.deepEqual(await library.history(), before, "a refusal cannot invent an attributed write");
+      for (const invalid of ["increment_missing", story]) {
+        const refused = await agent.call("raise_question", { ...questionArgs, holds: [blocker, invalid] });
+        assert.equal(refused.isError, true, "a missing increment or a different record kind is refused");
+        assert.ok(refused.text.includes(invalid), refused.text);
+        assert.deepEqual(await library.history(), before, "a refused question cannot leave its question or an earlier hold behind");
+      }
+    });
+    await withAgent(folder, codex("codex-writer"), async (agent) => {
+      for (const session of ["codex-writer", "codex-next"]) {
+        const id = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: session }, { sessionId: session, threadId: "subagent-thread" }));
+        assert.equal((await library.history({ id }))[0]?.actor, `session:${session}`, "the session owns the write, including its subagent's");
+      }
+    });
+  });
+});
+
+test("6.19 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const origin = path.join(path.dirname(folder), "origin.git");
+    git(path.dirname(folder), "init", "--bare", "-b", "main", origin);
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "first");
+    git(folder, "remote", "add", "origin", origin);
+    git(folder, "push", "origin", "main");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const park = async (title: string) => idOf(await agent.call("park_increment", { arc, title, objective: `Build ${title}`, body: `${title}, red then green` }));
+      const form = await park("Email form");
+
+      const made = await agent.call("make_workspace", { increment: form, reason: "building the email form" });
+
+      assert.equal(made.isError, false, made.text);
+      const { folder: workspace, branch } = made.data as { folder: string; branch: string };
+      assert.equal(path.dirname(workspace), path.join(folder, ".claude", "worktrees"));
+      assert.equal(git(workspace, "rev-parse", "--abbrev-ref", "HEAD").trim(), branch);
+      assert.ok(made.text.includes(workspace) && made.text.includes("EnterWorktree"), made.text);
+      assert.deepEqual(
+        (await readClaims(log, project)).map(({ increment, session, branch }) => ({ increment, session, branch })),
+        [{ increment: form, session: "claude-1", branch }],
+      );
+    });
+    await withAgent(folder, codex("codex-1"), async (agent) => {
+      const [held] = (await readClaims(log, project)).map((claim) => claim.increment!);
+      const refused = await agent.call("make_workspace", { increment: held, reason: "me too" });
+      assert.equal(refused.isError, true);
+      assert.ok(refused.text.includes("claude-1"), refused.text);
+    });
+  });
+});
+
+test("ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("artifact-writer"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Mail", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Sender", ...FOUNDED }));
+      await agent.call("claim", { capability, reason: "Build the sender" });
+      const [cover] = await library.frontCovers(capability);
+      const fields = { title: "Verify senders", description: "Check the sending domain", statement: "Verify before sending", why: "Mail must arrive", howToApply: "Verify the domain before enabling delivery" };
+      const id = idOf(await agent.call("write_note", { kind: "principle", fields }));
+      assert.deepEqual((await library.get(id))?.fields, { ...fields, links: [cover!.id] });
+      const before = await library.history();
+      const refused = await agent.call("write_note", { kind: "memory", text: "Remember this" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /memory.*harness.*artifact/i);
+      assert.deepEqual(await library.history(), before);
+    });
+  });
+});
+
+
+test("6.19 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const origin = path.join(path.dirname(folder), "origin.git");
+    git(path.dirname(folder), "init", "--bare", "-b", "main", origin);
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "first");
+    git(folder, "remote", "add", "origin", origin);
+    git(folder, "push", "origin", "main");
+    await withAgent(folder, codex("codex-app"), async (agent) => {
+      const { arc } = await planned(agent);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Form", objective: "Build form", body: "Red then green" }));
+      const prepared = await agent.call("make_workspace", { increment, reason: "build form" });
+      assert.equal(prepared.isError, false, prepared.text);
+      assert.equal(prepared.data.status, "prepared");
+      const { ref, name } = prepared.data as { ref: string; name: string };
+      assert.equal(ref, git(folder, "rev-parse", "HEAD").trim());
+      assert.match(prepared.text, /create_worktree/);
+      assert.match(prepared.text, /attach_workspace/);
+      assert.deepEqual(await readClaims(log, project), []);
+      const returnedFolder = path.join(path.dirname(folder), "app returned");
+      git(folder, "worktree", "add", "--detach", returnedFolder, ref);
+      const refused = await agent.call("attach_workspace", { increment, reason: "build form", ref, name, folder });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /kept|untouched/);
+      const attached = await agent.call("attach_workspace", { increment, reason: "build form", ref, name, folder: returnedFolder });
+      assert.equal(attached.isError, false, attached.text);
+      assert.equal(attached.data.folder, returnedFolder);
+      assert.equal(attached.data.branch, `codex/${name}`);
+      assert.equal((await readClaims(log, project))[0]?.session, "codex-app");
+      assert.equal((await readClaims(log, project))[0]?.branch, attached.data.branch);
+      assert.ok(attached.text.includes(returnedFolder));
     });
   });
 });

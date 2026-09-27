@@ -22,7 +22,6 @@ export type RecordType =
   | "capability"
   | "contract"
   | "health"
-  | "memory"
   | "decision"
   | "definition"
   | KnowledgeKind
@@ -30,7 +29,7 @@ export type RecordType =
   | "question";
 
 /**
- * Capability 6's eight kinds beyond memory notes, decisions and definitions (ADR-0640), each with
+ * Capability 6's eight kinds beyond decisions and definitions (ADR-0640), each with
  * 0.2's fields (`packages/library/src/knowledge.ts` in storytree 0.2), a title and a one-line
  * description.
  */
@@ -61,7 +60,7 @@ const waits = z.array(z.object({ on: z.string(), reason: nonEmpty }).strict()).o
 
 /**
  * What every one of the eight kinds carries (6-a): a title, a one-line description, and links to
- * the other notes it relates to, as every note has.
+ * the other artifacts it relates to, as every artifact has.
  */
 const knowledgeHead = { title: nonEmpty, description: nonEmpty, links: ids.optional() };
 
@@ -148,12 +147,6 @@ export const RECORD_SCHEMAS = {
       note: z.string().optional(),
     })
     .strict(),
-  memory: z
-    .object({
-      text: nonEmpty,
-      links: ids.optional(),
-    })
-    .strict(),
   /**
    * A decision, with the decision log's fields (capability 13): its `status`, required from version
    * 2 (an older decision is upgraded, ./upgrades.ts), set directly (13-a); its `number`, handed out
@@ -227,11 +220,11 @@ export const RECORD_SCHEMAS = {
       surfaces: nonEmpty,
       failureModes: nonEmpty,
       verification: nonEmpty.optional(),
-      /** The notes this process hands on to, each with an optional one-line gloss. */
+      /** The artifacts this process hands on to, each with an optional one-line gloss. */
       branchEdges: z.array(z.object({ to: z.string(), label: nonEmpty.optional() }).strict()).optional(),
     })
     .strict(),
-  /** An agent role. Its required reading (`context`), rules and anti-patterns are links to notes (6-a). */
+  /** An agent role. Its required reading (`context`), rules and anti-patterns are links to artifacts (6-a). */
   agent: z
     .object({
       ...knowledgeHead,
@@ -244,7 +237,7 @@ export const RECORD_SCHEMAS = {
       rules: ids.optional(),
       antiPatterns: ids.optional(),
       escalation: nonEmpty.optional(),
-      /** Workflow steps, each with the notes it reads just in time. */
+      /** Workflow steps, each with the artifacts it reads just in time. */
       stepRefs: z.array(z.object({ step: nonEmpty, refs: ids }).strict()).optional(),
       model: z.enum(["inherit", "sonnet", "opus"]).optional(),
       aliases: z.array(nonEmpty).optional(),
@@ -401,7 +394,6 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   capability: 1,
   contract: 1,
   health: 1,
-  memory: 1,
   decision: 2,
   definition: 1,
   principle: 1,

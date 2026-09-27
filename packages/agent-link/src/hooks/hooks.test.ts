@@ -365,7 +365,7 @@ test("3.7 at each prompt, the project's definitions for the terms it names are a
       assert.equal(
         await ask("claude-code", prompt, "cc-1"),
         [
-          "[storytree] Definitions from this project's library for terms in this prompt (open a note by its id to read all of it):",
+          "[storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):",
           `- Quiet time (${quiet.id}): How long a session may say nothing before it reads as idle.`,
           `- Claim (${claim.id}): Holding a capability while you build it.`,
         ].join("\n"),

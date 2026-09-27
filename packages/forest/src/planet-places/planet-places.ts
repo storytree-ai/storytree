@@ -1,50 +1,61 @@
-/** Story nodes' globe book (ADR-0646 W2). Distances use the forest engine's ground units. */
-export const PLANET_RADIUS = 390;
-/** Historical places, including retired stories. Growing this set would move existing places. */
-export const PLANET_CAPACITY = 128;
+/** Story nodes' packed globe book (ADR-0648, widened by ADR-0655 D3 for pathways). Distances use the forest engine's ground units. */
+export const PLANET_RADIUS = 218;
+/** Historical places, including retired stories. Later places await a new placement book. */
+export const PLANET_CAPACITY = 36;
 
-// The permanent deal of the 128 Fibonacci indices. Starting at index 0, each next index was
-// chosen to maximise its angular distance to the nearest dealt spot (the largest empty patch).
-// Keep the measured order: recomputing it at runtime lets rounding break symmetric ties
-// differently across machines. Changing this table would move stories already placed.
-const DEAL = [
-  0, 127, 61, 62, 68, 72, 92, 99, 31, 37, 22, 20, 103, 110, 109, 19,
-  21, 106, 46, 66, 63, 57, 56, 73, 120, 4, 121, 10, 26, 104, 16, 88,
-  17, 123, 64, 65, 94, 108, 6, 71, 36, 54, 89, 87, 40, 15, 42, 83,
-  82, 47, 80, 38, 45, 119, 98, 122, 28, 5, 30, 97, 115, 105, 35, 23,
-  91, 90, 24, 25, 102, 114, 13, 101, 39, 100, 27, 29, 107, 12, 96, 32,
-  95, 33, 34, 93, 14, 113, 49, 78, 48, 79, 60, 67, 59, 81, 77, 50,
-  58, 69, 51, 76, 70, 44, 84, 43, 52, 75, 85, 55, 74, 53, 41, 86,
-  2, 11, 116, 18, 117, 112, 9, 118, 8, 111, 1, 126, 7, 125, 124, 3,
+// Frozen directions using spike/globe-land's front-pole spiral (pitch 72), corrected before
+// landing to fit both the original and fresh seeded shores plus its 36-story sample. Never refit this table to story count, ids or growth.
+// See measurements.md for the bounded clearance proof; arbitrary island growth is unbounded.
+const SPOTS = [
+  [0, 0, 1],
+  [0.4298421775331947, -0.028059147912601588, 0.9024679421630113],
+  [0.32111873000915514, 0.36910905506709824, 0.8721475028369806],
+  [-0.13021486743697652, 0.5320622126616584, 0.8366324701778857],
+  [-0.5350728743349136, 0.268292890731142, 0.8010717470577159],
+  [-0.6250384182564062, -0.10936650306898908, 0.7728945230172035],
+  [-0.40928797801901495, -0.5366363699231319, 0.7379056562493811],
+  [0.07154822345060091, -0.7100525437789635, 0.7005042732161495],
+  [0.38227395273964865, -0.6285352724977264, 0.6773551773501209],
+  [0.6142703155335523, -0.4388768884080681, 0.6557888808721617],
+  [0.7807356459620052, -0.033100059178712976, 0.6239841642274715],
+  [0.6936257361124699, 0.4116696934071724, 0.5911103126595566],
+  [0.44643119643639195, 0.6947089556320407, 0.5639846219650062],
+  [-0.5007496580449061, 0.7121578316161706, 0.4920172790011176],
+  [-0.7777760418971283, 0.4248638932562099, 0.4632009292499447],
+  [-0.9015666506242486, 0.016196825481299703, 0.4323369488333172],
+  [-0.8686531388071664, -0.27637428278192894, 0.411167824929471],
+  [-0.146944302509174, -0.9296954201140306, 0.3377481277210703],
+  [0.34225462479848423, -0.8896852482638608, 0.3021951866355935],
+  [0.6869416155606557, -0.6735508869155632, 0.27283771650227234],
+  [0.9055859798752396, -0.346621446310163, 0.24447414180492189],
+  [0.9689633266776638, 0.1310619923966902, 0.2096015880253889],
+  [0.8383120334590686, 0.5144858318492466, 0.18038088419816017],
+  [0.6136882104128565, 0.7740499325321231, 0.15567107100319333],
+  [0.2033410713384794, 0.971381092814639, 0.12276473935604242],
+  [-0.2072105836749447, 0.9738519194729514, 0.09314619129055614],
+  [-0.7684440077489361, 0.6383028162314571, 0.04542380153337726],
+  [-0.9846664109284554, 0.17424838078230998, 0.008340322776564013],
+  [-0.9582747459142305, -0.28476318372141707, -0.024888562430556406],
+  [-0.8295682184415347, -0.556465627274439, -0.046503511843766714],
+  [-0.5680094027354459, -0.8197567675740591, -0.07324042886720424],
+  [-0.21122633219377696, -0.9721833647576371, -0.10120742006633413],
+  [0.3021721392593384, -0.9431436136595797, -0.1384634329654745],
+  [0.6412648931224603, -0.7490077653691056, -0.16663344281811676],
+  [0.8812242088121295, 0.3969799752732199, -0.25661409360265064],
+  [0.11834164441236386, 0.9377218983790728, -0.3266081696744977],
 ] as const;
 
 /** A point relative to the globe's centre: x right, y up, z toward the initial viewer. */
-export interface PlanetPoint {
-  x: number;
-  y: number;
-  z: number;
-}
+export interface PlanetPoint { x: number; y: number; z: number }
 
-/**
- * A story node's permanent place number (1-based, retired stories included) becomes a spot on
- * the sphere. The caller gets a fresh point in ground units; dividing by PLANET_RADIUS gives
- * the outward unit normal for mounting a flat island. Neither project size nor island size
- * enters the calculation. See measurements.md for the radius and the bounded clearance proof.
- *
- * Places beyond 128 have no spot in this book: reject them rather than wrap, reuse or move a
- * place. The page can keep showing the flat forest; a later book decides how the globe grows.
- */
-export function placeOnGlobe(place: number): PlanetPoint {
+/** The permanent 1-based story place selects a fixed point, regardless of live project size. */
+export function placeOnPackedGlobe(place: number): PlanetPoint {
   if (!Number.isInteger(place) || place < 1 || place > PLANET_CAPACITY) {
     throw new RangeError(`Globe places are integers from 1 to ${PLANET_CAPACITY}; received ${place}`);
   }
-  const index = DEAL[place - 1]!;
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-  const z = 1 - 2 * (index + 0.5) / PLANET_CAPACITY;
-  const ring = Math.sqrt(1 - z * z);
-  return {
-    x: ring * Math.cos(index * goldenAngle) * PLANET_RADIUS,
-    y: ring * Math.sin(index * goldenAngle) * PLANET_RADIUS,
-    z: z * PLANET_RADIUS,
-  };
+  const [x, y, z] = SPOTS[place - 1]!;
+  return { x: x * PLANET_RADIUS, y: y * PLANET_RADIUS, z: z * PLANET_RADIUS };
 }
+
+/** Compatibility for the existing forest barrel's readers; the even-spread W2 book is retired. */
+export const placeOnGlobe = placeOnPackedGlobe;

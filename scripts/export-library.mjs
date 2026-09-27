@@ -5,18 +5,17 @@
 // step 4, choice F1), and nothing is ever read back from these files. It reads the library and
 // writes nothing to it.
 //
-// It starts the app's Postgres on the app's own data directory and stops it again, so while the
-// app is running and holds that directory it says so and exits non-zero: quit the app first. The
-// rules for printing live in scripts/library-export.mjs.
+// It reads the running app's database, or starts the app's Postgres itself when the app is not
+// running (scripts/library-server.mjs). The rules for printing live in scripts/library-export.mjs.
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
-import { DataDirInUseError, start } from "@storytree/local-postgres";
 
-import { APP_OWNER, appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../apps/desktop/src/home.ts";
+import { appLibraryServer } from "./library-server.mjs";
 import { exportLibrary } from "./library-export.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -43,26 +42,14 @@ main().then(
 async function main() {
   const home = appHome();
   console.log(`the app's library: ${home.pgdata}`);
-  try {
-    server = await start({ dataDir: home.pgdata, owner: COMMAND, log: (message) => console.log(`Postgres: ${message}`) });
-  } catch (error) {
-    if (!(error instanceof DataDirInUseError)) throw error;
-    console.error(
-      error.owner === APP_OWNER
-        ? `\nThe storytree 0.3 app is running (pid ${error.pid}) and holds its library in ${home.pgdata}.\n` +
-            `Quit the app, then run \`${COMMAND}\` again.`
-        : `\nThe app's library in ${home.pgdata} is in use by process ${error.pid}` +
-            `${error.owner === undefined ? "" : ` (${error.owner})`}. When it has finished, run \`${COMMAND}\` again.`,
-    );
-    return 1;
-  }
+  server = await appLibraryServer(COMMAND, { writes: false });
 
   let printed;
   let storytree;
   try {
     storytree = await connect({ url: server.url });
     if (!(await storytree.listProjects()).includes(PROJECT)) {
-      console.error(`\nThe app's library has no project "${PROJECT}". Run \`pnpm seed:library\` first.`);
+      console.error(`\nThe app's library has no project "${PROJECT}". Restore it from a snapshot with \`pnpm library:restore\`.`);
       return 1;
     }
     const library = await storytree.openProject(PROJECT);

@@ -16,8 +16,9 @@
  * the form. The form a tree takes is 0.3's `grove`'s decision; `statusOf` only names which of 0.2's
  * statuses draws that form.
  *
- * The trail network is left empty: 0.2's canvas hides trails unless asked (ADR-0169 §3), and 0.3's
- * drill-down draws how capabilities connect.
+ * This first pass builds land. The globe's `buildPlanetPathways` joins recorded capability links
+ * to these actual clipped coasts and parcel centres, then feeds the ground's worn paths and the
+ * cross-island ribbon from one shared network (ADR-0169, ADR-0655 D3).
  */
 import { PLACE_WIDTH, type ForestScene, type Island, type TreeForm } from "@storytree/forest";
 
@@ -156,6 +157,7 @@ export function groundInput(scene: ForestScene): SceneInput {
     drawTiles: [],
     wheatSets: [],
     cameraElevationDeg: PLAN_VIEW_ELEVATION_DEG,
+    // Routing follows this pass: it needs the sized parcels and clipped beach, not tile centres.
     trails: { segments: [], edges: [], caves: [], dropped: [] },
     territories: scene.islands.map((island, owner): SceneTerritoryInput => {
       const centre = centres[owner]!;

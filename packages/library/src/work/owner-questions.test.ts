@@ -180,3 +180,66 @@ for (const backend of [memory, postgres]) {
     assert.equal(await records.get(question.id), null, "with nothing held on it, it retires");
   });
 }
+
+const DAY = 86_400_000;
+
+for (const backend of [memory, postgres]) {
+  const contract = (number: string, title: string, body: (library: Library) => Promise<void>): void => {
+    test(`${number} [${backend.label}] ${title}`, async () => {
+      const library = await backend.open();
+      try {
+        await body(library);
+      } finally {
+        await library.cleanup();
+      }
+    });
+  };
+
+  contract("12.5", "an open question carries a review date and a lease, 7 days unless given; it checks fresh until the lease runs out and lapsed after, and renewing re-stamps it", async ({ work, flight, records }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    assert.equal(question.fields.leaseDays, 7, "the lease is stored, 7 days by default");
+    const short = await flight.raiseQuestion({ arc: arc.id, ...ASK, leaseDays: 2 });
+    assert.equal(short.fields.leaseDays, 2, "or as given");
+
+    const verified = Date.parse(question.fields.verifiedAt ?? "");
+    const fresh = await flight.checkQuestion(question.id, new Date(verified + 6 * DAY));
+    assert.equal(fresh?.state, "fresh");
+    assert.equal(fresh?.verifiedAt, question.fields.verifiedAt);
+    assert.equal(fresh?.leaseDays, 7);
+    assert.equal(fresh?.lapsesAt, new Date(verified + 7 * DAY).toISOString());
+    assert.equal((await flight.checkQuestion(question.id, new Date(verified + 7 * DAY)))?.state, "lapsed", "lapsed once the lease runs out");
+    assert.equal((await flight.checkQuestion(short.id, new Date(verified + 3 * DAY)))?.state, "lapsed", "on its own lease");
+    assert.equal((await flight.checkQuestion(question.id))?.state, "fresh", "fresh now, when no moment is given");
+    assert.equal(await flight.checkQuestion("question_000000000000"), null, "null for no question");
+
+    // The drain's list: the open questions lapsed at that moment, longest lapsed first.
+    const later = new Date(verified + 10 * DAY);
+    assert.deepEqual((await flight.lapsedQuestions(later)).map(({ id }) => id).sort(), [question.id, short.id].sort());
+    assert.deepEqual((await flight.lapsedQuestions(new Date(verified + 3 * DAY))).map(({ id }) => id), [short.id]);
+
+    // Renewing stamps it verified now: fresh again, with the lease it had.
+    await records.edit(question.id, { verifiedAt: new Date(verified - 30 * DAY).toISOString() });
+    assert.equal((await flight.checkQuestion(question.id))?.state, "lapsed");
+    const renewed = await flight.renewQuestion(question.id);
+    assert.ok(Date.parse(renewed?.fields.verifiedAt ?? "") >= verified, "re-stamped");
+    assert.equal(renewed?.fields.leaseDays, 7);
+    assert.equal((await flight.checkQuestion(question.id))?.state, "fresh");
+    assert.deepEqual((await flight.lapsedQuestions()).map(({ id }) => id), []);
+    assert.equal(await flight.renewQuestion("question_000000000000"), null, "null for no question");
+  });
+
+  contract("12.6", "renewing a settled question is refused, and nothing is written; a settled question checks settled and is never lapsed", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, leaseDays: 1 });
+    await flight.settleQuestion(question.id, { answer: "Mailgun" });
+
+    const history = await transactions.history();
+    await assert.rejects(flight.renewQuestion(question.id), (error: unknown) => error instanceof RangeError && /settled/.test(error.message));
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    const far = new Date(Date.parse(question.fields.verifiedAt ?? "") + 30 * DAY);
+    assert.equal((await flight.checkQuestion(question.id, far))?.state, "settled");
+    assert.deepEqual(await flight.lapsedQuestions(far), [], "a settled question is not drained");
+  });
+}

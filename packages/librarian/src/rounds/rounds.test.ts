@@ -15,7 +15,7 @@ import { roundDue, worklist } from "./index.js";
 test("6.1 the trigger fires on a write to a curated kind since the session started, and when there is no start; graduation is due either way", async () => {
   await withLibrary(async (library) => {
     const { cursor: start } = await library.changesSince(0);
-    await library.writeMemory({ text: "A memory note is not a curated kind." });
+    await library.writeKnowledge("techstack", { title: "Postgres", description: "Project storage", statement: "Each project uses Postgres.", whatItIs: "A relational database.", whyThis: "Transactional writes and history." });
     assert.deepEqual(await roundDue(library, { since: start }), { graduation: true, rest: false });
 
     await library.writeKnowledge("principle", { title: "Edit first", description: "Edit before writing new.", statement: "Edit first.", why: "No near-copies.", howToApply: "Search first." });
@@ -34,7 +34,7 @@ test("6.2 the worklist gathers each capability's list: graduation's always, the 
     try {
       const spec = await library.recordDecision({ title: "The MVP spec", text: "One page.", status: "accepted" });
       const { cursor } = await library.changesSince(0);
-      await library.writeMemory({ text: "Not curated." });
+      await library.writeKnowledge("techstack", { title: "Postgres", description: "Project storage", statement: "Each project uses Postgres.", whatItIs: "A relational database.", whyThis: "Transactional writes and history." });
 
       const quiet = await worklist(library, { since: cursor, memoryFolders: [folder] });
       assert.deepEqual(quiet.graduation.map((item) => item.file), [memory]);

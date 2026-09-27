@@ -15,8 +15,8 @@ after(() => command.remove());
 test("1.1 in a project folder, `library search` finds a note written through the library", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
-    await library.writeMemory({ text: "The mailer needs a verified sender domain" });
-    await library.writeMemory({ text: "Deploys go out on Tuesdays" });
+    await library.defineTerm({ term: "The mailer needs a verified sender domain", meaning: "Verify its DNS records before sending." });
+    await library.defineTerm({ term: "Deploys", meaning: "Deploys go out on Tuesdays" });
 
     const ran = await world.run(["library", "search", "mailer"]);
 
@@ -50,12 +50,12 @@ test("1.3 with storytree stopped, it says \"storytree isn't running\" within a s
 test("1.4 a record the library refuses reaches you as the library's own message, and nothing is written", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
-    const refusal = await library.writeMemory({ text: "" }).then(
-      () => assert.fail("the library took a memory with no text"),
+    const refusal = await library.defineTerm({ term: "Mailer", meaning: "" }).then(
+      () => assert.fail("the library took a definition with no meaning"),
       (error: Error) => error.message,
     );
 
-    const ran = await world.run(["library", "new", "memory", "--text", ""]);
+    const ran = await world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", ""]);
 
     assert.equal(ran.code, 1);
     assert.ok(ran.stderr.includes(refusal), `expected the library's own message:\n${refusal}\ngot:\n${ran.stderr}`);

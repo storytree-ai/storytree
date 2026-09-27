@@ -20,7 +20,9 @@ import { WorkModel } from "../work/work-model.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { cannotCreateDatabases, ConnectionError, isInsufficientPrivilege } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, projectDatabase } from "./names.js";
+import { upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
+import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
 import { localServer, type ServerAccess } from "./server.js";
 
 /** Where the Postgres server is: at a URL, or a Cloud SQL instance reached with Google sign-in. */
@@ -51,6 +53,10 @@ export interface Storytree {
   openProject(name: string): Promise<Project>;
   /** The names of the storytree projects on the server, sorted. No other database is listed. */
   listProjects(): Promise<string[]>;
+  /** Every record of the project called `name` and its whole history, read at one moment (contract 1.6). */
+  snapshot(name: string): Promise<ProjectSnapshot>;
+  /** Restore a snapshot into the project called `name`, only if it holds no record and no history (1.7, 1.8). */
+  restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
   /** Close this connection and every project opened through it. */
   close(): Promise<void>;
 }
@@ -71,7 +77,7 @@ export interface Project {
   readonly work: WorkModel;
   /** Each arc's increments, and its state worked out from them (capability 10). */
   readonly flight: WorkInFlight;
-  /** What the project has learned: memory notes, decisions and definitions (capability 6). */
+  /** What the project has learned: decisions, definitions and other artifacts (capability 6). */
   readonly knowledge: Knowledge;
   /** How healthy each story, capability and contract is, reported and verified (capability 5). */
   readonly health: HealthRecord;
@@ -131,6 +137,26 @@ class ServerConnection implements Storytree {
       return rows.map((row) => row.datname.slice(PROJECT_DATABASE_PREFIX.length)).sort();
     } catch (error) {
       throw this.#server.explain(error);
+    }
+  }
+
+  async snapshot(name: string): Promise<ProjectSnapshot> {
+    assertProjectName(name); // before anything touches the server
+    if (!(await this.listProjects()).includes(name)) throw new Error(`There is no project "${name}" to take a snapshot of.`);
+    const project = await this.openProject(name);
+    try {
+      return await readSnapshot(project.pool, name);
+    } finally {
+      await project.close();
+    }
+  }
+
+  async restore(name: string, snapshot: ProjectSnapshot): Promise<void> {
+    const project = await this.openProject(name);
+    try {
+      await writeSnapshot(project.pool, name, snapshot);
+    } finally {
+      await project.close();
     }
   }
 
@@ -242,7 +268,9 @@ async function applySchema(pool: Pool, name: string): Promise<void> {
       "INSERT INTO library_meta (key, value) VALUES ('project', $1) ON CONFLICT (key) DO NOTHING",
       [name],
     );
+    const warnings = await upgradeMemories(client, name);
     await client.query("COMMIT");
+    for (const warning of warnings) console.warn(warning);
   } catch (error) {
     failed = true;
     await client.query("ROLLBACK").catch(() => undefined);

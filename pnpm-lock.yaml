@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:packages/agent-link
       '@storytree/library':
         specifier: workspace:*
         version: link:packages/library
@@ -27,12 +30,6 @@ importers:
         specifier: 17.10.0-beta.17
         version: 17.10.0-beta.17
     devDependencies:
-      '@react-three/drei':
-        specifier: ^10.7.7
-        version: 10.7.9(@react-three/fiber@9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1))(@types/react@19.3.0)(@types/three@0.185.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
-      '@react-three/fiber':
-        specifier: ^9.6.1
-        version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../../packages/agent-link
@@ -45,9 +42,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:^
         version: link:../../packages/forest
-      '@storytree/forest-world':
+      '@storytree/knowledge-core':
         specifier: workspace:*
-        version: link:../../packages/forest-world
+        version: link:../../packages/knowledge-core
       '@storytree/library':
         specifier: workspace:*
         version: link:../../packages/library
@@ -57,15 +54,6 @@ importers:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
-      '@types/react':
-        specifier: ^19.1.8
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.1.6
-        version: 19.3.0(@types/react@19.3.0)
-      '@types/three':
-        specifier: ^0.185.0
-        version: 0.185.4
       electron:
         specifier: 44.4.5
         version: 44.4.5
@@ -75,15 +63,6 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
-      react:
-        specifier: ^19.1.1
-        version: 19.3.0
-      react-dom:
-        specifier: ^19.1.1
-        version: 19.3.0(react@19.3.0)
-      three:
-        specifier: ^0.185.1
-        version: 0.185.1
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -93,6 +72,9 @@ importers:
       '@modelcontextprotocol/server':
         specifier: ^2.1.0
         version: 2.1.0
+      '@storytree/librarian':
+        specifier: workspace:^
+        version: link:../librarian
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -130,6 +112,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
@@ -137,9 +122,6 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -156,9 +138,18 @@ importers:
         specifier: workspace:*
         version: link:../library
     devDependencies:
+      '@storytree/app':
+        specifier: workspace:*
+        version: link:../app
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -196,15 +187,36 @@ importers:
 
   packages/forest:
     dependencies:
+      '@react-three/drei':
+        specifier: ^10.7.7
+        version: 10.7.9(@react-three/fiber@9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1))(@types/react@19.3.0)(@types/three@0.185.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
+      '@react-three/fiber':
+        specifier: ^9.6.1
+        version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
+      '@storytree/forest-world':
+        specifier: workspace:*
+        version: link:../forest-world
+      '@storytree/knowledge-core':
+        specifier: workspace:*
+        version: link:../knowledge-core
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      react:
+        specifier: ^19.1.1
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.3.0(react@19.3.0)
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
     devDependencies:
       '@storytree/app':
         specifier: workspace:*
@@ -212,6 +224,18 @@ importers:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.3.0(@types/react@19.3.0)
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.4
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -268,12 +292,61 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/knowledge-core:
+    dependencies:
+      '@react-three/drei':
+        specifier: ^10.7.7
+        version: 10.7.9(@react-three/fiber@9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1))(@types/react@19.3.0)(@types/three@0.185.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
+      '@react-three/fiber':
+        specifier: ^9.6.1
+        version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      react:
+        specifier: ^19.1.1
+        version: 19.3.0
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.3.0
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.4
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/librarian:
     dependencies:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
+      '@modelcontextprotocol/client':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@modelcontextprotocol/server':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

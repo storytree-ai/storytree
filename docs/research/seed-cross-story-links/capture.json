@@ -1,0 +1,342 @@
+{
+  "view": "globe",
+  "choices": [],
+  "drew": {
+    "surface": "forest",
+    "stories": [
+      "story_6ae1d7be8215",
+      "story_156b5f0aaa8f",
+      "story_1564ed69493c",
+      "story_450d6867fdd4",
+      "story_8e92a5a68d4b",
+      "story_f320b3722ace",
+      "story_043ce2b0758d",
+      "story_49e2dbc29104"
+    ],
+    "capabilities": [
+      "capability_e745689e9797",
+      "capability_aab2aceff21d",
+      "capability_52ecb6fc5410",
+      "capability_8a75e57f500d",
+      "capability_103e35a322dd",
+      "capability_e90b95b23fa0",
+      "capability_355c9c772611",
+      "capability_7e8d74003618",
+      "capability_41d0ac161d53",
+      "capability_825d442eb070",
+      "capability_9d5f54a505e7",
+      "capability_35836726a114",
+      "capability_83c458e09306",
+      "capability_3cbeb2fd2d11",
+      "capability_df48a786c960",
+      "capability_d94478d927cc",
+      "capability_5fd9f5d9af15",
+      "capability_677c6beac7ef",
+      "capability_b6b6aa75b206",
+      "capability_16ac03bacebf",
+      "capability_148522e6ce9a",
+      "capability_dce5b2e7008a",
+      "capability_b62b9c4d036b",
+      "capability_516395a3fd70",
+      "capability_a08d22313f94",
+      "capability_190ffb7746a4",
+      "capability_30104a125580",
+      "capability_6e968a97778c",
+      "capability_4d6fc3382b7d",
+      "capability_8f4093e48359",
+      "capability_64708b46f65b",
+      "capability_1e59baf1cae2",
+      "capability_de1c053c72ba",
+      "capability_a7a70a695c00",
+      "capability_04dcd4c4643b",
+      "capability_a198e0949c3c",
+      "capability_23ed7ec0d85b",
+      "capability_e95ff90bef7d",
+      "capability_7c5cda58e64a",
+      "capability_019b76e417c3",
+      "capability_0e36f02e34cb",
+      "capability_28537c83a66e",
+      "capability_88a7d8c1daa1",
+      "capability_068adeacc721",
+      "capability_149c54450526",
+      "capability_0e08d01554da",
+      "capability_f1898dbae094",
+      "capability_4075ccb8efa2",
+      "capability_ef9f7e3fdba6",
+      "capability_f04c46c5081b",
+      "capability_5a7fea2c8a77",
+      "capability_2fcd14b9bf62",
+      "capability_4de5eca2c3a7",
+      "capability_b38fa3a176c5",
+      "capability_66710a88fbe6",
+      "capability_e75046b76b95",
+      "capability_dc43a384325b",
+      "capability_13cb21aba402"
+    ],
+    "labels": [
+      "The agent link",
+      "The app",
+      "The arc surface",
+      "The command line",
+      "The forest",
+      "The knowledge core",
+      "The librarian",
+      "The library"
+    ],
+    "trees": [
+      {
+        "capability": "capability_e745689e9797",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_aab2aceff21d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_52ecb6fc5410",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8a75e57f500d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_103e35a322dd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e90b95b23fa0",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_355c9c772611",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7e8d74003618",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_41d0ac161d53",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_825d442eb070",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_9d5f54a505e7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_35836726a114",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_83c458e09306",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3cbeb2fd2d11",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_df48a786c960",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d94478d927cc",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5fd9f5d9af15",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_677c6beac7ef",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b6b6aa75b206",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_16ac03bacebf",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_148522e6ce9a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_dce5b2e7008a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b62b9c4d036b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_516395a3fd70",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a08d22313f94",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_190ffb7746a4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_30104a125580",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6e968a97778c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4d6fc3382b7d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8f4093e48359",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_64708b46f65b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1e59baf1cae2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_de1c053c72ba",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a7a70a695c00",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_04dcd4c4643b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a198e0949c3c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_23ed7ec0d85b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e95ff90bef7d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7c5cda58e64a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_019b76e417c3",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_0e36f02e34cb",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_28537c83a66e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_88a7d8c1daa1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_068adeacc721",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_149c54450526",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_0e08d01554da",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f1898dbae094",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4075ccb8efa2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ef9f7e3fdba6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f04c46c5081b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5a7fea2c8a77",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2fcd14b9bf62",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4de5eca2c3a7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b38fa3a176c5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_66710a88fbe6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e75046b76b95",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_dc43a384325b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_13cb21aba402",
+        "form": "seedling"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "render": {
+    "frame": 16,
+    "calls": 50,
+    "triangles": 529918,
+    "points": 0,
+    "lines": 0
+  },
+  "shell": true,
+  "browser": "148.0.7778.96",
+  "externalTargets": [
+    "The library · 7 · Library API (not landed yet)"
+  ],
+  "selected": "story_6ae1d7be8215",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
+    "[.WebGL-0x35dc0015b800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  ]
+}

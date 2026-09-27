@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./view": "./src/view/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -11,10 +12,21 @@
   "dependencies": {
     "@storytree/library": "workspace:*",
     "@storytree/arc-surface": "workspace:*",
-    "@storytree/agent-link": "workspace:*"
+    "@storytree/agent-link": "workspace:*",
+    "@storytree/forest-world": "workspace:*",
+    "@storytree/knowledge-core": "workspace:*",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/three": "^0.185.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "@storytree/app": "workspace:*"

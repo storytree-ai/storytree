@@ -53,6 +53,8 @@ export interface Island {
 
 export interface ForestScene {
   islands: Island[];
+  /** Recorded capability dependencies; optional for callers drawing land alone. */
+  links?: readonly { from: string; to: string }[];
 }
 
 /** What the forest says it drew: the smoke check's fields (ADR-0634 D2), with the forest's own added. */
@@ -100,7 +102,9 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, contracts }) => [capability, form, contracts])]);
     return { story: story.id, title: story.title, x, z, radius, trees: placed, key };
   });
-  return { islands };
+  const links = tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
+    capability.dependsOn.map(to => ({ from: capability.id, to }))));
+  return { islands, links };
 }
 
 /** The stories whose islands differ between two scenes: redrawn, added or gone, in `after`'s order then `before`'s. */

@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./readings": "./src/readings.ts"
+    "./readings": "./src/readings.ts",
+    "./bins": "./src/bins/build.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
@@ -13,6 +14,7 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.1.0",
     "@storytree/library": "workspace:*",
+    "@storytree/librarian": "workspace:^",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
   },

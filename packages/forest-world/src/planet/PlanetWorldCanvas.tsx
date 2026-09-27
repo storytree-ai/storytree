@@ -1,17 +1,18 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { Html, OrbitControls } from '@react-three/drei';
 import { DirectionalLight, Group, Quaternion, Vector3, type Camera } from 'three';
 import type { ForestScene, Island } from '@storytree/forest';
 import { CellGround, KitProps, SHIPPED_GROUND_INPUT, preloadKit } from '../ForestWorldCanvas.js';
-import { forestDescriptors } from '../forest-ground/forest-ground.js';
+import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
+import { Pathways } from './PlanetTrailRibbons.js';
 import type { Descriptor3D } from '../world-to-3d.js';
 import { createGroundInputCache } from '../ground-dependency.js';
 import { createGrowthTexture } from '../ForestWorldCanvas.growth-material.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { calibrateLights, intensitiesFor } from '../light-calibration.js';
 import { SHIPPED_ELEVATION_DEG, orthographicZoomFor } from '../camera-framing.js';
-import { lightForCamera, plateTransform, type PlanetSpot } from './planet.js';
+import { createPlanetSurface, lightForCamera, plateTransform, type PlanetSpot } from './planet.js';
 import type { KitPlacement } from '../kit-vocabulary.js';
 
 export type { PlanetSpot } from './planet.js';
@@ -30,21 +31,22 @@ export interface PlanetWorldCanvasProps {
   plateChildren?: (island: Island, descriptors: readonly Descriptor3D[]) => ReactNode;
   /** R3F children can use the default orbit controls for host-driven focus. */
   children?: ReactNode;
+  /** False hides the sea and every plate, for looking inside the globe (the knowledge core, E1). */
+  surface?: boolean;
+  /** Drawn inside the turning globe, in its own coordinates: the knowledge core. */
+  inside?: ReactNode;
 }
 
 const ALPHA: ReadonlyMap<KitPlacement, number> = new Map();
 const settled = () => {};
 
-const Plate = memo(function Plate({ island, spot, radius, children }: {
-  island: Island; spot: PlanetSpot; radius: number;
+const Plate = memo(function Plate({ island, spot, radius, plate, children }: {
+  island: Island; spot: PlanetSpot; radius: number; plate: PlanetPathwayPlate;
   children: PlanetWorldCanvasProps['plateChildren'];
 }) {
   const group = useRef<Group>(null);
   const transform = useMemo(() => plateTransform(spot, radius), [spot.x, spot.y, spot.z, radius]);
-  const descriptors = useMemo(() => forestDescriptors({ islands: [{
-    ...island, x: 0, z: 0,
-    trees: island.trees.map(tree => ({ ...tree, x: tree.x - island.x, z: tree.z - island.z })),
-  }] }), [island]);
+  const { descriptors, paths } = plate;
   const cache = useMemo(() => createGroundInputCache(SHIPPED_GROUND_INPUT), []);
   const ground = cache(descriptors);
   const growth = useMemo(() => createGrowthTexture(ground.growthLayout.size + 1), [ground]);
@@ -58,7 +60,7 @@ const Plate = memo(function Plate({ island, spot, radius, children }: {
     lightForCamera(camera.quaternion, localLight).applyQuaternion(inversePlate);
   });
   return <group ref={group} position={transform.position} quaternion={transform.quaternion} name={`planet:${island.story}`}>
-    <CellGround ground={ground} growth={growth} plateLight={localLight} />
+    <CellGround ground={ground} growth={growth} plateLight={localLight} paths={paths} />
     <KitProps placements={ground.placements} alphaByPlacement={ALPHA} islandByPlacement={ground.islandByPlacement}
       layout={ground.growthLayout} growth={growth} targets={null} onTargets={undefined} onSettled={settled} />
     {children?.(island, descriptors)}
@@ -77,6 +79,12 @@ function Lights() {
   return <><ambientLight intensity={lit.ambient} /><directionalLight ref={key} intensity={lit.directional} /></>;
 }
 
+function Surface({ radius }: { radius: number }) {
+  const surface = useMemo(() => createPlanetSurface(radius), [radius]);
+  useEffect(() => () => { surface.geometry.dispose(); surface.material.dispose(); }, [surface]);
+  return <primitive object={surface} />;
+}
+
 function Framing({ radius }: { radius: number }) {
   const { camera, size, invalidate } = useThree();
   useLayoutEffect(() => {
@@ -89,7 +97,9 @@ function Framing({ radius }: { radius: number }) {
 
 /** A second mount of 0.2's ground and pines: one Canvas and one calibrated sun for all plates.
  * The flat ForestWorldCanvas retains its own camera, controls, material defaults and lighting. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children, surface = true, inside }: PlanetWorldCanvasProps) {
+  const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
+  const pathways = drawing.plan;
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
   const onCreated = useCallback(({ camera }: { camera: Camera }) => {
@@ -104,17 +114,22 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <Lights />
     <Framing radius={radius} />
     <group quaternion={rotation}>
-      <mesh name="planet:sea">
-        <sphereGeometry args={[radius, 96, 64]} />
-        <meshStandardMaterial color="#101418" roughness={1} />
-      </mesh>
-      {scene.islands.map(island => {
+      {surface && <Surface radius={radius} />}
+      {surface && scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
-        return <Plate key={island.story} island={island} spot={spot} radius={radius} children={plateChildren} />;
+        return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!} children={plateChildren} />;
       })}
+      {surface && <Pathways plan={pathways} />}
+      {inside}
     </group>
     <OrbitControls makeDefault enablePan={false} minZoom={0.1} maxZoom={30} />
     {children}
+    {drawing.issue && <Html fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
+      <div role="alert" title={drawing.issue} style={{ position: 'absolute', right: 16, bottom: 16,
+        maxWidth: 320, padding: '10px 14px', borderRadius: 6, background: '#352b20', color: '#ffe1ac' }}>
+        Pathways could not be drawn. Island health and selection are still available.
+      </div>
+    </Html>}
   </Canvas>;
 }

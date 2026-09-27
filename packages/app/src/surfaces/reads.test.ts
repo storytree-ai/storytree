@@ -43,6 +43,9 @@ test("3.2 a name that is not a project is refused, and never created", async () 
   await withApp([missing], async ({ storytree, reads }) => {
     const asks: [string, () => Promise<unknown>][] = [
       ["its tree", () => reads.projectTree(missing)],
+      ["an arc", () => reads.arcView(missing, "arc_1")],
+      ["waits", () => reads.waitHolds(missing, "increment_1")],
+      ["owner holds", () => reads.heldOnQuestion(missing, "increment_1")],
       ["its changes", () => reads.changesSince(missing, 0)],
       ["its lines", () => reads.linesSince(missing, 0)],
       ["a shelf", () => reads.frontCovers(missing, "story_1")],
@@ -63,7 +66,7 @@ test("3.4 the page can ask the app for a story's or capability's shelf of front 
     const other = await library.addStory({ title: "Visitor can sign in" });
     const cover = await library.recordDecision({ status: "accepted", title: "Sign-up asks for an email only", text: "Nothing else, to keep it short.", frontCoverOf: story.id });
     await library.recordDecision({ status: "accepted", title: "Sign-in remembers the device", text: "For thirty days.", frontCoverOf: other.id });
-    const why = await library.writeMemory({ text: "Asking for a name lost a third of visitors.", links: [cover.id] });
+    const why = await library.defineTerm({ term: "Name field drop-off", meaning: "Asking for a name lost a third of visitors.", links: [cover.id] });
 
     assert.deepEqual((await reads.frontCovers(shown, story.id)).map(({ id }) => id), [cover.id], "the story's shelf, and no other's");
     assert.deepEqual((await reads.relatedNotes(shown, cover.id)).map(({ id }) => id), [why.id]);

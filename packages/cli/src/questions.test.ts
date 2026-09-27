@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Questions: one test per contract 5.1-5.4 in the command line story, each running the real,
+ * Capability 5 · Questions: one test per contract in the command line story, each running the real,
  * built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -11,6 +11,29 @@ const command = new BuiltCommand();
 
 before(() => command.build());
 after(() => command.remove());
+
+test("5.5 `question list` lists open questions across arcs, or on one arc", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const first = await arcWithWork(world);
+    const second = await arcWithWork(world);
+    const fields = { title: "Mailer?", stakes: "Reach readers", statement: "Which?", context: "Email", options: "Mailgun or SES" };
+    const a = await library.raiseQuestion({ ...fields, arc: first.arc });
+    const b = await library.raiseQuestion({ ...fields, arc: second.arc });
+    const settled = await library.raiseQuestion({ ...fields, arc: first.arc });
+    await library.settleQuestion(settled.id, { answer: "Mailgun" });
+    const retired = await library.raiseQuestion({ ...fields, arc: second.arc });
+    await library.retire(retired.id, "Duplicate");
+    const all = await world.run(["question", "list"]);
+    assert.equal(all.code, 0, all.stderr);
+    for (const id of [a.id, b.id]) assert.ok(all.stdout.includes(id), all.stdout);
+    for (const id of [settled.id, retired.id]) assert.ok(!all.stdout.includes(id), all.stdout);
+    const one = await world.run(["question", "list", "--arc", first.arc]);
+    assert.equal(one.code, 0, one.stderr);
+    assert.ok(one.stdout.includes(a.id), one.stdout);
+    assert.ok(!one.stdout.includes(b.id), one.stdout);
+  });
+});
 
 /** A question's fields as flags, all but those in `leaving`. */
 function questionFlags(arc: string, leaving: readonly string[] = []): string[] {
@@ -93,5 +116,34 @@ test("5.4 a question an increment is held on cannot be retired", async () => {
     assert.equal(ran.code, 1);
     assert.match(ran.stderr, new RegExp(increment));
     assert.deepEqual((await library.questions(arc)).map((one) => one.id), [question.id]);
+  });
+});
+
+test("5.6 `question check` says whether a question's review is fresh or lapsed; `question renew` re-stamps it, and renewing a settled question is refused", async () => {
+  await inWorld(command, async (world) => {
+    const { arc } = await arcWithWork(world);
+    const library = await world.library();
+    const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
+
+    const checked = await world.run(["question", "check", question.id]);
+    assert.equal(checked.code, 0, checked.stderr);
+    assert.match(checked.stdout, /\bfresh\b/);
+    assert.match(checked.stdout, /7-day lease/);
+
+    const renewed = await world.run(["question", "renew", question.id]);
+    assert.equal(renewed.code, 0, renewed.stderr);
+    assert.match(renewed.stdout, new RegExp(`Renewed ${question.id}`));
+
+    await library.settleQuestion(question.id, { answer: "Mailgun" });
+    const before = (await library.changesSince(0)).cursor;
+    const refused = await world.run(["question", "renew", question.id]);
+    assert.equal(refused.code, 1);
+    assert.match(refused.stderr, /settled/);
+    assert.deepEqual((await library.changesSince(before)).changes, [], "nothing was written");
+    assert.match((await world.run(["question", "check", question.id])).stdout, /\bsettled\b/);
+
+    const missing = await world.run(["question", "check", "question_000000000000"]);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /no question/);
   });
 });

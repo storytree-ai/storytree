@@ -1,5 +1,5 @@
 /**
- * Capability 9 · Knowledge entrances: one test per contract 9.1-9.3 in the library story, each
+ * Capability 9 · Knowledge entrances: one test per contract 9.1-9.4 in the library story, each
  * run on BOTH backends, as capability 6's tests are:
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
@@ -25,7 +25,7 @@ import { MissingReferenceError } from "../references.js";
 import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordType } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
-import { Knowledge, type NewDefinition, type NewMemory } from "./index.js";
+import { Knowledge, type NewDefinition } from "./index.js";
 
 /** A fresh, empty library: the knowledge layer under test, and the layers it runs over. */
 interface Library {
@@ -110,9 +110,9 @@ for (const backend of [memory, postgres]) {
     const storyCover = await knowledge.recordDecision({ status: "accepted", title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
     const loginCover = await knowledge.recordDecision({ status: "accepted", title: "Magic links, no passwords", text: "Nothing to forget", frontCoverOf: login.id });
     // Behind the entrances, notes link to notes freely: a decision that is no node's cover, linked
-    // from covers on two shelves, and a memory filed inside a cover.
+    // from covers on two shelves, and a definition filed inside a cover.
     const shared = await knowledge.recordDecision({ status: "accepted", title: "Keep queues in Postgres", text: "One database to run", links: [at(shelf, 1).id, loginCover.id] });
-    const inside = await knowledge.writeMemory({ text: "The check rejects plus-addresses", links: [founding.id] });
+    const inside = await knowledge.defineTerm({ term: "Delivery", meaning: "The check rejects plus-addresses", links: [founding.id] });
 
     assert.deepEqual(await knowledge.frontCovers(form.id), shelf, "the email form's covers, founding first, as stored");
     assert.deepEqual(await knowledge.frontCovers(story.id), [storyCover], "a story's own shelf holds only its own covers");
@@ -161,7 +161,7 @@ for (const backend of [memory, postgres]) {
     const arc = await records.create("arc", { title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const contract = await records.create("contract", { title: "Rejects a bad email", capability: capability.id });
     const health = await records.create("health", { node: contract.id, column: "reported", state: "passing" });
-    const note = await knowledge.writeMemory({ text: "Mailgun needs a verified domain" });
+    const note = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
     const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest" });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message sent back" });
     const retired = await records.create("story", { title: "Visitor can pay" });
@@ -174,7 +174,7 @@ for (const backend of [memory, postgres]) {
       [contract.id, "contract"],
       [arc.id, "arc"],
       [health.id, "health"],
-      [note.id, "memory"],
+      [note.id, "definition"],
       [decision.id, "decision"],
       [definition.id, "definition"],
       [NO_STORY, undefined],
@@ -191,16 +191,16 @@ for (const backend of [memory, postgres]) {
     const both = [story.id, capability.id] as unknown as string;
     await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", frontCoverOf: both }), schemaError("decision", ["frontCoverOf"]));
     await assert.rejects(knowledge.editNote(decision.id, { frontCoverOf: both }), schemaError("decision", ["frontCoverOf"]));
-    // Only a decision can be a front cover: a memory note or a definition has no such field.
+    // Only a decision can be a front cover: a definition or a definition has no such field.
     await assert.rejects(
-      knowledge.writeMemory({ text: "Wants to be a cover", frontCoverOf: story.id } as unknown as NewMemory),
-      schemaError("memory", ["frontCoverOf"]),
+      knowledge.defineTerm({ term: "Delivery", meaning: "Wants to be a cover", frontCoverOf: story.id } as unknown as NewDefinition),
+      schemaError("definition", ["frontCoverOf"]),
     );
     await assert.rejects(
       knowledge.defineTerm({ term: "Cover", meaning: "Wants to be one", frontCoverOf: capability.id } as unknown as NewDefinition),
       schemaError("definition", ["frontCoverOf"]),
     );
-    await assert.rejects(knowledge.editNote(note.id, { frontCoverOf: story.id }), schemaError("memory", ["frontCoverOf"]));
+    await assert.rejects(knowledge.editNote(note.id, { frontCoverOf: story.id }), schemaError("definition", ["frontCoverOf"]));
     // An id holding text the library cannot store is never looked up: the schema check refuses it.
     for (const bad of UNSTORABLE) {
       await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Odd", text: "Cover", frontCoverOf: bad }), schemaError("decision", ["frontCoverOf"]));
@@ -221,7 +221,7 @@ for (const backend of [memory, postgres]) {
     const arc = await records.create("arc", { title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const contract = await records.create("contract", { title: "Rejects a bad email", capability: capability.id });
     const health = await records.create("health", { node: contract.id, column: "reported", state: "passing" });
-    const note = await knowledge.writeMemory({ text: "Mailgun needs a verified domain" });
+    const note = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
     const decision = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message sent back" });
     const before = await transactions.history();
@@ -230,7 +230,7 @@ for (const backend of [memory, postgres]) {
     // is not a note is the one named.
     for (const work of [story, capability, arc, contract, health]) {
       const attempts: (() => Promise<unknown>)[] = [
-        () => knowledge.writeMemory({ text: "About the work", links: [work.id] }),
+        () => knowledge.defineTerm({ term: "Delivery", meaning: "About the work", links: [work.id] }),
         () => knowledge.recordDecision({ status: "accepted", title: "About the work", text: "Linked", links: [note.id, work.id] }),
         () => knowledge.defineTerm({ term: "Work", meaning: "Linked", links: [definition.id, work.id, story.id] }),
         () => knowledge.editNote(note.id, { links: [decision.id, work.id] }),
@@ -244,17 +244,58 @@ for (const backend of [memory, postgres]) {
     }
 
     // Control: links to live notes of all three kinds are accepted, by every kind of note and by an
-    // edit (which may link a note to itself). A front cover links to notes like any other decision.
+    // edit. A front cover links to notes like any other decision.
     const notes = [note.id, decision.id, definition.id];
-    const linked = await knowledge.writeMemory({ text: "Links to every kind", links: notes });
-    await assertCreated(transactions, linked, "memory", { text: "Links to every kind", links: notes });
+    const linked = await knowledge.defineTerm({ term: "Delivery", meaning: "Links to every kind", links: notes });
+    await assertCreated(transactions, linked, "definition", { term: "Delivery", meaning: "Links to every kind", links: notes });
     const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
     await assertCreated(transactions, decided, "decision", { title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
-    const relinked = await knowledge.editNote(note.id, { links: [note.id, linked.id, ...notes] });
-    assert.deepEqual(relinked?.fields, { text: "Mailgun needs a verified domain", links: [note.id, linked.id, ...notes] });
+    const relinked = await knowledge.editNote(note.id, { links: [decision.id, definition.id] });
+    assert.deepEqual(relinked?.fields, { term: "Delivery", meaning: "Mailgun needs a verified domain", links: [decision.id, definition.id] });
   });
+
+  contract("9.4", "a link that would close a loop between notes, a note linking to itself included, is refused, naming the chain it closes, and nothing is written", async ({ knowledge, records, transactions }) => {
+    const story = await records.create("story", { title: "Visitor can sign up" });
+    // A cover, a note filed under it, and one under that: cover ← below ← deepest, each resting on the one above.
+    const cover = await knowledge.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: story.id });
+    const below = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [cover.id] });
+    const deepest = await knowledge.defineTerm({ term: "Verified domain", meaning: "One Mailgun may send from", links: [below.id] });
+    const role = await knowledge.writeKnowledge("agent", { title: "Mailer", description: "Sends mail", oneLine: "Sends mail", role: "Mailer", outcome: "Mail sent", context: [deepest.id], tools: "Mailgun", workflow: "Send" });
+    const before = await transactions.history();
+
+    // Each would close a loop: the chain named runs from the note being edited back round to it.
+    const loops: [() => Promise<unknown>, string[]][] = [
+      [() => knowledge.editNote(cover.id, { links: [cover.id] }), [cover.id, cover.id]],
+      [() => knowledge.editNote(cover.id, { text: "Reconsidered", links: [below.id] }), [cover.id, below.id, cover.id]],
+      [() => knowledge.editNote(cover.id, { links: [deepest.id] }), [cover.id, deepest.id, below.id, cover.id]],
+      // An agent role's required reading, rules and step reading are links too (6-a).
+      [() => knowledge.editNote(below.id, { links: [cover.id, role.id] }), [below.id, role.id, deepest.id, below.id]],
+      [() => knowledge.editNote(role.id, { rules: [role.id] }), [role.id, role.id]],
+      [() => knowledge.editNote(role.id, { stepRefs: [{ step: "Send", refs: [role.id] }] }), [role.id, role.id]],
+    ];
+    for (const [attempt, chain] of loops) await assert.rejects(attempt(), linkLoop(chain));
+    assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
+
+    // Control: a note may rest on many, and many on one, without a loop; shared ground is not a loop.
+    const also = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun bills per message", links: [cover.id, below.id, deepest.id] });
+    const relinked = await knowledge.editNote(role.id, { context: [deepest.id, below.id, also.id], rules: [cover.id] });
+    assert.deepEqual(relinked?.type === "agent" && [relinked.fields.context, relinked.fields.rules], [[deepest.id, below.id, also.id], [cover.id]]);
+  });
+}
+
+/**
+ * An assert.rejects check: the library refused a link that would close a loop between notes
+ * (ADR-0647 D2), naming the chain from the note being written back round to it.
+ */
+function linkLoop(chain: readonly string[]): (error: unknown) => true {
+  return (error) => {
+    assert.ok(error instanceof Error && error.name === "LinkLoopError", `expected a LinkLoopError, got: ${String(error)}`);
+    assert.deepEqual((error as Error & { path?: unknown }).path, chain, error.message);
+    assert.ok(error.message.includes(chain.join(" → ")), `the message names the chain: ${error.message}`);
+    return true;
+  };
 }
 
 /**
@@ -342,7 +383,7 @@ function linkToWork(id: string, found: string): (error: unknown) => true {
     assert.ok(error instanceof MissingReferenceError, `expected a MissingReferenceError, got: ${String(error)}`);
     assert.deepEqual(
       { field: error.field, id: error.id, expected: error.expected, found: error.found },
-      { field: "links", id, expected: "note", found },
+      { field: "links", id, expected: "artifact", found },
       error.message,
     );
     for (const part of [JSON.stringify("links"), JSON.stringify(id)]) {

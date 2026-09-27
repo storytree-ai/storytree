@@ -9,8 +9,8 @@
  * not this one's. A landed report makes it landed, and a new claim after that makes it in progress
  * again, since the part is being worked on once more. A story follows its parts.
  *
- * The increment and arc grains wait for the library's and the agent link's revised trees, which
- * store increments, questions and waits (ADR-0638 D4).
+ * Increment and arc readings live alongside this in board-states.ts, consuming the library's
+ * wait/question readings and the agent link's claims.
  *
  * It is a pure function of the agent activity log's lines, so the page can run it, and it is tested
  * without a database.

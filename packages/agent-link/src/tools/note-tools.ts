@@ -1,23 +1,23 @@
 /**
- * The note tools, on the library's knowledge entrances (ADR-0627): search notes, open a story or
- * capability (its shelf of front covers, as spines) or a note (whole, with the titles of what it
- * links to and what links to it), and write a note.
+ * The artifact tools, on the library's knowledge entrances (ADR-0627): search artifacts, open a story or
+ * capability (its shelf of front covers, as spines) or an artifact (whole, with the titles of what it
+ * links to and what links to it), and write an artifact.
  *
- * - Every note a tool shows is a read, recorded in the agent activity log (ADR-0624 D1, ADR-0627
- *   D7): a spine or title shown is a peek, an opened note is read whole. How it was found is how
- *   the session last saw it: in a search, on a shelf, or as a link from another note; a note
+ * - Every artifact a tool shows is a read, recorded in the agent activity log (ADR-0624 D1, ADR-0627
+ *   D7): a spine or title shown is a peek, an opened artifact is read whole. How it was found is how
+ *   the session last saw it: in a search, on a shelf, or as a link from another artifact; an artifact
  *   opened without having been shown was found by its id. Each read names the agent that made it,
  *   as the harness revealed it (ADR-0629 D2). The record says what was reached, never what helped
  *   (ADR-0624 D3).
- * - A note is corrected in place through the library's editNote (ADR-0641 D2 step 3): only the
+ * - An artifact is corrected in place through the library's editNote (ADR-0641 D2 step 3): only the
  *   fields given change, and its old wording stays in its history.
- * - A new note with no place named goes onto the shelf of the capability the session claimed most
- *   recently (ADR-0627 D4): a decision becomes one of its front covers; a memory or definition
+ * - A new artifact with no place named goes onto the shelf of the capability the session claimed most
+ *   recently (ADR-0627 D4): a decision becomes one of its front covers; a definition or other artifact kind
  *   links to the cover the session last opened on that shelf, else to the shelf's first book; with
  *   an empty shelf nothing is added, and the agent is told. A session holding no claim gets no
  *   default, and a place the agent names always wins.
  */
-import type { Library, Note, NoteEdit, SchemaRecord } from "@storytree/library";
+import type { KnowledgeKind, Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
 import { z } from "zod";
 
 import type { Line, NewLine } from "../activity/index.js";
@@ -30,14 +30,14 @@ type Found = Extract<NewLine, { kind: "note-read" }>["found"];
 export function registerNoteTools(define: Define): void {
   define(
     "search_notes",
-    "Search the project's notes (memories, decisions, definitions) for words; you see each match's spine. Open one to read it whole.",
-    z.object({ query: z.string().describe("Words the note holds, in any case") }),
+    "Search the project's artifacts (decisions, definitions and other artifact kinds) for words; you see each match's spine. Open one to read it whole.",
+    z.object({ query: z.string().describe("Words the artifact holds, in any case") }),
     async ({ query }, call) => {
       const notes = await call.library.search(query);
       await recordReads(call, notes.map((note) => ({ note: note.id, found: "search", read: "peek" })));
-      if (notes.length === 0) return { text: `No note holds ${quoted(query)}.`, data: { notes: [] } };
+      if (notes.length === 0) return { text: `No artifact holds ${quoted(query)}.`, data: { notes: [] } };
       return {
-        text: [`${notes.length} note${notes.length === 1 ? "" : "s"} hold ${quoted(query)}:`, ...notes.map(spineLine)].join("\n"),
+        text: [`${notes.length} artifact${notes.length === 1 ? "" : "s"} hold ${quoted(query)}:`, ...notes.map(spineLine)].join("\n"),
         data: { notes: notes.map(spineData) },
       };
     },
@@ -45,21 +45,22 @@ export function registerNoteTools(define: Define): void {
 
   define(
     "open",
-    "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; or open a note to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act.",
-    z.object({ id: z.string().min(1).describe("The id of a story, a capability or a note") }),
+    "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act.",
+    z.object({ id: z.string().min(1).describe("The id of a story, a capability or an artifact") }),
     async ({ id }, call) => openRecord(id, call),
   );
 
   define(
     "write_note",
-    "Write down something worth remembering: a memory (text), a decision (title and text) or a definition (term and meaning). With no place named, it goes onto the shelf of the capability you claimed most recently.",
+    "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent or techstack (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
     z.object({
-      kind: z.enum(["memory", "decision", "definition"]),
-      text: z.string().min(1).optional().describe("A memory's text, or a decision's"),
+      kind: z.string().min(1).describe("decision, definition, principle, guardrail, pattern, process, agent or techstack; friction and resteer have capture tools"),
+      fields: z.record(z.string(), z.unknown()).optional().describe("Required fields of a principle, guardrail, pattern, process, agent or techstack"),
+      text: z.string().min(1).optional().describe("A decision's text"),
       title: z.string().min(1).optional().describe("A decision's title"),
       term: z.string().min(1).optional().describe("A definition's term"),
       meaning: z.string().min(1).optional().describe("A definition's meaning"),
-      links: z.array(z.string().min(1)).optional().describe("The ids of notes this one links to"),
+      links: z.array(z.string().min(1)).optional().describe("The ids of artifacts this one links to"),
       front_cover_of: z.string().min(1).optional().describe("A decision only: the story or capability it is a front cover of"),
     }),
     async (args, call) => writeNote(args, call),
@@ -67,19 +68,19 @@ export function registerNoteTools(define: Define): void {
 
   define(
     "correct_note",
-    "Correct a note's wording in place: change only the fields you give (a memory's or a decision's text, a decision's title, a definition's term or meaning). It keeps its id, and its old wording stays in its history.",
+    "Correct an artifact's wording in place: change only the fields you give (a decision's text, a decision's title, a definition's term or meaning). It keeps its id, and its old wording stays in its history.",
     z.object({
-      id: z.string().min(1).describe("The id of the note to correct"),
-      text: z.string().min(1).optional().describe("A memory's text, or a decision's"),
+      id: z.string().min(1).describe("The id of the artifact to correct"),
+      text: z.string().min(1).optional().describe("A decision's text"),
       title: z.string().min(1).optional().describe("A decision's title"),
       term: z.string().min(1).optional().describe("A definition's term"),
       meaning: z.string().min(1).optional().describe("A definition's meaning"),
     }),
-    async ({ id, ...wording }, { library }) => {
+    async ({ id, ...wording }, { library, writer }) => {
       const fields = Object.fromEntries(Object.entries(wording).filter(([, value]) => value !== undefined));
       if (Object.keys(fields).length === 0) return { text: "Give the words to change: text, title, term or meaning.", refused: true };
-      const note = await library.editNote(id, fields as NoteEdit);
-      if (note === null) return { text: `There is no note ${id} in this project.`, refused: true };
+      const note = await library.editNote(id, fields as NoteEdit, writer);
+      if (note === null) return { text: `There is no artifact ${id} in this project.`, refused: true };
       return { text: `Corrected ${quoted(spineOf(note))} (${id}).`, data: { id } };
     },
   );
@@ -98,7 +99,7 @@ async function openRecord(id: string, call: Call): Promise<Answer> {
   if (note === undefined) {
     const planned = tree.arcs.some((arc) => arc.id === id) || tree.stories.some((story) => story.capabilities.some((node) => node.contracts.some((contract) => contract.id === id)));
     return {
-      text: planned ? `${id} is an arc or a contract: open a story, a capability or a note.` : `Nothing in this project has the id ${id}.`,
+      text: planned ? `${id} is an arc or a contract: open a story, a capability or an artifact.` : `Nothing in this project has the id ${id}.`,
       refused: true,
     };
   }
@@ -128,7 +129,8 @@ async function openShelf(kind: "Story" | "Capability", title: string, id: string
 }
 
 interface NoteArgs {
-  kind: "memory" | "decision" | "definition";
+  kind: string;
+  fields?: Record<string, unknown> | undefined;
   text?: string | undefined;
   title?: string | undefined;
   term?: string | undefined;
@@ -137,11 +139,18 @@ interface NoteArgs {
   front_cover_of?: string | undefined;
 }
 
-/** What each kind of note is written with. */
-const FIELDS = { memory: ["text"], decision: ["title", "text"], definition: ["term", "meaning"] } as const;
+/** What each kind of artifact is written with. */
+const FIELDS = { decision: ["title", "text"], definition: ["term", "meaning"] } as const;
 
 async function writeNote(args: NoteArgs, call: Call): Promise<Answer> {
-  const needs: readonly string[] = FIELDS[args.kind];
+  if (args.kind === "memory") return { text: "memory belongs to the agent harness, not the library (ADR-0650); write a proper artifact kind such as decision, definition or principle.", refused: true };
+  if (args.kind === "friction" || args.kind === "resteer") return { text: `Use record_${args.kind} to write this artifact under its evidence rules.`, refused: true };
+  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack"].includes(args.kind);
+  if (!further && args.kind !== "decision" && args.kind !== "definition") return { text: `Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent or techstack.`, refused: true };
+  const needs: readonly string[] = further ? [] : FIELDS[args.kind as keyof typeof FIELDS];
+  if (further && args.fields === undefined) return { text: `Give the required fields for a ${args.kind} in fields.`, refused: true };
+  if (!further && args.fields !== undefined) return { text: `A ${args.kind} takes ${needs.join(" and ")} directly.`, refused: true };
+  if (args.fields && ["links", "frontCoverOf"].some((key) => key in args.fields!)) return { text: "Give links or front_cover_of directly to name the artifact's place.", refused: true };
   const given = (["text", "title", "term", "meaning"] as const).filter((field) => args[field] !== undefined);
   const missing = needs.filter((field) => args[field as keyof NoteArgs] === undefined);
   const extra = given.filter((field) => !needs.includes(field));
@@ -165,32 +174,32 @@ async function writeNote(args: NoteArgs, call: Call): Promise<Answer> {
       const cover = (await lastOpened(call, shelf)) ?? shelf[0];
       if (cover === undefined) {
         emptyShelf = held;
-        placed = `with no place: the shelf of ${held}, the capability you hold, is empty. Record its founding decision with write_note (kind decision), then link notes inside it`;
+        placed = `with no place: the shelf of ${held}, the capability you hold, is empty. Record its founding decision with write_note (kind decision), then link artifacts inside it`;
       } else {
         place = { links: [cover.id] };
         placed = `inside ${quoted(cover.fields.title)} (${cover.id}), on the shelf of the capability you hold`;
       }
     }
   }
-  const note = await write(call.library, args, place);
+  const note = await write(call.library, args, place, call.writer);
   return { text: `Wrote a ${args.kind} (${note.id}) ${placed}.`, data: { id: note.id, ...(emptyShelf === undefined ? {} : { shelf: "empty" }) } };
 }
 
-function write(library: Library, args: NoteArgs, place: { links?: string[]; frontCoverOf?: string }): Promise<Note> {
+function write(library: Library, args: NoteArgs, place: { links?: string[]; frontCoverOf?: string }, writer: WriteOptions): Promise<Note> {
   switch (args.kind) {
-    case "memory":
-      return library.writeMemory({ text: args.text!, ...(place.links === undefined ? {} : { links: place.links }) });
     case "decision":
-      return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place });
+      return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place }, writer);
     case "definition":
-      return library.defineTerm({ term: args.term!, meaning: args.meaning!, ...(place.links === undefined ? {} : { links: place.links }) });
+      return library.defineTerm({ term: args.term!, meaning: args.meaning!, ...(place.links === undefined ? {} : { links: place.links }) }, writer);
+    default:
+      return library.writeKnowledge(args.kind as KnowledgeKind, { ...args.fields, ...place } as never, writer);
   }
 }
 
 /** The capability the calling session claimed most recently of those it still holds. */
 async function latestClaim(call: Call): Promise<string | undefined> {
   const { lines } = await call.log.since(call.project, 0);
-  const mine = claimsFrom(lines, { quietMs: call.quietMs }).filter((held) => held.session === call.caller.session);
+  const mine = claimsFrom(lines, { quietMs: call.quietMs }).filter((held) => held.session === call.caller.session && held.capability !== undefined);
   return mine.sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0)).at(-1)?.capability;
 }
 
@@ -204,12 +213,12 @@ async function lastOpened(call: Call, shelf: readonly SchemaRecord<"decision">[]
   return undefined;
 }
 
-/** How the calling session came to note `id`: where it last saw it shown, or by its id if it never was. */
+/** How the calling session came to artifact `id`: where it last saw it shown, or by its id if it never was. */
 async function howFound(call: Call, id: string): Promise<Found> {
   return (await readsOf(call)).filter((line) => line.note === id && line.read === "peek").at(-1)?.found ?? "id";
 }
 
-/** The calling session's note reads, oldest first. */
+/** The calling session's artifact reads, oldest first. */
 async function readsOf(call: Call): Promise<Extract<Line, { kind: "note-read" }>[]> {
   const { lines } = await call.log.since(call.project, 0);
   return lines.filter((line): line is Extract<Line, { kind: "note-read" }> => line.kind === "note-read" && line.session === call.caller.session);

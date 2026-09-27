@@ -434,6 +434,55 @@ test("8.2 a Cloud SQL instance that does not answer is refused after a bounded w
   }
 });
 
+test("1.9 a stalled local handshake is refused within three seconds, on both admin and project pools, and the next call recovers", async (t) => {
+  const upstream = new URL(testServerUrl());
+  const held = new Set<Socket>();
+  let stalled = true;
+  const silent = createServer((socket) => {
+    held.add(socket);
+    socket.on("error", () => {});
+    if (stalled) {
+      socket.resume();
+      setTimeout(() => socket.destroy(), 10_000).unref();
+    } else {
+      const target = openSocket(Number(upstream.port), upstream.hostname);
+      held.add(target);
+      target.on("error", () => socket.destroy());
+      socket.on("close", () => target.destroy());
+      socket.pipe(target).pipe(socket);
+    }
+  });
+  await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+  const url = new URL(upstream);
+  url.port = String((silent.address() as AddressInfo).port);
+  const storytree = await connect({ url: url.href });
+  const name = uniqueProjectName();
+  try {
+    // The first attempt stalls on the admin pool. Once that pool is connected, opening
+    // the project again must also bound the separate handshake to the project's database.
+    for (const pool of ["admin", "project"]) {
+      stalled = true;
+      const started = performance.now();
+      const error = await storytree.openProject(name).then(() => assert.fail("the silent server cannot open a project"), (error: unknown) => error);
+      const waited = performance.now() - started;
+      t.diagnostic(`${pool} handshake refused after ${waited.toFixed(0)} ms`);
+      assert.ok(waited >= 2_500 && waited < 4_000, `${pool}: the 3 s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
+      const refused = refusal(error, "timeout");
+      assert.match(refused.message, /storytree isn't reachable/i);
+      assert.match(refused.message, /check.*app.*try again/i);
+      stalled = false;
+      const recovered = await storytree.openProject(name);
+      assert.equal(recovered.name, name);
+      await recovered.close();
+    }
+  } finally {
+    for (const socket of held) socket.destroy();
+    await storytree.close();
+    await new Promise<void>((resolve) => silent.close(() => resolve()));
+    await dropTestDatabases([name]);
+  }
+});
+
 test("8.1 robustness, offline: on either path, a user that may not create databases opens a new project by borrowing a role that may, and hands the role back", async () => {
   const run = uniqueProjectName();
   // A database user that may not create databases, as a Cloud SQL IAM user is, and a role that

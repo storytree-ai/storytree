@@ -7,6 +7,8 @@
 import pg from "pg";
 import type { Pool, PoolConfig } from "pg";
 
+import { ConnectionError } from "./connection-error.js";
+
 /** Makes a connection pool for one database on the server. */
 export type PoolFactory = (database: string) => Pool;
 
@@ -30,15 +32,26 @@ export interface ServerAccess {
 /**
  * The server at a postgres:// URL. Its own database (the URL's) is the admin pool's, and each
  * project's pool is the same URL with the database swapped: user, host, port and options stay.
- * Its failures are left as they are: the one it explains, a user that may not create databases,
- * is explained where databases are created, on either kind of server.
+ * Each new handshake has a deadline, including the project's own pool. Timeouts say what to
+ * check; other failures are left as they are. Database-creation privileges are explained where
+ * databases are created, on either kind of server.
  */
-export function localServer(url: URL): ServerAccess {
+export function localServer(url: URL, connectTimeoutMs = 3_000): ServerAccess {
+  const pool = (connectionString: string) => newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs });
   return {
     kind: "postgres",
-    admin: newPool({ connectionString: url.href }),
-    pool: (database) => newPool({ connectionString: databaseUrl(url, database) }),
-    explain: (error) => error,
+    admin: pool(url.href),
+    pool: (database) => pool(databaseUrl(url, database)),
+    explain: (error) => {
+      if (error instanceof Error && /timeout expired|timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(error.message)) {
+        return new ConnectionError(
+          "timeout",
+          `storytree isn't reachable: its database did not answer within ${connectTimeoutMs / 1000} seconds. Check that the storytree app is responding, then try again.`,
+          error,
+        );
+      }
+      return error;
+    },
     close: () => {},
   };
 }

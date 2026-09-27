@@ -4,11 +4,11 @@
  * They are made on first use and kept, and dropped when storytree moves (a new address) or goes
  * away, so the next call starts afresh.
  */
-import { connect, type Library, type Storytree } from "@storytree/library";
+import { connect, ConnectionError, type Library, type Storytree } from "@storytree/library";
 
 import { openActivityLog, thisMachine, type ActivityLog } from "../activity/index.js";
 
-/** How long reaching storytree may take before a call gives up and says it isn't running. */
+/** How long a fresh database handshake may take before a call says storytree isn't reachable. */
 const CONNECT_TIMEOUT_MS = 3_000;
 
 export interface Reached {
@@ -28,7 +28,7 @@ export class Connections {
       await this.close();
       this.#url = url;
     }
-    return (this.#storytree ??= forgetOnFailure(connect({ url }), () => (this.#storytree = undefined)));
+    return (this.#storytree ??= forgetOnFailure(connect({ url, connectTimeoutMs: CONNECT_TIMEOUT_MS }), () => (this.#storytree = undefined)));
   }
 
   /** The library of `project` and the activity log, on the storytree at `url`. */
@@ -42,7 +42,20 @@ export class Connections {
       library = forgetOnFailure(storytree.openProject(project), () => this.#libraries.delete(project));
       this.#libraries.set(project, library);
     }
-    return { library: await library, log: await log };
+    try {
+      const [openedLibrary, openedLog] = await Promise.all([library, log]);
+      return { library: openedLibrary, log: openedLog };
+    } catch (error) {
+      // Both openings started together. Let both discard their timed-out sockets before
+      // answering, so an immediate retry cannot pick up the other failed opening.
+      await Promise.allSettled([library, log]);
+      // Either handshake can expire first. Give the same actionable answer for the log as
+      // the library gives for its pools.
+      if (error instanceof Error && /timeout expired|timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(error.message)) {
+        throw new ConnectionError("timeout", "storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.", error);
+      }
+      throw error;
+    }
   }
 
   /** Drop every connection. The next call reaches storytree afresh. */

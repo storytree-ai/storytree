@@ -1,0 +1,44 @@
+Validated after merging origin/main (own-numbers PR #135), at 6080794.
+
+flock /tmp/storytree-heavy.lock pnpm install: PASS
+flock /tmp/storytree-heavy.lock pnpm typecheck: PASS
+flock /tmp/storytree-heavy.lock pnpm test: PASS
+
+scope: full — everything — packages/agent-link/evidence/stalled-db/README.md changed in @storytree/agent-link, which the test harness and scripts/ run on
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+pnpm test-ratio:
+  all                       39,560           30,435    1.30
+
+CLI acceptance replay from the committed portable script: PASS
+{
+  "stalled": {
+    "code": 1,
+    "killed": false,
+    "ms": 3121,
+    "stdout": "",
+    "stderr": "storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.\n"
+  }
+}
+{
+  "recovered": {
+    "code": 0,
+    "killed": false,
+    "ms": 196,
+    "stdout": "No arcs in this project.\n\nnext:\n  - storytree arc show <arc>   (see one whole)\n",
+    "stderr": ""
+  }
+}

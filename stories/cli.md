@@ -196,6 +196,12 @@ file, edit it, push it back, and write its composed statement (the owner's C2).
 - **Depends on:** 1, 2 and the library's 13.
 - **Folded in from 0.2:** `adr authority` became fields on `adr new` and what `adr pull` shows; `adr
   compose` stays.
+- **As built:** `storytree adr new | pull | push | compose`, each the library's own function.
+  `pull` writes a front matter of `key: <JSON>` lines, then `# <title>` and the text; the lines
+  under `# read only` (id, number, how it reads, authority, the composed statement and whether it
+  is stale) are never pushed. `push` hands `editNote` only what differs, so a push with no edit
+  writes nothing. A decision is named by its id. `adr list` (6.3) and naming one by number wait on
+  the library's `list(kind)`.
 
 **Contracts:**
 1. Two `adr new` run at once get different, increasing numbers.

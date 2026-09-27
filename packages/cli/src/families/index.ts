@@ -3,6 +3,7 @@
  * stories/cli.md, each a front door onto its owning story.
  */
 import type { Family } from "../door.js";
+import { decisions } from "./adr.js";
 import { arcs } from "./arc.js";
 import { library } from "./library.js";
 import { questions } from "./question.js";
@@ -15,7 +16,7 @@ export const FAMILIES: readonly Family[] = [
   library,
   arcs,
   questions,
-  { name: "adr", summary: "the decision log: list, new, pull, push, compose", verbs: [], waitsOn: BEING_BUILT },
+  decisions,
   { name: "noticeboard", summary: "who is on what right now (read only)", verbs: [], waitsOn: BEING_BUILT },
   { name: "doctor", summary: "storytree's setup check, from a terminal", verbs: [], waitsOn: BEING_BUILT },
   {

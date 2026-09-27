@@ -176,6 +176,10 @@ answer in his words and the decision that carried it, retire one that was wrong,
 ones.
 
 - **Depends on:** 1, 2 and the library's 12.
+- **As built:** `storytree question new | settle | retire | list`, each the library's own function.
+  `--hold <increment>` on `new` holds increments on the question's arc (the library's
+  `editIncrement` of their `heldOn`); another arc's is held with `arc increment edit --held-on`.
+  `list` takes `--arc`; every arc's open questions wait on the library's `list(kind)`.
 
 **Contracts:**
 1. A question with no stakes is refused.

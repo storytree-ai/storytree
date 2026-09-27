@@ -71,10 +71,11 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
         const note = await graduate(call.library, path.resolve(call.folder, memory), kind, fields, call.writer);
         return { text: `Graduated ${memory} into ${note.id}.`, data: { id: note.id } };
       });
-      define("route", "Record the librarian's routing judgement and reason on a friction report from the worklist.", z.object({
+      define("route", "Record the librarian's routing judgement and reason on friction, or add its delivery stamp later. A tool route needs an open increment naming this friction in remedies, unless the remedy is already stamped as delivered.", z.object({
         friction: text, route: z.enum(["adr", "tool", "principle", "guardrail", "process", "definition", "edit-existing", "nothing"]), reason: text,
-      }), async ({ friction, route: to, reason }, { library, writer }) => {
-        const note = await route(library, friction, to, reason, writer);
+        dischargedBy: text.optional().describe("Reference to the remedy that landed, such as a PR or decision; omit to preserve any existing stamp"),
+      }), async ({ friction, route: to, reason, dischargedBy }, { library, writer }) => {
+        const note = await route(library, friction, to, reason, { ...writer, ...defined({ dischargedBy }) });
         return { text: `Routed ${friction} to ${to}: ${reason}.`, data: { id: note.id } };
       });
     },

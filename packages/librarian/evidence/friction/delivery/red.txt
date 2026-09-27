@@ -1,0 +1,68 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/friction-trio-delivery
+> node --import tsx scripts/test.mjs "packages/librarian/src/queues/queues.test.ts" "packages/librarian/src/rounds/tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/friction-trio-delivery/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:33891 (started in 0.1 s)
+✔ 5.1 the worklist drains only lapsed open questions across arcs, longest lapsed first (175.355163ms)
+✔ 5.2 the friction drain takes three unrouted reports from other branches, most recurrences first and oldest first on ties (263.840719ms)
+✔ 5.3 route records the routing judgement with its reason, and refuses a route with no reason (92.816277ms)
+✖ 5.4 a tool route needs an open increment naming this friction, unless a delivered remedy is stamped (123.355441ms)
+✖ 6.4 the shared server lists and calls every librarian verb, attributes writes and preserves refusals (477.04862ms)
+✔ 6.3 land and worklist use the calling session's start, including resumed and unknown sessions (172.781648ms)
+✔ 6.4 the installed server enables the librarian for storytree's own library first (14.679156ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 5
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1169.957165
+
+✖ failing tests:
+
+test at packages/librarian/src/queues/queues.test.ts:1:4079
+✖ 5.4 a tool route needs an open increment naming this friction, unless a delivered remedy is stamped (123.355441ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/queues/queues.test.ts:97:5)
+      at async withLibrary (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/testing/pg.ts:31:7)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/queues/queues.test.ts:90:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /live increment.*remedies/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/librarian/src/rounds/tools.test.ts:1:2000
+✖ 6.4 the shared server lists and calls every librarian verb, attributes writes and preserves refusals (477.04862ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/rounds/tools.test.ts:113:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/rounds/tools.test.ts:34:7)
+      at async withLibrary (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/testing/pg.ts:31:7)
+      at async withClient (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/rounds/tools.test.ts:21:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/friction-trio-delivery/packages/librarian/src/rounds/tools.test.ts:56:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

@@ -1,0 +1,38 @@
+--- old/The librarian/Queues/contract_d46032cc1266/title
++++ new/The librarian/Queues/contract_d46032cc1266/title
+@@ -1 +1 @@
+-5.3 · `route(friction, route, reason)` records the routing judgement with its reason. A route with no reason is refused, and nothing is written.
++5.3 · route(friction, route, reason, options?) records the routing judgement with its reason and an optional dischargedBy reference to the remedy that landed. The reference is trimmed and must be non-empty when supplied; omitting it preserves an existing stamp. An already-routed report can receive its stamp later. A route with no reason or a blank delivery reference is refused without writing.
+
+--- old/The librarian/Queues/ADD contract under capability_d8451645c169/title
++++ new/The librarian/Queues/ADD contract under capability_d8451645c169/title
+@@ -0,0 +1 @@
++5.4 · A tool route requires a live, non-closed increment whose remedies names this friction, unless the report already carries a delivered-by stamp or receives one in this call. An unrelated or closed increment is insufficient; refusal writes nothing and explains the missing remedy or delivery reference.
+
+--- old/The librarian/Queues/definition_6def5775dc8f/meaning
++++ new/The librarian/Queues/definition_6def5775dc8f/meaning
+@@ -8,3 +8,8 @@
+   The friction drain sorts unrouted reports from other branches by descending `reinforcedBy`
+   count (zero when absent), preserving creation order on ties, then takes at most three
+   (ADR-0716 F3). The worklist gathers the same ranked drain.
++  `route` and the librarian's MCP `route` tool accept an optional `dischargedBy` reference,
++  trim it, reject a supplied blank, and preserve it when omitted. A routed report may be
++  stamped later. An unstamped tool route needs a non-closed live increment whose `remedies`
++  names that report. A supplied or existing delivery stamp exempts already-delivered work
++  from that requirement (the whole 0.2 behavior, ADR-0633 and ADR-0716).
+
+--- old/The library/Knowledge artifacts/contract_06b1b8b941be/title
++++ new/The library/Knowledge artifacts/contract_06b1b8b941be/title
+@@ -1 +1 @@
+-6.7 · Friction with no evidence is refused, and so is a re-steer marked a defect with no failure mode.
++6.7 · Friction with no evidence is refused, and so is a re-steer marked a defect with no failure mode. Friction stores the optional dischargedBy reference to the remedy that landed, alongside its route and reason; editing other fields preserves the reference.
+
+--- old/The library/Knowledge artifacts/definition_af9ddd3f0955/meaning
++++ new/The library/Knowledge artifacts/definition_af9ddd3f0955/meaning
+@@ -1,3 +1,6 @@
+   - **6-b:** friction keeps its adjudication fields, recurrences and discharge; re-steers keep
+     defect-or-taste, who judged it, the failure mode, and the owner's words as evidence apart from
+     the agent's account. The library stores them; counting rates is not its job.
++    Friction's existing optional `dischargedBy` string stores the delivered remedy reference.
++    The librarian supplies its trimmed, non-empty value through `editNote`; later route edits
++    that omit the field retain it. No schema change or migration is needed.

@@ -2,10 +2,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedStory, Change } from "@storytree/library";
 
 import { clipToCoast, SHIPPED_COAST } from "../../../forest-world/src/coast-clip.js";
 import { forestDescriptors, islandReach } from "../../../forest-world/src/forest-ground/forest-ground.js";
+import type { InstanceDescriptor } from "../../../forest-world/src/world-to-3d.js";
 import { forestScene } from "../render/forest-scene.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 import { placeOnGlobe, PLANET_CAPACITY, PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
@@ -72,8 +74,8 @@ test("1.6 the first 100 historical globe places fit islands with up to 19 capabi
     const shapes = [19, s % 19]; // all large, plus every smaller size and the lone seedling
     return Math.max(...shapes.map(caps => {
       const current = story(s, caps);
-      const scene = forestScene({ stories: [current], arcs: [] }, [], { part: () => "planned" });
-      const cells = forestDescriptors(scene).filter(d => d.kind === "cell-ground" && d.points !== undefined);
+      const scene = forestScene({ stories: [current], arcs: [] }, [], workStates([]));
+      const cells = forestDescriptors(scene).filter((d): d is InstanceDescriptor => d.kind === "cell-ground" && d.points !== undefined);
       const coast = clipToCoast(cells, SHIPPED_COAST);
       const reach = islandReach(coast, new Map([[current.id, { x: 0, z: 0 }]])).get(current.id)!;
       assert.ok(reach > 0, `${current.id} has a shore`);

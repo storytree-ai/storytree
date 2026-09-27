@@ -37,12 +37,19 @@ the geometry and paint recipes are reused unchanged.
 
 ## Capture
 
-The current seed parser produces six stories and 43 capability trees: the
+The seed at green commit `0967c43` produces six stories and 43 capability trees: the
 agent link, app, arc surface, forest, librarian and library. The fresh seed
 has no agent work-state entries, so the planned trees wear the existing
 yellow. The capture uses those story files through `parseStory` and
 `forestScene`, with stable filename ids rather than a particular database's
 UUIDs. No health or synthetic stories are added.
+
+The subsequent merge of `origin/main` (`f711563`) added the CLI story. Repeating
+the seed parse then fails in that story: “the build order puts 3 · Library
+before 6 · Decisions, which it depends on”. These pictures retain the passing
+six-story seed from before that unrelated addition; this lane changes no
+story files. The supervisor can refresh the app screenshot after that seed
+issue is corrected.
 
 - [Opening view beside the flat canvas](evidence/seeded-globe.png)
 - [After dragging, zooming and turning](evidence/seeded-globe-turned.png)

@@ -40,7 +40,7 @@ test("5.2 a question is read statement first with trade-offs, a non-binding reco
     { label: "Analogy", text: "Like a map", words: 3 },
     { label: "Context", text: "Full detail stays here", words: 4 },
   ]);
-  assert.equal(read.words, 43);
+  assert.equal(read.words, 41); // 20 words in the other fields, 21 across the three options.
   const noDiagram = questionReading({ id: "q", fields: { ...fields, diagram: undefined } });
   assert.equal(noDiagram.diagram, "No diagram stored");
   assert.equal(noDiagram.hasDiagram, false);

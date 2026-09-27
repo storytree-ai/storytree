@@ -11,3 +11,5 @@ export { agentsOnBoard } from "./agents/agents.js";
 export type { ArcWork, BoardAgent, BoardAgents } from "./agents/agents.js";
 export { arcQueues, queueRun, waitsOnBoard } from "./waits/waits.js";
 export type { ArcQueue, BoardWaits, NamedWait, QueueArc, QueueChip, QueueRun, WorkName } from "./waits/waits.js";
+export { briefing, firstBriefing, questionReading } from "./briefing/briefing.js";
+export type { Briefing, Option, Question, QuestionReading } from "./briefing/briefing.js";

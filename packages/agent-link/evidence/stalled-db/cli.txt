@@ -1,0 +1,18 @@
+{
+  "stalled": {
+    "code": 1,
+    "killed": false,
+    "ms": 3129,
+    "stdout": "",
+    "stderr": "storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.\n"
+  }
+}
+{
+  "recovered": {
+    "code": 0,
+    "killed": false,
+    "ms": 192,
+    "stdout": "No arcs in this project.\n\nnext:\n  - storytree arc show <arc>   (see one whole)\n",
+    "stderr": ""
+  }
+}

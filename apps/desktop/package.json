@@ -48,8 +48,18 @@
       }
     ],
     "npmRebuild": false,
+    "publish": {
+      "provider": "github",
+      "owner": "storytree-ai",
+      "repo": "storytree",
+      "releaseType": "release"
+    },
     "win": {
       "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        },
         {
           "target": "portable",
           "arch": [
@@ -57,6 +67,12 @@
           ]
         }
       ]
+    },
+    "nsis": {
+      "artifactName": "storytree-0.3-${version}-setup.${ext}",
+      "oneClick": true,
+      "perMachine": false,
+      "include": "installer.nsh"
     },
     "portable": {
       "artifactName": "storytree-0.3-${version}-portable-${arch}.${ext}"

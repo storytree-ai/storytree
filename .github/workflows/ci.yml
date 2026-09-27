@@ -49,7 +49,7 @@ jobs:
           - system: Windows
             runner: windows-latest
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       # The whole history, origin/main included: `pnpm test` runs only what the change can reach,
       # measured from merge-base(origin/main, HEAD), and runs everything if origin/main is missing.
@@ -71,6 +71,20 @@ jobs:
       # (scripts/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
       # PASS / FAIL table per package.
       - run: pnpm test
+      # Exercise the distributable before merging packaging/updater changes. A source build
+      # passing tests alone does not prove NSIS can unpack the app and its database binaries.
+      - name: Does this change reach the installer?
+        if: matrix.system == 'Windows'
+        id: installer
+        shell: bash
+        run: |
+          if ! git diff --quiet origin/main...HEAD -- apps/desktop packages/app pnpm-lock.yaml package.json .github/workflows; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: matrix.system == 'Windows' && steps.installer.outputs.changed == 'true'
+        run: pnpm desktop:dist
+      - if: matrix.system == 'Windows' && steps.installer.outputs.changed == 'true'
+        run: node apps/desktop/check-install.mjs
 
   # The check branch protection on main requires, and the one `automerge` waits for. It passes only
   # if every run in `platforms` passed. It runs whatever they did (always()), so a run that failed

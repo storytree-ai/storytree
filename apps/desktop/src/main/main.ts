@@ -57,6 +57,7 @@ import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
 import { TRAY_ICON_PNG } from "./tray-icon.js";
+import { followReleases } from "./releases.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();
@@ -157,6 +158,10 @@ async function run(): Promise<void> {
     addStartMenuShortcut();
     void keepBackups();
     void followMain();
+    followReleases({
+      restart: lifecycle.restart,
+      canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
+    }, home.dir);
   }
 }
 

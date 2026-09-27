@@ -61,13 +61,22 @@ Diagnostic state never reaches the database or [real seed](seed.json).
 
 The initial checks and captures below used `6460b9c`. Main then merged #118
 (`2717808`), removing the file-backed seed and making the live library authoritative.
-This branch merged it and retained those deletions. The completed exit-0 seed is
+This branch merged it at `afafede` and retained those deletions. The completed exit-0 seed is
 historical evidence, not an available command on the resulting main. The
 [reviewed library update](library-update/README.md) is preserved for the supervisor
 with access to the migrated app library. The capture continues to reproduce from
-its committed real-seed snapshot.
+its committed real-seed snapshot. The complete browser capture and failure/claim journey
+were repeated against `afafede`, with all assertions passing and unchanged PNGs. After
+`pnpm install`, locked typecheck passed again, and locked `pnpm test` reported affected
+scope: desktop, arc-surface, forest, forest-world and knowledge-core, plus the package
+boundary check; all six selected units PASS. This narrower run is not a fresh full-suite
+proof. The final test-ratio all row is:
 
-## Red, green and checks
+```text
+  all                       38,312           28,115    1.36
+```
+
+## Initial red, green and checks (before #118)
 
 - Red **c7a7edb** was committed, pushed and [seen failing](red.txt) before implementation.
 - Green **226b3ea** adds the shared capability-1 drawing coordinates and the public

@@ -9,15 +9,18 @@ These files are **read-only landing evidence**, exported from this lane's review
 [changes.patch](changes.patch) records its changes against the last file-backed main.
 The completed isolated seed and browser evidence remain valid at that commit.
 
-The supervisor must apply the corresponding blocks to the authoritative 0.3 library:
+The supervisor must apply the corresponding blocks to the authoritative 0.3 library.
+These snapshots cannot be automatically imported: narrative blocks are linked `Story text:`
+definitions. Edit the existing records block by block, preserving sibling content and IDs:
 
 1. File ADR-0658 uniquely as a front cover of knowledge-core capability 1, with the
    text in `decisions/knowledge-under-islands.md`; retain the founding book already on
    that shelf (the retired seed's front-cover bug is described in #118).
 2. Apply the narrowed ADR-0647 / ADR-0655 prose to their existing library artifacts.
-3. Update knowledge-core capability 1's as-built text and contracts 1.5/1.6, and
+3. Update knowledge-core capability 1's as-built text and contracts 1.3–1.6, and
    forest capability 3's composition/evidence lines. Correct the stale Look-inside
    mounting clauses and preserve the clearly labelled historical measurements.
+4. Export and read back the updates, checking all existing shelf entries survived.
 
 The live 0.2 plan's arc intent and ADR-0647 page-entry annotation were already
 corrected and read back by the librarian. These 0.3 updates need the app library

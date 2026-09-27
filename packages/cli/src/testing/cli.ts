@@ -68,9 +68,9 @@ export class BuiltCommand {
   #dir: string | undefined;
   #script: string | undefined;
 
-  async build(): Promise<void> {
+  async build(builder: (dir: string) => Promise<string> = buildCommand): Promise<void> {
     this.#dir = mkdtempSync(path.join(tmpdir(), "storytree-cli-bin-"));
-    this.#script = await buildCommand(this.#dir);
+    this.#script = await builder(this.#dir);
   }
 
   remove(): void {

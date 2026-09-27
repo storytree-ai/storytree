@@ -122,8 +122,8 @@ export interface Library {
   /** Move an increment on, to ready or active, only forward (LifecycleError otherwise). Null if `id` is not a live increment. */
   advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /**
-   * Close an increment with its pull request, note and what the close meant; a close with no pull
-   * request needs a note. Null if `id` is not a live increment.
+   * Close an increment with its pull request, artifact and what the close meant; a close with no pull
+   * request needs an artifact. Null if `id` is not a live increment.
    */
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /** Change an increment's title, objective, body, or what it touches and remedies. Null if `id` is not a live increment. */
@@ -171,7 +171,7 @@ export interface Library {
   healthHistory(contractId: string): Promise<HealthEntry[]>;
 
   /**
-   * Record a decision, with its status. Every link must name a live note, `frontCoverOf`, if given,
+   * Record a decision, with its status. Every link must name a live artifact, `frontCoverOf`, if given,
    * the one live story or capability the decision is a front cover of, and each decision it
    * supersedes a live decision. It is numbered one past the highest number any decision has held,
    * unless it is brought in under its own, which no other may have held (NumberTakenError).
@@ -180,16 +180,16 @@ export interface Library {
   /**
    * Write a principle, guardrail, pattern, process, agent role, friction, re-steer or tech stack,
    * with its kind's fields. Every link, and an agent role's or process's other references, must name
-   * a live note.
+   * a live artifact.
    */
   writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>>;
-  /** Define a term. Every link must name a live note. */
+  /** Define a term. Every link must name a live artifact. */
   defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">>;
-  /** Change only the named fields of a note, keeping its old wording in history. Null if `id` is not a live note. */
+  /** Change only the named fields of an artifact, keeping its old wording in history. Null if `id` is not a live artifact. */
   editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null>;
-  /** The live notes holding every word of `query`, ignoring case, in creation order. */
+  /** The live artifacts holding every word of `query`, ignoring case, in creation order. */
   search(query: string): Promise<Note[]>;
-  /** The live notes linking to note `noteId`, in creation order. */
+  /** The live artifacts linking to artifact `noteId`, in creation order. */
   relatedNotes(noteId: string): Promise<Note[]>;
   /** Every live definition, in creation order. */
   definitions(): Promise<SchemaRecord<"definition">[]>;

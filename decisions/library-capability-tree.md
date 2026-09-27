@@ -6,7 +6,7 @@
 The library is built as eight capabilities, with one database per project on a local Postgres.
 
 In build order they are project libraries, library transactions and the data schema; then the work
-model and knowledge and memory, side by side; then the health record and the library API; and last
+model and knowledge artifacts, side by side; then the health record and the library API; and last
 a cloud connection. Anything outside the library reads and writes it only through the library API.
 
 Each project is its own database, so nothing written in one project can show up in another, and
@@ -30,3 +30,5 @@ knowledge kinds, its proof machinery, arc increments, decision numbers and decis
 Two later decisions made the same day add to it. The agent link's tree gives the library API three
 edits: edit a story, a contract and an arc. The knowledge model adds a ninth capability, knowledge
 entrances, and its decision is that capability's front cover.
+
+ADR-0650 narrows capability 6: there is no library memory type; knowledge records are artifacts.

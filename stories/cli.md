@@ -105,7 +105,7 @@ exits non-zero and says what to do.
   its family's usage. Values given as `@file` are read from that file.
 
 **Contracts** (each one a test):
-1. In a project folder, `storytree library search <word>` finds a note written through the library.
+1. In a project folder, `storytree library search <word>` finds an artifact written through the library.
 2. In a folder that is not a project, it exits non-zero with "not a storytree project".
 3. With storytree stopped, it says "storytree isn't running" within a second.
 4. A record the library refuses reaches you as the library's own message, and nothing is written.
@@ -134,8 +134,8 @@ command from its own shell, the write is recorded as that agent's session instea
 
 ## 3 · Library
 
-Read any record whole, list a kind (optionally filtered by a field), search the notes, see what links
-to a note, and see a record's history of changes, all through the library's own reads. Write a new
+Read any record whole, list a kind (optionally filtered by a field), search the artifacts, see what links
+to an artifact, and see a record's history of changes, all through the library's own reads. Write a new
 record of any kind, or edit named fields of one, with long text taken from a file, and a bad record is
 refused with the library's own message.
 
@@ -146,7 +146,7 @@ refused with the library's own message.
     own message and the door adds no rule.
 - **Folded in from 0.2:** `library query` became `list --where`; `library inbound` and plain `related`
   became `links`.
-- **As built:** `storytree library search <words>`, `links <note>` and `new <kind> --<field> <value>
+- **As built:** `storytree library search <words>`, `links <artifact>` and `new <kind> --<field> <value>
   …`, each the library's own function (`search`, `relatedNotes`, and the kind's writer). A value is
   text, except `true`, `false`, a whole number, or one starting with `[` or `{` (read as JSON), and
   `@file` reads the file. `read <id>` prints the whole live record through `get`; `edit <id>`

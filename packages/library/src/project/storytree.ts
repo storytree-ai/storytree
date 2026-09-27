@@ -77,7 +77,7 @@ export interface Project {
   readonly work: WorkModel;
   /** Each arc's increments, and its state worked out from them (capability 10). */
   readonly flight: WorkInFlight;
-  /** What the project has learned: memory notes, decisions and definitions (capability 6). */
+  /** What the project has learned: decisions, definitions and other artifacts (capability 6). */
   readonly knowledge: Knowledge;
   /** How healthy each story, capability and contract is, reported and verified (capability 5). */
   readonly health: HealthRecord;

@@ -90,9 +90,9 @@ for (const backend of [memory, postgres]) {
     });
   };
 
-  contract("6.1", "a memory note is found by search on any word it contains, whatever its case", async ({ knowledge, records, transactions }) => {
+  contract("6.1", "a definition is found by search on any word it contains, whatever its case", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
-    // A note for the memory to link to, holding none of the words searched for below.
+    // A note for the definition to link to, holding none of the words searched for below.
     const signup = await knowledge.defineTerm({ term: "Signup", meaning: "Joining the site" });
     await laterThan(signup);
     const memory = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [signup.id] });
@@ -245,7 +245,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(kept[0]?.record.fields.text, "Its API is the simplest to call", "the old wording is kept");
     assert.equal(kept[1]?.record.fields.title, "Use Mailgun", "and so is the old title");
 
-    // A memory note and a definition keep their old wording the same way; a link can be removed.
+    // A definition and a definition keep their old wording the same way; a link can be removed.
     const memory = await knowledge.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [decision.id] });
     const definition = await knowledge.defineTerm({ term: "Bounce", meaning: "A message the server sent back" });
     const rewritten = await knowledge.editNote(memory.id, { meaning: "Postmark needs a verified sender", links: undefined });
@@ -421,7 +421,7 @@ function missingLink(id: string): (error: unknown) => true {
     assert.ok(error instanceof MissingReferenceError, `expected a MissingReferenceError, got: ${String(error)}`);
     assert.deepEqual(
       { field: error.field, id: error.id, expected: error.expected, found: error.found },
-      { field: "links", id, expected: "note", found: undefined },
+      { field: "links", id, expected: "artifact", found: undefined },
       error.message,
     );
     for (const part of [JSON.stringify("links"), JSON.stringify(id)]) {

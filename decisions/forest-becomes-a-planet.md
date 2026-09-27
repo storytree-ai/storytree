@@ -19,6 +19,6 @@ The planet never runs ahead of the MVP. It builds on the 0.3 forest, and its arc
 forest's. It keeps an arc of its own, whose first steps are the owner's capability-tree reviews, one
 story at a time.
 
-Open for those reviews, not decided here: how depth treats a loop of notes; how a failing island is
+Open for those reviews, not decided here: how depth treats a loop of artifacts; how a failing island is
 never hidden on the far side of the sphere; and drawing replaced decisions as ghosts, which 0.3 can
 find in the library's history, since it has no decision status.

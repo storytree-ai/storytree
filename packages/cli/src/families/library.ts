@@ -1,6 +1,6 @@
 /**
- * Capability 3 · Library (stories/cli.md): read any record whole, list a kind, search the notes,
- * see what links to a note and a record's history, all through the library's own reads; write a
+ * Capability 3 · Library (stories/cli.md): read any record whole, list a kind, search the artifacts,
+ * see what links to an artifact and a record's history, all through the library's own reads; write a
  * new record of any kind, or edit named fields of one, with long text taken from a file. A bad
  * record is refused with the library's own message.
  *
@@ -73,30 +73,30 @@ const ELSEWHERE: Readonly<Record<string, string>> = {
 const search: Verb = {
   name: "search",
   usage: "library search <words…>",
-  summary: "the notes holding every word, ignoring case",
+  summary: "the artifacts holding every word, ignoring case",
   async act(args, context) {
     const query = args.words.join(" ").trim();
     if (query === "") throw new Refusal(`this needs the words to search for\nusage: storytree ${this.usage}`, { code: 2 });
     const notes = await (await context.library()).search(query);
-    if (notes.length === 0) return { text: `No note holds "${query}".` };
+    if (notes.length === 0) return { text: `No artifact holds "${query}".` };
     const lines = notes.map((note) => `  ${note.id}  [${note.type}]  ${labelOf(note.fields)}`);
     return {
-      text: [`${notes.length} note${notes.length === 1 ? "" : "s"} holding "${query}":`, ...lines].join("\n"),
-      next: [{ command: "storytree library links <note>", why: "what links to one of them" }],
+      text: [`${notes.length} artifact${notes.length === 1 ? "" : "s"} holding "${query}":`, ...lines].join("\n"),
+      next: [{ command: "storytree library links <artifact>", why: "what links to one of them" }],
     };
   },
 };
 
 const links: Verb = {
   name: "links",
-  usage: "library links <note>",
-  summary: "the notes that link to a note",
+  usage: "library links <artifact>",
+  summary: "the artifacts that link to an artifact",
   async act(args, context) {
-    const id = args.word(0, "the note's id", this.usage);
+    const id = args.word(0, "the artifact's id", this.usage);
     const notes = await (await context.library()).relatedNotes(id);
-    if (notes.length === 0) return { text: `No note links to ${id}.` };
+    if (notes.length === 0) return { text: `No artifact links to ${id}.` };
     const lines = notes.map((note) => `  ${note.id}  [${note.type}]  ${labelOf(note.fields)}`);
-    return { text: [`${notes.length} note${notes.length === 1 ? "" : "s"} link${notes.length === 1 ? "s" : ""} to ${id}:`, ...lines].join("\n") };
+    return { text: [`${notes.length} artifact${notes.length === 1 ? "" : "s"} link${notes.length === 1 ? "s" : ""} to ${id}:`, ...lines].join("\n") };
   },
 };
 

@@ -30,5 +30,5 @@ There is no "left out" list. The app's agent-written cuts went to the owner by n
 (ADR-0636 D3, ADR-0637): the app keeps recording with its window closed (Lifecycle, contract 7),
 the app updates itself (a fourth capability, Updates), and noticing a stopped database and starting
 it again in place waits. The cuts he made himself stand: 0.2's one shared cloud database,
-a Claude login in the keychain with a backend beside the hosted studio, and the terminal, a note
+a Claude login in the keychain with a backend beside the hosted studio, and the terminal, an artifact
 browser and 0.2's forest.

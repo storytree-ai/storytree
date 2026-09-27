@@ -110,7 +110,7 @@ for (const backend of [memory, postgres]) {
     const storyCover = await knowledge.recordDecision({ status: "accepted", title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
     const loginCover = await knowledge.recordDecision({ status: "accepted", title: "Magic links, no passwords", text: "Nothing to forget", frontCoverOf: login.id });
     // Behind the entrances, notes link to notes freely: a decision that is no node's cover, linked
-    // from covers on two shelves, and a memory filed inside a cover.
+    // from covers on two shelves, and a definition filed inside a cover.
     const shared = await knowledge.recordDecision({ status: "accepted", title: "Keep queues in Postgres", text: "One database to run", links: [at(shelf, 1).id, loginCover.id] });
     const inside = await knowledge.defineTerm({ term: "Delivery", meaning: "The check rejects plus-addresses", links: [founding.id] });
 
@@ -191,7 +191,7 @@ for (const backend of [memory, postgres]) {
     const both = [story.id, capability.id] as unknown as string;
     await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Use Postmark", text: "Better delivery", frontCoverOf: both }), schemaError("decision", ["frontCoverOf"]));
     await assert.rejects(knowledge.editNote(decision.id, { frontCoverOf: both }), schemaError("decision", ["frontCoverOf"]));
-    // Only a decision can be a front cover: a memory note or a definition has no such field.
+    // Only a decision can be a front cover: a definition or a definition has no such field.
     await assert.rejects(
       knowledge.defineTerm({ term: "Delivery", meaning: "Wants to be a cover", frontCoverOf: story.id } as unknown as NewDefinition),
       schemaError("definition", ["frontCoverOf"]),
@@ -383,7 +383,7 @@ function linkToWork(id: string, found: string): (error: unknown) => true {
     assert.ok(error instanceof MissingReferenceError, `expected a MissingReferenceError, got: ${String(error)}`);
     assert.deepEqual(
       { field: error.field, id: error.id, expected: error.expected, found: error.found },
-      { field: "links", id, expected: "note", found },
+      { field: "links", id, expected: "artifact", found },
       error.message,
     );
     for (const part of [JSON.stringify("links"), JSON.stringify(id)]) {

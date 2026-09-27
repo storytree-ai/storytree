@@ -259,7 +259,7 @@ read it whole without leaving the overlay.
   - **Open questions are in the MVP** (ADR-0633 D3 item 2).
   - **Ported from 0.2:** settled questions stay, under their answers (ADR-0434 D3); a question is
     read in place, with its word counts.
-  - **Proposed, approved with the tree:** the intent shows in full, in place, since 0.3 has no note
+  - **Proposed, approved with the tree:** the intent shows in full, in place, since 0.3 has no artifact
     browser to link out to (ADR-0625 D4).
 
 **Contracts:**

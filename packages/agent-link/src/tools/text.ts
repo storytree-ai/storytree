@@ -6,7 +6,7 @@ export function quoted(title: string): string {
   return `"${title}"`;
 }
 
-/** A note's spine: what it is called, the way a shelf or a search result shows it. */
+/** An artifact's spine: what it is called, the way a shelf or a search result shows it. */
 export function spineOf(note: Note): string {
   switch (note.type) {
     case "decision":
@@ -18,7 +18,7 @@ export function spineOf(note: Note): string {
   }
 }
 
-/** A note's first line, below its spine: the decision's text or the definition's meaning, begun. */
+/** An artifact's first line, below its spine: the decision's text or the definition's meaning, begun. */
 export function firstLineOf(note: Note): string {
   switch (note.type) {
     case "decision":
@@ -30,7 +30,7 @@ export function firstLineOf(note: Note): string {
   }
 }
 
-/** A note in full, as opening it shows it. */
+/** An artifact in full, as opening it shows it. */
 export function wholeOf(note: Note): string {
   switch (note.type) {
     case "decision":

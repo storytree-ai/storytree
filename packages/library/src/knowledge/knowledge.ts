@@ -1,23 +1,22 @@
 /**
- * Capability 6 · Knowledge and memory (stories/library.md): alongside the plan, the library keeps
- * what the project has learned: memory notes, decisions and definitions of terms, together
- * "notes". A note links to the other notes it relates to, and is found again by searching its
- * words.
+ * Capability 6 · Knowledge artifacts (stories/library.md): alongside the plan, the library keeps
+ * what the project has learned: decisions, definitions and the other proper artifact kinds. An
+ * artifact links to the other artifacts it relates to, and is found again by searching its words.
  *
  * Capability 9 · Knowledge entrances: every story and capability has its own shelf of front-cover
- * decisions, and a decision can be a front cover of one of them at most. Notes link only to other
- * notes, so the only way from the work into the knowledge is through a front cover. A decision
+ * decisions, and a decision can be a front cover of one of them at most. Artifacts link only to other
+ * artifacts, so the only way from the work into the knowledge is through a front cover. A decision
  * names the node it is a cover of in its one `frontCoverOf` field, so no decision can be the cover
  * of two, and nothing has to check for it.
  *
  * ADR-0640 grows it by eight kinds, written with writeKnowledge: principles, guardrails, patterns,
- * processes, agent roles, friction, re-steers and tech stack. They are notes like the first three:
- * searched, linked only to notes, and edited with editNote. An agent role's required reading, rules,
- * anti-patterns and step reading, and a process's branch edges, are links to notes too (6-a).
+ * processes, agent roles, friction, re-steers and tech stack. They are artifacts like decisions and definitions:
+ * searched, linked only to artifacts, and edited with editNote. An agent role's required reading, rules,
+ * anti-patterns and step reading, and a process's branch edges, are links to artifacts too (6-a).
  *
  * Knowledge is a layer over capability 3's SchemaRecords, so it runs unchanged on the in-memory
  * twin and on Postgres. Every link, and every front cover, is checked BEFORE the write, and a
- * broken one throws with nothing written; the note itself is then checked against its type inside
+ * broken one throws with nothing written; the artifact itself is then checked against its type inside
  * the write, as capability 3 checks every write.
  */
 import { createHash } from "node:crypto";
@@ -28,20 +27,20 @@ import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 
 /**
- * The fields that link a note to other notes (6-a), which the loop check follows: its links,
+ * The fields that link an artifact to other artifacts (6-a), which the loop check follows: its links,
  * and an agent role's required reading, rules, anti-patterns and step reading, and a process's
  * branch edges.
  */
 const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges"] as const;
 
-/** The kinds of note: memory notes, decisions, definitions, and the eight kinds of ADR-0640. */
+/** The kinds of artifact: decisions, definitions, and the eight kinds of ADR-0640. */
 export type NoteType = "decision" | "definition" | KnowledgeKind;
-/** A new note of one of the eight kinds: its fields. Every reference in it must name a live note. */
+/** A new artifact of one of the eight kinds: its fields. Every reference in it must name a live artifact. */
 export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = FieldsOf<K>;
-/** A stored note of any kind. */
+/** A stored artifact of any kind. */
 export type Note = SchemaRecord<NoteType>;
 /**
- * A new decision's fields. Every link must name a live note, `frontCoverOf` a live story or
+ * A new decision's fields. Every link must name a live artifact, `frontCoverOf` a live story or
  * capability, and each decision it supersedes a live decision. Its number is handed out when it is
  * recorded, unless it is brought in under its own (N1); its composed statement is composeStatement's.
  */
@@ -58,9 +57,9 @@ export interface DecisionView {
   /** Its composed statement, marked stale once its text has changed since; absent until one is composed. */
   readonly composed?: { readonly statement: string; readonly composedAt: string; readonly stale: boolean };
 }
-/** A new definition's fields. Every link must name a live note. */
+/** A new definition's fields. Every link must name a live artifact. */
 export type NewDefinition = FieldsOf<"definition">;
-/** An edit of a note: some of its kind's fields. A field set to undefined is removed. */
+/** An edit of an artifact: some of its kind's fields. A field set to undefined is removed. */
 export type NoteEdit = {
   [K in NoteType]: { [F in keyof FieldsOf<K>]?: FieldsOf<K>[F] | undefined };
 }[NoteType];
@@ -80,7 +79,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 
 /**
- * The fields that name other notes rather than hold words: never searched. (`refs` sits inside an
+ * The fields that name other artifacts rather than hold words: never searched. (`refs` sits inside an
  * agent role's `stepRefs`, `to` inside a process's `branchEdges`.)
  */
 const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
@@ -101,11 +100,11 @@ const OWN_VERBS: Readonly<Record<string, string>> = {
   composed: "a composed statement is written with composeStatement",
 };
 
-/** What a note may link to: another note, never the work (capability 9). */
+/** What an artifact may link to: another artifact, never the work (capability 9). */
 const NOTE: Expected = {
-  name: "note",
+  name: "artifact",
   types: NOTE_TYPES,
-  why: "notes link only to other notes: a story or capability is reached through its front covers, the decisions whose frontCoverOf names it",
+  why: "artifacts link only to other artifacts: a story or capability is reached through its front covers, the decisions whose frontCoverOf names it",
 };
 
 /** What a decision may be the front cover of (capability 9). */
@@ -119,7 +118,7 @@ export class Knowledge {
   }
 
   /**
-   * Record a decision. Its links are checked as writeMemory checks them, its `frontCoverOf`, if it
+   * Record a decision. Its links are checked against live artifacts, its `frontCoverOf`, if it
    * has one, must name a live story or capability, and each decision it supersedes must be live.
    * It is numbered inside the write: one past the highest number any decision has ever held, so
    * writers at the same time never share one and a retired decision's is never reused. A decision
@@ -175,8 +174,8 @@ export class Knowledge {
   }
 
   /**
-   * Write a note of one of the eight kinds (ADR-0640). Its links, and an agent role's or a process's
-   * other references, must each name a live note, as writeMemory checks links; its fields are then
+   * Write an artifact of one of the eight kinds (ADR-0640). Its links, and an agent role's or a process's
+   * other references, must each name a live artifact, like ordinary links; its fields are then
    * checked against its kind inside the write. A kind that is not one of the eight is refused.
    */
   async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>> {
@@ -187,17 +186,17 @@ export class Knowledge {
     return this.#records.create(kind, fields, options);
   }
 
-  /** Define a term. Its links are checked as writeMemory checks them. */
+  /** Define a term. Its links are checked against live artifacts. */
   async defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">> {
     await this.#checkLinks(definition.links);
     return this.#records.create("definition", definition, options);
   }
 
   /**
-   * Change only the named fields of a note, as capability 3's edit does; new links, and a new
-   * front cover, are checked as they are when the note is written. Setting `frontCoverOf` to
-   * undefined takes a decision off its node's shelf. The note's earlier wording stays in its
-   * history. Returns null, and writes nothing, if `id` is not a live note.
+   * Change only the named fields of an artifact, as capability 3's edit does; new links, and a new
+   * front cover, are checked as they are when the artifact is written. Setting `frontCoverOf` to
+   * undefined takes a decision off its node's shelf. The artifact's earlier wording stays in its
+   * history. Returns null, and writes nothing, if `id` is not a live artifact.
    */
   async editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null> {
     const own = Object.keys(fields).find((field) => Object.hasOwn(OWN_VERBS, field));
@@ -215,11 +214,11 @@ export class Knowledge {
   }
 
   /**
-   * The live notes in which every whitespace-separated word of `query` appears, ignoring case,
-   * somewhere in their text: a memory note's text, a decision's title or text, a definition's
+   * The live artifacts in which every whitespace-separated word of `query` appears, ignoring case,
+   * somewhere in their text: a decision's title or text, a definition's
    * term or meaning. Links are ids, not words, and are not searched. A word is found wherever it
-   * appears, part of a longer word included. A query with no words has none for a note to miss,
-   * so it matches every note. In creation order.
+   * appears, part of a longer word included. A query with no words has none for an artifact to miss,
+   * so it matches every artifact. In creation order.
    */
   async search(query: string): Promise<Note[]> {
     const words = query.toLowerCase().split(/\s+/).filter((word) => word !== "");
@@ -238,7 +237,7 @@ export class Knowledge {
   }
 
   /**
-   * The live notes whose links include `noteId`, in creation order. Notes link only to notes, so a
+   * The live artifacts whose links include `noteId`, in creation order. Artifacts link only to artifacts, so a
    * story or capability has none: its knowledge is reached through frontCovers.
    */
   async relatedNotes(noteId: string): Promise<Note[]> {
@@ -269,8 +268,8 @@ export class Knowledge {
   }
 
   /**
-   * Throw a LinkLoopError if note `id`, holding `fields`, would close a loop through the notes it
-   * links to (ADR-0647 D2): the knowledge is a DAG under its covers, so a note may not rest on
+   * Throw a LinkLoopError if artifact `id`, holding `fields`, would close a loop through the artifacts it
+   * links to (ADR-0647 D2): the knowledge is a DAG under its covers, so an artifact may not rest on
    * itself, directly or through others.
    */
   async #refuseLinkLoop(id: string, fields: object): Promise<void> {
@@ -281,14 +280,14 @@ export class Knowledge {
     if (path !== null) throw new LinkLoopError(path);
   }
 
-  /** Every live note, of all three kinds, in creation order. */
+  /** Every live artifact, of all three kinds, in creation order. */
   async #notes(): Promise<Note[]> {
     const lists = await Promise.all(NOTE_TYPES.map((type) => this.#records.list(type)));
     return lists.flat().sort(byCreation);
   }
 
   /**
-   * Every reference a note's fields hold must name a live note: its links, and an agent role's
+   * Every reference an artifact's fields hold must name a live artifact: its links, and an agent role's
    * required reading, rules, anti-patterns and step reading, and a process's branch edges.
    */
   async #checkNoteReferences(fields: object): Promise<void> {
@@ -300,7 +299,7 @@ export class Knowledge {
     for (const edge of listOf(at["branchEdges"])) await checkReference(this.#records, "branchEdges", fieldOf(edge, "to"), NOTE);
   }
 
-  /** A note may link to a live note, and to nothing else. */
+  /** An artifact may link to a live artifact, and to nothing else. */
   #checkLinks(links: unknown): Promise<void> {
     return checkReferences(this.#records, "links", links, NOTE);
   }
@@ -312,8 +311,8 @@ export class Knowledge {
 }
 
 /**
- * The text a note is searched by: every piece of text in its fields, inside lists and objects
- * included, except the ones that name other notes. So a memory note is searched by its text, a
+ * The text an artifact is searched by: every piece of text in its fields, inside lists and objects
+ * included, except the ones that name other artifacts. So a memory artifact is searched by its text, a
  * decision by its title and text, a definition by its term and meaning, and a friction by its
  * statement, evidence and impact among the rest.
  */
@@ -330,7 +329,7 @@ function textsIn(value: unknown): string[] {
   return [];
 }
 
-/** Every note id a note's fields link it to, through each of LINK_FIELDS. */
+/** Every artifact id an artifact's fields link it to, through each of LINK_FIELDS. */
 function linksOf(fields: object): unknown[] {
   const at = fields as Record<string, unknown>;
   return [
@@ -388,8 +387,8 @@ export class SupersessionLoopError extends Error {
 }
 
 /**
- * A note would rest on itself, directly or through others (ADR-0647 D2). The message names the loop
- * from the note being written back round to it, `A → B → A`, so the chain it would close,
+ * An artifact would rest on itself, directly or through others (ADR-0647 D2). The message names the loop
+ * from the artifact being written back round to it, `A → B → A`, so the chain it would close,
  * `B → A`, is plain. A loop that seems needed is a discussion with the owner first.
  */
 export class LinkLoopError extends Error {

@@ -16,6 +16,9 @@ import { findProject } from "../routing/index.js";
 import { defaultHomes, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
+import { setupLines, type SetupLine } from "./diagnostics.js";
+
+export type { SetupLine } from "./diagnostics.js";
 
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";
 export type { CommandInstall, CommandPath, GhState } from "./command.js";
@@ -26,7 +29,7 @@ export { openStorytree } from "./open-storytree.js";
 export type { StorytreeOpened } from "./open-storytree.js";
 
 export interface SetupOptions {
-  /** The folder the session works in. */
+  /** The folder being checked, with or without an agent session. */
   readonly folder: string;
   /** The hook command to register; without one, no hooks are registered. */
   readonly hook?: HookCommand;
@@ -43,6 +46,8 @@ export interface SetupOptions {
 }
 
 export interface SetupReport {
+  /** Each diagnostic and its fix, usable from a terminal without creating an agent session. */
+  readonly lines: readonly SetupLine[];
   readonly storytree: StorytreeOpened;
   /** What registering the hooks found; undefined when this server has no hook command to register. */
   readonly hooks: HooksReport | undefined;
@@ -54,7 +59,7 @@ export interface SetupReport {
   readonly gh: GhState;
 }
 
-/** Check the setup for a session in `options.folder`, and fix what can be fixed without asking. */
+/** Check `options.folder`, inside or outside a session, and fix what needs no user decision. Never creates a project. */
 export async function runSetupCheck(options: SetupOptions): Promise<SetupReport> {
   const storytree = await openStorytree({
     ...(options.storytreeHome === undefined ? {} : { home: options.storytreeHome }),
@@ -66,7 +71,8 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
   const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"));
   const gh = await (options.gh ?? ghState)();
-  return { storytree, hooks, project, command, gh };
+  const report = { storytree, hooks, project, command, gh };
+  return { ...report, lines: setupLines(report) };
 }
 
 /** A project name to suggest for `folder`: its own name, as the library's project-name rule allows. */

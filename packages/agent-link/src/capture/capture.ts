@@ -15,7 +15,7 @@
  * - Capture never classifies: friction is filed without a route, which is decided later by someone
  *   other than the session that filed it (0.2's ADR-0168 D4).
  */
-import type { Library, NewKnowledge, SchemaRecord } from "@storytree/library";
+import type { Library, NewKnowledge, SchemaRecord, WriteOptions } from "@storytree/library";
 
 /** A capture refused before anything is written: its message says what to fix. */
 export class CaptureError extends Error {}
@@ -28,6 +28,12 @@ export interface NewFriction {
   readonly evidence: string;
   readonly impact: string;
   readonly links?: string[];
+}
+
+/** What happened this time, on the branch that encountered it. Its date is stamped at capture. */
+export interface Reinforcement {
+  readonly branch: string;
+  readonly evidence: string;
 }
 
 /** A re-steer as it is filed: what the agent was doing, what the owner redirected it to, and the owner's words. */
@@ -69,22 +75,39 @@ export function hasConcreteEvidence(text: string): boolean {
 const QUOTED = /["“][^"”]{3,}["”]/;
 
 /** File friction, if its evidence is concrete. */
-export async function recordFriction(library: Library, friction: NewFriction): Promise<SchemaRecord<"friction">> {
-  if (!hasConcreteEvidence(friction.evidence)) {
+export async function recordFriction(library: Library, friction: NewFriction, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
+  requireConcreteEvidence(friction.evidence);
+  return library.writeKnowledge("friction", { ...friction }, options);
+}
+
+/** Append a recurrence to one existing friction, never changing its route or minting a twin. */
+export async function reinforceFriction(library: Library, id: string, recurrence: Reinforcement, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
+  requireConcreteEvidence(recurrence.evidence);
+  const friction = await library.get(id);
+  if (friction?.type !== "friction") throw new CaptureError(`No live friction item ${id} to reinforce.`);
+  const saved = await library.editNote(id, { reinforcedBy: [
+    ...(friction.fields.reinforcedBy ?? []),
+    { branch: recurrence.branch, date: new Date().toISOString().slice(0, 10), evidence: recurrence.evidence },
+  ] }, options);
+  if (saved?.type !== "friction") throw new CaptureError(`Friction item ${id} is no longer there to reinforce.`);
+  return saved;
+}
+
+function requireConcreteEvidence(evidence: string): void {
+  if (!hasConcreteEvidence(evidence)) {
     throw new CaptureError(
-      `friction's evidence must be concrete: a path, a pull request, a commit, a command and its output, an error, or a quoted excerpt. Vague prose is refused. You gave: ${friction.evidence}`,
+      `friction's evidence must be concrete: a path, a pull request, a commit, a command and its output, an error, or a quoted excerpt. Vague prose is refused. You gave: ${evidence}`,
     );
   }
-  return library.writeKnowledge("friction", { ...friction });
 }
 
 /** File a re-steer, if its evidence quotes the owner. */
-export async function recordResteer(library: Library, resteer: NewResteer): Promise<SchemaRecord<"resteer">> {
+export async function recordResteer(library: Library, resteer: NewResteer, options?: WriteOptions): Promise<SchemaRecord<"resteer">> {
   if (!QUOTED.test(resteer.evidence)) {
     throw new CaptureError(
       `a re-steer's evidence is the owner's own words: quote what the owner actually said. A paraphrase is your account of those words, which goes in the self-report. You gave: ${resteer.evidence}`,
     );
   }
   // Its failure mode is checked against the library's own list of modes, inside the write.
-  return library.writeKnowledge("resteer", { ...resteer } as NewKnowledge<"resteer">);
+  return library.writeKnowledge("resteer", { ...resteer } as NewKnowledge<"resteer">, options);
 }

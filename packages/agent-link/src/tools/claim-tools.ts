@@ -59,6 +59,7 @@ export function registerClaimTools(define: Define): void {
     }),
     async ({ contract, result, note }, call) => {
       await call.library.reportHealth(contract, result === "red" ? "failing" : "passing", {
+        ...call.writer,
         by: `${call.caller.harness ?? "agent"} ${call.caller.session}`,
         ...(note === undefined ? {} : { note }),
       });
@@ -119,5 +120,4 @@ async function titleOf(library: Library, id: string): Promise<string> {
   const increment = (await increments(library)).find((one) => one.id === id);
   return increment === undefined ? id : `${quoted(increment.fields.title)} (${id})`;
 }
-
 

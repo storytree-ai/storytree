@@ -29,7 +29,7 @@ Red, then green, then landed.
 
 Note what you learned.
 - \`write_note\` a memory, a decision or a definition when you learn something worth keeping. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes a note's wording in place.
-- \`record_friction\` when something got in your way, with concrete evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
+- \`record_friction\` when something got in your way, with concrete evidence; \`reinforce\` the existing item when it happens again, with its own evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
 
 If storytree says it isn't running, carry on without it.`;
 

@@ -126,7 +126,10 @@ function families(): Answer {
   const lines = FAMILIES.map((family) => `  ${family.name.padEnd(width)}   ${family.summary}${family.waitsOn === undefined ? "" : " (not built yet)"}`);
   return {
     text: ["storytree: read and change your project's records from a terminal.", "", "Families:", ...lines].join("\n"),
-    next: [{ command: "storytree <family>", why: "a family's verbs" }],
+    next: [
+      { command: "storytree <family>", why: "a family's verbs" },
+      { command: "storytree setup install", why: "register storytree's hooks and command" },
+    ],
   };
 }
 

@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
-import { createServer, type AddressInfo, type Socket } from "node:net";
+import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -256,11 +256,22 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
 });
 
 test("6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers", async (t) => {
+  const upstream = new URL(testServerUrl());
   const held = new Set<Socket>();
+  let stalled = true;
   const silent = createServer((socket) => {
     held.add(socket);
-    socket.resume();
-    setTimeout(() => socket.destroy(), 10_000).unref();
+    socket.on("error", () => {});
+    if (stalled) {
+      socket.resume();
+      setTimeout(() => socket.destroy(), 10_000).unref();
+    } else {
+      const target = openSocket(Number(upstream.port), upstream.hostname);
+      held.add(target);
+      target.on("error", () => socket.destroy());
+      socket.on("close", () => target.destroy());
+      socket.pipe(target).pipe(socket);
+    }
   });
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
   try {
@@ -275,8 +286,10 @@ test("6.4 show_plan gives up on a stalled handshake within three seconds and a l
         assert.ok(waited >= 2_500 && waited < 4_000, `the 3 s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
         assert.match(answer.text, /storytree isn't reachable/i);
         assert.match(answer.text, /check.*app.*try again/i);
-        copyFileSync(`${testServerDataDir()}.owner.json`, `${dataDir}.owner.json`);
-        assert.equal((await agent.call("show_plan")).isError, false, "the same tool server recovers");
+        stalled = false;
+        const recovered = await agent.call("show_plan");
+        assert.equal(recovered.isError, false, recovered.text);
+        assert.ok(Array.isArray(recovered.data.stories), `the same tool server returns the plan: ${recovered.text}`);
       });
     });
   } finally {

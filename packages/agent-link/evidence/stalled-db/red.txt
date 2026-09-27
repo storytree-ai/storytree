@@ -1,0 +1,60 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/stalled-db
+> node --import tsx scripts/test.mjs "--test-name-pattern=stalled.*handshake" "packages/library/src/project/cloud-connection.test.ts" "packages/agent-link/src/tools/agent-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/stalled-db/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:35937 (started in 0.1 s)
+✖ 6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers (10289.76531ms)
+ℹ show_plan answered after 10006 ms: storytree isn't running, carry on without it
+✖ 1.9 a stalled local handshake is refused within three seconds, on both admin and project pools, and the next call recovers (10025.169358ms)
+ℹ admin handshake refused after 10008 ms
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10851.087542
+
+✖ failing tests:
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:9873
+✖ 6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers (10289.76531ms)
+  AssertionError [ERR_ASSERTION]: the 3 s deadline plus scheduling allowance, got 10006 ms
+      at <anonymous> (/home/mickh/code/storytree03-wt/stalled-db/packages/agent-link/src/tools/agent-tools.test.ts:275:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withAgent (/home/mickh/code/storytree03-wt/stalled-db/packages/agent-link/src/testing/agent.ts:71:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/stalled-db/packages/agent-link/src/tools/agent-tools.test.ts:270:7)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/stalled-db/packages/agent-link/src/tools/agent-tools.test.ts:87:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/stalled-db/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/stalled-db/packages/agent-link/src/tools/agent-tools.test.ts:80:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/stalled-db/packages/agent-link/src/tools/agent-tools.test.ts:267:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/library/src/project/cloud-connection.test.ts:1:14325
+✖ 1.9 a stalled local handshake is refused within three seconds, on both admin and project pools, and the next call recovers (10025.169358ms)
+  AssertionError [ERR_ASSERTION]: admin: the 3 s deadline plus scheduling allowance, got 10008 ms
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/stalled-db/packages/library/src/project/cloud-connection.test.ts:469:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

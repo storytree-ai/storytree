@@ -321,7 +321,7 @@ what just changed without re-reading everything.
    next time.
 3. The package's public entry exports exactly this API and nothing else, and its internals cannot
    be imported through the package. At runtime it exports `connect`, `ConnectionError`,
-   `DependencyLoopError`, `LifecycleError`, `MissingReferenceError`, `MissingUpgradeError`,
+   `DependencyLoopError`, `LifecycleError`, `LinkLoopError`, `MissingReferenceError`, `MissingUpgradeError`,
    `NewerSchemaError`, `NumberTakenError`, `ProjectNameError`, `RetireRefusedError`, `SchemaError`,
    `SupersessionLoopError`, `UnknownTypeError` and `WaitLoopError`. Everything else exported is a
    data type, including `WriteOptions`, `HistoryEntry` and `HistoryFilter`.
@@ -375,6 +375,10 @@ into the knowledge is through a front cover.
 
 - **Added** on 2026-09-26 by ADR-0627, the owner's "rabbit-hole" model. The two sentences above are
   the ones he approved.
+- **Grown** on 2026-09-27 by ADR-0647 D2, the owner's "I dont think we allow loops": the knowledge
+  is a DAG under its covers, so a link that would close a loop between notes is refused (9.4). A
+  loop that seems needed is a discussion with the owner before it happens, and no machinery for
+  one is built until then.
 - **Depends on:** 4 and 6. It adds `frontCovers` to 7's list of functions.
 - **Its shelf,** founding book first:
   - Every story and capability has a shelf of front covers (ADR-0627, decisions/adr-0627.md).
@@ -384,7 +388,11 @@ into the knowledge is through a front cover.
   has to check for it. A node's shelf is every live decision naming it, founding (oldest) first.
   Replacing a cover takes ordinary writes: the new decision becomes a cover of the same node and
   links to the old one, then the old one's `frontCoverOf` is removed. It leaves the shelf and is
-  still reached from the cover that replaced it.
+  still reached from the cover that replaced it. `editNote` refuses a link that would close a loop
+  with a `LinkLoopError` naming the loop from the edited note back round to it, `A → B → A`, and
+  the existing chain it would close. It follows every field that links a note to notes: `links`,
+  an agent role's `context`, `rules`, `antiPatterns` and `stepRefs`, and a process's
+  `branchEdges`. A new note cannot close a loop, since nothing yet links to it.
 - **Leaves out:** where an agent's new note goes by default, a founding decision for each new story
   and capability, and reading a shelf title by title. Those are the agent link's tools (ADR-0627
   D4, D5, D7). Showing each part's shelf is the forest's drill-down.
@@ -396,6 +404,9 @@ into the knowledge is through a front cover.
    written. Only a decision can be a front cover.
 3. A note that links to a story, capability, contract, arc or health entry is refused, and nothing
    is written. Notes link only to other notes.
+4. A link that would close a loop between notes, a note linking to itself included, is refused
+   with the chain it would close named, and nothing is written. The knowledge is a DAG under its
+   covers (ADR-0647 D2).
 
 ## 10 · Work in flight
 

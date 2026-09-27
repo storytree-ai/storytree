@@ -51,7 +51,7 @@ export interface Worklist {
     readonly catalogue: NewNote[];
     /** Graduation (4): processes and tools that match nothing, when the tools served are known. */
     readonly processes?: ProcessGaps;
-    /** Queues (5): every open question, oldest first. */
+    /** Queues (5): open questions whose review lease has lapsed, longest lapsed first. */
     readonly questions: SchemaRecord<"question">[];
     /** Queues (5): the friction drain. */
     readonly friction: SchemaRecord<"friction">[];
@@ -77,7 +77,7 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
       health: await brokenEdges(library),
       catalogue: await newNotes(library, options.since ?? 0),
       ...(options.tools === undefined ? {} : { processes: await processGaps(library, options.tools) }),
-      questions: await openQuestions(library),
+      questions: await openQuestions(library, options.now),
       friction: await frictionDrain(library, options.branch === undefined ? {} : { branch: options.branch }),
     },
   };

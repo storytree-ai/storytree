@@ -1,7 +1,7 @@
 /**
- * Capability 5 · Queues (stories/librarian.md): open questions and friction are looked at on each
- * pass, and nothing is closed without a reason. There is no question lease (ADR-0644 D3): every open
- * question is on every worklist. The friction drain is 0.2's bounded one (ADR-0168 D4): at most the
+ * Capability 5 · Queues (stories/librarian.md): lapsed open questions and friction are looked at on
+ * each pass, and nothing is closed without a reason. The library owns the question review lease
+ * and its lapsed-date drain (ADR-0654). The friction drain is 0.2's bounded one (ADR-0168 D4): at most the
  * three oldest reports not yet routed, never one the session's own branch filed, so the librarian
  * never marks its own homework; a report with no provenance counts as another's, so the queue
  * cannot drain by going anonymous. The routing judgement is the librarian's own (ADR-0644 D3, S).
@@ -17,11 +17,9 @@ export type Route = NonNullable<FieldsOf<"friction">["route"]>;
 /** How many friction reports one pass drains, at most. */
 export const DRAIN = 3;
 
-/** The worklist's questions: every open question on every arc, oldest first. */
-export async function openQuestions(library: Library): Promise<SchemaRecord<"question">[]> {
-  const questions: SchemaRecord<"question">[] = [];
-  for (const arc of (await library.projectTree()).arcs) questions.push(...(await library.questions(arc.id)));
-  return questions.filter((question) => question.fields.lifecycle === "open").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+/** The open questions due for review across every arc, longest lapsed first, at `at` or now. */
+export function openQuestions(library: Library, at?: Date): Promise<SchemaRecord<"question">[]> {
+  return library.lapsedQuestions(at);
 }
 
 /** The worklist's friction drain: the three oldest reports not yet routed, filed from any branch but `branch`. */

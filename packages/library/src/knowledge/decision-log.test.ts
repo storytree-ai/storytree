@@ -109,7 +109,11 @@ for (const backend of [memory, postgres]) {
     const history = await transactions.history();
     await assert.rejects(knowledge.recordDecision({ ...DECIDE, number: 7 }), NumberTakenError, "7 was used, though retired");
     assert.deepEqual(await transactions.history(), history, "nothing was written");
-    await assert.rejects(knowledge.editNote(first.id, { number: 900 } as never), RangeError, "a number never changes");
+    for (const number of [900, undefined]) {
+      await assert.rejects(knowledge.editNote(first.id, { number }), RangeError, "a number cannot change or be removed");
+    }
+    assert.deepEqual(await records.get(first.id), first);
+    assert.deepEqual(await transactions.history(), history, "refused number edits write nothing");
   });
 
   contract("13.5", "storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs", async ({ records, transactions, knowledge }) => {

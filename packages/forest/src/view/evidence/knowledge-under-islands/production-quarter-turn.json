@@ -1,0 +1,3941 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "zoom": 1.7696266132794276,
+  "camera": [
+    0,
+    667.9907543997489,
+    560.5107956466624
+  ],
+  "rotation": [
+    -0.2988362387301199,
+    0.6408563820557885,
+    -0.2988362387301198,
+    0.6408563820557888
+  ],
+  "canvas": {
+    "width": 1440,
+    "height": 910.4375,
+    "top": 49.5625,
+    "left": 0
+  },
+  "plates": [
+    {
+      "story": "story_05e45963ca9f",
+      "facing": 6.447022626985881e-16,
+      "screen": [
+        0.5399625005852488,
+        -6.860628797596631e-17,
+        -0.2000550483967155
+      ],
+      "position": [
+        0,
+        0,
+        219.69210764801653
+      ],
+      "meshes": 6,
+      "vertices": 77884,
+      "triangles": 90300
+    },
+    {
+      "story": "story_16ac26dfa5d6",
+      "facing": -0.42984217753319465,
+      "screen": [
+        0.48729884674836327,
+        -0.023963510121780857,
+        -0.11341535488941656
+      ],
+      "position": [
+        94.43293393828044,
+        -6.164373343726886,
+        198.26508429856025
+      ],
+      "meshes": 6,
+      "vertices": 31776,
+      "triangles": 32950
+    },
+    {
+      "story": "story_78b33d16d0b6",
+      "facing": -0.3211187300091552,
+      "screen": [
+        0.4709269465110364,
+        0.31523225882311684,
+        -0.13532983109228347
+      ],
+      "position": [
+        70.54725060096567,
+        81.09034625965862,
+        191.60392307821078
+      ],
+      "meshes": 6,
+      "vertices": 39614,
+      "triangles": 41900
+    },
+    {
+      "story": "story_20549f1d48af",
+      "facing": 0.13021486743697647,
+      "screen": [
+        0.4517501606680646,
+        0.45440005014580503,
+        -0.22630137040629072
+      ],
+      "position": [
+        -28.60717867433645,
+        116.88986889950692,
+        183.80155070014604
+      ],
+      "meshes": 6,
+      "vertices": 77073,
+      "triangles": 85184
+    },
+    {
+      "story": "story_be32e99ed54f",
+      "facing": 0.5350728743349141,
+      "screen": [
+        0.43254870368947823,
+        0.22913166938152527,
+        -0.30790521354917155
+      ],
+      "position": [
+        -117.55128750791948,
+        58.941830631703596,
+        175.98914048838844
+      ],
+      "meshes": 6,
+      "vertices": 55976,
+      "triangles": 62790
+    },
+    {
+      "story": "story_4c04d95d52a8",
+      "facing": 0.6250384182564066,
+      "screen": [
+        0.4173340593370122,
+        -0.09340288277608272,
+        -0.3260388159711294
+      ],
+      "position": [
+        -137.31600746773236,
+        -24.02695756531948,
+        169.79882675125788
+      ],
+      "meshes": 6,
+      "vertices": 35661,
+      "triangles": 38094
+    },
+    {
+      "story": "story_69d0ee10bbe7",
+      "facing": 0.40928797801901495,
+      "screen": [
+        0.3984413833444148,
+        -0.4583065431075787,
+        -0.2825518037763133
+      ],
+      "position": [
+        -89.91733852599248,
+        -117.89477514899355,
+        162.11204886681935
+      ],
+      "meshes": 6,
+      "vertices": 42064,
+      "triangles": 44826
+    },
+    {
+      "story": "story_eb7d623fb9c8",
+      "facing": -0.07154822345060075,
+      "screen": [
+        0.3782460390364444,
+        -0.606410122390126,
+        -0.1856336712616784
+      ],
+      "position": [
+        15.71858000833376,
+        -155.99293988363604,
+        153.89526019929792
+      ],
+      "meshes": 6,
+      "vertices": 110687,
+      "triangles": 128806
+    }
+  ],
+  "pathways": [
+    {
+      "name": "pathways:cross-island",
+      "children": 11,
+      "data": {
+        "links": [
+          {
+            "from": "capability_3f03444b9515",
+            "to": "capability_602c631d32a7"
+          },
+          {
+            "from": "capability_f3c4cf342304",
+            "to": "capability_602c631d32a7"
+          },
+          {
+            "from": "capability_f3c4cf342304",
+            "to": "capability_3f03444b9515"
+          },
+          {
+            "from": "capability_f5d1f85f2dd1",
+            "to": "capability_3f03444b9515"
+          },
+          {
+            "from": "capability_05ff7e9f0f99",
+            "to": "capability_f5d1f85f2dd1"
+          },
+          {
+            "from": "capability_4da153322012",
+            "to": "capability_602c631d32a7"
+          },
+          {
+            "from": "capability_4da153322012",
+            "to": "capability_3f03444b9515"
+          },
+          {
+            "from": "capability_4da153322012",
+            "to": "capability_05ff7e9f0f99"
+          },
+          {
+            "from": "capability_4da153322012",
+            "to": "capability_dd3fe61f2b0c"
+          },
+          {
+            "from": "capability_2b2232e0345d",
+            "to": "capability_4da153322012"
+          },
+          {
+            "from": "capability_644c46abf9fa",
+            "to": "capability_602c631d32a7"
+          },
+          {
+            "from": "capability_644c46abf9fa",
+            "to": "capability_f3c4cf342304"
+          },
+          {
+            "from": "capability_644c46abf9fa",
+            "to": "capability_4da153322012"
+          },
+          {
+            "from": "capability_644c46abf9fa",
+            "to": "capability_2b2232e0345d"
+          },
+          {
+            "from": "capability_b59e959e0da8",
+            "to": "capability_9dedb2e237cb"
+          },
+          {
+            "from": "capability_08d9ed39dc7a",
+            "to": "capability_b59e959e0da8"
+          },
+          {
+            "from": "capability_08d9ed39dc7a",
+            "to": "capability_9dedb2e237cb"
+          },
+          {
+            "from": "capability_08d9ed39dc7a",
+            "to": "capability_3f03444b9515"
+          },
+          {
+            "from": "capability_dd7b2b7e8ba0",
+            "to": "capability_9dedb2e237cb"
+          },
+          {
+            "from": "capability_da68dca0d5f4",
+            "to": "capability_3f03444b9515"
+          },
+          {
+            "from": "capability_da68dca0d5f4",
+            "to": "capability_05ff7e9f0f99"
+          },
+          {
+            "from": "capability_3224f4ab8017",
+            "to": "capability_da68dca0d5f4"
+          },
+          {
+            "from": "capability_3224f4ab8017",
+            "to": "capability_f5d1f85f2dd1"
+          },
+          {
+            "from": "capability_3224f4ab8017",
+            "to": "capability_05ff7e9f0f99"
+          },
+          {
+            "from": "capability_60a15402b053",
+            "to": "capability_da68dca0d5f4"
+          },
+          {
+            "from": "capability_60a15402b053",
+            "to": "capability_3224f4ab8017"
+          },
+          {
+            "from": "capability_e0c02f9f5cfa",
+            "to": "capability_da68dca0d5f4"
+          },
+          {
+            "from": "capability_e0c02f9f5cfa",
+            "to": "capability_60a15402b053"
+          },
+          {
+            "from": "capability_34349210675b",
+            "to": "capability_60a15402b053"
+          },
+          {
+            "from": "capability_d52cb21878a8",
+            "to": "capability_dd3fe61f2b0c"
+          },
+          {
+            "from": "capability_d52cb21878a8",
+            "to": "capability_602c631d32a7"
+          },
+          {
+            "from": "capability_ff688ce5c495",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_ff688ce5c495",
+            "to": "capability_f5d1f85f2dd1"
+          },
+          {
+            "from": "capability_6becd708350e",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_6becd708350e",
+            "to": "capability_ff688ce5c495"
+          },
+          {
+            "from": "capability_6becd708350e",
+            "to": "capability_75abfdd699c0"
+          },
+          {
+            "from": "capability_6becd708350e",
+            "to": "capability_f37769a4a28f"
+          },
+          {
+            "from": "capability_6becd708350e",
+            "to": "capability_bf3001e9ea74"
+          },
+          {
+            "from": "capability_6becd708350e",
+            "to": "capability_dd3fe61f2b0c"
+          },
+          {
+            "from": "capability_6becd708350e",
+            "to": "capability_257f1084e3fe"
+          },
+          {
+            "from": "capability_fb00f5d65e35",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_fb00f5d65e35",
+            "to": "capability_ff688ce5c495"
+          },
+          {
+            "from": "capability_fb00f5d65e35",
+            "to": "capability_24cff71dc3fd"
+          },
+          {
+            "from": "capability_fb00f5d65e35",
+            "to": "capability_5dab5db5f983"
+          },
+          {
+            "from": "capability_fb00f5d65e35",
+            "to": "capability_9b5a450c6869"
+          },
+          {
+            "from": "capability_577030ecbf6f",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_577030ecbf6f",
+            "to": "capability_ff688ce5c495"
+          },
+          {
+            "from": "capability_577030ecbf6f",
+            "to": "capability_9b5a450c6869"
+          },
+          {
+            "from": "capability_335e55878092",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_335e55878092",
+            "to": "capability_ff688ce5c495"
+          },
+          {
+            "from": "capability_335e55878092",
+            "to": "capability_7449c208f41b"
+          },
+          {
+            "from": "capability_1d423d892a78",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_1d423d892a78",
+            "to": "capability_1ceafc09bfaa"
+          },
+          {
+            "from": "capability_1d423d892a78",
+            "to": "capability_9ee4ed8d31a4"
+          },
+          {
+            "from": "capability_1d423d892a78",
+            "to": "capability_dd3fe61f2b0c"
+          },
+          {
+            "from": "capability_3a5c6a03eb0b",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_3a5c6a03eb0b",
+            "to": "capability_05ff7e9f0f99"
+          },
+          {
+            "from": "capability_066ce0de0158",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_066ce0de0158",
+            "to": "capability_644c46abf9fa"
+          },
+          {
+            "from": "capability_ce057519af04",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_ce057519af04",
+            "to": "capability_ff688ce5c495"
+          },
+          {
+            "from": "capability_ce057519af04",
+            "to": "capability_4da153322012"
+          },
+          {
+            "from": "capability_e2404de2783f",
+            "to": "capability_d52cb21878a8"
+          },
+          {
+            "from": "capability_e2404de2783f",
+            "to": "capability_05ff7e9f0f99"
+          },
+          {
+            "from": "capability_9e755f5badcf",
+            "to": "capability_cd33386156ad"
+          },
+          {
+            "from": "capability_9f02379a2e1a",
+            "to": "capability_cd33386156ad"
+          },
+          {
+            "from": "capability_9f02379a2e1a",
+            "to": "capability_9e755f5badcf"
+          },
+          {
+            "from": "capability_5f85ed8b29a7",
+            "to": "capability_9e755f5badcf"
+          },
+          {
+            "from": "capability_5f85ed8b29a7",
+            "to": "capability_9f02379a2e1a"
+          },
+          {
+            "from": "capability_01edc782b586",
+            "to": "capability_9f02379a2e1a"
+          },
+          {
+            "from": "capability_5daf2d36116d",
+            "to": "capability_9f02379a2e1a"
+          },
+          {
+            "from": "capability_dda13a1b6f32",
+            "to": "capability_5f85ed8b29a7"
+          },
+          {
+            "from": "capability_5006e778a1a5",
+            "to": "capability_7449c208f41b"
+          },
+          {
+            "from": "capability_71f0c121b919",
+            "to": "capability_5006e778a1a5"
+          },
+          {
+            "from": "capability_8573ce40ed88",
+            "to": "capability_71f0c121b919"
+          },
+          {
+            "from": "capability_8573ce40ed88",
+            "to": "capability_5006e778a1a5"
+          },
+          {
+            "from": "capability_83d80a307e18",
+            "to": "capability_71f0c121b919"
+          },
+          {
+            "from": "capability_83d80a307e18",
+            "to": "capability_5006e778a1a5"
+          },
+          {
+            "from": "capability_83d80a307e18",
+            "to": "capability_8573ce40ed88"
+          },
+          {
+            "from": "capability_83d80a307e18",
+            "to": "capability_9f02379a2e1a"
+          },
+          {
+            "from": "capability_625728b42886",
+            "to": "capability_2fa1a37e0d10"
+          },
+          {
+            "from": "capability_d6e345aa554a",
+            "to": "capability_c7aada819094"
+          },
+          {
+            "from": "capability_741dcbce28ee",
+            "to": "capability_2fa1a37e0d10"
+          },
+          {
+            "from": "capability_741dcbce28ee",
+            "to": "capability_625728b42886"
+          },
+          {
+            "from": "capability_741dcbce28ee",
+            "to": "capability_c7aada819094"
+          },
+          {
+            "from": "capability_741dcbce28ee",
+            "to": "capability_d6e345aa554a"
+          },
+          {
+            "from": "capability_741dcbce28ee",
+            "to": "capability_e07dc33c510d"
+          },
+          {
+            "from": "capability_75abfdd699c0",
+            "to": "capability_10618c4fdcc4"
+          },
+          {
+            "from": "capability_f37769a4a28f",
+            "to": "capability_75abfdd699c0"
+          },
+          {
+            "from": "capability_1ceafc09bfaa",
+            "to": "capability_f37769a4a28f"
+          },
+          {
+            "from": "capability_bf3001e9ea74",
+            "to": "capability_f37769a4a28f"
+          },
+          {
+            "from": "capability_9ee4ed8d31a4",
+            "to": "capability_1ceafc09bfaa"
+          },
+          {
+            "from": "capability_dd3fe61f2b0c",
+            "to": "capability_10618c4fdcc4"
+          },
+          {
+            "from": "capability_dd3fe61f2b0c",
+            "to": "capability_1ceafc09bfaa"
+          },
+          {
+            "from": "capability_dd3fe61f2b0c",
+            "to": "capability_9ee4ed8d31a4"
+          },
+          {
+            "from": "capability_dd3fe61f2b0c",
+            "to": "capability_bf3001e9ea74"
+          },
+          {
+            "from": "capability_2417a0fb5578",
+            "to": "capability_10618c4fdcc4"
+          },
+          {
+            "from": "capability_257f1084e3fe",
+            "to": "capability_1ceafc09bfaa"
+          },
+          {
+            "from": "capability_257f1084e3fe",
+            "to": "capability_bf3001e9ea74"
+          },
+          {
+            "from": "capability_24cff71dc3fd",
+            "to": "capability_1ceafc09bfaa"
+          },
+          {
+            "from": "capability_5dab5db5f983",
+            "to": "capability_24cff71dc3fd"
+          },
+          {
+            "from": "capability_9b5a450c6869",
+            "to": "capability_24cff71dc3fd"
+          },
+          {
+            "from": "capability_7449c208f41b",
+            "to": "capability_bf3001e9ea74"
+          }
+        ],
+        "segmentCount": 286,
+        "localSegmentCount": 275
+      },
+      "vertices": 0
+    },
+    {
+      "name": "pathway:cross:tr4i2b5",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_066ce0de0158->capability_644c46abf9fa",
+          "capability_1d423d892a78->capability_1ceafc09bfaa",
+          "capability_1d423d892a78->capability_9ee4ed8d31a4",
+          "capability_1d423d892a78->capability_dd3fe61f2b0c",
+          "capability_335e55878092->capability_7449c208f41b",
+          "capability_3a5c6a03eb0b->capability_05ff7e9f0f99",
+          "capability_577030ecbf6f->capability_9b5a450c6869",
+          "capability_6becd708350e->capability_257f1084e3fe",
+          "capability_6becd708350e->capability_75abfdd699c0",
+          "capability_6becd708350e->capability_bf3001e9ea74",
+          "capability_6becd708350e->capability_dd3fe61f2b0c",
+          "capability_6becd708350e->capability_f37769a4a28f",
+          "capability_ce057519af04->capability_4da153322012",
+          "capability_d52cb21878a8->capability_602c631d32a7",
+          "capability_d52cb21878a8->capability_dd3fe61f2b0c",
+          "capability_e2404de2783f->capability_05ff7e9f0f99",
+          "capability_fb00f5d65e35->capability_24cff71dc3fd",
+          "capability_fb00f5d65e35->capability_5dab5db5f983",
+          "capability_fb00f5d65e35->capability_9b5a450c6869",
+          "capability_ff688ce5c495->capability_f5d1f85f2dd1"
+        ],
+        "widthGround": 4.624922359499622
+      },
+      "vertices": 54
+    },
+    {
+      "name": "pathway-halo:cross:tr4i2b5",
+      "children": 0,
+      "data": {},
+      "vertices": 54
+    },
+    {
+      "name": "pathway:cross:t1rokvug",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_1d423d892a78->capability_1ceafc09bfaa",
+          "capability_1d423d892a78->capability_9ee4ed8d31a4",
+          "capability_1d423d892a78->capability_dd3fe61f2b0c",
+          "capability_335e55878092->capability_7449c208f41b",
+          "capability_577030ecbf6f->capability_9b5a450c6869",
+          "capability_6becd708350e->capability_257f1084e3fe",
+          "capability_6becd708350e->capability_75abfdd699c0",
+          "capability_6becd708350e->capability_bf3001e9ea74",
+          "capability_6becd708350e->capability_dd3fe61f2b0c",
+          "capability_6becd708350e->capability_f37769a4a28f",
+          "capability_d52cb21878a8->capability_dd3fe61f2b0c",
+          "capability_fb00f5d65e35->capability_24cff71dc3fd",
+          "capability_fb00f5d65e35->capability_5dab5db5f983",
+          "capability_fb00f5d65e35->capability_9b5a450c6869"
+        ],
+        "widthGround": 3.9674916480965474
+      },
+      "vertices": 370
+    },
+    {
+      "name": "pathway-halo:cross:t1rokvug",
+      "children": 0,
+      "data": {},
+      "vertices": 370
+    },
+    {
+      "name": "pathway:cross:t8uxzol",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_1d423d892a78->capability_1ceafc09bfaa",
+          "capability_1d423d892a78->capability_9ee4ed8d31a4",
+          "capability_1d423d892a78->capability_dd3fe61f2b0c",
+          "capability_335e55878092->capability_7449c208f41b",
+          "capability_5006e778a1a5->capability_7449c208f41b",
+          "capability_577030ecbf6f->capability_9b5a450c6869",
+          "capability_6becd708350e->capability_257f1084e3fe",
+          "capability_6becd708350e->capability_75abfdd699c0",
+          "capability_6becd708350e->capability_bf3001e9ea74",
+          "capability_6becd708350e->capability_dd3fe61f2b0c",
+          "capability_6becd708350e->capability_f37769a4a28f",
+          "capability_d52cb21878a8->capability_dd3fe61f2b0c",
+          "capability_fb00f5d65e35->capability_24cff71dc3fd",
+          "capability_fb00f5d65e35->capability_5dab5db5f983",
+          "capability_fb00f5d65e35->capability_9b5a450c6869"
+        ],
+        "widthGround": 4.085685011586675
+      },
+      "vertices": 74
+    },
+    {
+      "name": "pathway-halo:cross:t8uxzol",
+      "children": 0,
+      "data": {},
+      "vertices": 74
+    },
+    {
+      "name": "pathway:cross:ta24dr",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_1d423d892a78->capability_1ceafc09bfaa",
+          "capability_1d423d892a78->capability_9ee4ed8d31a4",
+          "capability_1d423d892a78->capability_dd3fe61f2b0c",
+          "capability_335e55878092->capability_7449c208f41b",
+          "capability_4da153322012->capability_dd3fe61f2b0c",
+          "capability_5006e778a1a5->capability_7449c208f41b",
+          "capability_577030ecbf6f->capability_9b5a450c6869",
+          "capability_6becd708350e->capability_257f1084e3fe",
+          "capability_6becd708350e->capability_75abfdd699c0",
+          "capability_6becd708350e->capability_bf3001e9ea74",
+          "capability_6becd708350e->capability_dd3fe61f2b0c",
+          "capability_6becd708350e->capability_f37769a4a28f",
+          "capability_d52cb21878a8->capability_dd3fe61f2b0c",
+          "capability_fb00f5d65e35->capability_24cff71dc3fd",
+          "capability_fb00f5d65e35->capability_5dab5db5f983",
+          "capability_fb00f5d65e35->capability_9b5a450c6869"
+        ],
+        "widthGround": 4.2
+      },
+      "vertices": 126
+    },
+    {
+      "name": "pathway-halo:cross:ta24dr",
+      "children": 0,
+      "data": {},
+      "vertices": 126
+    },
+    {
+      "name": "pathway:cross:t1ux7ym8",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_5006e778a1a5->capability_7449c208f41b"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 216
+    },
+    {
+      "name": "pathway-halo:cross:t1ux7ym8",
+      "children": 0,
+      "data": {},
+      "vertices": 216
+    },
+    {
+      "name": "pathway:cross:t1czutu7",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_4da153322012->capability_dd3fe61f2b0c"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 178
+    },
+    {
+      "name": "pathway-halo:cross:t1czutu7",
+      "children": 0,
+      "data": {},
+      "vertices": 178
+    },
+    {
+      "name": "pathway:cross:tm22by",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_066ce0de0158->capability_644c46abf9fa",
+          "capability_3a5c6a03eb0b->capability_05ff7e9f0f99",
+          "capability_ce057519af04->capability_4da153322012",
+          "capability_d52cb21878a8->capability_602c631d32a7",
+          "capability_e2404de2783f->capability_05ff7e9f0f99",
+          "capability_ff688ce5c495->capability_f5d1f85f2dd1"
+        ],
+        "widthGround": 2.8045407685048604
+      },
+      "vertices": 64
+    },
+    {
+      "name": "pathway-halo:cross:tm22by",
+      "children": 0,
+      "data": {},
+      "vertices": 64
+    },
+    {
+      "name": "pathway:cross:tqjw2en",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_3224f4ab8017->capability_05ff7e9f0f99",
+          "capability_3224f4ab8017->capability_f5d1f85f2dd1",
+          "capability_da68dca0d5f4->capability_05ff7e9f0f99",
+          "capability_da68dca0d5f4->capability_3f03444b9515"
+        ],
+        "widthGround": 2.4
+      },
+      "vertices": 138
+    },
+    {
+      "name": "pathway-halo:cross:tqjw2en",
+      "children": 0,
+      "data": {},
+      "vertices": 138
+    },
+    {
+      "name": "pathway:cross:ttdh04c",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_08d9ed39dc7a->capability_3f03444b9515",
+          "capability_3224f4ab8017->capability_05ff7e9f0f99",
+          "capability_3224f4ab8017->capability_f5d1f85f2dd1",
+          "capability_da68dca0d5f4->capability_05ff7e9f0f99",
+          "capability_da68dca0d5f4->capability_3f03444b9515"
+        ],
+        "widthGround": 2.612461179749811
+      },
+      "vertices": 34
+    },
+    {
+      "name": "pathway-halo:cross:ttdh04c",
+      "children": 0,
+      "data": {},
+      "vertices": 34
+    },
+    {
+      "name": "pathway:cross:t1claoxt",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_08d9ed39dc7a->capability_3f03444b9515"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 86
+    },
+    {
+      "name": "pathway-halo:cross:t1claoxt",
+      "children": 0,
+      "data": {},
+      "vertices": 86
+    },
+    {
+      "name": "pathway:cross:tyvtffv",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_83d80a307e18->capability_9f02379a2e1a"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 112
+    },
+    {
+      "name": "pathway-halo:cross:tyvtffv",
+      "children": 0,
+      "data": {},
+      "vertices": 112
+    }
+  ],
+  "points": [
+    {
+      "id": "decision_03fd07d9014b",
+      "depth": 1,
+      "home": "capability_3f03444b9515",
+      "at": [
+        18.068795147724103,
+        18.0687951477241,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        -2.227102473847839,
+        -25.455897759690522
+      ],
+      "screen": [
+        0.44567149946065693,
+        0.07024100119625282,
+        -0.1834774116723482
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_045c9e437b39",
+      "depth": 1,
+      "home": "capability_cd33386156ad",
+      "at": [
+        -75.77494705760704,
+        48.64910805864404,
+        159.45016802598616
+      ],
+      "world": [
+        159.4501680259862,
+        89.31802100351264,
+        11.439818202264348
+      ],
+      "screen": [
+        0.39189897337591895,
+        0.18911953062760073,
+        -0.2695765375086996
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_0aa9bd1f4dd2",
+      "depth": 1,
+      "home": "story_69d0ee10bbe7",
+      "at": [
+        -74.94881453484204,
+        -98.26885206032394,
+        135.1252837723867
+      ],
+      "world": [
+        135.12528377238672,
+        -5.751877629725099,
+        123.454477396183
+      ],
+      "screen": [
+        0.332112914292431,
+        -0.3820123311317212,
+        -0.2688185829944879
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_0badbaa5aa78",
+      "depth": 1,
+      "home": "capability_6becd708350e",
+      "at": [
+        -11.220817442231018,
+        116.15873904856143,
+        141.11759280322326
+      ],
+      "world": [
+        141.1175928032233,
+        83.2610430661009,
+        -81.77015414543723
+      ],
+      "screen": [
+        0.34684089975904636,
+        0.4515578411155395,
+        -0.21034984856390748
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_0ca30d9bc023",
+      "depth": 1,
+      "home": "capability_5006e778a1a5",
+      "at": [
+        -93.46812416572163,
+        -19.831247899636168,
+        156.21576671925413
+      ],
+      "world": [
+        156.21576671925416,
+        58.853456691397426,
+        75.2717693680001
+      ],
+      "screen": [
+        0.383949414167004,
+        -0.07709239581572151,
+        -0.28580955471876845
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_0d7a048a0502",
+      "depth": 1,
+      "home": "capability_9dedb2e237cb",
+      "at": [
+        101.01254296078301,
+        -5.0879190839296555,
+        152.65488411443428
+      ],
+      "world": [
+        152.6548841144343,
+        -80.6505485666625,
+        -61.032038896837285
+      ],
+      "screen": [
+        0.3751974244110971,
+        -0.019778879971737225,
+        -0.10737873942769582
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_18e98cca5b8f",
+      "depth": 1,
+      "home": "capability_ff688ce5c495",
+      "at": [
+        -1.24028619733274,
+        108.17525551263029,
+        147.7481309016323
+      ],
+      "world": [
+        147.74813090163232,
+        70.48382826753823,
+        -82.06981276831532
+      ],
+      "screen": [
+        0.36313753403586274,
+        0.42052268509030577,
+        -0.20119297784057322
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_1a71d86cb1fc",
+      "depth": 1,
+      "home": "capability_257f1084e3fe",
+      "at": [
+        -7.276621159401783,
+        -140.68436157720555,
+        116.99528021299255
+      ],
+      "world": [
+        116.99528021299258,
+        -84.85594929464703,
+        112.44779534160575
+      ],
+      "screen": [
+        0.2875527242958274,
+        -0.5468992441968806,
+        -0.20673115386889473
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_1cd1119deb7d",
+      "depth": 1,
+      "home": "capability_24cff71dc3fd",
+      "at": [
+        2.2355471153495325,
+        -145.5765990639772,
+        111.06480330897405
+      ],
+      "world": [
+        111.06480330897408,
+        -95.28736258367375,
+        110.08116277450199
+      ],
+      "screen": [
+        0.2729767107419522,
+        -0.5659174275539466,
+        -0.1980039936553516
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_2172db7102e1",
+      "depth": 1,
+      "home": "capability_dda13a1b6f32",
+      "at": [
+        -86.75254034631918,
+        29.403317167131508,
+        158.56347651029012
+      ],
+      "world": [
+        158.56347651029014,
+        85.35638941746846,
+        33.23921031829964
+      ],
+      "screen": [
+        0.38971964989821783,
+        0.11430305227465203,
+        -0.2796481860143303
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_2187235148da",
+      "depth": 1,
+      "home": "capability_5daf2d36116d",
+      "at": [
+        -105.46466427041398,
+        24.649999359516514,
+        147.65675237490737
+      ],
+      "world": [
+        147.6567523749074,
+        96.63533417683766,
+        48.908384420528805
+      ],
+      "screen": [
+        0.3629129425458979,
+        0.0958249080995043,
+        -0.29681605970036606
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_232da653f14c",
+      "depth": 1,
+      "home": "capability_9f02379a2e1a",
+      "at": [
+        -98.03976826203333,
+        72.64821675777159,
+        136.5407442525587
+      ],
+      "world": [
+        136.54074425255874,
+        121.80019327952063,
+        7.366985545580718
+      ],
+      "screen": [
+        0.3355918539254278,
+        0.28241415315569723,
+        -0.29000391601636166
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_314ffca38ecd",
+      "depth": 1,
+      "home": "capability_625728b42886",
+      "at": [
+        -68.80274590183272,
+        -78.63407743735154,
+        150.3854993739238
+      ],
+      "world": [
+        150.38549937392384,
+        2.160950493564612,
+        104.46275063877997
+      ],
+      "screen": [
+        0.36961969714362825,
+        -0.30568370952165896,
+        -0.26317972925531696
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_32f64e792f4e",
+      "depth": 1,
+      "home": "capability_5f85ed8b29a7",
+      "at": [
+        -114.51631826865491,
+        59.32971622234198,
+        129.99589233190602
+      ],
+      "world": [
+        129.99589233190605,
+        125.86099573008735,
+        28.16047106606073
+      ],
+      "screen": [
+        0.31950582039937225,
+        0.23063954370370843,
+        -0.30512071037080135
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_363a996929eb",
+      "depth": 1,
+      "home": "capability_fb00f5d65e35",
+      "at": [
+        -25.13534967404817,
+        117.89371582969856,
+        137.84854139463943
+      ],
+      "world": [
+        137.84854139463945,
+        95.03541473889312,
+        -74.15513455437173
+      ],
+      "screen": [
+        0.3388061770190345,
+        0.45830242508823865,
+        -0.22311606007068963
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_3897ce9a9c61",
+      "depth": 1,
+      "home": "capability_335e55878092",
+      "at": [
+        -47.248946293771766,
+        102.57352311431264,
+        144.14972712442386
+      ],
+      "world": [
+        144.1497271244239,
+        102.12778249134696,
+        -48.204840144474005
+      ],
+      "screen": [
+        0.3542933241893721,
+        0.39874639680575563,
+        -0.24340469406282106
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_39475b2d89fb",
+      "depth": 1,
+      "home": "capability_bf3001e9ea74",
+      "at": [
+        5.683158501423308,
+        -111.92871787141686,
+        144.81919149445793
+      ],
+      "world": [
+        144.81919149445795,
+        -76.29994500522676,
+        82.08930848223112
+      ],
+      "screen": [
+        0.35593874358639244,
+        -0.43511397088872994,
+        -0.1948409023336637
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_3bc0af7e6ec5",
+      "depth": 1,
+      "home": "story_eb7d623fb9c8",
+      "at": [
+        13.10191067827404,
+        -130.0248218168038,
+        128.2763425113413
+      ],
+      "world": [
+        128.27634251134134,
+        -93.6149902848745,
+        91.1830463730835
+      ],
+      "screen": [
+        0.315279485503079,
+        -0.5054611328596011,
+        -0.18803439545091616
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_3ef1f236c5b1",
+      "depth": 1,
+      "home": "capability_75abfdd699c0",
+      "at": [
+        36.339562504783075,
+        -120.39079833816153,
+        133.11057911548988
+      ],
+      "world": [
+        133.1105791154899,
+        -105.22343341420485,
+        68.86608155010204
+      ],
+      "screen": [
+        0.32716114348862185,
+        -0.46800963434209897,
+        -0.16671447084289837
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_3fc52254d739",
+      "depth": 1,
+      "home": "capability_8573ce40ed88",
+      "at": [
+        -133.2062500056869,
+        -19.831247899636168,
+        124.07961543366262
+      ],
+      "world": [
+        124.07961543366264,
+        89.2946271710655,
+        100.81494429009429
+      ],
+      "screen": [
+        0.30496470782900864,
+        -0.07709239581572151,
+        -0.3222682233182136
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_44e9a18fd990",
+      "depth": 1,
+      "home": "capability_e07dc33c510d",
+      "at": [
+        -79.62828419731684,
+        -115.9807010418203,
+        117.2209355944545
+      ],
+      "world": [
+        117.22093559445452,
+        -13.552152967987457,
+        140.03044600476366
+      ],
+      "screen": [
+        0.2881073434186951,
+        -0.45086573255255913,
+        -0.2731118713677847
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_4ed83ae0d3f8",
+      "depth": 1,
+      "home": "capability_d6e345aa554a",
+      "at": [
+        -96.56144875707412,
+        -97.30738923958593,
+        121.40878474521797
+      ],
+      "world": [
+        121.40878474521799,
+        11.422377105723504,
+        136.6102876358292
+      ],
+      "screen": [
+        0.2984003007931266,
+        -0.3782747210371091,
+        -0.288647597373342
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5a18094c3bc8",
+      "depth": 1,
+      "home": "capability_08d9ed39dc7a",
+      "at": [
+        54.87260543795509,
+        -5.087919083929652,
+        174.63116746974436
+      ],
+      "world": [
+        174.63116746974438,
+        -45.30530582144333,
+        -31.373858745452452
+      ],
+      "screen": [
+        0.42921105758682826,
+        -0.01977887997173721,
+        -0.14971089918073766
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5a48a85b49e1",
+      "depth": 1,
+      "home": "capability_2fa1a37e0d10",
+      "at": [
+        -51.86958134207544,
+        -97.3073892395859,
+        146.19765022316034
+      ],
+      "world": [
+        146.19765022316037,
+        -22.813579580146342,
+        107.88290900771443
+      ],
+      "screen": [
+        0.35932673976919677,
+        -0.37827472103710896,
+        -0.24764400324975966
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5d581d3236ce",
+      "depth": 1,
+      "home": "capability_ce057519af04",
+      "at": [
+        -15.024731056536197,
+        76.79719062336672,
+        165.5577946489897
+      ],
+      "world": [
+        165.55779464898973,
+        60.873894326652135,
+        -49.172350162164946
+      ],
+      "screen": [
+        0.40691038812042035,
+        0.29854295841769035,
+        -0.2138398376591002
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_64645593120f",
+      "depth": 1,
+      "home": "capability_83d80a307e18",
+      "at": [
+        -111.57987784160372,
+        -45.2311023921723,
+        137.97468114564217
+      ],
+      "world": [
+        137.9746811456422,
+        56.401153194303426,
+        106.37119761058965
+      ],
+      "screen": [
+        0.33911620515843294,
+        -0.17583230598729715,
+        -0.3024266047448083
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_66851870050e",
+      "depth": 1,
+      "home": "capability_c7aada819094",
+      "at": [
+        -91.14867960933206,
+        -78.63407743735155,
+        137.99106663495263
+      ],
+      "world": [
+        137.99106663495266,
+        19.278928836499535,
+        118.82643995283736
+      ],
+      "screen": [
+        0.3391564776555932,
+        -0.30568370952165896,
+        -0.2836815263171083
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6759504427b2",
+      "depth": 1,
+      "home": "capability_9b5a450c6869",
+      "at": [
+        25.89716637157403,
+        -143.56077734243013,
+        110.69134737078696
+      ],
+      "world": [
+        110.69134737078699,
+        -112.11746930415408,
+        93.32755806337079
+      ],
+      "screen": [
+        0.27205882523208674,
+        -0.5580810812565314,
+        -0.17629509025957701
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_68c32db54213",
+      "depth": 1,
+      "home": "story_be32e99ed54f",
+      "at": [
+        -97.98254474820939,
+        49.129794150686735,
+        146.69225832120898
+      ],
+      "world": [
+        146.692258321209,
+        106.63900687353411,
+        25.346359928993074
+      ],
+      "screen": [
+        0.3605423948434334,
+        0.1909881595035247,
+        -0.2899514149715211
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6cacee557c00",
+      "depth": 1,
+      "home": "capability_d52cb21878a8",
+      "at": [
+        1.6374959094554302,
+        96.47796483596409,
+        155.635006692765
+      ],
+      "world": [
+        155.63500669276502,
+        60.760445762263004,
+        -74.95897092752881
+      ],
+      "screen": [
+        0.3825220136131095,
+        0.37505039976661503,
+        -0.19855268965598838
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6e97ca719a93",
+      "depth": 1,
+      "home": "capability_1ceafc09bfaa",
+      "at": [
+        17.868038600084112,
+        -110.89064242478969,
+        144.62687516227177
+      ],
+      "world": [
+        144.6268751622718,
+        -84.96684265986512,
+        73.46180660186886
+      ],
+      "screen": [
+        0.3554660656702745,
+        -0.431078535316396,
+        -0.18366160044031
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6ea1cb7bed69",
+      "depth": 1,
+      "home": "capability_257f1084e3fe",
+      "at": [
+        -13.597075647174591,
+        -136.97996037203725,
+        120.76648703311741
+      ],
+      "world": [
+        120.76648703311744,
+        -77.63305706031221,
+        113.67276921563138
+      ],
+      "screen": [
+        0.2968216520084299,
+        -0.5324986797233606,
+        -0.2125300019699754
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_72696ec0bee3",
+      "depth": 1,
+      "home": "capability_4da153322012",
+      "at": [
+        -18.068795147724103,
+        -18.0687951477241,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        2.2271024738479395,
+        25.455897759690522
+      ],
+      "screen": [
+        0.44567149946065693,
+        -0.07024100119625301,
+        -0.2166326851210828
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_728785ea6f01",
+      "depth": 1,
+      "home": "capability_602c631d32a7",
+      "at": [
+        25.553135153652594,
+        0,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        -19.574837188723734,
+        -16.42523866541344
+      ],
+      "screen": [
+        0.44567149946065693,
+        -9.667623912145659e-17,
+        -0.17661072970902103
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_7550ce4b68d9",
+      "depth": 1,
+      "home": "story_20549f1d48af",
+      "at": [
+        -23.844946525059143,
+        97.4312323826029,
+        153.20413793897444
+      ],
+      "world": [
+        153.20413793897447,
+        80.89387775401785,
+        -59.309417972980654
+      ],
+      "screen": [
+        0.376547388557419,
+        0.37875615138626517,
+        -0.22193214966288288
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_75861296c709",
+      "depth": 1,
+      "home": "story_be32e99ed54f",
+      "at": [
+        -102.10516913020211,
+        54.44048381057129,
+        141.92851214383862
+      ],
+      "world": [
+        141.92851214383865,
+        113.21076588469067,
+        23.92810749804564
+      ],
+      "screen": [
+        0.3488339892679018,
+        0.21163304233622793,
+        -0.29373381267966625
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_767844be893d",
+      "depth": 1,
+      "home": "capability_f37769a4a28f",
+      "at": [
+        28.931689641951714,
+        -113.94453959296398,
+        140.40133058988172
+      ],
+      "world": [
+        140.40133058988175,
+        -95.40509832205453,
+        68.68964974979748
+      ],
+      "screen": [
+        0.3450804599329136,
+        -0.4429503171861452,
+        -0.17351099624574373
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_7ac3dd5c20e7",
+      "depth": 1,
+      "home": "capability_577030ecbf6f",
+      "at": [
+        -38.56611722456895,
+        112.82934298679073,
+        138.97887740009253
+      ],
+      "world": [
+        138.97887740009256,
+        102.06866347353811,
+        -61.64246891012473
+      ],
+      "screen": [
+        0.3415843335151425,
+        0.43861507925202414,
+        -0.23543843040925638
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_7f67a324a35f",
+      "depth": 1,
+      "home": "capability_644c46abf9fa",
+      "at": [
+        18.068795147724096,
+        -18.068795147724103,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        -25.455897759690465,
+        2.2271024738478875
+      ],
+      "screen": [
+        0.44567149946065693,
+        -0.07024100119625303,
+        -0.1834774116723482
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_85f022593ee4",
+      "depth": 1,
+      "home": "story_05e45963ca9f",
+      "at": [
+        0,
+        0,
+        183.12
+      ],
+      "world": [
+        183.12000000000003,
+        5.082601006733967e-14,
+        0
+      ],
+      "screen": [
+        0.45007503531073456,
+        -9.397095840350937e-17,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_88f95657e45b",
+      "depth": 1,
+      "home": "capability_05ff7e9f0f99",
+      "at": [
+        -25.553135153652594,
+        3.129356517410036e-15,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        19.574837188723837,
+        16.425238665413435
+      ],
+      "screen": [
+        0.44567149946065693,
+        -8.286534781839135e-17,
+        -0.22349936708440998
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_8e0409a1dc88",
+      "depth": 1,
+      "home": "capability_dd7b2b7e8ba0",
+      "at": [
+        77.63425630675107,
+        -30.630993063574355,
+        162.99570212627364
+      ],
+      "world": [
+        162.99570212627367,
+        -79.16051345312103,
+        -26.43763601764158
+      ],
+      "screen": [
+        0.400613239351139,
+        -0.11907554448598347,
+        -0.12882769273200512
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_8f084fbb7bb1",
+      "depth": 1,
+      "home": "capability_dd3fe61f2b0c",
+      "at": [
+        -11.267270258710438,
+        -124.44660223473826,
+        133.86196701507868
+      ],
+      "world": [
+        133.8619670150787,
+        -71.36150421327405,
+        102.57408982424778
+      ],
+      "screen": [
+        0.3290079157441892,
+        -0.48377624877444514,
+        -0.2103924677817427
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_9528e7117fcd",
+      "depth": 1,
+      "home": "capability_741dcbce28ee",
+      "at": [
+        -57.2823504898175,
+        -115.9807010418203,
+        129.61536833342572
+      ],
+      "world": [
+        129.61536833342575,
+        -30.670131310922386,
+        125.66675669070628
+      ],
+      "screen": [
+        0.3185705629067303,
+        -0.4508657325525591,
+        -0.25261007430599347
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_966dae4433c0",
+      "depth": 1,
+      "home": "capability_9e755f5badcf",
+      "at": [
+        -80.79823605277203,
+        67.89489895015657,
+        149.64913012546563
+      ],
+      "world": [
+        149.64913012546566,
+        105.5370395481218,
+        -0.07440503764187412
+      ],
+      "screen": [
+        0.36780983795019473,
+        0.2639360089805495,
+        -0.2741852709324024
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_98e3f55d636d",
+      "depth": 1,
+      "home": "capability_f3c4cf342304",
+      "at": [
+        1.564678258705018e-15,
+        25.553135153652594,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        16.42523866541348,
+        -19.574837188723784
+      ],
+      "screen": [
+        0.44567149946065693,
+        0.09933577652640554,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_9b2dda99bc1b",
+      "depth": 1,
+      "home": "capability_10618c4fdcc4",
+      "at": [
+        38.3946027902493,
+        -128.75265846769702,
+        124.42484403879938
+      ],
+      "world": [
+        124.4248440387994,
+        -112.17258569046919,
+        73.95068360356646
+      ],
+      "screen": [
+        0.3058132157836133,
+        -0.5005156992213382,
+        -0.16482902629455554
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_9c5546e0993f",
+      "depth": 1,
+      "home": "capability_f5d1f85f2dd1",
+      "at": [
+        -18.0687951477241,
+        18.068795147724103,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        25.45589775969057,
+        -2.2271024738478857
+      ],
+      "screen": [
+        0.44567149946065693,
+        0.07024100119625283,
+        -0.2166326851210828
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_a2aced317663",
+      "depth": 1,
+      "home": "capability_9f02379a2e1a",
+      "at": [
+        -101.58697964167607,
+        77.68247436723534,
+        131.06659812273122
+      ],
+      "world": [
+        131.06659812273125,
+        127.75347326079782,
+        5.79062400239502
+      ],
+      "screen": [
+        0.32213741687497877,
+        0.3019844284218446,
+        -0.2932583876706969
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_aca488315ccd",
+      "depth": 1,
+      "home": "capability_3a5c6a03eb0b",
+      "at": [
+        -41.72652287165822,
+        80.12658668513744,
+        159.2845309351481
+      ],
+      "world": [
+        159.28453093514813,
+        83.46874810419155,
+        -34.559234579036726
+      ],
+      "screen": [
+        0.3914918680924562,
+        0.31148572028120586,
+        -0.23833801813996802
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_ae92aa6309fd",
+      "depth": 1,
+      "home": "capability_da68dca0d5f4",
+      "at": [
+        82.20731134182475,
+        66.92993711629099,
+        149.31602686770643
+      ],
+      "world": [
+        149.31602686770646,
+        -19.95271974170548,
+        -104.11314756240603
+      ],
+      "screen": [
+        0.36699113185311033,
+        0.2601847967512476,
+        -0.12463203693580005
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_b9ed4ced4ad5",
+      "depth": 1,
+      "home": "capability_2b2232e0345d",
+      "at": [
+        -4.6940347761150535e-15,
+        -25.553135153652594,
+        181.32835322645815
+      ],
+      "world": [
+        181.32835322645818,
+        -16.425238665413378,
+        19.574837188723787
+      ],
+      "screen": [
+        0.44567149946065693,
+        -0.09933577652640575,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_bbe956358790",
+      "depth": 1,
+      "home": "capability_1d423d892a78",
+      "at": [
+        -48.42710000212329,
+        90.38240655761557,
+        151.71938231563644
+      ],
+      "world": [
+        151.71938231563647,
+        95.19400192188036,
+        -38.108600444765855
+      ],
+      "screen": [
+        0.37289813430009233,
+        0.3513544027274745,
+        -0.2444856186083062
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_c0790d7eaa0b",
+      "depth": 1,
+      "home": "capability_34349210675b",
+      "at": [
+        68.73734569698027,
+        44.34355423301749,
+        163.83455345108757
+      ],
+      "world": [
+        163.8345534510876,
+        -24.152374475473156,
+        -78.15264744510739
+      ],
+      "screen": [
+        0.4026749805024938,
+        0.17238203324917376,
+        -0.1369903704784804
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_c0b6a4f875b1",
+      "depth": 1,
+      "home": "capability_e0c02f9f5cfa",
+      "at": [
+        40.743725455568885,
+        52.97078481150913,
+        170.49040791919657
+      ],
+      "world": [
+        170.4904079191966,
+        2.837459675006245,
+        -66.76753724781747
+      ],
+      "screen": [
+        0.4190338377259389,
+        0.20591970460079728,
+        -0.16267376902099284
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_c74cc5c984f0",
+      "depth": 1,
+      "home": "capability_2417a0fb5578",
+      "at": [
+        -12.149679966047673,
+        -133.05871470065577,
+        125.2225942828694
+      ],
+      "world": [
+        125.22259428286942,
+        -76.22129834673291,
+        109.73855274882305
+      ],
+      "screen": [
+        0.3077739380928584,
+        -0.5172551496682312,
+        -0.2112020551089938
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_c77715d80cce",
+      "depth": 1,
+      "home": "capability_71f0c121b919",
+      "at": [
+        -115.09449632980487,
+        5.56860659289997,
+        142.32070100727464
+      ],
+      "world": [
+        142.32070100727466,
+        91.74693066815956,
+        69.71551604750475
+      ],
+      "screen": [
+        0.3497979168375799,
+        0.02164751435585425,
+        -0.30565117329217384
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_c8723685cb44",
+      "depth": 1,
+      "home": "story_eb7d623fb9c8",
+      "at": [
+        7.447384187150205,
+        -125.97500652033922,
+        132.69426740055303
+      ],
+      "world": [
+        132.69426740055306,
+        -86.68020059379359,
+        91.71536743670728
+      ],
+      "screen": [
+        0.3261379264189382,
+        -0.4897177986329468,
+        -0.19322227240960577
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_cd3152d7cc31",
+      "depth": 1,
+      "home": "story_4c04d95d52a8",
+      "at": [
+        -114.4570351511131,
+        -20.02719404199328,
+        141.53244505491034
+      ],
+      "world": [
+        141.53244505491037,
+        74.80594356640242,
+        88.91328474372669
+      ],
+      "screen": [
+        0.3478605297384413,
+        -0.07785412082877198,
+        -0.3050663196945852
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_cec6f907d623",
+      "depth": 1,
+      "home": "capability_9ee4ed8d31a4",
+      "at": [
+        -4.831541467151287,
+        -116.82095535818851,
+        140.93422223239938
+      ],
+      "world": [
+        140.9342222323994,
+        -71.38988716337771,
+        92.59569868276209
+      ],
+      "screen": [
+        0.3463902088670711,
+        -0.45413215424579584,
+        -0.20448785858723006
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_d7f7fbd78c87",
+      "depth": 1,
+      "home": "capability_5dab5db5f983",
+      "at": [
+        14.207701740515352,
+        -146.61467451060437,
+        108.78976435953015
+      ],
+      "world": [
+        108.78976435953018,
+        -105.12582714145496,
+        103.180822047621
+      ],
+      "screen": [
+        0.26738508647642,
+        -0.5699528631262805,
+        -0.18701986169960527
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_db0b7ebb2912",
+      "depth": 1,
+      "home": "capability_066ce0de0158",
+      "at": [
+        -29.274600797283586,
+        75.06221384222961,
+        164.44329174904973
+      ],
+      "world": [
+        164.44329174904976,
+        70.67470627871218,
+        -38.68364113103485
+      ],
+      "screen": [
+        0.4041711464644331,
+        0.2917983744449913,
+        -0.22691371236963498
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_df27e6881c69",
+      "depth": 1,
+      "home": "story_05e45963ca9f",
+      "at": [
+        -6.074163988147483,
+        5.564431781335217,
+        182.93462228565693
+      ],
+      "world": [
+        182.93462228565696,
+        8.229827373702118,
+        -0.35820469442110037
+      ],
+      "screen": [
+        0.4496194112318312,
+        0.021631285108595834,
+        -0.2056279315456191
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e0a8c0841e22",
+      "depth": 1,
+      "home": "capability_e2404de2783f",
+      "at": [
+        -3.5011466073350324,
+        84.78067415929787,
+        162.27419283893826
+      ],
+      "world": [
+        162.2741928389383,
+        57.17800079356235,
+        -62.69527066471985
+      ],
+      "screen": [
+        0.3988399031891988,
+        0.32957811444292423,
+        -0.2032672568533741
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e34130fd58d4",
+      "depth": 1,
+      "home": "capability_cd33386156ad",
+      "at": [
+        -80.54989428929412,
+        53.9643308695382,
+        155.3463869029034
+      ],
+      "world": [
+        155.34638690290342,
+        96.3924021620989,
+        10.437398221475135
+      ],
+      "screen": [
+        0.38181263963913975,
+        0.2097820357235973,
+        -0.2739574240004533
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e412b1fcbc63",
+      "depth": 1,
+      "home": "story_78b33d16d0b6",
+      "at": [
+        58.80326183927648,
+        67.59125016388703,
+        159.70765071950788
+      ],
+      "world": [
+        159.7076507195079,
+        -1.5990938406781137,
+        -89.57590971095061
+      ],
+      "screen": [
+        0.392531818135523,
+        0.2627555985223409,
+        -0.14610462696520343
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e9b30966b459",
+      "depth": 1,
+      "home": "capability_3224f4ab8017",
+      "at": [
+        62.53858769622063,
+        89.51631999956447,
+        146.99893844071698
+      ],
+      "world": [
+        146.998938440717,
+        9.632643775256737,
+        -108.7725088025523
+      ],
+      "screen": [
+        0.3612961577618294,
+        0.34798756025332145,
+        -0.14267756530462816
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_ea96c9945768",
+      "depth": 1,
+      "home": "capability_60a15402b053",
+      "at": [
+        36.91268232306409,
+        80.88908942107285,
+        160.08542562127957
+      ],
+      "world": [
+        160.0854256212796,
+        23.717749264492827,
+        -85.69165229752792
+      ],
+      "screen": [
+        0.39346031885775107,
+        0.3144498889016981,
+        -0.1661886487241947
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_ea9e7d00e846",
+      "depth": 1,
+      "home": "capability_7449c208f41b",
+      "at": [
+        34.62602553487029,
+        -137.1145185972325,
+        116.33392259142514
+      ],
+      "world": [
+        116.33392259142516,
+        -114.6605881107188,
+        82.77863485583937
+      ],
+      "screen": [
+        0.28592722978468726,
+        -0.5330217641005773,
+        -0.1682865952246707
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_eeab631780c6",
+      "depth": 1,
+      "home": "capability_9f02379a2e1a",
+      "at": [
+        -99.69866759371617,
+        61.851948313865456,
+        140.5967516332316
+      ],
+      "world": [
+        140.59675163323163,
+        116.1312763076574,
+        16.703726929578806
+      ],
+      "screen": [
+        0.34556076865389523,
+        0.24044451995749264,
+        -0.2915259118250527
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_f131fa133153",
+      "depth": 1,
+      "home": "capability_01edc782b586",
+      "at": [
+        -117.82070785728169,
+        37.96849989494611,
+        134.94298135040805
+      ],
+      "world": [
+        134.94298135040808,
+        114.66157982927125,
+        46.648132817071215
+      ],
+      "screen": [
+        0.33166484871243285,
+        0.14759951755149311,
+        -0.30815239952041995
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_f19ce3f486f3",
+      "depth": 1,
+      "home": "story_16ac26dfa5d6",
+      "at": [
+        78.71269954987862,
+        -5.138191165755603,
+        165.25992956889064
+      ],
+      "world": [
+        165.25992956889067,
+        -63.6001917106267,
+        -46.65946520543114
+      ],
+      "screen": [
+        0.4061782909358233,
+        -0.01997430868354702,
+        -0.12783824987395875
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_fa952bcf7f82",
+      "depth": 1,
+      "home": "capability_b59e959e0da8",
+      "at": [
+        78.25089209198697,
+        20.45515489571504,
+        164.29034945790488
+      ],
+      "world": [
+        164.2903494579049,
+        -46.79534093498478,
+        -65.96826162464811
+      ],
+      "screen": [
+        0.403795242646786,
+        0.07951778454250895,
+        -0.12826194587642836
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_21d66d418331",
+      "depth": null,
+      "home": null,
+      "at": [
+        5.231999999999999,
+        6.976000000000001,
+        0
+      ],
+      "world": [
+        5.808686864838818e-16,
+        0.4761418387748062,
+        -8.706990809077967
+      ],
+      "screen": [
+        1.4276676200313077e-18,
+        0.02711864406779639,
+        -0.19525482820312867
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_64bf02ca71ed",
+      "depth": null,
+      "home": null,
+      "at": [
+        -5.893060930879096,
+        3.4880000000000004,
+        5.39852654572953
+      ],
+      "world": [
+        5.39852654572953,
+        6.756389761648135,
+        1.1160235318979121
+      ],
+      "screen": [
+        0.013268578121970052,
+        0.013559322033898088,
+        -0.2054617743299042
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6f0f1927dea3",
+      "depth": null,
+      "home": null,
+      "at": [
+        0.7623523195318902,
+        0,
+        -8.686611476341298
+      ],
+      "world": [
+        -8.6866114763413,
+        -0.5839957580762706,
+        -0.49003062521089275
+      ],
+      "screen": [
+        -0.02135008173298898,
+        -2.274481161473555e-16,
+        -0.1993556105146732
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_9f85984d74bd",
+      "depth": null,
+      "home": null,
+      "at": [
+        4.8626506855124845,
+        -3.4879999999999995,
+        6.342466737057829
+      ],
+      "world": [
+        6.342466737057832,
+        -5.967049719052175,
+        -0.45368859328218747
+      ],
+      "screen": [
+        0.015588608238523713,
+        -0.01355932203389852,
+        -0.19559369632963675
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_bb1e90a34e1a",
+      "depth": null,
+      "home": null,
+      "at": [
+        -5.152020955170322,
+        -6.976000000000001,
+        -0.9113199643845584
+      ],
+      "world": [
+        -0.9113199643845592,
+        -0.5374093416325445,
+        8.655581270026886
+      ],
+      "screen": [
+        -0.002239855641927467,
+        -0.027118644067796828,
+        -0.20478188995382385
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    }
+  ],
+  "threads": [],
+  "knowledgeObjects": [
+    {
+      "name": "knowledge-point:decision_03fd07d9014b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_045c9e437b39",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_0aa9bd1f4dd2",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_0badbaa5aa78",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_0ca30d9bc023",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_0d7a048a0502",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_18e98cca5b8f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_1a71d86cb1fc",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_1cd1119deb7d",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_2172db7102e1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_2187235148da",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_232da653f14c",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_314ffca38ecd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_32f64e792f4e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_363a996929eb",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_3897ce9a9c61",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_39475b2d89fb",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_3bc0af7e6ec5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_3ef1f236c5b1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_3fc52254d739",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_44e9a18fd990",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_4ed83ae0d3f8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5a18094c3bc8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5a48a85b49e1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5d581d3236ce",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_64645593120f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_66851870050e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6759504427b2",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_68c32db54213",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6cacee557c00",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6e97ca719a93",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6ea1cb7bed69",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_72696ec0bee3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_728785ea6f01",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_7550ce4b68d9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_75861296c709",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_767844be893d",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_7ac3dd5c20e7",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_7f67a324a35f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_85f022593ee4",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_88f95657e45b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_8e0409a1dc88",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_8f084fbb7bb1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_9528e7117fcd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_966dae4433c0",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_98e3f55d636d",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_9b2dda99bc1b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_9c5546e0993f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_a2aced317663",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_aca488315ccd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_ae92aa6309fd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_b9ed4ced4ad5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_bbe956358790",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_c0790d7eaa0b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_c0b6a4f875b1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_c74cc5c984f0",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_c77715d80cce",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_c8723685cb44",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_cd3152d7cc31",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_cec6f907d623",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_d7f7fbd78c87",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_db0b7ebb2912",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_df27e6881c69",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e0a8c0841e22",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e34130fd58d4",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e412b1fcbc63",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e9b30966b459",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_ea96c9945768",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_ea9e7d00e846",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_eeab631780c6",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_f131fa133153",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_f19ce3f486f3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_fa952bcf7f82",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_21d66d418331",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_64bf02ca71ed",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6f0f1927dea3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_9f85984d74bd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_bb1e90a34e1a",
+      "type": "Mesh"
+    }
+  ],
+  "render": {
+    "frame": 28,
+    "calls": 161,
+    "triangles": 566436,
+    "points": 0,
+    "lines": 0
+  },
+  "memory": {
+    "geometries": 149,
+    "textures": 43
+  },
+  "shellPresent": true,
+  "seaPresent": false,
+  "corePresent": false,
+  "labels": [
+    {
+      "story": "story_05e45963ca9f",
+      "text": "The agent link",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 1106.17431640625,
+        "y": 461.34375,
+        "width": 111.375,
+        "height": 22.875,
+        "top": 461.34375,
+        "right": 1217.54931640625,
+        "bottom": 484.21875,
+        "left": 1106.17431640625
+      }
+    },
+    {
+      "story": "story_16ac26dfa5d6",
+      "text": "The app",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 1084.03173828125,
+        "y": 473.74200439453125,
+        "width": 69.46875,
+        "height": 22.875,
+        "top": 473.74200439453125,
+        "right": 1153.50048828125,
+        "bottom": 496.61700439453125,
+        "left": 1084.03173828125
+      }
+    },
+    {
+      "story": "story_78b33d16d0b6",
+      "text": "The arc surface",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 1046.73583984375,
+        "y": 298.2485656738281,
+        "width": 117.265625,
+        "height": 22.875,
+        "top": 298.2485656738281,
+        "right": 1164.00146484375,
+        "bottom": 321.1235656738281,
+        "left": 1046.73583984375
+      }
+    },
+    {
+      "story": "story_20549f1d48af",
+      "text": "The command line",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 1020.5977783203125,
+        "y": 226.24578857421875,
+        "width": 138.15625,
+        "height": 22.875,
+        "top": 226.24578857421875,
+        "right": 1158.7540283203125,
+        "bottom": 249.12078857421875,
+        "left": 1020.5977783203125
+      }
+    },
+    {
+      "story": "story_be32e99ed54f",
+      "text": "The forest",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 1032.0645751953125,
+        "y": 342.7953796386719,
+        "width": 83.796875,
+        "height": 22.875,
+        "top": 342.7953796386719,
+        "right": 1115.8614501953125,
+        "bottom": 365.6703796386719,
+        "left": 1032.0645751953125
+      }
+    },
+    {
+      "story": "story_4c04d95d52a8",
+      "text": "The knowledge core",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 987.2313232421875,
+        "y": 509.66864013671875,
+        "width": 148.5625,
+        "height": 22.875,
+        "top": 509.66864013671875,
+        "right": 1135.7938232421875,
+        "bottom": 532.5436401367188,
+        "left": 987.2313232421875
+      }
+    },
+    {
+      "story": "story_69d0ee10bbe7",
+      "text": "The librarian",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 995.3804931640625,
+        "y": 698.462890625,
+        "width": 101.34375,
+        "height": 22.875,
+        "top": 698.462890625,
+        "right": 1096.7242431640625,
+        "bottom": 721.337890625,
+        "left": 995.3804931640625
+      }
+    },
+    {
+      "story": "story_eb7d623fb9c8",
+      "text": "The library",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 985.385498046875,
+        "y": 775.0888671875,
+        "width": 88.28125,
+        "height": 22.875,
+        "top": 775.0888671875,
+        "right": 1073.666748046875,
+        "bottom": 797.9638671875,
+        "left": 985.385498046875
+      }
+    }
+  ],
+  "markers": [],
+  "drew": {
+    "surface": "forest",
+    "stories": [
+      "story_05e45963ca9f",
+      "story_16ac26dfa5d6",
+      "story_78b33d16d0b6",
+      "story_20549f1d48af",
+      "story_be32e99ed54f",
+      "story_4c04d95d52a8",
+      "story_69d0ee10bbe7",
+      "story_eb7d623fb9c8"
+    ],
+    "capabilities": [
+      "capability_602c631d32a7",
+      "capability_3f03444b9515",
+      "capability_f3c4cf342304",
+      "capability_f5d1f85f2dd1",
+      "capability_05ff7e9f0f99",
+      "capability_4da153322012",
+      "capability_2b2232e0345d",
+      "capability_644c46abf9fa",
+      "capability_9dedb2e237cb",
+      "capability_b59e959e0da8",
+      "capability_08d9ed39dc7a",
+      "capability_dd7b2b7e8ba0",
+      "capability_da68dca0d5f4",
+      "capability_3224f4ab8017",
+      "capability_60a15402b053",
+      "capability_e0c02f9f5cfa",
+      "capability_34349210675b",
+      "capability_d52cb21878a8",
+      "capability_ff688ce5c495",
+      "capability_6becd708350e",
+      "capability_fb00f5d65e35",
+      "capability_577030ecbf6f",
+      "capability_335e55878092",
+      "capability_1d423d892a78",
+      "capability_3a5c6a03eb0b",
+      "capability_066ce0de0158",
+      "capability_ce057519af04",
+      "capability_e2404de2783f",
+      "capability_cd33386156ad",
+      "capability_9e755f5badcf",
+      "capability_9f02379a2e1a",
+      "capability_5f85ed8b29a7",
+      "capability_01edc782b586",
+      "capability_5daf2d36116d",
+      "capability_dda13a1b6f32",
+      "capability_5006e778a1a5",
+      "capability_71f0c121b919",
+      "capability_8573ce40ed88",
+      "capability_83d80a307e18",
+      "capability_2fa1a37e0d10",
+      "capability_625728b42886",
+      "capability_c7aada819094",
+      "capability_d6e345aa554a",
+      "capability_e07dc33c510d",
+      "capability_741dcbce28ee",
+      "capability_10618c4fdcc4",
+      "capability_75abfdd699c0",
+      "capability_f37769a4a28f",
+      "capability_1ceafc09bfaa",
+      "capability_bf3001e9ea74",
+      "capability_9ee4ed8d31a4",
+      "capability_dd3fe61f2b0c",
+      "capability_2417a0fb5578",
+      "capability_257f1084e3fe",
+      "capability_24cff71dc3fd",
+      "capability_5dab5db5f983",
+      "capability_9b5a450c6869",
+      "capability_7449c208f41b"
+    ],
+    "labels": [
+      "The agent link",
+      "The app",
+      "The arc surface",
+      "The command line",
+      "The forest",
+      "The knowledge core",
+      "The librarian",
+      "The library"
+    ],
+    "trees": [
+      {
+        "capability": "capability_602c631d32a7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3f03444b9515",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f3c4cf342304",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f5d1f85f2dd1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_05ff7e9f0f99",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4da153322012",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2b2232e0345d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_644c46abf9fa",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_9dedb2e237cb",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b59e959e0da8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_08d9ed39dc7a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_dd7b2b7e8ba0",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_da68dca0d5f4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3224f4ab8017",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_60a15402b053",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e0c02f9f5cfa",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_34349210675b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d52cb21878a8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ff688ce5c495",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6becd708350e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_fb00f5d65e35",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_577030ecbf6f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_335e55878092",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1d423d892a78",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3a5c6a03eb0b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_066ce0de0158",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ce057519af04",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e2404de2783f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_cd33386156ad",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_9e755f5badcf",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_9f02379a2e1a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5f85ed8b29a7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_01edc782b586",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5daf2d36116d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_dda13a1b6f32",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5006e778a1a5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_71f0c121b919",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8573ce40ed88",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_83d80a307e18",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2fa1a37e0d10",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_625728b42886",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c7aada819094",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d6e345aa554a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e07dc33c510d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_741dcbce28ee",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_10618c4fdcc4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_75abfdd699c0",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f37769a4a28f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1ceafc09bfaa",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_bf3001e9ea74",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_9ee4ed8d31a4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_dd3fe61f2b0c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2417a0fb5578",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_257f1084e3fe",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_24cff71dc3fd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5dab5db5f983",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_9b5a450c6869",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7449c208f41b",
+        "form": "seedling"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "view": "globe",
+  "selected": null,
+  "panelVisible": false,
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
+    "[.WebGL-0x106c00135a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+  ],
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  },
+  "variant": "production",
+  "turnDegrees": 89.99999999999997,
+  "pathwayPlan": {
+    "links": 103,
+    "segments": 286,
+    "localSegments": 275,
+    "crossSegments": 11
+  },
+  "crossLinksDrawn": [
+    "capability_066ce0de0158->capability_644c46abf9fa",
+    "capability_08d9ed39dc7a->capability_3f03444b9515",
+    "capability_1d423d892a78->capability_1ceafc09bfaa",
+    "capability_1d423d892a78->capability_9ee4ed8d31a4",
+    "capability_1d423d892a78->capability_dd3fe61f2b0c",
+    "capability_3224f4ab8017->capability_05ff7e9f0f99",
+    "capability_3224f4ab8017->capability_f5d1f85f2dd1",
+    "capability_335e55878092->capability_7449c208f41b",
+    "capability_3a5c6a03eb0b->capability_05ff7e9f0f99",
+    "capability_4da153322012->capability_dd3fe61f2b0c",
+    "capability_5006e778a1a5->capability_7449c208f41b",
+    "capability_577030ecbf6f->capability_9b5a450c6869",
+    "capability_6becd708350e->capability_257f1084e3fe",
+    "capability_6becd708350e->capability_75abfdd699c0",
+    "capability_6becd708350e->capability_bf3001e9ea74",
+    "capability_6becd708350e->capability_dd3fe61f2b0c",
+    "capability_6becd708350e->capability_f37769a4a28f",
+    "capability_83d80a307e18->capability_9f02379a2e1a",
+    "capability_ce057519af04->capability_4da153322012",
+    "capability_d52cb21878a8->capability_602c631d32a7",
+    "capability_d52cb21878a8->capability_dd3fe61f2b0c",
+    "capability_da68dca0d5f4->capability_05ff7e9f0f99",
+    "capability_da68dca0d5f4->capability_3f03444b9515",
+    "capability_e2404de2783f->capability_05ff7e9f0f99",
+    "capability_fb00f5d65e35->capability_24cff71dc3fd",
+    "capability_fb00f5d65e35->capability_5dab5db5f983",
+    "capability_fb00f5d65e35->capability_9b5a450c6869",
+    "capability_ff688ce5c495->capability_f5d1f85f2dd1"
+  ]
+}

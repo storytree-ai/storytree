@@ -1,0 +1,1316 @@
+{
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  },
+  "radius": 218,
+  "artifacts": 78,
+  "active": 78,
+  "placed": 73,
+  "depthCounts": {
+    "1": 73
+  },
+  "noShelf": 5,
+  "drawn": 78,
+  "shelves": 66,
+  "emptyShelves": 0,
+  "artifactLinks": 0,
+  "ghosts": 0,
+  "proposed": 0,
+  "loops": 0,
+  "threads": 0,
+  "stories": [
+    {
+      "id": "story_05e45963ca9f",
+      "title": "The agent link",
+      "artifacts": 10,
+      "shelves": 9
+    },
+    {
+      "id": "story_16ac26dfa5d6",
+      "title": "The app",
+      "artifacts": 5,
+      "shelves": 5
+    },
+    {
+      "id": "story_78b33d16d0b6",
+      "title": "The arc surface",
+      "artifacts": 6,
+      "shelves": 6
+    },
+    {
+      "id": "story_20549f1d48af",
+      "title": "The command line",
+      "artifacts": 12,
+      "shelves": 12
+    },
+    {
+      "id": "story_be32e99ed54f",
+      "title": "The forest",
+      "artifacts": 12,
+      "shelves": 8
+    },
+    {
+      "id": "story_4c04d95d52a8",
+      "title": "The knowledge core",
+      "artifacts": 5,
+      "shelves": 5
+    },
+    {
+      "id": "story_69d0ee10bbe7",
+      "title": "The librarian",
+      "artifacts": 7,
+      "shelves": 7
+    },
+    {
+      "id": "story_eb7d623fb9c8",
+      "title": "The library",
+      "artifacts": 16,
+      "shelves": 14
+    }
+  ],
+  "notes": [
+    {
+      "id": "decision_03fd07d9014b",
+      "title": "2 · Agent activity log: founding book (ADR-0626 D2, B1)",
+      "depth": 1,
+      "home": "capability_3f03444b9515",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_3f03444b9515"
+      ],
+      "at": {
+        "x": 18.068795147724103,
+        "y": 18.0687951477241,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_045c9e437b39",
+      "title": "The planet begins with islands spread around a globe",
+      "depth": 1,
+      "home": "capability_cd33386156ad",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_cd33386156ad"
+      ],
+      "at": {
+        "x": -75.77494705760704,
+        "y": 48.64910805864404,
+        "z": 159.45016802598616
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_0aa9bd1f4dd2",
+      "title": "The librarian is a story of its own: six capabilities, on for 0.3's own library first",
+      "depth": 1,
+      "home": "story_69d0ee10bbe7",
+      "story": "story_69d0ee10bbe7",
+      "entrances": [
+        "story_69d0ee10bbe7"
+      ],
+      "at": {
+        "x": -74.94881453484204,
+        "y": -98.26885206032394,
+        "z": 135.1252837723867
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_0badbaa5aa78",
+      "title": "3 · Library: founding book (ADR-0645 D1 item 3)",
+      "depth": 1,
+      "home": "capability_6becd708350e",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_6becd708350e"
+      ],
+      "at": {
+        "x": -11.220817442231018,
+        "y": 116.15873904856143,
+        "z": 141.11759280322326
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_0ca30d9bc023",
+      "title": "2 · Earlier decisions beside their replacements: founding book (G2, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_5006e778a1a5",
+      "story": "story_4c04d95d52a8",
+      "entrances": [
+        "capability_5006e778a1a5"
+      ],
+      "at": {
+        "x": -93.46812416572163,
+        "y": -19.831247899636168,
+        "z": 156.21576671925413
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_0d7a048a0502",
+      "title": "The app can be controlled from outside",
+      "depth": 1,
+      "home": "capability_9dedb2e237cb",
+      "story": "story_16ac26dfa5d6",
+      "entrances": [
+        "capability_9dedb2e237cb"
+      ],
+      "at": {
+        "x": 101.01254296078301,
+        "y": -5.0879190839296555,
+        "z": 152.65488411443428
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_18e98cca5b8f",
+      "title": "2 · Who wrote it: founding book (ADR-0645 D2, W1 and A1)",
+      "depth": 1,
+      "home": "capability_ff688ce5c495",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_ff688ce5c495"
+      ],
+      "at": {
+        "x": -1.24028619733274,
+        "y": 108.17525551263029,
+        "z": 147.7481309016323
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_1a71d86cb1fc",
+      "title": "Decisions about the whole project sit on no shelf",
+      "depth": 1,
+      "home": "capability_257f1084e3fe",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_257f1084e3fe"
+      ],
+      "at": {
+        "x": -7.276621159401783,
+        "y": -140.68436157720555,
+        "z": 116.99528021299255
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_1cd1119deb7d",
+      "title": "10 · Work in flight: founding book (10-b)",
+      "depth": 1,
+      "home": "capability_24cff71dc3fd",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_24cff71dc3fd"
+      ],
+      "at": {
+        "x": 2.2355471153495325,
+        "y": -145.5765990639772,
+        "z": 111.06480330897405
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_2172db7102e1",
+      "title": "7 · Library entrypoints: founding book",
+      "depth": 1,
+      "home": "capability_dda13a1b6f32",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_dda13a1b6f32"
+      ],
+      "at": {
+        "x": -86.75254034631918,
+        "y": 29.403317167131508,
+        "z": 158.56347651029012
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_2187235148da",
+      "title": "6 · Unclaimed work: founding book",
+      "depth": 1,
+      "home": "capability_5daf2d36116d",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_5daf2d36116d"
+      ],
+      "at": {
+        "x": -105.46466427041398,
+        "y": 24.649999359516514,
+        "z": 147.65675237490737
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_232da653f14c",
+      "title": "The forest keeps 0.2's fixed view and full-size seedlings",
+      "depth": 1,
+      "home": "capability_9f02379a2e1a",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_9f02379a2e1a"
+      ],
+      "at": {
+        "x": -98.03976826203333,
+        "y": 72.64821675777159,
+        "z": 136.5407442525587
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_314ffca38ecd",
+      "title": "2 · Decision log: founding book (proposed, approved)",
+      "depth": 1,
+      "home": "capability_625728b42886",
+      "story": "story_69d0ee10bbe7",
+      "entrances": [
+        "capability_625728b42886"
+      ],
+      "at": {
+        "x": -68.80274590183272,
+        "y": -78.63407743735154,
+        "z": 150.3854993739238
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_32f64e792f4e",
+      "title": "4 · Drill-down: founding book",
+      "depth": 1,
+      "home": "capability_5f85ed8b29a7",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_5f85ed8b29a7"
+      ],
+      "at": {
+        "x": -114.51631826865491,
+        "y": 59.32971622234198,
+        "z": 129.99589233190602
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_363a996929eb",
+      "title": "4 · Arcs and increments: founding book (ADR-0645 D1 item 4)",
+      "depth": 1,
+      "home": "capability_fb00f5d65e35",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_fb00f5d65e35"
+      ],
+      "at": {
+        "x": -25.13534967404817,
+        "y": 117.89371582969856,
+        "z": 137.84854139463943
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_3897ce9a9c61",
+      "title": "6 · Decisions: founding book (ADR-0645 D1 item 6 and D4, V1)",
+      "depth": 1,
+      "home": "capability_335e55878092",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_335e55878092"
+      ],
+      "at": {
+        "x": -47.248946293771766,
+        "y": 102.57352311431264,
+        "z": 144.14972712442386
+      },
+      "radius": 183.12000000000006
+    },
+    {
+      "id": "decision_39475b2d89fb",
+      "title": "ADR-0650: 0.3's library has no memory type, and its knowledge records are called artifacts",
+      "depth": 1,
+      "home": "capability_bf3001e9ea74",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_bf3001e9ea74"
+      ],
+      "at": {
+        "x": 5.683158501423308,
+        "y": -111.92871787141686,
+        "z": 144.81919149445793
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_3bc0af7e6ec5",
+      "title": "The library's revised tree: eight more knowledge kinds, work in flight, waits, owner questions and the decision log",
+      "depth": 1,
+      "home": "story_eb7d623fb9c8",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "story_eb7d623fb9c8"
+      ],
+      "at": {
+        "x": 13.10191067827404,
+        "y": -130.0248218168038,
+        "z": 128.2763425113413
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_3ef1f236c5b1",
+      "title": "2 · Library transactions: founding book (ADR-0621 D1)",
+      "depth": 1,
+      "home": "capability_75abfdd699c0",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_75abfdd699c0"
+      ],
+      "at": {
+        "x": 36.339562504783075,
+        "y": -120.39079833816153,
+        "z": 133.11057911548988
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_3fc52254d739",
+      "title": "3 · Reads by session and agent: founding book (R1 and T1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_8573ce40ed88",
+      "story": "story_4c04d95d52a8",
+      "entrances": [
+        "capability_8573ce40ed88"
+      ],
+      "at": {
+        "x": -133.2062500056869,
+        "y": -19.831247899636168,
+        "z": 124.07961543366262
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_44e9a18fd990",
+      "title": "5 · Queues: founding book (proposed, approved; 0.2's ADR-0168 D4)",
+      "depth": 1,
+      "home": "capability_e07dc33c510d",
+      "story": "story_69d0ee10bbe7",
+      "entrances": [
+        "capability_e07dc33c510d"
+      ],
+      "at": {
+        "x": -79.62828419731684,
+        "y": -115.9807010418203,
+        "z": 117.2209355944545
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_4ed83ae0d3f8",
+      "title": "4 · Graduation: founding book (proposed, approved; 0.2's ADR-0095)",
+      "depth": 1,
+      "home": "capability_d6e345aa554a",
+      "story": "story_69d0ee10bbe7",
+      "entrances": [
+        "capability_d6e345aa554a"
+      ],
+      "at": {
+        "x": -96.56144875707412,
+        "y": -97.30738923958593,
+        "z": 121.40878474521797
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_5a18094c3bc8",
+      "title": "3 · Surfaces: founding book (ADR-0632 D1 row 3; ADR-0633 D3 item 14)",
+      "depth": 1,
+      "home": "capability_08d9ed39dc7a",
+      "story": "story_16ac26dfa5d6",
+      "entrances": [
+        "capability_08d9ed39dc7a"
+      ],
+      "at": {
+        "x": 54.87260543795509,
+        "y": -5.087919083929652,
+        "z": 174.63116746974436
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_5a48a85b49e1",
+      "title": "1 · Links: founding book (proposed, approved with ADR-0644)",
+      "depth": 1,
+      "home": "capability_2fa1a37e0d10",
+      "story": "story_69d0ee10bbe7",
+      "entrances": [
+        "capability_2fa1a37e0d10"
+      ],
+      "at": {
+        "x": -51.86958134207544,
+        "y": -97.3073892395859,
+        "z": 146.19765022316034
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_5d581d3236ce",
+      "title": "9 · Friction and re-steers: founding book (ADR-0645 D1 item 9, F1)",
+      "depth": 1,
+      "home": "capability_ce057519af04",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_ce057519af04"
+      ],
+      "at": {
+        "x": -15.024731056536197,
+        "y": 76.79719062336672,
+        "z": 165.5577946489897
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_64645593120f",
+      "title": "4 · Look inside and inspect an artifact: founding book (E1 and V1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_83d80a307e18",
+      "story": "story_4c04d95d52a8",
+      "entrances": [
+        "capability_83d80a307e18"
+      ],
+      "at": {
+        "x": -111.57987784160372,
+        "y": -45.2311023921723,
+        "z": 137.97468114564217
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_66851870050e",
+      "title": "3 · Catalogue: founding book (proposed, approved; 0.2's `edit-first-curation`)",
+      "depth": 1,
+      "home": "capability_c7aada819094",
+      "story": "story_69d0ee10bbe7",
+      "entrances": [
+        "capability_c7aada819094"
+      ],
+      "at": {
+        "x": -91.14867960933206,
+        "y": -78.63407743735155,
+        "z": 137.99106663495263
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_6759504427b2",
+      "title": "12 · Owner questions: founding book (12-a)",
+      "depth": 1,
+      "home": "capability_9b5a450c6869",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_9b5a450c6869"
+      ],
+      "at": {
+        "x": 25.89716637157403,
+        "y": -143.56077734243013,
+        "z": 110.69134737078696
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_68c32db54213",
+      "title": "The forest's capability tree",
+      "depth": 1,
+      "home": "story_be32e99ed54f",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "story_be32e99ed54f"
+      ],
+      "at": {
+        "x": -97.98254474820939,
+        "y": 49.129794150686735,
+        "z": 146.69225832120898
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_6cacee557c00",
+      "title": "1 · Front door: founding book (ADR-0645 D1)",
+      "depth": 1,
+      "home": "capability_d52cb21878a8",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_d52cb21878a8"
+      ],
+      "at": {
+        "x": 1.6374959094554302,
+        "y": 96.47796483596409,
+        "z": 155.635006692765
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_6e97ca719a93",
+      "title": "4 · Work model: founding book (ADR-0621 D2)",
+      "depth": 1,
+      "home": "capability_1ceafc09bfaa",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_1ceafc09bfaa"
+      ],
+      "at": {
+        "x": 17.868038600084112,
+        "y": -110.89064242478969,
+        "z": 144.62687516227177
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_6ea1cb7bed69",
+      "title": "Every story and capability has a shelf of front covers",
+      "depth": 1,
+      "home": "capability_257f1084e3fe",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_257f1084e3fe"
+      ],
+      "at": {
+        "x": -13.597075647174591,
+        "y": -136.97996037203725,
+        "z": 120.76648703311741
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_72696ec0bee3",
+      "title": "Every knowledge read is recorded, and a new artifact has a default place",
+      "depth": 1,
+      "home": "capability_4da153322012",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_4da153322012"
+      ],
+      "at": {
+        "x": -18.068795147724103,
+        "y": -18.0687951477241,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_728785ea6f01",
+      "title": "1 · Project routing: founding book (ADR-0626 D5)",
+      "depth": 1,
+      "home": "capability_602c631d32a7",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_602c631d32a7"
+      ],
+      "at": {
+        "x": 25.553135153652594,
+        "y": 0,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_7550ce4b68d9",
+      "title": "The command line is a front door onto the library and the agent link: ten capabilities, writes recorded by writer, friction and plan verbs, no anchors yet",
+      "depth": 1,
+      "home": "story_20549f1d48af",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "story_20549f1d48af"
+      ],
+      "at": {
+        "x": -23.844946525059143,
+        "y": 97.4312323826029,
+        "z": 153.20413793897444
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_75861296c709",
+      "title": "Five pieces of 0.2's forest are left out",
+      "depth": 1,
+      "home": "story_be32e99ed54f",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "story_be32e99ed54f"
+      ],
+      "at": {
+        "x": -102.10516913020211,
+        "y": 54.44048381057129,
+        "z": 141.92851214383862
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_767844be893d",
+      "title": "3 · Data schema: founding book (ADR-0621 D1; ADR-0636 a1)",
+      "depth": 1,
+      "home": "capability_f37769a4a28f",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_f37769a4a28f"
+      ],
+      "at": {
+        "x": 28.931689641951714,
+        "y": -113.94453959296398,
+        "z": 140.40133058988172
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_7ac3dd5c20e7",
+      "title": "5 · Questions: founding book (ADR-0645 D1 item 5 and D5)",
+      "depth": 1,
+      "home": "capability_577030ecbf6f",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_577030ecbf6f"
+      ],
+      "at": {
+        "x": -38.56611722456895,
+        "y": 112.82934298679073,
+        "z": 138.97887740009253
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_7f67a324a35f",
+      "title": "8 · Setup check: founding book (ADR-0626 D5)",
+      "depth": 1,
+      "home": "capability_644c46abf9fa",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_644c46abf9fa"
+      ],
+      "at": {
+        "x": 18.068795147724096,
+        "y": -18.068795147724103,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_85f022593ee4",
+      "title": "The agent link's capability tree",
+      "depth": 1,
+      "home": "story_05e45963ca9f",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "story_05e45963ca9f"
+      ],
+      "at": {
+        "x": 0,
+        "y": 0,
+        "z": 183.12
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_88f95657e45b",
+      "title": "5 · Claims: founding book (ADR-0626 D3, C1; ADR-0643 D1)",
+      "depth": 1,
+      "home": "capability_05ff7e9f0f99",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_05ff7e9f0f99"
+      ],
+      "at": {
+        "x": -25.553135153652594,
+        "y": 3.129356517410036e-15,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_8e0409a1dc88",
+      "title": "The app updates itself",
+      "depth": 1,
+      "home": "capability_dd7b2b7e8ba0",
+      "story": "story_16ac26dfa5d6",
+      "entrances": [
+        "capability_dd7b2b7e8ba0"
+      ],
+      "at": {
+        "x": 77.63425630675107,
+        "y": -30.630993063574355,
+        "z": 162.99570212627364
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_8f084fbb7bb1",
+      "title": "7 · Library API: founding book (ADR-0621 D1 and D5)",
+      "depth": 1,
+      "home": "capability_dd3fe61f2b0c",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_dd3fe61f2b0c"
+      ],
+      "at": {
+        "x": -11.267270258710438,
+        "y": -124.44660223473826,
+        "z": 133.86196701507868
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_9528e7117fcd",
+      "title": "6 · Rounds: founding book (proposed, approved; 0.2's `pre-merge-librarian-pass`)",
+      "depth": 1,
+      "home": "capability_741dcbce28ee",
+      "story": "story_69d0ee10bbe7",
+      "entrances": [
+        "capability_741dcbce28ee"
+      ],
+      "at": {
+        "x": -57.2823504898175,
+        "y": -115.9807010418203,
+        "z": 129.61536833342572
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_966dae4433c0",
+      "title": "2 · Capability tree: founding book (T1)",
+      "depth": 1,
+      "home": "capability_9e755f5badcf",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_9e755f5badcf"
+      ],
+      "at": {
+        "x": -80.79823605277203,
+        "y": 67.89489895015657,
+        "z": 149.64913012546563
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_98e3f55d636d",
+      "title": "3 · Hooks: founding book (ADR-0626 D1 row 3 and D4, E1)",
+      "depth": 1,
+      "home": "capability_f3c4cf342304",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_f3c4cf342304"
+      ],
+      "at": {
+        "x": 1.564678258705018e-15,
+        "y": 25.553135153652594,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_9b2dda99bc1b",
+      "title": "1 · Project libraries: founding book (ADR-0621 D3)",
+      "depth": 1,
+      "home": "capability_10618c4fdcc4",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_10618c4fdcc4"
+      ],
+      "at": {
+        "x": 38.3946027902493,
+        "y": -128.75265846769702,
+        "z": 124.42484403879938
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_9c5546e0993f",
+      "title": "4 · Sessions: founding book (ADR-0626 D1 row 4 and D9)",
+      "depth": 1,
+      "home": "capability_f5d1f85f2dd1",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_f5d1f85f2dd1"
+      ],
+      "at": {
+        "x": -18.0687951477241,
+        "y": 18.068795147724103,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_a2aced317663",
+      "title": "The globe is the only view, and islands get room for pathways between them",
+      "depth": 1,
+      "home": "capability_9f02379a2e1a",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_9f02379a2e1a"
+      ],
+      "at": {
+        "x": -101.58697964167607,
+        "y": 77.68247436723534,
+        "z": 131.06659812273122
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_aca488315ccd",
+      "title": "7 · Board, read only: founding book (ADR-0645 D1 item 7)",
+      "depth": 1,
+      "home": "capability_3a5c6a03eb0b",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_3a5c6a03eb0b"
+      ],
+      "at": {
+        "x": -41.72652287165822,
+        "y": 80.12658668513744,
+        "z": 159.2845309351481
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_ae92aa6309fd",
+      "title": "1 · Work states: founding book (ADR-0632 D3)",
+      "depth": 1,
+      "home": "capability_da68dca0d5f4",
+      "story": "story_78b33d16d0b6",
+      "entrances": [
+        "capability_da68dca0d5f4"
+      ],
+      "at": {
+        "x": 82.20731134182475,
+        "y": 66.92993711629099,
+        "z": 149.31602686770643
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_b9ed4ced4ad5",
+      "title": "7 · Instructions (the habits card): founding book (ADR-0626 D1 row 7 and D7)",
+      "depth": 1,
+      "home": "capability_2b2232e0345d",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "capability_2b2232e0345d"
+      ],
+      "at": {
+        "x": -4.6940347761150535e-15,
+        "y": -25.553135153652594,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_bbe956358790",
+      "title": "10 · Plan view: founding book (ADR-0645 D1 item 10, P1)",
+      "depth": 1,
+      "home": "capability_1d423d892a78",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_1d423d892a78"
+      ],
+      "at": {
+        "x": -48.42710000212329,
+        "y": 90.38240655761557,
+        "z": 151.71938231563644
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_c0790d7eaa0b",
+      "title": "5 · Briefing: founding book (0.2's ADR-0314 D3)",
+      "depth": 1,
+      "home": "capability_34349210675b",
+      "story": "story_78b33d16d0b6",
+      "entrances": [
+        "capability_34349210675b"
+      ],
+      "at": {
+        "x": 68.73734569698027,
+        "y": 44.34355423301749,
+        "z": 163.83455345108757
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_c0b6a4f875b1",
+      "title": "4 · Waits: founding book (ADR-0633 D3 item 3; ADR-0628 D6)",
+      "depth": 1,
+      "home": "capability_e0c02f9f5cfa",
+      "story": "story_78b33d16d0b6",
+      "entrances": [
+        "capability_e0c02f9f5cfa"
+      ],
+      "at": {
+        "x": 40.743725455568885,
+        "y": 52.97078481150912,
+        "z": 170.4904079191965
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_c74cc5c984f0",
+      "title": "8 · Cloud connection (GCP): founding book (ADR-0621 D4)",
+      "depth": 1,
+      "home": "capability_2417a0fb5578",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_2417a0fb5578"
+      ],
+      "at": {
+        "x": -12.149679966047673,
+        "y": -133.05871470065577,
+        "z": 125.2225942828694
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_c77715d80cce",
+      "title": "Knowledge beneath the islands, with loose artifacts at the core",
+      "depth": 1,
+      "home": "capability_71f0c121b919",
+      "story": "story_4c04d95d52a8",
+      "entrances": [
+        "capability_71f0c121b919"
+      ],
+      "at": {
+        "x": -115.09449632980487,
+        "y": 5.56860659289997,
+        "z": 142.32070100727464
+      },
+      "radius": 183.12000000000006
+    },
+    {
+      "id": "decision_c8723685cb44",
+      "title": "The library's capability tree",
+      "depth": 1,
+      "home": "story_eb7d623fb9c8",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "story_eb7d623fb9c8"
+      ],
+      "at": {
+        "x": 7.447384187150205,
+        "y": -125.97500652033922,
+        "z": 132.69426740055303
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_cd3152d7cc31",
+      "title": "The knowledge inside the planet: four capabilities, a graph that refuses loops, built alongside the MVP",
+      "depth": 1,
+      "home": "story_4c04d95d52a8",
+      "story": "story_4c04d95d52a8",
+      "entrances": [
+        "story_4c04d95d52a8"
+      ],
+      "at": {
+        "x": -114.4570351511131,
+        "y": -20.02719404199328,
+        "z": 141.53244505491034
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_cec6f907d623",
+      "title": "5 · Health record: founding book (ADR-0621 D1 and D5)",
+      "depth": 1,
+      "home": "capability_9ee4ed8d31a4",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_9ee4ed8d31a4"
+      ],
+      "at": {
+        "x": -4.831541467151287,
+        "y": -116.82095535818851,
+        "z": 140.93422223239938
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_d7f7fbd78c87",
+      "title": "11 · Waits: founding book (11-b)",
+      "depth": 1,
+      "home": "capability_5dab5db5f983",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_5dab5db5f983"
+      ],
+      "at": {
+        "x": 14.207701740515352,
+        "y": -146.61467451060437,
+        "z": 108.78976435953015
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_db0b7ebb2912",
+      "title": "8 · Doctor: founding book (ADR-0645 D1 item 8)",
+      "depth": 1,
+      "home": "capability_066ce0de0158",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_066ce0de0158"
+      ],
+      "at": {
+        "x": -29.274600797283586,
+        "y": 75.06221384222961,
+        "z": 164.44329174904973
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_df27e6881c69",
+      "title": "The agent link's revised tree: increment claims, the wait refusal, release on merge, and planning tools",
+      "depth": 1,
+      "home": "story_05e45963ca9f",
+      "story": "story_05e45963ca9f",
+      "entrances": [
+        "story_05e45963ca9f"
+      ],
+      "at": {
+        "x": -6.074163988147483,
+        "y": 5.564431781335217,
+        "z": 182.93462228565693
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_e0a8c0841e22",
+      "title": "11 · Workspace: founding book (ADR-0653 D1, K1 with owner A2/B1)",
+      "depth": 1,
+      "home": "capability_e2404de2783f",
+      "story": "story_20549f1d48af",
+      "entrances": [
+        "capability_e2404de2783f"
+      ],
+      "at": {
+        "x": -3.5011466073350324,
+        "y": 84.78067415929787,
+        "z": 162.27419283893826
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_e34130fd58d4",
+      "title": "The globe packs its islands together on a see-through grey ball, with no sea",
+      "depth": 1,
+      "home": "capability_cd33386156ad",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_cd33386156ad"
+      ],
+      "at": {
+        "x": -80.54989428929412,
+        "y": 53.9643308695382,
+        "z": 155.3463869029034
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_e412b1fcbc63",
+      "title": "The arc surface's capability tree",
+      "depth": 1,
+      "home": "story_78b33d16d0b6",
+      "story": "story_78b33d16d0b6",
+      "entrances": [
+        "story_78b33d16d0b6"
+      ],
+      "at": {
+        "x": 58.80326183927648,
+        "y": 67.59125016388703,
+        "z": 159.70765071950788
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_e9b30966b459",
+      "title": "2 · Agents on the board: founding book (ADR-0626 D3 and D4)",
+      "depth": 1,
+      "home": "capability_3224f4ab8017",
+      "story": "story_78b33d16d0b6",
+      "entrances": [
+        "capability_3224f4ab8017"
+      ],
+      "at": {
+        "x": 62.53858769622063,
+        "y": 89.51631999956447,
+        "z": 146.99893844071698
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_ea96c9945768",
+      "title": "3 · Arc surface: founding book (ADR-0633 D3 item 14)",
+      "depth": 1,
+      "home": "capability_60a15402b053",
+      "story": "story_78b33d16d0b6",
+      "entrances": [
+        "capability_60a15402b053"
+      ],
+      "at": {
+        "x": 36.91268232306409,
+        "y": 80.88908942107285,
+        "z": 160.08542562127957
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_ea9e7d00e846",
+      "title": "13 · Decision log: founding book (13-a)",
+      "depth": 1,
+      "home": "capability_7449c208f41b",
+      "story": "story_eb7d623fb9c8",
+      "entrances": [
+        "capability_7449c208f41b"
+      ],
+      "at": {
+        "x": 34.62602553487029,
+        "y": -137.1145185972325,
+        "z": 116.33392259142514
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_eeab631780c6",
+      "title": "Routed pathways on the glass globe",
+      "depth": 1,
+      "home": "capability_9f02379a2e1a",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_9f02379a2e1a"
+      ],
+      "at": {
+        "x": -99.69866759371617,
+        "y": 61.851948313865456,
+        "z": 140.5967516332316
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_f131fa133153",
+      "title": "5 · Agent capability claims: founding book",
+      "depth": 1,
+      "home": "capability_01edc782b586",
+      "story": "story_be32e99ed54f",
+      "entrances": [
+        "capability_01edc782b586"
+      ],
+      "at": {
+        "x": -117.82070785728169,
+        "y": 37.96849989494611,
+        "z": 134.94298135040805
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_f19ce3f486f3",
+      "title": "The app's capability tree",
+      "depth": 1,
+      "home": "story_16ac26dfa5d6",
+      "story": "story_16ac26dfa5d6",
+      "entrances": [
+        "story_16ac26dfa5d6"
+      ],
+      "at": {
+        "x": 78.71269954987862,
+        "y": -5.138191165755603,
+        "z": 165.25992956889064
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_fa952bcf7f82",
+      "title": "2 · Storytree projects: founding book (ADR-0632 D4 and D3)",
+      "depth": 1,
+      "home": "capability_b59e959e0da8",
+      "story": "story_16ac26dfa5d6",
+      "entrances": [
+        "capability_b59e959e0da8"
+      ],
+      "at": {
+        "x": 78.25089209198697,
+        "y": 20.45515489571504,
+        "z": 164.29034945790488
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_21d66d418331",
+      "title": "The forest becomes a planet, and each read names its agent",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 5.231999999999999,
+        "y": 6.976000000000001,
+        "z": 0
+      },
+      "radius": 8.719999999999999
+    },
+    {
+      "id": "decision_64bf02ca71ed",
+      "title": "The 0.3 MVP one-page spec",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -5.893060930879096,
+        "y": 3.4880000000000004,
+        "z": 5.39852654572953
+      },
+      "radius": 8.72
+    },
+    {
+      "id": "decision_6f0f1927dea3",
+      "title": "Minimal viable TDD",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0.7623523195318902,
+        "y": 0,
+        "z": -8.686611476341298
+      },
+      "radius": 8.719999999999999
+    },
+    {
+      "id": "decision_9f85984d74bd",
+      "title": "Verified health is dropped from the MVP",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 4.8626506855124845,
+        "y": -3.4879999999999995,
+        "z": 6.342466737057829
+      },
+      "radius": 8.72
+    },
+    {
+      "id": "decision_bb1e90a34e1a",
+      "title": "The license: PolyForm Shield",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -5.152020955170322,
+        "y": -6.976000000000001,
+        "z": -0.9113199643845584
+      },
+      "radius": 8.719999999999999
+    }
+  ],
+  "noShelfMeaning": "No recorded route from a shelf; no depth. Pooled at the centre, never unimportant."
+}

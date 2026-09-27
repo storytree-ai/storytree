@@ -1,0 +1,95 @@
+# Knowledge beneath the islands — ADR-0658
+
+The real 0.3 desktop page, reading its own seeded library through the normal page
+API. This is the accepted points-only treatment from `spike/globe-knowledge`, with
+no-shelf artifacts moved from outside the shell to a small centre cluster.
+
+| View | Without the new layer (same seed) | Production |
+| --- | --- | --- |
+| Front | [Baseline](baseline-front.png) | [Faint points](production-front.png) |
+| Quarter turn | [Baseline](baseline-quarter-turn.png) | [Faint points](production-quarter-turn.png) |
+
+Raw 1440 × 960 screenshots, dark theme, device scale 1. Renderer: **headless
+Chromium 148.0.7778.96, ANGLE / Vulkan 1.3.0, SwiftShader Device (Subzero)**. The
+software renderer matches the look test and earlier pathway evidence. No X display,
+Electron window or image retouching was used. Appearance judgment remains with the owner.
+
+## Real-seed census
+
+`STORYTREE_HOME=$(mktemp -d)` was used for `pnpm seed:library`; the entire seed
+finished with **exit 0**, including every story's health recording and Postgres stop.
+The export never opens the owner's app library. It retains the actual history and
+shelf reads, without invented references, failure states or activity.
+
+[Measurements](measurements.json) enumerate all **78 artifacts**:
+
+- **73** at depth 1 beneath their home islands, at radius **183.12** inside the
+  radius-218 shell; zero deeper artifacts because this seed has no artifact links.
+- **5** with no shelf route, at radius **8.72** around the centre, with no assigned depth.
+- **0** threads, ghosts, proposals or loops; **66** shelves, none empty.
+- **8** islands, **58** capability trees, **103** recorded pathways (75 within stories,
+  28 cross-story), all retained.
+
+The count matches the look test. These are submitted meshes, not a claim that every
+point is visible simultaneously: opaque land hides points directly behind it. Points
+keep the selected muted blue-grey (`#a5c5d1`), opacity 0.52 and radius 1.308. Depth
+testing stays on, depth writing stays off, and points cannot be raycast targets.
+
+## Behaviour evidence
+
+Each production capture asserts the exact artifact IDs, coordinates, depth, home,
+point size/material and disabled picking, with only those point meshes beneath the
+knowledge group and no threads. Names (including visibility and pixel bounds),
+claim/failure markers, island/tree geometry and transforms, and all pathway geometry
+and metadata are compared against the same seed/view without the layer. Every native
+cross-story link has drawable ribbon geometry. The quarter turn is measured at 90°.
+Per-view JSON records the renderer, draw counts, warnings and errors. All captures have
+zero page, asset or shader errors. Existing Three.Clock deprecation, drei/React root
+cleanup and SwiftShader readback warnings appear in both baseline and production.
+
+The real seed has no failing islands or claims. A separately labelled **browser-only
+copy** adds one landed failing capability and one current Codex claim. The
+[interaction record](interactions.json) compares the same journey with/without points:
+opening faces the failure; a 180° turn keeps its edge marker; clicking the marker
+reveals it; the claim remains visible; clicking the island opens its story panel.
+Diagnostic state never reaches the database or [real seed](seed.json).
+
+- [Hidden failure](production-synthetic-failure-hidden.png)
+- [Revealed failure and claim](production-synthetic-failure-focused.png)
+
+## Red, green and checks
+
+- Red **c7a7edb** was committed, pushed and [seen failing](red.txt) before implementation.
+- Green **226b3ea** adds the shared capability-1 drawing coordinates and the public
+  `KnowledgeGlobePoints` view mounted by forest. No knowledge story code enters the frame.
+- `flock /tmp/storytree-heavy.lock pnpm typecheck`: passed.
+- `flock /tmp/storytree-heavy.lock pnpm test`: **full scope**, all 12 units PASS,
+  1,939 tests passed, two expected skips, none failed.
+- `pnpm test-ratio` all row (report, not gate):
+  `all                       38,953           28,840    1.35`
+
+The unit proofs cover longest-chain depth, shared artifacts, their own island, filtering
+of ghosts/proposals/retired artifacts, and the bounded distinct centre pool. Existing
+inspection and failure-navigation tests stay green. The front-cover record is uniquely
+ADR-0658; ADR-0647 and ADR-0655's narrowed clauses are corrected in place.
+
+## Reproduce
+
+From this worktree's root, using the committed seed:
+
+```sh
+node packages/forest/src/view/evidence/knowledge-under-islands/build.mjs
+node --import tsx packages/forest/src/view/evidence/knowledge-under-islands/measure.mjs
+flock /tmp/storytree-heavy.lock node packages/forest/src/view/evidence/knowledge-under-islands/capture.mjs
+```
+
+To replace the seed, first run `STORYTREE_HOME=$(mktemp -d) pnpm seed:library` under
+the shared lock, retaining that path, then run `export.mjs` with `node --import tsx`
+and the same `STORYTREE_HOME`. `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` override the
+Mint paths in the capture. Append a case name or `interactions` to capture only it.
+Browser, HTTP server and export Postgres close in `finally` blocks.
+
+The instrument was borrowed from the spike, never merged or cherry-picked. Its
+production bundle substitutes only the Electron read bridge with the exported data
+and exposes scene/navigation observation hooks. The baseline omits only the new
+inside-slot component. No production drawing is substituted for the screenshots.

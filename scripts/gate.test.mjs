@@ -2,10 +2,11 @@
 // scoped test runner and guidance when touched, continuing past failures with honest rows.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { guidanceFor, runGate } from "./gate.mjs";
 
@@ -107,4 +108,42 @@ test("unreadable change scope requires guidance instead of guessing that nothing
   const decision = guidanceFor(root);
   assert.equal(decision.run, true);
   assert.match(decision.reason, /could not.*read/);
+});
+
+test("cancelling the foreground gate stops the typecheck process and its compiler descendant", { timeout: 15_000 }, async (t) => {
+  const { root, write } = checkout(t);
+  // A package manager starting a compiler, as pnpm typecheck does. Use real processes here:
+  // a callback-only cancellation test cannot detect an abandoned compiler.
+  write("manager.mjs", `
+    import { spawn } from 'node:child_process';
+    import { writeFileSync } from 'node:fs';
+    writeFileSync('manager.pid', String(process.pid));
+    spawn(process.execPath, ['compiler.mjs'], { stdio: 'ignore' });
+    setInterval(() => {}, 1000);
+  `);
+  write("compiler.mjs", `
+    import { writeFileSync } from 'node:fs';
+    writeFileSync('compiler.pid', String(process.pid));
+    setInterval(() => {}, 1000);
+  `);
+  const previous = process.env.npm_execpath;
+  process.env.npm_execpath = path.join(root, "manager.mjs");
+  const controller = new AbortController();
+  const pids = [];
+  t.after(() => {
+    controller.abort();
+    if (previous === undefined) delete process.env.npm_execpath;
+    else process.env.npm_execpath = previous;
+    for (const pid of pids) { try { process.kill(pid, "SIGKILL"); } catch {} }
+  });
+  const running = runGate({ root, signal: controller.signal, log: () => {} });
+  for (const file of ["manager.pid", "compiler.pid"]) {
+    for (let i = 0; i < 200 && !existsSync(path.join(root, file)); i++) await delay(25);
+    pids.push(Number(readFileSync(path.join(root, file), "utf8")));
+  }
+  controller.abort();
+  assert.equal(await running, 130);
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  for (let i = 0; i < 100 && pids.some(alive); i++) await delay(25);
+  assert.deepEqual(pids.filter(alive), [], "no typecheck child survives the completed gate");
 });

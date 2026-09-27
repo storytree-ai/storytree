@@ -33,6 +33,8 @@ export type ConnectOptions =
        * databases; each project's records live in that project's database.
        */
       readonly url: string;
+      /** A new local database connection must answer within this long; defaults to 3 seconds. */
+      readonly connectTimeoutMs?: number;
       readonly cloudSql?: undefined;
     }
   | {
@@ -92,7 +94,7 @@ export interface Project {
  * internal: tests hand the cloud path a fake connector through it.
  */
 export async function connect(options: ConnectOptions, seams: CloudSqlSeams = {}): Promise<Storytree> {
-  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url)));
+  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs));
   if (options.url !== undefined) {
     throw new ConnectionError("config", "Give connect() either a url or a cloudSql instance, not both.");
   }

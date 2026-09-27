@@ -1,0 +1,22 @@
+--- old/The agent link/capability 6/contract_4f7c81325063/title
++++ new/The agent link/capability 6/contract_4f7c81325063/title
+@@ -1 +1 @@
+-6.4 · A bad call, such as an unknown capability, gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn't running, carry on without it".
++6.4 · A bad call, such as an unknown capability, gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn't running, carry on without it". If the database accepts TCP but never completes a fresh handshake, a tool call gives up at the 3-second connection deadline, including its library open, and says storytree is not reachable with what to check before retrying. A later call on the same tool server recovers when the database answers.
+
+--- old/The agent link/capability 6/definition_6d3723ad9283/meaning
++++ new/The agent link/capability 6/definition_6d3723ad9283/meaning
+@@ -8,3 +8,8 @@
+   title is a peek, an opened artifact is read whole, and how it was found is where the session last saw
+   it shown (search, shelf or link), else by its id. The artifact tools were built after the library's
+   knowledge entrances landed (its capability 9), on ADR-0627 D4 from their first version.
++  Both library pools and the activity log bound fresh handshakes at 3 seconds. The tools observe
++  both openings together and let failed handshakes settle before answering, so an immediate retry
++  does not reuse the other failed opening. A timeout says to check that the app is responding
++  and try again. The default local-library bound also covers the CLI without front-door changes.
++  Evidence: `packages/agent-link/evidence/stalled-db/README.md`.
+
+--- old/The library/capability 1/ADD contract under capability_5e0362aae607/title
++++ new/The library/capability 1/ADD contract under capability_5e0362aae607/title
+@@ -0,0 +1 @@
++1.9 · A local database that accepts TCP but never completes a fresh handshake is refused at a 3-second connection deadline by default, for both the server and project pools, with an actionable "storytree isn't reachable" answer. This includes library opens made by the CLI. A later call recovers once the database answers.

@@ -41,37 +41,97 @@ export interface Replay {
   missing: Map<string, number>;
 }
 
+type NoteRead = Extract<Line, { kind: "note-read" }>;
+type Started = Extract<Line, { kind: "subagent-started" }>;
+
+/**
+ * A project's recorded reads, kept in memory and fed from the activity log's lines as the page
+ * reads them (from 0, then its new lines). Each line is taken once, by its number, so lines read
+ * twice count once. It owns no store: switching projects starts again.
+ */
 export class ReadRecord {
+  #project: string;
+  #seen = new Set<number>();
+  #reads: NoteRead[] = [];
+  /** What each subagent-started line said of a subagent, by session and id. */
+  #started = new Map<string, Started>();
+
   constructor(project: string) {
-    void project;
+    this.#project = project;
   }
 
   /** Take lines from the log; lines of another project, or already taken, change nothing. */
-  add(_lines: readonly Line[]): void {}
+  add(lines: readonly Line[]): void {
+    for (const line of lines) {
+      if (line.project !== this.#project || this.#seen.has(line.seq)) continue;
+      this.#seen.add(line.seq);
+      if (line.kind === "note-read") this.#reads.push(line);
+      else if (line.kind === "subagent-started") this.#started.set(`${line.session} ${line.subagent}`, line);
+    }
+    this.#reads.sort((a, b) => a.seq - b.seq);
+  }
 
   /** Start again for another project. */
-  switchTo(_project: string): void {}
+  switchTo(project: string): void {
+    this.#project = project;
+    this.#seen.clear();
+    this.#reads = [];
+    this.#started.clear();
+  }
 
   /** The sessions with reads, in the order of their first read. */
   sessions(): string[] {
-    return [];
+    return [...new Set(this.#reads.map(({ session }) => session))];
   }
 
   /** How many distinct sessions peeked at or read the note. */
-  visits(_note: string): number {
-    return -1;
+  visits(note: string): number {
+    return new Set(this.#reads.filter((read) => read.note === note).map(({ session }) => session)).size;
   }
 
-  totals(_note: string): { peeks: number; wholes: number } {
-    return { peeks: -1, wholes: -1 };
+  totals(note: string): { peeks: number; wholes: number } {
+    const of = this.#reads.filter((read) => read.note === note);
+    return { peeks: of.filter(({ read }) => read === "peek").length, wholes: of.filter(({ read }) => read === "whole").length };
   }
 
-  replay(_session: string, _present: ReadonlySet<string>): Replay {
-    return { agents: [], missing: new Map() };
+  /**
+   * One session's reads, agent by agent, in recorded order (line number). Every read of a present
+   * note lights it. A known agent's whole reads are its stops, each reached by a jump from its
+   * previous stop; a peek moves no stop. "unknown", or no agent at all, has no path.
+   */
+  replay(session: string, present: ReadonlySet<string>): Replay {
+    const agents = new Map<string, AgentReplay>();
+    const missing = new Map<string, number>();
+    for (const read of this.#reads) {
+      if (read.session !== session) continue;
+      if (!present.has(read.note)) {
+        missing.set(read.note, (missing.get(read.note) ?? 0) + 1);
+        continue;
+      }
+      const who = this.#who(read);
+      let replay = agents.get(who.agent);
+      if (replay === undefined) agents.set(who.agent, (replay = { ...who, lit: [], jumps: [] }));
+      replay.lit.push({ note: read.note, read: read.read, seq: read.seq, at: read.at });
+      if (replay.known && read.read === "whole") {
+        replay.jumps.push({ from: replay.jumps.at(-1)?.to, to: read.note, move: "jump", seq: read.seq, at: read.at });
+      }
+    }
+    return { agents: [...agents.values()], missing };
   }
 
   /** NO_RECORDED_READS while no read has been taken. */
   status(): string | undefined {
-    return undefined;
+    return this.#reads.length === 0 ? NO_RECORDED_READS : undefined;
+  }
+
+  /** Who made a read: only what the harness recorded, on the read or when the subagent started. */
+  #who(read: NoteRead): Omit<AgentReplay, "lit" | "jumps"> {
+    const agent = read.agent ?? "unknown";
+    if (agent === "orchestrator") return { agent, label: "orchestrator", known: true };
+    if (agent === "unknown") return { agent, label: "unknown agent", known: false };
+    const started = this.#started.get(`${read.session} ${agent.subagent}`);
+    const type = agent.type ?? started?.type;
+    const task = agent.task ?? started?.task;
+    return { agent: `subagent:${agent.subagent}`, label: type ?? `subagent ${agent.subagent}`, ...(type === undefined ? {} : { type }), ...(task === undefined ? {} : { task }), known: true };
   }
 }

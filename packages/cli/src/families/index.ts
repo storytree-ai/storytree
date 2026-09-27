@@ -7,6 +7,7 @@ import { decisions } from "./adr.js";
 import { arcs } from "./arc.js";
 import { library } from "./library.js";
 import { questions } from "./question.js";
+import { noticeboard } from "./noticeboard.js";
 import { plan } from "./tree.js";
 
 /** Not built yet: this increment builds it next. */
@@ -17,7 +18,7 @@ export const FAMILIES: readonly Family[] = [
   arcs,
   questions,
   decisions,
-  { name: "noticeboard", summary: "who is on what right now (read only)", verbs: [], waitsOn: BEING_BUILT },
+  noticeboard,
   { name: "doctor", summary: "storytree's setup check, from a terminal", verbs: [], waitsOn: BEING_BUILT },
   {
     name: "friction",

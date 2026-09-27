@@ -216,6 +216,8 @@ window and reason, and whether it is live or idle; or who holds one piece of wor
 releasing stay with the agents' tools.
 
 - **Depends on:** 1 and the agent link's claims (its 5).
+- **As built:** `storytree noticeboard [<id>]`, one reading of the agent link's public `readClaims`
+  over its activity log, which judges live and idle. The window is the holding session's name.
 
 **Contracts:**
 1. A claim made through the agent tool appears with its harness and reason.

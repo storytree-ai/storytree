@@ -73,9 +73,11 @@ export function ghState(): Promise<GhState> {
 
 /** The launcher's text: run `target` with `node`, passing every argument on. */
 function launcherFor(node: string, target: string): string {
-  // setup remove deletes this file. Parse the exit with the command so cmd never reads it again;
-  // CALL expands the exit code after Node finishes, without enabling delayed expansion on args.
-  return process.platform === "win32" ? `@echo off\r\nrem ${MARKER}\r\n"${node}" "${target}" %* & call exit /b %%errorlevel%%\r\n` : `#!/bin/sh\n# ${MARKER}\nexec "${node}" "${target}" "$@"\n`;
+  // setup remove deletes this file. Parse the exit with the command so cmd never reads it again.
+  // Keep ! literal in paths and args, then restore delayed expansion to read Node's exit code.
+  return process.platform === "win32"
+    ? `@echo off\r\nrem ${MARKER}\r\nsetlocal EnableDelayedExpansion\r\nsetlocal DisableDelayedExpansion\r\n"${node}" "${target}" %* & endlocal & exit /b !errorlevel!\r\n`
+    : `#!/bin/sh\n# ${MARKER}\nexec "${node}" "${target}" "$@"\n`;
 }
 
 function writeLauncher(file: string, launcher: string): void {

@@ -22,7 +22,12 @@ let postgres, store, log, reads, browser, server;
 try {
   postgres = await start({ dataDir: path.join(temporary, 'pgdata'), owner: 'arc surface capture' });
   store = await connect({ url: postgres.url }); log = await openActivityLog(postgres.url);
-  const project = 'arc-surface-proof';
+  const project = 'storytree';
+  // The supplied snapshot predates plan cutover: real forest, no arcs/questions.
+  // Restore it only into this throwaway database, then add the explicit arc fixture.
+  const snapshotPath = process.env.ARC_SNAPSHOT ?? '/home/mickh/storytree-lanes/snapshots/2026-09-27T12-40-59-713Z.json';
+  const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
+  await store.restore(project, snapshot);
   const library = await store.openProject(project);
   const story = await library.addStory({ title: 'Understand the work' });
   const part = await library.addCapability({ story: story.id, title: 'Read the board' });
@@ -38,14 +43,34 @@ try {
   const queued = await makeArc('Desktop release', 'Package the working board for the owner.');
   await library.addIncrement({ arc: queued.id, title: 'Package the app', objective: 'Package', body: 'Package' });
   await library.addWait(queued.id, build.id, 'The board must land before packaging.');
+  const verification = await makeArc('Release verification', 'Check the packaged release.');
+  await library.addWait(verification.id, queued.id, 'Packaging comes first.');
+  for (const title of ['Linux verification', 'Windows verification']) {
+    const child = await makeArc(title, 'Verify the release on this platform.');
+    await library.addWait(child.id, verification.id, 'Prepare verification first.');
+  }
+  for (const title of ['Developer workflow', 'Library navigation', 'Workspace recovery', 'Project switching']) {
+    const lane = await makeArc(title, 'Keep the working project easy to understand.');
+    await library.addIncrement({ arc: lane.id, title: 'First slice', objective: 'Build', body: 'Build', outcome: { disposition: 'landed', pr: '100' } });
+    await library.addIncrement({ arc: lane.id, title: 'Earlier attempt', objective: 'Try', body: 'Try', outcome: { disposition: 'withdrawn', note: 'A smaller approach worked better.' } });
+    await library.addIncrement({ arc: lane.id, title: 'Next slice', objective: 'Continue', body: 'Continue' });
+    if (title === 'Developer workflow' || title === 'Library navigation') {
+      for (const suffix of ['follow-up', 'review']) {
+        const child = await makeArc(`${title} ${suffix}`, 'Follow the first slice.');
+        await library.addWait(child.id, lane.id, 'The first slice comes first.');
+      }
+    }
+  }
   const parked = await makeArc('Later improvements', 'Keep useful ideas available without putting them on the active board.');
   await library.addIncrement({ arc: parked.id, title: 'Explore refinements', objective: 'Explore', body: 'Explore' }); await library.parkArc(parked.id);
+  const anotherParked = await makeArc('Another parked idea', 'A distinct fallback selection.');
+  await library.parkArc(anotherParked.id);
   const closed = await makeArc('Earlier experiment', 'Keep the outcome, including experiments that did not land.');
   await library.addIncrement({ arc: closed.id, title: 'Alternative layout', objective: 'Explore', body: 'Explore', outcome: { disposition: 'withdrawn', note: 'Kept the smaller layout.' } });
   reads = pageReads({ storytree: store, serverUrl: postgres.url });
   let failRead = false;
-  const bridge = { ...reads, arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); } };
-  const allowed = ['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'];
+  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); } };
+  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'];
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
     if (!['index.html', 'renderer.js', 'arc-surface.css', 'styles.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -122,6 +147,9 @@ try {
   await page.screenshot({ path: path.join(output, 'question-reading.png') });
   await page.locator('[data-question-back]').click();
   assert.equal(await page.locator('[data-question-open]').count(), 1);
+  for (const id of await page.locator('[data-arc-queue]').evaluateAll(nodes => nodes.map(node => node.dataset.arcQueue))) {
+    await page.locator(`[data-arc-queue="${id}"]`).evaluate(button => { if (button.getAttribute('aria-expanded') === 'true') button.click(); });
+  }
   const problems = await smokeArcSurface({ executeJavaScript: code => page.evaluate(code) }, project, reads);
   assert.deepEqual(problems, []);
   await page.locator(`[data-arc-queue="${build.id}"]`).evaluate(button => { if (button.getAttribute('aria-expanded') !== 'true') button.click(); });
@@ -164,7 +192,7 @@ try {
   await relaunched.close();
   assert.deepEqual(errors, []);
   const renderer = await page.evaluate(() => { const gl = document.querySelector('canvas')?.getContext('webgl2'); const debug = gl?.getExtension('WEBGL_debug_renderer_info'); return debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable'; });
-  const result = { drawerBox, rowHeights, forestPointerCount: await page.evaluate(() => window.forestPointerCount), browser: await browser.version(), renderer, claimVisibleMs, idleChip, smokeProblems: problems, checks: ['read error and retry', 'live claim', 'question reading, fold, queue and scroll survive refresh', 'drawer geometry', 'forest receives input below drawer', 'queue nesting', 'question list swap and back', 'open/scope/selection persist across launch', 'closed state persists', 'all scopes smoke', 'idle without a new line', 'queued briefing', 'read-only UI', 'live settlement', 'close and Escape preserve the forest'], errors };
+  const result = { snapshot: { takenAt: snapshot.takenAt, records: snapshot.records.length, arcs: snapshot.records.filter(record => record.type === 'arc').length }, drawerBox, rowHeights, forestPointerCount: await page.evaluate(() => window.forestPointerCount), browser: await browser.version(), renderer, claimVisibleMs, idleChip, smokeProblems: problems, checks: ['read error and retry', 'live claim', 'question reading, fold, queue and scroll survive refresh', 'drawer geometry', 'forest receives input below drawer', 'queue nesting', 'question list swap and back', 'open/scope/selection persist across launch', 'closed state persists', 'all scopes smoke', 'idle without a new line', 'queued briefing', 'read-only UI', 'live settlement', 'close and Escape preserve the forest'], errors };
   writeFileSync(path.join(output, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result));
 } finally {

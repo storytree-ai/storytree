@@ -1,0 +1,4802 @@
+{
+  "opening": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "radius": 160,
+    "zoom": 2.4111162605932206,
+    "camera": [
+      0,
+      490.2684435961459,
+      411.3840701993852
+    ],
+    "rotation": [
+      -0.2832793328403579,
+      0.27720128967733887,
+      -0.08590699502550084,
+      0.9140745334995558
+    ],
+    "canvas": {
+      "width": 1440,
+      "height": 910.4375,
+      "top": 49.5625,
+      "left": 0
+    },
+    "plates": [
+      {
+        "story": "story_a9a21c44a1e7",
+        "facing": 0.8010717470577161,
+        "at": [
+          0.300752326865305,
+          -0.1910684565869955,
+          -0.36199384856433636
+        ],
+        "position": [
+          0,
+          0,
+          161.69210764801653
+        ],
+        "meshes": 6,
+        "vertices": 75086,
+        "triangles": 86670,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_a1c7adb510b4",
+        "facing": 0.4854166117441159,
+        "at": [
+          0.4649619035951366,
+          -0.14072461011972903,
+          -0.2981911807491281
+        ],
+        "position": [
+          69.50208764135516,
+          -4.536942764795995,
+          145.9219436531056
+        ],
+        "meshes": 6,
+        "vertices": 30846,
+        "triangles": 32640,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_730a208989d1",
+        "facing": 0.6258601372998608,
+        "at": [
+          0.4068886782508221,
+          0.17886529991545408,
+          -0.3265787170359291
+        ],
+        "position": [
+          51.92236426043467,
+          59.68202106576691,
+          141.01936791366586
+        ],
+        "meshes": 6,
+        "vertices": 39410,
+        "triangles": 42606,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_c9107adf051c",
+        "facing": 0.8826255870150582,
+        "at": [
+          0.19298806118396217,
+          0.2624901999308429,
+          -0.3784781441696764
+        ],
+        "position": [
+          -21.054716362991815,
+          86.03026056513076,
+          135.27686742982868
+        ],
+        "meshes": 6,
+        "vertices": 69497,
+        "triangles": 76706,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_4280df77bc0e",
+        "facing": 1,
+        "at": [
+          0,
+          -1.50538715203411e-16,
+          -0.40220277223328527
+        ],
+        "position": [
+          -86.51706079649449,
+          43.380842969297355,
+          129.5269791590409
+        ],
+        "meshes": 8,
+        "vertices": 52059,
+        "triangles": 57780,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_3c99aeeade44",
+        "facing": 0.9242428136133991,
+        "at": [
+          -0.04898263477178215,
+          -0.3176750420325295,
+          -0.3868901412734339
+        ],
+        "position": [
+          -101.06377920886082,
+          -17.683700387318115,
+          124.9709444162601
+        ],
+        "meshes": 6,
+        "vertices": 40474,
+        "triangles": 42748,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_1e9d6400be09",
+        "facing": 0.6661385450866777,
+        "at": [
+          0.037639094493988744,
+          -0.6359617674611859,
+          -0.3347201016821655
+        ],
+        "position": [
+          -66.17863580088961,
+          -86.76986569345188,
+          119.31352080435522
+        ],
+        "meshes": 8,
+        "vertices": 107516,
+        "triangles": 123674,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_9f597bb9a758",
+        "facing": 0.33236861884992763,
+        "at": [
+          0.24289389804921024,
+          -0.7105216290734886,
+          -0.2672559316181077
+        ],
+        "position": [
+          11.568783048198906,
+          -114.80989234445616,
+          113.26601235276125
+        ],
+        "meshes": 6,
+        "vertices": 33185,
+        "triangles": 35730,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      }
+    ],
+    "render": {
+      "frame": 16,
+      "calls": 54,
+      "triangles": 522746,
+      "points": 0,
+      "lines": 0
+    },
+    "memory": {
+      "geometries": 53,
+      "textures": 43
+    },
+    "shell": {
+      "radius": 160,
+      "color": "bfbfbf",
+      "opacity": 0.18,
+      "transparent": true,
+      "depthWrite": false,
+      "side": 2
+    },
+    "skin": null,
+    "seaPresent": false,
+    "corePresent": false,
+    "labels": [
+      {
+        "text": "The agent link",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 921.0308227539062,
+          "y": 564.4594116210938,
+          "width": 111.37493896484375,
+          "height": 22.875,
+          "top": 564.4594116210938,
+          "right": 1032.40576171875,
+          "bottom": 587.3344116210938,
+          "left": 921.0308227539062
+        }
+      },
+      {
+        "text": "The app",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1082.151123046875,
+          "y": 537.2898559570312,
+          "width": 69.46875,
+          "height": 22.875,
+          "top": 537.2898559570312,
+          "right": 1151.619873046875,
+          "bottom": 560.1648559570312,
+          "left": 1082.151123046875
+        }
+      },
+      {
+        "text": "The arc surface",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1008.68212890625,
+          "y": 364.81390380859375,
+          "width": 117.265625,
+          "height": 22.875,
+          "top": 364.81390380859375,
+          "right": 1125.94775390625,
+          "bottom": 387.68890380859375,
+          "left": 1008.68212890625
+        }
+      },
+      {
+        "text": "The command line",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 815.6539916992188,
+          "y": 319.68328857421875,
+          "width": 138.15625,
+          "height": 22.875,
+          "top": 319.68328857421875,
+          "right": 953.8102416992188,
+          "bottom": 342.55828857421875,
+          "left": 815.6539916992188
+        }
+      },
+      {
+        "text": "The forest",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 678.1015625,
+          "y": 461.34375,
+          "width": 83.796875,
+          "height": 22.875,
+          "top": 461.34375,
+          "right": 761.8984375,
+          "bottom": 484.21875,
+          "left": 678.1015625
+        }
+      },
+      {
+        "text": "The librarian",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 627.5171508789062,
+          "y": 632.7863159179688,
+          "width": 101.34375,
+          "height": 22.875,
+          "top": 632.7863159179688,
+          "right": 728.8609008789062,
+          "bottom": 655.6613159179688,
+          "left": 627.5171508789062
+        }
+      },
+      {
+        "text": "The library",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 707.9876098632812,
+          "y": 804.5589599609375,
+          "width": 88.28125,
+          "height": 22.875,
+          "top": 804.5589599609375,
+          "right": 796.2688598632812,
+          "bottom": 827.4339599609375,
+          "left": 707.9876098632812
+        }
+      },
+      {
+        "text": "The knowledge core",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 853.0498657226562,
+          "y": 844.79736328125,
+          "width": 148.5625,
+          "height": 22.875,
+          "top": 844.79736328125,
+          "right": 1001.6123657226562,
+          "bottom": 867.67236328125,
+          "left": 853.0498657226562
+        }
+      }
+    ],
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_a9a21c44a1e7",
+        "story_a1c7adb510b4",
+        "story_730a208989d1",
+        "story_c9107adf051c",
+        "story_4280df77bc0e",
+        "story_3c99aeeade44",
+        "story_1e9d6400be09",
+        "story_9f597bb9a758"
+      ],
+      "capabilities": [
+        "capability_2890d6eb898e",
+        "capability_13f5fd952239",
+        "capability_6866455b0053",
+        "capability_a55592f606f9",
+        "capability_537a120816bd",
+        "capability_536cee22728f",
+        "capability_da67b1627315",
+        "capability_8eaa6daf875c",
+        "capability_4339e59597cd",
+        "capability_c9aea979fe4a",
+        "capability_b1de5b6cfdd4",
+        "capability_b2e2aaa9a900",
+        "capability_ed0f71d5dcae",
+        "capability_6c3d3ef6096e",
+        "capability_abb92a336dfc",
+        "capability_50e9238f6a0a",
+        "capability_e0c24c22ee6a",
+        "capability_942a3d583139",
+        "capability_632b9297da28",
+        "capability_a11fa55d06c9",
+        "capability_d062384ce279",
+        "capability_bb793d4ae235",
+        "capability_624c3afd82ff",
+        "capability_e8a27b8ab696",
+        "capability_f99a2758e136",
+        "capability_b8c9090cdd81",
+        "capability_1fab92f75a01",
+        "capability_9ba30b38e4b8",
+        "capability_a785e9a150d7",
+        "capability_b33032709ad7",
+        "capability_33fdf879d190",
+        "capability_88cae96d9b51",
+        "capability_f7a0b51a565a",
+        "capability_ad0c7b84a7f0",
+        "capability_aa0ab26436f2",
+        "capability_e28d6fc4431e",
+        "capability_e19e93de01fb",
+        "capability_ddd02378cc40",
+        "capability_8ab4ae7135c6",
+        "capability_363c4748f99d",
+        "capability_c12d1400514c",
+        "capability_731c42ebdfb5",
+        "capability_2f58306e73b2",
+        "capability_e6d39599196d",
+        "capability_d17061c4cb62",
+        "capability_4bdf36e4bc24",
+        "capability_7f6797e83d32",
+        "capability_0ed0a7258ec5",
+        "capability_ebba5b4132f4",
+        "capability_29ab23e1c395",
+        "capability_29b0ae484bf4",
+        "capability_33f7395e2847",
+        "capability_2a90476083b6",
+        "capability_3216b06ba422",
+        "capability_b78d99e6df8e",
+        "capability_702daa72c42b",
+        "capability_70acabef44a6"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The librarian",
+        "The library",
+        "The knowledge core"
+      ],
+      "trees": [
+        {
+          "capability": "capability_2890d6eb898e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_13f5fd952239",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6866455b0053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a55592f606f9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_537a120816bd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_536cee22728f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da67b1627315",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8eaa6daf875c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4339e59597cd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c9aea979fe4a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b1de5b6cfdd4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b2e2aaa9a900",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ed0f71d5dcae",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6c3d3ef6096e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_abb92a336dfc",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_50e9238f6a0a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c24c22ee6a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_942a3d583139",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_632b9297da28",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a11fa55d06c9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d062384ce279",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bb793d4ae235",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_624c3afd82ff",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e8a27b8ab696",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f99a2758e136",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b8c9090cdd81",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1fab92f75a01",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ba30b38e4b8",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_a785e9a150d7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b33032709ad7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33fdf879d190",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_88cae96d9b51",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f7a0b51a565a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ad0c7b84a7f0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_aa0ab26436f2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e28d6fc4431e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e19e93de01fb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ddd02378cc40",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8ab4ae7135c6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_363c4748f99d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c12d1400514c",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_731c42ebdfb5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2f58306e73b2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e6d39599196d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d17061c4cb62",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4bdf36e4bc24",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7f6797e83d32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_0ed0a7258ec5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ebba5b4132f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29ab23e1c395",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29b0ae484bf4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33f7395e2847",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2a90476083b6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3216b06ba422",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b78d99e6df8e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_702daa72c42b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_70acabef44a6",
+          "form": "seedling"
+        }
+      ],
+      "unclaimed": 0
+    },
+    "view": "globe"
+  },
+  "afterDrag": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "radius": 160,
+    "zoom": 2.4111162605932206,
+    "camera": [
+      -200.1993112098061,
+      564.4619438775168,
+      225.61682052793532
+    ],
+    "rotation": [
+      -0.2832793328403579,
+      0.27720128967733887,
+      -0.08590699502550084,
+      0.9140745334995558
+    ],
+    "canvas": {
+      "width": 1440,
+      "height": 910.4375,
+      "top": 49.5625,
+      "left": 0
+    },
+    "plates": [
+      {
+        "story": "story_a9a21c44a1e7",
+        "facing": 0.4827712942543099,
+        "at": [
+          0.47143150900743047,
+          0.08078826746142286,
+          -0.29765648863046446
+        ],
+        "position": [
+          0,
+          0,
+          161.69210764801653
+        ],
+        "meshes": 6,
+        "vertices": 75086,
+        "triangles": 86670,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_a1c7adb510b4",
+        "facing": 0.12056411876432291,
+        "at": [
+          0.5051555748250021,
+          0.29055171126188917,
+          -0.2244443608597151
+        ],
+        "position": [
+          69.50208764135516,
+          -4.536942764795995,
+          145.9219436531056
+        ],
+        "meshes": 6,
+        "vertices": 30846,
+        "triangles": 32640,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_730a208989d1",
+        "facing": 0.3916084571059204,
+        "at": [
+          0.39142634066167015,
+          0.4875315871399908,
+          -0.27922994787454725
+        ],
+        "position": [
+          51.92236426043467,
+          59.68202106576691,
+          141.01936791366586
+        ],
+        "meshes": 6,
+        "vertices": 39410,
+        "triangles": 42606,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_c9107adf051c",
+        "facing": 0.7758295097578604,
+        "at": [
+          0.2638648910015191,
+          0.3432263638887871,
+          -0.3568916914910629
+        ],
+        "position": [
+          -21.054716362991815,
+          86.03026056513076,
+          135.27686742982868
+        ],
+        "meshes": 6,
+        "vertices": 69497,
+        "triangles": 76706,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_4280df77bc0e",
+        "facing": 0.9022291128620882,
+        "at": [
+          0.23100698380483656,
+          -0.05396198925563312,
+          -0.3824405610851568
+        ],
+        "position": [
+          -86.51706079649449,
+          43.380842969297355,
+          129.5269791590409
+        ],
+        "meshes": 8,
+        "vertices": 52059,
+        "triangles": 57780,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_3c99aeeade44",
+        "facing": 0.7520574340393134,
+        "at": [
+          0.27898764430456735,
+          -0.3520045155725855,
+          -0.35208669489615063
+        ],
+        "position": [
+          -101.06377920886082,
+          -17.683700387318115,
+          124.9709444162601
+        ],
+        "meshes": 6,
+        "vertices": 40474,
+        "triangles": 42748,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_1e9d6400be09",
+        "facing": 0.35881519484939556,
+        "at": [
+          0.38647131605355217,
+          -0.5151495967355465,
+          -0.2726015189841019
+        ],
+        "position": [
+          -66.17863580088961,
+          -86.76986569345188,
+          119.31352080435522
+        ],
+        "meshes": 8,
+        "vertices": 107516,
+        "triangles": 123674,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_9f597bb9a758",
+        "facing": -0.08674447767926546,
+        "at": [
+          0.4868632352728669,
+          -0.3673666271185852,
+          -0.18254153706758314
+        ],
+        "position": [
+          11.568783048198906,
+          -114.80989234445616,
+          113.26601235276125
+        ],
+        "meshes": 6,
+        "vertices": 33185,
+        "triangles": 35730,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      }
+    ],
+    "render": {
+      "frame": 54,
+      "calls": 54,
+      "triangles": 522746,
+      "points": 0,
+      "lines": 0
+    },
+    "memory": {
+      "geometries": 53,
+      "textures": 43
+    },
+    "shell": {
+      "radius": 160,
+      "color": "bfbfbf",
+      "opacity": 0.18,
+      "transparent": true,
+      "depthWrite": false,
+      "side": 2
+    },
+    "skin": null,
+    "seaPresent": false,
+    "corePresent": false,
+    "labels": [
+      {
+        "text": "The agent link",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1066.720458984375,
+          "y": 417.7440185546875,
+          "width": 111.375,
+          "height": 22.875,
+          "top": 417.7440185546875,
+          "right": 1178.095458984375,
+          "bottom": 440.6190185546875,
+          "left": 1066.720458984375
+        }
+      },
+      {
+        "text": "The app",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1116.4599609375,
+          "y": 304.5390930175781,
+          "width": 69.46875,
+          "height": 22.875,
+          "top": 304.5390930175781,
+          "right": 1185.9287109375,
+          "bottom": 327.4140930175781,
+          "left": 1116.4599609375
+        }
+      },
+      {
+        "text": "The arc surface",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 995.4837646484375,
+          "y": 198.23316955566406,
+          "width": 117.265625,
+          "height": 22.875,
+          "top": 198.23316955566406,
+          "right": 1112.7493896484375,
+          "bottom": 221.10816955566406,
+          "left": 995.4837646484375
+        }
+      },
+      {
+        "text": "The command line",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 876.153564453125,
+          "y": 276.1116638183594,
+          "width": 138.15625,
+          "height": 22.875,
+          "top": 276.1116638183594,
+          "right": 1014.309814453125,
+          "bottom": 298.9866638183594,
+          "left": 876.153564453125
+        }
+      },
+      {
+        "text": "The forest",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 875.2861938476562,
+          "y": 490.4659118652344,
+          "width": 83.796875,
+          "height": 22.875030517578125,
+          "top": 490.4659118652344,
+          "right": 959.0830688476562,
+          "bottom": 513.3409423828125,
+          "left": 875.2861938476562
+        }
+      },
+      {
+        "text": "The librarian",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 907.4683837890625,
+          "y": 651.313232421875,
+          "width": 101.34375,
+          "height": 22.875,
+          "top": 651.313232421875,
+          "right": 1008.8121337890625,
+          "bottom": 674.188232421875,
+          "left": 907.4683837890625
+        }
+      },
+      {
+        "text": "The library",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1005.746337890625,
+          "y": 739.3591918945312,
+          "width": 88.28125,
+          "height": 22.875,
+          "top": 739.3591918945312,
+          "right": 1094.027587890625,
+          "bottom": 762.2341918945312,
+          "left": 1005.746337890625
+        }
+      },
+      {
+        "text": "The knowledge core",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1061.2989501953125,
+          "y": 659.6038208007812,
+          "width": 148.5625,
+          "height": 22.875,
+          "top": 659.6038208007812,
+          "right": 1209.8614501953125,
+          "bottom": 682.4788208007812,
+          "left": 1061.2989501953125
+        }
+      }
+    ],
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_a9a21c44a1e7",
+        "story_a1c7adb510b4",
+        "story_730a208989d1",
+        "story_c9107adf051c",
+        "story_4280df77bc0e",
+        "story_3c99aeeade44",
+        "story_1e9d6400be09",
+        "story_9f597bb9a758"
+      ],
+      "capabilities": [
+        "capability_2890d6eb898e",
+        "capability_13f5fd952239",
+        "capability_6866455b0053",
+        "capability_a55592f606f9",
+        "capability_537a120816bd",
+        "capability_536cee22728f",
+        "capability_da67b1627315",
+        "capability_8eaa6daf875c",
+        "capability_4339e59597cd",
+        "capability_c9aea979fe4a",
+        "capability_b1de5b6cfdd4",
+        "capability_b2e2aaa9a900",
+        "capability_ed0f71d5dcae",
+        "capability_6c3d3ef6096e",
+        "capability_abb92a336dfc",
+        "capability_50e9238f6a0a",
+        "capability_e0c24c22ee6a",
+        "capability_942a3d583139",
+        "capability_632b9297da28",
+        "capability_a11fa55d06c9",
+        "capability_d062384ce279",
+        "capability_bb793d4ae235",
+        "capability_624c3afd82ff",
+        "capability_e8a27b8ab696",
+        "capability_f99a2758e136",
+        "capability_b8c9090cdd81",
+        "capability_1fab92f75a01",
+        "capability_9ba30b38e4b8",
+        "capability_a785e9a150d7",
+        "capability_b33032709ad7",
+        "capability_33fdf879d190",
+        "capability_88cae96d9b51",
+        "capability_f7a0b51a565a",
+        "capability_ad0c7b84a7f0",
+        "capability_aa0ab26436f2",
+        "capability_e28d6fc4431e",
+        "capability_e19e93de01fb",
+        "capability_ddd02378cc40",
+        "capability_8ab4ae7135c6",
+        "capability_363c4748f99d",
+        "capability_c12d1400514c",
+        "capability_731c42ebdfb5",
+        "capability_2f58306e73b2",
+        "capability_e6d39599196d",
+        "capability_d17061c4cb62",
+        "capability_4bdf36e4bc24",
+        "capability_7f6797e83d32",
+        "capability_0ed0a7258ec5",
+        "capability_ebba5b4132f4",
+        "capability_29ab23e1c395",
+        "capability_29b0ae484bf4",
+        "capability_33f7395e2847",
+        "capability_2a90476083b6",
+        "capability_3216b06ba422",
+        "capability_b78d99e6df8e",
+        "capability_702daa72c42b",
+        "capability_70acabef44a6"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The librarian",
+        "The library",
+        "The knowledge core"
+      ],
+      "trees": [
+        {
+          "capability": "capability_2890d6eb898e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_13f5fd952239",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6866455b0053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a55592f606f9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_537a120816bd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_536cee22728f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da67b1627315",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8eaa6daf875c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4339e59597cd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c9aea979fe4a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b1de5b6cfdd4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b2e2aaa9a900",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ed0f71d5dcae",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6c3d3ef6096e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_abb92a336dfc",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_50e9238f6a0a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c24c22ee6a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_942a3d583139",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_632b9297da28",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a11fa55d06c9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d062384ce279",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bb793d4ae235",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_624c3afd82ff",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e8a27b8ab696",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f99a2758e136",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b8c9090cdd81",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1fab92f75a01",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ba30b38e4b8",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_a785e9a150d7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b33032709ad7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33fdf879d190",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_88cae96d9b51",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f7a0b51a565a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ad0c7b84a7f0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_aa0ab26436f2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e28d6fc4431e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e19e93de01fb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ddd02378cc40",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8ab4ae7135c6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_363c4748f99d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c12d1400514c",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_731c42ebdfb5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2f58306e73b2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e6d39599196d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d17061c4cb62",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4bdf36e4bc24",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7f6797e83d32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_0ed0a7258ec5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ebba5b4132f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29ab23e1c395",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29b0ae484bf4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33f7395e2847",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2a90476083b6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3216b06ba422",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b78d99e6df8e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_702daa72c42b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_70acabef44a6",
+          "form": "seedling"
+        }
+      ],
+      "unclaimed": 0
+    },
+    "view": "globe"
+  },
+  "zoomed": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "radius": 160,
+    "zoom": 2.5380171164139167,
+    "camera": [
+      -212.35749065285393,
+      576.0849153977173,
+      180.6390500828338
+    ],
+    "rotation": [
+      -0.2832793328403579,
+      0.27720128967733887,
+      -0.08590699502550084,
+      0.9140745334995558
+    ],
+    "canvas": {
+      "width": 1440,
+      "height": 910.4375,
+      "top": 49.5625,
+      "left": 0
+    },
+    "plates": [
+      {
+        "story": "story_a9a21c44a1e7",
+        "facing": 0.432561518353335,
+        "at": [
+          0.5028698482837113,
+          0.16739344704452166,
+          -0.2875076987186407
+        ],
+        "position": [
+          0,
+          0,
+          161.69210764801653
+        ],
+        "meshes": 6,
+        "vertices": 75086,
+        "triangles": 86670,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_a1c7adb510b4",
+        "facing": 0.07831195429432745,
+        "at": [
+          0.507228191007739,
+          0.4050752330468806,
+          -0.2159040251814296
+        ],
+        "position": [
+          69.50208764135516,
+          -4.536942764795995,
+          145.9219436531056
+        ],
+        "meshes": 6,
+        "vertices": 30846,
+        "triangles": 32640,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_730a208989d1",
+        "facing": 0.37144941237429724,
+        "at": [
+          0.38270638247364486,
+          0.5780668623508018,
+          -0.2751552451670942
+        ],
+        "position": [
+          51.92236426043467,
+          59.68202106576691,
+          141.01936791366586
+        ],
+        "meshes": 6,
+        "vertices": 39410,
+        "triangles": 42606,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_c9107adf051c",
+        "facing": 0.7615447910287108,
+        "at": [
+          0.27599904810319537,
+          0.3883396625589754,
+          -0.3540043531843243
+        ],
+        "position": [
+          -21.054716362991815,
+          86.03026056513076,
+          135.27686742982868
+        ],
+        "meshes": 6,
+        "vertices": 69497,
+        "triangles": 76706,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_4280df77bc0e",
+        "facing": 0.8709674865998114,
+        "at": [
+          0.2790630388090195,
+          -0.037130167631097326,
+          -0.37612171835892094
+        ],
+        "position": [
+          -86.51706079649449,
+          43.380842969297355,
+          129.5269791590409
+        ],
+        "meshes": 8,
+        "vertices": 52059,
+        "triangles": 57780,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_3c99aeeade44",
+        "facing": 0.7005829514180076,
+        "at": [
+          0.34787734790219527,
+          -0.33326386738024116,
+          -0.3416822726383465
+        ],
+        "position": [
+          -101.06377920886082,
+          -17.683700387318115,
+          124.9709444162601
+        ],
+        "meshes": 6,
+        "vertices": 40474,
+        "triangles": 42748,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_1e9d6400be09",
+        "facing": 0.28802393494131173,
+        "at": [
+          0.45852930258873564,
+          -0.46830138613365857,
+          -0.2582926396571481
+        ],
+        "position": [
+          -66.17863580088961,
+          -86.76986569345188,
+          119.31352080435522
+        ],
+        "meshes": 8,
+        "vertices": 107516,
+        "triangles": 123674,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_9f597bb9a758",
+        "facing": -0.1600060401162631,
+        "at": [
+          0.5343305824404757,
+          -0.2786491984917119,
+          -0.1677333410052979
+        ],
+        "position": [
+          11.568783048198906,
+          -114.80989234445616,
+          113.26601235276125
+        ],
+        "meshes": 6,
+        "vertices": 33185,
+        "triangles": 35730,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      }
+    ],
+    "render": {
+      "frame": 71,
+      "calls": 54,
+      "triangles": 522746,
+      "points": 0,
+      "lines": 0
+    },
+    "memory": {
+      "geometries": 53,
+      "textures": 43
+    },
+    "shell": {
+      "radius": 160,
+      "color": "bfbfbf",
+      "opacity": 0.18,
+      "transparent": true,
+      "depthWrite": false,
+      "side": 2
+    },
+    "skin": null,
+    "seaPresent": false,
+    "corePresent": false,
+    "labels": [
+      {
+        "text": "The agent link",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1093.5557861328125,
+          "y": 371.0050048828125,
+          "width": 111.375,
+          "height": 22.875,
+          "top": 371.0050048828125,
+          "right": 1204.9307861328125,
+          "bottom": 393.8800048828125,
+          "left": 1093.5557861328125
+        }
+      },
+      {
+        "text": "The app",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1118.2291259765625,
+          "y": 242.73313903808594,
+          "width": 69.46875,
+          "height": 22.875015258789062,
+          "top": 242.73313903808594,
+          "right": 1187.6978759765625,
+          "bottom": 265.608154296875,
+          "left": 1118.2291259765625
+        }
+      },
+      {
+        "text": "The arc surface",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 988.04052734375,
+          "y": 149.37318420410156,
+          "width": 117.265625,
+          "height": 22.875,
+          "top": 149.37318420410156,
+          "right": 1105.30615234375,
+          "bottom": 172.24818420410156,
+          "left": 988.04052734375
+        }
+      },
+      {
+        "text": "The command line",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 886.5111083984375,
+          "y": 251.7649688720703,
+          "width": 138.15625,
+          "height": 22.874984741210938,
+          "top": 251.7649688720703,
+          "right": 1024.6673583984375,
+          "bottom": 274.63995361328125,
+          "left": 886.5111083984375
+        }
+      },
+      {
+        "text": "The forest",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 916.3062133789062,
+          "y": 481.3821105957031,
+          "width": 83.796875,
+          "height": 22.875,
+          "top": 481.3821105957031,
+          "right": 1000.1030883789062,
+          "bottom": 504.2571105957031,
+          "left": 916.3062133789062
+        }
+      },
+      {
+        "text": "The librarian",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 966.2717895507812,
+          "y": 641.1992797851562,
+          "width": 101.34368896484375,
+          "height": 22.875,
+          "top": 641.1992797851562,
+          "right": 1067.615478515625,
+          "bottom": 664.0742797851562,
+          "left": 966.2717895507812
+        }
+      },
+      {
+        "text": "The library",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1067.254150390625,
+          "y": 714.076171875,
+          "width": 88.28125,
+          "height": 22.875,
+          "top": 714.076171875,
+          "right": 1155.535400390625,
+          "bottom": 736.951171875,
+          "left": 1067.254150390625
+        }
+      },
+      {
+        "text": "The knowledge core",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1101.8165283203125,
+          "y": 611.724853515625,
+          "width": 148.5625,
+          "height": 22.875,
+          "top": 611.724853515625,
+          "right": 1250.3790283203125,
+          "bottom": 634.599853515625,
+          "left": 1101.8165283203125
+        }
+      }
+    ],
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_a9a21c44a1e7",
+        "story_a1c7adb510b4",
+        "story_730a208989d1",
+        "story_c9107adf051c",
+        "story_4280df77bc0e",
+        "story_3c99aeeade44",
+        "story_1e9d6400be09",
+        "story_9f597bb9a758"
+      ],
+      "capabilities": [
+        "capability_2890d6eb898e",
+        "capability_13f5fd952239",
+        "capability_6866455b0053",
+        "capability_a55592f606f9",
+        "capability_537a120816bd",
+        "capability_536cee22728f",
+        "capability_da67b1627315",
+        "capability_8eaa6daf875c",
+        "capability_4339e59597cd",
+        "capability_c9aea979fe4a",
+        "capability_b1de5b6cfdd4",
+        "capability_b2e2aaa9a900",
+        "capability_ed0f71d5dcae",
+        "capability_6c3d3ef6096e",
+        "capability_abb92a336dfc",
+        "capability_50e9238f6a0a",
+        "capability_e0c24c22ee6a",
+        "capability_942a3d583139",
+        "capability_632b9297da28",
+        "capability_a11fa55d06c9",
+        "capability_d062384ce279",
+        "capability_bb793d4ae235",
+        "capability_624c3afd82ff",
+        "capability_e8a27b8ab696",
+        "capability_f99a2758e136",
+        "capability_b8c9090cdd81",
+        "capability_1fab92f75a01",
+        "capability_9ba30b38e4b8",
+        "capability_a785e9a150d7",
+        "capability_b33032709ad7",
+        "capability_33fdf879d190",
+        "capability_88cae96d9b51",
+        "capability_f7a0b51a565a",
+        "capability_ad0c7b84a7f0",
+        "capability_aa0ab26436f2",
+        "capability_e28d6fc4431e",
+        "capability_e19e93de01fb",
+        "capability_ddd02378cc40",
+        "capability_8ab4ae7135c6",
+        "capability_363c4748f99d",
+        "capability_c12d1400514c",
+        "capability_731c42ebdfb5",
+        "capability_2f58306e73b2",
+        "capability_e6d39599196d",
+        "capability_d17061c4cb62",
+        "capability_4bdf36e4bc24",
+        "capability_7f6797e83d32",
+        "capability_0ed0a7258ec5",
+        "capability_ebba5b4132f4",
+        "capability_29ab23e1c395",
+        "capability_29b0ae484bf4",
+        "capability_33f7395e2847",
+        "capability_2a90476083b6",
+        "capability_3216b06ba422",
+        "capability_b78d99e6df8e",
+        "capability_702daa72c42b",
+        "capability_70acabef44a6"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The librarian",
+        "The library",
+        "The knowledge core"
+      ],
+      "trees": [
+        {
+          "capability": "capability_2890d6eb898e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_13f5fd952239",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6866455b0053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a55592f606f9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_537a120816bd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_536cee22728f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da67b1627315",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8eaa6daf875c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4339e59597cd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c9aea979fe4a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b1de5b6cfdd4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b2e2aaa9a900",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ed0f71d5dcae",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6c3d3ef6096e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_abb92a336dfc",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_50e9238f6a0a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c24c22ee6a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_942a3d583139",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_632b9297da28",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a11fa55d06c9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d062384ce279",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bb793d4ae235",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_624c3afd82ff",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e8a27b8ab696",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f99a2758e136",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b8c9090cdd81",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1fab92f75a01",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ba30b38e4b8",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_a785e9a150d7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b33032709ad7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33fdf879d190",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_88cae96d9b51",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f7a0b51a565a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ad0c7b84a7f0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_aa0ab26436f2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e28d6fc4431e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e19e93de01fb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ddd02378cc40",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8ab4ae7135c6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_363c4748f99d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c12d1400514c",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_731c42ebdfb5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2f58306e73b2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e6d39599196d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d17061c4cb62",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4bdf36e4bc24",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7f6797e83d32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_0ed0a7258ec5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ebba5b4132f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29ab23e1c395",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29b0ae484bf4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33f7395e2847",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2a90476083b6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3216b06ba422",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b78d99e6df8e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_702daa72c42b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_70acabef44a6",
+          "form": "seedling"
+        }
+      ],
+      "unclaimed": 0
+    },
+    "view": "globe"
+  },
+  "hidden": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "radius": 160,
+    "zoom": 2.5380171164139167,
+    "camera": [
+      -214.62332694838975,
+      580.1321367153998,
+      164.26664749616575
+    ],
+    "rotation": [
+      0.7533436163975059,
+      0.620543379234442,
+      -0.216278806347232,
+      0.02495572171754954
+    ],
+    "canvas": {
+      "width": 1440,
+      "height": 910.4375,
+      "top": 49.5625,
+      "left": 0
+    },
+    "plates": [
+      {
+        "story": "story_a9a21c44a1e7",
+        "facing": -0.4108380927774529,
+        "at": [
+          -0.5118622295997683,
+          0.1417153421643339,
+          -0.11703321817203849
+        ],
+        "position": [
+          0,
+          0,
+          161.69210764801653
+        ],
+        "meshes": 6,
+        "vertices": 75086,
+        "triangles": 86670,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_a1c7adb510b4",
+        "facing": -0.05332035510863978,
+        "at": [
+          -0.5173286760260741,
+          0.37532811394677884,
+          -0.18929748034495064
+        ],
+        "position": [
+          69.50208764135516,
+          -4.536942764795995,
+          145.9219436531056
+        ],
+        "meshes": 6,
+        "vertices": 30846,
+        "triangles": 32640,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_730a208989d1",
+        "facing": -0.3488133677546713,
+        "at": [
+          -0.4007522544772827,
+          0.5586078205502848,
+          -0.12957013737351597
+        ],
+        "position": [
+          51.92236426043467,
+          59.68202106576691,
+          141.01936791366586
+        ],
+        "meshes": 6,
+        "vertices": 39410,
+        "triangles": 42606,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_c9107adf051c",
+        "facing": -0.7454509130637399,
+        "at": [
+          -0.2946253875440318,
+          0.37938005648253686,
+          -0.04939867581546975
+        ],
+        "position": [
+          -21.054716362991815,
+          86.03026056513076,
+          135.27686742982868
+        ],
+        "meshes": 6,
+        "vertices": 69497,
+        "triangles": 76706,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_4280df77bc0e",
+        "facing": -0.8604711704815178,
+        "at": [
+          -0.2890123804767836,
+          -0.04482299924124292,
+          -0.02614988796110662
+        ],
+        "position": [
+          -86.51706079649449,
+          43.380842969297355,
+          129.5269791590409
+        ],
+        "meshes": 8,
+        "vertices": 52059,
+        "triangles": 57780,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_3c99aeeade44",
+        "facing": -0.6914974816937939,
+        "at": [
+          -0.34858383736957016,
+          -0.3465726357999476,
+          -0.06030416244969594
+        ],
+        "position": [
+          -101.06377920886082,
+          -17.683700387318115,
+          124.9709444162601
+        ],
+        "meshes": 6,
+        "vertices": 40474,
+        "triangles": 42748,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_1e9d6400be09",
+        "facing": -0.27664054740627425,
+        "at": [
+          -0.45068065679569436,
+          -0.4923229401274372,
+          -0.1441582684279994
+        ],
+        "position": [
+          -66.17863580088961,
+          -86.76986569345188,
+          119.31352080435522
+        ],
+        "meshes": 8,
+        "vertices": 107516,
+        "triangles": 123674,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_9f597bb9a758",
+        "facing": 0.17672465233724263,
+        "at": [
+          -0.5251911787787463,
+          -0.3119207445450198,
+          -0.23579596413497272
+        ],
+        "position": [
+          11.568783048198906,
+          -114.80989234445616,
+          113.26601235276125
+        ],
+        "meshes": 6,
+        "vertices": 33185,
+        "triangles": 35730,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      }
+    ],
+    "render": {
+      "frame": 86,
+      "calls": 54,
+      "triangles": 522746,
+      "points": 0,
+      "lines": 0
+    },
+    "memory": {
+      "geometries": 53,
+      "textures": 43
+    },
+    "shell": {
+      "radius": 160,
+      "color": "bfbfbf",
+      "opacity": 0.18,
+      "transparent": true,
+      "depthWrite": false,
+      "side": 2
+    },
+    "skin": null,
+    "seaPresent": false,
+    "corePresent": false,
+    "labels": [
+      {
+        "text": "The agent link",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 227.3934326171875,
+          "y": 384.8629455566406,
+          "width": 111.375,
+          "height": 22.875,
+          "top": 384.8629455566406,
+          "right": 338.7684326171875,
+          "bottom": 407.7379455566406,
+          "left": 227.3934326171875
+        }
+      },
+      {
+        "text": "The app",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 243.68048095703125,
+          "y": 258.78704833984375,
+          "width": 69.46875,
+          "height": 22.875,
+          "top": 258.78704833984375,
+          "right": 313.14923095703125,
+          "bottom": 281.66204833984375,
+          "left": 243.68048095703125
+        }
+      },
+      {
+        "text": "The arc surface",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 319.2901916503906,
+          "y": 159.87481689453125,
+          "width": 117.265625,
+          "height": 22.875,
+          "top": 159.87481689453125,
+          "right": 436.5558166503906,
+          "bottom": 182.74981689453125,
+          "left": 319.2901916503906
+        }
+      },
+      {
+        "text": "The command line",
+        "visible": false,
+        "opacity": "1",
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      {
+        "text": "The forest",
+        "visible": false,
+        "opacity": "1",
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      {
+        "text": "The librarian",
+        "visible": false,
+        "opacity": "1",
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      {
+        "text": "The library",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 291.16412353515625,
+          "y": 727.0401000976562,
+          "width": 88.28125,
+          "height": 22.875,
+          "top": 727.0401000976562,
+          "right": 379.44537353515625,
+          "bottom": 749.9151000976562,
+          "left": 291.16412353515625
+        }
+      },
+      {
+        "text": "The knowledge core",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 197.42227172851562,
+          "y": 629.6808471679688,
+          "width": 148.5625,
+          "height": 22.875,
+          "top": 629.6808471679688,
+          "right": 345.9847717285156,
+          "bottom": 652.5558471679688,
+          "left": 197.42227172851562
+        }
+      }
+    ],
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_a9a21c44a1e7",
+        "story_a1c7adb510b4",
+        "story_730a208989d1",
+        "story_c9107adf051c",
+        "story_4280df77bc0e",
+        "story_3c99aeeade44",
+        "story_1e9d6400be09",
+        "story_9f597bb9a758"
+      ],
+      "capabilities": [
+        "capability_2890d6eb898e",
+        "capability_13f5fd952239",
+        "capability_6866455b0053",
+        "capability_a55592f606f9",
+        "capability_537a120816bd",
+        "capability_536cee22728f",
+        "capability_da67b1627315",
+        "capability_8eaa6daf875c",
+        "capability_4339e59597cd",
+        "capability_c9aea979fe4a",
+        "capability_b1de5b6cfdd4",
+        "capability_b2e2aaa9a900",
+        "capability_ed0f71d5dcae",
+        "capability_6c3d3ef6096e",
+        "capability_abb92a336dfc",
+        "capability_50e9238f6a0a",
+        "capability_e0c24c22ee6a",
+        "capability_942a3d583139",
+        "capability_632b9297da28",
+        "capability_a11fa55d06c9",
+        "capability_d062384ce279",
+        "capability_bb793d4ae235",
+        "capability_624c3afd82ff",
+        "capability_e8a27b8ab696",
+        "capability_f99a2758e136",
+        "capability_b8c9090cdd81",
+        "capability_1fab92f75a01",
+        "capability_9ba30b38e4b8",
+        "capability_a785e9a150d7",
+        "capability_b33032709ad7",
+        "capability_33fdf879d190",
+        "capability_88cae96d9b51",
+        "capability_f7a0b51a565a",
+        "capability_ad0c7b84a7f0",
+        "capability_aa0ab26436f2",
+        "capability_e28d6fc4431e",
+        "capability_e19e93de01fb",
+        "capability_ddd02378cc40",
+        "capability_8ab4ae7135c6",
+        "capability_363c4748f99d",
+        "capability_c12d1400514c",
+        "capability_731c42ebdfb5",
+        "capability_2f58306e73b2",
+        "capability_e6d39599196d",
+        "capability_d17061c4cb62",
+        "capability_4bdf36e4bc24",
+        "capability_7f6797e83d32",
+        "capability_0ed0a7258ec5",
+        "capability_ebba5b4132f4",
+        "capability_29ab23e1c395",
+        "capability_29b0ae484bf4",
+        "capability_33f7395e2847",
+        "capability_2a90476083b6",
+        "capability_3216b06ba422",
+        "capability_b78d99e6df8e",
+        "capability_702daa72c42b",
+        "capability_70acabef44a6"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The librarian",
+        "The library",
+        "The knowledge core"
+      ],
+      "trees": [
+        {
+          "capability": "capability_2890d6eb898e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_13f5fd952239",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6866455b0053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a55592f606f9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_537a120816bd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_536cee22728f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da67b1627315",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8eaa6daf875c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4339e59597cd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c9aea979fe4a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b1de5b6cfdd4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b2e2aaa9a900",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ed0f71d5dcae",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6c3d3ef6096e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_abb92a336dfc",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_50e9238f6a0a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c24c22ee6a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_942a3d583139",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_632b9297da28",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a11fa55d06c9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d062384ce279",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bb793d4ae235",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_624c3afd82ff",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e8a27b8ab696",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f99a2758e136",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b8c9090cdd81",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1fab92f75a01",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ba30b38e4b8",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_a785e9a150d7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b33032709ad7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33fdf879d190",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_88cae96d9b51",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f7a0b51a565a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ad0c7b84a7f0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_aa0ab26436f2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e28d6fc4431e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e19e93de01fb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ddd02378cc40",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8ab4ae7135c6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_363c4748f99d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c12d1400514c",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_731c42ebdfb5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2f58306e73b2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e6d39599196d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d17061c4cb62",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4bdf36e4bc24",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7f6797e83d32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_0ed0a7258ec5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ebba5b4132f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29ab23e1c395",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29b0ae484bf4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33f7395e2847",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2a90476083b6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3216b06ba422",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b78d99e6df8e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_702daa72c42b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_70acabef44a6",
+          "form": "seedling"
+        }
+      ],
+      "unclaimed": 0
+    },
+    "view": "globe"
+  },
+  "focused": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "radius": 160,
+    "zoom": 2.5380171164139167,
+    "camera": [
+      -215.5924578334071,
+      583.2227560138078,
+      151.56222812102297
+    ],
+    "rotation": [
+      -0.30346247711114516,
+      -0.16308678195471263,
+      -0.294152496636454,
+      0.8915085727348699
+    ],
+    "canvas": {
+      "width": 1440,
+      "height": 910.4375,
+      "top": 49.5625,
+      "left": 0
+    },
+    "plates": [
+      {
+        "story": "story_a9a21c44a1e7",
+        "facing": 0.7989281119357807,
+        "at": [
+          0.3187980048579198,
+          -0.19928685733833582,
+          -0.36156056038270745
+        ],
+        "position": [
+          0,
+          0,
+          161.69210764801653
+        ],
+        "meshes": 6,
+        "vertices": 75086,
+        "triangles": 86670,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_a1c7adb510b4",
+        "facing": 0.48248629204998683,
+        "at": [
+          0.4908792092524077,
+          -0.14388403899202232,
+          -0.2975988817711591
+        ],
+        "position": [
+          69.50208764135516,
+          -4.536942764795995,
+          145.9219436531056
+        ],
+        "meshes": 6,
+        "vertices": 30846,
+        "triangles": 32640,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_730a208989d1",
+        "facing": 0.6240338814239791,
+        "at": [
+          0.42857868193156023,
+          0.19161176650091358,
+          -0.32620958001277023
+        ],
+        "position": [
+          51.92236426043467,
+          59.68202106576691,
+          141.01936791366586
+        ],
+        "meshes": 6,
+        "vertices": 39410,
+        "triangles": 42606,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_c9107adf051c",
+        "facing": 0.8821904050040562,
+        "at": [
+          0.20349824179696116,
+          0.2767848713154001,
+          -0.37839018180131656
+        ],
+        "position": [
+          -21.054716362991815,
+          86.03026056513076,
+          135.27686742982868
+        ],
+        "meshes": 6,
+        "vertices": 69497,
+        "triangles": 76706,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_4280df77bc0e",
+        "facing": 0.9999932793092199,
+        "at": [
+          0.0017220741659721966,
+          -0.0018721559899898567,
+          -0.40220141379506147
+        ],
+        "position": [
+          -86.51706079649449,
+          43.380842969297355,
+          129.5269791590409
+        ],
+        "meshes": 8,
+        "vertices": 52059,
+        "triangles": 57780,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_3c99aeeade44",
+        "facing": 0.9237308989101127,
+        "at": [
+          -0.04856185120120718,
+          -0.3366597630875748,
+          -0.38678666909728476
+        ],
+        "position": [
+          -101.06377920886082,
+          -17.683700387318115,
+          124.9709444162601
+        ],
+        "meshes": 6,
+        "vertices": 40474,
+        "triangles": 42748,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_1e9d6400be09",
+        "facing": 0.6643679820329198,
+        "at": [
+          0.04358054376393197,
+          -0.6702471996193129,
+          -0.3343622217248108
+        ],
+        "position": [
+          -66.17863580088961,
+          -86.76986569345188,
+          119.31352080435522
+        ],
+        "meshes": 8,
+        "vertices": 107516,
+        "triangles": 123674,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      },
+      {
+        "story": "story_9f597bb9a758",
+        "facing": 0.32927771455712734,
+        "at": [
+          0.25938764681309967,
+          -0.7458300316954205,
+          -0.26663117403370684
+        ],
+        "position": [
+          11.568783048198906,
+          -114.80989234445616,
+          113.26601235276125
+        ],
+        "meshes": 6,
+        "vertices": 33185,
+        "triangles": 35730,
+        "materials": [
+          {
+            "type": "ShaderMaterial",
+            "side": 0,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          },
+          {
+            "type": "MeshStandardMaterial",
+            "side": 2,
+            "transparent": false
+          }
+        ]
+      }
+    ],
+    "render": {
+      "frame": 121,
+      "calls": 54,
+      "triangles": 522746,
+      "points": 0,
+      "lines": 0
+    },
+    "memory": {
+      "geometries": 53,
+      "textures": 43
+    },
+    "shell": {
+      "radius": 160,
+      "color": "bfbfbf",
+      "opacity": 0.18,
+      "transparent": true,
+      "depthWrite": false,
+      "side": 2
+    },
+    "skin": null,
+    "seaPresent": false,
+    "corePresent": false,
+    "labels": [
+      {
+        "text": "The agent link",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 936.4343872070312,
+          "y": 568.8947143554688,
+          "width": 111.37493896484375,
+          "height": 22.875,
+          "top": 568.8947143554688,
+          "right": 1047.809326171875,
+          "bottom": 591.7697143554688,
+          "left": 936.4343872070312
+        }
+      },
+      {
+        "text": "The app",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1104.2738037109375,
+          "y": 538.9949340820312,
+          "width": 69.46875,
+          "height": 22.875,
+          "top": 538.9949340820312,
+          "right": 1173.7425537109375,
+          "bottom": 561.8699340820312,
+          "left": 1104.2738037109375
+        }
+      },
+      {
+        "text": "The arc surface",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 1027.196533203125,
+          "y": 357.9349060058594,
+          "width": 117.265625,
+          "height": 22.875,
+          "top": 357.9349060058594,
+          "right": 1144.462158203125,
+          "bottom": 380.8099060058594,
+          "left": 1027.196533203125
+        }
+      },
+      {
+        "text": "The command line",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 824.6253662109375,
+          "y": 311.96875,
+          "width": 138.15625,
+          "height": 22.875,
+          "top": 311.96875,
+          "right": 962.7816162109375,
+          "bottom": 334.84375,
+          "left": 824.6253662109375
+        }
+      },
+      {
+        "text": "The forest",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 679.571533203125,
+          "y": 462.3541259765625,
+          "width": 83.796875,
+          "height": 22.875,
+          "top": 462.3541259765625,
+          "right": 763.368408203125,
+          "bottom": 485.2291259765625,
+          "left": 679.571533203125
+        }
+      },
+      {
+        "text": "The librarian",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 627.8763427734375,
+          "y": 643.031982421875,
+          "width": 101.34375,
+          "height": 22.875,
+          "top": 643.031982421875,
+          "right": 729.2200927734375,
+          "bottom": 665.906982421875,
+          "left": 627.8763427734375
+        }
+      },
+      {
+        "text": "The library",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 713.0591430664062,
+          "y": 823.0621337890625,
+          "width": 88.28125,
+          "height": 22.875,
+          "top": 823.0621337890625,
+          "right": 801.3403930664062,
+          "bottom": 845.9371337890625,
+          "left": 713.0591430664062
+        }
+      },
+      {
+        "text": "The knowledge core",
+        "visible": true,
+        "opacity": "1",
+        "bounds": {
+          "x": 867.1287231445312,
+          "y": 863.8526000976562,
+          "width": 148.5625,
+          "height": 22.875,
+          "top": 863.8526000976562,
+          "right": 1015.6912231445312,
+          "bottom": 886.7276000976562,
+          "left": 867.1287231445312
+        }
+      }
+    ],
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_a9a21c44a1e7",
+        "story_a1c7adb510b4",
+        "story_730a208989d1",
+        "story_c9107adf051c",
+        "story_4280df77bc0e",
+        "story_3c99aeeade44",
+        "story_1e9d6400be09",
+        "story_9f597bb9a758"
+      ],
+      "capabilities": [
+        "capability_2890d6eb898e",
+        "capability_13f5fd952239",
+        "capability_6866455b0053",
+        "capability_a55592f606f9",
+        "capability_537a120816bd",
+        "capability_536cee22728f",
+        "capability_da67b1627315",
+        "capability_8eaa6daf875c",
+        "capability_4339e59597cd",
+        "capability_c9aea979fe4a",
+        "capability_b1de5b6cfdd4",
+        "capability_b2e2aaa9a900",
+        "capability_ed0f71d5dcae",
+        "capability_6c3d3ef6096e",
+        "capability_abb92a336dfc",
+        "capability_50e9238f6a0a",
+        "capability_e0c24c22ee6a",
+        "capability_942a3d583139",
+        "capability_632b9297da28",
+        "capability_a11fa55d06c9",
+        "capability_d062384ce279",
+        "capability_bb793d4ae235",
+        "capability_624c3afd82ff",
+        "capability_e8a27b8ab696",
+        "capability_f99a2758e136",
+        "capability_b8c9090cdd81",
+        "capability_1fab92f75a01",
+        "capability_9ba30b38e4b8",
+        "capability_a785e9a150d7",
+        "capability_b33032709ad7",
+        "capability_33fdf879d190",
+        "capability_88cae96d9b51",
+        "capability_f7a0b51a565a",
+        "capability_ad0c7b84a7f0",
+        "capability_aa0ab26436f2",
+        "capability_e28d6fc4431e",
+        "capability_e19e93de01fb",
+        "capability_ddd02378cc40",
+        "capability_8ab4ae7135c6",
+        "capability_363c4748f99d",
+        "capability_c12d1400514c",
+        "capability_731c42ebdfb5",
+        "capability_2f58306e73b2",
+        "capability_e6d39599196d",
+        "capability_d17061c4cb62",
+        "capability_4bdf36e4bc24",
+        "capability_7f6797e83d32",
+        "capability_0ed0a7258ec5",
+        "capability_ebba5b4132f4",
+        "capability_29ab23e1c395",
+        "capability_29b0ae484bf4",
+        "capability_33f7395e2847",
+        "capability_2a90476083b6",
+        "capability_3216b06ba422",
+        "capability_b78d99e6df8e",
+        "capability_702daa72c42b",
+        "capability_70acabef44a6"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The librarian",
+        "The library",
+        "The knowledge core"
+      ],
+      "trees": [
+        {
+          "capability": "capability_2890d6eb898e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_13f5fd952239",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6866455b0053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a55592f606f9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_537a120816bd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_536cee22728f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da67b1627315",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8eaa6daf875c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4339e59597cd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c9aea979fe4a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b1de5b6cfdd4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b2e2aaa9a900",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ed0f71d5dcae",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6c3d3ef6096e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_abb92a336dfc",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_50e9238f6a0a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c24c22ee6a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_942a3d583139",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_632b9297da28",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_a11fa55d06c9",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d062384ce279",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bb793d4ae235",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_624c3afd82ff",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e8a27b8ab696",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f99a2758e136",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b8c9090cdd81",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1fab92f75a01",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ba30b38e4b8",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_a785e9a150d7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b33032709ad7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33fdf879d190",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_88cae96d9b51",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f7a0b51a565a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ad0c7b84a7f0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_aa0ab26436f2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e28d6fc4431e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e19e93de01fb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ddd02378cc40",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8ab4ae7135c6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_363c4748f99d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c12d1400514c",
+          "form": "dead"
+        },
+        {
+          "capability": "capability_731c42ebdfb5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2f58306e73b2",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e6d39599196d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d17061c4cb62",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4bdf36e4bc24",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7f6797e83d32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_0ed0a7258ec5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ebba5b4132f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29ab23e1c395",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_29b0ae484bf4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_33f7395e2847",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2a90476083b6",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3216b06ba422",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b78d99e6df8e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_702daa72c42b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_70acabef44a6",
+          "form": "seedling"
+        }
+      ],
+      "unclaimed": 0
+    },
+    "view": "globe"
+  },
+  "flat": {
+    "surface": "forest",
+    "stories": [
+      "story_a9a21c44a1e7",
+      "story_a1c7adb510b4",
+      "story_730a208989d1",
+      "story_c9107adf051c",
+      "story_4280df77bc0e",
+      "story_3c99aeeade44",
+      "story_1e9d6400be09",
+      "story_9f597bb9a758"
+    ],
+    "capabilities": [
+      "capability_2890d6eb898e",
+      "capability_13f5fd952239",
+      "capability_6866455b0053",
+      "capability_a55592f606f9",
+      "capability_537a120816bd",
+      "capability_536cee22728f",
+      "capability_da67b1627315",
+      "capability_8eaa6daf875c",
+      "capability_4339e59597cd",
+      "capability_c9aea979fe4a",
+      "capability_b1de5b6cfdd4",
+      "capability_b2e2aaa9a900",
+      "capability_ed0f71d5dcae",
+      "capability_6c3d3ef6096e",
+      "capability_abb92a336dfc",
+      "capability_50e9238f6a0a",
+      "capability_e0c24c22ee6a",
+      "capability_942a3d583139",
+      "capability_632b9297da28",
+      "capability_a11fa55d06c9",
+      "capability_d062384ce279",
+      "capability_bb793d4ae235",
+      "capability_624c3afd82ff",
+      "capability_e8a27b8ab696",
+      "capability_f99a2758e136",
+      "capability_b8c9090cdd81",
+      "capability_1fab92f75a01",
+      "capability_9ba30b38e4b8",
+      "capability_a785e9a150d7",
+      "capability_b33032709ad7",
+      "capability_33fdf879d190",
+      "capability_88cae96d9b51",
+      "capability_f7a0b51a565a",
+      "capability_ad0c7b84a7f0",
+      "capability_aa0ab26436f2",
+      "capability_e28d6fc4431e",
+      "capability_e19e93de01fb",
+      "capability_ddd02378cc40",
+      "capability_8ab4ae7135c6",
+      "capability_363c4748f99d",
+      "capability_c12d1400514c",
+      "capability_731c42ebdfb5",
+      "capability_2f58306e73b2",
+      "capability_e6d39599196d",
+      "capability_d17061c4cb62",
+      "capability_4bdf36e4bc24",
+      "capability_7f6797e83d32",
+      "capability_0ed0a7258ec5",
+      "capability_ebba5b4132f4",
+      "capability_29ab23e1c395",
+      "capability_29b0ae484bf4",
+      "capability_33f7395e2847",
+      "capability_2a90476083b6",
+      "capability_3216b06ba422",
+      "capability_b78d99e6df8e",
+      "capability_702daa72c42b",
+      "capability_70acabef44a6"
+    ],
+    "labels": [
+      "The agent link",
+      "The app",
+      "The arc surface",
+      "The command line",
+      "The forest",
+      "The librarian",
+      "The library",
+      "The knowledge core"
+    ],
+    "trees": [
+      {
+        "capability": "capability_2890d6eb898e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_13f5fd952239",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6866455b0053",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a55592f606f9",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_537a120816bd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_536cee22728f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_da67b1627315",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8eaa6daf875c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4339e59597cd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c9aea979fe4a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b1de5b6cfdd4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b2e2aaa9a900",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ed0f71d5dcae",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6c3d3ef6096e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_abb92a336dfc",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_50e9238f6a0a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e0c24c22ee6a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_942a3d583139",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_632b9297da28",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a11fa55d06c9",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d062384ce279",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_bb793d4ae235",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_624c3afd82ff",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e8a27b8ab696",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f99a2758e136",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b8c9090cdd81",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_1fab92f75a01",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_9ba30b38e4b8",
+        "form": "dead"
+      },
+      {
+        "capability": "capability_a785e9a150d7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b33032709ad7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_33fdf879d190",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_88cae96d9b51",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f7a0b51a565a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ad0c7b84a7f0",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_aa0ab26436f2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e28d6fc4431e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e19e93de01fb",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ddd02378cc40",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8ab4ae7135c6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_363c4748f99d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c12d1400514c",
+        "form": "dead"
+      },
+      {
+        "capability": "capability_731c42ebdfb5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2f58306e73b2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e6d39599196d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d17061c4cb62",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_4bdf36e4bc24",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7f6797e83d32",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_0ed0a7258ec5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ebba5b4132f4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_29ab23e1c395",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_29b0ae484bf4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_33f7395e2847",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2a90476083b6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3216b06ba422",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b78d99e6df8e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_702daa72c42b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_70acabef44a6",
+        "form": "seedling"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "checks": {
+    "openingFailure": true,
+    "claim": true,
+    "selection": true,
+    "drag": true,
+    "zoom": true,
+    "hiddenMarker": true,
+    "markerFocus": true,
+    "flatSwitch": true
+  },
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
+    "[.WebGL-0x38ac00158200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x38ac0015be00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  ]
+}

@@ -19,7 +19,7 @@
  * Everything here but setting a folder up is synchronous and touches only the file system, so an
  * answer, "not running" included, comes back in milliseconds.
  */
-import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -92,8 +92,16 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   const library = await storytree.openProject(project);
   await library.close();
   const marker = path.join(folder, MARKER_FILE);
+  const previous = existsSync(marker) ? readFileSync(marker) : undefined;
   writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
-  recordProjectChoice(path.join(home, "project-choice.json"), project);
+  try {
+    recordProjectChoice(path.join(home, "project-choice.json"), project);
+  } catch (error) {
+    // A new marker would make the tool's explicit retry stop at "already set up".
+    if (previous === undefined) rmSync(marker);
+    else writeFileSync(marker, previous);
+    throw error;
+  }
   return { project, marker };
 }
 

@@ -29,7 +29,7 @@ test("2.3, 2.4 the last setup yes wins across a batch or closed window; a later 
   const dir = mkdtempSync(path.join(tmpdir(), "app-projects-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, "project-choice.json");
-  let projects = ["old-site"];
+  let projects = ["a-existing", "old-site"];
   const options = { file, listProjects: async () => [...projects] };
   // Preferences written by the previous app version still work.
   writeFileSync(file, JSON.stringify({ projects, current: "old-site" }));

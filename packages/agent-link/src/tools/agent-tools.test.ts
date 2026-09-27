@@ -795,7 +795,7 @@ test("ADR-0650 writes proper artifact kinds with default filing and refuses harn
       const before = await library.history();
       const refused = await agent.call("write_note", { kind: "memory", text: "Remember this" });
       assert.equal(refused.isError, true);
-      assert.match(refused.content.map((item) => item.type === "text" ? item.text : "").join("\n"), /memory.*harness.*artifact/i);
+      assert.match(refused.text, /memory.*harness.*artifact/i);
       assert.deepEqual(await library.history(), before);
     });
   });

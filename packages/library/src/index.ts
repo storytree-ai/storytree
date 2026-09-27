@@ -14,7 +14,7 @@ export { NumberTakenError } from "./transactions/index.js";
 export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
-export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord } from "./schema/index.js";
+export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";
 export type { RecordEnvelope } from "./transactions/index.js";
 export type {
   ArcEdit,

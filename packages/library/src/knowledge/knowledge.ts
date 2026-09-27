@@ -24,7 +24,7 @@ import { createHash } from "node:crypto";
 
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
-import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 
 /** The kinds of note: memory notes, decisions, definitions, and the eight kinds of ADR-0640. */
@@ -117,9 +117,9 @@ export class Knowledge {
    * Write a memory note. Every link must name a live note: otherwise a MissingReferenceError names
    * the first that does not, and nothing is written.
    */
-  async writeMemory(memory: NewMemory): Promise<SchemaRecord<"memory">> {
+  async writeMemory(memory: NewMemory, options?: WriteOptions): Promise<SchemaRecord<"memory">> {
     await this.#checkLinks(memory.links);
-    return this.#records.create("memory", memory);
+    return this.#records.create("memory", memory, options);
   }
 
   /**
@@ -129,11 +129,11 @@ export class Knowledge {
    * writers at the same time never share one and a retired decision's is never reused. A decision
    * brought in with its own number keeps it, unless another has held it (NumberTakenError).
    */
-  async recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">> {
+  async recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     await this.#checkLinks(decision.links);
     await this.#checkFrontCover(decision.frontCoverOf);
     await checkReferences(this.#records, "supersedes", decision.supersedes, "decision");
-    return this.#records.create("decision", decision, { sequence: "number" });
+    return this.#records.create("decision", decision, { ...options, sequence: "number" });
   }
 
   /**
@@ -171,11 +171,11 @@ export class Knowledge {
    * place, replacing any statement before it. It remembers the text it was composed against. Null,
    * with nothing written, if `id` is not a live decision.
    */
-  async composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null> {
+  async composeStatement(id: string, statement: string, options?: WriteOptions): Promise<SchemaRecord<"decision"> | null> {
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) return null;
     const composed = { statement, composedAt: new Date().toISOString(), fingerprint: fingerprintOf(record.fields.text) };
-    return (await this.#records.edit(id, { composed })) as SchemaRecord<"decision"> | null;
+    return (await this.#records.edit(id, { composed }, options)) as SchemaRecord<"decision"> | null;
   }
 
   /**
@@ -183,18 +183,18 @@ export class Knowledge {
    * other references, must each name a live note, as writeMemory checks links; its fields are then
    * checked against its kind inside the write. A kind that is not one of the eight is refused.
    */
-  async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>): Promise<SchemaRecord<K>> {
+  async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>> {
     if (!KNOWLEDGE_KINDS.includes(kind)) {
       throw new RangeError(`writeKnowledge writes ${KNOWLEDGE_KINDS.join(", ")}, not ${JSON.stringify(kind)}`);
     }
     await this.#checkNoteReferences(fields);
-    return this.#records.create(kind, fields);
+    return this.#records.create(kind, fields, options);
   }
 
   /** Define a term. Its links are checked as writeMemory checks them. */
-  async defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">> {
+  async defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">> {
     await this.#checkLinks(definition.links);
-    return this.#records.create("definition", definition);
+    return this.#records.create("definition", definition, options);
   }
 
   /**
@@ -203,7 +203,7 @@ export class Knowledge {
    * undefined takes a decision off its node's shelf. The note's earlier wording stays in its
    * history. Returns null, and writes nothing, if `id` is not a live note.
    */
-  async editNote(id: string, fields: NoteEdit): Promise<Note | null> {
+  async editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null> {
     const own = Object.keys(fields).find((field) => Object.hasOwn(OWN_VERBS, field));
     if (own !== undefined) throw new RangeError(`editNote does not change ${JSON.stringify(own)}: ${OWN_VERBS[own]}`);
     const note = await liveRecord(this.#records, id, NOTE_TYPES);
@@ -214,7 +214,7 @@ export class Knowledge {
       await checkReferences(this.#records, "supersedes", fields.supersedes, "decision");
       if (Array.isArray(fields.supersedes)) await this.#refuseSupersessionLoop(id, fields.supersedes);
     }
-    return (await this.#records.edit(id, fields)) as Note | null;
+    return (await this.#records.edit(id, fields, options)) as Note | null;
   }
 
   /**

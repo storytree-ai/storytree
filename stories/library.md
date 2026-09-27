@@ -94,6 +94,11 @@ written first to a permanent, append-only history, so nothing is ever truly eras
   whole-document "replace" edit that caused 0.2's lost-update bug. **Kept on purpose:** an
   in-memory twin that runs the SAME test suite as Postgres, so later stories can test without a
   database.
+- **Writer book (ADR-0645 D2):** every save, edit and retire accepts an optional `actor`, kept on
+  that change's history entry. The public write methods carry it as their final `WriteOptions`
+  argument (`{ actor: "person:<user name>" }`, or an agent session). No writer is inferred when
+  omitted. Health retains its reporter, `by`, as the actor unless an explicit `actor` is supplied.
+  This uses the existing history column on Postgres and its in-memory twin; no migration is needed.
 
 **Contracts** (one shared behaviour suite, run against BOTH the in-memory twin and Postgres):
 1. `save` creates a record. Saving the same id again replaces it, and each save appends one history
@@ -112,6 +117,9 @@ written first to a permanent, append-only history, so nothing is ever truly eras
    after that sequence number.
 9. A `validate` check passed to `save`/`edit` sees the merged result. If it throws, nothing is
    written (no record change and no history entry).
+10. A write naming an `actor` keeps it in history. A write without one is accepted and its history
+    entry has no actor; an edit or retirement never inherits an earlier write's actor. Refused
+    writes and harmless no-ops add no history entry.
 
 ## 3 · Data schema
 
@@ -258,6 +266,9 @@ what just changed without re-reading everything.
   re-adding it. They edit the way `editCapability` and `editNote` already do.
 - **Extended** on 2026-09-27 by ADR-0640 with the functions of 6's eight kinds and of 10 to 13,
   each listed under its capability. The change feed carries all of their records.
+- **Writer book (ADR-0645 D2):** every public write takes optional `WriteOptions` as its final
+  argument, with `actor` passed through to capability 2's history. `reportHealth` and
+  `recordVerified` take it within their existing `HealthOptions`, alongside `by` and `note`.
 
 **Contracts:**
 1. An end-to-end "agent's day" against a real local Postgres: open a project, create an arc, add a

@@ -26,9 +26,10 @@ original `LIGHT_DIRECTION`. Paint, terrain slope and atlases stay in plate
 coordinates. The baked shadows and skirt colours stay as approved; they do
 not become a moving-sun simulation. Clearance of 1.692108 ground units keeps
 negative relief above the shell. ADR-0648 replaces the opaque sea with a light grey
-(`#bfbfbf`), double-sided shell at 0.08 opacity with depth writing off, lowered from
-0.18 at the owner's request after #90. The far
-side remains visible through it. It still answers rays, so the page keeps its
+transparent shell, tuned after #93 at the owner’s request to read as glass. The same
+sphere uses a small shader: 0.012 base opacity, a Fresnel rim and a single soft
+highlight from L1’s view-space lamp. It keeps both face draws and depth writing off,
+without a transmission buffer or refraction. The far side remains visible through it. It still answers rays, so the page keeps its
 near-side names, claims and picking rule. The surface owns and disposes its
 geometry and material. The islands and L1 light are unchanged.
 
@@ -77,5 +78,5 @@ preloading it or mounting the flat canvas first.
 
 The packed placement is shown in the
 [ADR-0648 page capture](../../../../apps/desktop/src/forest/evidence/packed/README.md), and the
-[shell tuning comparison](../../../../apps/desktop/src/forest/evidence/shell/README.md)
-shows the current transparency beside #90's opacity on the same seed.
+[glass comparison](../../../../apps/desktop/src/forest/evidence/glass/README.md)
+shows the current glass beside #93’s shell on the same seed.

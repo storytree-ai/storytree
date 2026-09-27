@@ -1,6 +1,6 @@
 # The forest becomes a planet, and each read names its agent
 
-- **Front cover of:** none yet: the story it decided has no file in this repo. When it does, name that story here and the seed moves this decision onto its shelf (ADR-0631)
+- **Front cover of:** none
 - **Full record:** ADR-0629 in storytree 0.2's decision log, storytree-ai/storytree02 (`pnpm storytree library artifact adr-0629`)
 
 0.3's forest becomes a planet: islands on a sphere, with the project's knowledge inside as a core.

@@ -102,6 +102,7 @@ node and a retired story's node goes, with nothing arranged by hand.
   history (`changesSince`) for the stories since retired.
 - **Its shelf,** founding book first:
   - The planet begins with islands spread around a globe (ADR-0646, decisions/adr-0646.md).
+  - The globe packs its islands together on a see-through grey ball, with no sea (ADR-0648, decisions/adr-0648.md).
   - **Founding book (P1):** a node's place comes from its story alone: the next place on a spiral,
     in the order stories were created, fixed for good, and a retired story leaves open sea. So
     nothing ever moves a node, and the planet (ADR-0629) will be a new placement book, not a

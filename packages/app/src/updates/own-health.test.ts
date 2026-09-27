@@ -1,6 +1,6 @@
 /** Capability 4 · Updates, contract 4.3 (ADR-0656 D2): check the newly running main build. */
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -9,7 +9,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { refreshOwnHealth } from "./own-health.js";
 
 test("4.3 the running slot checks its own build in the background, logs output, and retries failures only at the next update", async () => {
-  const root = mkdtempSync(path.join(tmpdir(), "storytree own health "));
+  // macOS's temporary directory is a symlink; the child reports its physical working directory.
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree own health ")));
   const home = path.join(root, "app home");
   const said: string[] = [];
   mkdirSync(home);

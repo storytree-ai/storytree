@@ -39,6 +39,7 @@ import {
   electronIn,
   launchToRecord,
   pageReads,
+  projectSelection,
   seedWriting,
   slotOf,
   slotSha,
@@ -54,7 +55,7 @@ import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@sto
 
 import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
-import { chooseProject, parseArgs } from "./args.js";
+import { parseArgs } from "./args.js";
 import { TRAY_ICON_PNG } from "./tray-icon.js";
 
 const args = parseArgs(process.argv);
@@ -70,6 +71,7 @@ app.setPath("userData", home.electron);
 let postgres: LocalPostgres | undefined;
 let storytree: Storytree | undefined;
 let reads: PageReads | undefined;
+let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
 /** What the window was opened with, so it can be opened again after it is closed. */
 let windowQuery: { project?: string; problem?: string } = {};
@@ -117,6 +119,11 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.heldOnQuestion, (_event, name: unknown, id: unknown) => open().heldOnQuestion(name, id));
 
   ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));
+  ipcMain.handle(CHANNELS.projectSelection, () => projects?.read() ?? { projects: [], current: undefined });
+  ipcMain.handle(CHANNELS.chooseProject, (_event, name: unknown) => {
+    if (projects === undefined) throw new Error("The library is not open");
+    return projects.choose(name);
+  });
   ipcMain.handle(CHANNELS.projectTree, (_event, name: unknown) => open().projectTree(name));
   ipcMain.handle(CHANNELS.changesSince, (_event, name: unknown, cursor: unknown) => open().changesSince(name, cursor));
   ipcMain.handle(CHANNELS.linesSince, (_event, name: unknown, cursor: unknown) => open().linesSince(name, cursor));
@@ -124,10 +131,13 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.relatedNotes, (_event, name: unknown, noteId: unknown) => open().relatedNotes(name, noteId));
 
   let problem: string | undefined;
+  let project: string | undefined;
   try {
     postgres = await start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) });
     storytree = await connect({ url: postgres.url });
     reads = pageReads({ storytree, serverUrl: postgres.url });
+    projects = projectSelection({ listProjects: () => open().listProjects(), file: path.join(home.dir, "project-choice.json") });
+    project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();
   } catch (error) {
     problem =
@@ -139,9 +149,7 @@ async function run(): Promise<void> {
   }
   build = await whichBuild();
   console.log(`storytree 0.3: ${build}`);
-  const projects = storytree === undefined ? [] : await storytree.listProjects();
-  const project = chooseProject(projects, args.project);
-  windowQuery = { ...(project === undefined ? {} : { project }), ...(problem === undefined ? {} : { problem }) };
+  windowQuery = { ...(problem === undefined ? {} : { problem }) };
   if (args.smoke) await smoke(openWindow(windowQuery), project);
   else {
     if (!args.background) openWindow(windowQuery);
@@ -357,6 +365,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
   let code = 1;
   try {
     const state = await pageState(window);
+    project = await window.webContents.executeJavaScript("document.body.dataset.project") as string | undefined;
     // Open one capability, as a click would, so the screenshot shows contracts too: the first
     // whose verified column is not passing, else the first.
     const opened = (await window.webContents.executeJavaScript(`(() => {

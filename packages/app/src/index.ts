@@ -2,6 +2,8 @@
 // logic, apart from Electron, so they are tested without it: what the app answers when the page
 // asks, and the smoke check's judgement. apps/desktop is the app itself, and wires them to the page.
 export { pageReads } from "./surfaces/reads.js";
+export { projectSelection } from "./projects/selection.js";
+export type { ProjectSelection } from "./projects/selection.js";
 export type { PageReads, PageReadsOptions } from "./surfaces/reads.js";
 export { smokeProblems } from "./surfaces/smoke.js";
 export type { Drawn } from "./surfaces/smoke.js";

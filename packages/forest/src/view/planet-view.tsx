@@ -1,5 +1,4 @@
 /** The forest's globe book: lane B's plates at lane A's places, with lane C's failure turns. */
-import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Raycaster, Vector2, Vector3 } from "three";
@@ -8,7 +7,7 @@ import type { Descriptor3D } from "@storytree/forest-world";
 import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
-import { Claims, Names, SelectionRing } from "./island-overlays.js";
+import { Claims, Names, Overlay, SelectionRing } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickIsland, planetLayout } from "./planet-navigation.js";
 
 export function PlanetView({ core, scene, places, markers, selected, onPick }: {
@@ -101,12 +100,12 @@ function Navigation({ islands, titles, rotation, onRotate, onPick }: {
     };
   }, [camera, gl, scene, onPick]);
 
-  return <Html fullscreen zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
+  return <Overlay fullscreen zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
     {markers.map(marker => <button key={marker.story} type="button" className="planet-edge-marker"
       data-failing-story={marker.story}
       style={{ left: marker.left, top: marker.top }}
       title={`${titles.get(marker.story)} · failing (agent's report)`}
       aria-label={`Show failing story: ${titles.get(marker.story)}`}
       onClick={() => onRotate(focusRotation(marker.turn, camera.quaternion))}>!</button>)}
-  </Html>;
+  </Overlay>;
 }

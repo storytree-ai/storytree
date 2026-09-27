@@ -138,7 +138,10 @@ async function openPage(browser, variant, data) {
   });
   await page.addInitScript(data => {
     const copy = value => structuredClone(value);
+    let current = data.projects.includes("storytree") ? "storytree" : data.projects[0];
     window.storytree = {
+      projectSelection: async () => copy({ projects: data.projects, current }),
+      chooseProject: async name => { current = name; return copy({ projects: data.projects, current }); },
       listProjects: async () => copy(data.projects), projectTree: async () => copy(data.tree),
       changesSince: async (_, cursor) => cursor === 0 ? copy(data.changes) : { changes: [], cursor: data.changes.cursor },
       linesSince: async (_, cursor) => cursor === 0 ? copy(data.lines) : { lines: [], cursor: data.lines.cursor },

@@ -1,5 +1,5 @@
 /**
- * The knowledge core (stories/knowledge-core.md, capability 4 · Look inside and inspect a note): the
+ * The knowledge core's drawing (stories/knowledge-core.md, capability 4 · Look inside and inspect a note): the
  * project's notes drawn inside the globe at @storytree/knowledge-core's positions, and the panel
  * beside it that pins a note, chooses a session to replay and says what size counts.
  *
@@ -15,7 +15,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { Quaternion, Raycaster, Vector2, Vector3, type Object3D } from "three";
 
-import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, SizeBy } from "@storytree/knowledge-core";
+import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, SizeBy } from "../look-inside/look-inside.js";
 
 /** Grey for a note the session never reached, pale for one it did (ADR-0647 V1, the prototype's version 4 greys). */
 const GREY = "#3a3d46";

@@ -235,13 +235,17 @@ links, replay the selected session, and size notes by visits or incoming links w
   - `legend` names and colours each agent: the orchestrator blue, then each subagent in
     Okabe-Ito order, then unknown in pale grey.
   - `lookInside`, `returnToGlobe`, `toForest` and `shown` are the view rules.
-  - The desktop app draws it all. The globe canvas gained `surface` and `inside` props
-    (`packages/forest-world`); `surface={false}` hides ADR-0648's see-through shell, which
-    replaced the sea, and every island. The page has a third view button, "Look inside". The drawing
-    (`apps/desktop/src/forest/core-view.tsx`) has balls for notes, named entrances, white arrows
-    for the pinned note's links, dashed bowed arcs for jumps, and a red cage and label for a
-    loop. The panel has counts, the session picker, the size toggle, play, pause and restart,
-    the per-agent checkboxes, and the card.
+  - The surface is this story's own, in `@storytree/knowledge-core/view` (ADR-0649 D1, D2).
+    `createKnowledgeCore(project)` keeps the reads, session, size, replay and pin, and is fed with
+    `take(history, lines)`. `KnowledgeCoreInside` draws in the turning globe: balls for notes,
+    named entrances, white arrows for the pinned note's links, dashed bowed arcs for jumps, and
+    a red cage and label for a loop. `KnowledgeCorePanel` has the counts, the session picker, the
+    size toggle, play, pause and restart, the per-agent checkboxes, and the card.
+  - The app only mounts it. The renderer makes one core per project it shows and feeds it. The
+    forest view adds a third view button, "Look inside", and mounts the two pieces. The globe
+    canvas gained `surface` and `inside` props (`packages/forest-world`, the shared engine);
+    `surface={false}` hides ADR-0648's see-through shell, which replaced the sea, and every
+    island.
   - It reads only `changesSince` and `linesSince`, which the page already reads.
   - Pictures are in `apps/desktop/src/forest/evidence/core`.
 

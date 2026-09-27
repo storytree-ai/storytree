@@ -3,9 +3,12 @@
  * the real, built `storytree` command.
  */
 import assert from "node:assert/strict";
+import { userInfo } from "node:os";
 import { after, before, test } from "node:test";
 
-import { BuiltCommand, inWorld, type World } from "./testing/cli.js";
+import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
+
+import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -109,5 +112,47 @@ test("4.4 `arc show` names what each waiting increment waits for", async () => {
     assert.ok(block.includes(first.id) && block.includes("needs the tables"), `no wait under ${second.id}:\n${ran.stdout}`);
     assert.match(ran.stdout, /Ship sign-up/);
     assert.match(ran.stdout, /Visitors sign up/);
+  });
+});
+
+test("4.6 closing an increment ends its claim for any holder and outcome; a refused close leaves it held", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      for (const [disposition, env, session] of [
+        ["landed", { CLAUDE_CODE_SESSION_ID: "holder" }, "holder"],
+        ["failed", { CODEX_THREAD_ID: "closer" }, "closer"],
+        ["withdrawn", {}, `person:${userInfo().username}`],
+      ] as const) {
+        const increment = await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…" });
+        const held = await claim({ log, library, project: world.project, session: "holder", harness: "claude-code" }, increment.id, "building the form");
+        assert.equal(held.ok, true);
+        const before = await log.since(world.project, 0);
+        const close = ["arc", "increment", "close", increment.id, "--disposition", disposition];
+        const refused = await world.run(close, env);
+        assert.equal(refused.code, 1, refused.stdout);
+        assert.match(refused.stderr, /note/);
+        assert.equal((await readClaims(log, world.project))[0]?.increment, increment.id);
+        assert.deepEqual(await log.since(world.project, 0), before);
+
+        const outcome = disposition === "landed" ? ["--pr", "#132"] : ["--note", "Folded into the sign-up page"];
+        const ran = await world.run([...close, ...outcome], env);
+        assert.equal(ran.code, 0, ran.stderr);
+        assert.equal((await library.arcView(arc))?.increments.find((one) => one.id === increment.id)?.fields.outcome?.disposition, disposition);
+        assert.deepEqual(await readClaims(log, world.project), [], "closing it must end the claim");
+        const line = (await log.since(world.project, 0)).lines.at(-1);
+        assert.equal(line?.kind, "closed");
+        if (line?.kind === "closed") assert.deepEqual([line.increment, line.disposition, line.session], [increment.id, disposition, session]);
+      }
+      const before = await log.since(world.project, 0);
+      const missing = await world.run(["arc", "increment", "close", "increment_000000000000", "--disposition", "landed", "--pr", "#132"]);
+      assert.equal(missing.code, 1);
+      assert.match(missing.stderr, /no increment/);
+      assert.deepEqual(await log.since(world.project, 0), before);
+    } finally {
+      await log.close();
+    }
   });
 });

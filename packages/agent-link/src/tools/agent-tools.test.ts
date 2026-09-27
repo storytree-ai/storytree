@@ -24,7 +24,7 @@ import { roundDue, worklist } from "@storytree/librarian";
 import pg from "pg";
 import { z } from "zod";
 
-import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
+import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
 import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
@@ -159,13 +159,11 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
   });
 });
 
-// 5.15 / 6.21: exercise both lock queues and the admission boundary through real MCP calls.
+// 5.15 / 6.21: exercise library admission through real MCP calls.
 for (const scenario of [
   { tool: "claim", boundary: "library", target: "proposal" },
   { tool: "make_workspace", boundary: "library", target: "ready" },
   { tool: "attach_workspace", boundary: "library", target: "proposal" },
-  { tool: "claim", boundary: "activity", target: "capability" },
-  { tool: "claim", boundary: "activity", target: "active" },
   { tool: "claim", boundary: "admitted", target: "proposal" },
   { tool: "make_workspace", boundary: "admitted", target: "proposal" },
   { tool: "attach_workspace", boundary: "admitted", target: "proposal" },
@@ -175,10 +173,8 @@ for (const scenario of [
       const { tool, boundary, target } = scenario;
       const arc = await library.createArc({ title: "Cancellation", intent: "Claim only wanted work", endState: "No abandoned claim" });
       const increment = await library.addIncrement({ arc: arc.id, title: "Queued work", objective: "Build", body: "Red then green" });
-      if (target === "ready" || target === "active") await library.advanceIncrement(increment.id, target);
-      const id = target === "capability"
-        ? (await library.addCapability({ story: (await library.addStory({ title: "Signup" })).id, title: "Form" })).id
-        : increment.id;
+      if (target === "ready") await library.advanceIncrement(increment.id, target);
+      const id = increment.id;
       const before = await library.get(id);
       const history = await library.history({ id });
       const origin = path.join(path.dirname(folder), "origin.git");
@@ -194,7 +190,7 @@ for (const scenario of [
       const worktrees = git(folder, "worktree", "list", "--porcelain");
       const branches = git(folder, "for-each-ref", "refs/heads");
       const url = new URL(testServerUrl());
-      url.pathname = `/${boundary === "activity" ? ACTIVITY_DATABASE : projectDatabase(project)}`;
+      url.pathname = `/${projectDatabase(project)}`;
       const pool = new pg.Pool({ connectionString: url.href });
       const blocker = await pool.connect();
       const session = "cancelled-claimant";
@@ -214,9 +210,7 @@ for (const scenario of [
         await client.connect(clientSide);
         await client.callTool({ name: "show_plan", arguments: {}, _meta: meta });
         await blocker.query("BEGIN");
-        if (boundary === "activity") {
-          await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
-        } else if (boundary === "library") {
+        if (boundary === "library") {
           await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
         } else {
           // A row lock blocks activation AFTER the library admits it through the advisory lock.
@@ -226,7 +220,7 @@ for (const scenario of [
         const pending = client.callTool({
           name: tool,
           arguments: {
-            ...(target === "capability" ? { capability: id } : { increment: id }), reason: "Build queued work",
+            increment: id, reason: "Build queued work",
             ...(isCodex ? { folder: appFolder, ref, name: "queued-work" } : {}),
           },
           _meta: meta,

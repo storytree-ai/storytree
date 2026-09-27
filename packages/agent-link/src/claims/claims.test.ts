@@ -372,3 +372,46 @@ test("5.9 a claim on a capability is refused when every open increment naming it
     assert.equal((await claim(as("B"), passwordReset, "building the reset")).ok, true, "no open increment names it");
   });
 });
+
+for (const target of ["capability", "active increment"] as const) {
+  test(`5.15 cancelling a claim queued for the activity lock leaves no claim on an ${target}`, async () => {
+    await withWorld(async ({ library, log, project, emailForm, as }) => {
+      let id = emailForm;
+      if (target === "active increment") {
+        const arc = await library.createArc({ title: "Signup", intent: "Build signup", endState: "Signup works" });
+        id = (await library.addIncrement({ arc: arc.id, title: "Form", objective: "Build form", body: "Red then green" })).id;
+        await library.advanceIncrement(id, "active");
+      }
+      const before = await library.get(id);
+      const history = await library.history({ id });
+      const locked = Promise.withResolvers<void>();
+      const unblock = Promise.withResolvers<void>();
+      const queued = Promise.withResolvers<void>();
+      const blocker = log.locked(project, async () => { locked.resolve(); await unblock.promise; });
+      await locked.promise;
+      const abort = new AbortController();
+      const observing: ActivityLog = {
+        append: log.append.bind(log), since: log.since.bind(log), close: log.close.bind(log),
+        locked: (project, work) => {
+          const pending = log.locked(project, work);
+          queued.resolve();
+          return pending;
+        },
+      };
+      const context = { ...as("A", { log: observing }), writer: { signal: abort.signal } };
+      const pending = claim(context, id, "Build form");
+      const cancelled = assert.rejects(pending, /cancel claim/);
+      try {
+        await queued.promise;
+        abort.abort(new Error("cancel claim"));
+      } finally {
+        unblock.resolve();
+        await blocker;
+      }
+      await cancelled; // The entire claim has settled before inspecting its effects.
+      assert.deepEqual(await library.get(id), before);
+      assert.deepEqual(await library.history({ id }), history);
+      assert.deepEqual((await log.since(project, 0)).lines, []);
+    });
+  });
+}

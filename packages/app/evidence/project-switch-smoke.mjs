@@ -1,4 +1,4 @@
-// App contracts 2.2–2.5: the real renderer over a throwaway database, with the existing setup yes.
+// App contracts 2.2–2.5: the real renderer over a throwaway database, with the durable setup yes.
 // Browser regression found 2026-09-27: switching projects tore down Html twice and raised NotFoundError.
 // Run from the repo root under the shared heavy lock; no running app or display is needed:
 // STORYTREE_PLAYWRIGHT=/path/to/playwright-core/index.mjs STORYTREE_CHROMIUM=/path/to/chromium \
@@ -102,6 +102,25 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.screenshot({ path: path.join(out, 'remembered-choice.png') });
+  const setup = async (project) => {
+    const folder = path.join(home, project);
+    mkdirSync(folder);
+    await setUpProject({ folder, project, storytree: library, storytreeHome: home });
+  };
+  await setup('a-new-site');
+  await setup('z-new-site');
+  await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'z-new-site');
+  assert.equal(await page.locator('#project option').count(), 4);
+  await page.screenshot({ path: path.join(out, 'last-setup-choice.png') });
+  await page.selectOption('#project', 'my-site');
+  await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
+  await page.close();
+  await setup('b-closed-site');
+  await setup('y-closed-site');
+  page = await context.newPage();
+  await page.goto(url);
+  await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'y-closed-site');
+  await page.screenshot({ path: path.join(out, 'closed-window-choice.png') });
   await page.close();
   selection = projectSelection(preferences);
   await selection.read('other-site');
@@ -109,7 +128,7 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'other-site');
   assert.deepEqual(errors, []);
-  const result = { firstProjectMs, emptyText, calls, errors, passed: ['first project without restart', 'new setup choice', 'unchanged polling preserves canvas', 'picker choice persisted across page and selection-service restart', 'explicit project wins'] };
+  const result = { firstProjectMs, emptyText, calls, errors, passed: ['first project without restart', 'new setup choice', 'unchanged polling preserves canvas', 'picker choice persisted across page and selection-service restart', 'last back-to-back setup wins', 'newer picker wins over setup', 'last setup while the window is closed wins on reopening', 'explicit project wins over setup at launch'] };
   writeFileSync(path.join(out, 'smoke.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
 } finally {

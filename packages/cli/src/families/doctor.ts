@@ -1,7 +1,8 @@
 /**
  * Capability 8 · Doctor (the command line story): run storytree's setup check from a terminal, the same one
  * every agent session start runs: is storytree running, are the hooks registered and last seen
- * firing, is this folder a project, is `storytree` on the path, is `gh` signed in. It fixes what the
+ * firing, is this folder a project, is `storytree` on the path, is `gh` signed in, is Claude Code or
+ * Codex signed in, and are git and a usable Node there (ADR-0716). It fixes what the
  * check fixes by itself and names the fix for the rest, and it sets a folder up as a project only
  * when you tell it to.
  *
@@ -72,6 +73,13 @@ function ghSaid(report: SetupReport): string[] {
   }
 }
 
+/** The agent CLI, git and Node lines, as the setup check words them. */
+function machineSaid(report: SetupReport): string[] {
+  return report.lines
+    .filter((line) => line.check === "agent-cli" || line.check === "git" || line.check === "node")
+    .map((line) => (line.fix === undefined ? line.message : `${line.message} Fix: ${line.fix}`));
+}
+
 /** When storytree last heard from a hook in `project`, and from which harness. */
 async function lastHook(url: string, project: string): Promise<string> {
   const log = await openActivityLog(url);
@@ -115,7 +123,7 @@ const doctor: Verb = {
       said.push(`This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.`);
       next.push({ command: `storytree doctor --set-up ${report.project.suggestion}`, why: "make it a project, or name it as you like" });
     }
-    said.push(...commandSaid(report), ...ghSaid(report));
+    said.push(...commandSaid(report), ...ghSaid(report), ...machineSaid(report));
     return { text: said.join("\n"), next };
   },
 };

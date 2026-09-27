@@ -4,7 +4,8 @@
  * spot: it opens storytree if it is closed, registers the hooks if they are missing, and, in a
  * folder that isn't a project yet, has the agent ask the user whether to set one up. Nothing is
  * created without that yes (ADR-0626 D5). It also puts the `storytree` command on the user's path,
- * and looks for GitHub's `gh`, signed in, which a claim's release on merge needs (ADR-0643 D1, D3).
+ * and looks for GitHub's `gh`, signed in, which a claim's release on merge needs (ADR-0643 D1, D3),
+ * and for what a first run needs on the machine: Claude Code or Codex signed in, git and Node (ADR-0716).
  *
  * The tool server runs this at its start, and again whenever the agent calls check_setup; the
  * agent's part (asking the user, and firing each hook to verify it) goes through check_setup's
@@ -17,8 +18,11 @@ import { defaultHomes, registerHooks, type HookCommand, type Homes, type HooksRe
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
+import { machineState, type MachineState } from "./machine.js";
 
 export type { SetupLine } from "./diagnostics.js";
+export { machineState, NODE_FLOOR } from "./machine.js";
+export type { AgentCliState, MachineOptions, MachineState, ToolState } from "./machine.js";
 
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";
 export type { CommandInstall, CommandPath, GhState } from "./command.js";
@@ -43,6 +47,8 @@ export interface SetupOptions {
   readonly command?: CommandPath;
   /** How to ask whether `gh` is there and signed in (ADR-0643 D3). By default, `gh auth status`. */
   readonly gh?: () => Promise<GhState>;
+  /** How to ask the machine for an agent CLI, git and Node (ADR-0716). By default, each by name on the PATH. */
+  readonly machine?: () => Promise<MachineState>;
 }
 
 export interface SetupReport {
@@ -57,6 +63,8 @@ export interface SetupReport {
   readonly command: CommandInstall | undefined;
   /** Whether `gh` is there and signed in, for release on merge. */
   readonly gh: GhState;
+  /** Whether Claude Code or Codex is signed in, and whether git and a usable Node are there. */
+  readonly machine: MachineState;
 }
 
 /** Check `options.folder`, inside or outside a session, and fix what needs no user decision. Never creates a project. */
@@ -70,8 +78,8 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
   const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"));
-  const gh = await (options.gh ?? ghState)();
-  const report = { storytree, hooks, project, command, gh };
+  const [gh, machine] = await Promise.all([(options.gh ?? ghState)(), (options.machine ?? machineState)()]);
+  const report = { storytree, hooks, project, command, gh, machine };
   return { ...report, lines: setupLines(report) };
 }
 

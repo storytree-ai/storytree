@@ -715,6 +715,28 @@ test("6.10 it sets a wait with a reason, and a claim on the waiting increment is
   });
 });
 
+test("6.12 friction capture uses the calling folder's branch for the shared daily cap", async () => {
+  await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "fix/mail");
+    const fields = { title: "Delay", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Wait" };
+    const date = new Date().toISOString().slice(0, 10);
+    for (let i = 0; i < 2; i++) await library.writeKnowledge("friction", {
+      ...fields, provenance: { branch: "fix/mail", date, source: "retro" },
+    });
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const third = idOf(await agent.call("record_friction", fields));
+      const history = await library.history();
+      const fourth = await agent.call("record_friction", fields);
+      assert.equal(fourth.isError, true, "the MCP caller shares the cap");
+      assert.match(fourth.text, /friction reinforce/);
+      assert.deepEqual(await library.history(), history);
+      const saved = await library.get(third);
+      assert.ok(saved?.type === "friction");
+      assert.deepEqual(saved.fields.provenance, { branch: "fix/mail", date, source: "retro" });
+    });
+  });
+});
+
 test("6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

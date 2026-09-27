@@ -37,7 +37,7 @@ const frictionNew: Verb = {
   usage: "friction new --title <t> --description … --statement … --evidence <text|@file> --impact … [--links a,b]",
   summary: "file friction with concrete evidence and its impact",
   async act(args, context) {
-    const note = await recordFriction(await context.library(), fields(args, ["title", "description", "statement", "evidence", "impact"]) as never, context.writer());
+    const note = await recordFriction(await context.library(), { ...fields(args, ["title", "description", "statement", "evidence", "impact"]), branch: branchIn(context.cwd) } as never, context.writer());
     return { text: `Recorded friction ${note.id}.`, next: [{ command: `storytree library read ${note.id}`, why: "read it whole" }] };
   },
 };

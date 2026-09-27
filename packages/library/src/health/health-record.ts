@@ -15,7 +15,7 @@
  * the change's actor), when, and its note.
  */
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
-import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
 import type { ArcNode, CapabilityNode, ContractNode, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
 
@@ -42,8 +42,11 @@ export interface NodeHealth {
   verified: HealthColumn;
 }
 
-/** Who is writing a health entry, and a note to keep with it. */
-export interface HealthOptions {
+/**
+ * The health reporter and a note to keep with the entry. An explicit actor identifies the writer
+ * in history; when omitted, the reporter (`by`) remains the actor as before.
+ */
+export interface HealthOptions extends WriteOptions {
   readonly by?: string;
   readonly note?: string;
 }
@@ -186,10 +189,11 @@ export class HealthRecord {
       throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
     }
     const { by, note } = options;
+    const actor = options.actor ?? by;
     const record = await this.#records.create(
       "health",
       { node: contractId, column, state, ...(by === undefined ? {} : { by }), ...(note === undefined ? {} : { note }) },
-      { id: healthId(contractId, column), ...(by === undefined ? {} : { actor: by }) },
+      { id: healthId(contractId, column), ...(actor === undefined ? {} : { actor }) },
     );
     return entryOf(record.fields, record.updatedAt);
   }

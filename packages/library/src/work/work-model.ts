@@ -11,7 +11,7 @@
  */
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, DependencyLoopError, liveRecord } from "../references.js";
-import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf } from "../schema/types.js";
 
 /** A new story's fields. */
@@ -90,18 +90,18 @@ export class WorkModel {
    * Add a story to the project. Its id is generated: an `id` in `story` is refused as an unknown
    * field, as is any other field a story does not have.
    */
-  addStory(story: NewStory): Promise<SchemaRecord<"story">> {
-    return this.#serially(() => this.#records.create("story", story));
+  addStory(story: NewStory, options?: WriteOptions): Promise<SchemaRecord<"story">> {
+    return this.#serially(() => this.#records.create("story", story, options));
   }
 
   /**
    * Create an arc. Every story it lists must be a live story (MissingReferenceError otherwise,
    * naming the first one that is not); it may list none at all.
    */
-  createArc(arc: NewArc): Promise<SchemaRecord<"arc">> {
+  createArc(arc: NewArc, options?: WriteOptions): Promise<SchemaRecord<"arc">> {
     return this.#serially(async () => {
       await checkReferences(this.#records, "stories", arc.stories, "story");
-      return this.#records.create("arc", arc);
+      return this.#records.create("arc", arc, options);
     });
   }
 
@@ -110,11 +110,11 @@ export class WorkModel {
    * records of those types (MissingReferenceError otherwise). A new capability cannot close a
    * dependency loop, since nothing can depend on it yet.
    */
-  addCapability(capability: NewCapability): Promise<SchemaRecord<"capability">> {
+  addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "story", capability.story, "story");
       await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
-      return this.#records.create("capability", capability);
+      return this.#records.create("capability", capability, options);
     });
   }
 
@@ -125,21 +125,21 @@ export class WorkModel {
    * depend on itself, directly or through others, is refused with a DependencyLoopError naming the
    * loop. Returns null, and writes nothing, if `id` is not a live capability.
    */
-  editCapability(id: string, fields: CapabilityEdit): Promise<SchemaRecord<"capability"> | null> {
+  editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["capability"])) === null) return null;
       await checkReference(this.#records, "story", fields.story, "story");
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
-      return (await this.#records.edit(id, fields)) as SchemaRecord<"capability"> | null;
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"capability"> | null;
     });
   }
 
   /** Add a contract to a capability, which must be a live capability (MissingReferenceError otherwise). */
-  addContract(contract: NewContract): Promise<SchemaRecord<"contract">> {
+  addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "capability", contract.capability, "capability");
-      return this.#records.create("contract", contract);
+      return this.#records.create("contract", contract, options);
     });
   }
 
@@ -147,10 +147,10 @@ export class WorkModel {
    * Change only the named fields of a story, as capability 3's edit does. Returns null, and writes
    * nothing, if `id` is not a live story.
    */
-  editStory(id: string, fields: StoryEdit): Promise<SchemaRecord<"story"> | null> {
+  editStory(id: string, fields: StoryEdit, options?: WriteOptions): Promise<SchemaRecord<"story"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["story"])) === null) return null;
-      return (await this.#records.edit(id, fields)) as SchemaRecord<"story"> | null;
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"story"> | null;
     });
   }
 
@@ -158,11 +158,11 @@ export class WorkModel {
    * Change only the named fields of a contract, as capability 3's edit does. A new capability is
    * checked as addContract checks it. Returns null, and writes nothing, if `id` is not a live contract.
    */
-  editContract(id: string, fields: ContractEdit): Promise<SchemaRecord<"contract"> | null> {
+  editContract(id: string, fields: ContractEdit, options?: WriteOptions): Promise<SchemaRecord<"contract"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["contract"])) === null) return null;
       await checkReference(this.#records, "capability", fields.capability, "capability");
-      return (await this.#records.edit(id, fields)) as SchemaRecord<"contract"> | null;
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"contract"> | null;
     });
   }
 
@@ -170,11 +170,11 @@ export class WorkModel {
    * Change only the named fields of an arc, as capability 3's edit does. New stories are checked as
    * createArc checks them. Returns null, and writes nothing, if `id` is not a live arc.
    */
-  editArc(id: string, fields: ArcEdit): Promise<SchemaRecord<"arc"> | null> {
+  editArc(id: string, fields: ArcEdit, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["arc"])) === null) return null;
       await checkReferences(this.#records, "stories", fields.stories, "story");
-      return (await this.#records.edit(id, fields)) as SchemaRecord<"arc"> | null;
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"arc"> | null;
     });
   }
 

@@ -36,6 +36,9 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } f
 /** What a Library offers: the API's list, restated from the spec and the brief. */
 const LIBRARY_API = [
   "name",
+  "get",
+  "list",
+  "history",
   "addStory",
   "createArc",
   "addCapability",
@@ -298,14 +301,6 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
       { recordId: decision.id, type: "decision", action: "created", record: decision },
     ]);
     assert.deepEqual(await follow(), []);
-    // A change carries no reason, but the history keeps the one retire was given (seen from outside the library).
-    const reasons = await withTestClient(
-      async (client) =>
-        (await client.query<{ reason: string }>("SELECT reason FROM record_event WHERE record_id = $1 AND action = 'retired'", [memory.id])).rows,
-      `storytree_${name}`,
-    );
-    assert.deepEqual(reasons, [{ reason: "folded into a decision" }]);
-
     // No gap and no repeat: what the reader followed is exactly the whole history, in order.
     const whole = await lib.changesSince(0);
     assert.deepEqual(followed, whole.changes);

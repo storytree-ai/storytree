@@ -18,7 +18,7 @@
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  */
-import type { Hold, IncrementStatus, Library, SchemaRecord } from "@storytree/library";
+import type { Hold, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import type { ActivityLog, Line, LockedLog } from "../activity/index.js";
 import { COMMAND_KINDS, commandRunning, labelOf, QUIET_MS } from "../sessions/index.js";
@@ -46,6 +46,8 @@ interface ClaimOn {
 export interface ClaimContext {
   readonly log: ActivityLog;
   readonly library: Library;
+  /** Request attribution and cancellation, when the claim came from a tool. */
+  readonly writer?: WriteOptions;
   readonly project: string;
   readonly session: string;
   readonly harness?: string;
@@ -112,6 +114,11 @@ export async function claim(context: ClaimContext, id: string, reason: string): 
     const current = (await heldNow(log, context)).get(id);
     if (current?.session === context.session) return { ok: true, claim: current, alreadyHeld: true };
     if (current?.holder === "live") return { ok: false, refused: "held", holder: current };
+    // A claim may have waited for this lock without needing any library write at all.
+    context.writer?.signal?.throwIfAborted();
+    // Activation takes the library lock and checks cancellation there, before any claimed line.
+    // Once admitted, complete the claim (and its workspace) even if cancellation arrives later.
+    if (found.status === "proposal" || found.status === "ready") await context.library.advanceIncrement(id, "active", { ...context.writer, actor: `session:${context.session}` });
     const line = await log.append({
       ...who(context),
       kind: "claimed",
@@ -120,8 +127,6 @@ export async function claim(context: ClaimContext, id: string, reason: string): 
       ...(current === undefined ? {} : { takenOverFrom: current.session }),
       ...(context.branch === undefined ? {} : { branch: context.branch }),
     });
-    // Started only by the claim that won, under the lock; one already active is left as it is.
-    if (found.status === "proposal" || found.status === "ready") await context.library.advanceIncrement(id, "active", { actor: `session:${context.session}` });
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
     return current === undefined ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });

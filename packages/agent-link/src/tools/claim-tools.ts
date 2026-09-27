@@ -145,9 +145,9 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
   );
 }
 
-function claimContext({ log, library, project, caller, folder, quietMs }: Call): ClaimContext & { readonly folder: string } {
+function claimContext({ log, library, project, caller, folder, quietMs, writer }: Call): ClaimContext & { readonly folder: string } {
   const branch = currentBranch(folder);
-  return { log, library, project, ...lineOf(caller), folder, quietMs, ...(branch === undefined ? {} : { branch }) };
+  return { log, library, project, ...lineOf(caller), folder, quietMs, writer, ...(branch === undefined ? {} : { branch }) };
 }
 
 /** Why a claim was refused, as the agent is told it. */

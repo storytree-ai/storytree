@@ -105,11 +105,11 @@ test("2.2/2.6: the registered launch keeps the session folder and reaches its ex
   for (const folder of folders) {
     const env = { ...process.env }; delete env.CLAUDE_PROJECT_DIR;
     assert.equal(execFileSync(server.command, server.args, { cwd: folder, env, encoding: "utf8" }).trim(), folder);
-    const report = await runSetupCheck({ folder, storytreeHome: path.join(f.home, "no running app"), openWaitMs: 0, gh: async () => "missing", machine: async () => ({ agents: [], git: "missing", node: { status: "missing" } } as never) });
+    const report = await runSetupCheck({ folder, storytreeHome: path.join(f.home, "no running app"), openWaitMs: 0, gh: async () => "missing", machine: async () => ({ claude: "missing", codex: "missing", git: "missing", node: { state: "missing" }, waitMs: 0 }) });
     assert.equal(report.project.status, "ask");
     assert.ok(!existsSync(path.join(folder, ".storytree.json")));
   }
-  const verification = verifyHooks([], "codex");
+  const verification = verifyHooks([], "session", "codex");
   assert.equal(verification.verified, false);
 });
 
@@ -142,4 +142,92 @@ test("2.5: disconnect one keeps the other and command; disconnect all removes on
   assert.equal(existsSync(commandFile), false);
   assert.equal(existsSync(path.join(f.codex, "hooks.json")), false);
   assert.equal(readFileSync(library, "utf8"), "project data");
+});
+
+test("2.3: incompatible Codex command and disabled tools are explained without overwriting", async (t) => {
+  const f = fixture(t);
+  const original = `${legacy}\n[mcp_servers.storytree]\ncommand = "storytree-02"\nargs = []\n`;
+  writeFileSync(f.codexFile, original);
+  const results = await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.equal(results[0]!.tools, "not connected");
+  assert.match(results[0]!.next, /existing storytree/);
+  assert.equal(readFileSync(f.codexFile, "utf8"), original);
+  rmSync(f.codexFile);
+  await connectAgents({ ...f.options, harnesses: ["codex"] });
+  const registered = readFileSync(f.codexFile, "utf8");
+  const restricted: RunHarness = async (exe, args, opts) => {
+    const answer = await run(exe, args, opts);
+    return args[1] === "get" ? JSON.stringify({ ...JSON.parse(answer), disabled_tools: ["check_setup"] }) : answer;
+  };
+  assert.equal((await connectAgents({ ...f.options, run: restricted, harnesses: ["codex"] }))[0]!.tools, "not connected");
+  assert.equal(readFileSync(f.codexFile, "utf8"), registered);
+});
+
+test("2.4: invalid JSON shapes are preserved and an interrupted settings edit can safely retry", async (t) => {
+  const f = fixture(t);
+  for (const invalid of ["null", "[]", '{"mcpServers":[]}']) {
+    writeFileSync(f.claudeFile, invalid);
+    assert.equal((await connectAgents({ ...f.options, harnesses: ["claude-code"] }))[0]!.tools, "not connected");
+    assert.equal(readFileSync(f.claudeFile, "utf8"), invalid);
+  }
+  const changed: RunHarness = async (exe, args, opts) => {
+    const answer = await run(exe, args, opts);
+    if (args[1] === "get") writeFileSync(f.codexFile, legacy);
+    return answer;
+  };
+  const failed = await connectAgents({ ...f.options, run: changed, harnesses: ["codex"] });
+  assert.equal(failed[0]!.tools, "not connected");
+  assert.equal(readFileSync(f.codexFile, "utf8"), legacy);
+  assert.equal((await connectAgents({ ...f.options, harnesses: ["codex"] }))[0]!.tools, "connected");
+});
+
+test("2.5: a Claude-only machine finishes cleanup without requiring Codex", async (t) => {
+  const f = fixture(t);
+  const onlyClaude: RunHarness = async (exe, args, opts) => {
+    if (exe === "codex") throw Object.assign(new Error("not found"), { code: "ENOENT" });
+    return run(exe, args, opts);
+  };
+  const options = { ...f.options, run: onlyClaude, harnesses: ["claude-code"] as const };
+  await connectAgents(options);
+  registerHooks({ claude: f.claude }, { node: process.execPath, script: path.join(f.tools, "storytree-hook.mjs") });
+  const result = await disconnectAgents(options);
+  assert.equal(result.harnesses[0]!.tools, "disconnected");
+  assert.equal(result.command, "none");
+  assert.equal(JSON.parse(readFileSync(path.join(f.claude, "settings.json"), "utf8")).hooks, undefined);
+});
+
+test("2.5: damaged hook settings keep the connection for a safe retry; a replaced registration is left alone", async (t) => {
+  const f = fixture(t);
+  const options = { ...f.options, harnesses: ["claude-code"] as const };
+  await connectAgents(options);
+  const registered = readFileSync(f.claudeFile, "utf8");
+  const hookFile = path.join(f.claude, "settings.json");
+  writeFileSync(hookFile, '{"hooks":{"SessionStart":"damaged"}}');
+  let result = await disconnectAgents(options);
+  assert.equal(result.harnesses[0]!.tools, "kept");
+  assert.equal(result.command, "kept");
+  assert.equal(readFileSync(f.claudeFile, "utf8"), registered);
+  assert.equal(readFileSync(hookFile, "utf8"), '{"hooks":{"SessionStart":"damaged"}}');
+  writeFileSync(hookFile, "{}");
+  assert.equal((await disconnectAgents(options)).harnesses[0]!.tools, "disconnected");
+  const replaced = '{"mcpServers":{"storytree":{"command":"my replacement"}}}';
+  writeFileSync(f.claudeFile, replaced);
+  result = await disconnectAgents(options);
+  assert.equal(result.harnesses[0]!.tools, "kept");
+  assert.equal(readFileSync(f.claudeFile, "utf8"), replaced);
+});
+
+test("2.4: invalid hook settings block only that harness; missing installed tools direct a reinstall", async (t) => {
+  const f = fixture(t);
+  const hookFile = path.join(f.claude, "settings.json");
+  writeFileSync(hookFile, "{ invalid");
+  const results = await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });
+  assert.deepEqual(results.map((r) => r.tools), ["not connected", "connected"]);
+  assert.ok(results[0]!.next.includes(hookFile));
+  assert.equal(existsSync(f.claudeFile), false);
+  assert.equal(readFileSync(hookFile, "utf8"), "{ invalid");
+  rmSync(f.script);
+  const missing = await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.equal(missing[0]!.tools, "not connected");
+  assert.match(missing[0]!.next, /installer.*bundled Node/);
 });

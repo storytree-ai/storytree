@@ -1,0 +1,10 @@
+--- old/The app setup/capability 2/capability_01dc27eec57f/description
++++ new/The app setup/capability 2/capability_01dc27eec57f/description
+@@ -1 +1,7 @@
+ The user chooses Claude Code, Codex or both, and storytree connects its installed tools to those agents. The next session uses the existing setup check to ask about the project and show whether the connection actually works.
++
++As built: @storytree/app-setup/connect exports connectAgents and disconnectAgents for the chosen harnesses, with installedToolServerCommand(bundledNodePath, installedMcpScriptPath) as the delivery seam. Registration is per user, keeps unrelated settings and old entries, uses the existing storytree MCP name, and reports incompatible entries without overwriting. It captures no project or working directory. Repeating it leaves the compatible entry untouched. Missing harnesses, invalid settings, missing installed tools and failed writes produce separate recovery results for each harness.
++
++As built: disconnect removes the selected registration and only hooks matching this installation, preserving other commands in mixed groups and any other installation's hooks. It keeps the shared command until no connection remains and removes only the matching launcher. Existing setup behavior is unchanged: subsequent setup checks still register hooks for detected harness homes. Installation results distinguish tools registration from hooks not verified; the existing setup check owns project consent and received-event verification.
++
++Evidence: packages/app-setup/evidence/connect/README.md. The Linux lane tests fake harnesses and temporary homes, with a native CLI format/preservation/retry smoke. The installed chooser/caller must be joined by the app/delivery integration lane because this lane's file fence excludes those callers. Windows x64/arm64 installed-artifact execution, Windows shim/path-with-spaces/retry checks, first launch without a record, real release-update continuity and the agent-link 8.6 two-harness/two-folder walkthrough remain acceptance work.

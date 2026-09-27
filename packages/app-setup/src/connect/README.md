@@ -1,1 +1,40 @@
-Capability 2 owns agent connection here; add its implementation through the existing `@storytree/app-setup/connect` export.
+# Connect an agent
+
+`@storytree/app-setup/connect` exports `connectAgents` and `disconnectAgents`.
+Pass `harnesses: ["claude-code"]`, `["codex"]`, or both and the installed server command:
+
+```ts
+const installed = installedToolServerCommand(bundledNodePath, installedMcpScriptPath);
+const results = await connectAgents({ installed, harnesses: ["claude-code", "codex"] });
+```
+
+The delivery lane supplies absolute paths to its own Node and bundled
+`storytree-mcp.mjs` through this small interface. The adjacent files remain the existing
+`storytree-hook.mjs` and `storytree.mjs`. No cwd, project, npm, repository path, or
+machine Node is captured in registration. Stable installed paths survive resource updates.
+
+Each result reports tools registration and a next action separately; `hooks` is always
+`not verified`. A new agent session reaches the existing setup check. Its project consent
+and received-event verification remain authoritative. Project/managed harness configuration
+can override a user registration and must be diagnosed in that session.
+
+Claude Code uses the top-level `mcpServers.storytree` in `~/.claude.json`, or
+`$CLAUDE_CONFIG_DIR/.claude.json`. Codex uses `[mcp_servers.storytree]` in
+`$CODEX_HOME/config.toml` (default `~/.codex`). The installed Codex CLI validates a
+private temporary copy and performs removal there; the user file is replaced only after
+validation and a concurrent-edit check. Claude JSON is validated before editing. Neither
+adapter overwrites an incompatible `storytree` entry, including a legacy 0.2 connection.
+A different MCP name would break the existing agent-link tool-call hook matcher.
+
+Disconnect removes only the chosen MCP registration and hook commands matching this
+installation's exact command/arguments. Other hook commands in the same group survive.
+The shared launcher is removed only after both harness configurations show no connection,
+and only when its contents match this installation's generated launcher. Failed inspection,
+conflicting entries or failed hook cleanup keep the command and give a retry action.
+Setup still registers hooks for all detected homes: another setup check may re-create a
+disconnected harness's hooks. This does not re-register its MCP server.
+
+This export is the connection logic for the installer/app integration lane. This lane's
+file fence excludes app, CLI and delivery callers, so choosing agents in the installed UI
+and calling these functions must be joined there. It adds no second installer or setup check.
+See [evidence](../../evidence/connect/README.md) for proofs and Windows acceptance limits.

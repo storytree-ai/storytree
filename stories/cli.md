@@ -79,14 +79,10 @@ Build order: 1, 2, 3; then 4, 5 and 6 as the library's 10 to 13 land; then 7 and
 link's revised build lands; then 9 and 10. Where a capability's owning function has not landed, the
 parts that need it wait, and the rest is built.
 
-**What it waits on** (ADR-0645 D6, books proposed to the other lanes):
-- **The library** (`0-3-library-writer-and-public-reads`): an optional writer on every write, kept in
-  history (for 2), and `get(id)`, `list(kind)` and `history({ id })` on its public API (for 3's
-  read, edit, list and history, 4's `arc list`, 5's `question list` across arcs, and 6's `adr
-  list`).
-- **The agent link** (`0-3-agent-link-cli-seams`): its capture functions on its public entry, and a
-  `reinforce` beside them (for 9); the session as the writer (for 2); and its setup check's
-  `storytree` launcher pointed at this package's built command.
+**Public seams used** (ADR-0645 D6): the library's optional writer and `get`, `list` and
+`history` landed in #79; the agent link's capture functions and session writers landed in #82.
+The command line calls these public APIs. Question wording still has no public editor in the
+library, so `library edit` explains that gap for questions; answering remains `question settle`.
 
 ---
 
@@ -126,8 +122,11 @@ command from its own shell, the write is recorded as that agent's session instea
   - **Founding book (ADR-0645 D2, W1 and A1):** every write names its writer: the person (their
     computer user name), or the agent session when the harness's session id is in the environment,
     and the command prints which writer it used.
-- **Waits on** `0-3-library-writer-and-public-reads` (the writer on every write) and
-  `0-3-agent-link-cli-seams` (the session as writer).
+- **As built:** every write passes `{ actor }` to its owning public API. The writer is
+  `person:<computer user name>`, or `session:<id>` when `CLAUDE_CODE_SESSION_ID` or
+  `CODEX_THREAD_ID` is nonempty (Claude Code's id takes precedence if both are present). A write's
+  answer prints `Writer: <actor>`. Reads and an unchanged `adr push` name no writer because they
+  write nothing.
 
 **Contracts:**
 1. An edit through the command shows in the record's history as the person.
@@ -150,14 +149,20 @@ refused with the library's own message.
 - **As built:** `storytree library search <words>`, `links <note>` and `new <kind> --<field> <value>
   …`, each the library's own function (`search`, `relatedNotes`, and the kind's writer). A value is
   text, except `true`, `false`, a whole number, or one starting with `[` or `{` (read as JSON), and
-  `@file` reads the file. `read`, `edit`, `list` and `history` wait on the library's `get`, `list`
-  and `history` (`0-3-library-writer-and-public-reads`).
+  `@file` reads the file. `read <id>` prints the whole live record through `get`; `edit <id>`
+  selects its public editor (`editStory`, `editCapability`, `editContract`, `editArc`,
+  `editIncrement`, or `editNote`). Question wording waits on a public library editor.
+  `list <kind> [--where <field>=<value>]…` filters the live records from `list(kind)` by exact
+  field equality, using the same value parsing; multiple filters all apply. `history <id>` shows
+  every write, including retirement, with its date, writer and retirement reason; older writes
+  without a writer say "writer not recorded".
 
 **Contracts:**
 1. `read` returns the whole body.
 2. `edit` changes only the named fields.
 3. `new` without a required field is refused, naming it.
 4. `history` lists every write with its writer.
+5. `list` shows only live records of the kind and filters by a field.
 
 ## 4 · Arcs and increments
 
@@ -173,16 +178,17 @@ increment wait on another with a reason, or clear the wait.
     and no hand close or re-open of an arc (ADR-0640 R1).
 - **Not here:** `increment start` (starting is claiming, the agent tools'), `increment ready`
   (ADR-0645 D5), and a hand close or re-open of an arc (R1).
-- **As built:** `storytree arc show | new | edit | park | unpark | wait | unwait` and `storytree arc
+- **As built:** `storytree arc show | list | new | edit | park | unpark | wait | unwait` and `storytree arc
   increment new | add | close | edit | wait | unwait`, each the library's own function. `arc show`
-  is `arcView`, with `waitHolds` and `heldOnQuestion` for each open increment. `arc list` waits on the
-  library's `list(kind)`.
+  is `arcView`, with `waitHolds` and `heldOnQuestion` for each open increment. `arc list` lists
+  every live arc from `list("arc")` with its title and the state from `arcView`.
 
 **Contracts:**
 1. An arc with no intent is refused.
 2. A close with no pull request needs a note.
 3. A wait that would close a loop is refused, naming the loop, and nothing is written.
 4. `arc show` names what each waiting increment waits for.
+5. `arc list` names each live arc with the library's state.
 
 ## 5 · Questions
 
@@ -199,13 +205,15 @@ ones.
 - **As built:** `storytree question new | settle | retire | list`, each the library's own function.
   `--hold <increment>` on `new` holds increments on the question's arc (the library's
   `editIncrement` of their `heldOn`); another arc's is held with `arc increment edit --held-on`.
-  `list` takes `--arc`; every arc's open questions wait on the library's `list(kind)`.
+  `list` shows open questions across arcs through `list("question")`, or one arc's through
+  `questions(arc)` with `--arc <arc>`. Settled and retired questions are left out.
 
 **Contracts:**
 1. A question with no stakes is refused.
 2. Settling needs an answer.
 3. A held increment reads as waiting on you until its question is settled.
 4. A question an increment is held on cannot be retired.
+5. `question list` lists open questions across arcs, or on one arc.
 
 ## 6 · Decisions
 
@@ -220,18 +228,21 @@ file, edit it, push it back, and write its composed statement (the owner's C2).
     the MVP.
 - **Folded in from 0.2:** `adr authority` became fields on `adr new` and what `adr pull` shows; `adr
   compose` stays.
-- **As built:** `storytree adr new | pull | push | compose`, each the library's own function.
+- **As built:** `storytree adr new | pull | push | compose | list`, each the library's own function.
   `pull` writes a front matter of `key: <JSON>` lines, then `# <title>` and the text; the lines
   under `# read only` (id, number, how it reads, authority, the composed statement and whether it
   is stale) are never pushed. `push` hands `editNote` only what differs, so a push with no edit
-  writes nothing. A decision is named by its id. `adr list` (6.3) and naming one by number wait on
-  the library's `list(kind)`.
+  writes nothing. A decision is named by its id, its number, or `ADR-<number>`, resolved through
+  `list("decision")`. `adr list [--current] [--status <s>] [--load-bearing]` reads each decision's
+  status through `decision(id)`, including supersession; `--current` keeps accepted decisions.
+  Filters combine, and the listing shows number, id, status, load-bearing mark and title.
 
 **Contracts:**
 1. Two `adr new` run at once get different, increasing numbers.
 2. Pull then push with no edit changes nothing.
 3. A superseded decision drops out of `--current`.
 4. A composed statement reads stale after its decision's text changes.
+5. `adr pull` names a decision by id, number, or ADR number.
 
 ## 7 · Board, read only
 
@@ -267,13 +278,21 @@ fix for the rest, and it sets a folder up as a project only when you tell it to.
   on the path need storytree's hook script, which an installed storytree keeps beside this command;
   run from elsewhere, the doctor says it cannot. The hooks last seen firing is the latest hook line in
   the project's activity log. `storytree setup install | remove` stays the agent link's command,
-  run from beside this one.
+  run from beside this one. The agent link's `buildBins` bundles this package's command as
+  `storytree.mjs` beside its hook and setup scripts, so setup installs a launcher for the full
+  command line.
+- **Known agent-link launcher limit:** on Windows, `storytree setup remove` removes the running
+  `.cmd` wrapper but `cmd.exe` then exits 1 because the batch file is gone. Removal through
+  `node <installed storytree.mjs> setup remove` succeeds; fixing wrapper self-removal belongs to
+  the agent link's launcher generator.
 
 **Contracts:**
 1. With storytree closed, it opens it.
 2. With `gh` signed out, it names `gh auth login`.
 3. In a folder that is not a project, it creates nothing unless told to.
 4. A second run changes nothing.
+5. Setup installs the full command beside its hooks; the launcher reads the library and runs
+   `doctor`; `setup remove` through the bundled command removes it again.
 
 ## 9 · Friction and re-steers
 
@@ -286,8 +305,12 @@ Add a recurrence to a friction item when it happens again.
   - **Founding book (ADR-0645 D1 item 9, F1):** friction and re-steers are filed at the command line
     through the agent link's capture functions, under the same evidence rules, so a person is held
     to what an agent is.
-- **Waits on** `0-3-agent-link-cli-seams`: the capture functions on the agent link's public entry,
-  and a `reinforce` beside them.
+- **As built:** `storytree friction new`, `friction reinforce <id> --evidence <text|@file>`,
+  and `resteer new` call the agent link's public `recordFriction`, `reinforceFriction` and
+  `recordResteer`, passing the writer. Their evidence refusals reach the terminal unchanged.
+  Reinforcement uses the current Git branch, or `--branch <branch>`, and the capture function
+  appends its date. Re-steers take `--judged-by <owner|agent>` and optional `--self-report`, kept
+  apart from the owner's quoted evidence. Capture never routes friction.
 
 **Contracts:**
 1. Friction with vague evidence is refused.

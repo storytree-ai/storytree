@@ -8,7 +8,7 @@
  * retired. Holding an increment is the library's `editIncrement` of its `heldOn`, read from the
  * arc's own view, so only increments on the question's arc are held when it is raised; another is
  * held with `storytree arc increment edit <increment> --held-on <question>`. Listing the open
- * questions of every arc waits on the library's list(kind); `--arc` lists one arc's.
+ * questions uses list(kind); `--arc` reads one arc's questions.
  */
 import { labelOf, Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -37,9 +37,9 @@ const raise: Verb = {
       }
       return increment;
     });
-    const question = await library.raiseQuestion(fields as never);
+    const question = await library.raiseQuestion(fields as never, context.writer());
     for (const increment of held) {
-      await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] });
+      await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] }, context.writer());
     }
     return {
       text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.`,
@@ -58,7 +58,7 @@ const settle: Verb = {
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
     const decision = args.text("decision");
-    const settled = await (await context.library()).settleQuestion(id, { answer: args.text("answer") as string, ...(decision === undefined ? {} : { decision }) });
+    const settled = await (await context.library()).settleQuestion(id, { answer: args.text("answer") as string, ...(decision === undefined ? {} : { decision }) }, context.writer());
     if (settled === null) throw new Refusal(`no question "${id}" in this project`);
     return { text: `Settled question ${id}.`, next: [{ command: `storytree arc show ${settled.fields.arc}`, why: "see what it released" }] };
   },
@@ -70,25 +70,22 @@ const retire: Verb = {
   summary: "retire a question that was wrong",
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
-    await (await context.library()).retire(id, args.need("reason", this.usage));
+    await (await context.library()).retire(id, args.need("reason", this.usage), context.writer());
     return { text: `Retired ${id}.` };
   },
 };
 
 const list: Verb = {
   name: "list",
-  usage: "question list --arc <arc>",
-  summary: "the open questions on an arc",
+  usage: "question list [--arc <arc>]",
+  summary: "the open questions across arcs, or on one arc",
   async act(args, context) {
     const arc = args.text("arc");
-    if (arc === undefined) {
-      throw new Refusal(
-        "listing every arc's questions is not built yet: it waits on the library's list(kind) on its public API (0-3-library-writer-and-public-reads); give --arc <arc>",
-      );
-    }
-    const open = (await (await context.library()).questions(arc)).filter((question) => question.fields.lifecycle === "open");
-    if (open.length === 0) return { text: `No question on ${arc} waits on the owner.` };
-    return { text: [`${open.length} open on ${arc}:`, ...open.map((question) => `  - ${question.id}  ${labelOf(question.fields)}`)].join("\n") };
+    const library = await context.library();
+    const open = (await (arc === undefined ? library.list("question") : library.questions(arc))).filter((question) => question.fields.lifecycle === "open");
+    const where = arc === undefined ? "across arcs" : `on ${arc}`;
+    if (open.length === 0) return { text: `No question ${where} waits on the owner.` };
+    return { text: [`${open.length} open ${where}:`, ...open.map((question) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`)].join("\n") };
   },
 };
 

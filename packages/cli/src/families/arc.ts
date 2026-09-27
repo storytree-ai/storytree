@@ -9,7 +9,7 @@
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
  * owner (`heldOnQuestion`), and an arc's state, which `arcView` works out. There is no `increment
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5), and no hand
- * close or re-open of an arc (the owner's R1). `arc list` waits on the library's list(kind).
+ * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
 import type { Library } from "@storytree/library";
 
@@ -105,7 +105,7 @@ const create: Verb = {
   summary: "a new arc, whole: its intent and end state",
   async act(args, context) {
     const stories = listOf(args, "stories");
-    const arc = await (await context.library()).createArc({ ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }) } as never);
+    const arc = await (await context.library()).createArc({ ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }) } as never, context.writer());
     return { text: `Created arc ${arc.id}.`, next: [{ command: `storytree arc show ${arc.id}`, why: "see it whole" }] };
   },
 };
@@ -117,7 +117,7 @@ const edit: Verb = {
   async act(args, context) {
     const id = args.word(0, "the arc's id", this.usage);
     const stories = listOf(args, "stories");
-    const edited = await (await context.library()).editArc(id, { ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }) } as never);
+    const edited = await (await context.library()).editArc(id, { ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }) } as never, context.writer());
     if (edited === null) throw new Refusal(`no arc "${id}" in this project`);
     return { text: `Edited arc ${id}.`, next: [{ command: `storytree arc show ${id}`, why: "see it whole" }] };
   },
@@ -131,7 +131,7 @@ function parking(name: "park" | "unpark"): Verb {
     async act(args, context) {
       const id = args.word(0, "the arc's id", this.usage);
       const library = await context.library();
-      const done = name === "park" ? await library.parkArc(id) : await library.unparkArc(id);
+      const done = name === "park" ? await library.parkArc(id, context.writer()) : await library.unparkArc(id, context.writer());
       if (done === null) throw new Refusal(`no arc "${id}" in this project`);
       return { text: `${name === "park" ? "Parked" : "Unparked"} arc ${id}.` };
     },
@@ -148,7 +148,7 @@ function waiting(family: string, what: string): Verb[] {
       async act(args, context) {
         const id = args.word(0, `the ${what}'s id`, this.usage);
         const on = args.need("on", this.usage);
-        const done = await (await context.library()).addWait(id, on, args.need("reason", this.usage));
+        const done = await (await context.library()).addWait(id, on, args.need("reason", this.usage), context.writer());
         if (done === null) throw new Refusal(`no ${what} "${id}" in this project`);
         return { text: `${id} now waits on ${on}.` };
       },
@@ -160,7 +160,7 @@ function waiting(family: string, what: string): Verb[] {
       async act(args, context) {
         const id = args.word(0, `the ${what}'s id`, this.usage);
         const on = args.need("on", this.usage);
-        const done = await (await context.library()).removeWait(id, on);
+        const done = await (await context.library()).removeWait(id, on, context.writer());
         if (done === null) throw new Refusal(`no ${what} "${id}" in this project`);
         return { text: `${id} no longer waits on ${on}.` };
       },
@@ -185,7 +185,7 @@ const incrementNew: Verb = {
   usage: `arc increment new ${INCREMENT_USAGE}`,
   summary: "park an increment on an arc, as a proposal",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement(incrementOf(args) as never);
+    const increment = await (await context.library()).addIncrement(incrementOf(args) as never, context.writer());
     return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
   },
 };
@@ -195,7 +195,7 @@ const incrementAdd: Verb = {
   usage: `arc increment add ${INCREMENT_USAGE} --disposition <landed|failed|withdrawn> [--pr <ref>] [--note <why>]`,
   summary: "record a landing that was never parked: an increment born closed",
   async act(args, context) {
-    const increment = await (await context.library()).addIncrement({ ...incrementOf(args), outcome: closeOf(args) } as never);
+    const increment = await (await context.library()).addIncrement({ ...incrementOf(args), outcome: closeOf(args) } as never, context.writer());
     return { text: `Recorded increment ${increment.id} on ${increment.fields.arc}, closed.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see its log" }] };
   },
 };
@@ -206,7 +206,7 @@ const incrementClose: Verb = {
   summary: "close an increment with its outcome",
   async act(args, context) {
     const id = args.word(0, "the increment's id", this.usage);
-    const closed = await (await context.library()).closeIncrement(id, closeOf(args));
+    const closed = await (await context.library()).closeIncrement(id, closeOf(args), context.writer());
     if (closed === null) throw new Refusal(`no increment "${id}" in this project`);
     return { text: `Closed increment ${id}: ${closed.fields.outcome?.disposition ?? ""}.`, next: [{ command: `storytree arc show ${closed.fields.arc}`, why: "see the arc" }] };
   },
@@ -218,7 +218,7 @@ const incrementEdit: Verb = {
   summary: "change only the named fields",
   async act(args, context): Promise<Answer> {
     const id = args.word(0, "the increment's id", this.usage);
-    const edited = await (await context.library()).editIncrement(id, incrementOf(args) as never);
+    const edited = await (await context.library()).editIncrement(id, incrementOf(args) as never, context.writer());
     if (edited === null) throw new Refusal(`no increment "${id}" in this project`);
     return { text: `Edited increment ${id}.` };
   },
@@ -233,9 +233,18 @@ const increment: Family = {
 const list: Verb = {
   name: "list",
   usage: "arc list",
-  summary: "every arc (not yet)",
-  act() {
-    throw new Refusal("storytree arc list is not built yet: it waits on the library's list(kind) on its public API (0-3-library-writer-and-public-reads)");
+  summary: "every live arc and its state",
+  async act(_args, context) {
+    const library = await context.library();
+    const lines: string[] = [];
+    for (const arc of await library.list("arc")) {
+      const view = await library.arcView(arc.id);
+      if (view !== null) lines.push(`  ${arc.id}  [${view.state}]  ${view.arc.fields.title}`);
+    }
+    return {
+      text: lines.length === 0 ? "No arcs in this project." : [`${lines.length} arcs:`, ...lines].join("\n"),
+      next: [{ command: "storytree arc show <arc>", why: "see one whole" }],
+    };
   },
 };
 

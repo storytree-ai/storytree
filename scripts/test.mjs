@@ -7,7 +7,8 @@
 // that depends on them; everything whenever a change is one the workspace graph cannot account for
 // (a root file, a package.json, the lockfile, scripts/**, ...) or origin/main cannot be read. The
 // first line printed is the decision, `scope: ...`. Each package is one unit, `<dir>/src/**/*.test.ts`,
-// and scripts/*.test.mjs is one more when everything runs. The units run one after another against
+// and scripts/*.test.mjs is one more when everything runs; the package-boundary check
+// (scripts/package-boundaries.test.mjs) is a unit of every run. The units run one after another against
 // the one Postgres, and a failure never stops the rest: the run ends with a PASS / FAIL / NOT RUN
 // table, and exits non-zero if any unit did not pass.
 //

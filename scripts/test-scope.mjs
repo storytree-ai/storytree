@@ -17,7 +17,7 @@
 // narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
 
 import { execFileSync } from "node:child_process";
-import { globSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const WORKSPACE_ROOTS = ["packages", "apps"];
@@ -26,6 +26,13 @@ const RELATIVE_PATH = /["'`]((?:\.\.\/)+[^"'`$\r\n]*)["'`]/g;
 
 /** The unit that holds scripts/*.test.mjs: it runs only when everything does. */
 export const SCRIPTS_UNIT = "scripts";
+
+/**
+ * Checks that a change inside any one package can fail, so every scoped run carries them as units
+ * of their own (a full run has them in scripts/ already). The package-boundary check (ADR-0649 D3)
+ * is one: a story's code landing in the frame is a change to the frame alone.
+ */
+const ALWAYS_RUN = ["scripts/package-boundaries.test.mjs"];
 
 /**
  * The workspace packages: each one's name, its dir (repo-relative, posix), the workspace packages
@@ -197,12 +204,14 @@ export function planRun({ root, workspace, decision, flags = {}, record }) {
     return { decision: { mode: "rerun-failed", dirs, reason }, units: dirs };
   }
   if (decision.mode === "full") return { decision, units: all };
-  return { decision, units: decision.dirs.filter((dir) => all.includes(dir)) };
+  const always = ALWAYS_RUN.filter((file) => existsSync(path.join(root, file)));
+  return { decision, units: [...decision.dirs.filter((dir) => all.includes(dir)), ...always] };
 }
 
-/** The test files a unit runs, as the globs node --test is given. */
+/** The test files a unit runs, as the globs node --test is given: a unit may be one file. */
 export function unitGlobs(unit) {
-  return unit === SCRIPTS_UNIT ? ["scripts/*.test.mjs"] : [`${unit}/src/**/*.test.ts`];
+  if (unit === SCRIPTS_UNIT) return ["scripts/*.test.mjs"];
+  return /\.test\.m?[jt]s$/.test(unit) ? [unit] : [`${unit}/src/**/*.test.ts`];
 }
 
 function hasTests(root, dir) {

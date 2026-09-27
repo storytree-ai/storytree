@@ -13,7 +13,7 @@ const sun = new Vector3(LIGHT_DIRECTION.x, LIGHT_DIRECTION.y, LIGHT_DIRECTION.z)
 const close = (actual: Vector3, expected: Vector3) =>
   assert.ok(actual.distanceTo(expected) < 1e-10, `${actual.toArray()} != ${expected.toArray()}`);
 
-test('each island is a flat tangent plate at its spot, with its low ground above the sea', () => {
+test('each island is a flat tangent plate at its spot, with its low ground above the shell', () => {
   const radius = 390;
   for (const spot of [up, new Vector3(0, -1, 0), new Vector3(2, 3, -4).normalize()]) {
     const { position, quaternion } = plateTransform(spot, radius);
@@ -45,7 +45,7 @@ test('L1 gives the island under the flat viewing angle its original local light,
 });
 
 // The globe mounts this actual Three mesh; material/depth behaviour is observable without WebGL.
-test('the globe surface shows a light grey shell while the far side and core remain visible through it', () => {
+test('3.5 the globe surface shows a light grey shell while the far side and core remain visible through it', () => {
   const surface = planet.createPlanetSurface(160);
   try {
     const material = surface.material;

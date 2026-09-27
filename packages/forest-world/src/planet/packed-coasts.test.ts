@@ -7,6 +7,7 @@ import { workStates } from '@storytree/arc-surface';
 import { clipToCoast, rimLoops, SHIPPED_COAST } from '../coast-clip.js';
 import { forestDescriptors } from '../forest-ground/forest-ground.js';
 import { plateTransform } from './planet.js';
+import type { InstanceDescriptor } from '../world-to-3d.js';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 // Actual story ids and counts from spike/globe-land's spacing.json. Coast shape depends on id.
@@ -14,17 +15,13 @@ const seed = ['story_c49a3e654505', 'story_5575e4b90dd3', 'story_f9e22610d77a', 
   'story_3112ce58d261', 'story_430046bf71e9', 'story_3fb7c1773675'];
 const counts = [8, 4, 5, 10, 7, 6, 13];
 
-function hull(points: Vector2[]): Vector2[] {
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-  const half = (ps: Vector2[]) => {
-    const out: Vector2[] = [];
-    for (const p of ps) {
-      while (out.length > 1 && out.at(-1)!.clone().sub(out.at(-2)!).cross(p.clone().sub(out.at(-1)!)) <= 0) out.pop();
-      out.push(p);
-    }
-    return out.slice(0, -1);
-  };
-  return [...half(sorted), ...half(sorted.reverse())];
+function inside(point: Vector2, polygon: Vector2[]): boolean {
+  let within = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i]!, b = polygon[j]!;
+    if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) within = !within;
+  }
+  return within;
 }
 
 function separated(a: Vector3[], b: Vector3[], na: Vector3, nb: Vector3): boolean {
@@ -37,11 +34,16 @@ function separated(a: Vector3[], b: Vector3[], na: Vector3, nb: Vector3): boolea
     assert.ok(p.dot(front) > 0);
     return new Vector2(p.dot(x) / p.dot(front), p.dot(y) / p.dot(front));
   };
-  const ha = hull(a.map(project)), hb = hull(b.map(project));
-  return [ha, hb].some(poly => poly.some((p, i) => {
-    const edge = poly[(i + 1) % poly.length]!.clone().sub(p), axis = new Vector2(-edge.y, edge.x);
-    const pa = ha.map(v => v.dot(axis)), pb = hb.map(v => v.dot(axis));
-    return Math.max(...pa) < Math.min(...pb) || Math.max(...pb) < Math.min(...pa);
+  const pa = a.map(project), pb = b.map(project);
+  if (inside(pa[0]!, pb) || inside(pb[0]!, pa)) return false;
+  const cross = (p: Vector2, q: Vector2, r: Vector2) => q.clone().sub(p).cross(r.clone().sub(p));
+  const on = (p: Vector2, q: Vector2, r: Vector2) => Math.abs(cross(p, q, r)) < 1e-12 &&
+    r.x >= Math.min(p.x, q.x) && r.x <= Math.max(p.x, q.x) && r.y >= Math.min(p.y, q.y) && r.y <= Math.max(p.y, q.y);
+  // Test the actual concave coasts, including every edge; convex hulls would fill their bays.
+  return pa.every((p, i) => pb.every((u, j) => {
+    const q = pa[(i + 1) % pa.length]!, v = pb[(j + 1) % pb.length]!;
+    const crossing = cross(p, q, u) * cross(p, q, v) < 0 && cross(u, v, p) * cross(u, v, q) < 0;
+    return !crossing && !on(p, q, u) && !on(p, q, v) && !on(u, v, p) && !on(u, v, q);
   }));
 }
 
@@ -52,10 +54,12 @@ test('1.6 packed neighbours never overlap through all 36 measured places, at the
         id: `${id}-cap-${c}`, title: `Capability ${c}`, dependsOn: [], contracts: [], health,
       })) };
       const scene = forestScene({ stories: [story], arcs: [] }, [], workStates([]));
-      const coast = clipToCoast(forestDescriptors(scene).filter(d => d.kind === 'cell-ground'), SHIPPED_COAST);
+      const coast = clipToCoast(forestDescriptors(scene).filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);
       const spot = placeOnGlobe(i + 1), normal = new Vector3(spot.x, spot.y, spot.z).normalize();
       const { position, quaternion } = plateTransform(normal, PLANET_RADIUS);
-      const points = rimLoops(coast.map(c => c.points!)).flat().map(p =>
+      const rings = rimLoops(coast.map(c => c.points!));
+      assert.equal(rings.length, 1, 'each sample has one closed coast');
+      const points = rings[0]!.map(p =>
         new Vector3(p.x, 0, p.z).applyQuaternion(quaternion).add(new Vector3(...position)).normalize());
       assert.ok(points.length > 2, 'a real closed shore was measured');
       return { normal, points };

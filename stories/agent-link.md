@@ -676,8 +676,8 @@ set one up.
   Until the command line's story fills it, `storytree.mjs` answers only `storytree setup install |
   remove`.
 - **Windows removal (regression from storytree-ai/storytree#83):** the `.cmd` launcher runs Node
-  and `exit /b` on the same parsed line. Removing the launcher can then finish without cmd.exe
-  trying to read the deleted file, while keeping the command's exit code. The Windows CI test
+  and `call exit /b %%errorlevel%%` on the same parsed line. The call expands Node's exit code
+  after it finishes, and cmd.exe exits without trying to read the deleted file. The Windows CI test
   installs in a throwaway home, runs `storytree setup remove` through the real wrapper, and checks
   exit 0, the wrapper gone and the user's own settings kept; an invalid command still exits 2.
 - **Outside a session (ADR-0645 D6, 8.10):** the public `runSetupCheck({ folder, ...options })`

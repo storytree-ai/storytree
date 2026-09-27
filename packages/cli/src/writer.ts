@@ -10,7 +10,14 @@ export function person(): string {
   }
 }
 
+export function commandSession(): { session: string; harness: "claude-code" | "codex" } | undefined {
+  const claude = process.env.CLAUDE_CODE_SESSION_ID?.trim();
+  if (claude) return { session: claude, harness: "claude-code" };
+  const codex = process.env.CODEX_THREAD_ID?.trim();
+  return codex ? { session: codex, harness: "codex" } : undefined;
+}
+
 export function commandWriter(): WriteOptions {
-  const session = process.env.CLAUDE_CODE_SESSION_ID?.trim() || process.env.CODEX_THREAD_ID?.trim();
-  return { actor: session ? `session:${session}` : `person:${person()}` };
+  const caller = commandSession();
+  return { actor: caller ? `session:${caller.session}` : `person:${person()}` };
 }

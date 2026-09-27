@@ -13,13 +13,13 @@
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import { openActivityLog, readClaims, route, type Claim } from "@storytree/agent-link";
+import { openActivityLog, readClaims, route, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
 import type { Library, Storytree, WriteOptions } from "@storytree/library";
 
 import { Refusal, render, type Answer } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
 import { FAMILIES } from "./families/index.js";
-import { commandWriter } from "./writer.js";
+import { commandSession, commandWriter } from "./writer.js";
 
 /** Where a command runs, and where its answer goes. */
 export interface Io {
@@ -41,6 +41,8 @@ export interface Context {
   writer(): WriteOptions;
   /** Who holds what in the project right now: the agent link's reading of its activity log. */
   claims(): Promise<Claim[]>;
+  /** The calling agent and the resources its claims use; refuses a shell with no agent session. */
+  claimContext(): Promise<ClaimContext & { readonly folder: string }>;
 }
 
 /** One verb of a family: `storytree <family> <name> …`. */
@@ -77,6 +79,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
       ...(io.script === undefined ? {} : { script: io.script }),
       library: () => opened.library(),
       claims: () => opened.claims(),
+      claimContext: () => opened.claimContext(),
       writer: () => (writer ??= commandWriter()),
     });
     io.out(render(writer === undefined ? answer : { ...answer, text: `${answer.text}\nWriter: ${writer.actor}` }));
@@ -145,6 +148,7 @@ class Opened {
   readonly #cwd: string;
   #storytree: Promise<Storytree> | undefined;
   #library: Promise<Library> | undefined;
+  #log: Promise<ActivityLog> | undefined;
 
   constructor(cwd: string) {
     this.#cwd = cwd;
@@ -162,6 +166,15 @@ class Opened {
     } finally {
       await log.close();
     }
+  }
+
+  async claimContext(): Promise<ClaimContext & { readonly folder: string }> {
+    const caller = commandSession();
+    if (caller === undefined) throw new Refusal("Run workspace from the agent's shell: a claim belongs to the agent session that will work there.");
+    const where = this.#routed();
+    const library = await this.library();
+    const log = await (this.#log ??= openActivityLog(where.url));
+    return { log, library, project: where.project, folder: this.#cwd, ...caller };
   }
 
   async #open(): Promise<Library> {
@@ -186,6 +199,7 @@ class Opened {
   }
 
   async close(): Promise<void> {
+    await Promise.allSettled([this.#log?.then((log) => log.close())]);
     await Promise.allSettled([this.#library?.then((library) => library.close())]);
     await Promise.allSettled([this.#storytree?.then((storytree) => storytree.close())]);
   }

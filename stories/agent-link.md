@@ -380,7 +380,9 @@ idle.
   toward the one it claimed most recently of those it still holds. Landing a capability another
   session holds is refused, naming the holder. A holder whose command is still running
   (capability 4) is live, so its claim cannot be taken mid-run (ADR-0636 D2).
-- **A workspace already claimed (ADR-0653, the owner's K1, 5.12-5.14).** "Make a workspace for this
+- **As built: a workspace already claimed (ADR-0653, the owner's K1, 5.12-5.14).**
+  `makeWorkspace` in `packages/agent-link/src/claims/workspace.ts`, also exposed as the
+  `make_workspace` agent tool. "Make a workspace for this
   work" is one step: fetch the project's main from `origin`, cut a fresh branch from it into a new git
   worktree, and claim the increment (or capability) for the calling session, the claim naming the new
   branch so its merge ends it. It is refused as a claim is (held, waiting, closed, unknown), and also

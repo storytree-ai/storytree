@@ -351,7 +351,7 @@ refused if the work is held or waiting.
   - **Founding book (ADR-0653 D1, the owner's K1):** making a workspace for a piece of work and
     claiming it are one step, refused if the work is held or waiting, so a workspace is never made
     and left unclaimed. It is the agent link's claims tool; this is a front door onto it.
-- **As built:** the verb hands the folder, the id and the reason to the agent link's
+- **As built:** `packages/cli/src/families/workspace.ts` hands the folder, the id and the reason to the agent link's
   `makeWorkspace`, and prints the folder, the branch and how to enter it. The claim is the shell's
   agent session's (CLAUDE_CODE_SESSION_ID, else CODEX_THREAD_ID, as capability 2 reads them): a
   claim belongs to the session that will work in the workspace, so from a shell no agent runs it is

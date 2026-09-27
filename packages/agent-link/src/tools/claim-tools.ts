@@ -128,7 +128,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
   );
 }
 
-function claimContext({ log, library, project, caller, folder, quietMs }: Call): ClaimContext {
+function claimContext({ log, library, project, caller, folder, quietMs }: Call): ClaimContext & { readonly folder: string } {
   const branch = currentBranch(folder);
   return { log, library, project, ...lineOf(caller), folder, quietMs, ...(branch === undefined ? {} : { branch }) };
 }

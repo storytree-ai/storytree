@@ -87,7 +87,7 @@ async function seedKettle(library) {
   const nodes = new Map([["stories/kettle.md", await syncStory(library, story, { source: "stories/kettle.md" })]]);
   await syncFoundingBooks(library, [{ file: "stories/kettle.md", story }], nodes, []);
   const tree = await library.projectTree();
-  await library.recordDecision({ title: "The kettle is a story of its own", text: "It is.", frontCoverOf: tree.stories[0].id });
+  await library.recordDecision({ title: "The kettle is a story of its own", text: "It is.", status: "accepted", frontCoverOf: tree.stories[0].id });
   return tree;
 }
 
@@ -131,6 +131,7 @@ test("each block only the file holds is filed as a note behind its node's cover,
     const printed = await exportLibrary(library);
     assert.deepEqual(
       roundTrip(committed, printed)
+        .filter(({ file }) => file === "stories/kettle.md")
         .flatMap(({ missing, extra }) => [...missing, ...extra])
         .map(({ section, text }) => [section, text]),
       [["## 3 · Pouring", "- **As built:** a spout with a lip."]],

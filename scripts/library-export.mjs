@@ -32,7 +32,8 @@
 // its whitespace collapsed. For each committed file it lists the blocks the printout lacks in the
 // same section ("missing": the text only the file holds) and those the printout adds ("extra").
 // The order of blocks within a section is not compared. A decision file is paired with its
-// printout by its full record, since the library does not keep file names.
+// printout by its full record, and a story file by its title line, since the library does not keep
+// file names (stories/cli.md holds "the command line").
 
 // --- the export ------------------------------------------------------------------------------
 
@@ -190,12 +191,21 @@ export function roundTrip(committed, printed) {
     const record = file.startsWith("decisions/") ? recordOfFile(text) : undefined;
     if (record !== undefined) printedByRecord.set(record, file);
   }
+  const titleOf = (text) => /^# Story: (.*)$/m.exec(text)?.[1].trim().toLowerCase();
+  /** @type {Map<string, string>} story title -> printed path, since the library does not keep file names either */
+  const printedByTitle = new Map();
+  for (const [file, text] of printed) {
+    const title = file.startsWith("stories/") ? titleOf(text) : undefined;
+    if (title !== undefined) printedByTitle.set(title, file);
+  }
   const paired = new Set();
   /** @type {FileDiff[]} */
   const diffs = [];
   for (const [file, text] of committed) {
     const record = file.startsWith("decisions/") ? recordOfFile(text) : undefined;
-    const printedAs = record === undefined ? (printed.has(file) ? file : undefined) : printedByRecord.get(record);
+    const title = file.startsWith("stories/") ? titleOf(text) : undefined;
+    const printedAs =
+      record !== undefined ? printedByRecord.get(record) : (title !== undefined && printedByTitle.get(title)) || (printed.has(file) ? file : undefined);
     if (printedAs !== undefined) paired.add(printedAs);
     const [missing, extra] = compare(blocksOf(text), blocksOf(printedAs === undefined ? "" : printed.get(printedAs)));
     diffs.push({ file, ...(printedAs === undefined ? {} : { printedAs }), missing, extra });

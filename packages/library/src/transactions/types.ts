@@ -60,6 +60,8 @@ export interface SaveInput {
 }
 
 export interface EditInput {
+  /** Check the merged record's number against history inside the write, as save does. */
+  readonly sequence?: string;
   readonly id: string;
   /** Merged shallowly onto the stored fields; a key whose value is `undefined` is removed. */
   readonly fields: Record<string, unknown>;

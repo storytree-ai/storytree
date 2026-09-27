@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { coreScene, legend, noteCard, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { coreScene, legend, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -63,6 +63,10 @@ test("4.1 the core keeps each shelf's entrance, named, at its island's place, an
   assert.equal(noteCard("old", input(history))?.replacement, "superseded by new");
   assert.deepEqual(noteCard("cover", input(history))?.linksToReplaced, ["old: superseded by new"], "a card says when it links to a ghost");
   assert.equal(noteCard("nothing", input(history)), undefined);
+
+  const untitled = new History().memory("plain").update("plain", { title: undefined, text: "Round half to even, once, at the total.\nNever per line." });
+  assert.equal(noteCard("plain", input(untitled))?.title, "Round half to even, once, at the total.", "a memory has no title field: its first line names it");
+  assert.equal(noteTitle({ id: "d", type: "definition", version: 1, createdAt: "", updatedAt: "", fields: { term: "shelf", meaning: "an entrance" } }), "shelf");
 });
 
 test("4.2 links show only for the pinned note, in their stored direction both ways, and never as replay cues", () => {

@@ -1,5 +1,5 @@
 /** Capability 4's founding book (E1, V1, S1): the core's picture, a pinned note's card, and replay frames. */
-import type { Change } from "@storytree/library";
+import type { Change, RecordEnvelope } from "@storytree/library";
 
 import { linksOf, type Knowledge } from "../ghosts/ghosts.js";
 import type { AgentReplay, Jump, ReadRecord } from "../reads/reads.js";
@@ -255,6 +255,11 @@ function titlesOf(changes: readonly Change[]): Map<string, string> {
     else if (typeof title === "string") titles.set(change.recordId, title);
   }
   return titles;
+}
+
+/** A note's name. */
+export function noteTitle(_record: RecordEnvelope): string {
+  return "";
 }
 
 function titleOf(knowledge: Knowledge, id: string): string {

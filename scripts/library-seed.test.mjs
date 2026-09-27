@@ -68,6 +68,29 @@ test("parseStory takes capabilities in the build order's order, then any it leav
   );
 });
 
+test("parseStory regression: the CLI seed incident keeps its own dependencies, not another story's capability numbers", () => {
+  for (const [depends, expected] of [
+    ["1, 2, and the library's 2, 3, 6, 7 and 9.", [1, 2]],
+    ["1 and the agent link's capabilities 4 and 5.", [1]],
+    ["the library's API, its 7, and the agent link's project routing, its 1.", []],
+    ["1, 2 and the arc surface’s 3.", [1, 2]],
+    ["2, for the project on show, and 1.", [2, 1]],
+  ]) {
+    const story = parseStory([
+      "# Story: a command line",
+      "",
+      "## 1 · Project",
+      "",
+      "## 2 · Session",
+      "",
+      "## 3 · Library",
+      "",
+      `- **Depends on:** ${depends}`,
+    ].join("\n"));
+    assert.deepEqual(story.capabilities[2].dependsOn, expected, depends);
+  }
+});
+
 test("parseStory keeps heading order when there is no build order, and refuses a build order that puts a capability before one it depends on", () => {
   const spec = (buildOrder) => [
     "# Story: a small one",

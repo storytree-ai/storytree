@@ -1,0 +1,20 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/stalled-db
+> node --import tsx scripts/test.mjs "--test-name-pattern=stalled.*handshake" "packages/library/src/project/cloud-connection.test.ts" "packages/agent-link/src/tools/agent-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:43297 (started in 0.1 s)
+✔ 6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers (3328.252483ms)
+ℹ show_plan answered after 3007 ms: storytree refused that: storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.
+✔ 1.9 a stalled local handshake is refused within three seconds, on both admin and project pools, and the next call recovers (6129.636887ms)
+ℹ admin handshake refused after 3004 ms
+ℹ project handshake refused after 3003 ms
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6323.803131
+test Postgres: stopped (0.1 s)

@@ -178,3 +178,67 @@ test("6.7 `adr renumber` exposes the one-time N1 move and refuses unsafe argumen
     assert.deepEqual(await library.history(), before);
   });
 });
+
+test("6.8 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects", async () => {
+  await inWorld(command, async (world) => {
+    const help = await world.run(["adr", "set-floor", "--help"]);
+    assert.equal(help.code, 0, help.stderr);
+    assert.match(help.stdout, /one-time ADR-0662/);
+    assert.match(help.stdout, /--dry-run.*--apply/);
+    const library = await world.library();
+    const before = await library.history();
+    for (const flags of [[], ["--dry-run"], ["--apply"]]) {
+      const refused = await world.run(["adr", "set-floor", "--number", "662", ...flags]);
+      assert.equal(refused.code, 1, refused.stdout);
+      assert.match(refused.stderr, /storytree project/);
+    }
+    for (const args of [
+      [],
+      ["--number", "662", "--dry-run", "--apply"],
+      ["--number", "662", "extra"],
+      ["--number", "662", "--apply=false"],
+      ["--number", "662", "--unknown", "flag"],
+      ["--number", "662", "--number", "663"],
+    ]) {
+      const refused = await world.run(["adr", "set-floor", ...args]);
+      assert.equal(refused.code, 2, refused.stderr);
+      assert.match(refused.stderr, /usage:/);
+    }
+    for (const number of ["0", "-1", "1.5", "wat", "9007199254740992"]) {
+      const refused = await world.run(["adr", "set-floor", "--number", number]);
+      assert.equal(refused.code, 1, refused.stdout);
+      assert.match(refused.stderr, /number.*positive safe integer/);
+    }
+    assert.deepEqual(await library.history(), before);
+  });
+});
+
+test("6.9 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects", async () => {
+  await inWorld(command, async (world) => {
+    const help = await world.run(["adr", "renumber", "--help"]);
+    assert.equal(help.code, 0, help.stderr);
+    assert.match(help.stdout, /one-time ADR-0662/);
+    assert.match(help.stdout, /--founding-books/);
+    const library = await world.library();
+    const before = await library.history();
+    for (const flags of [[], ["--dry-run"], ["--apply"]]) {
+      const refused = await world.run(["adr", "renumber", "--founding-books", ...flags]);
+      assert.equal(refused.code, 1, refused.stdout);
+      assert.match(refused.stderr, /storytree project/);
+    }
+    for (const args of [
+      ["--founding-books", "--from-full-record"],
+      ["--founding-books", "--apply", "--dry-run"],
+      ["--founding-books", "--number", "663"],
+      ["--founding-books", "decision-id"],
+      ["--founding-books=false"],
+      ["--founding-books", "--apply=false"],
+      ["--founding-books", "--unknown", "flag"],
+    ]) {
+      const refused = await world.run(["adr", "renumber", ...args]);
+      assert.equal(refused.code, 2, refused.stderr);
+      assert.match(refused.stderr, /usage:/);
+    }
+    assert.deepEqual(await library.history(), before);
+  });
+});

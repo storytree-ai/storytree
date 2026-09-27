@@ -22,7 +22,8 @@ cover is `decisions/cli-capability-tree.md`. ADR-0643 D5 made the command line a
   review that adds anchors first.
 - **M1:** ADR-0643's leave-outs n2 (`question check`), n3 (`worktree create`) and n5 (`library
   related --unlinked`) are re-measured by their lanes. The command line adds the matching verb for
-  anything the owner brings back.
+  anything the owner brings back. ADR-0654 (the owner's L1) brought back n2 and n5: `question check`
+  (with `question renew`) and `library related --unlinked`.
   The owner brought n3 back as K1 (ADR-0653): capability 11, `storytree workspace`.
 
 **Not brought over: did not last in 0.2** (ADR-0639; the drafting session's call, ADR-0645 D5):
@@ -158,7 +159,10 @@ refused with the library's own message.
   `list <kind> [--where <field>=<value>]…` filters the live records from `list(kind)` by exact
   field equality, using the same value parsing; multiple filters all apply. `history <id>` shows
   every write, including retirement, with its date, writer and retirement reason; older writes
-  without a writer say "writer not recorded".
+  without a writer say "writer not recorded". `related <artifact> [--unlinked] [--kind <kind>]
+  [--limit <n>]` is the library's `related` (ADR-0654): each artifact most like it, with its kind,
+  title, whether a link joins them and how, and the words it matched, headed by the words searched
+  and how many were ranked and already linked.
 
 **Contracts:**
 1. `read` returns the whole body.
@@ -168,6 +172,7 @@ refused with the library's own message.
 5. `list` shows only live records of the kind and filters by a field.
 6. `new memory` is refused with the reason that memories belong to the harness, and writes
    nothing (ADR-0650).
+7. `related <artifact> --unlinked` lists the artifacts most like it that no link reaches.
 
 ## 4 · Arcs and increments
 
@@ -212,6 +217,10 @@ ones.
   `editIncrement` of their `heldOn`); another arc's is held with `arc increment edit --held-on`.
   `list` shows open questions across arcs through `list("question")`, or one arc's through
   `questions(arc)` with `--arc <arc>`. Settled and retired questions are left out.
+- **Grown** on 2026-09-27 by ADR-0654 with `question check <question>`, the library's
+  `checkQuestion`: fresh or lapsed, when it was last checked, its lease and when that runs out, and
+  for a lapsed one the three ways on (re-read, renew, retire). Also `question renew <question>`, the
+  library's `renewQuestion`, whose refusal of a settled question is the library's own.
 
 **Contracts:**
 1. A question with no stakes is refused.
@@ -219,6 +228,8 @@ ones.
 3. A held increment reads as waiting on you until its question is settled.
 4. A question an increment is held on cannot be retired.
 5. `question list` lists open questions across arcs, or on one arc.
+6. `question check` says whether a question's review is fresh or lapsed; `question renew`
+   re-stamps it, and renewing a settled question is refused.
 
 ## 6 · Decisions
 

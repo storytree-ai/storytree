@@ -25,6 +25,7 @@ import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
+import { relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
 
 /**
  * The fields that link an artifact to other artifacts (6-a), which the loop check follows: its links,
@@ -245,6 +246,18 @@ export class Knowledge {
   }
 
   /**
+   * The other live artifacts ranked by how alike they are to artifact `noteId`, each saying whether a
+   * link already joins them, in either direction (ADR-0654; 0.2's `library related`). With
+   * `unlinked`, only those no link reaches: the connections nobody has made yet. An artifact sharing
+   * no distinguishing word with it is never listed. Null if `noteId` is not a live artifact.
+   */
+  async related(noteId: string, options: RelatedOptions = {}): Promise<Related | null> {
+    const notes = await this.#notes();
+    if (!notes.some((note) => note.id === noteId)) return null;
+    return relatedTo(notes.map(similarityDocOf), noteId, options);
+  }
+
+  /**
    * A story's or capability's shelf (capability 9): the live decisions whose `frontCoverOf` is
    * `nodeId`, founding (oldest) first, except a superseded one, which leaves its shelf for its
    * successor (13-b) and is still read with decision(). Empty for any other id.
@@ -327,6 +340,32 @@ function textsIn(value: unknown): string[] {
     return Object.entries(value).flatMap(([key, item]) => (REFERENCE_FIELDS.has(key) ? [] : textsIn(item)));
   }
   return [];
+}
+
+/** An artifact as the related search ranks it: its title (a definition's term) and description apart, weighted. */
+function similarityDocOf(note: Note): SimilarityDoc {
+  const { title, term, description, ...rest } = note.fields as Record<string, unknown>;
+  const heading = typeof title === "string" ? title : typeof term === "string" ? term : note.id;
+  return {
+    id: note.id,
+    type: note.type,
+    title: heading,
+    ...(typeof description === "string" ? { description } : {}),
+    body: textsIn(rest).join("\n"),
+    links: linkEdgesOf(note.fields),
+  };
+}
+
+/** Every link an artifact's fields hold, with the field it is in: LINK_FIELDS, and the decisions it supersedes. */
+function linkEdgesOf(fields: object): { field: string; to: string }[] {
+  const at = fields as Record<string, unknown>;
+  const edges = (field: string, ids: unknown[]): { field: string; to: string }[] =>
+    ids.filter((id): id is string => typeof id === "string").map((to) => ({ field, to }));
+  return [
+    ...["links", "context", "rules", "antiPatterns", "supersedes"].flatMap((field) => edges(field, listOf(at[field]))),
+    ...edges("stepRefs", listOf(at["stepRefs"]).flatMap((step) => listOf(fieldOf(step, "refs")))),
+    ...edges("branchEdges", listOf(at["branchEdges"]).map((edge) => fieldOf(edge, "to"))),
+  ];
 }
 
 /** Every artifact id an artifact's fields link it to, through each of LINK_FIELDS. */

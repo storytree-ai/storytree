@@ -120,3 +120,29 @@ test("3.6 saving a memory is refused with its reason and writes nothing", async 
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
   });
 });
+
+test("3.7 `related <artifact> --unlinked` lists the artifacts most like it that no link reaches", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const source = await library.defineTerm({ term: "Bounced confirmation", meaning: "Mailgun bounces the sign-up confirmation email from an unverified domain" });
+    const linked = await library.defineTerm({ term: "Verified domain", meaning: "A mailgun domain whose confirmation email does not bounce", links: [source.id] });
+    const unlinked = await library.defineTerm({ term: "Mailgun bounces", meaning: "Unverified domains bounce every confirmation email" });
+    const stranger = await library.defineTerm({ term: "Planet", meaning: "The forest drawn as a globe" });
+
+    const all = await world.run(["library", "related", source.id]);
+    assert.equal(all.code, 0, all.stderr);
+    for (const id of [linked.id, unlinked.id]) assert.ok(all.stdout.includes(id), all.stdout);
+    assert.ok(!all.stdout.includes(stranger.id), all.stdout);
+    assert.match(all.stdout, /linked via links → this/);
+
+    const only = await world.run(["library", "related", source.id, "--unlinked"]);
+    assert.equal(only.code, 0, only.stderr);
+    assert.ok(only.stdout.includes(unlinked.id), only.stdout);
+    assert.ok(!only.stdout.includes(linked.id), only.stdout);
+    assert.match(only.stdout, /3 ranked, 1 already linked/);
+
+    const missing = await world.run(["library", "related", "definition_000000000000"]);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /no artifact/);
+  });
+});

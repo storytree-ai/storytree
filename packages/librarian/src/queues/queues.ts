@@ -14,6 +14,11 @@ import { allNotes, LibrarianRefusal } from "../notes.js";
 /** Where a friction report is routed: a decision, a tool, a kind of note, an edit to an existing one, or nothing. */
 export type Route = NonNullable<FieldsOf<"friction">["route"]>;
 
+/** A delivery reference can be added when routing, or later when the remedy has landed. */
+export interface RouteOptions extends WriteOptions {
+  readonly dischargedBy?: string;
+}
+
 /** How many friction reports one pass drains, at most. */
 export const DRAIN = 3;
 
@@ -32,10 +37,22 @@ export async function frictionDrain(library: Library, { branch }: { branch?: str
     .slice(0, DRAIN);
 }
 
-/** Record the routing judgement on friction report `id`, with its reason; a route with no reason is refused. */
-export async function route(library: Library, id: string, to: Route, reason: string, writer?: WriteOptions): Promise<SchemaRecord<"friction">> {
+/** Route with a reason and optional delivery stamp; deferred tool work needs a live remedy. */
+export async function route(library: Library, id: string, to: Route, reason: string, options: RouteOptions = {}): Promise<SchemaRecord<"friction">> {
   if (reason.trim() === "") throw new LibrarianRefusal("a friction report is routed with its reason: nothing is closed without one");
+  const { dischargedBy: supplied, ...writer } = options;
+  const dischargedBy = supplied?.trim();
+  if (dischargedBy === "") throw new LibrarianRefusal("dischargedBy needs a non-empty reference to the delivered remedy, such as a PR or decision; omit it when the remedy has not landed");
   const report = (await allNotes(library)).find((note) => note.id === id);
   if (report?.type !== "friction") throw new LibrarianRefusal(`${id} is not a live friction report`);
-  return (await library.editNote(id, { route: to, routeReason: reason }, writer)) as SchemaRecord<"friction">;
+  if (to === "tool" && !(dischargedBy ?? report.fields.dischargedBy?.trim())) {
+    const remedy = (await library.list("increment")).some((increment) =>
+      increment.fields.status !== "closed" && increment.fields.remedies?.includes(id),
+    );
+    if (!remedy) throw new LibrarianRefusal(`a tool route needs a live increment whose remedies names ${id}; park the fix on its owning arc, or supply dischargedBy when the remedy has already landed`);
+  }
+  return (await library.editNote(id, {
+    route: to, routeReason: reason,
+    ...(dischargedBy === undefined ? {} : { dischargedBy }),
+  }, writer)) as SchemaRecord<"friction">;
 }

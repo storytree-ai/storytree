@@ -8,6 +8,7 @@
  * last increment closes, which close_increment says, and re-opens when work is parked on it, which
  * park_increment says.
  */
+import { execFileSync } from "node:child_process";
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
@@ -171,8 +172,8 @@ export function registerWorkTools(define: Define): void {
       evidence: z.string().min(1).describe("The concrete evidence for it"),
       impact: z.string().min(1).describe("What it cost"),
     }),
-    async (fields, { library, writer }) => {
-      const friction = await recordFriction(library, fields, writer);
+    async (fields, { library, folder, writer }) => {
+      const friction = await recordFriction(library, { ...fields, branch: captureBranch(folder) }, writer);
       return { text: `Recorded friction ${quoted(fields.title)} (${friction.id}).`, data: { id: friction.id } };
     },
   );
@@ -206,6 +207,15 @@ export function registerWorkTools(define: Define): void {
       return { text: `Recorded re-steer ${quoted(fields.title)} (${resteer.id}).`, data: { id: resteer.id } };
     },
   );
+}
+
+/** Capture also knows the branch of a repository that has no first commit yet. */
+function captureBranch(folder: string): string {
+  try {
+    return execFileSync("git", ["symbolic-ref", "--quiet", "--short", "HEAD"], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true, timeout: 5_000 }).trim() || "(no branch)";
+  } catch {
+    return "(no branch)";
+  }
 }
 
 /** The questions increment `id` is held on now, or undefined when it is not a live increment. */

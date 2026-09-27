@@ -28,6 +28,8 @@ export interface NewFriction {
   readonly evidence: string;
   readonly impact: string;
   readonly links?: string[];
+  /** The calling folder's branch; callers outside a repository share the no-branch bucket. */
+  readonly branch?: string;
 }
 
 /** What happened this time, on the branch that encountered it. Its date is stamped at capture. */
@@ -74,10 +76,18 @@ export function hasConcreteEvidence(text: string): boolean {
 /** A quoted excerpt: the only evidence a re-steer takes. */
 const QUOTED = /["“][^"”]{3,}["”]/;
 
-/** File friction, if its evidence is concrete. */
+/** File friction with concrete evidence, at most three times per branch and UTC day (ADR-0716). */
 export async function recordFriction(library: Library, friction: NewFriction, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(friction.evidence);
-  return library.writeKnowledge("friction", { ...friction }, options);
+  const { branch = "(no branch)", ...fields } = friction;
+  const date = new Date().toISOString().slice(0, 10);
+  const filed = (await library.list("friction")).filter(({ fields }) =>
+    fields.provenance?.branch === branch && fields.provenance.date === date,
+  );
+  if (filed.length >= 3) {
+    throw new CaptureError(`Filing cap: 3 friction items already filed on "${branch}" for ${date} (ADR-0716; ADR-0168 D3). Distil to the three that fought you hardest, or use storytree friction reinforce <id> --evidence ... for a recurrence.`);
+  }
+  return library.writeKnowledge("friction", { ...fields, provenance: { branch, date, source: "retro" } }, options);
 }
 
 /** Append a recurrence to one existing friction, never changing its route or minting a twin. */

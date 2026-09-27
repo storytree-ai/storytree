@@ -1,0 +1,15 @@
+--- old/The librarian/Queues/contract_cebbe02f1866/title
++++ new/The librarian/Queues/contract_cebbe02f1866/title
+@@ -1 +1 @@
+-5.2 · The worklist's friction drain holds at most the three oldest friction reports not yet routed that another session filed, never one filed from the session's own branch.
++5.2 · The worklist's friction drain holds at most three friction reports not yet routed that another session filed, never one filed from the session's own branch. Reports with the most recurrences come first, with oldest first on ties; no recurrences counts as zero, and missing provenance still counts as another session's report.
+
+--- old/The librarian/Queues/definition_6def5775dc8f/meaning
++++ new/The librarian/Queues/definition_6def5775dc8f/meaning
+@@ -5,3 +5,6 @@
+   renews a question. A friction report with no provenance counts as another session's, as in 0.2, so the queue cannot
+   drain by going anonymous. A report is drained once it carries a route and its reason; what it is
+   routed to (a decision, a tool, an artifact, an edit) is then that route's own work.
++  The friction drain sorts unrouted reports from other branches by descending `reinforcedBy`
++  count (zero when absent), preserving creation order on ties, then takes at most three
++  (ADR-0716 F3). The worklist gathers the same ranked drain.

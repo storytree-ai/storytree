@@ -1,0 +1,100 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/friction-trio
+> node --import tsx scripts/test.mjs "packages/cli/src/capture.test.ts" "packages/agent-link/src/tools/agent-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/friction-trio/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:35623 (started in 0.1 s)
+✔ 6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged (363.884052ms)
+✔ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (199.904932ms)
+✔ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (290.639265ms)
+✔ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (250.567748ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (259.224705ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (290.384591ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (237.516153ms)
+✔ 6.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them (150.296517ms)
+✔ 6.2 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim (203.959363ms)
+✔ 6.3 every call is recorded against the session that made it, using the session id the harness passes, and the machine it ran on (121.035889ms)
+✔ 6.4 a bad call gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn't running, carry on without it" (127.024216ms)
+✔ 6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers (3150.151458ms)
+ℹ show_plan answered after 3002 ms: storytree refused that: storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.
+✔ 6.5 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place (209.423943ms)
+✔ the sentence travels with the data: a harness that shows the agent a tool's data instead of its text, as Claude Code 2.1.212 did, still shows the sentence (regression: the agent link's live check, 2026-09-26) (106.383823ms)
+✔ 6.6 searching and opening a note leaves a log line saying which session read it, how it was found (search, link, id or shelf) and whether it took a peek or the whole note (134.157396ms)
+✔ 6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing (152.875275ms)
+✔ 6.8 after Claude Code's /clear, which gives the window a new session id the tool server never sees, each call is recorded on the new session its hook named; a call no hook saw keeps the id the server was started with (439.98377ms)
+✔ 6.9 it parks an increment, readies it, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc (162.507694ms)
+✔ 6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer (155.938905ms)
+✖ 6.12 friction capture uses the calling folder's branch for the shared daily cap (109.659805ms)
+✔ 6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written (115.143314ms)
+✔ 6.13 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal (144.24063ms)
+✔ 6.14 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired (130.289037ms)
+✔ 6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment, and retiring a question an increment is held on is refused (171.034182ms)
+✔ 6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences (124.429365ms)
+✔ 6.17 another story registers its tools on this server, sharing routing, the session log and its instructions (120.809027ms)
+✔ 6.18 another story supplies land's next line only when needed; a refused landing asks for none (132.721618ms)
+✔ 6.16 every library write from a tool names the calling session, including compound writes, claims, and a session changed by the harness (328.697583ms)
+✔ 6.19 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder (241.309868ms)
+✔ ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing (128.109596ms)
+✔ 6.19 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals (283.767066ms)
+✖ 9.4 friction capture caps each branch and day at three, including routed reports; reinforcement stays available (835.098167ms)
+✔ 9.1 friction with vague evidence is refused; concrete evidence is captured with its writer (375.292415ms)
+✔ 9.2 a re-steer whose evidence is a paraphrase is refused; the quote and self-report stay apart (422.317772ms)
+✔ 9.3 `reinforce` appends a dated recurrence to the existing friction, keeping its route (659.62571ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 33
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9643.024443
+
+✖ failing tests:
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:32041
+✖ 6.12 friction capture uses the calling folder's branch for the shared daily cap (109.659805ms)
+  AssertionError [ERR_ASSERTION]: the MCP caller shares the cap
+  
+  false !== true
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/friction-trio/packages/agent-link/src/tools/agent-tools.test.ts:730:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withAgent (/home/mickh/code/storytree03-wt/friction-trio/packages/agent-link/src/testing/agent.ts:71:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/friction-trio/packages/agent-link/src/tools/agent-tools.test.ts:726:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/friction-trio/packages/agent-link/src/tools/agent-tools.test.ts:91:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/friction-trio/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/friction-trio/packages/agent-link/src/tools/agent-tools.test.ts:84:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/friction-trio/packages/agent-link/src/tools/agent-tools.test.ts:719:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/capture.test.ts:1:738
+✖ 9.4 friction capture caps each branch and day at three, including routed reports; reinforcement stays available (835.098167ms)
+  AssertionError [ERR_ASSERTION]: a fourth report must be refused
+  
+  0 !== 1
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/friction-trio/packages/cli/src/capture.test.ts:38:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/friction-trio/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/friction-trio/packages/cli/src/capture.test.ts:20:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

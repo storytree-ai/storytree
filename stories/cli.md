@@ -98,6 +98,10 @@ Every answer is a short plain sentence or listing followed by what you might run
 exits non-zero and says what to do.
 
 - **Depends on:** the library's API (its 7), and the agent link's project routing (its 1).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1):** the command line is a front door and nothing more: it finds
+    the project from the folder, and hands each verb to the function its owning story already has,
+    keeping no rule of its own.
 - **As built:** `packages/cli/src/door.ts`. The project is the agent link's `route` from the working
   folder, and storytree's address the owner record it reads in the storytree home (`STORYTREE_HOME`,
   else `~/.storytree/0.3`). A refusal from the library (a schema error, a missing reference, a loop)
@@ -118,6 +122,10 @@ name), so the library's history can tell a person's change from an agent's. When
 command from its own shell, the write is recorded as that agent's session instead (A1).
 
 - **Depends on:** 1, the library's history with a writer (W1), and the agent link's sessions (its 4).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D2, W1 and A1):** every write names its writer: the person (their
+    computer user name), or the agent session when the harness's session id is in the environment,
+    and the command prints which writer it used.
 - **Waits on** `0-3-library-writer-and-public-reads` (the writer on every write) and
   `0-3-agent-link-cli-seams` (the session as writer).
 
@@ -133,6 +141,10 @@ record of any kind, or edit named fields of one, with long text taken from a fil
 refused with the library's own message.
 
 - **Depends on:** 1, 2, and the library's 2, 3, 6, 7 and 9.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 3):** read, list, search, links, history, new and edit on any
+    record, each through the library's own function, so a bad record is refused with the library's
+    own message and the door adds no rule.
 - **Folded in from 0.2:** `library query` became `list --where`; `library inbound` and plain `related`
   became `links`.
 - **As built:** `storytree library search <words>`, `links <note>` and `new <kind> --<field> <value>
@@ -155,6 +167,10 @@ increment, record a landing that was never parked, close one with its outcome, a
 increment wait on another with a reason, or clear the wait.
 
 - **Depends on:** 1, 2, and the library's 10 and 11 (and 12, for the questions shown on an arc).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 4):** the command line records arcs and increments but never
+    sets their state by hand: there is no start (starting is claiming, ADR-0643 D1), no ready (D5),
+    and no hand close or re-open of an arc (ADR-0640 R1).
 - **Not here:** `increment start` (starting is claiming, the agent tools'), `increment ready`
   (ADR-0645 D5), and a hand close or re-open of an arc (R1).
 - **As built:** `storytree arc show | new | edit | park | unpark | wait | unwait` and `storytree arc
@@ -176,6 +192,10 @@ answer in his words and the decision that carried it, retire one that was wrong,
 ones.
 
 - **Depends on:** 1, 2 and the library's 12.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 5 and D5):** a question has four verbs, new, settle, retire
+    and list, each the library's own function. `question retire` stays although the general
+    `library artifact retire` did not last in 0.2.
 - **As built:** `storytree question new | settle | retire | list`, each the library's own function.
   `--hold <increment>` on `new` holds increments on the question's arc (the library's
   `editIncrement` of their `heldOn`); another arc's is held with `arc increment edit --held-on`.
@@ -194,6 +214,10 @@ status, who decided it in their own words, and what it supersedes. Pull a decisi
 file, edit it, push it back, and write its composed statement (the owner's C2).
 
 - **Depends on:** 1, 2 and the library's 13.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 6 and D4, V1):** a decision is edited whole, pulled out as a
+    markdown file and pushed back, and it carries no anchors: anchors and `adr rebind` are not in
+    the MVP.
 - **Folded in from 0.2:** `adr authority` became fields on `adr new` and what `adr pull` shows; `adr
   compose` stays.
 - **As built:** `storytree adr new | pull | push | compose`, each the library's own function.
@@ -216,6 +240,9 @@ window and reason, and whether it is live or idle; or who holds one piece of wor
 releasing stay with the agents' tools.
 
 - **Depends on:** 1 and the agent link's claims (its 5).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 7):** the board is read only: it shows live claims and who
+    holds a piece of work, and claiming and releasing stay with the agents' tools (ADR-0643 D1).
 - **As built:** `storytree noticeboard [<id>]`, one reading of the agent link's public `readClaims`
   over its activity log, which judges live and idle. The window is the holding session's name.
 
@@ -232,6 +259,9 @@ storytree running, are the hooks registered and last seen firing, is this folder
 fix for the rest, and it sets a folder up as a project only when you tell it to.
 
 - **Depends on:** 1 and the agent link's setup check (its 8).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 8):** the doctor runs the agent link's own setup check from a
+    terminal, not a second one, and sets a folder up as a project only when told to.
 - **As built:** `storytree doctor [--set-up <project>]` runs the agent link's public
   `runSetupCheck`, and `setUpProject` only for `--set-up`. Registering hooks and putting the command
   on the path need storytree's hook script, which an installed storytree keeps beside this command;
@@ -252,6 +282,10 @@ link's own capture functions, so vague evidence is refused from a person exactly
 Add a recurrence to a friction item when it happens again.
 
 - **Depends on:** 1, 2 and the agent link's capture functions (its 6).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 9, F1):** friction and re-steers are filed at the command line
+    through the agent link's capture functions, under the same evidence rules, so a person is held
+    to what an agent is.
 - **Waits on** `0-3-agent-link-cli-seams`: the capture functions on the agent link's public entry,
   and a `reinforce` beside them.
 
@@ -267,6 +301,9 @@ the health its agent reported (labelled as the agent's) and any claim on it. Nam
 that story.
 
 - **Depends on:** 1 and the library's 4, 5 and 7.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0645 D1 item 10, P1):** `storytree tree` is a text view of the plan, and
+    the health it shows is labelled as the agent's report, not storytree's verdict.
 - **As built:** one reading of the library's `projectTree`, and of the agent link's claims when
   storytree's activity log has any.
 

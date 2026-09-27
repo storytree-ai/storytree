@@ -83,6 +83,10 @@ running it says so at once, so everything built on it quietly does nothing.
 
 - **Depends on:** nothing in this story. It uses the library API's `connect` and `openProject`, and
   the note the running 0.3 app keeps of where its database is listening.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D5):** project routing sends what an agent does in a folder to one
+    storytree project. It never picks a project by itself: storytree asks, and the user's yes is
+    the choice.
 - **Leaves out (vs 0.2):** 0.2's four rules for working out who a session is from its worktree
   folder, the shared "lobby" checkout that could claim nothing, and repairing worktrees or
   installing packages at session start. 0.2 had one shared database and no idea of a project.
@@ -115,6 +119,10 @@ added, never changed, and can be read back in order as "everything since line N"
 that other processes wrote.
 
 - **Depends on:** 1.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D2, B1):** the link keeps its own log of what agents do, beside the
+    library and not inside it. Sessions, activity, claims and note reads live there, not as library
+    record types.
 - **Leaves out (vs 0.2):** 0.2's claim-event, work-event and trace tables, its retired presence
   rows, and the machine-wide register of running jobs (`storytree own`). Lines can't be edited or
   deleted.
@@ -150,6 +158,10 @@ always exit cleanly, so they can never slow down or break the agent, and when st
 running they do nothing.
 
 - **Depends on:** 1 and 2.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D1 row 3 and D4, E1):** hooks are the passive layer, so an agent that
+    never calls storytree still shows up. Codex gets the same hooks as Claude Code, registered at
+    user level.
 - **Leaves out (vs 0.2):** 0.2's six session-start hooks (installing packages, repairing and pruning
   worktrees, remote setup, a claim reminder).
   0.2 never recorded edits or commands at all.
@@ -265,6 +277,10 @@ otherwise.
 
 - **Depends on:** 2, the agent activity log. Its lines come from the hooks (3) and the agent
   tools (6).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D1 row 4 and D9):** sessions are read from the activity log, one per
+    agent window, and never declared by the agent. A session is live only while its lines arrive,
+    never by default.
 - **Leaves out (vs 0.2):** self-declared presence, which 0.2 retired as "not useful … advisory
   rather than deterministic" (ADR-0200); identity by worktree folder; and 0.2's
   three staleness bands and two-hour reclaim clock.
@@ -304,6 +320,10 @@ releases it, when its session ends, or when another agent takes it over after th
 idle.
 
 - **Depends on:** 4, sessions, and the library API (to check that the capability exists).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D3, C1; ADR-0643 D1):** claims show who is on which capability or
+    increment. One holder each and no queue: a second agent is refused with the holder's name and
+    picks other work.
 - **Leaves out (vs 0.2):** the three claim grades (exploring, waiting, work), the waiting queue with
   automatic promotion, typed roles, and rules about stories versus capabilities. 0.2's claim board
   is six capabilities and about 3,800 lines of code, reworked across ten decisions. *(Claims on arc
@@ -541,6 +561,10 @@ and Codex both read it from there), and the setup check can also add it as a sho
 project's CLAUDE.md or AGENTS.md, where people can read it too.
 
 - **Depends on:** 6.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D1 row 7 and D7):** the habits card teaches the agent storytree's
+    habits. It is one short text, under 60 lines, that the tool server hands to the agent at every
+    session start.
 - **Leaves out (vs 0.2):** 0.2's generated instructions (CLAUDE.md alone is 918 lines and 128 KB,
   and it outgrew its own declared size budget within five weeks), the per-harness agent role files,
   the generators that rebuild them, and the gate checks that compare them with the database.
@@ -570,6 +594,9 @@ and in a folder that isn't a storytree project yet it asks the user, through the
 set one up.
 
 - **Depends on:** 1, 3, 6 and 7.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D5):** onboarding is the setup check. The user installs only the tool
+    server, and every session start checks the setup and fixes it on the spot.
 - **Leaves out (vs 0.2):** 0.2 never plugged into anyone's own agent. Its hooks were committed into
   its own repo's settings, nothing could undo them, and nothing checked that they fired: its Codex
   hooks silently never ran.

@@ -368,9 +368,9 @@ text and the titles of the notes it links to and from.
   the first item of its shelf in its story file, as that capability's first front cover. It is found
   again on later runs by its last line, `Founding book of stories/<name>.md, capability N.` A
   capability that a decision file already covers keeps that decision as its founding book (the app's
-  Updates, ADR-0637). The library and agent-link stories write no founding books, so their
-  capabilities' shelves read empty until they do, or until the library becomes the one copy of these
-  stories (`0-3-library-is-the-one-copy`).
+  Updates, ADR-0637). Every capability of every story now has a founding book or a decision cover:
+  the library, agent-link and command-line stories gained theirs for the move of the story text into
+  the library (`0-3-library-move-story-text`).
 
 **Contracts:**
 1. A capability with three front covers shows three spines, founding book first, each with its

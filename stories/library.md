@@ -68,6 +68,10 @@ time the project is opened, with its tables set up automatically. Storytree can 
 the server, and nothing written in one project can ever show up in another.
 
 - **Depends on:** nothing.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D3):** one database per project, so projects are walled apart by
+    construction and a forgotten filter can never leak one into another. The accepted cost: every
+    project database gets its own tables, and a schema change reaches each one.
 - **Leaves out (vs 0.2):** Cloud SQL and Google sign-in (that is capability 8), credential
   hydration, the remote store door, 0.2's single shared database with no idea of a project.
 
@@ -90,6 +94,10 @@ change only named fields, or retire a record with a reason. Every change is all-
 written first to a permanent, append-only history, so nothing is ever truly erased.
 
 - **Depends on:** 1.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1):** a small fixed set of data actions, each written first to an
+    append-only history, and an edit changes only the fields it names, merged onto what is stored
+    now. 0.2 once lost 7,058 characters of guidance to a whole-record save.
 - **Leaves out (vs 0.2):** the HTTP transport, the separate drift/change store, and the
   whole-document "replace" edit that caused 0.2's lost-update bug. **Kept on purpose:** an
   in-memory twin that runs the SAME test suite as Postgres, so later stories can test without a
@@ -130,6 +138,10 @@ older record is upgraded automatically, step by step, and stored upgraded the ne
 written, because every user's library is their own database and nobody else can repair it.
 
 - **Depends on:** 2.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1; ADR-0636 a1):** every record has a declared type and carries the
+    schema version it was written on. A record newer than the code is refused; an older one is
+    upgraded, because every user holds their own database.
 - **Types:** `arc`, `story`, `capability`, `contract`, `health`, `memory`, `decision` and
   `definition`; capability 6's `principle`, `guardrail`, `pattern`, `process`, `agent`, `friction`,
   `resteer` and `techstack`; capability 10's `increment`; and capability 12's `question`. A
@@ -171,6 +183,10 @@ Capabilities and contracts point at their parent. Stories belong to the project 
 structure.
 
 - **Depends on:** 3.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D2):** stories belong to the project, and an arc may list the
+    stories it grows but need not; a research arc may touch none. An agent's search starts from
+    the story, so `arcsFor` answers which arcs touched it.
 - **Leaves out (vs 0.2):** story files mirrored from the repo (the library is the only copy), UAT
   walkthroughs, proof modes and code anchors. Arc increments, left out here at first, came back as
   capability 10.
@@ -197,6 +213,10 @@ as `passing`.
   roll-up in contract 4 below), so a story or capability never carries a second, conflicting source of
   health; writing health straight onto one is refused with a message saying it rolls up.
 - **Depends on:** 4.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1 and D5):** two separate columns, what the agent reported and what
+    storytree verified, and a missing entry reads "not checked", never "passing". The library
+    stores health; running a story's tests belongs elsewhere.
 - **Leaves out (vs 0.2):** signed verdicts, the prove-it spine, anchors, drift and attestations.
   Also left out is **running the tests**: the library only *stores* the verified result, and a later
   story decides when to run a story's tests and writes it.
@@ -259,6 +279,10 @@ The agent link, arc surface, forest and desktop app all call these, and `changes
 what just changed without re-reading everything.
 
 - **Depends on:** 1, 4, 5 and 6.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1 and D5):** one small fixed list of functions is the only way in
+    or out, so it is the contract every later story is written to, and widening it is a deliberate
+    act. The MCP server is a thin wrapper over it.
 - **Leaves out (vs 0.2):** the Library CLI, the browse UI, the HTTP door, and raw SQL. The MCP server
   belongs to the agent-link story, as a thin wrapper over this API.
 - **Extended** on 2026-09-26 by ADR-0626 with three edit functions, `editStory`, `editContract` and
@@ -314,6 +338,9 @@ Instead of the local Postgres, a user can point storytree at a Postgres database
 works the same, and each project still gets its own database, now on the cloud server.
 
 - **Depends on:** 1. It is built after 1–7 work on the local path, and no test of 1–7 depends on it.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D4):** a local Postgres is the default, and a cloud database is a
+    user's option, Google Cloud only to start. It is proven by capability 2's suite, unchanged.
 - **Leaves out:** every cloud except Google, and sharing one cloud library between several people.
 - **Live proof status:** PROVEN LIVE on 2026-09-26. Contract 8.1's suite passed against storytree 0.2's Cloud SQL
   instance (Postgres 16), signed in as the owner's Google account.
@@ -338,6 +365,9 @@ into the knowledge is through a front cover.
 - **Added** on 2026-09-26 by ADR-0627, the owner's "rabbit-hole" model. The two sentences above are
   the ones he approved.
 - **Depends on:** 4 and 6. It adds `frontCovers` to 7's list of functions.
+- **Its shelf,** founding book first:
+  - Every story and capability has a shelf of front covers (ADR-0627, decisions/adr-0627.md).
+  - Decisions about the whole project sit on no shelf (ADR-0631, decisions/adr-0631.md).
 - **As built:** a decision's optional `frontCoverOf` field names the one story or capability it is
   a front cover of. One field names one node, so no decision can be the cover of two, and nothing
   has to check for it. A node's shelf is every live decision naming it, founding (oldest) first.

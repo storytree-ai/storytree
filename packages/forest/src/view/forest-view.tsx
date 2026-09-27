@@ -33,7 +33,7 @@ interface Drawn {
 
 /**
  * Open the globe in `container`. `onSelect` hears the story picked, or undefined for empty space.
- * The app's existing core instance is retained only for disposal; its page entry is deferred.
+ * The app's existing core supplies the faint points; its inspection page stays deferred.
  */
 export async function openForestView(container: HTMLElement, onSelect: (story: string | undefined) => void, core: KnowledgeCore): Promise<ForestView> {
   await preloadKit(kitBytes);
@@ -46,7 +46,7 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
     drawn = { ...drawn, ...next };
     if (drawn.viewport === undefined) return;
     container.dataset.view = "globe";
-    root.render(<PlanetView scene={drawn.scene} places={drawn.places} markers={drawn.markers}
+    root.render(<PlanetView core={core} scene={drawn.scene} places={drawn.places} markers={drawn.markers}
       selected={drawn.selected} onPick={pick} />);
   };
   const pick = (story: string | undefined): void => {

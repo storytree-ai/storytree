@@ -14,6 +14,8 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { coreScene, legend, noteCard, noteTitle, pinnedLinks, replayFrame, type CoreInput, type Point, type SizeBy } from "../look-inside/look-inside.js";
 import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
+import { globePoints } from "../shelves/positions.js";
+import { GlobePoints } from "./globe-points.js";
 import { CoreInside, CorePanel } from "./drawing.js";
 
 /** How fast the replay steps, one read a step. */
@@ -172,4 +174,14 @@ function sessionLabel(id: string, agents: readonly AgentReplay[]): string {
     : new Date(reads[0].at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
   return `${when} · ${plural(reads.length, "read")} · ${plural(agents.length, "agent")}`;
+}
+
+/** Faint knowledge under the globe's visible islands; no inspection, ghosts or replay. */
+export function KnowledgeGlobePoints({ core, spots, radius }: {
+  core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
+}) {
+  const store = core as Store;
+  const state = useSyncExternalStore(store.subscribe, store.get);
+  const points = useMemo(() => globePoints(underShelves(state.history, knowledge(state.history)), spots, radius), [state.history, spots, radius]);
+  return <GlobePoints points={points} radius={radius} />;
 }

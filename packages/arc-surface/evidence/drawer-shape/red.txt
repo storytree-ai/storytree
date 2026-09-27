@@ -1,0 +1,104 @@
+✖ 3/4 drawer rows hide queued chips until their blocker's caret opens, with downstream +N (2.590961ms)
+✖ 3/5 question list gives reading cost; opening swaps in the reading and back restores the list (0.392536ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 210.730191
+
+✖ failing tests:
+
+test at packages/arc-surface/src/view/render.test.ts:1:823
+✖ 3/4 drawer rows hide queued chips until their blocker's caret opens, with downstream +N (2.590961ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /data-arc-queue="build"[^>]*aria-expanded="false"/. Input:
+  
+  '<nav class="arc-scopes" aria-label="Arc lifecycle"><button type="button" data-arc-scope="active" aria-pressed="true">Active</button><button type="button" data-arc-scope="parked" aria-pressed="false">Parked</button><button type="button" data-arc-scope="closed" aria-pressed="false">Closed</button></nav>\n' +
+    '    <div class="arc-panes"><div class="arc-lanes" aria-label="Arcs"><section class="arc-lane arc-selected" data-arc-id="build">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="build" aria-pressed="true">build</button><span class="arc-chip arc-state-waiting" title="Holds up release: Board first">waiting</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p>\n' +
+    '  </section><details class="arc-queue" data-fold-key="queue:build"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="release" title="Board first">release +2</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="release">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="release" aria-pressed="false">release</button><span class="arc-chip arc-state-blocked" title="Waiting for build: Board first\n' +
+    'Holds up follow: Release first\n' +
+    'Holds up other: Release first">blocked</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for build: Board first</p>\n' +
+    '  </section><details class="arc-queue" data-fold-key="queue:release"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="follow" title="Release first">follow</button> · <button type="button" data-arc-select="other" title="Release first">other</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="follow">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="follow" aria-pressed="false">follow</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n' +
+    '  </section><section class="arc-lane" data-arc-id="other">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="other" aria-pressed="false">other</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n' +
+    '  </section></div></details></div></details></div>\n' +
+    '    <aside class="arc-briefing" aria-label="Arc briefing"><h3>build</h3><p class="arc-prose arc-intent">Intent of build</p><h4>Waiting on you</h4>\n' +
+    '    <details class="arc-question" data-fold-key="question:q"><summary>Which release?<small>13 words · no diagram</small></summary>\n' +
+    '    <h4>Statement</h4><p class="arc-prose">The full question statement</p><h4>Stakes</h4><p class="arc-prose">A useful first release</p>\n' +
+    '    <h4>Diagram</h4><pre class="arc-diagram">No diagram stored</pre>\n' +
+    '    <h4>Options</h4><div class="arc-option"><p>One or several</p></div>\n' +
+    '    \n' +
+    '    <details class="arc-fold" data-fold-key="q:Context"><summary>Context · 2 words</summary><p class="arc-prose">Some context</p></details></details><p class="arc-blocked-note">&quot;Blocked&quot; comes only from waits on other work.</p></aside></div>'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/arc-drawer/packages/arc-surface/src/view/render.test.ts:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<nav class="arc-scopes" aria-label="Arc lifecycle"><button type="button" data-arc-scope="active" aria-pressed="true">Active</button><button type="button" data-arc-scope="parked" aria-pressed="false">Parked</button><button type="button" data-arc-scope="closed" aria-pressed="false">Closed</button></nav>\n    <div class="arc-panes"><div class="arc-lanes" aria-label="Arcs"><section class="arc-lane arc-selected" data-arc-id="build">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="build" aria-pressed="true">build</button><span class="arc-chip arc-state-waiting" title="Holds up release: Board first">waiting</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p>\n  </section><details class="arc-queue" data-fold-key="queue:build"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="release" title="Board first">release +2</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="release">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="release" aria-pressed="false">release</button><span class="arc-chip arc-state-blocked" title="Waiting for build: Board first\nHolds up follow: Release first\nHolds up other: Release first">blocked</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for build: Board first</p>\n  </section><details class="arc-queue" data-fold-key="queue:release"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="follow" title="Release first">follow</button> · <button type="button" data-arc-select="other" title="Release first">other</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="follow">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="follow" aria-pressed="false">follow</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n  </section><section class="arc-lane" data-arc-id="other">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="other" aria-pressed="false">other</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n  </section></div></details></div></details></div>\n    <aside class="arc-briefing" aria-label="Arc briefing"><h3>build</h3><p class="arc-prose arc-intent">Intent of build</p><h4>Waiting on you</h4>\n    <details class="arc-question" data-fold-key="question:q"><summary>Which release?<small>13 words · no diagram</small></summary>\n    <h4>Statement</h4><p class="arc-prose">The full question statement</p><h4>Stakes</h4><p class="arc-prose">A useful first release</p>\n    <h4>Diagram</h4><pre class="arc-diagram">No diagram stored</pre>\n    <h4>Options</h4><div class="arc-option"><p>One or several</p></div>\n    \n    <details class="arc-fold" data-fold-key="q:Context"><summary>Context · 2 words</summary><p class="arc-prose">Some context</p></details></details><p class="arc-blocked-note">&quot;Blocked&quot; comes only from waits on other work.</p></aside></div>',
+    expected: /data-arc-queue="build"[^>]*aria-expanded="false"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/arc-surface/src/view/render.test.ts:1:1358
+✖ 3/5 question list gives reading cost; opening swaps in the reading and back restores the list (0.392536ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /data-question-open="q"/. Input:
+  
+  '<nav class="arc-scopes" aria-label="Arc lifecycle"><button type="button" data-arc-scope="active" aria-pressed="true">Active</button><button type="button" data-arc-scope="parked" aria-pressed="false">Parked</button><button type="button" data-arc-scope="closed" aria-pressed="false">Closed</button></nav>\n' +
+    '    <div class="arc-panes"><div class="arc-lanes" aria-label="Arcs"><section class="arc-lane arc-selected" data-arc-id="build">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="build" aria-pressed="true">build</button><span class="arc-chip arc-state-waiting" title="Holds up release: Board first">waiting</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p>\n' +
+    '  </section><details class="arc-queue" data-fold-key="queue:build"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="release" title="Board first">release +2</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="release">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="release" aria-pressed="false">release</button><span class="arc-chip arc-state-blocked" title="Waiting for build: Board first\n' +
+    'Holds up follow: Release first\n' +
+    'Holds up other: Release first">blocked</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for build: Board first</p>\n' +
+    '  </section><details class="arc-queue" data-fold-key="queue:release"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="follow" title="Release first">follow</button> · <button type="button" data-arc-select="other" title="Release first">other</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="follow">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="follow" aria-pressed="false">follow</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n' +
+    '  </section><section class="arc-lane" data-arc-id="other">\n' +
+    '    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="other" aria-pressed="false">other</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n' +
+    '    <div class="arc-bars" aria-label="Increments"></div>\n' +
+    '    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n' +
+    '  </section></div></details></div></details></div>\n' +
+    '    <aside class="arc-briefing" aria-label="Arc briefing"><h3>build</h3><p class="arc-prose arc-intent">Intent of build</p><h4>Waiting on you</h4>\n' +
+    '    <details class="arc-question" data-fold-key="question:q"><summary>Which release?<small>13 words · no diagram</small></summary>\n' +
+    '    <h4>Statement</h4><p class="arc-prose">The full question statement</p><h4>Stakes</h4><p class="arc-prose">A useful first release</p>\n' +
+    '    <h4>Diagram</h4><pre class="arc-diagram">No diagram stored</pre>\n' +
+    '    <h4>Options</h4><div class="arc-option"><p>One or several</p></div>\n' +
+    '    \n' +
+    '    <details class="arc-fold" data-fold-key="q:Context"><summary>Context · 2 words</summary><p class="arc-prose">Some context</p></details></details><p class="arc-blocked-note">&quot;Blocked&quot; comes only from waits on other work.</p></aside></div>'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/arc-drawer/packages/arc-surface/src/view/render.test.ts:33:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<nav class="arc-scopes" aria-label="Arc lifecycle"><button type="button" data-arc-scope="active" aria-pressed="true">Active</button><button type="button" data-arc-scope="parked" aria-pressed="false">Parked</button><button type="button" data-arc-scope="closed" aria-pressed="false">Closed</button></nav>\n    <div class="arc-panes"><div class="arc-lanes" aria-label="Arcs"><section class="arc-lane arc-selected" data-arc-id="build">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="build" aria-pressed="true">build</button><span class="arc-chip arc-state-waiting" title="Holds up release: Board first">waiting</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p>\n  </section><details class="arc-queue" data-fold-key="queue:build"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="release" title="Board first">release +2</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="release">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="release" aria-pressed="false">release</button><span class="arc-chip arc-state-blocked" title="Waiting for build: Board first\nHolds up follow: Release first\nHolds up other: Release first">blocked</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for build: Board first</p>\n  </section><details class="arc-queue" data-fold-key="queue:release"><summary>Queued after this arc <span class="arc-queue-chips"><button type="button" data-arc-select="follow" title="Release first">follow</button> · <button type="button" data-arc-select="other" title="Release first">other</button></span></summary><div class="arc-nested"><section class="arc-lane" data-arc-id="follow">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="follow" aria-pressed="false">follow</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n  </section><section class="arc-lane" data-arc-id="other">\n    <div class="arc-lane-head"><button type="button" class="arc-pick" data-arc-select="other" aria-pressed="false">other</button><span class="arc-chip arc-state-blocked" title="Waiting for release: Release first">blocked</span></div>\n    <div class="arc-bars" aria-label="Increments"></div>\n    <p class="arc-count">No increments</p><p class="arc-wait-summary">Waiting for release: Release first</p>\n  </section></div></details></div></details></div>\n    <aside class="arc-briefing" aria-label="Arc briefing"><h3>build</h3><p class="arc-prose arc-intent">Intent of build</p><h4>Waiting on you</h4>\n    <details class="arc-question" data-fold-key="question:q"><summary>Which release?<small>13 words · no diagram</small></summary>\n    <h4>Statement</h4><p class="arc-prose">The full question statement</p><h4>Stakes</h4><p class="arc-prose">A useful first release</p>\n    <h4>Diagram</h4><pre class="arc-diagram">No diagram stored</pre>\n    <h4>Options</h4><div class="arc-option"><p>One or several</p></div>\n    \n    <details class="arc-fold" data-fold-key="q:Context"><summary>Context · 2 words</summary><p class="arc-prose">Some context</p></details></details><p class="arc-blocked-note">&quot;Blocked&quot; comes only from waits on other work.</p></aside></div>',
+    expected: /data-question-open="q"/,
+    operator: 'match',
+    diff: 'simple'
+  }

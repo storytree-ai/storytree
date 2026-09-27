@@ -10,7 +10,7 @@
  * never created, since opening a project's library would create it.
  */
 import { openActivityLog, type ActivityLog, type LinesSince } from "@storytree/agent-link";
-import type { AnnotatedTree, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
+import type { AnnotatedTree, ArcView, Hold, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
 export interface PageReads {
@@ -26,6 +26,9 @@ export interface PageReads {
   frontCovers(project: unknown, nodeId: unknown): Promise<SchemaRecord<"decision">[]>;
   /** The notes in a project that link to a note. */
   relatedNotes(project: unknown, noteId: unknown): Promise<Note[]>;
+  arcView(project: unknown, id: unknown): Promise<ArcView | null>;
+  waitHolds(project: unknown, id: unknown): Promise<Hold[]>;
+  heldOnQuestion(project: unknown, id: unknown): Promise<string[]>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;
 }
@@ -85,6 +88,9 @@ export function pageReads({ storytree, serverUrl }: PageReadsOptions): PageReads
     },
     frontCovers: async (name, nodeId) => (await library(await project(name))).frontCovers(nodeId as string),
     relatedNotes: async (name, noteId) => (await library(await project(name))).relatedNotes(noteId as string),
+    arcView: async (name, id) => (await library(await project(name))).arcView(id as string),
+    waitHolds: async (name, id) => (await library(await project(name))).waitHolds(id as string),
+    heldOnQuestion: async (name, id) => (await library(await project(name))).heldOnQuestion(id as string),
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];
       libraries.clear();

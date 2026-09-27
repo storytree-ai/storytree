@@ -7,6 +7,8 @@ import { workStates } from '@storytree/arc-surface';
 import { clipToCoast, rimLoops, SHIPPED_COAST } from '../coast-clip.js';
 import { forestDescriptors } from '../forest-ground/forest-ground.js';
 import { plateTransform } from './planet.js';
+import { trailFillWidth } from '../core/routing.js';
+import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import type { InstanceDescriptor } from '../world-to-3d.js';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
@@ -49,7 +51,7 @@ function separated(a: Vector3[], b: Vector3[], na: Vector3, nb: Vector3): boolea
   }));
 }
 
-test('1.6 packed neighbours never overlap through all 36 measured places, at their real shore sizes including beaches', () => {
+test('1.6 / 3.8 all 36 measured places leave the approved trunk clearance between their clipped coasts', () => {
   for (const ids of [seed, freshSeed, Array.from({ length: 36 }, (_, i) => `synthetic-story-${i + 1}`)]) {
     const shores = ids.map((id, i) => {
       const story = { id, title: id, health, capabilities: Array.from({ length: counts[i % counts.length]! }, (_, c) => ({
@@ -66,9 +68,30 @@ test('1.6 packed neighbours never overlap through all 36 measured places, at the
       assert.ok(points.length > 2, 'a real closed shore was measured');
       return { normal, points };
     });
+    // The approved look reserved four ribbon widths for a 22-link trunk (ADR-0655 D3).
+    // This is the fixed placement envelope, not a refit to the live graph.
+    const gap = 4 * trailFillWidth(22) * RIBBON_GROUND_SCALE;
+    const arcDistance = (p: Vector3, a: Vector3, b: Vector3): number => {
+      const n = a.clone().cross(b).normalize();
+      const foot = p.clone().addScaledVector(n, -p.dot(n)).normalize();
+      let d = Math.min(p.angleTo(a), p.angleTo(b));
+      for (const q of [foot, foot.clone().negate()]) {
+        if (a.angleTo(q) + q.angleTo(b) <= a.angleTo(b) + 1e-9) d = Math.min(d, p.angleTo(q));
+      }
+      return d * PLANET_RADIUS;
+    };
     for (let i = 1; i < shores.length; i++) for (let j = 0; j < i; j++) {
       assert.ok(separated(shores[i]!.points, shores[j]!.points, shores[i]!.normal, shores[j]!.normal),
         `${ids[j]} / ${ids[i]} overlap at places ${j + 1} / ${i + 1}`);
+      const a = shores[i]!, b = shores[j]!;
+      const reach = (s: typeof a) => Math.max(...s.points.map(p => p.angleTo(s.normal)));
+      if (PLANET_RADIUS * (a.normal.angleTo(b.normal) - reach(a) - reach(b)) >= gap) continue;
+      for (const [one, other] of [[a.points, b.points], [b.points, a.points]]) {
+        for (const p of one!) for (let k = 0; k < other!.length; k++) {
+          assert.ok(arcDistance(p, other![k]!, other![(k+1)%other!.length]!) >= gap,
+            `${ids[j]} / ${ids[i]} need at least ${gap} ground units for the ribbon`);
+        }
+      }
     }
   }
 });

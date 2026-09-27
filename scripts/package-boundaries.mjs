@@ -27,7 +27,7 @@ export const SHARED_ENGINES = ["forest-world", "local-postgres"];
  * decides when it moves into its story's package. An entry that no longer holds anything is a
  * problem too, so the list is emptied as the code moves.
  */
-export const NOT_YET_MOVED = [{ path: "apps/desktop/src/forest", question: "oq-forest-view-leaves-the-desktop-frame" }];
+export const NOT_YET_MOVED = [];
 
 const FRAME = { story: "app", dirs: ["packages/app", "apps/desktop"] };
 const FRONT_DOOR = { story: "cli", dirs: ["packages/cli"] };

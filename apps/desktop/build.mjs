@@ -55,9 +55,11 @@ await build({
   platform: "browser",
   format: "iife",
   target: "es2023",
-  // The forest's pine kit export is bundled into the page as its bytes (src/forest/forest-view.ts).
+  // The forest view's pine kit export is bundled into the page as its bytes (@storytree/forest/view).
   loader: { ".glb": "binary" },
 });
+
+cpSync(fileURLToPath(import.meta.resolve("@storytree/arc-surface/view/styles.css")), path.join(dist, "renderer", "arc-surface.css"));
 
 for (const file of ["index.html", "styles.css"]) {
   cpSync(path.join(src, "renderer", file), path.join(dist, "renderer", file));

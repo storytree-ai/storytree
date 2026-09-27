@@ -235,6 +235,12 @@ surfaces when the project changes.
   `window.storytree.relatedNotes(project, noteId)` returns the artifacts that link to an artifact (the
   library's `relatedNotes`). A name that is not a project is refused, as for the other reads.
 
+- **As built** (the arc surface): the bridge also carries the library's `arcView`, `waitHolds`
+  and `heldOnQuestion` reads, with the same known-project refusal. The renderer mounts
+  `@storytree/arc-surface/view` and disposes it when switching project; its exported stylesheet is copied beside the
+  renderer. The existing desktop smoke command calls the arc-surface package's smoke check when
+  the project has arcs. Rendering, polling and smoke judgment remain in the story's package.
+
 **Contracts:**
 1. The page can ask the app for the library's changes and the agent log's new lines since a point,
    for the project on show, and only newer ones come back.

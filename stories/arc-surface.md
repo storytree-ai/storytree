@@ -72,13 +72,12 @@ flowchart BT
 
 Build order: 1 → 2 → 3 → 4 → 5 (4 and 5 in either order).
 
-**What is built so far.** Capability 1 at part, increment and arc grain (contracts 1.1 to 1.6),
-and the live reading of capability 3, in `packages/arc-surface` (`@storytree/arc-surface`). The
-forest reads the part states and live reading (`stories/forest.md`, ADR-0632 D3), which its lane
-built here under this tree's names. Capability 2 now reads and names holders, and capability 4 reads waits and queue shapes.
-Capability 5 reads complete briefings. The overlay remains to be built.
-Their library and agent-link prerequisites now store and read increments, questions and waits
-(ADR-0638 D4).
+**What is built so far.** All five capabilities are built in `packages/arc-surface`
+(`@storytree/arc-surface`). The forest shares the part states and live reading (ADR-0632 D3).
+The package's `@storytree/arc-surface/view` subpath mounts the read-only overlay over the forest;
+the desktop only mounts it, carries the library reads and calls its smoke check. The package's
+Postgres-backed tests and headless Chromium capture prove live updates through the app's reads.
+Evidence and the reproducible capture are in `packages/arc-surface/evidence/`.
 
 ---
 
@@ -196,8 +195,20 @@ it re-checks the clock once a minute, so an agent that goes quiet turns idle wit
   forward, and hands on only what is new. Once a minute it re-reads the clock even when nothing is
   new, so a holder's quiet time can pass without a record. A failed read is reported and the next
   ask tries again from the same place; it never writes. Its clock and timers are handed in, so its
-  own tests use a stand-in clock and no app. Contracts 3.4 and 3.5 are proved in the app once the
-  overlay is drawn.
+  own tests use a stand-in clock and no app. A returned `onNews` promise is awaited before either
+  cursor advances, so a failed board read retries its changes and lines.
+- **As built (overlay):** `boardView` composes the five capabilities; `watchBoard` uses the shared
+  live reading and the app's public read bridge. `mountArcSurface` from the `/view` subpath draws
+  lifecycle tabs, lanes, bars, queues and briefings in a dialog over the current forest. It retains
+  question folds and reading position across refreshes, reports loading and errors, and stops reading on close. No
+  action writes. `data-drew` on the dialog comes from the rendered DOM; `smokeArcSurface` visits
+  all three scopes and requires every arc, increment and held agent. The desktop's existing smoke
+  command invokes it when the project has arcs.
+- **Proved in the app:** the Postgres-backed test uses `pageReads` and a stand-in clock. The Chromium
+  acceptance also drives the actual desktop renderer over isolated Postgres: a new claim appears
+  on the next poll, the clock alone makes it idle, failures retry, questions settle live, queued
+  arcs open their briefing, and closing or Escape leaves the forest mounted. The capture records
+  its renderer and timings in `packages/arc-surface/evidence/capture.json`.
 
 **Contracts:**
 1. It opens over the surface on show and closes back to it, and nothing on it writes. While its

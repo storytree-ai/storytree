@@ -7,15 +7,14 @@
  */
 import type { Line } from "@storytree/agent-link";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
+import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { claimMarkers, drillDown, forestDrawn, forestScene, openBook, shelved, storyNodes, unclaimedWork, type Book, type ForestDrawn } from "@storytree/forest";
 import type { AnnotatedTree, Change, SchemaRecord } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { openForestView, type ForestView } from "../forest/forest-view.js";
-import { renderStoryPanel } from "../forest/story-panel.js";
-import { renderUnclaimed } from "../forest/unclaimed-list.js";
+import { openForestView, renderStoryPanel, renderUnclaimed, type ForestView } from "@storytree/forest/view";
 import { renderNoProjects, renderSwitcher } from "../view/view.js";
 
 declare global {
@@ -29,7 +28,7 @@ const switcher = element("switcher");
 const params = new URLSearchParams(location.search);
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { reading: LiveReading | undefined; view: ForestView | undefined } | undefined;
+let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined } | undefined;
 
 void open().catch((error: unknown) => showMessage("error", "Something went wrong", messageOf(error)));
 
@@ -78,8 +77,9 @@ async function showForest(name: string): Promise<void> {
   unclaimed.className = "unclaimed";
   content.replaceChildren(holder, panel, unclaimed);
   document.body.dataset.surface = "forest";
-  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined };
+  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined };
   showing = mine;
+  mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
   const history: Change[] = [];
   const lines: Line[] = [];
   let tree: AnnotatedTree | undefined;
@@ -189,6 +189,7 @@ async function showForest(name: string): Promise<void> {
 }
 
 function stopShowing(): void {
+  showing?.arcs?.stop();
   showing?.reading?.stop();
   showing?.view?.dispose();
   showing = undefined;

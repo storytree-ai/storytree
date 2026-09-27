@@ -22,6 +22,7 @@
  * with `--screenshot <file>`, prints the page's text to stdout, and quits: exit 0 only if the
  * surface on show says it drew every story of the project and every one of its capabilities.
  */
+import { smokeArcSurface } from "@storytree/arc-surface";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
@@ -109,6 +110,10 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
 }
 
 async function run(): Promise<void> {
+  ipcMain.handle(CHANNELS.arcView, (_event, name: unknown, id: unknown) => open().arcView(name, id));
+  ipcMain.handle(CHANNELS.waitHolds, (_event, name: unknown, id: unknown) => open().waitHolds(name, id));
+  ipcMain.handle(CHANNELS.heldOnQuestion, (_event, name: unknown, id: unknown) => open().heldOnQuestion(name, id));
+
   ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));
   ipcMain.handle(CHANNELS.projectTree, (_event, name: unknown) => open().projectTree(name));
   ipcMain.handle(CHANNELS.changesSince, (_event, name: unknown, cursor: unknown) => open().changesSince(name, cursor));
@@ -359,6 +364,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       pick.querySelector("summary").click();
       return { title: pick.querySelector("summary .row-title").innerText, contracts: pick.querySelectorAll("[data-contract-id]").length };
     })()`)) as { title: string; contracts: number } | null;
+    const arcProblems = project !== undefined && state === "ready" ? await smokeArcSurface(window.webContents, project, open()) : [];
     const page = (await window.webContents.executeJavaScript(`(() => ({
       text: document.body.innerText,
       drew: document.body.dataset.drew,
@@ -388,7 +394,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
     if (opened !== null) console.log(`smoke: opened "${opened.title}", showing its ${opened.contracts} contract(s)`);
 
     const tree = project === undefined || state !== "ready" ? undefined : await open().projectTree(project);
-    const problems = smokeProblems(state, tree, page.drew);
+    const problems = [...smokeProblems(state, tree, page.drew), ...arcProblems];
     if (problems.length === 0 && tree !== undefined) {
       console.log(`smoke: project "${project}": ${drewText(tree, page.drew)}`);
       code = 0;

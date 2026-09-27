@@ -30,8 +30,8 @@ first. Its front cover is `decisions/librarian-capability-tree.md`.
 - **R:** Links uses ranked
   `library related --unlinked` alongside plain search. Re-measurement found 92 runs on 23 days,
   54 by the librarian, with 7 followed by a link to a candidate within three hours.
-- **The 7-day question review lease** is restored in the library. Queues' adoption is still to be
-  built; until then its worklist lists every open question.
+- **The 7-day question review lease** is restored: Queues drains lapsed open questions by review
+  date. Re-measurement found 148 `question check` runs on 24 days, 141 by the librarian.
 
 **Boundaries** (ADR-0644 D4). The library stores and refuses: status, supersedes and rests-on edges,
 the load-bearing mark, numbers, kinds, questions settled with their answers, history; it refuses a
@@ -237,8 +237,9 @@ read: a principle, a process or a definition. Then the memory is deleted.
 
 ## 5 · Queues
 
-Open questions and friction reports don't pile up. Each is looked at on the librarian's pass, and
-nothing is closed without a reason.
+Open questions whose review lease has lapsed and unrouted friction reports are looked at on the
+librarian's pass, and nothing is closed without a reason. The library owns the review date and
+lease; the librarian uses its lapsed-question drain (ADR-0654).
 
 - **Depends on:** nothing.
 - **Its shelf,** founding book first:
@@ -248,14 +249,20 @@ nothing is closed without a reason.
     because retiring it would destroy the answer.
   - **S (settled, ADR-0644 D3):** the routing judgement is the librarian's own, on this pass.
   - **The lease (restored, ADR-0654 D1):** Queues must drain questions whose review date has lapsed;
-    the library stores a 7-day lease unless given another. This adoption remains to be built.
+    the library stores a 7-day lease unless given another. Renew only after reviewing an open
+    question's assumptions; the library refuses to renew a settled question.
 - **As built:** `openQuestions`, `frictionDrain` and `route` in `packages/librarian/src/queues`. A
-  friction report with no provenance counts as another session's, as in 0.2, so the queue cannot
+  question appears only when the library's `lapsedQuestions` says its review lease has lapsed,
+  longest lapsed first across all arcs. The worklist uses its `now` for this read, or the current
+  time when omitted; fresh and settled questions do not appear. Gathering it neither settles nor
+  renews a question. A friction report with no provenance counts as another session's, as in 0.2, so the queue cannot
   drain by going anonymous. A report is drained once it carries a route and its reason; what it is
   routed to (a decision, a tool, an artifact, an edit) is then that route's own work.
 
 **Contracts:**
-1. The worklist lists every open question on every arc, oldest first.
+1. The worklist lists only open questions whose review lease has lapsed, across every arc,
+   longest lapsed first. Fresh and settled questions are excluded; gathering the list neither
+   settles nor renews a question.
 2. The worklist's friction drain holds at most the three oldest friction reports not yet routed that
    another session filed, never one filed from the session's own branch.
 3. `route(friction, route, reason)` records the routing judgement with its reason. A route with no

@@ -9,3 +9,5 @@ export { arcState, incrementState } from "./work-states/board-states.js";
 export type { ArcFacts, ArcState, IncrementFacts, IncrementReading, IncrementState } from "./work-states/board-states.js";
 export { agentsOnBoard } from "./agents/agents.js";
 export type { ArcWork, BoardAgent, BoardAgents } from "./agents/agents.js";
+export { arcQueues, queueRun, waitsOnBoard } from "./waits/waits.js";
+export type { ArcQueue, BoardWaits, NamedWait, QueueArc, QueueChip, QueueRun, WorkName } from "./waits/waits.js";

@@ -1,6 +1,6 @@
 # Minimal viable TDD
 
-- **Front cover of:** none: it decides the whole project, so it sits on no shelf (ADR-0631)
+- **Front cover of:** none
 - **Full record:** ADR-0623 in storytree 0.2's decision log, storytree-ai/storytree02 (`pnpm storytree library artifact adr-0623`)
 
 A test earns its place by protecting something the product does: write the minimum test that goes red.

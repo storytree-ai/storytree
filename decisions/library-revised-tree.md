@@ -3,7 +3,7 @@
 - **Front cover of:** stories/library.md
 - **Full record:** ADR-0640 in storytree 0.2's decision log, storytree-ai/storytree02 (`pnpm storytree library artifact adr-0640`)
 
-The library keeps its nine capabilities; knowledge and memory grows by eight kinds, and four are added, thirteen in all.
+The library keeps its nine capabilities; the knowledge artifacts capability grows by eight kinds, and four are added, thirteen in all.
 
 The eight kinds are principles, guardrails, patterns, processes, agent roles, friction, re-steers and
 tech stack, each with 0.2's fields. The four new capabilities are work in flight (each arc whole,
@@ -31,3 +31,5 @@ decision log. Each is red then green against the in-memory twin and Postgres.
 The library stores these records and alone answers whether a wait holds and whether an increment is
 waiting on the owner. The arc surface only reads them, the agent link's claims stay in its own
 activity log, and the one-copy lane and the librarian use the records and the number allocator.
+
+ADR-0650 narrows capability 6: there is no library memory type; knowledge records are artifacts.

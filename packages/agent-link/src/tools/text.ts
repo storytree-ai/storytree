@@ -6,43 +6,37 @@ export function quoted(title: string): string {
   return `"${title}"`;
 }
 
-/** A note's spine: what it is called, the way a shelf or a search result shows it. */
+/** An artifact's spine: what it is called, the way a shelf or a search result shows it. */
 export function spineOf(note: Note): string {
   switch (note.type) {
     case "decision":
       return note.fields.title;
     case "definition":
       return note.fields.term;
-    case "memory":
-      return firstLine(note.fields.text);
     default:
       return note.fields.title;
   }
 }
 
-/** A note's first line, below its spine: the decision's text or the definition's meaning, begun. */
+/** An artifact's first line, below its spine: the decision's text or the definition's meaning, begun. */
 export function firstLineOf(note: Note): string {
   switch (note.type) {
     case "decision":
       return firstLine(note.fields.text);
     case "definition":
       return firstLine(note.fields.meaning);
-    case "memory":
-      return "";
     default:
       return firstLine(note.fields.description);
   }
 }
 
-/** A note in full, as opening it shows it. */
+/** An artifact in full, as opening it shows it. */
 export function wholeOf(note: Note): string {
   switch (note.type) {
     case "decision":
       return `Decision ${quoted(note.fields.title)} (${note.id}):\n${note.fields.text}`;
     case "definition":
       return `Definition of ${quoted(note.fields.term)} (${note.id}):\n${note.fields.meaning}`;
-    case "memory":
-      return `Memory (${note.id}):\n${note.fields.text}`;
     default: {
       // One of the library's eight further kinds (ADR-0640): its title, its one-line description,
       // and each other field that holds words, by name.

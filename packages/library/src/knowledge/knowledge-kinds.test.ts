@@ -103,7 +103,7 @@ for (const backend of [memory, postgres]) {
   };
 
   contract("6.6", "each of the eight kinds is saved with its required fields, and refused, naming the field, without one", async ({ knowledge, transactions }) => {
-    const reading = await knowledge.writeMemory({ text: "Read the story first" });
+    const reading = await knowledge.defineTerm({ term: "Delivery", meaning: "Read the story first" });
     const kinds = fullKinds(reading.id);
     assert.deepEqual(Object.keys(kinds).sort(), Object.keys(REQUIRED).sort());
 

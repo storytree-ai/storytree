@@ -9,7 +9,7 @@ In build order they are project routing, the agent activity log, hooks, sessions
 tools (an MCP server), the instructions (a habits card) and the setup check.
 
 The link keeps its own agent activity log beside the library rather than inside it. Sessions,
-activity, claims and note reads live there. So the arc surface and the forest read from two places:
+activity, claims and artifact reads live there. So the arc surface and the forest read from two places:
 the library for the plan, health and knowledge, and the log for who is on what and what happened.
 
 A capability has one holder at a time, and there is no queue. A second agent is refused with the

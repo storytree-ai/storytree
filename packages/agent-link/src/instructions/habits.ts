@@ -19,7 +19,7 @@ Plan first.
 
 Claim, and open the knowledge you need.
 - \`claim\` the increment you drive: that starts it. \`claim\` a capability, with a one-line reason, before you touch it. If another session holds it, or it waits on other work, pick other work: nobody queues.
-- \`open\` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. \`search_notes\` finds notes by their words.
+- \`open\` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. \`search_notes\` finds artifacts by their words.
 
 Red, then green, then landed.
 - Write a contract's test first, run it, see it fail, and \`report\` it red.
@@ -27,8 +27,8 @@ Red, then green, then landed.
 - When its contracts pass, \`land\` the capability: your claim on it ends. If you stop before then, \`release\` it.
 - When the increment is done, \`close_increment\` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with \`park_increment\` and its outcome.
 
-Note what you learned.
-- \`write_note\` a memory, a decision or a definition when you learn something worth keeping. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes a note's wording in place.
+Record what you learned.
+- \`write_note\` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes an artifact's wording in place.
 - \`record_friction\` when something got in your way, with concrete evidence; \`reinforce\` the existing item when it happens again, with its own evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
 
 If storytree says it isn't running, carry on without it.`;

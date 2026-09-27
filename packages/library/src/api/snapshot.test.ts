@@ -28,9 +28,9 @@ async function fill(library: Library): Promise<void> {
   const capability = await library.addCapability({ story: story.id, title: "1 · Heating" });
   await library.addContract({ capability: capability.id, title: "1.1 · It reaches the boil" });
   const decision = await library.recordDecision({ title: "One element", text: "It heats with one element.", status: "accepted", frontCoverOf: capability.id });
-  const note = await library.writeMemory({ text: "The relay clicks.", links: [decision.id] });
-  await library.editNote(note.id, { text: "The relay clicks twice." });
-  const gone = await library.writeMemory({ text: "A whistle, left out.", links: [decision.id] });
+  const note = await library.defineTerm({ term: "Delivery", meaning: "The relay clicks.", links: [decision.id] });
+  await library.editNote(note.id, { meaning: "The relay clicks twice." });
+  const gone = await library.defineTerm({ term: "Delivery", meaning: "A whistle, left out.", links: [decision.id] });
   await library.retire(gone.id, "not in this kettle");
 }
 
@@ -53,7 +53,7 @@ test("1.6 snapshot returns every record of the project and its whole history, as
     assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot, "a snapshot is plain data, as a file holds it");
 
     // Taken while another write lands, it reads one moment: every record it holds has its history.
-    const [during] = await Promise.all([storytree.snapshot(name), library.writeMemory({ text: "Written during the snapshot." })]);
+    const [during] = await Promise.all([storytree.snapshot(name), library.defineTerm({ term: "Delivery", meaning: "Written during the snapshot." })]);
     const recorded = new Set(during.history.map(({ recordId }) => recordId));
     assert.ok(during.records.every(({ id }) => recorded.has(id)), "no record without its history");
     await library.close();
@@ -75,7 +75,7 @@ test("1.7 restore into an empty project gives back the same records and history,
     assert.deepEqual(again.history, snapshot.history, "the same history: sequence numbers, actors, reasons and times");
     assert.deepEqual(await restored.projectTree(), await library.projectTree());
     const last = snapshot.history.at(-1)?.seq ?? 0;
-    const next = await restored.writeMemory({ text: "After the restore." });
+    const next = await restored.defineTerm({ term: "Delivery", meaning: "After the restore." });
     const [entry] = await restored.history({ id: next.id });
     assert.ok(entry !== undefined && entry.seq > last, `the next write continues after ${last}, got ${entry?.seq}`);
     await library.close();
@@ -95,7 +95,7 @@ test("1.8 restoring into a project that holds any record or history is refused, 
 
     // A project whose one record was retired still has history, so it is not empty either.
     const other = await storytree.openProject(busy);
-    const note = await other.writeMemory({ text: "Soon gone." });
+    const note = await other.defineTerm({ term: "Delivery", meaning: "Soon gone." });
     await other.retire(note.id, "retired");
     const before = await storytree.snapshot(busy);
     await assert.rejects(storytree.restore(busy, snapshot), (error: unknown) => error instanceof RestoreRefusedError && error.message.includes(busy));

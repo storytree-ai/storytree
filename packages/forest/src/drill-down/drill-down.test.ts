@@ -110,9 +110,9 @@ function decision(id: string, cover: string | undefined, minute: number, links?:
   return { id, type: "decision", version: 2, fields, createdAt: at, updatedAt: at };
 }
 
-function memory(id: string, text: string, links: string[]): Note {
+function definition(id: string, term: string, meaning: string, links: string[]): Note {
   const at = new Date(0).toISOString();
-  return { id, type: "memory", version: 1, fields: { text, links }, createdAt: at, updatedAt: at };
+  return { id, type: "definition", version: 1, fields: { term, meaning, links }, createdAt: at, updatedAt: at };
 }
 
 /** The history's creation of each note, as the live reading hands it on. */
@@ -142,12 +142,12 @@ test("7.2 opening a book shows its full text, and the titles of the notes that l
   const inside = decision("inside", undefined, 0);
   const term: Note = { id: "term", type: "definition", version: 1, fields: { term: "Grove", meaning: "Trees of one story." }, createdAt: inside.createdAt, updatedAt: inside.createdAt };
   const cover = decision("cover", "a", 1, ["inside", "term"]);
-  const book = openBook(cover, [memory("why", "We tried a single tree first.\nIt read as one blob.", ["cover"])], created(inside, term, cover));
+  const book = openBook(cover, [definition("why", "Single tree", "We tried a single tree first.\nIt read as one blob.", ["cover"])], created(inside, term, cover));
   assert.deepEqual(book, {
     id: "cover",
     title: "Cover cover",
     text: "What cover decided.\n\nWhy it was decided.",
-    linksIn: ["We tried a single tree first."],
+    linksIn: ["Single tree"],
     linksOut: ["Cover inside", "Grove"],
   });
 });

@@ -9,7 +9,7 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
+import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
@@ -170,10 +170,8 @@ export interface Library {
   /** Every health entry of a contract, both columns, in the order written. */
   healthHistory(contractId: string): Promise<HealthEntry[]>;
 
-  /** Write a memory note. Every link must name a live note: notes link only to notes. */
-  writeMemory(memory: NewMemory, options?: WriteOptions): Promise<SchemaRecord<"memory">>;
   /**
-   * Record a decision, with its status. Every link must name a live note, `frontCoverOf`, if given,
+   * Record a decision, with its status. Every link must name a live artifact, `frontCoverOf`, if given,
    * the one live story or capability the decision is a front cover of, and each decision it
    * supersedes a live decision. It is numbered one past the highest number any decision has held,
    * unless it is brought in under its own, which no other may have held (NumberTakenError).
@@ -182,16 +180,16 @@ export interface Library {
   /**
    * Write a principle, guardrail, pattern, process, agent role, friction, re-steer or tech stack,
    * with its kind's fields. Every link, and an agent role's or process's other references, must name
-   * a live note.
+   * a live artifact.
    */
   writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>>;
-  /** Define a term. Every link must name a live note. */
+  /** Define a term. Every link must name a live artifact. */
   defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">>;
-  /** Change only the named fields of a note, keeping its old wording in history. Null if `id` is not a live note. */
+  /** Change only the named fields of an artifact, keeping its old wording in history. Null if `id` is not a live artifact. */
   editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null>;
-  /** The live notes holding every word of `query`, ignoring case, in creation order. */
+  /** The live artifacts holding every word of `query`, ignoring case, in creation order. */
   search(query: string): Promise<Note[]>;
-  /** The live notes linking to note `noteId`, in creation order. */
+  /** The live artifacts linking to artifact `noteId`, in creation order. */
   relatedNotes(noteId: string): Promise<Note[]>;
   /** Every live definition, in creation order. */
   definitions(): Promise<SchemaRecord<"definition">[]>;
@@ -423,9 +421,6 @@ class LibraryHandle implements Library {
     return this.#project.health.healthHistory(contractId);
   }
 
-  writeMemory(memory: NewMemory, options?: WriteOptions): Promise<SchemaRecord<"memory">> {
-    return this.#project.knowledge.writeMemory(memory, options);
-  }
 
   recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     return this.#project.knowledge.recordDecision(decision, options);

@@ -25,7 +25,7 @@ flowchart BT
   F["3 · Data schema"]
   W["4 · Work model"]
   H["5 · Health record"]
-  K["6 · Knowledge & memory"]
+  K["6 · Knowledge artifacts"]
   D["7 · Library API"]
   C["8 · Cloud connection (GCP)"]
   E["9 · Knowledge entrances"]
@@ -153,7 +153,7 @@ written, because every user's library is their own database and nobody else can 
   - **Founding book (ADR-0621 D1; ADR-0636 a1):** every record has a declared type and carries the
     schema version it was written on. A record newer than the code is refused; an older one is
     upgraded, because every user holds their own database.
-- **Types:** `arc`, `story`, `capability`, `contract`, `health`, `memory`, `decision` and
+- **Types:** `arc`, `story`, `capability`, `contract`, `health`, `decision` and
   `definition`; capability 6's `principle`, `guardrail`, `pattern`, `process`, `agent`, `friction`,
   `resteer` and `techstack`; capability 10's `increment`; and capability 12's `question`. A
   decision's optional `frontCoverOf` field (capability 9) was added at version 1: every decision
@@ -244,36 +244,51 @@ as `passing`.
 5. Every health entry is kept in history with who wrote it and when. A health entry for a node that
    does not exist is refused.
 
-## 6 · Knowledge and memory
+## 6 · Knowledge artifacts
 
-Alongside the plan, the library keeps what the project has learned: memory notes, decisions and
+Alongside the plan, the library keeps what the project has learned: decisions and
 definitions of terms, and principles, guardrails, patterns, processes, agent roles, friction,
-re-steers and tech stack, each with 0.2's fields. Each can link to the other notes it relates to,
-and you can find them again by searching their words; an edit keeps the old wording in history. A
-note never links straight to the work: capability 9 is how the work reaches its knowledge.
+re-steers and tech stack, each with 0.2's fields. Each can link to the other artifacts it relates to,
+and you can find them again by searching their words; an edit keeps the old wording in history. An
+artifact never links straight to the work: capability 9 is how the work reaches its knowledge.
 
+- **Changed by ADR-0650 (2026-09-27):** there is no library `memory` type or `writeMemory`
+  function. Memories belong to the harness; durable knowledge is written as a proper artifact kind.
+  See [the decision](../decisions/library-no-memory-type.md).
+- **Upgrade, as built:** opening a project converts a legacy memory only when its text supplies a
+  supported kind and all required fields: `Definition: <term>` followed by its meaning, or JSON
+  `{ "kind": "<kind>", "fields": { ... } }`. Original links are kept; classification adds no
+  references, front cover or decision number. Anything ambiguous, incomplete or from an unknown
+  schema version stays intact and is reported on every open, with its id and the history read
+  that retrieves it. Converted records keep their ids and creation times; one `upgrade:adr-0650`
+  history entry records the conversion, under the project's write lock. Reopening converts none
+  twice. Original writes, including those of retired memories, remain in history and snapshots.
+- **Story text move/export (ADR-0650):** the move files each block as a definition whose term
+  starts `Story text: ` and names its source file and section, with the exact block as its meaning.
+  The export prints only those definitions behind the linked front cover; ordinary definitions
+  stay out of the story printout. Round trips preserve block order, and a second move writes nothing.
 - **Depends on:** 3.
 - **Grown** on 2026-09-27 by ADR-0640 with the eight kinds 0.3 had left out (ADR-0633 D3 item 7).
   They are written with `writeKnowledge(kind, fields)`, which joins 7's list of functions, and
-  edited with `editNote` like every other note.
+  edited with `editNote` like every other artifact.
 - **Its shelf,** founding book first:
   - **Founding book (6-a):** the eight kinds keep 0.2's fields, plus a title and one-line
-    description; an agent role's rule and required-reading lists are links to those notes.
+    description; an agent role's rule and required-reading lists are links to those artifacts.
   - **6-b:** friction keeps its adjudication fields, recurrences and discharge; re-steers keep
     defect-or-taste, who judged it, the failure mode, and the owner's words as evidence apart from
     the agent's account. The library stores them; counting rates is not its job.
 - **As built (6.6, 6.7):** each kind is a record type of its own at version 1, with 0.2's fields
   (`packages/library/src/schema/types.ts`). An agent role's `context`, `rules`, `antiPatterns` and
-  `stepRefs`, and a process's `branchEdges`, must name live notes, as links do. `search` reads every
-  piece of text in a note except the fields that name other notes. A re-steer's "a defect needs a
+  `stepRefs`, and a process's `branchEdges`, must name live artifacts, as links do. `search` reads every
+  piece of text in an artifact except the fields that name other artifacts. A re-steer's "a defect needs a
   mode" is a rule across two fields, so its refusal names `mode` in the rule's own words.
 - **Leaves out (vs 0.2):** the ~1,200-artifact corpus (0.3 starts nearly empty), the graduation
   lease, and ranked "related" search. Open questions are capability 12, and decision status and
   supersession capability 13.
 
 **Contracts:**
-1. A memory note is found by `search` on any word it contains (case-insensitive).
-2. `relatedNotes(noteId)` returns every note, decision and definition that links to that note.
+1. An artifact is found by `search` on any word it contains (case-insensitive).
+2. `relatedNotes(noteId)` returns every artifact that links to that artifact.
 3. Editing a decision keeps its old wording in history.
 4. A link to a record that does not exist is refused.
 5. `definitions()` returns every live definition, and nothing else, in creation order. Added for
@@ -282,6 +297,10 @@ note never links straight to the work: capability 9 is how the work reaches its 
 6. Each of the eight kinds is saved with its required fields, and refused, naming the field,
    without one.
 7. Friction with no evidence is refused, and so is a re-steer marked a defect with no failure mode.
+8. Saving a `memory` is refused with the reason that memories belong to the harness, and nothing
+   is written.
+9. Opening an older project converts an explicitly classified memory once, keeping its id, links
+   and history, and reports an unclassified memory while preserving its original record.
 
 ## 7 · Library API
 
@@ -315,7 +334,7 @@ what just changed without re-reading everything.
 **Contracts:**
 1. An end-to-end "agent's day" against a real local Postgres: open a project, create an arc, add a
    story, a capability and a contract, report passing, record verified, record a decision as the
-   capability's front cover and write a memory inside it, then read `projectTree()` and
+   capability's front cover and write a definition inside it, then read `projectTree()` and
    `changesSince(0)`. Every step is visible where the next step expects it.
 2. `changesSince(n)` returns only changes after `n`, in order, each carrying the new cursor to pass
    next time.
@@ -330,7 +349,7 @@ what just changed without re-reading everything.
    `addCapability`, `editCapability`, `addContract`, `editContract`, `projectTree`, `arcsFor`,
    `addIncrement`, `advanceIncrement`, `closeIncrement`, `editIncrement`, `parkArc`, `unparkArc`,
    `arcView`, `addWait`, `removeWait`, `waitHolds`, `raiseQuestion`, `settleQuestion`, `questions`,
-   `heldOnQuestion`, `reportHealth`, `recordVerified`, `health`, `healthHistory`, `writeMemory`,
+   `heldOnQuestion`, `reportHealth`, `recordVerified`, `health`, `healthHistory`,
    `recordDecision`, `writeKnowledge`, `defineTerm`, `editNote`, `search`, `relatedNotes`,
    `definitions`, `frontCovers`, `decision`, `composeStatement`, `retire`, `changesSince` and `close`.
 4. `editStory`, `editContract` and `editArc` change only the fields they name, merged onto what is
@@ -370,15 +389,17 @@ works the same, and each project still gets its own database, now on the cloud s
 ## 9 · Knowledge entrances
 
 Every story and capability has its own shelf of front-cover decisions, and a decision can be a
-front cover of one of them at most. Notes link only to other notes, so the only way from the work
+front cover of one of them at most. Artifacts link only to other artifacts, so the only way from the work
 into the knowledge is through a front cover.
 
 - **Added** on 2026-09-26 by ADR-0627, the owner's "rabbit-hole" model. The two sentences above are
   the ones he approved.
 - **Grown** on 2026-09-27 by ADR-0647 D2, the owner's "I dont think we allow loops": the knowledge
-  is a DAG under its covers, so a link that would close a loop between notes is refused (9.4). A
+  is a DAG under its covers, so a link that would close a loop between artifacts is refused (9.4). A
   loop that seems needed is a discussion with the owner before it happens, and no machinery for
   one is built until then.
+- **Default filing, narrowed by ADR-0650:** the agent link files all remaining artifact kinds
+  behind the cover the session last opened; a new decision can still become a front cover.
 - **Depends on:** 4 and 6. It adds `frontCovers` to 7's list of functions.
 - **Its shelf,** founding book first:
   - Every story and capability has a shelf of front covers (ADR-0627, decisions/adr-0627.md).
@@ -389,11 +410,11 @@ into the knowledge is through a front cover.
   Replacing a cover takes ordinary writes: the new decision becomes a cover of the same node and
   links to the old one, then the old one's `frontCoverOf` is removed. It leaves the shelf and is
   still reached from the cover that replaced it. `editNote` refuses a link that would close a loop
-  with a `LinkLoopError` naming the loop from the edited note back round to it, `A → B → A`, and
-  the existing chain it would close. It follows every field that links a note to notes: `links`,
+  with a `LinkLoopError` naming the loop from the edited artifact back round to it, `A → B → A`, and
+  the existing chain it would close. It follows every field that links an artifact to artifacts: `links`,
   an agent role's `context`, `rules`, `antiPatterns` and `stepRefs`, and a process's
-  `branchEdges`. A new note cannot close a loop, since nothing yet links to it.
-- **Leaves out:** where an agent's new note goes by default, a founding decision for each new story
+  `branchEdges`. A new artifact cannot close a loop, since nothing yet links to it.
+- **Leaves out:** where an agent's new artifact goes by default, a founding decision for each new story
   and capability, and reading a shelf title by title. Those are the agent link's tools (ADR-0627
   D4, D5, D7). Showing each part's shelf is the forest's drill-down.
 
@@ -402,9 +423,9 @@ into the knowledge is through a front cover.
    that node's live covers, founding (oldest) first, and nothing else.
 2. A front cover that names anything but a live story or capability is refused, and nothing is
    written. Only a decision can be a front cover.
-3. A note that links to a story, capability, contract, arc or health entry is refused, and nothing
-   is written. Notes link only to other notes.
-4. A link that would close a loop between notes, a note linking to itself included, is refused
+3. An artifact that links to a story, capability, contract, arc or health entry is refused, and nothing
+   is written. Artifacts link only to other artifacts.
+4. A link that would close a loop between artifacts, an artifact linking to itself included, is refused
    with the chain it would close named, and nothing is written. The knowledge is a DAG under its
    covers (ADR-0647 D2).
 
@@ -591,7 +612,7 @@ await lib.editContract(k.id, { title: "Rejects an email with no @" }); // 7: cor
 await lib.reportHealth(k.id, "passing", { by: "agent" });   // 5: what the agent says
 await lib.recordVerified(k.id, "failing", { by: "storytree" }); // 5: what storytree saw
 const cover = await lib.recordDecision({ title: "Send through Mailgun", text: "Simplest API", status: "accepted", frontCoverOf: cap.id }); // 9, 13
-await lib.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] }); // 6: inside the cover
+await lib.defineTerm({ term: "Verified domain", meaning: "A domain Mailgun may send from", links: [cover.id] }); // 6: inside the cover
 await lib.frontCovers(cap.id);   // 9: the capability's shelf
 
 const inc = await lib.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…", touches: [cap.id] }); // 10

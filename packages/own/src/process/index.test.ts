@@ -53,7 +53,11 @@ test("2.3 Linux distinguishes absent processes from unreadable or malformed evid
   assert.deepEqual(await readLinuxProcess(42, async (file) => {
     if (!file.endsWith("/stat")) return "boot-identity";
     throw Object.assign(new Error("absent"), { code: "ENOENT" });
-  }), { state: "gone" });
+  }, () => "gone"), { state: "gone" });
+  assert.equal((await readLinuxProcess(42, async (file) => {
+    if (!file.endsWith("/stat")) return "boot-identity";
+    throw Object.assign(new Error("hidden by procfs"), { code: "ENOENT" });
+  }, () => "unknown")).state, "unknown");
   assert.equal((await readLinuxProcess(42, async () => { throw Object.assign(new Error("procfs unavailable"), { code: "ENOENT" }); })).state, "unknown");
   assert.equal((await readLinuxProcess(42, async () => "broken proc data")).state, "unknown");
 });

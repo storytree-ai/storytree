@@ -88,7 +88,8 @@ export function registerHooks(homes: Homes, hook: HookCommand): HooksReport {
 }
 
 /** Take storytree's hooks, and its status line, out of each harness's settings, leaving everything else as it was. */
-export function removeHooks(homes: Homes): RemovalReport {
+export function removeHooks(homes: Homes, scope?: { readonly harness: "claude-code" | "codex"; readonly hook: HookCommand }): RemovalReport {
+  if (scope !== undefined) return removeHarnessHooks(homes, scope.harness, scope.hook);
   const statusLine = removeStatusLine(homes.claude);
   return {
     "claude-code": remove(homes.claude, "settings.json"),
@@ -242,4 +243,39 @@ function powerShellQuoted(text: string): string {
 
 function shQuoted(text: string): string {
   return `'${text.replaceAll("'", "'\\''")}'`;
+}
+
+/** Remove one installation's hooks from one harness, preserving other commands in mixed groups. */
+function removeHarnessHooks(homes: Homes, harness: "claude-code" | "codex", hook: HookCommand): RemovalReport {
+  const report: RemovalReport = { "claude-code": "none", codex: "none", statusLine: "none" };
+  const home = harness === "claude-code" ? homes.claude : homes.codex;
+  if (home === undefined) return report;
+  const file = path.join(home, harness === "claude-code" ? "settings.json" : "hooks.json");
+  if (!existsSync(file)) return report;
+  const settings = readSettings(file);
+  if (settings === null || Array.isArray(settings) || typeof settings !== "object" ||
+      (settings.hooks !== undefined && (settings.hooks === null || Array.isArray(settings.hooks) || typeof settings.hooks !== "object"))) throw new Error(`Repair ${file} before removing hooks.`);
+  const entries = harness === "claude-code" ? claudeEntries(hook) : codexEntries(hook);
+  const wanted = Object.values(entries).flatMap((groups) => groups.flatMap((group) => group.hooks ?? []));
+  let removed = false;
+  const hooks: Record<string, HookEntry[]> = {};
+  for (const [event, groups] of Object.entries(settings.hooks ?? {})) {
+    if (!Array.isArray(groups)) throw new Error(`Repair ${file} before removing hooks.`);
+    hooks[event] = groups.flatMap((group) => {
+      if (group === null || typeof group !== "object" || !Array.isArray(group.hooks)) throw new Error(`Repair ${file} before removing hooks.`);
+      const kept = group.hooks.filter((entry) => !wanted.some((own) => entry !== null && typeof entry === "object" && entry.command === own.command && isDeepStrictEqual(entry.args, own.args)));
+      if (kept.length === group.hooks.length) return [group];
+      removed = true;
+      return kept.length === 0 ? [] : [{ ...group, hooks: kept }];
+    });
+    if (hooks[event]!.length === 0) delete hooks[event];
+  }
+  const statusLine = harness === "claude-code" && isDeepStrictEqual(settings.statusLine, { type: "command", command: statusLineCommand(hook) });
+  if (!removed && !statusLine) return report;
+  const next = { ...settings };
+  if (removed) { if (Object.keys(hooks).length > 0) next.hooks = hooks; else delete next.hooks; }
+  if (statusLine) delete next.statusLine;
+  if (harness === "codex" && Object.keys(next).length === 0) rmSync(file);
+  else writeSettings(file, next);
+  return { ...report, [harness]: removed ? "removed" : "none", statusLine: statusLine ? "removed" : "none" };
 }

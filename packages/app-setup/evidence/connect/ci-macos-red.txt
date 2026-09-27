@@ -1,0 +1,22 @@
+PR #149, job 108726955908. The child cwd resolves macOS /var to /private/var. Corrected assertion compares realpathSync(folder).
+
+2026-09-27T22:59:57.1614000Z ✖ failing tests:
+2026-09-27T22:59:57.1614190Z 
+2026-09-27T22:59:57.1614480Z test at packages/app-setup/src/connect/connect.test.ts:5:3827
+2026-09-27T22:59:57.1615360Z ✖ 2.2/2.6: the registered launch keeps the session folder and reaches its existing setup check; registration cannot verify hooks (44.848958ms)
+2026-09-27T22:59:57.1616050Z   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+2026-09-27T22:59:57.1616410Z   + actual - expected
+2026-09-27T22:59:57.1616710Z   
+2026-09-27T22:59:57.1617140Z   + '/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/storytree connect Bdtqvn/first project'
+2026-09-27T22:59:57.1618960Z   - '/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/storytree connect Bdtqvn/first project'
+2026-09-27T22:59:57.1619550Z   
+2026-09-27T22:59:57.1620130Z       at TestContext.<anonymous> (/Users/runner/work/storytree/storytree/packages/app-setup/src/connect/connect.test.ts:107:12)
+2026-09-27T22:59:57.1620890Z       at async Test.run (node:internal/test_runner/test:1404:7)
+2026-09-27T22:59:57.1621390Z       at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+2026-09-27T22:59:57.1621870Z     generatedMessage: true,
+2026-09-27T22:59:57.1622170Z     code: 'ERR_ASSERTION',
+2026-09-27T22:59:57.1622710Z     actual: '/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/storytree connect Bdtqvn/first project',
+2026-09-27T22:59:57.1623520Z     expected: '/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/storytree connect Bdtqvn/first project',
+2026-09-27T22:59:57.1624010Z     operator: 'strictEqual',
+2026-09-27T22:59:57.1624290Z     diff: 'simple'
+2026-09-27T22:59:57.1624480Z   }

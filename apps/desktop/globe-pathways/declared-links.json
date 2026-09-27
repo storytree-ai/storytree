@@ -1,0 +1,14 @@
+[
+  {"file":"stories/cli.md","line":100,"from":["The command line",1],"to":[["The library",7],["The agent link",1]]},
+  {"file":"stories/cli.md","line":124,"from":["The command line",2],"to":[["The agent link",4]]},
+  {"file":"stories/cli.md","line":146,"from":["The command line",3],"to":[["The library",2],["The library",3],["The library",6],["The library",7],["The library",9]]},
+  {"file":"stories/cli.md","line":184,"from":["The command line",4],"to":[["The library",10],["The library",11],["The library",12]]},
+  {"file":"stories/cli.md","line":210,"from":["The command line",5],"to":[["The library",12]]},
+  {"file":"stories/cli.md","line":240,"from":["The command line",6],"to":[["The library",13]]},
+  {"file":"stories/cli.md","line":269,"from":["The command line",7],"to":[["The agent link",5]]},
+  {"file":"stories/cli.md","line":288,"from":["The command line",8],"to":[["The agent link",8]]},
+  {"file":"stories/cli.md","line":319,"from":["The command line",9],"to":[["The agent link",6]]},
+  {"file":"stories/cli.md","line":342,"from":["The command line",10],"to":[["The library",4],["The library",5],["The library",7]]},
+  {"file":"stories/cli.md","line":360,"from":["The command line",11],"to":[["The agent link",5]]},
+  {"file":"stories/arc-surface.md","line":143,"from":["The arc surface",2],"to":[["The agent link",4],["The agent link",5]]}
+]

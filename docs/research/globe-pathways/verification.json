@@ -1,0 +1,60 @@
+{
+  "typecheck": "PASS (all workspace product packages; scratch instrument is bundled separately)",
+  "tests": {
+    "scope": "full \u2014 docs/research/globe-pathways/README.md changed outside workspace packages",
+    "passed": 1898,
+    "failed": 0,
+    "skipped": 2,
+    "all12Units": "PASS"
+  },
+  "testRatio": 1.41,
+  "captureCount": 8,
+  "storiesEach": 8,
+  "treesEach": 58,
+  "pageOrShaderErrors": 0,
+  "turnDegrees": {
+    "baseline": 89.99999999999997,
+    "within": 89.99999999999997,
+    "v1": 89.99999999999997,
+    "v2": 89.99999999999997
+  },
+  "v1V2Matching": [
+    "camera",
+    "rotation",
+    "zoom",
+    "plate geometry and transforms",
+    "smoke readout"
+  ],
+  "renderCounts": {
+    "baseline": {
+      "frame": 16,
+      "calls": 50,
+      "triangles": 540158,
+      "points": 0,
+      "lines": 0
+    },
+    "within": {
+      "frame": 16,
+      "calls": 50,
+      "triangles": 540158,
+      "points": 0,
+      "lines": 0
+    },
+    "v1": {
+      "frame": 16,
+      "calls": 55,
+      "triangles": 541114,
+      "points": 0,
+      "lines": 0
+    },
+    "v2": {
+      "frame": 16,
+      "calls": 65,
+      "triangles": 543026,
+      "points": 0,
+      "lines": 0
+    }
+  },
+  "humanAppearanceApproval": false,
+  "productSourceChanged": false
+}

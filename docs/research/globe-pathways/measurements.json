@@ -1,0 +1,3802 @@
+{
+  "crossCoastIntrusions": 0,
+  "nativeSeedCrossLinks": 0,
+  "declaredBrowserLinks": 22,
+  "baseCommit": "0a34053",
+  "stories": 8,
+  "capabilities": 58,
+  "links": 97,
+  "withinIsland": 75,
+  "crossIsland": 22,
+  "storyPairs": 3,
+  "routedSegments": 5,
+  "dropped": [],
+  "caves": [],
+  "radius": 218,
+  "oldRadius": 160,
+  "capacity": 36,
+  "pitch": 98.1,
+  "spurWidth": 1.5,
+  "maxPossibleTrunkWidth": 4.821374183841087,
+  "maxActualTrunkWidth": 4.624922359499622,
+  "targetGap": 19.285496735364347,
+  "conservativeCapGap": {
+    "seed": 20.03515850051311,
+    "sample36": -11.814593174462631
+  },
+  "seedGaps": {
+    "minimum": 31.681583755758155,
+    "median": 37.229687485152716,
+    "maximum": 42.83371342853406,
+    "nearest": [
+      {
+        "story": "The agent link",
+        "place": 1,
+        "gap": 35.86284362550624
+      },
+      {
+        "story": "The app",
+        "place": 2,
+        "gap": 35.86284362550624
+      },
+      {
+        "story": "The arc surface",
+        "place": 3,
+        "gap": 38.596531344799196
+      },
+      {
+        "story": "The command line",
+        "place": 4,
+        "gap": 31.681583755758155
+      },
+      {
+        "story": "The forest",
+        "place": 5,
+        "gap": 31.681583755758155
+      },
+      {
+        "story": "The knowledge core",
+        "place": 6,
+        "gap": 42.83371342853406
+      },
+      {
+        "story": "The librarian",
+        "place": 7,
+        "gap": 40.284188268879596
+      },
+      {
+        "story": "The library",
+        "place": 8,
+        "gap": 40.284188268879596
+      }
+    ],
+    "pairs": [
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_b112e129ed28",
+        "gap": 35.86284362550624
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_bbdc0986e03e",
+        "gap": 50.297522767814876
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_bbdc0986e03e",
+        "gap": 38.596531344799196
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_25a156d6d285",
+        "gap": 55.70507043184131
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_25a156d6d285",
+        "gap": 117.43327517984908
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_25a156d6d285",
+        "gap": 47.27091664913895
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_7d77916acd79",
+        "gap": 79.28794916264705
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_7d77916acd79",
+        "gap": 170.0220691235452
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_7d77916acd79",
+        "gap": 135.54456851116544
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_7d77916acd79",
+        "gap": 31.681583755758155
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_4aeda4d7962a",
+        "gap": 107.02980500162973
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_4aeda4d7962a",
+        "gap": 199.27472046799375
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_4aeda4d7962a",
+        "gap": 202.37825666486182
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_4aeda4d7962a",
+        "gap": 124.00496612549189
+      },
+      {
+        "from": "story_7d77916acd79",
+        "to": "story_4aeda4d7962a",
+        "gap": 42.83371342853406
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_7fb9d32012b1",
+        "gap": 100.9158978004778
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_7fb9d32012b1",
+        "gap": 171.40616865511277
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_7fb9d32012b1",
+        "gap": 216.20401712007296
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_7fb9d32012b1",
+        "gap": 176.6296276199981
+      },
+      {
+        "from": "story_7d77916acd79",
+        "to": "story_7fb9d32012b1",
+        "gap": 121.39002143258024
+      },
+      {
+        "from": "story_4aeda4d7962a",
+        "to": "story_7fb9d32012b1",
+        "gap": 43.908864081698496
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_beccdf1e1962",
+        "gap": 79.309271952868
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_beccdf1e1962",
+        "gap": 115.99166274597329
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_beccdf1e1962",
+        "gap": 189.15991285021684
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_beccdf1e1962",
+        "gap": 205.0270428490958
+      },
+      {
+        "from": "story_7d77916acd79",
+        "to": "story_beccdf1e1962",
+        "gap": 189.84848145039848
+      },
+      {
+        "from": "story_4aeda4d7962a",
+        "to": "story_beccdf1e1962",
+        "gap": 134.47942469740204
+      },
+      {
+        "from": "story_7fb9d32012b1",
+        "to": "story_beccdf1e1962",
+        "gap": 40.284188268879596
+      }
+    ]
+  },
+  "baselineGaps": {
+    "minimum": 4.502499132381162,
+    "median": 11.00154275345688,
+    "maximum": 16.643543460281922,
+    "nearest": [
+      {
+        "story": "The agent link",
+        "place": 1,
+        "gap": 10.628040720686556
+      },
+      {
+        "story": "The app",
+        "place": 2,
+        "gap": 10.628040720686556
+      },
+      {
+        "story": "The arc surface",
+        "place": 3,
+        "gap": 15.137952818623713
+      },
+      {
+        "story": "The command line",
+        "place": 4,
+        "gap": 4.502499132381162
+      },
+      {
+        "story": "The forest",
+        "place": 5,
+        "gap": 4.502499132381162
+      },
+      {
+        "story": "The knowledge core",
+        "place": 6,
+        "gap": 16.643543460281922
+      },
+      {
+        "story": "The librarian",
+        "place": 7,
+        "gap": 11.375044786227203
+      },
+      {
+        "story": "The library",
+        "place": 8,
+        "gap": 11.375044786227203
+      }
+    ],
+    "pairs": [
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_b112e129ed28",
+        "gap": 10.628040720686556
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_bbdc0986e03e",
+        "gap": 21.161808291910216
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_bbdc0986e03e",
+        "gap": 15.137952818623713
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_25a156d6d285",
+        "gap": 24.362962897265056
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_25a156d6d285",
+        "gap": 70.58727524147758
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_25a156d6d285",
+        "gap": 19.832140865633463
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_7d77916acd79",
+        "gap": 42.62304488139221
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_7d77916acd79",
+        "gap": 108.84910094425192
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_7d77916acd79",
+        "gap": 84.13051658322239
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_7d77916acd79",
+        "gap": 4.502499132381162
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_4aeda4d7962a",
+        "gap": 68.23913485274362
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_4aeda4d7962a",
+        "gap": 134.36523753128387
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_4aeda4d7962a",
+        "gap": 137.55384231024152
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_4aeda4d7962a",
+        "gap": 76.6111455358505
+      },
+      {
+        "from": "story_7d77916acd79",
+        "to": "story_4aeda4d7962a",
+        "gap": 20.492862040364905
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_7fb9d32012b1",
+        "gap": 60.68380492381398
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_7fb9d32012b1",
+        "gap": 111.69808421865372
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_7fb9d32012b1",
+        "gap": 144.15673428474523
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_7fb9d32012b1",
+        "gap": 109.55483541489647
+      },
+      {
+        "from": "story_7d77916acd79",
+        "to": "story_7fb9d32012b1",
+        "gap": 73.10410829619612
+      },
+      {
+        "from": "story_4aeda4d7962a",
+        "to": "story_7fb9d32012b1",
+        "gap": 16.643543460281922
+      },
+      {
+        "from": "story_9eaa9a99056c",
+        "to": "story_beccdf1e1962",
+        "gap": 34.80285933492154
+      },
+      {
+        "from": "story_b112e129ed28",
+        "to": "story_beccdf1e1962",
+        "gap": 69.6221571666609
+      },
+      {
+        "from": "story_bbdc0986e03e",
+        "to": "story_beccdf1e1962",
+        "gap": 120.97185399093075
+      },
+      {
+        "from": "story_25a156d6d285",
+        "to": "story_beccdf1e1962",
+        "gap": 127.10988980100963
+      },
+      {
+        "from": "story_7d77916acd79",
+        "to": "story_beccdf1e1962",
+        "gap": 119.41890120803377
+      },
+      {
+        "from": "story_4aeda4d7962a",
+        "to": "story_beccdf1e1962",
+        "gap": 80.02816816833737
+      },
+      {
+        "from": "story_7fb9d32012b1",
+        "to": "story_beccdf1e1962",
+        "gap": 11.375044786227203
+      }
+    ]
+  },
+  "sample36Gaps": {
+    "minimum": 19.464356778854892,
+    "median": 26.96304873970332,
+    "maximum": 39.38580870840343,
+    "nearest": [
+      {
+        "story": "Sample 1",
+        "place": 1,
+        "gap": 39.38580870840343
+      },
+      {
+        "story": "Sample 2",
+        "place": 2,
+        "gap": 29.861327691510233
+      },
+      {
+        "story": "Sample 3",
+        "place": 3,
+        "gap": 29.861327691510233
+      },
+      {
+        "story": "Sample 4",
+        "place": 4,
+        "gap": 31.527332110277136
+      },
+      {
+        "story": "Sample 5",
+        "place": 5,
+        "gap": 25.16881808368806
+      },
+      {
+        "story": "Sample 6",
+        "place": 6,
+        "gap": 25.16881808368806
+      },
+      {
+        "story": "Sample 7",
+        "place": 7,
+        "gap": 28.832881845551295
+      },
+      {
+        "story": "Sample 8",
+        "place": 8,
+        "gap": 22.043986282625674
+      },
+      {
+        "story": "Sample 9",
+        "place": 9,
+        "gap": 21.646297983083503
+      },
+      {
+        "story": "Sample 10",
+        "place": 10,
+        "gap": 21.646297983083503
+      },
+      {
+        "story": "Sample 11",
+        "place": 11,
+        "gap": 26.91866930099472
+      },
+      {
+        "story": "Sample 12",
+        "place": 12,
+        "gap": 23.782063994731597
+      },
+      {
+        "story": "Sample 13",
+        "place": 13,
+        "gap": 23.782063994731597
+      },
+      {
+        "story": "Sample 14",
+        "place": 14,
+        "gap": 26.887291198750972
+      },
+      {
+        "story": "Sample 15",
+        "place": 15,
+        "gap": 26.887291198750972
+      },
+      {
+        "story": "Sample 16",
+        "place": 16,
+        "gap": 20.923808118506887
+      },
+      {
+        "story": "Sample 17",
+        "place": 17,
+        "gap": 20.923808118506887
+      },
+      {
+        "story": "Sample 18",
+        "place": 18,
+        "gap": 30.06406148243059
+      },
+      {
+        "story": "Sample 19",
+        "place": 19,
+        "gap": 27.768869497392405
+      },
+      {
+        "story": "Sample 20",
+        "place": 20,
+        "gap": 27.13221049751162
+      },
+      {
+        "story": "Sample 21",
+        "place": 21,
+        "gap": 27.13221049751162
+      },
+      {
+        "story": "Sample 22",
+        "place": 22,
+        "gap": 27.173605155993826
+      },
+      {
+        "story": "Sample 23",
+        "place": 23,
+        "gap": 22.887817853398897
+      },
+      {
+        "story": "Sample 24",
+        "place": 24,
+        "gap": 22.887817853398897
+      },
+      {
+        "story": "Sample 25",
+        "place": 25,
+        "gap": 28.515712824671137
+      },
+      {
+        "story": "Sample 26",
+        "place": 26,
+        "gap": 28.515712824671137
+      },
+      {
+        "story": "Sample 27",
+        "place": 27,
+        "gap": 33.41416563297429
+      },
+      {
+        "story": "Sample 28",
+        "place": 28,
+        "gap": 30.100981340285312
+      },
+      {
+        "story": "Sample 29",
+        "place": 29,
+        "gap": 19.464356778854892
+      },
+      {
+        "story": "Sample 30",
+        "place": 30,
+        "gap": 19.464356778854892
+      },
+      {
+        "story": "Sample 31",
+        "place": 31,
+        "gap": 24.993426177635644
+      },
+      {
+        "story": "Sample 32",
+        "place": 32,
+        "gap": 24.993426177635644
+      },
+      {
+        "story": "Sample 33",
+        "place": 33,
+        "gap": 27.007428178411924
+      },
+      {
+        "story": "Sample 34",
+        "place": 34,
+        "gap": 27.007428178411924
+      },
+      {
+        "story": "Sample 35",
+        "place": 35,
+        "gap": 31.15158622433453
+      },
+      {
+        "story": "Sample 36",
+        "place": 36,
+        "gap": 31.77014539194778
+      }
+    ],
+    "pairs": [
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-2",
+        "gap": 39.38580870840343
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-3",
+        "gap": 60.18893286079094
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-3",
+        "gap": 29.861327691510233
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-4",
+        "gap": 65.88996558609672
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-4",
+        "gap": 107.52427706047973
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-4",
+        "gap": 31.527332110277136
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-5",
+        "gap": 78.35373496904397
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-5",
+        "gap": 177.72332916119615
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-5",
+        "gap": 134.21084985655816
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-5",
+        "gap": 46.86656148784716
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-6",
+        "gap": 90.34196453931649
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-6",
+        "gap": 186.77482643564383
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-6",
+        "gap": 195.04622218864318
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-6",
+        "gap": 127.54471786685309
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-6",
+        "gap": 25.16881808368806
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-7",
+        "gap": 84.01167089286267
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-7",
+        "gap": 148.247884531048
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-7",
+        "gap": 201.33222530752982
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-7",
+        "gap": 177.5199775011723
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-7",
+        "gap": 103.16045957592124
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-7",
+        "gap": 28.832881845551295
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-8",
+        "gap": 96.2899938503405
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-8",
+        "gap": 116.65444711730211
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-8",
+        "gap": 199.08419418413507
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-8",
+        "gap": 237.38619952733538
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-8",
+        "gap": 208.4835453675494
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-8",
+        "gap": 147.63417250334103
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-8",
+        "gap": 29.69621389765071
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-9",
+        "gap": 117.80908109608261
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-9",
+        "gap": 92.47576638246244
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-9",
+        "gap": 184.52080963232672
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-9",
+        "gap": 251.21748213650693
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-9",
+        "gap": 261.99458217610925
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-9",
+        "gap": 219.49936191028397
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-9",
+        "gap": 115.80263626803283
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-9",
+        "gap": 22.043986282625674
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-10",
+        "gap": 111.72703275629107
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-10",
+        "gap": 53.1532130059601
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-10",
+        "gap": 139.78817637958514
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-10",
+        "gap": 217.94897605938976
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-10",
+        "gap": 264.4140399233998
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-10",
+        "gap": 249.0644792276393
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-10",
+        "gap": 171.04559854190236
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-10",
+        "gap": 92.4669493419761
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-10",
+        "gap": 21.646297983083503
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-11",
+        "gap": 113.96691403584924
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-11",
+        "gap": 35.74324565728577
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-11",
+        "gap": 66.16338330980568
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-11",
+        "gap": 158.90525425722905
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-11",
+        "gap": 248.12108634929805
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-11",
+        "gap": 262.7803254040675
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-11",
+        "gap": 213.25679941930866
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-11",
+        "gap": 155.13870817328748
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-11",
+        "gap": 91.84835216715763
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-11",
+        "gap": 26.91866930099472
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-12",
+        "gap": 144.00067158959808
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-12",
+        "gap": 78.10180051471123
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-12",
+        "gap": 43.80690203007628
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-12",
+        "gap": 127.35763264572778
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-12",
+        "gap": 235.37627632956944
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-12",
+        "gap": 291.06896571944765
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-12",
+        "gap": 278.31824636624117
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-12",
+        "gap": 242.46780958528043
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-12",
+        "gap": 193.60529214549447
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-12",
+        "gap": 131.2478753512626
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-12",
+        "gap": 29.061258188599364
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-13",
+        "gap": 150.8979562718845
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-13",
+        "gap": 116.80328635885353
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-13",
+        "gap": 44.95304739102306
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-13",
+        "gap": 77.87958391377136
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-13",
+        "gap": 193.2698527384113
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-13",
+        "gap": 270.8202106224375
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-13",
+        "gap": 295.3897686698537
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-13",
+        "gap": 293.88649346069303
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-13",
+        "gap": 262.3536136502004
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-13",
+        "gap": 204.73526531390718
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-13",
+        "gap": 103.73871877188701
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-13",
+        "gap": 23.782063994731597
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-14",
+        "gap": 154.04574060071798
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-14",
+        "gap": 230.85269863439026
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-14",
+        "gap": 153.60018988356398
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-14",
+        "gap": 34.68929382527757
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-14",
+        "gap": 47.13914321999855
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-14",
+        "gap": 128.95938544300878
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-14",
+        "gap": 212.14407369496837
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-14",
+        "gap": 309.82171692833464
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-14",
+        "gap": 351.78157056704913
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-14",
+        "gap": 335.8981146667468
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-14",
+        "gap": 275.764013757779
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-14",
+        "gap": 212.46533265627983
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-14",
+        "gap": 145.82013927737032
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-15",
+        "gap": 169.88527121444315
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-15",
+        "gap": 271.76177070725737
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-15",
+        "gap": 212.65522425369878
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-15",
+        "gap": 95.89735311996319
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-15",
+        "gap": 33.901545600533034
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-15",
+        "gap": 63.06588310819942
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-15",
+        "gap": 151.7433681401045
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-15",
+        "gap": 270.8554130411198
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-15",
+        "gap": 338.3300859958038
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-15",
+        "gap": 353.9090376676719
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-15",
+        "gap": 338.8971872719572
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-15",
+        "gap": 303.5348923869774
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-15",
+        "gap": 242.25563625781317
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-15",
+        "gap": 26.887291198750972
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-16",
+        "gap": 190.31003655269996
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-16",
+        "gap": 289.75320315394714
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-16",
+        "gap": 264.7751746940947
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-16",
+        "gap": 163.27213593950438
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-16",
+        "gap": 69.40531945907708
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-16",
+        "gap": 42.15812804667421
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-16",
+        "gap": 110.90515714073938
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-16",
+        "gap": 222.55771846562217
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-16",
+        "gap": 311.0067503013757
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-16",
+        "gap": 350.2671518230835
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-16",
+        "gap": 365.90503778920066
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-16",
+        "gap": 365.81672765780854
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-16",
+        "gap": 315.916558016405
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-16",
+        "gap": 119.00321207966499
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-16",
+        "gap": 26.99375225010742
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-17",
+        "gap": 187.96932064046035
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-17",
+        "gap": 280.96738948309263
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-17",
+        "gap": 288.66455302657016
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-17",
+        "gap": 215.57714125918505
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-17",
+        "gap": 108.61928974031518
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-17",
+        "gap": 40.4751931586298
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-17",
+        "gap": 64.79502868157617
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-17",
+        "gap": 174.6830813706118
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-17",
+        "gap": 268.6171955456915
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-17",
+        "gap": 325.03266804998555
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-17",
+        "gap": 354.5368473735169
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-17",
+        "gap": 387.83379960881314
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-17",
+        "gap": 361.4203623951145
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-17",
+        "gap": 194.6327995837408
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-17",
+        "gap": 98.22276561548252
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-17",
+        "gap": 20.923808118506887
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-18",
+        "gap": 184.17802956889489
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-18",
+        "gap": 204.42300376732607
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-18",
+        "gap": 288.32556613175745
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-18",
+        "gap": 321.6841112954389
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-18",
+        "gap": 258.54694493820114
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-18",
+        "gap": 178.06725469241124
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-18",
+        "gap": 65.46826373526119
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-18",
+        "gap": 30.06406148243059
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-18",
+        "gap": 76.97445772398824
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-18",
+        "gap": 152.46841913502683
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-18",
+        "gap": 226.14912367623813
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-18",
+        "gap": 325.4759877304825
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-18",
+        "gap": 382.6535183891932
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-18",
+        "gap": 367.448667060677
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-18",
+        "gap": 291.4954426264627
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-18",
+        "gap": 222.14468002289917
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-18",
+        "gap": 160.161868094117
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-19",
+        "gap": 196.4480601475419
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-19",
+        "gap": 180.2926891443366
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-19",
+        "gap": 272.3257043727443
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-19",
+        "gap": 334.89700622025066
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-19",
+        "gap": 321.0902768979991
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-19",
+        "gap": 253.89175355700087
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-19",
+        "gap": 136.07769114966624
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-19",
+        "gap": 51.61575882567143
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-19",
+        "gap": 39.597460849625826
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-19",
+        "gap": 85.21155020633681
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-19",
+        "gap": 155.84869923643907
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-19",
+        "gap": 270.5183103160851
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-19",
+        "gap": 346.2592428964412
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-19",
+        "gap": 424.1329518569261
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-19",
+        "gap": 377.0627558010062
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-19",
+        "gap": 321.0020936697331
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-19",
+        "gap": 263.66279514036313
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-19",
+        "gap": 31.787349636665212
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-20",
+        "gap": 203.4017886068056
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-20",
+        "gap": 153.85013386939173
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-20",
+        "gap": 239.01107825178022
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-20",
+        "gap": 318.86177496609525
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-20",
+        "gap": 353.6320396240185
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-20",
+        "gap": 313.2925073643736
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-20",
+        "gap": 201.51622688366876
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-20",
+        "gap": 107.28528536671833
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-20",
+        "gap": 51.067564737778625
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-20",
+        "gap": 40.267024651370306
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-20",
+        "gap": 97.70329886635216
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-20",
+        "gap": 209.64337590285544
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-20",
+        "gap": 292.76821534491023
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-20",
+        "gap": 435.0118160319602
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-20",
+        "gap": 432.61106224686347
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-20",
+        "gap": 396.9647775446001
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-20",
+        "gap": 346.32632741967234
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-20",
+        "gap": 119.56009339678052
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-20",
+        "gap": 27.768869497392405
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-21",
+        "gap": 203.30189856382498
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-21",
+        "gap": 133.72873584943918
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-21",
+        "gap": 182.69343301891567
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-21",
+        "gap": 275.11876669409105
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-21",
+        "gap": 353.73659737085796
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-21",
+        "gap": 341.0421745976206
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-21",
+        "gap": 251.46671565978244
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-21",
+        "gap": 161.535032559226
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-21",
+        "gap": 90.34887535217811
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-21",
+        "gap": 35.56895737373553
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-21",
+        "gap": 35.984683748795156
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-21",
+        "gap": 115.70619459148048
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-21",
+        "gap": 197.42962228849464
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-21",
+        "gap": 388.56053446191817
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-21",
+        "gap": 445.6869123274979
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-21",
+        "gap": 440.5009451985386
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-21",
+        "gap": 406.9881385602903
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-21",
+        "gap": 205.785069183093
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-21",
+        "gap": 115.22926660921235
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-21",
+        "gap": 27.13221049751162
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-22",
+        "gap": 235.40198299028862
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-22",
+        "gap": 157.64442889385194
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-22",
+        "gap": 156.31836336611664
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-22",
+        "gap": 245.37904445117442
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-22",
+        "gap": 351.9099075030717
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-22",
+        "gap": 387.92442835134136
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-22",
+        "gap": 335.05218070056804
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-22",
+        "gap": 254.70010109186512
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-22",
+        "gap": 182.9653237400783
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-22",
+        "gap": 119.50821052627596
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-22",
+        "gap": 46.58139327228043
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-22",
+        "gap": 60.71763842070348
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-22",
+        "gap": 129.59857966618102
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-22",
+        "gap": 326.5564825876173
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-22",
+        "gap": 424.32483848104926
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-22",
+        "gap": 482.34827688941215
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-22",
+        "gap": 481.065200314513
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-22",
+        "gap": 309.2290013470471
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-22",
+        "gap": 219.437007832993
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-22",
+        "gap": 132.10641985796207
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-22",
+        "gap": 31.94793430719845
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-23",
+        "gap": 259.71086384487035
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-23",
+        "gap": 189.91541428720816
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-23",
+        "gap": 157.8494791877547
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-23",
+        "gap": 219.82848843298035
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-23",
+        "gap": 335.9232945462934
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-23",
+        "gap": 405.0586405930996
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-23",
+        "gap": 389.05553040711857
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-23",
+        "gap": 329.585794712605
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-23",
+        "gap": 261.4500298288473
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-23",
+        "gap": 197.09761255694653
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-23",
+        "gap": 106.35158869561539
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-23",
+        "gap": 53.60348878753227
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-23",
+        "gap": 85.27620705582719
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-23",
+        "gap": 270.31592993178094
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-23",
+        "gap": 377.373986856832
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-23",
+        "gap": 458.32488325437254
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-23",
+        "gap": 499.6268442334148
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-23",
+        "gap": 393.11573778323105
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-23",
+        "gap": 306.3772846008866
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-23",
+        "gap": 220.9601232074648
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-23",
+        "gap": 118.3563381221312
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-23",
+        "gap": 27.173605155993826
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-24",
+        "gap": 249.9232129682964
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-24",
+        "gap": 199.00741153759878
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-24",
+        "gap": 145.82467389917653
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-24",
+        "gap": 171.87020706068432
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-24",
+        "gap": 293.1534835089777
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-24",
+        "gap": 373.80205289787295
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-24",
+        "gap": 393.34013684495966
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-24",
+        "gap": 369.46305961599296
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-24",
+        "gap": 314.89005362123885
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-24",
+        "gap": 250.49470368647093
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-24",
+        "gap": 152.6663753272661
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-24",
+        "gap": 65.09209585542487
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-24",
+        "gap": 42.775262105711626
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-24",
+        "gap": 208.15005304158822
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-24",
+        "gap": 314.58854950719905
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-24",
+        "gap": 404.85713722793446
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-24",
+        "gap": 462.8606739200064
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-24",
+        "gap": 449.6156661576475
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-24",
+        "gap": 377.88176196301924
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-24",
+        "gap": 294.78288836670635
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-24",
+        "gap": 191.60011894486328
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-24",
+        "gap": 101.459549687214
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-24",
+        "gap": 22.887817853398897
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-25",
+        "gap": 257.2831613598644
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-25",
+        "gap": 243.78371421908992
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-25",
+        "gap": 158.8192793471188
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-25",
+        "gap": 123.88954351315071
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-25",
+        "gap": 226.01424473550142
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-25",
+        "gap": 311.5005082251801
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-25",
+        "gap": 380.7599541547639
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-25",
+        "gap": 418.83794369730714
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-25",
+        "gap": 383.8128770966583
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-25",
+        "gap": 321.01723170578913
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-25",
+        "gap": 219.2640680931256
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-25",
+        "gap": 128.33772742459018
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-25",
+        "gap": 65.76642800422208
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-25",
+        "gap": 112.05060597192278
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-25",
+        "gap": 212.92792458575863
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-25",
+        "gap": 305.62809376357615
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-25",
+        "gap": 382.0360528289844
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-25",
+        "gap": 508.0756625291717
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-25",
+        "gap": 455.0217026719882
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-25",
+        "gap": 376.1136623029873
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-25",
+        "gap": 272.8897008299241
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-25",
+        "gap": 183.7147253778438
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-25",
+        "gap": 103.52761212016533
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-25",
+        "gap": 29.905947779187322
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-26",
+        "gap": 261.8791227706366
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-26",
+        "gap": 287.3737158349221
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-26",
+        "gap": 195.5008519755832
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-26",
+        "gap": 122.21032585707748
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-26",
+        "gap": 179.61398533042689
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-26",
+        "gap": 260.3375480583158
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-26",
+        "gap": 344.58523573597404
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-26",
+        "gap": 432.39144572618505
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-26",
+        "gap": 441.99128717810856
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-26",
+        "gap": 393.8815490144949
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-26",
+        "gap": 295.2045537193655
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-26",
+        "gap": 212.907674735572
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-26",
+        "gap": 132.4223497669926
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-26",
+        "gap": 45.05291565423822
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-26",
+        "gap": 137.9754057967002
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-26",
+        "gap": 229.57281623068434
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-26",
+        "gap": 309.4009607753731
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-26",
+        "gap": 500.00885367881284
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-26",
+        "gap": 529.4782023229549
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-26",
+        "gap": 480.66852812633226
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-26",
+        "gap": 378.6919157021942
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-26",
+        "gap": 291.88650133851
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-26",
+        "gap": 212.55030126323464
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-26",
+        "gap": 138.75083602784673
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-26",
+        "gap": 28.515712824671137
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-27",
+        "gap": 272.49804399300666
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-27",
+        "gap": 354.16192443466264
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-27",
+        "gap": 276.41340644034483
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-27",
+        "gap": 157.96996584829532
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-27",
+        "gap": 135.8665362987286
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-27",
+        "gap": 181.31997977002987
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-27",
+        "gap": 268.80749843435
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-27",
+        "gap": 385.6039589761993
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-27",
+        "gap": 457.01194835262083
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-27",
+        "gap": 458.23037696867686
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-27",
+        "gap": 400.29064355927244
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-27",
+        "gap": 334.1749082222347
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-27",
+        "gap": 260.68056546919195
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-27",
+        "gap": 35.64654905153483
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-27",
+        "gap": 42.142819643861515
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-27",
+        "gap": 111.12130387700714
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-27",
+        "gap": 178.4262845954833
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-27",
+        "gap": 387.0434718652884
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-27",
+        "gap": 488.12420264104486
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-27",
+        "gap": 550.7974898468722
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-27",
+        "gap": 511.7135915734791
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-27",
+        "gap": 438.10881362597075
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-27",
+        "gap": 364.754613947964
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-27",
+        "gap": 291.4550324909926
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-27",
+        "gap": 180.95227909751438
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-27",
+        "gap": 91.87128260600946
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-28",
+        "gap": 263.07413532904206
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-28",
+        "gap": 365.6611172077574
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-28",
+        "gap": 315.77794500632723
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-28",
+        "gap": 198.4556141916004
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-28",
+        "gap": 129.19198960722207
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-28",
+        "gap": 126.59790362232563
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-28",
+        "gap": 195.89610454382242
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-28",
+        "gap": 307.70406494153553
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-28",
+        "gap": 399.54910900750923
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-28",
+        "gap": 437.5712321265008
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-28",
+        "gap": 437.57901813828937
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-28",
+        "gap": 404.61188106888017
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-28",
+        "gap": 341.83269766732974
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-28",
+        "gap": 113.42801775026295
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-28",
+        "gap": 44.863377015748924
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-28",
+        "gap": 46.21183661649397
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-28",
+        "gap": 82.70259305158487
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-28",
+        "gap": 281.07169931329264
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-28",
+        "gap": 390.29361469419547
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-28",
+        "gap": 478.302590093273
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-28",
+        "gap": 529.5407595133266
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-28",
+        "gap": 524.7597118061392
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-28",
+        "gap": 452.3559378864747
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-28",
+        "gap": 378.6023924871258
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-28",
+        "gap": 268.30540204262707
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-28",
+        "gap": 178.08383227767104
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-28",
+        "gap": 33.41416563297429
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-29",
+        "gap": 287.6281529517901
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-29",
+        "gap": 378.70558058257234
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-29",
+        "gap": 379.90321117518204
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-29",
+        "gap": 282.7769822112371
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-29",
+        "gap": 186.10540290308947
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-29",
+        "gap": 139.45803869175634
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-29",
+        "gap": 146.8883323885475
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-29",
+        "gap": 241.26672373642896
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-29",
+        "gap": 335.4382692966376
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-29",
+        "gap": 406.07910978544066
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-29",
+        "gap": 449.38875915789714
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-29",
+        "gap": 481.73426140801934
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-29",
+        "gap": 435.12100189275446
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-29",
+        "gap": 223.04491297241532
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-29",
+        "gap": 136.2787928167162
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-29",
+        "gap": 61.38760633113921
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-29",
+        "gap": 37.77722537072126
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-29",
+        "gap": 192.70883503101675
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-29",
+        "gap": 299.39662733572703
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-29",
+        "gap": 388.37863020828945
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-29",
+        "gap": 472.04990116918697
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-29",
+        "gap": 570.4502879981272
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-29",
+        "gap": 571.397761708186
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-29",
+        "gap": 498.05166103091074
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-29",
+        "gap": 387.58422585813906
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-29",
+        "gap": 297.75707221912006
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-29",
+        "gap": 153.03447682007064
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-29",
+        "gap": 30.100981340285312
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-30",
+        "gap": 294.03223811943576
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-30",
+        "gap": 367.3562341211861
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-30",
+        "gap": 406.72813749673753
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-30",
+        "gap": 338.5019928291622
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-30",
+        "gap": 232.5238536716544
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-30",
+        "gap": 160.53889259139325
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-30",
+        "gap": 129.0194592380882
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-30",
+        "gap": 199.67276078393039
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-30",
+        "gap": 286.8928629427449
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-30",
+        "gap": 363.55424685839245
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-30",
+        "gap": 426.4904518393492
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-30",
+        "gap": 495.54545252198506
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-30",
+        "gap": 485.5161663910523
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-30",
+        "gap": 298.24816806236373
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-30",
+        "gap": 208.80021640600737
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-30",
+        "gap": 119.33874108055964
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-30",
+        "gap": 66.7852972113091
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-30",
+        "gap": 135.73947425859373
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-30",
+        "gap": 237.3693876444759
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-30",
+        "gap": 326.493097307911
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-30",
+        "gap": 411.4540104741904
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-30",
+        "gap": 518.5315002967741
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-30",
+        "gap": 604.2790723715789
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-30",
+        "gap": 575.1644206736082
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-30",
+        "gap": 466.24326986109315
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-30",
+        "gap": 375.842401989246
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-30",
+        "gap": 231.44758463696684
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-30",
+        "gap": 106.06565868004358
+      },
+      {
+        "from": "synthetic-story-29",
+        "to": "synthetic-story-30",
+        "gap": 19.464356778854892
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-31",
+        "gap": 296.93227956780925
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-31",
+        "gap": 345.3789555270511
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-31",
+        "gap": 412.36640820108084
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-31",
+        "gap": 377.94581827613916
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-31",
+        "gap": 276.37280480893725
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-31",
+        "gap": 195.3148042615442
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-31",
+        "gap": 134.076396328968
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-31",
+        "gap": 157.99178211312477
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-31",
+        "gap": 229.04610506412868
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-31",
+        "gap": 303.6032859649075
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-31",
+        "gap": 377.8261718794408
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-31",
+        "gap": 473.2810491200243
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-31",
+        "gap": 508.13252384982064
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-31",
+        "gap": 356.7023517426761
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-31",
+        "gap": 263.6405061000289
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-31",
+        "gap": 176.20221959490036
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-31",
+        "gap": 115.80563765742862
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-31",
+        "gap": 73.30454068224056
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-31",
+        "gap": 170.856829651281
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-31",
+        "gap": 259.7413893698953
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-31",
+        "gap": 339.1010101489155
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-31",
+        "gap": 449.64484590746133
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-31",
+        "gap": 538.546199368057
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-31",
+        "gap": 600.3024892148767
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-31",
+        "gap": 538.1832485881907
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-31",
+        "gap": 450.40458387162005
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-31",
+        "gap": 305.94932277968445
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-31",
+        "gap": 183.06640723635456
+      },
+      {
+        "from": "synthetic-story-29",
+        "to": "synthetic-story-31",
+        "gap": 91.0509569678002
+      },
+      {
+        "from": "synthetic-story-30",
+        "to": "synthetic-story-31",
+        "gap": 25.406975301642895
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-32",
+        "gap": 294.53882072898125
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-32",
+        "gap": 312.87400901480413
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-32",
+        "gap": 399.4577793160621
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-32",
+        "gap": 414.56005215047185
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-32",
+        "gap": 331.9016892505844
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-32",
+        "gap": 247.72309253820237
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-32",
+        "gap": 154.43539062236525
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-32",
+        "gap": 139.50271283281327
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-32",
+        "gap": 174.6402285819876
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-32",
+        "gap": 234.02690625321827
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-32",
+        "gap": 303.21416908360317
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-32",
+        "gap": 418.8655779645493
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-32",
+        "gap": 490.87547887474824
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-32",
+        "gap": 433.541602691919
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-32",
+        "gap": 337.61692938888933
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-32",
+        "gap": 253.52498161268326
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-32",
+        "gap": 189.5218066404356
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-32",
+        "gap": 37.64675004418668
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-32",
+        "gap": 89.3824469125747
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-32",
+        "gap": 159.14132412252383
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-32",
+        "gap": 233.23067261507825
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-32",
+        "gap": 343.86134302276673
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-32",
+        "gap": 432.3353416102385
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-32",
+        "gap": 507.0135919677673
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-32",
+        "gap": 589.2046639115507
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-32",
+        "gap": 521.9796641237239
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-32",
+        "gap": 379.9285763846933
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-32",
+        "gap": 254.31874559406143
+      },
+      {
+        "from": "synthetic-story-29",
+        "to": "synthetic-story-32",
+        "gap": 167.62687722216674
+      },
+      {
+        "from": "synthetic-story-30",
+        "to": "synthetic-story-32",
+        "gap": 103.52399008815254
+      },
+      {
+        "from": "synthetic-story-31",
+        "to": "synthetic-story-32",
+        "gap": 24.993426177635644
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-33",
+        "gap": 292.79811307985165
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-33",
+        "gap": 272.49915657478545
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-33",
+        "gap": 363.5068924712168
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-33",
+        "gap": 431.1983348285159
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-33",
+        "gap": 402.302686007221
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-33",
+        "gap": 323.540208459407
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-33",
+        "gap": 207.66993124645973
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-33",
+        "gap": 142.82220938595103
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-33",
+        "gap": 135.89769117992824
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-33",
+        "gap": 166.13604276482107
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-33",
+        "gap": 227.94586606511305
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-33",
+        "gap": 340.4969628117763
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-33",
+        "gap": 423.42619284915264
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-33",
+        "gap": 511.09951722410335
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-33",
+        "gap": 434.65171408075406
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-33",
+        "gap": 360.5084657538787
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-33",
+        "gap": 295.9561845871418
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-33",
+        "gap": 69.57039159809302
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-33",
+        "gap": 34.89781263288354
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-33",
+        "gap": 78.15747587191498
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-33",
+        "gap": 141.14845744095553
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-33",
+        "gap": 251.07992637275697
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-33",
+        "gap": 338.21237306499825
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-33",
+        "gap": 412.7490234268433
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-33",
+        "gap": 494.2298185458828
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-33",
+        "gap": 599.3836006579326
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-33",
+        "gap": 497.91536642409784
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-33",
+        "gap": 372.19447812170404
+      },
+      {
+        "from": "synthetic-story-29",
+        "to": "synthetic-story-33",
+        "gap": 283.01548064353796
+      },
+      {
+        "from": "synthetic-story-30",
+        "to": "synthetic-story-33",
+        "gap": 217.31359024477445
+      },
+      {
+        "from": "synthetic-story-31",
+        "to": "synthetic-story-33",
+        "gap": 139.53821682139997
+      },
+      {
+        "from": "synthetic-story-32",
+        "to": "synthetic-story-33",
+        "gap": 33.85383766075042
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-34",
+        "gap": 298.48187406882715
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-34",
+        "gap": 250.53497902509127
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-34",
+        "gap": 330.16467071187714
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-34",
+        "gap": 414.45106163819446
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-34",
+        "gap": 443.7189619711199
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-34",
+        "gap": 383.66711704609014
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-34",
+        "gap": 265.1922421042619
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-34",
+        "gap": 177.36544182220786
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-34",
+        "gap": 139.6456840223972
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-34",
+        "gap": 136.78920522131628
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-34",
+        "gap": 176.68760340167725
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-34",
+        "gap": 273.42724710135775
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-34",
+        "gap": 354.814814452155
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-34",
+        "gap": 532.0298387457498
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-34",
+        "gap": 505.4230932478442
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-34",
+        "gap": 439.64803657071957
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-34",
+        "gap": 376.39996762993724
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-34",
+        "gap": 138.90794438965995
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-34",
+        "gap": 67.87368973961388
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-34",
+        "gap": 36.65391988671494
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-34",
+        "gap": 66.16042121013021
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-34",
+        "gap": 170.69364079286188
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-34",
+        "gap": 255.1649240199879
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-34",
+        "gap": 329.4697036723086
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-34",
+        "gap": 408.7391270397577
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-34",
+        "gap": 514.1131613612729
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-34",
+        "gap": 577.580732090675
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-34",
+        "gap": 455.7579256411565
+      },
+      {
+        "from": "synthetic-story-29",
+        "to": "synthetic-story-34",
+        "gap": 369.9053716273277
+      },
+      {
+        "from": "synthetic-story-30",
+        "to": "synthetic-story-34",
+        "gap": 304.8888991876203
+      },
+      {
+        "from": "synthetic-story-31",
+        "to": "synthetic-story-34",
+        "gap": 226.239123418969
+      },
+      {
+        "from": "synthetic-story-32",
+        "to": "synthetic-story-34",
+        "gap": 122.06667575468141
+      },
+      {
+        "from": "synthetic-story-33",
+        "to": "synthetic-story-34",
+        "gap": 27.007428178411924
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-35",
+        "gap": 321.0199369579401
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-35",
+        "gap": 245.42688673435208
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-35",
+        "gap": 225.66426585711682
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-35",
+        "gap": 292.5837297080893
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-35",
+        "gap": 409.95073338674575
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-35",
+        "gap": 472.24390907867866
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-35",
+        "gap": 437.4892562870275
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-35",
+        "gap": 356.623210697517
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-35",
+        "gap": 284.69176493350477
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-35",
+        "gap": 221.8449990848435
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-35",
+        "gap": 146.43411628199848
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-35",
+        "gap": 120.05466698643325
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-35",
+        "gap": 159.07224579126608
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-35",
+        "gap": 314.7232288405218
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-35",
+        "gap": 417.8203325036532
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-35",
+        "gap": 510.61716303121204
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-35",
+        "gap": 569.6045653086774
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-35",
+        "gap": 390.7975307307629
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-35",
+        "gap": 303.0008972897535
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-35",
+        "gap": 215.61052786135028
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-35",
+        "gap": 114.98370994288408
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-35",
+        "gap": 32.561994026575086
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-35",
+        "gap": 31.15158622433453
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-35",
+        "gap": 72.03730923134346
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-35",
+        "gap": 129.80840180528233
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-35",
+        "gap": 224.38721230745273
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-35",
+        "gap": 365.5184079538392
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-35",
+        "gap": 449.0361849520307
+      },
+      {
+        "from": "synthetic-story-29",
+        "to": "synthetic-story-35",
+        "gap": 523.8190086353629
+      },
+      {
+        "from": "synthetic-story-30",
+        "to": "synthetic-story-35",
+        "gap": 535.6747618665155
+      },
+      {
+        "from": "synthetic-story-31",
+        "to": "synthetic-story-35",
+        "gap": 468.4067750071354
+      },
+      {
+        "from": "synthetic-story-32",
+        "to": "synthetic-story-35",
+        "gap": 375.4656709311913
+      },
+      {
+        "from": "synthetic-story-33",
+        "to": "synthetic-story-35",
+        "gap": 285.2632170864297
+      },
+      {
+        "from": "synthetic-story-34",
+        "to": "synthetic-story-35",
+        "gap": 198.83535501370483
+      },
+      {
+        "from": "synthetic-story-1",
+        "to": "synthetic-story-36",
+        "gap": 356.7737847406442
+      },
+      {
+        "from": "synthetic-story-2",
+        "to": "synthetic-story-36",
+        "gap": 341.3802353005719
+      },
+      {
+        "from": "synthetic-story-3",
+        "to": "synthetic-story-36",
+        "gap": 259.43089066047327
+      },
+      {
+        "from": "synthetic-story-4",
+        "to": "synthetic-story-36",
+        "gap": 217.84324812737876
+      },
+      {
+        "from": "synthetic-story-5",
+        "to": "synthetic-story-36",
+        "gap": 296.19630161989505
+      },
+      {
+        "from": "synthetic-story-6",
+        "to": "synthetic-story-36",
+        "gap": 376.949065823074
+      },
+      {
+        "from": "synthetic-story-7",
+        "to": "synthetic-story-36",
+        "gap": 461.1266685459511
+      },
+      {
+        "from": "synthetic-story-8",
+        "to": "synthetic-story-36",
+        "gap": 518.3964731828414
+      },
+      {
+        "from": "synthetic-story-9",
+        "to": "synthetic-story-36",
+        "gap": 461.85004631396407
+      },
+      {
+        "from": "synthetic-story-10",
+        "to": "synthetic-story-36",
+        "gap": 396.72219535778413
+      },
+      {
+        "from": "synthetic-story-11",
+        "to": "synthetic-story-36",
+        "gap": 300.4629765525597
+      },
+      {
+        "from": "synthetic-story-12",
+        "to": "synthetic-story-36",
+        "gap": 214.10399400211824
+      },
+      {
+        "from": "synthetic-story-13",
+        "to": "synthetic-story-36",
+        "gap": 162.44533379994556
+      },
+      {
+        "from": "synthetic-story-14",
+        "to": "synthetic-story-36",
+        "gap": 161.54428143845288
+      },
+      {
+        "from": "synthetic-story-15",
+        "to": "synthetic-story-36",
+        "gap": 247.1991221024995
+      },
+      {
+        "from": "synthetic-story-16",
+        "to": "synthetic-story-36",
+        "gap": 336.2197322323145
+      },
+      {
+        "from": "synthetic-story-17",
+        "to": "synthetic-story-36",
+        "gap": 407.2440193523493
+      },
+      {
+        "from": "synthetic-story-18",
+        "to": "synthetic-story-36",
+        "gap": 594.1314710942088
+      },
+      {
+        "from": "synthetic-story-19",
+        "to": "synthetic-story-36",
+        "gap": 503.01236581642763
+      },
+      {
+        "from": "synthetic-story-20",
+        "to": "synthetic-story-36",
+        "gap": 413.34761477726744
+      },
+      {
+        "from": "synthetic-story-21",
+        "to": "synthetic-story-36",
+        "gap": 312.64134229313555
+      },
+      {
+        "from": "synthetic-story-22",
+        "to": "synthetic-story-36",
+        "gap": 227.3699427839159
+      },
+      {
+        "from": "synthetic-story-23",
+        "to": "synthetic-story-36",
+        "gap": 145.38666432304382
+      },
+      {
+        "from": "synthetic-story-24",
+        "to": "synthetic-story-36",
+        "gap": 88.27149149597075
+      },
+      {
+        "from": "synthetic-story-25",
+        "to": "synthetic-story-36",
+        "gap": 31.77014539194778
+      },
+      {
+        "from": "synthetic-story-26",
+        "to": "synthetic-story-36",
+        "gap": 54.544180089802744
+      },
+      {
+        "from": "synthetic-story-27",
+        "to": "synthetic-story-36",
+        "gap": 171.28188312865936
+      },
+      {
+        "from": "synthetic-story-28",
+        "to": "synthetic-story-36",
+        "gap": 253.58259781214832
+      },
+      {
+        "from": "synthetic-story-29",
+        "to": "synthetic-story-36",
+        "gap": 364.45496672215876
+      },
+      {
+        "from": "synthetic-story-30",
+        "to": "synthetic-story-36",
+        "gap": 425.6475294315655
+      },
+      {
+        "from": "synthetic-story-31",
+        "to": "synthetic-story-36",
+        "gap": 490.5965918769633
+      },
+      {
+        "from": "synthetic-story-32",
+        "to": "synthetic-story-36",
+        "gap": 511.9615212679868
+      },
+      {
+        "from": "synthetic-story-33",
+        "to": "synthetic-story-36",
+        "gap": 475.3578747351145
+      },
+      {
+        "from": "synthetic-story-34",
+        "to": "synthetic-story-36",
+        "gap": 398.3621651109024
+      },
+      {
+        "from": "synthetic-story-35",
+        "to": "synthetic-story-36",
+        "gap": 115.37535758409287
+      }
+    ]
+  },
+  "localRouting": [
+    {
+      "story": "The agent link",
+      "edges": 18,
+      "segments": 63,
+      "dropped": [],
+      "clampedSamples": 0
+    },
+    {
+      "story": "The app",
+      "edges": 4,
+      "segments": 8,
+      "dropped": [],
+      "clampedSamples": 0
+    },
+    {
+      "story": "The arc surface",
+      "edges": 7,
+      "segments": 25,
+      "dropped": [],
+      "clampedSamples": 1
+    },
+    {
+      "story": "The command line",
+      "edges": 26,
+      "segments": 80,
+      "dropped": [],
+      "clampedSamples": 85
+    },
+    {
+      "story": "The forest",
+      "edges": 8,
+      "segments": 17,
+      "dropped": [],
+      "clampedSamples": 0
+    },
+    {
+      "story": "The knowledge core",
+      "edges": 6,
+      "segments": 22,
+      "dropped": [],
+      "clampedSamples": 0
+    },
+    {
+      "story": "The librarian",
+      "edges": 7,
+      "segments": 19,
+      "dropped": [],
+      "clampedSamples": 0
+    },
+    {
+      "story": "The library",
+      "edges": 27,
+      "segments": 65,
+      "dropped": [],
+      "clampedSamples": 3
+    }
+  ]
+}

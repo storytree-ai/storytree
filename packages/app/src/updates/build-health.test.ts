@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { refreshOwnHealth } from "./own-health.js";
+import { refreshOwnHealth } from "./build-health.js";
 
 test("4.3 the running slot checks its own build in the background, logs output, and retries failures only at the next update", async () => {
   // macOS's temporary directory is a symlink; the child reports its physical working directory.

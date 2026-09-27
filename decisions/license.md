@@ -1,6 +1,6 @@
 # The license: PolyForm Shield
 
-- **Front cover of:** none: it decides the whole project, so it sits on no shelf (ADR-0631)
+- **Front cover of:** none
 - **Full record:** ADR-0617 in storytree 0.2's decision log, storytree-ai/storytree02 (`pnpm storytree library artifact adr-0617`)
 
 Storytree is free for any use, businesses included, except a competing product, which needs a grant.

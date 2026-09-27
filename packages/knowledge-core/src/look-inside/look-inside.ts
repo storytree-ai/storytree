@@ -1,7 +1,7 @@
 /** Capability 4's founding book (E1, V1, S1): the core's picture, a pinned note's card, and replay frames. */
 import type { Change } from "@storytree/library";
 
-import type { Knowledge } from "../ghosts/ghosts.js";
+import { linksOf, type Knowledge } from "../ghosts/ghosts.js";
 import type { AgentReplay, Jump, ReadRecord } from "../reads/reads.js";
 import type { Core } from "../shelves/shelves.js";
 
@@ -99,22 +99,192 @@ export interface LegendEntry {
   colour: string;
 }
 
-export function coreScene(_input: CoreInput): CoreScene {
-  return { entrances: [], notes: [], sizeLabel: "", status: undefined };
+/** The orchestrator's colour, then each subagent's in turn (Okabe-Ito, told apart by colour-blind eyes), and unknown's pale. */
+const ORCHESTRATOR = "#0072B2";
+const SUBAGENTS = ["#E69F00", "#009E73", "#CC79A7", "#F0E442", "#56B4E9", "#D55E00"];
+const UNKNOWN = "#9AA0AA";
+/** How far a capability's shelf sits from its story's spot, and notes from their shelf's line, in radians. */
+const CAPABILITY_CONE = 0.14;
+const NOTE_SPREAD = 0.045;
+const GHOST_OFFSET = 0.035;
+/** Notes no shelf reaches orbit outside; ghosts with no placed replacement orbit further out. */
+const OUTSIDE = 1.3;
+const UNPLACED = 1.45;
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+
+/**
+ * The core's picture. Each shelf is an entrance on its story's island: a story's own shelf at the
+ * island's spot, its capabilities' in a ring close around it. A placed note hangs below its home
+ * shelf, further in the deeper it is, spread in a small spiral from its siblings. Notes with no
+ * depth orbit outside the globe; a ghost sits beside the note that replaced it, or further out
+ * when its replacement is not placed. Size never moves a note.
+ */
+export function coreScene(input: CoreInput): CoreScene {
+  const { knowledge, core, reads, radius, session, sizeBy, frame } = input;
+  const titles = titlesOf(input.changes);
+  const directions = shelfDirections(input);
+  const entrances = core.shelves.flatMap(({ node, story }) => {
+    const direction = directions.get(node);
+    return direction === undefined ? [] : [{ node, story, title: titles.get(node) ?? node, at: scale(direction, radius) }];
+  });
+
+  const at = new Map<string, Point>();
+  const deepest = Math.max(0, ...[...core.placed.values()].map(({ depth }) => depth));
+  const step = 0.8 / Math.max(deepest + 1, 5);
+  const siblings = new Map<string, number>();
+  for (const placement of [...core.placed.values()].sort((a, b) => compare(a.note, b.note))) {
+    const home = directions.get(placement.home);
+    if (home === undefined) continue;
+    const key = `${placement.home} ${placement.depth}`;
+    const index = siblings.get(key) ?? 0;
+    siblings.set(key, index + 1);
+    at.set(placement.note, scale(tilt(home, NOTE_SPREAD * Math.sqrt(index), index * GOLDEN), radius * (1 - step * placement.depth)));
+  }
+  core.outside.forEach((id, index) => at.set(id, scale(onSphere(index, core.outside.length), radius * OUTSIDE)));
+  const unplaced: string[] = [];
+  const beside = new Map<string, number>();
+  for (const ghost of [...knowledge.ghosts.values()].sort((a, b) => compare(a.note, b.note))) {
+    const next = ghost.beside === undefined ? undefined : at.get(ghost.beside);
+    if (ghost.beside === undefined || next === undefined) {
+      unplaced.push(ghost.note);
+      continue;
+    }
+    const index = beside.get(ghost.beside) ?? 0;
+    beside.set(ghost.beside, index + 1);
+    at.set(ghost.note, scale(tilt(unit(next), GHOST_OFFSET * (1 + index * 0.5), index * GOLDEN + Math.PI / 3), length(next)));
+  }
+  unplaced.forEach((id, index) => at.set(id, scale(onSphere(index, unplaced.length), radius * UNPLACED)));
+
+  const present = new Set(knowledge.notes.keys());
+  const reached = new Set(session === undefined ? [] : reads.replay(session, present).agents.flatMap(({ lit }) => lit.map(({ note }) => note)));
+  const notes: DrawnNote[] = [...at].map(([id, point]) => {
+    const count = sizeBy === "visits" ? reads.visits(id) : knowledge.linksIn.get(id) ?? 0;
+    const placement = core.placed.get(id);
+    const agent = frame?.lit.get(id);
+    return {
+      id, title: titleOf(knowledge, id), at: point, depth: placement?.depth, ghost: knowledge.ghosts.has(id), loop: placement?.loop,
+      size: 1 + Math.sqrt(count), tone: agent !== undefined ? "lit" : reached.has(id) ? "reached" : "grey", agent,
+    };
+  });
+  return { entrances, notes, sizeLabel: SIZE_LABELS[sizeBy], status: reads.status() };
 }
 
-export function noteCard(_id: string, _input: CoreInput): Card | undefined {
-  return undefined;
+/** A pinned note's card: its text, home, depth or "no depth", replacement evidence and recorded counts. */
+export function noteCard(id: string, input: CoreInput): Card | undefined {
+  const { knowledge, core, reads } = input;
+  const note = knowledge.notes.get(id);
+  if (note === undefined) return undefined;
+  const titles = titlesOf(input.changes);
+  const placement = core.placed.get(id);
+  const ghost = knowledge.ghosts.get(id);
+  const replaced = [...knowledge.ghosts.values()].filter(({ beside }) => beside === id).map(({ note: old }) => titleOf(knowledge, old));
+  const text = note.fields.text ?? note.fields.description;
+  return {
+    id,
+    title: titleOf(knowledge, id),
+    text: typeof text === "string" ? text : "",
+    home: placement === undefined ? undefined : titles.get(placement.home) ?? placement.home,
+    depth: placement === undefined ? "no depth" : placement.loop === undefined ? `depth ${placement.depth}` : `depth ${placement.depth}, in a loop (a refused shape)`,
+    entrances: placement?.entrances.map((node) => titles.get(node) ?? node) ?? [],
+    replacement: ghost?.label ?? (replaced.length === 0 ? undefined : `replaces ${replaced.join(", ")}`),
+    visits: reads.visits(id),
+    ...reads.totals(id),
+    linksToReplaced: linksOf(note).flatMap((target) => {
+      const old = knowledge.ghosts.get(target);
+      return old === undefined ? [] : [`${titleOf(knowledge, target)}: ${old.label}`];
+    }),
+  };
 }
 
-export function pinnedLinks(_id: string | undefined, _knowledge: Knowledge): Link[] {
-  return [{ kind: "link", from: "", to: "" }];
+/** The pinned note's stored links, out and then in, each in its stored direction; none with nothing pinned. */
+export function pinnedLinks(id: string | undefined, knowledge: Knowledge): Link[] {
+  const note = id === undefined ? undefined : knowledge.notes.get(id);
+  if (id === undefined || note === undefined) return [];
+  const out = [...new Set(linksOf(note))].filter((to) => to !== id && knowledge.notes.has(to)).map((to): Link => ({ kind: "link", from: id, to }));
+  const into = [...knowledge.notes.values()]
+    .filter((other) => other.id !== id && linksOf(other).includes(id))
+    .map(({ id: from }) => from)
+    .sort(compare)
+    .map((from): Link => ({ kind: "link", from, to: id }));
+  return [...out, ...into];
 }
 
-export function replayFrame(_agents: readonly AgentReplay[], _step: number, _hidden: ReadonlySet<string>): ReplayFrame {
-  return { lit: new Map([["", ""]]), jumps: [], steps: 0 };
+/** The replay after `step` of its steps, one read a step, in recorded order across the visible agents. */
+export function replayFrame(agents: readonly AgentReplay[], step: number, hidden: ReadonlySet<string>): ReplayFrame {
+  const visible = agents.filter(({ agent }) => !hidden.has(agent));
+  const events = visible.flatMap(({ agent, lit }) => lit.map((read) => ({ agent, ...read }))).sort((a, b) => a.seq - b.seq);
+  const taken = events.slice(0, Math.max(0, Math.min(step, events.length)));
+  const lit = new Map<string, string>();
+  for (const { note, agent } of taken) if (!lit.has(note)) lit.set(note, agent);
+  const last = taken.at(-1)?.seq ?? -Infinity;
+  const jumps = visible.flatMap(({ agent, jumps: moves }) => moves.filter(({ seq }) => seq <= last).map((jump) => ({ ...jump, agent })));
+  return { lit, jumps: jumps.sort((a, b) => a.seq - b.seq), steps: events.length };
 }
 
-export function legend(_agents: readonly AgentReplay[]): LegendEntry[] {
-  return [];
+/** The legend: the orchestrator, each subagent as the harness named it, then unknown, each its own colour. */
+export function legend(agents: readonly AgentReplay[]): LegendEntry[] {
+  const rank = (agent: string) => (agent === "orchestrator" ? 0 : agent === "unknown" ? 2 : 1);
+  let next = 0;
+  return [...agents]
+    .sort((a, b) => rank(a.agent) - rank(b.agent))
+    .map(({ agent, label, task }) => ({
+      agent, label, task,
+      colour: agent === "orchestrator" ? ORCHESTRATOR : agent === "unknown" ? UNKNOWN : SUBAGENTS[next++ % SUBAGENTS.length]!,
+    }));
 }
+
+/** Each shelf's direction from the centre: its story's spot, or a capability's place in a ring around it. */
+function shelfDirections({ core, spots }: CoreInput): Map<string, Point> {
+  const directions = new Map<string, Point>();
+  const capabilities = new Map<string, string[]>();
+  for (const { node, story } of core.shelves) if (node !== story) capabilities.set(story, [...(capabilities.get(story) ?? []), node]);
+  for (const { node, story } of core.shelves) {
+    const spot = spots.get(story);
+    if (spot === undefined) continue;
+    const ring = capabilities.get(story) ?? [];
+    directions.set(node, node === story ? unit(spot) : tilt(unit(spot), CAPABILITY_CONE, (2 * Math.PI * ring.indexOf(node)) / ring.length));
+  }
+  return directions;
+}
+
+function titlesOf(changes: readonly Change[]): Map<string, string> {
+  const titles = new Map<string, string>();
+  for (const change of changes) {
+    const title = change.record.fields.title;
+    if (change.action === "retired") titles.delete(change.recordId);
+    else if (typeof title === "string") titles.set(change.recordId, title);
+  }
+  return titles;
+}
+
+function titleOf(knowledge: Knowledge, id: string): string {
+  const title = knowledge.notes.get(id)?.fields.title;
+  return typeof title === "string" ? title : id;
+}
+
+/** `direction` turned `angle` away from itself, toward `azimuth` around it. */
+function tilt(direction: Point, angle: number, azimuth: number): Point {
+  if (angle === 0) return direction;
+  const up = Math.abs(direction.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
+  const u = unit(cross(up, direction));
+  const v = cross(direction, u);
+  const across = Math.sin(angle);
+  return unit({
+    x: direction.x * Math.cos(angle) + (u.x * Math.cos(azimuth) + v.x * Math.sin(azimuth)) * across,
+    y: direction.y * Math.cos(angle) + (u.y * Math.cos(azimuth) + v.y * Math.sin(azimuth)) * across,
+    z: direction.z * Math.cos(angle) + (u.z * Math.cos(azimuth) + v.z * Math.sin(azimuth)) * across,
+  });
+}
+
+/** Point `index` of `count` spread evenly over the unit sphere. */
+function onSphere(index: number, count: number): Point {
+  const y = 1 - (2 * (index + 0.5)) / count;
+  const across = Math.sqrt(1 - y * y);
+  return { x: Math.cos(index * GOLDEN) * across, y, z: Math.sin(index * GOLDEN) * across };
+}
+
+const cross = (a: Point, b: Point): Point => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
+const length = (p: Point) => Math.hypot(p.x, p.y, p.z);
+const scale = (p: Point, by: number): Point => ({ x: p.x * by, y: p.y * by, z: p.z * by });
+const unit = (p: Point): Point => scale(p, 1 / length(p));
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

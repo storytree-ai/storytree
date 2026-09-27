@@ -18,18 +18,33 @@ export interface Shown {
   globeButton: boolean;
 }
 
+/** Open the core from the globe or the forest, keeping the selection. */
 export function lookInside(state: CoreViewState): CoreViewState {
-  return state;
+  return { ...state, mode: "inside" };
 }
 
+/** Back to the globe: its islands and sea return, the selection stays, and the pin is let go. */
 export function returnToGlobe(state: CoreViewState): CoreViewState {
-  return state;
+  return { mode: "globe", selected: state.selected, pinned: undefined };
 }
 
+/** The flat forest, one click from any view. */
 export function toForest(state: CoreViewState): CoreViewState {
-  return state;
+  return { mode: "forest", selected: state.selected, pinned: undefined };
 }
 
-export function shown(_state: CoreViewState): Shown {
-  return { sea: false, islands: false, entrances: false, failureMarkers: false, forestButton: false, globeButton: false };
+/**
+ * What each view shows. Looking inside hides the sea and island surfaces and shows the shelf
+ * entrances, and keeps the failure attention: opening the core cannot hide a failing story.
+ */
+export function shown(state: CoreViewState): Shown {
+  const inside = state.mode === "inside";
+  return {
+    sea: state.mode === "globe",
+    islands: state.mode !== "inside",
+    entrances: inside,
+    failureMarkers: state.mode !== "forest",
+    forestButton: true,
+    globeButton: true,
+  };
 }

@@ -29,3 +29,16 @@ then uninstalls it. This proves x64 installation. An arm64 installation and an a
 from one installed release to a second, including its reopened window, still need a Windows
 acceptance run. No code-signing identity is configured; releases retain the existing unsigned
 Windows distribution status.
+
+## Forest mode smoke screenshots
+
+The smoke check can click either Forest / Library button before taking its screenshot:
+
+```sh
+pnpm desktop:smoke --forest-mode forest --screenshot smoke-forest.png
+pnpm desktop:smoke --forest-mode library --screenshot smoke-library.png
+```
+
+`--forest-mode` is used only by the smoke check. Normal launches always start in Forest.
+The smoke inventory checks the loaded project; the mode assertion checks the actual control.
+The forest's headless capture evidence separately counts the renderer's submitted meshes.

@@ -386,6 +386,20 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       return { title: pick.querySelector("summary .row-title").innerText, contracts: pick.querySelectorAll("[data-contract-id]").length };
     })()`)) as { title: string; contracts: number } | null;
     const arcProblems = project !== undefined && state === "ready" ? await smokeArcSurface(window.webContents, project, open()) : [];
+    if (state === "ready" && args.forestMode !== undefined) {
+      const mode = args.forestMode;
+      await window.webContents.executeJavaScript(`(async () => {
+        const button = document.querySelector('.forest-views [data-forest-mode="${mode}"]');
+        if (!button) throw new Error('Forest mode control is missing');
+        button.click();
+        for (let tries = 0; tries < 100; tries++) {
+          if (button.getAttribute('aria-pressed') === 'true') return;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        throw new Error('Forest mode did not change to ${mode}');
+      })()`);
+      console.log(`smoke: globe mode ${mode}`);
+    }
     const page = (await window.webContents.executeJavaScript(`(() => ({
       text: document.body.innerText,
       drew: document.body.dataset.drew,

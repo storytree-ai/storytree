@@ -10,6 +10,7 @@ import type { KnowledgeCore } from "@storytree/knowledge-core/view";
 import { preloadKit } from "@storytree/forest-world/canvas";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { PlanetView } from "./planet-view.js";
+import type { ForestMode } from "./planet-navigation.js";
 
 export interface ForestView {
   /** Draw `scene`, recomputing only the islands that changed since the last one. */
@@ -24,6 +25,7 @@ export interface ForestView {
 
 /** What the page draws, as one value handed to React on every change. */
 interface Drawn {
+  mode: ForestMode;
   places: ReadonlyMap<string, number>;
   scene: ForestScene;
   markers: readonly Marker[];
@@ -39,15 +41,28 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
   await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {
-    places: new Map(), scene: { islands: [] }, markers: [], selected: undefined, viewport: undefined,
+    mode: "forest", places: new Map(), scene: { islands: [] }, markers: [], selected: undefined, viewport: undefined,
   };
 
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
     if (drawn.viewport === undefined) return;
     container.dataset.view = "globe";
-    root.render(<PlanetView core={core} scene={drawn.scene} places={drawn.places} markers={drawn.markers}
-      selected={drawn.selected} onPick={pick} />);
+    container.dataset.forestMode = drawn.mode;
+    root.render(<>
+      <PlanetView core={core} scene={drawn.scene} places={drawn.places} markers={drawn.markers}
+        selected={drawn.selected} onPick={pick} mode={drawn.mode} />
+      <div className="forest-views" role="group" aria-label="Globe view">
+        {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
+          data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
+          {mode === "forest" ? "Forest" : "Library"}
+        </button>)}
+      </div>
+    </>);
+  };
+  const changeMode = (mode: ForestMode): void => {
+    render({ mode, ...(mode === "library" ? { selected: undefined } : {}) });
+    if (mode === "library") onSelect(undefined);
   };
   const pick = (story: string | undefined): void => {
     render({ selected: story });

@@ -78,3 +78,17 @@ test("a hidden failure has a marker in the camera's frame, and its click turns i
   assert.ok(target.distanceTo(new Vector3(0, 0, 1)) < 1e-10, "the selected failure faces the actual camera");
   assert.ok(hiddenMarkers(islands, focused, orbitedEye).every(m => m.story !== "behind"));
 });
+
+test("Forest never hides a failing island; only an explicit Library choice suppresses its marker", () => {
+  const islands: FacingIsland[] = [
+    { story: "failure", spot: { x: 0, y: 0, z: -1 }, trees: [{ form: "dead" }] },
+  ];
+  const rotation = new Quaternion(), eye = new Quaternion();
+  assert.deepEqual(hiddenMarkers(islands, rotation, eye).map(m => m.story), ["failure"], "Forest is the default");
+  assert.deepEqual(hiddenMarkers(islands, rotation, eye, "library"), []);
+  const [marker] = hiddenMarkers(islands, rotation, eye, "forest");
+  assert.equal(marker?.story, "failure", "returning to Forest restores attention");
+  const focused = focusRotation(marker!.turn, eye);
+  const facing = new Vector3(0, 0, -1).applyQuaternion(focused);
+  assert.ok(facing.z > 0.999999, "the marker still turns the failure into view");
+});

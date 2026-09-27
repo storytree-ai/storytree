@@ -4,6 +4,8 @@ import { edgeMarkers, PLANET_RADIUS, turnToIsland, type FacingIsland, type Fores
 
 import { placeOnPackedGlobe } from "@storytree/forest";
 
+export type ForestMode = "forest" | "library";
+
 export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
   const islands: FacingIsland[] = scene.islands.map(island => {
     const place = places.get(island.story);
@@ -20,7 +22,9 @@ export function focusRotation(turn: GlobeTurn, eye: Quaternion): Quaternion {
 }
 
 /** Use the actual camera frame for marker bearings, retaining absolute globe turns for clicks. */
-export function hiddenMarkers(islands: readonly FacingIsland[], rotation: Quaternion, eye: Quaternion) {
+export function hiddenMarkers(islands: readonly FacingIsland[], rotation: Quaternion, eye: Quaternion, mode: ForestMode = "forest") {
+  // ADR-0660 D4: only the viewer's explicit Library choice hides failure attention.
+  if (mode === "library") return [];
   const toView = eye.clone().invert().multiply(rotation);
   const viewed = islands.map(island => ({ ...island, spot: new Vector3(island.spot.x, island.spot.y, island.spot.z).applyQuaternion(toView) }));
   const turns = new Map(islands.map(i => [i.story, turnToIsland(i.spot)]));

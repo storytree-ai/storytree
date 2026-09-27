@@ -92,7 +92,7 @@ function decode(value) {
 
 /**
  * The contract numbers a test file names, in itself and in every module it imports by a relative
- * path, transitively, within `root`: each "N.M" at the start of a string. It is how the contracts a
+ * path, transitively, within `root`: the leading contract list of each string. It is how the contracts a
  * crashed file would have tested are known when the file reported nothing. It may find more than
  * the file tests, never fewer, so a crash can only ever leave too much not checked.
  * @param {string} file
@@ -113,7 +113,9 @@ export function contractsCoveredBy(file, { root }) {
     } catch {
       continue;
     }
-    for (const [, number] of text.matchAll(/["'`](\d+\.\d+)(?=[\s"'`])/g)) numbers.add(number);
+    for (const [, title] of text.matchAll(/["'`](\d+\.\d+[^"'`\r\n]*)/g)) {
+      for (const number of leadingContracts(title)) numbers.add(number);
+    }
     for (const [, specifier] of text.matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)) {
       const target = moduleFile(path.resolve(path.dirname(current), specifier));
       if (target !== undefined && !path.relative(root, target).startsWith("..")) queue.push(target);
@@ -140,7 +142,7 @@ function moduleFile(target) {
 
 /**
  * Judge each of `contracts` (their numbers) from a test run's results. A test counts for the
- * contract its outermost numbered name gives ("8.1 …" around "2.1 [cloud-sql] …" is 8.1's).
+ * contracts its outermost numbered name gives ("8.1 …" around "2.1 [cloud-sql] …" is 8.1's).
  * `coverage(file)` gives the contract numbers a test file holds, for a file that produced no
  * results. Returns each contract's verdict, the results that name no contract of the story, and
  * the files that produced no results with the contracts they leave not checked.
@@ -165,9 +167,9 @@ export function judge({ contracts, results, coverage, show = (file) => file }) {
       for (const number of held) if (!crashedUnder.has(number)) crashedUnder.set(number, result.file);
       continue;
     }
-    const number = contractOf(result);
-    if (number === undefined || !known.has(number)) unmapped.push(result);
-    else tests.get(number).push(result);
+    const numbers = contractsOfResult(result).filter((number) => known.has(number));
+    if (numbers.length === 0) unmapped.push(result);
+    else for (const number of numbers) tests.get(number).push(result);
   }
 
   /** @type {Map<string, Verdict>} */
@@ -204,13 +206,33 @@ function isFileResult(result) {
   return result.suites.length === 0 && /\.test\.[cm]?[jt]sx?$/.test(name) && file.endsWith(name);
 }
 
-/** The contract a test counts for: the number its outermost numbered name starts with. */
-function contractOf(result) {
+/** The contracts a test counts for: the list its outermost numbered name starts with. */
+function contractsOfResult(result) {
   for (const name of [...result.suites, result.name]) {
-    const match = /^(\d+\.\d+)(?:\s|$)/.exec(name);
-    if (match !== null) return match[1];
+    const numbers = leadingContracts(name);
+    if (numbers.length > 0) return numbers;
   }
-  return undefined;
+  return [];
+}
+
+/**
+ * Only a leading list names contracts: N.M entries joined by comma, slash or "and", with
+ * ascending en-dash ranges within one capability. Whitespace or the title's end must follow
+ * the last entry. Once prose starts, later numbers give no credit. Overlaps count only once.
+ */
+function leadingContracts(title) {
+  const prefix = /^(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*)(?=\s|$)/.exec(title)?.[1];
+  if (prefix === undefined) return [];
+  const numbers = new Set();
+  for (const [, first, last] of prefix.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
+    numbers.add(first);
+    if (last === undefined) continue;
+    const [capability, start] = first.split(".");
+    const [endCapability, end] = last.split(".");
+    if (capability !== endCapability || Number(end) < Number(start)) return [];
+    for (let n = Number(start) + 1; n <= Number(end); n++) numbers.add(`${capability}.${n}`);
+  }
+  return [...numbers];
 }
 
 function byNumber(a, b) {

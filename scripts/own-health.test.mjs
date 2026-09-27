@@ -5,6 +5,8 @@
 // afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -83,6 +85,82 @@ test("judge: a test file that produced no results leaves the contracts it holds 
   assert.equal(verdicts.get("2.2").state, "failing", "a failure seen is still a failure");
   assert.equal(verdicts.get("3.1").state, "passing");
   assert.deepEqual(crashedFiles, [{ file: crashed, contracts: ["2.1", "2.2"] }]);
+});
+
+test("judge: every contract in a leading list shares the test's result, once each", async (t) => {
+  for (const [title, numbers] of [
+    ["2.2, 2.4 · choosing a project mentions 9.9 in prose", ["2.2", "2.4"]],
+    ["2.2, 2.3 recovery", ["2.2", "2.3"]],
+    ["4.1 and 4.3 queued arcs", ["4.1", "4.3"]],
+    ["2.10 / 7.6 [memory] writer history", ["2.10", "7.6"]],
+    ["2.1–2.4 the board names each window", ["2.1", "2.2", "2.3", "2.4"]],
+    ["3.1, 3.4–3.6 the open overlay", ["3.1", "3.4", "3.5", "3.6"]],
+    ["2.2, 2.2–2.4 / 2.4 and 2.3", ["2.2", "2.3", "2.4"]],
+  ]) {
+    await t.test(title, () => {
+      for (const [status, state] of [["passed", "passing"], ["failed", "failing"], ["skipped", "not-checked"]]) {
+        const { verdicts, unmapped } = judge({
+          contracts: [...numbers, "9.9"],
+          results: [{ name: title, suites: [], file: "a.test.ts", status }],
+          coverage: () => new Set(),
+        });
+        for (const number of numbers) {
+          assert.equal(verdicts.get(number).state, state, `${number}: ${status}`);
+          assert.equal(verdicts.get(number).total, 1, `${number} counts the test once`);
+          assert.equal(verdicts.get(number)[status], 1);
+        }
+        assert.equal(verdicts.get("9.9").total, 0, "a number in prose gets no credit");
+        assert.deepEqual(unmapped, []);
+      }
+    });
+  }
+});
+
+test("judge: only the outermost numbered prefix gives credit, ignoring unknown numbers and later prose", () => {
+  const result = (name, suites = []) => ({ name, suites, file: "a.test.ts", status: "passed" });
+  const unknown = result("9.8, 9.9 · unknown contracts", ["unnumbered suite"]);
+  const prose = result("mentions 2.2, 2.4 in prose");
+  const { verdicts, unmapped } = judge({
+    contracts: ["2.2", "2.4", "8.1", "8.2"],
+    results: [
+      result("2.2, 2.4 · inside", ["unnumbered suite", "8.1, 8.2 · outer", "2.2 · inner"]),
+      result("9.9, 2.4 · includes a known contract"),
+      result("2.2"),
+      result("2.2 checks version 8.1 and 8.2, then 2.4"),
+      result("2.2 8.1 is prose without a list separator"),
+      unknown,
+      prose,
+      result("2.4 · inside an unknown numbered suite", ["9.8, 9.9 · outer"]),
+    ],
+    coverage: () => new Set(),
+  });
+  assert.deepEqual([...verdicts].map(([number, { total }]) => [number, total]), [
+    ["2.2", 3], ["2.4", 1], ["8.1", 1], ["8.2", 1],
+  ]);
+  assert.deepEqual(unmapped.map(({ name }) => name), [unknown.name, prose.name, "2.4 · inside an unknown numbered suite"]);
+});
+
+test("contractsCoveredBy: a crashed multi-contract file leaves every named contract not checked", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "planted.test.ts");
+  writeFileSync(file, 'test("2.2, 2.4–2.6 / 7.6 and 8.1 · mentions 9.9 in prose", () => {});');
+  const numbers = ["2.2", "2.4", "2.5", "2.6", "7.6", "8.1"];
+  const coverage = (source) => contractsCoveredBy(source, { root: directory });
+  assert.deepEqual([...coverage(file)], numbers);
+  const { verdicts, crashedFiles } = judge({
+    contracts: [...numbers, "9.9"],
+    results: [
+      ...numbers.map((number) => ({ name: `${number} · another test`, suites: [], file: "other.test.ts", status: "passed" })),
+      { name: file, suites: [], file, status: "failed" },
+    ],
+    coverage,
+  });
+  assert.deepEqual(crashedFiles, [{ file, contracts: numbers }]);
+  for (const number of numbers) {
+    assert.equal(verdicts.get(number).state, "not-checked");
+    assert.match(verdicts.get(number).reason, /produced no results/);
+  }
 });
 
 test("contractsCoveredBy finds the contract numbers a test file names, in itself and in the modules it imports", () => {

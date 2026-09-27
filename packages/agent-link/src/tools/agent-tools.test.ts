@@ -251,7 +251,9 @@ for (const scenario of [
           assert.equal(git(folder, "worktree", "list", "--porcelain"), worktrees);
           assert.equal(git(folder, "for-each-ref", "refs/heads"), branches);
         } else {
-          assert.equal((await library.get(id))?.fields.status, "active");
+          const active = await library.get(id);
+          assert.ok(active?.type === "increment");
+          assert.equal(active.fields.status, "active");
           const after = await library.history({ id });
           assert.equal(after.length, history.length + 1);
           assert.equal(after.at(-1)?.actor, `session:${session}`);

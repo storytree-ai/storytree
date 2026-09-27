@@ -1,0 +1,23 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/cancel-claim
+> node --import tsx scripts/test.mjs "--test-name-pattern=6.21|5.15" "packages/agent-link/src/tools/agent-tools.test.ts" "packages/agent-link/src/claims/claims.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:34561 (started in 0.1 s)
+✔ 5.15 cancelling a claim queued for the activity lock leaves no claim on an capability (220.483939ms)
+✔ 5.15 cancelling a claim queued for the activity lock leaves no claim on an active increment (114.484366ms)
+✔ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (321.972148ms)
+✔ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (217.200682ms)
+✔ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (229.531464ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (190.132208ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (217.867639ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (223.684927ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1838.645548
+test Postgres: stopped (0.1 s)

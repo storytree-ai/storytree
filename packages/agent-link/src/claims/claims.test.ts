@@ -374,7 +374,7 @@ test("5.9 a claim on a capability is refused when every open increment naming it
 });
 
 for (const target of ["capability", "active increment"] as const) {
-  test(`5.15 cancelling a claim queued for the activity lock leaves no claim on an ${target}`, async () => {
+  test(`5.15 cancelling a claim queued for the activity lock leaves no claim (${target})`, async () => {
     await withWorld(async ({ library, log, project, emailForm, as }) => {
       let id = emailForm;
       if (target === "active increment") {
@@ -384,17 +384,20 @@ for (const target of ["capability", "active increment"] as const) {
       }
       const before = await library.get(id);
       const history = await library.history({ id });
-      const locked = Promise.withResolvers<void>();
-      const unblock = Promise.withResolvers<void>();
-      const queued = Promise.withResolvers<void>();
-      const blocker = log.locked(project, async () => { locked.resolve(); await unblock.promise; });
-      await locked.promise;
+      let acquired!: () => void;
+      let unblock!: () => void;
+      let requested!: () => void;
+      const locked = new Promise<void>((resolve) => { acquired = resolve; });
+      const hold = new Promise<void>((resolve) => { unblock = resolve; });
+      const queued = new Promise<void>((resolve) => { requested = resolve; });
+      const blocker = log.locked(project, async () => { acquired(); await hold; });
+      await locked;
       const abort = new AbortController();
       const observing: ActivityLog = {
         append: log.append.bind(log), since: log.since.bind(log), close: log.close.bind(log),
         locked: (project, work) => {
           const pending = log.locked(project, work);
-          queued.resolve();
+          requested();
           return pending;
         },
       };
@@ -402,10 +405,10 @@ for (const target of ["capability", "active increment"] as const) {
       const pending = claim(context, id, "Build form");
       const cancelled = assert.rejects(pending, /cancel claim/);
       try {
-        await queued.promise;
+        await queued;
         abort.abort(new Error("cancel claim"));
       } finally {
-        unblock.resolve();
+        unblock();
         await blocker;
       }
       await cancelled; // The entire claim has settled before inspecting its effects.

@@ -1,0 +1,37 @@
+--- old/The agent link/5 · Claims/definition_f606731fb8c5/meaning
++++ new/The agent link/5 · Claims/definition_f606731fb8c5/meaning
+@@ -5,3 +5,10 @@
+   toward the one it claimed most recently of those it still holds. Landing a capability another
+   session holds is refused, naming the holder. A holder whose command is still running
+   (capability 4) is live, so its claim cannot be taken mid-run (ADR-0636 D2).
++  Claims accept the calling request's writer options. After taking the activity lock and
++  checking the holder, cancellation is checked before writing anything. Proposed or ready
++  increments are activated with those options before the claimed line is appended; the library
++  checks cancellation after acquiring its write lock. A request cancelled in either queue adds
++  no claim line or activation. Once admitted, the claim and any workspace operation finish,
++  even if cancellation arrives later. Capability and already-active increment claims also
++  check cancellation under the activity lock before appending their claim.
+
+--- old/The agent link/6 · Agent tools (the MCP server)/definition_1655f6d65a9c/meaning
++++ new/The agent link/6 · Agent tools (the MCP server)/definition_1655f6d65a9c/meaning
+@@ -6,3 +6,10 @@
+     history's actor. A refused write adds no library history. `raise_question` checks every
+     requested increment hold before writing the question or any hold, so a missing increment or
+     another kind of record cannot leave a partial question behind.
++    Claim tools also forward the MCP request abort signal through their claim context. A claim,
++    make_workspace or attach_workspace cancelled while waiting for admission adds no claimed
++    activity line and does not activate an increment. Claude Code creates no worktree or branch;
++    a Codex attachment preserves the app-created worktree, including its detached HEAD. Once
++    admitted, activation, the claim and the workspace operation complete normally, retaining
++    the calling session as the activation's history actor. Tool-called audit lines still record
++    the attempted call; cancellation does not erase that observation.
+
+--- old/The agent link/5 · Claims/ADD contract under capability_7077da59ee64/title
++++ new/The agent link/5 · Claims/ADD contract under capability_7077da59ee64/title
+@@ -0,0 +1 @@
++5.15 · A claim cancelled while waiting for the activity lock or the increment activation write lock leaves no claimed line, activation or activation history. A capability or already-active increment claim checks cancellation before its claimed line too. Once admitted, a claim completes normally; a workspace claim creates or attaches its workspace only after admission.
+
+--- old/The agent link/6 · Agent tools (the MCP server)/ADD contract under capability_11fe600afeda/title
++++ new/The agent link/6 · Agent tools (the MCP server)/ADD contract under capability_11fe600afeda/title
+@@ -0,0 +1 @@
++6.21 · MCP claim, make_workspace and attach_workspace calls cancelled before claim admission leave no held claim, claimed activity line or increment activation. A cancelled make_workspace creates no worktree or branch; a cancelled attach_workspace leaves the app worktree unchanged. Calls already admitted complete their claim, activation and workspace operation with the calling session retained in activation history.

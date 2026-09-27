@@ -1,0 +1,81 @@
+Base: origin/main 5732eb8 (PR #138), merged locally as f3652ce; pnpm install passed.
+
+$ flock /tmp/storytree-heavy.lock pnpm typecheck
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/cancel-claim
+> pnpm -r typecheck
+
+Scope: 11 of 12 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+$ flock /tmp/storytree-heavy.lock pnpm test
+scope: full — everything — packages/agent-link/src/claims/claims.test.ts changed in @storytree/agent-link, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, scripts
+✔ 5.15 cancelling a claim queued for the activity lock leaves no claim (capability) (100.246633ms)
+✔ 5.15 cancelling a claim queued for the activity lock leaves no claim (active increment) (168.365477ms)
+✔ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (338.055603ms)
+✔ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (266.965266ms)
+✔ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (297.714364ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (209.436807ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (268.02496ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (341.353721ms)
+✔ ⚠ coverPoint SKIPS a degenerate cell and a point outside every parcel, and keeps trying (17.295675ms)
+✔ worldTo3D SKIPS the story tree — the island keeps its parcels and its blooms, and stands no cone (1.876558ms)
+✔ a ring bounding no area is SKIPPED, not emitted as a degenerate parcel (0.172908ms)
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+$ pnpm test-ratio
+
+> storytree@ test-ratio /home/mickh/code/storytree03-wt/cancel-claim
+> node scripts/test-ratio.mjs
+
+Test code per line of implementation, in code lines (comments and blanks left out):
+
+                              test   implementation   ratio
+  apps/desktop                 171            1,079    0.16
+  packages/agent-link        2,993            3,339    0.90
+  packages/app                 788              707    1.11
+  packages/arc-surface         495              903    0.55
+  packages/cli               1,234            1,422    0.87
+  packages/forest-world     25,483           13,202    1.93
+  packages/forest              741            2,834    0.26
+  packages/knowledge-core      571            1,086    0.53
+  packages/librarian           607              465    1.31
+  packages/library           5,259            3,642    1.44
+  packages/local-postgres      218              325    0.67
+  scripts                    1,166            1,355    0.86
+  all                       39,726           30,359    1.31

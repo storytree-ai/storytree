@@ -35,4 +35,14 @@ foreach ($step in @('download', 'install', 'finish', 'path')) {
 }
 Assert ((Add-StorytreePath 'C:\Other;%USERPROFILE%\bin' 'C:\Storytree\bin') -eq 'C:\Other;%USERPROFILE%\bin;C:\Storytree\bin') 'preserve existing PATH text'
 Assert ((Add-StorytreePath 'C:\Other;C:\Storytree\bin\' 'c:\storytree\bin') -eq 'C:\Other;C:\Storytree\bin\') 'PATH rerun is idempotent'
+$release = @{ tag_name = 'v0.3.123'; draft = $false; prerelease = $false; assets = @(@{ name = 'storytree-0.3-0.3.123-setup.exe'; browser_download_url = 'https://github.com/storytree-ai/storytree/releases/download/v0.3.123/storytree-0.3-0.3.123-setup.exe' }) }
+$manifest = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.123-setup.exe'; sha256 = ('a' * 64) } }
+Assert ((Select-StorytreeInstaller $release $manifest 'arm64').sha256 -eq ('a' * 64)) 'select the combined NSIS installer'
+$manifest.version = '0.3.122'
+try { Select-StorytreeInstaller $release $manifest 'x64'; throw 'accepted stale manifest' } catch { Assert ($_.Exception.Message -match 'does not match') 'reject mixed releases' }
+$file = [IO.Path]::GetTempFileName()
+try {
+  [IO.File]::WriteAllText($file, 'interrupted download')
+  try { Assert-StorytreeDownload $file ('a' * 64); throw 'accepted damaged download' } catch { Assert ($_.Exception.Message -match 'checksum') 'reject damaged installer before running it' }
+} finally { Remove-Item -LiteralPath $file }
 Write-Output 'delivery bootstrap PASS'

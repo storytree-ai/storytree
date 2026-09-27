@@ -1,0 +1,71 @@
+import { locateStorytree, storytreeHome } from "@storytree/agent-link";
+import { spawn } from "node:child_process";
+import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { connect } from "node:net";
+import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
+import { installCommand } from "./command.js";
+import { verifyPayload, type Architecture } from "./payload.js";
+
+interface DeliveryOptions {
+  installDir: string;
+  home: string;
+  arch: Architecture;
+  searchPath: string;
+  platform?: NodeJS.Platform;
+}
+
+/** Launch even when already running: Electron's second-instance handler brings its window back. */
+function launch(exe: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: "ignore" });
+    child.once("error", reject);
+    child.once("spawn", () => { child.unref(); resolve(); });
+  });
+}
+
+async function waitForApp(home: string): Promise<void> {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    const address = locateStorytree({ dataDir: path.join(home, "pgdata") });
+    if (address.running) {
+      const { hostname, port } = new URL(address.url);
+      const accepts = await new Promise<boolean>((resolve) => {
+        const socket = connect({ host: hostname, port: Number(port), timeout: 500 });
+        const done = (ok: boolean) => { socket.destroy(); resolve(ok); };
+        socket.once("connect", () => done(true));
+        socket.once("timeout", () => done(false));
+        socket.once("error", () => done(false));
+      });
+      if (accepts) return;
+    }
+    await sleep(250);
+  }
+  throw new Error("The app's database did not answer within 90 seconds. Open the app to read its error, then retry the delivery command.");
+}
+
+/** Delivery touches only its own command and record. It never creates a project or configures a harness. */
+export async function finishDelivery(options: DeliveryOptions, effects = { launch, waitForApp }) {
+  const tools = verifyPayload(options.installDir, options.arch, options.platform);
+  await effects.launch(tools.app);
+  await effects.waitForApp(options.home);
+  const command = installCommand({ ...options, tools });
+  const record = { schema: 1, installDir: path.resolve(options.installDir), tools };
+  mkdirSync(options.home, { recursive: true });
+  const temp = path.join(options.home, `delivery-${process.pid}.tmp`);
+  try {
+    writeFileSync(temp, JSON.stringify(record, null, 2) + "\n");
+    renameSync(temp, path.join(options.home, "delivery.json"));
+  } finally { rmSync(temp, { force: true }); }
+  return { state: "ready", tools, command };
+}
+
+/** The installed helper's two commands. inspect has no side effects, including no app launch. */
+export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<void> {
+  const [action, installDir, arch] = args;
+  if (!installDir || (arch !== "x64" && arch !== "arm64") || (action !== "inspect" && action !== "finish")) throw new Error("usage: storytree-deliver inspect|finish <installation directory> x64|arm64");
+  if (process.platform !== "win32" || process.arch !== arch || process.versions.node.split(".")[0] !== "24") throw new Error("The bundled Node runtime does not match this Windows installation");
+  const tools = verifyPayload(installDir, arch);
+  const result = action === "inspect" ? { state: "usable", tools } : await finishDelivery({ installDir, arch, home: storytreeHome(), searchPath: process.env.PATH ?? "" });
+  process.stdout.write(JSON.stringify(result) + "\n");
+}

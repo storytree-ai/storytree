@@ -7,12 +7,20 @@
 // both the installer and portable exe unpack with) predates that filter. Without this, the exe
 // unpacks every file but the .exe and .dll ones and fails to start. The x86 BCJ filter it decodes.
 import { build } from "electron-builder";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { stageTools } from "./tools.mjs";
+import { deliveryAssets } from "./delivery-assets.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
 const version = process.env.STORYTREE_RELEASE_VERSION;
 if (version !== undefined && !/^\d+\.\d+\.\d+$/.test(version)) throw new Error("Invalid release version");
+await stageTools();
 await build({
   win: [], // use package.json's per-target architectures, even when packaging from another OS
   publish: "never",
   ...(version === undefined ? {} : { config: { extraMetadata: { version } } }),
 });
+const here = path.dirname(fileURLToPath(import.meta.url));
+deliveryAssets(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);

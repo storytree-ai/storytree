@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -97,6 +98,9 @@ test("1.6: command conflicts of every Windows executable kind are named and left
     assert.equal(result.status, "installed");
     assert.ok(readFileSync(result.file, "utf8").includes(`"${f.tools.node}" "${f.tools.cli}"`));
     assert.equal(result.pathEntry, path.join(f.home, "bin"));
+    const nonDirectory = path.join(f.dir, "not a PATH directory");
+    writeFileSync(nonDirectory, "ordinary file");
+    assert.equal(installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: nonDirectory }).status, "already installed");
   } finally { f.close(); }
 });
 
@@ -110,5 +114,18 @@ test("1.1: a payload cannot bless a missing entry point or a path outside its in
     manifest.files["../outside"] = createHash("sha256").update("secret").digest("hex");
     writeFileSync(file, JSON.stringify(manifest));
     assert.throws(() => verifyPayload(f.install, "arm64", "win32"), /payload|outside|setup/i);
+  } finally { f.close(); }
+});
+
+test("1.6: a fresh shell runs the installed command with spaces and preserves its exit code", () => {
+  const f = fixture();
+  try {
+    writeFileSync(f.tools.cli, 'console.log(JSON.stringify(process.argv.slice(2))); process.exitCode = 23;');
+    const installed = installCommand({ home: f.home, tools: { ...f.tools, node: process.execPath }, searchPath: "" });
+    const result = spawnSync('storytree "an argument with spaces"', {
+      shell: true, cwd: f.dir, env: { ...process.env, PATH: installed.pathEntry, Path: installed.pathEntry }, encoding: "utf8",
+    });
+    assert.equal(result.status, 23, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), ["an argument with spaces"]);
   } finally { f.close(); }
 });

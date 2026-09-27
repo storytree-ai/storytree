@@ -1,0 +1,2 @@
+{"arch":"x64","node":"24.21.0","files":20,"chunks":13,"peMachine":"8664"}
+{"arch":"arm64","node":"24.21.0","files":20,"chunks":13,"peMachine":"aa64"}

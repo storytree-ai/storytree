@@ -10,7 +10,7 @@
     "start": "node build.mjs && electron .",
     "smoke": "node build.mjs && electron . --smoke --screenshot smoke.png",
     "typecheck": "tsc -p .",
-    "dist": "node build.mjs && node dist.mjs"
+    "dist": "node build.mjs && node --import tsx dist.mjs"
   },
   "devDependencies": {
     "@storytree/agent-link": "workspace:*",
@@ -40,6 +40,7 @@
       "dist/**/*",
       "!dist/LICENSE",
       "!dist/**/*.map",
+      "!dist/agent-tools/**/*",
       "package.json",
       "!node_modules/**/*"
     ],
@@ -51,6 +52,10 @@
       {
         "from": "node_modules/@embedded-postgres/windows-x64/native",
         "to": "postgres"
+      },
+      {
+        "from": "dist/agent-tools/${arch}",
+        "to": "agent-tools"
       }
     ],
     "npmRebuild": false,

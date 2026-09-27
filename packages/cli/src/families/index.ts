@@ -4,6 +4,7 @@
  */
 import type { Family } from "../door.js";
 import { library } from "./library.js";
+import { plan } from "./tree.js";
 
 /** Not built yet: this increment builds it next. */
 const BEING_BUILT = "it is being built (0-3-cli-build)";
@@ -27,5 +28,5 @@ export const FAMILIES: readonly Family[] = [
     verbs: [],
     waitsOn: "it waits on the agent link's capture functions (0-3-agent-link-cli-seams)",
   },
-  { name: "tree", summary: "the plan as a tree, with each part's reported health", verbs: [], waitsOn: BEING_BUILT },
+  plan,
 ];

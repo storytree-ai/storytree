@@ -13,7 +13,7 @@
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import { route } from "@storytree/agent-link";
+import { openActivityLog, readClaims, route, type Claim } from "@storytree/agent-link";
 import type { Library, Storytree } from "@storytree/library";
 
 import { Refusal, render, type Answer } from "./answer.js";
@@ -32,6 +32,8 @@ export interface Context {
   readonly cwd: string;
   /** The project's library: the project the folder belongs to, on the running storytree. */
   library(): Promise<Library>;
+  /** Who holds what in the project right now: the agent link's reading of its activity log. */
+  claims(): Promise<Claim[]>;
 }
 
 /** One verb of a family: `storytree <family> <name> …`. */
@@ -60,7 +62,7 @@ export interface Family {
 export async function run(argv: readonly string[], io: Io): Promise<number> {
   const opened = new Opened(io.cwd);
   try {
-    const answer = await dispatch(argv, { cwd: io.cwd, library: () => opened.library() });
+    const answer = await dispatch(argv, { cwd: io.cwd, library: () => opened.library(), claims: () => opened.claims() });
     io.out(render(answer));
     return 0;
   } catch (error) {
@@ -126,7 +128,25 @@ class Opened {
     return (this.#library ??= this.#open());
   }
 
+  async claims(): Promise<Claim[]> {
+    const where = this.#routed();
+    const log = await openActivityLog(where.url);
+    try {
+      return await readClaims(log, where.project);
+    } finally {
+      await log.close();
+    }
+  }
+
   async #open(): Promise<Library> {
+    const where = this.#routed();
+    const { connect } = await import("@storytree/library");
+    this.#storytree = connect({ url: where.url });
+    return (await this.#storytree).openProject(where.project);
+  }
+
+  /** The project and storytree's address, or the refusal saying why there are none. */
+  #routed(): { project: string; url: string } {
     const where = route(this.#cwd);
     if (where.status === "not-a-project") {
       throw new Refusal(`${where.message}: no .storytree.json in ${this.#cwd} or any folder above it`, {
@@ -136,9 +156,7 @@ class Opened {
     if (where.status === "not-running") {
       throw new Refusal(`${where.message}: open the storytree app, then run this again`);
     }
-    const { connect } = await import("@storytree/library");
-    this.#storytree = connect({ url: where.url });
-    return (await this.#storytree).openProject(where.project);
+    return where;
   }
 
   async close(): Promise<void> {

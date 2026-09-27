@@ -108,8 +108,15 @@ test("6.4 the shared server lists and calls every librarian verb, attributes wri
     const graduated = await write("graduate", { memory: durable, kind: "definition", fields: { term: "Library", meaning: "The single copy" } }, "after-clear");
     assert.equal((await fields(library, graduated.id as string)).meaning, "The single copy");
     assert.ok(!existsSync(durable));
-    await write("route", { friction: friction.id, route: "tool", reason: "The missing verb is now served" });
+    const historyBeforeRoute = await library.history();
+    const unparked = await call(client, "route", { friction: friction.id, route: "tool", reason: "Build the missing verb" });
+    assert.equal(unparked.isError, true);
+    assert.deepEqual(await library.history(), historyBeforeRoute);
+    await write("route", { friction: friction.id, route: "tool", reason: "The missing verb is now served", dischargedBy: "  #42  " });
     assert.equal((await fields(library, friction.id)).route, "tool");
+    assert.equal((await fields(library, friction.id)).dischargedBy, "#42");
+    await write("route", { friction: friction.id, route: "tool", reason: "Clarify the delivered remedy" });
+    assert.equal((await fields(library, friction.id)).dischargedBy, "#42");
     const before = await library.history();
     const refused = await call(client, "correct", { id: narrowing.id, fields: { status: "proposed" } });
     assert.equal(refused.isError, true);

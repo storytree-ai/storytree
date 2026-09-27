@@ -79,9 +79,38 @@ test("5.3 route records the routing judgement with its reason, and refuses a rou
     await assert.rejects(route(library, report.id, "tool", " "), /reason/);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
-    await route(library, report.id, "tool", "The seed could reach the app's running Postgres instead of refusing.");
+    await route(library, report.id, "nothing", "The app was open; no remedy is needed.");
     const [found] = await library.search("Seed refused");
-    assert.equal(found?.type === "friction" ? found.fields.route : undefined, "tool");
-    assert.equal(found?.type === "friction" ? found.fields.routeReason : undefined, "The seed could reach the app's running Postgres instead of refusing.");
+    assert.equal(found?.type === "friction" ? found.fields.route : undefined, "nothing");
+    assert.equal(found?.type === "friction" ? found.fields.routeReason : undefined, "The app was open; no remedy is needed.");
+  });
+});
+
+test("5.4 a tool route needs an open increment naming this friction, unless a delivered remedy is stamped", async () => {
+  await withLibrary(async (library) => {
+    const report = await friction(library, "Seed refused", "claude/other");
+    const arc = await library.createArc({ title: "Seeding", intent: "Seed live", endState: "Seed works" });
+    const increment = { arc: arc.id, title: "Fix seeding", objective: "Use running Postgres", body: "Build the fix" };
+    await library.addIncrement(increment); // An unrelated live increment proves nothing.
+    await library.addIncrement({ ...increment, remedies: [report.id], outcome: { disposition: "landed", pr: "#1" } });
+    const history = await library.history();
+    await assert.rejects(route(library, report.id, "tool", "Fix seeding"), /live increment.*remedies/);
+    assert.deepEqual(await library.history(), history, "neither an unrelated nor a closed increment permits a forward route");
+
+    const remedy = await library.addIncrement({ ...increment, remedies: [report.id] });
+    const routed = await route(library, report.id, "tool", "Fix seeding", { actor: "session:curator" });
+    assert.equal(routed.fields.route, "tool");
+    assert.equal(routed.fields.dischargedBy, undefined);
+    assert.equal((await library.history({ id: report.id })).at(-1)?.actor, "session:curator");
+    await library.closeIncrement(remedy.id, { disposition: "landed", pr: "#2" });
+
+    const delivered = await route(library, report.id, "tool", "Fix landed", { dischargedBy: "  #2  " });
+    assert.equal(delivered.fields.dischargedBy, "#2", "an already-routed report accepts a later, trimmed delivery stamp");
+    const preserved = await route(library, report.id, "tool", "Clarify the delivered fix");
+    assert.equal(preserved.fields.dischargedBy, "#2", "omitting the stamp preserves it and exempts delivered work from the open-increment fence");
+    assert.equal(preserved.fields.evidence, report.fields.evidence);
+    const afterDelivery = await library.history();
+    await assert.rejects(route(library, report.id, "tool", "Blank reference", { dischargedBy: " \n " }), /dischargedBy.*non-empty/);
+    assert.deepEqual(await library.history(), afterDelivery);
   });
 });

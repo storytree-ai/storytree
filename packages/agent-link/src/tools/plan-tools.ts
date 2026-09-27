@@ -165,20 +165,27 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
   const { lines } = await log.since(project, 0);
   const claims = claimsFrom(lines, { quietMs });
   const sessions = sessionsFrom(lines, { quietMs });
-  const holderOf = new Map(claims.map((claim) => [claim.capability, claim]));
+  const holderOf = new Map(claims.map((claim) => [claim.capability ?? claim.increment, claim]));
+  const heldBy = (id: string) => {
+    const claim = holderOf.get(id);
+    return claim === undefined ? "nobody holds it" : `held by ${claim.label} ${claim.session}${claim.holder === "idle" ? " (idle)" : ""}: ${claim.reason}`;
+  };
 
   const out: string[] = [];
   if (tree.stories.length === 0) out.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
   for (const story of tree.stories) {
     out.push(`Story ${quoted(story.title)} (${story.id}): ${healthOf(story.health)}`);
     for (const capability of story.capabilities) {
-      const claim = holderOf.get(capability.id);
-      const held = claim === undefined ? "nobody holds it" : `held by ${claim.label} ${claim.session}${claim.holder === "idle" ? " (idle)" : ""}: ${claim.reason}`;
-      out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${held}`);
+      out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);
     }
   }
-  for (const arc of tree.arcs) out.push(`Arc ${quoted(arc.title)} (${arc.id}) grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+  for (const arc of tree.arcs) {
+    out.push(`Arc ${quoted(arc.title)} (${arc.id}) grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+    for (const increment of (await library.arcView(arc.id))?.increments ?? []) {
+      out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
+    }
+  }
   out.push(
     sessions.length === 0
       ? "No sessions yet."
@@ -189,7 +196,7 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
     data: {
       stories: tree.stories,
       arcs: tree.arcs,
-      claims: claims.map(({ capability, session, label, reason, since, holder }) => ({ capability, session, label, reason, since, holder })),
+      claims,
       sessions,
     },
   };

@@ -1,19 +1,15 @@
 // `pnpm library:export`: print the project `storytree` in the desktop app's library
-// (~/.storytree/0.3/pgdata) as this repo's story and decision files, into library-export/ (which git
-// ignores), and check the printout against the committed stories/*.md and decisions/*.md
-// (ADR-0641 D2 step 1). It reads the library and writes nothing to it.
+// (~/.storytree/0.3/pgdata) as story and decision files, into library-export/stories/ and
+// library-export/decisions/ (which git ignores). They are read-only copies, for reading the plan
+// outside the app: the library is the one copy of 0.3's own stories and decisions (ADR-0641 D2
+// step 4, choice F1), and nothing is ever read back from these files. It reads the library and
+// writes nothing to it.
 //
-// library-export/stories/ and library-export/decisions/ hold the printout, and
-// library-export/round-trip.md the check: for each committed file, each block only it holds
-// ("missing") and each only the printout holds ("extra"), under its section. The missing blocks are
-// the worklist for moving the story text into the library (ADR-0641 D2 step 2). A difference is a
-// report, not a failure: the command exits 0 whenever it could read the library.
-//
-// Like `pnpm seed:library`, it starts the app's Postgres on the app's own data directory and stops
-// it again, so while the app is running and holds that directory it says so and exits non-zero:
-// quit the app first. The rules for printing and comparing live in scripts/library-export.mjs.
+// It starts the app's Postgres on the app's own data directory and stops it again, so while the
+// app is running and holds that directory it says so and exits non-zero: quit the app first. The
+// rules for printing live in scripts/library-export.mjs.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,7 +17,7 @@ import { connect } from "@storytree/library";
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { APP_OWNER, appHome } from "../apps/desktop/src/home.ts";
-import { blocksOf, exportLibrary, roundTrip } from "./library-export.mjs";
+import { exportLibrary } from "./library-export.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const PROJECT = "storytree";
@@ -86,55 +82,6 @@ async function main() {
     mkdirSync(path.dirname(path.join(out, file)), { recursive: true });
     writeFileSync(path.join(out, file), text);
   }
-  console.log(`\nprinted ${printed.size} files into ${OUT}/`);
-
-  const committed = new Map(["stories", "decisions"].flatMap((dir) => markdownIn(dir).map((file) => [file, readFileSync(path.join(root, file), "utf8")])));
-  const diffs = roundTrip(committed, printed);
-  writeFileSync(path.join(out, "round-trip.md"), report(diffs));
-
-  const words = (blocks) => blocks.reduce((sum, { words: count }) => sum + count, 0);
-  console.log(`\nround trip against the committed files (${OUT}/round-trip.md has every block):`);
-  console.log(`  ${"file".padEnd(42)} ${"words".padStart(6)} ${"missing".padStart(16)} ${"extra".padStart(16)}`);
-  for (const { file, printedAs, missing, extra } of diffs) {
-    const size = committed.has(file) ? String(words(blocksOf(committed.get(file)))) : "";
-    const name = printedAs !== undefined && printedAs !== file ? `${file} (${path.basename(printedAs)})` : file;
-    console.log(
-      `  ${name.padEnd(42)} ${size.padStart(6)} ${`${missing.length} / ${words(missing)} w`.padStart(16)} ${`${extra.length} / ${words(extra)} w`.padStart(16)}`,
-    );
-  }
-  const empty = diffs.every(({ missing, extra }) => missing.length === 0 && extra.length === 0);
-  console.log(empty ? "\nThe round trip is empty." : "\nmissing: blocks only the committed file holds; extra: blocks only the printout holds (blocks / words).");
+  console.log(`\nprinted ${printed.size} files into ${OUT}/: read-only copies; the library is the one copy`);
   return 0;
-}
-
-/** The round trip as markdown: each file's missing and extra blocks, verbatim, under their sections. */
-function report(diffs) {
-  const out = ["# Round trip: the committed files against the library's printout", ""];
-  for (const { file, printedAs, missing, extra } of diffs) {
-    if (missing.length === 0 && extra.length === 0) continue;
-    out.push(`## ${file}${printedAs !== undefined && printedAs !== file ? ` (printed as ${printedAs})` : ""}`, "");
-    for (const [label, list] of [["Missing (only the file holds it)", missing], ["Extra (only the printout holds it)", extra]]) {
-      if (list.length === 0) continue;
-      out.push(`### ${label}: ${list.length} blocks, ${list.reduce((sum, { words }) => sum + words, 0)} words`, "");
-      let section;
-      for (const block of list) {
-        if (block.section !== section) {
-          section = block.section;
-          out.push(`In \`${section || "(before any heading)"}\`:`, "");
-        }
-        out.push("````md", block.raw, "````", "");
-      }
-    }
-  }
-  return `${out.join("\n")}\n`;
-}
-
-/** The .md files in the repo's `dir`, as repo paths (`stories/library.md`), sorted; none if it does not exist. */
-function markdownIn(dir) {
-  const full = path.join(root, dir);
-  if (!existsSync(full)) return [];
-  return readdirSync(full)
-    .filter((name) => name.endsWith(".md"))
-    .sort()
-    .map((name) => `${dir}/${name}`);
 }

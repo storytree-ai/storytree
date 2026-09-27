@@ -11,5 +11,5 @@ dist/
 apps/desktop/release/
 apps/desktop/smoke*.png
 
-# `pnpm library:export`: the library printed as story and decision files, and its round trip
+# `pnpm library:export`: the library printed as read-only story and decision files
 library-export/

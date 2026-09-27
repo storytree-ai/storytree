@@ -10,8 +10,8 @@
  * STORYTREE_HOME, when set, is the home instead: the agent link reads the same variable, so the app
  * and the agents' tools can be pointed at a throwaway home together.
  *
- * The seed script (scripts/seed-library.mjs) imports this too, so the two agree on where
- * the library is.
+ * The repo's library commands (scripts/export-library.mjs, check-own-health.mjs, restore-library.mjs)
+ * import this too, so they agree on where the library is.
  */
 import { homedir } from "node:os";
 import path from "node:path";

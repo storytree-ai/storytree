@@ -1,6 +1,6 @@
-// The export's rules (scripts/library-export.mjs): a project in a library prints back as story and
-// decision files in the repo's layout, and the round-trip check lists, section by section, each
-// block a committed file holds that the printout does not, and each the printout adds. The test
+// The export's rules (scripts/library-export.mjs): a project in a library prints as read-only story
+// and decision files, each note in its place, and printing writes nothing to the library. The test
+// builds its project through the library's public API, as 0.3's own sessions now write stories, and
 // runs against the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), in a project of its own
 // that is dropped afterwards.
 import assert from "node:assert/strict";
@@ -10,135 +10,91 @@ import { test } from "node:test";
 import { connect } from "@storytree/library";
 import pg from "pg";
 
-import { exportLibrary, roundTrip } from "./library-export.mjs";
-import { parseDecision, parseStory, syncDecisions, syncFoundingBooks, syncStory } from "./library-seed.mjs";
+import { exportLibrary } from "./library-export.mjs";
 
-const STORY = [
-  "# Story: the kettle",
-  "",
-  "**What it is.** The kettle boils water for one cup",
-  "or for four.",
-  "",
-  "**Approved** by the owner on 2026-01-01, as drawn.",
-  "",
-  "Build order: 1 → 2.",
-  "",
-  "---",
-  "",
-  "## 1 · Heating",
-  "",
-  "The kettle heats the water in it to the boil.",
-  "",
-  "- **Depends on:** nothing in this story. It heats",
-  "  through the base.",
-  "- **Its shelf,** founding book first:",
-  "  - **Founding book (H1):** it heats with one element,",
-  "    under the base.",
-  "  - A second element waits for a bigger kettle.",
-  "- **As built:** one element, switched by a relay.",
-  "",
-  "**Contracts** (each one a test):",
-  "1. Water in the kettle reaches 100 degrees.",
-  "",
-  "## 2 · Switching off",
-  "",
-  "It switches itself off at the boil.",
-  "",
-  "- **Depends on:** 1.",
-  "",
-  "**Contracts:**",
-  "1. At the boil the kettle switches off.",
-  "",
-  "---",
-  "",
-  "## Also out of this story",
-  "",
-  "- **A whistle** is left out.",
-  "",
-].join("\n");
-
-const DECISION = [
-  "# The kettle is a story of its own",
-  "",
-  "- **Front cover of:** stories/kettle.md",
-  "- **Full record:** ADR-0999 in storytree 0.2's decision log",
-  "",
-  "The kettle is its own story, apart from",
-  "the cup.",
-  "",
-].join("\n");
-
-test("a story and its decision print back from the library, and the round trip lists what only the files hold until it is filed as notes behind its covers", async () => {
+test("a story and its decisions print as files, each note in its place, and printing writes nothing to the library", async () => {
   await withLibrary(async (library) => {
-    const story = parseStory(STORY);
-    const nodes = new Map([["stories/kettle.md", await syncStory(library, story, { source: "stories/kettle.md" })]]);
-    const decisions = [parseDecision(DECISION)];
-    await syncFoundingBooks(library, [{ file: "stories/kettle.md", story }], nodes, decisions);
-    await syncDecisions(library, decisions, nodes);
-    const committed = new Map([
-      ["stories/kettle.md", STORY],
-      ["decisions/kettle-own-story.md", DECISION],
-    ]);
-
-    const { cursor } = await library.changesSince(0);
-    const before = roundTrip(committed, await exportLibrary(library));
-    assert.deepEqual((await library.changesSince(cursor)).changes, [], "the export writes nothing to the library");
-
-    const brief = (blocks) => blocks.map(({ section, text }) => [section, text]);
-    const story1 = before.find(({ file }) => file === "stories/kettle.md");
-    assert.deepEqual(brief(story1.missing), [
-      ["# Story: the kettle", "**Approved** by the owner on 2026-01-01, as drawn."],
-      ["# Story: the kettle", "Build order: 1 → 2."],
-      ["## 1 · Heating", "- **Depends on:** nothing in this story. It heats through the base."],
-      ["## 1 · Heating", "  - A second element waits for a bigger kettle."],
-      ["## 1 · Heating", "- **As built:** one element, switched by a relay."],
-      ["## 1 · Heating", "**Contracts** (each one a test):"],
-      ["## Also out of this story", "## Also out of this story"],
-      ["## Also out of this story", "- **A whistle** is left out."],
-    ]);
-    assert.deepEqual(
-      brief(story1.extra),
-      [
-        ["## 1 · Heating", "- **Depends on:** nothing in this story."],
-        ["## 1 · Heating", "**Contracts:**"],
-      ],
-      "the story's outline, its founding book and its contracts print back as the file has them, but for the words the library has no place for",
-    );
-    assert.equal(story1.missing[4].words, 8, "words are counted without the markup");
-    const decision = before.find(({ file }) => file === "decisions/kettle-own-story.md");
-    assert.deepEqual([decision.missing, decision.extra], [[], []], "a decision prints back whole, found by its full record");
-
-    // Placing each block as a memory note, its text the block as the file writes it: behind the
-    // story's founding cover for an opening block or a closing `##` section, and behind the
-    // capability's for a block of its section. A note starting with a line the export makes
-    // (`- **Depends on:**`, `**Contracts**`) takes that line's place.
-    const [storyCover] = await library.frontCovers((await library.projectTree()).stories[0].id);
-    const [heating] = (await library.projectTree()).stories[0].capabilities;
-    const [heatingCover] = await library.frontCovers(heating.id);
+    const story = await library.addStory({ title: "The kettle", description: "The kettle boils water." });
+    const heating = await library.addCapability({ story: story.id, title: "1 · Heating", description: "It heats the water." });
+    const switching = await library.addCapability({ story: story.id, title: "2 · Switching off", description: "It switches off.", dependsOn: [heating.id] });
+    await library.addContract({ capability: heating.id, title: "1.1 · Water reaches 100 degrees" });
+    await library.addContract({ capability: switching.id, title: "2.1 · At the boil it switches off" });
+    const storyCover = await library.recordDecision({
+      title: "The kettle is a story of its own",
+      text: "It is, apart from the cup.\n\nFull record: ADR-0999 in storytree 0.2's decision log.",
+      status: "accepted",
+      frontCoverOf: story.id,
+    });
+    const book = await library.recordDecision({
+      title: "1 · Heating: founding book (H1)",
+      text: "it heats with one element.\n\nFounding book of stories/kettle.md, capability 1.",
+      status: "accepted",
+      frontCoverOf: heating.id,
+    });
+    await library.recordDecision({ title: "The whole project is PolyForm", text: "It is.\n\nFull record: ADR-0998 in storytree 0.2's decision log.", status: "accepted" });
     const behind = (cover, text) => library.writeMemory({ text, links: [cover.id] });
     await behind(storyCover, "**Approved** by the owner on 2026-01-01, as drawn.");
-    await behind(storyCover, "Build order: 1 → 2.");
     await behind(storyCover, "## Also out of this story\n\n- **A whistle** is left out.");
-    await behind(heatingCover, "- **Depends on:** nothing in this story. It heats\n  through the base.");
-    await behind(heatingCover, "  - A second element waits for a bigger kettle.");
-    await behind(heatingCover, "- **As built:** one element, switched by a relay.");
-    await behind(heatingCover, "**Contracts** (each one a test):");
+    await behind(book, "- **Depends on:** nothing in this story. It heats\n  through the base.");
+    await behind(book, "  - A second element waits for a bigger kettle.");
+    await behind(book, "- **As built:** one element, switched by a relay.");
+    await behind(book, "A paragraph about the element.");
+    await behind(book, "**Contracts** (each one a test):");
 
+    const { cursor } = await library.changesSince(0);
     const printed = await exportLibrary(library);
-    const after = roundTrip(committed, printed);
-    assert.deepEqual(
-      after.map(({ file, missing, extra }) => [file, missing.length, extra.length]),
-      [["stories/kettle.md", 0, 0], ["decisions/kettle-own-story.md", 0, 0]],
+    assert.deepEqual((await library.changesSince(cursor)).changes, [], "the export writes nothing to the library");
+
+    assert.deepEqual([...printed.keys()].sort(), ["decisions/adr-0998.md", "decisions/adr-0999.md", "stories/kettle.md"]);
+    assert.equal(
+      printed.get("stories/kettle.md"),
+      [
+        "# Story: the kettle",
+        "",
+        "**What it is.** The kettle boils water.",
+        "",
+        "**Approved** by the owner on 2026-01-01, as drawn.",
+        "",
+        "---",
+        "",
+        "## 1 · Heating",
+        "",
+        "It heats the water.",
+        "",
+        "- **Depends on:** nothing in this story. It heats",
+        "  through the base.",
+        "- **Its shelf,** founding book first:",
+        "  - **Founding book (H1):** it heats with one element.",
+        "  - A second element waits for a bigger kettle.",
+        "- **As built:** one element, switched by a relay.",
+        "",
+        "A paragraph about the element.",
+        "",
+        "**Contracts** (each one a test):",
+        "1. Water reaches 100 degrees",
+        "",
+        "## 2 · Switching off",
+        "",
+        "It switches off.",
+        "",
+        "- **Depends on:** 1.",
+        "",
+        "**Contracts:**",
+        "1. At the boil it switches off",
+        "",
+        "---",
+        "",
+        "## Also out of this story",
+        "",
+        "- **A whistle** is left out.",
+        "",
+      ].join("\n"),
     );
-    const text = printed.get("stories/kettle.md");
-    assert.ok(
-      text.indexOf("**Approved**") < text.indexOf("## 1 · Heating") &&
-        text.indexOf("through the base.") < text.indexOf("**Its shelf,**") &&
-        text.indexOf("(each one a test):\n1. Water") > text.indexOf("**As built:**") &&
-        text.indexOf("A second element") < text.indexOf("**As built:**") &&
-        text.indexOf("## 2 · Switching off") < text.indexOf("## Also out of this story"),
-      `each note prints in its place:\n${text}`,
+    assert.equal(
+      printed.get("decisions/adr-0999.md"),
+      "# The kettle is a story of its own\n\n- **Front cover of:** stories/kettle.md\n- **Full record:** ADR-0999 in storytree 0.2's decision log\n\nIt is, apart from the cup.\n",
     );
+    assert.match(printed.get("decisions/adr-0998.md"), /^- \*\*Front cover of:\*\* none$/m, "a decision on no shelf says so");
   });
 });
 
@@ -166,25 +122,3 @@ async function withLibrary(body) {
     }
   }
 }
-
-test("a story file named apart from its story's title pairs with its printout by the title line", () => {
-  const file = ["# Story: the command line", "", "**What it is.** It types.", ""].join("\n");
-  const diffs = roundTrip(new Map([["stories/cli.md", file]]), new Map([["stories/command-line.md", file]]));
-  assert.deepEqual(
-    diffs.map(({ file: name, printedAs, missing, extra }) => [name, printedAs, missing.length, extra.length]),
-    [["stories/cli.md", "stories/command-line.md", 0, 0]],
-  );
-});
-
-test("a decision covering a story file named apart from its title compares under the committed file name", () => {
-  const story = ["# Story: the command line", "", "**What it is.** It types.", ""].join("\n");
-  const decision = (file) => ["# It is a front door", "", `- **Front cover of:** ${file}, capability 2`, "- **Full record:** ADR-0645", "", "It is.", ""].join("\n");
-  const diffs = roundTrip(
-    new Map([["stories/cli.md", story], ["decisions/front-door.md", decision("stories/cli.md")]]),
-    new Map([["stories/command-line.md", story], ["decisions/adr-0645.md", decision("stories/command-line.md")]]),
-  );
-  assert.deepEqual(
-    diffs.map(({ file, missing, extra }) => [file, missing.length, extra.length]),
-    [["stories/cli.md", 0, 0], ["decisions/front-door.md", 0, 0]],
-  );
-});

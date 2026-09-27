@@ -93,12 +93,14 @@ const LIBRARY_API = [
  * WaitLoopError with capability 11: how a wait that would close a loop is refused, and
  * RetireRefusedError with capability 12: how retiring a question work is held on is refused.
  * NumberTakenError and SupersessionLoopError joined it with capability 13: how a decision number
- * already held, and a decision superseding itself, are refused.
+ * already held, and a decision superseding itself, are refused. LinkLoopError joined it with
+ * contract 9.4: how a note link that would close a loop is refused (ADR-0647 D2).
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
   "DependencyLoopError",
   "LifecycleError",
+  "LinkLoopError",
   "MissingReferenceError",
   "MissingUpgradeError",
   "NewerSchemaError",

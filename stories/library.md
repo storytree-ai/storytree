@@ -74,6 +74,10 @@ the server, and nothing written in one project can ever show up in another.
     project database gets its own tables, and a schema change reaches each one.
 - **Leaves out (vs 0.2):** Cloud SQL and Google sign-in (that is capability 8), credential
   hydration, the remote store door, 0.2's single shared database with no idea of a project.
+- **Snapshots** (ADR-0641 D2 step 4, choice B1): once a project's library is the only copy of its
+  plan, a snapshot of the whole project, records and history, is its backup. A snapshot restores
+  only into an empty project, so it can never overwrite live edits. The app takes them (the app
+  story's Lifecycle, contract 8).
 
 **Contracts** (each one a test):
 1. `openProject("site")` on a server with no storytree databases creates the project's database and
@@ -86,6 +90,13 @@ the server, and nothing written in one project can ever show up in another.
 5. A project name that is not lower-case letters, digits and single hyphens (1–40 characters,
    starting with a letter or digit) is refused before anything touches the server, and the error
    names the rule.
+6. `snapshot("site")` returns every record of the project and its whole history, as they stood at
+   one moment, while writes go on.
+7. `restore("copy", snapshot)` into a project with no records and no history gives back the same
+   records and the same history, sequence numbers, actors and times included, and the next write
+   continues after them.
+8. Restoring into a project that holds any record or any history is refused, naming the project, and
+   writes nothing.
 
 ## 2 · Library transactions
 
@@ -558,6 +569,8 @@ A sketch, not a promise of exact signatures. The shape is fixed by the contracts
 const storytree = await connect({ url: "postgres://localhost:5432/postgres" }); // 1 (or a cloud config, 8)
 await storytree.listProjects();                        // ["my-website"]
 const lib = await storytree.openProject("my-website"); // 1: created the first time
+const kept = await storytree.snapshot("my-website");      // 1: records and history, to keep as a file
+await storytree.restore("my-website-copy", kept);        // 1: only into an empty project
 
 const story = await lib.addStory({ title: "Visitor can sign up" }, { actor: "person:Sam" }); // 4, 7
 const arc   = await lib.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] }); // 4, 10

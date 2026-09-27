@@ -138,6 +138,8 @@ database is and how to open the app, which is how an agent's session finds it or
 6. With storytree closed, an agent's session start opens it.
 7. Closing the window leaves the app and its database running, and the tray's Quit is the one way
    to stop them: it stops the database once, and the app exits only after it has stopped.
+8. When the app starts, and once a day while it runs, it writes a snapshot of each project to
+   `~/.storytree/0.3/backups/<project>/`, keeping that project's newest 14 (ADR-0641 B1).
 
 ## 2 · Storytree projects
 

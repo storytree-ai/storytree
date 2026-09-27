@@ -289,7 +289,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
       assert.equal(existsSync(path.join(folder, MARKER_FILE)), false);
       assert.equal((await storytree.listProjects()).includes(name), false);
 
-      await setUpProject({ folder, project: name, storytree }); // the terminal's explicit yes
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome }); // the terminal's explicit yes
       const ready = await runSetupCheck({ ...options, gh: async () => "signed in" as const });
       assert.deepEqual(ready.project, { status: "set up", name });
       assert.equal(ready.lines.find((line) => line.check === "project")?.state, "ok");

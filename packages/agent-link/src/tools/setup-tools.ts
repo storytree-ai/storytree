@@ -94,7 +94,10 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       });
       if (running.state === "not running") return result({ text: NOT_RUNNING_ANSWER });
       try {
-        await setUpProject({ folder, project: name, storytree: await connections.server(running.url) });
+        await setUpProject({
+          folder, project: name, storytree: await connections.server(running.url),
+          ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
+        });
         const { log } = await connections.reach(running.url, name);
         await log.append(name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "set_up_project" });
         return result({ text: `This folder is now storytree project ${quoted(name)}. Call check_setup to finish the setup.`, data: { project: name } });

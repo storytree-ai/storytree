@@ -72,7 +72,7 @@ try {
   const folder = path.join(home, 'site');
   mkdirSync(folder);
   const before = Date.now();
-  await setUpProject({ folder, project: 'my-site', storytree: library });
+  await setUpProject({ folder, project: 'my-site', storytree: library, storytreeHome: home });
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site', undefined, { timeout: 30000 });
   const firstProjectMs = Date.now() - before;
   assert.equal(await page.locator('#project').inputValue(), 'my-site');
@@ -90,7 +90,7 @@ try {
   assert.equal(await page.evaluate(() => window.originalCanvas === document.querySelector('canvas')), true);
   const second = path.join(home, 'other');
   mkdirSync(second);
-  await setUpProject({ folder: second, project: 'other-site', storytree: library });
+  await setUpProject({ folder: second, project: 'other-site', storytree: library, storytreeHome: home });
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'other-site', undefined, { timeout: 30000 });
   await page.selectOption('#project', 'my-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.querySelector('#project').value === 'other-site');

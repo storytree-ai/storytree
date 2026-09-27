@@ -1,19 +1,13 @@
 /** Storytree projects (app 2): the remembered picker choice and the current list. */
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readProjectChoice, recordProjectChoice } from "@storytree/agent-link";
 
 export interface ProjectSelection {
   projects: string[];
   current: string | undefined;
 }
 
-interface Remembered {
-  projects: string[];
-  current?: string;
-}
-
-/** One app owns this file. Reads and choices are serialized so an older read cannot undo a click. */
+/** Setup and the app share the choice record. Passive reads never write over a user's choice. */
 export function projectSelection({ listProjects, file }: { listProjects(): Promise<string[]>; file: string }) {
-  let remembered = load(file);
   let requested: string | undefined;
   let queue = Promise.resolve();
 
@@ -29,22 +23,14 @@ export function projectSelection({ listProjects, file }: { listProjects(): Promi
       throw new Error(`there is no project called ${JSON.stringify(choice)}`);
     }
     if (choice !== undefined) requested = choice;
-    const added = remembered === undefined ? [] : projects.filter((name) => !remembered!.projects.includes(name));
-    const previous = remembered?.current;
-    // With one arrival, the existing setup flow's new database is enough to observe the yes.
-    // A batch of arrivals has no ordering in listProjects; keep the existing choice in that case.
-    const current = requested ?? (added.length === 1 ? added[0] : undefined)
+    // Read after the async query: setup may have completed while that query was in flight.
+    const previous = readProjectChoice(file);
+    const current = requested
       ?? (previous !== undefined && projects.includes(previous) ? previous : projects[0]);
-    const next: Remembered = {
-      projects,
-      ...(current !== undefined && projects.includes(current) ? { current } : previous === undefined ? {} : { current: previous }),
-    };
-    if (JSON.stringify(next) !== JSON.stringify(remembered)) {
-      writeFileSync(`${file}.tmp`, `${JSON.stringify(next)}\n`, "utf8");
-      renameSync(`${file}.tmp`, file);
-      remembered = next;
+    if (requested !== undefined && projects.includes(requested)) {
+      recordProjectChoice(file, requested);
+      requested = undefined;
     }
-    if (current !== undefined && projects.includes(current)) requested = undefined;
     return { projects, current };
   }
 
@@ -55,21 +41,4 @@ export function projectSelection({ listProjects, file }: { listProjects(): Promi
       return read(name, true);
     }),
   };
-}
-
-function load(file: string): Remembered | undefined {
-  let text: string;
-  try {
-    text = readFileSync(file, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-    throw error;
-  }
-  try {
-    const value: unknown = JSON.parse(text);
-    if (value !== null && typeof value === "object" && "projects" in value
-      && Array.isArray(value.projects) && value.projects.every((name) => typeof name === "string")
-      && (!("current" in value) || typeof value.current === "string")) return value as Remembered;
-  } catch { /* An interrupted/old preference is not a reason to hide the projects. */ }
-  return undefined;
 }

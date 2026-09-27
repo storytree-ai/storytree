@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
 import pg from "pg";
+import * as seed from "./library-seed.mjs";
 
 import {
   contractsCoveredBy,
@@ -68,13 +69,19 @@ test("parseStory takes capabilities in the build order's order, then any it leav
   );
 });
 
-test("parseStory regression: the CLI seed incident keeps its own dependencies, not another story's capability numbers", () => {
-  for (const [depends, expected] of [
-    ["1, 2, and the library's 2, 3, 6, 7 and 9.", [1, 2]],
-    ["1 and the agent link's capabilities 4 and 5.", [1]],
-    ["the library's API, its 7, and the agent link's project routing, its 1.", []],
-    ["1, 2 and the arc surface’s 3.", [1, 2]],
-    ["2, for the project on show, and 1.", [2, 1]],
+test("parseStory regression: the pathways seed incident keeps local and cross-story capability numbers separate", () => {
+  for (const [depends, expected, crossStory] of [
+    ["1, 2, and the library's 2, 3, 6, 7 and 9.", [1, 2], [["library", 2], ["library", 3], ["library", 6], ["library", 7], ["library", 9]]],
+    ["1 and the agent link's capabilities 4 and 5.", [1], [["agent link", 4], ["agent link", 5]]],
+    ["the library's API (its 7), and the agent link's project routing (its 1).", [], [["library", 7], ["agent link", 1]]],
+    ["1, 2 and the arc surface’s 3.", [1, 2], [["arc surface", 3]]],
+    ["2, for the project on show, and 1.", [2, 1], []],
+    ["1, the library's history with a writer (W1), and the agent link's sessions (its 4).", [1], [["agent link", 4]]],
+    ["1, 2, and the library's 10 and 11 (and 12, for the questions shown on an arc).", [1, 2], [["library", 10], ["library", 11], ["library", 12]]],
+    ["1. It reads the agent\n  link's sessions and claims (its capabilities 4 and 5).", [1], [["agent link", 4], ["agent link", 5]]],
+    ["1 and the agent link's `makeWorkspace` (its 5.12-5.14).", [1], [["agent link", 5]]],
+    ["nothing in this story. It reads the library's change history\n  (`changesSince`): each decision's status and `supersedes` (capability 13).", [], [["library", 13]]],
+    ["1; the library API (`stories/library.md`, capability 7).", [1], [["stories/library.md", 7]]],
   ]) {
     const story = parseStory([
       "# Story: a command line",
@@ -88,7 +95,45 @@ test("parseStory regression: the CLI seed incident keeps its own dependencies, n
       `- **Depends on:** ${depends}`,
     ].join("\n"));
     assert.deepEqual(story.capabilities[2].dependsOn, expected, depends);
+    assert.deepEqual(story.capabilities[2].crossStoryDependsOn.map(({ story, number }) => [story, number]), crossStory, depends);
   }
+});
+
+test("syncStories writes cross-story dependencies even when the target file comes later, reruns without writes, and removes obsolete links", async () => {
+  await withLibrary(async (lib) => {
+    const stories = [
+      { file: "stories/client.md", story: parseStory("# Story: the client\n\n## 1 · Setup\n\n## 2 · Read\n\n- **Depends on:** 1 and the record store’s 1 and 2.") },
+      { file: "stories/records.md", story: parseStory("# Story: the record store\n\n## 1 · Store\n\n## 2 · Read\n\n- **Depends on:** 1.") },
+    ];
+    const { synced, crossStoryLinks } = await seed.syncStories(lib, stories);
+    const client = synced.get("stories/client.md").capabilityIds;
+    const records = synced.get("stories/records.md").capabilityIds;
+    const tree = await lib.projectTree();
+    assert.equal(crossStoryLinks, 2);
+    assert.deepEqual(tree.stories[0].capabilities[1].dependsOn, [client.get("1"), records.get("1"), records.get("2")]);
+    const history = await lib.changesSince(0);
+    await seed.syncStories(lib, stories);
+    assert.deepEqual(await lib.changesSince(0), history, "rerunning the seed must not strip and restore cross-story links");
+
+    stories[0].story = parseStory("# Story: the client\n\n## 1 · Setup\n\n## 2 · Read\n\n- **Depends on:** 1.");
+    await seed.syncStories(lib, stories);
+    assert.deepEqual((await lib.projectTree()).stories[0].capabilities[1].dependsOn, [client.get("1")]);
+  });
+});
+
+test("syncStories reports an unknown story or capability with its source before writing anything", async () => {
+  await withLibrary(async (lib) => {
+    for (const [depends, message] of [
+      ["the missing story's 1", /stories\/client\.md.*2 · Read.*unknown story.*missing story/i],
+      ["the record store's 9", /stories\/client\.md.*2 · Read.*record store.*capability 9/i],
+    ]) {
+      await assert.rejects(seed.syncStories(lib, [
+        { file: "stories/client.md", story: parseStory(`# Story: the client\n\n## 1 · Setup\n\n## 2 · Read\n\n- **Depends on:** ${depends}.`) },
+        { file: "stories/records.md", story: parseStory("# Story: the record store\n\n## 1 · Store") },
+      ]), message);
+      assert.equal((await lib.projectTree()).stories.length, 0);
+    }
+  });
 });
 
 test("parseStory keeps heading order when there is no build order, and refuses a build order that puts a capability before one it depends on", () => {

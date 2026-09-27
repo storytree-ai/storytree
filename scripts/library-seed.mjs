@@ -2,7 +2,7 @@
 // story with its capabilities and contracts in a library, how a run of the story's tests becomes
 // each contract's VERIFIED health, and how a decision file (decisions/*.md) becomes a front cover
 // of the story or capability it decided. Everything here but syncStory, recordHealth and
-// syncDecisions, which write through the library's public API, is pure.
+// syncStories and syncDecisions, which write through the library's public API, is pure.
 //
 // Honesty rules for the verified column: a contract passes only if it has tests and every one of
 // them passed. Any failure fails it. A skipped test is not a pass, so a contract with one is not
@@ -22,14 +22,15 @@ export const VERIFIED_BY = "storytree test run";
 /**
  * @typedef {{ number: string, text: string, title: string }} ParsedContract
  * @typedef {{ label?: string, text: string }} FoundingBook
- * @typedef {{ number: number, name: string, title: string, description: string | undefined, dependsOn: number[], contracts: ParsedContract[], foundingBook?: FoundingBook }} ParsedCapability
+ * @typedef {{ story: string, number: number }} CrossStoryDependency
+ * @typedef {{ number: number, name: string, title: string, description: string | undefined, dependsOn: number[], crossStoryDependsOn: CrossStoryDependency[], contracts: ParsedContract[], foundingBook?: FoundingBook }} ParsedCapability
  * @typedef {{ title: string, description: string | undefined, capabilities: ParsedCapability[] }} ParsedStory
  */
 
 /**
  * Read a story file: its `# Story: <name>` title and the paragraph under it; each `## N · Name`
  * heading as a capability, with the first paragraph under it as its description, its
- * `**Depends on:**` line as its dependencies within this story, and the numbered items under `**Contracts**` as its
+ * `**Depends on:**` paragraph as its local and explicitly numbered cross-story dependencies, and the numbered items under `**Contracts**` as its
  * contracts, numbered N.M; and the `**Founding book**` item under its `**Its shelf**` line as its
  * founding book, with the label in brackets that follows the words `Founding book`, if any. Capabilities come in the order the file's `Build order:` line gives
  * (heading order without one), which must put every capability after the ones it depends on.
@@ -69,13 +70,18 @@ function capabilityAt(lines, at, number, name) {
   const first = paragraphAt(section, 0);
   const description = first === undefined || /^(- |\*\*)/.test(first) ? undefined : first;
 
-  const dependsLine = section.find((line) => /^- \*\*Depends on:\*\*/.test(line));
+  const dependsAt = section.findIndex((line) => /^- \*\*Depends on:\*\*/.test(line));
+  const dependsLines = dependsAt < 0 ? [] : [section[dependsAt]];
+  for (let index = dependsAt + 1; dependsAt >= 0 && index < section.length && /^\s+\S/.test(section[index]); index++) {
+    dependsLines.push(section[index].trim());
+  }
+  const depends = dependsLines.join(" ").replace(/^- \*\*Depends on:\*\*/, "");
   // Numbers after another story's name ("the library's 2, 3", including a later "its 7")
   // belong to that story. Keep only our part, also stopping at the first full stop or bracket:
   // "3 (links point at 4's records but do not require them)" depends on 3 alone.
-  const ownDepends = dependsLine?.replace(/^- \*\*Depends on:\*\*/, "")
-    .split(/[.(]|\bthe\s+[^,;.(]*['’]s\b/i)[0] ?? "";
+  const ownDepends = depends.split(/[.(]|\bthe\s+[^,;.(]*['’]s\b/i)[0];
   const dependsOn = [...ownDepends.matchAll(/\d+/g)].map(([digits]) => Number(digits));
+  const crossStoryDependsOn = crossStoryDependencies(depends);
 
   /** @type {ParsedContract[]} */
   const contracts = [];
@@ -91,7 +97,37 @@ function capabilityAt(lines, at, number, name) {
   }
   for (const contract of contracts) contract.title = `${contract.number} · ${contract.text}`;
   const foundingBook = foundingBookIn(section);
-  return { number, name, title: `${number} · ${name}`, description, dependsOn, contracts, ...(foundingBook === undefined ? {} : { foundingBook }) };
+  return { number, name, title: `${number} · ${name}`, description, dependsOn, crossStoryDependsOn, contracts, ...(foundingBook === undefined ? {} : { foundingBook }) };
+}
+
+/** Read only explicit numbers attached to a story name or file, never numbers in ADRs or labels. */
+function crossStoryDependencies(text) {
+  const dependencies = [];
+  const numbers = String.raw`\d+(?:\.\d+)?(?:\s*(?:,\s*(?:and\s+)?|and\s+|[-–]\s*)\d+(?:\.\d+)?)*`;
+  const add = (story, list) => {
+    for (const [number] of list.matchAll(/\d+(?:\.\d+)?/g)) {
+      // A contract reference such as 5.12–5.14 depends on its capability, once.
+      const dependency = { story, number: Math.trunc(Number(number)) };
+      if (!dependencies.some((other) => other.story === story && other.number === dependency.number)) dependencies.push(dependency);
+    }
+  };
+  const names = [...text.matchAll(/\bthe\s+([^,;.(]*?)['’]s\b/gi)];
+  names.forEach((match, index) => {
+    const story = match[1].trim();
+    const words = text.slice(match.index + match[0].length, names[index + 1]?.index);
+    const direct = new RegExp(`^\\s*(?:capabilit(?:y|ies)\\s+)?(${numbers})`).exec(words);
+    if (direct) add(story, direct[1]);
+    for (const reference of words.matchAll(new RegExp(`\\b(?:its\\s+(?:capabilit(?:y|ies)\\s+)?|capabilit(?:y|ies)\\s+)(${numbers})`, "gi"))) {
+      add(story, reference[1]);
+    }
+    if (direct) {
+      for (const extra of words.matchAll(new RegExp(`\\(and\\s+(${numbers})`, "gi"))) add(story, extra[1]);
+    }
+  });
+  for (const [, file, list] of text.matchAll(new RegExp("`(stories/[^`]+\\.md)`,?\\s+capabilit(?:y|ies)\\s+(" + numbers + ")", "gi"))) {
+    add(file, list);
+  }
+  return dependencies;
 }
 
 /**
@@ -371,9 +407,9 @@ function byNumber(a, b) {
  * no longer has are retired. A second run over an unchanged file writes nothing.
  * @param {import("@storytree/library").Library} library
  * @param {ParsedStory} story
- * @param {{ source?: string }} [options] what the story was read from, for the reasons kept in history
+ * @param {{ source?: string, deferDependencies?: boolean }} [options] source for history; syncStories defers links until all targets exist
  */
-export async function syncStory(library, story, { source = "the story file" } = {}) {
+export async function syncStory(library, story, { source = "the story file", deferDependencies = false } = {}) {
   const counts = {
     story: "unchanged",
     capabilities: { added: 0, updated: 0, unchanged: 0, retired: 0 },
@@ -400,7 +436,7 @@ export async function syncStory(library, story, { source = "the story file" } = 
   const contractIds = new Map();
   for (const capability of story.capabilities) {
     const key = String(capability.number);
-    const dependsOn = capability.dependsOn.map((number) => capabilityIds.get(String(number)));
+    const dependsOn = deferDependencies ? [] : capability.dependsOn.map((number) => capabilityIds.get(String(number)));
     const stored = storedCapabilities.get(key);
     let id;
     if (stored === undefined) {
@@ -418,7 +454,7 @@ export async function syncStory(library, story, { source = "the story file" } = 
       const edit = {};
       if (stored.title !== capability.title) edit.title = capability.title;
       if ((stored.description ?? "") !== (capability.description ?? "")) edit.description = capability.description || undefined;
-      if (stored.dependsOn.join(" ") !== dependsOn.join(" ")) edit.dependsOn = dependsOn;
+      if (!deferDependencies && stored.dependsOn.join(" ") !== dependsOn.join(" ")) edit.dependsOn = dependsOn;
       if (Object.keys(edit).length > 0) {
         await library.editCapability(id, edit);
         counts.capabilities.updated++;
@@ -457,6 +493,59 @@ export async function syncStory(library, story, { source = "the story file" } = 
     counts.capabilities.retired++;
   }
   return { storyId, capabilityIds, contractIds, counts };
+}
+
+/**
+ * Seed all stories before their links, so an alphabetically later file can supply a dependency.
+ * Resolve against the files first: unknown or ambiguous story names and missing capability
+ * numbers are errors naming their source, never a guess or a silently dropped link.
+ * @param {import("@storytree/library").Library} library
+ * @param {{ file: string, story: ParsedStory }[]} stories
+ */
+export async function syncStories(library, stories) {
+  const canonical = (name) => name.trim().toLowerCase().replace(/^the\s+/, "").replace(/\s+/g, " ");
+  const resolved = new Map();
+  for (const { file, story } of stories) {
+    for (const capability of story.capabilities) {
+      const targets = capability.crossStoryDependsOn.map((reference) => {
+        const candidates = stories.filter((candidate) => candidate.file === reference.story
+          || canonical(candidate.story.title) === canonical(reference.story));
+        const context = `${file}: ${capability.title}`;
+        if (candidates.length !== 1) {
+          throw new Error(`${context}: ${candidates.length === 0 ? "unknown" : "ambiguous"} story "${reference.story}"`);
+        }
+        const target = candidates[0];
+        if (!target.story.capabilities.some(({ number }) => number === reference.number)) {
+          throw new Error(`${context}: story "${reference.story}" has no capability ${reference.number}`);
+        }
+        return { file: target.file, number: reference.number };
+      });
+      resolved.set(capability, targets);
+    }
+  }
+  const synced = new Map();
+  for (const { file, story } of stories) {
+    synced.set(file, await syncStory(library, story, { source: file, deferDependencies: true }));
+  }
+  const tree = await library.projectTree();
+  const stored = new Map(tree.stories.flatMap((story) => story.capabilities.map((capability) => [capability.id, { ...capability, story: story.id }])));
+  let crossStoryLinks = 0;
+  let dependenciesUpdated = 0;
+  for (const { file, story } of stories) {
+    const own = synced.get(file).capabilityIds;
+    for (const capability of story.capabilities) {
+      const external = resolved.get(capability).map((target) => synced.get(target.file).capabilityIds.get(String(target.number)));
+      const dependsOn = [...new Set([...capability.dependsOn.map((number) => own.get(String(number))), ...external])];
+      const id = own.get(String(capability.number));
+      const current = stored.get(id);
+      crossStoryLinks += dependsOn.filter((dependency) => stored.get(dependency).story !== current.story).length;
+      if (current.dependsOn.join(" ") !== dependsOn.join(" ")) {
+        await library.editCapability(id, { dependsOn });
+        dependenciesUpdated++;
+      }
+    }
+  }
+  return { synced, crossStoryLinks, dependenciesUpdated };
 }
 
 /** `nodes` by the number their titles start with (`N · ` or `N.M · `); nodes without one are left out. */

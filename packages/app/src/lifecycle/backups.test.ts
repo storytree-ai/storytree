@@ -24,7 +24,7 @@ test("1.8 the app writes a snapshot of each project to backups/<project>/, keepi
   const storytree = await connect({ url });
   try {
     const library = await storytree.openProject(site);
-    await library.writeMemory({ text: "Kept by the backup." });
+    await library.defineTerm({ term: "Backup", meaning: "Kept by the backup." });
     await library.close();
     await (await storytree.openProject(app)).close();
 

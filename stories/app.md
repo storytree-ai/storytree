@@ -88,7 +88,7 @@ Build order: 1 → 2 → 3 → 4.
 When the app opens it starts the database that holds every project's library, and it keeps it running
 until the app is quit: closing the window leaves both running in the background, with a tray icon
 whose Quit is the one way to stop them, so agents' work is still recorded. There is one owner at a time: opening the app again brings its window forward, another
-program holding the database is named, and while it runs the app leaves notes saying where the
+program holding the database is named, and while it runs the app leaves records saying where the
 database is and how to open the app, which is how an agent's session finds it or opens it.
 
 - **Depends on:** nothing in this story. It starts the database through `local-postgres`, and
@@ -217,7 +217,7 @@ surfaces when the project changes.
 - **As built** (the forest's capability 7, built under this capability's name, ADR-0632 D3): two
   more reads for the forest's shelves. `window.storytree.frontCovers(project, nodeId)` returns a
   story's or capability's front covers, founding book first (the library's `frontCovers`).
-  `window.storytree.relatedNotes(project, noteId)` returns the notes that link to a note (the
+  `window.storytree.relatedNotes(project, noteId)` returns the artifacts that link to an artifact (the
   library's `relatedNotes`). A name that is not a project is refused, as for the other reads.
 
 **Contracts:**
@@ -226,8 +226,8 @@ surfaces when the project changes.
 2. A name that is not a project is refused, and never created.
 3. The smoke check, pointed at the surface on show, passes only if that surface says it drew every
    story and capability of the project.
-4. The page can ask the app for a story's or capability's shelf of front covers, and for the notes
-   that link to a note, for the project on show.
+4. The page can ask the app for a story's or capability's shelf of front covers, and for the artifacts
+   that link to an artifact, for the project on show.
 
 ---
 
@@ -288,6 +288,6 @@ installed app does the same from published releases.
   itself, is capability 4, Updates; d3 waits.
 - **Left out by the owner's own decisions** (ADR-0634 D5): 0.2's one shared cloud database
   (ADR-0621 D4, option E1; ADR-0625 D4); 0.2's desktop app keeping a Claude login in the keychain,
-  with a backend beside the hosted studio (ADR-0625 D1 and D4); and the terminal, a note browser and
+  with a backend beside the hosted studio (ADR-0625 D1 and D4); and the terminal, an artifact browser and
   0.2's forest (ADR-0625 D4). Creating, renaming or deleting projects from the app, and two projects
   side by side, were never 0.2 behaviour, because 0.2 had no projects, so they are not cuts.

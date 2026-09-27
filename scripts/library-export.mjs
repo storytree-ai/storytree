@@ -5,25 +5,26 @@
 //
 // A story prints in the layout its file has today:
 // - `# Story: <title>`, then `**What it is.** <description>`;
-// - its opening notes, then `---`;
+// - its opening artifacts, then `---`;
 // - each capability in the tree's order: `## N · Name`, its description, its `- **Depends on:**`
 //   line, its shelf (`- **Its shelf,** founding book first:` with one item per front cover, the
-//   founding book first), its notes, then `**Contracts:**` and each contract, numbered;
-// - its closing notes, after a `---`.
+//   founding book first), its artifacts, then `**Contracts:**` and each contract, numbered;
+// - its closing artifacts, after a `---`.
 // A capability's founding book, which the seed files from the story, prints as its shelf's
 // `**Founding book (label):**` item. A decision with a full record prints as a decision file of its
 // own, named after the record (decisions/adr-0621.md), and as a pointer on its node's shelf.
 //
-// Where a note prints (so that the story text moved into the library, ADR-0641 D2 step 2, prints
-// back in its place): a memory note prints in a story when its first link that names a front cover
-// names one of that story's covers, or of its capabilities'. Its text is the block as the file
+// Where an artifact prints (so that the story text moved into the library, ADR-0641 D2 step 2, prints
+// back in its place): a definition whose term starts `Story text: ` prints in a story when
+// its first link that names a front cover names one of that story's covers, or of its
+// capabilities'. Other definitions are not story blocks. Its meaning is the block as the file
 // writes it, list marker, bold label, line breaks and indentation included, and it prints verbatim.
 // - Behind a capability's cover, it prints in that capability's section, after the shelf and
-//   before the contracts, in the order the notes were written. So an indented item (`  - …`)
-//   written first continues the shelf's list. A note starting with a line the export makes takes
+//   before the contracts, in the order the artifacts were written. So an indented item (`  - …`)
+//   written first continues the shelf's list. An artifact starting with a line the export makes takes
 //   that line's place: `- **Depends on:**` the line it would make from the capability's
 //   dependencies, and `**Contracts**` the header of its contracts.
-// - Behind the story's cover, a note starting with a `## ` heading is a closing section, heading
+// - Behind the story's cover, an artifact starting with a `## ` heading is a closing section, heading
 //   and all, printed after the last capability; any other is an opening block, printed after the
 //   description.
 //
@@ -58,14 +59,14 @@ export async function exportLibrary(library) {
   /** @type {Map<string, string>} cover id -> the node it is a front cover of */
   const coverOf = new Map();
   for (const note of notes) if (note.type === "decision" && note.fields.frontCoverOf !== undefined) coverOf.set(note.id, note.fields.frontCoverOf);
-  /** @type {Map<string, string[]>} node id -> the texts of the memory notes behind its covers, in creation order */
+  /** @type {Map<string, string[]>} node id -> the texts of the story-text definitions behind its covers, in creation order */
   const behind = new Map();
   for (const note of notes) {
-    if (note.type !== "memory") continue;
+    if (note.type !== "definition" || !note.fields.term.startsWith("Story text: ")) continue;
     const cover = note.fields.links?.find((id) => coverOf.has(id));
     if (cover === undefined) continue;
     const node = coverOf.get(cover);
-    behind.set(node, [...(behind.get(node) ?? []), note.fields.text]);
+    behind.set(node, [...(behind.get(node) ?? []), note.fields.meaning]);
   }
 
   /** @type {Map<string, string>} */
@@ -106,7 +107,7 @@ async function printStory(library, story, behind) {
       list.push("- **Its shelf,** founding book first:");
       for (const cover of covers) list.push(`  - ${shelfItem(cover)}`);
     }
-    // A note that is a list item continues the list; any other stands apart, and the list starts again after it.
+    // An artifact that is a list item continues the list; any other stands apart, and the list starts again after it.
     for (const text of own) {
       if (/^\s*- /.test(text)) list.push(text);
       else {

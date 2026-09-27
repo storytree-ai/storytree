@@ -223,7 +223,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["land", { capability: "capability_000000000000" }],
         ["search_notes", { query: "mailgun" }],
         ["open", { id: "decision_000000000000" }],
-        ["write_note", { kind: "memory", text: "Mailgun needs a verified domain" }],
+        ["write_note", { kind: "definition", term: "Delivery", meaning: "Mailgun needs a verified domain" }],
         ["correct_note", { id: "memory_000000000000", text: "Mailgun needs a verified sending domain" }],
         ["retire_from_plan", { id: "contract_000000000000", reason: "no longer promised" }],
         ["park_increment", { arc: "arc_000000000000", title: "Email form", objective: "Build it", body: "Red then green" }],
@@ -259,7 +259,7 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
       assert.ok(founding !== undefined, "the capability is born with its founding decision on its shelf");
 
       // No claim: no default place.
-      const loose = idOf(await agent.call("write_note", { kind: "memory", text: "Written before any claim" }));
+      const loose = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Written before any claim" }));
       assert.deepEqual((await noteFields(library, loose)).links, undefined);
 
       await agent.call("claim", { capability: form, reason: "building the email form" });
@@ -267,13 +267,13 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
       const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
       assert.equal((await agent.call("claim", { increment, reason: "driving the release too" })).isError, false);
       // A memory, with no cover opened yet this session, goes inside the shelf's first book: its founding decision.
-      const first = idOf(await agent.call("write_note", { kind: "memory", text: "Mailgun needs a verified domain" }));
+      const first = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Mailgun needs a verified domain" }));
       // A new decision becomes another front cover of the claimed capability; once this session has opened it, a new memory goes inside that one.
       const second = idOf(await agent.call("write_note", { kind: "decision", title: "Validate on the client first", text: "Before any request" }));
       await agent.call("open", { id: second });
       const latest = idOf(await agent.call("write_note", { kind: "definition", term: "Bounce", meaning: "An email that could not be delivered" }));
       // A place the agent names itself always wins.
-      const named = idOf(await agent.call("write_note", { kind: "memory", text: "Filed where I say", links: [founding] }));
+      const named = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Filed where I say", links: [founding] }));
 
       assert.deepEqual((await library.frontCovers(form)).map((cover) => cover.id), [founding, second]);
       assert.deepEqual((await noteFields(library, first)).links, [founding]);
@@ -283,7 +283,7 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
       // Holding a capability whose shelf is empty, as one made through the library itself can be: nothing is added, and the agent is told.
       const link = (await library.addCapability({ title: "Confirmation link", story })).id;
       await agent.call("claim", { capability: link, reason: "building the confirmation link" });
-      const unshelved = await agent.call("write_note", { kind: "memory", text: "Links expire after a day" });
+      const unshelved = await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "Links expire after a day" });
       assert.equal(unshelved.isError, false);
       assert.deepEqual((await noteFields(library, idOf(unshelved))).links, undefined);
       assert.equal(unshelved.data.shelf, "empty", "the answer says the shelf is empty");
@@ -309,8 +309,8 @@ test("6.6 searching and opening a note leaves a log line saying which session re
     const story = await library.addStory({ title: "Visitor can sign up" });
     const form = await library.addCapability({ title: "Email form", story: story.id });
     const cover = await library.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: form.id });
-    const inside = await library.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] });
-    const other = await library.writeMemory({ text: "Bounces arrive by webhook" });
+    const inside = await library.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [cover.id] });
+    const other = await library.defineTerm({ term: "Delivery", meaning: "Bounces arrive by webhook" });
     const unrelated = await library.defineTerm({ term: "Double opt-in", meaning: "Confirming a signup by email" });
 
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
@@ -342,7 +342,7 @@ test("6.6 searching and opening a note leaves a log line saying which session re
 
 test("6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing", async () => {
   await withProject(async ({ folder, project, library, log }) => {
-    const note = await library.writeMemory({ text: "Mailgun needs a verified domain" });
+    const note = await library.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
     // What Claude Code's hooks leave (capability 3): a subagent's start, and who asked for each storytree call, by the call's id.
     const claudeHook = { session: "claude-1", harness: "claude-code", source: "hook", folder } as const;
     await log.append(project, { ...claudeHook, kind: "subagent-started", subagent: "a5b1", type: "Explore", task: "find the mail setup" });
@@ -549,9 +549,9 @@ test("6.13 it corrects a note's wording in place: the note keeps its id with the
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { capability } = await planned(agent);
       const decision = idOf(await agent.call("write_note", { kind: "decision", title: "Validate on the server", text: "Clients lie", front_cover_of: capability }));
-      const memory = idOf(await agent.call("write_note", { kind: "memory", text: "The form tiemout is 30 s", links: [decision] }));
+      const memory = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "The form tiemout is 30 s", links: [decision] }));
 
-      assert.equal(idOf(await agent.call("correct_note", { id: memory, text: "The form timeout is 30 s" })), memory);
+      assert.equal(idOf(await agent.call("correct_note", { id: memory, meaning: "The form timeout is 30 s" })), memory);
       assert.equal(idOf(await agent.call("correct_note", { id: decision, title: "Validate on the server too" })), decision);
       const [cover] = await library.frontCovers(capability).then((shelf) => shelf.filter((note) => note.id === decision));
       assert.deepEqual([cover?.fields.title, cover?.fields.text], ["Validate on the server too", "Clients lie"], "only the title changed");
@@ -561,7 +561,7 @@ test("6.13 it corrects a note's wording in place: the note keeps its id with the
       const missing = await agent.call("correct_note", { id: "no-such-note", text: "anything" });
       assert.equal(missing.isError, true);
       assert.match(missing.text, /no-such-note/);
-      const wrongField = await agent.call("correct_note", { id: memory, title: "A memory has no title" });
+      const wrongField = await agent.call("correct_note", { id: memory, title: "A definition has no title" });
       assert.equal(wrongField.isError, true);
       assert.deepEqual(await library.search("has no title"), [], "nothing written");
     });
@@ -640,7 +640,7 @@ test("6.15 reinforce appends dated concrete evidence to the existing friction, p
       ] });
       assert.equal((await library.list("friction")).length, 1, "no twin was created");
       assert.equal((await library.history({ id: friction.id })).at(-1)?.actor, "person:Sam");
-      const note = await library.writeMemory({ text: "Not friction" });
+      const note = await library.defineTerm({ term: "Delivery", meaning: "Not friction" });
       const before = await library.history();
       for (const [id, evidence] of [[friction.id, "It happened again"], [note.id, "src/mail.ts"], ["missing", "src/mail.ts"]]) {
         await assert.rejects(reinforceFriction(library, id!, { branch: "fix/mail", evidence: evidence! }));
@@ -750,7 +750,7 @@ test("6.16 every library write from a tool names the calling session, including 
       await write("close_increment", { increment, disposition: "landed", pr: "#82" });
       await write("park_increment", { arc, title: "Already done", objective: "Done", body: "Finished", outcome: { disposition: "landed", pr: "#83" } });
       for (const result of ["red", "green"]) await write("report", { contract, result });
-      for (const fields of [{ kind: "memory", text: "Verify the sender" }, { kind: "decision", title: "Mailgun", text: "One mailer" }, { kind: "definition", term: "Sender", meaning: "The mail domain" }]) {
+      for (const fields of [{ kind: "definition", term: "Delivery", meaning: "Verify the sender" }, { kind: "decision", title: "Mailgun", text: "One mailer" }, { kind: "definition", term: "Sender", meaning: "The mail domain" }]) {
         const id = await write("write_note", fields);
         await write("correct_note", { id, ...(fields.kind === "definition" ? { meaning: "The verified domain" } : { text: "Verify the domain" }) });
       }
@@ -760,9 +760,9 @@ test("6.16 every library write from a tool names the calling session, including 
       for (const id of [contract, capability]) await write("retire_from_plan", { id, reason: "Replaced" });
 
       await log.append(project, { session: "after-clear", harness: "claude-code", source: "hook", kind: "tool-requested", tool: "write_note", call: "new-window", agent: "orchestrator" });
-      const afterClear = idOf(await agent.call("write_note", { kind: "memory", text: "New window" }, { "claudecode/toolUseId": "new-window" }));
+      const afterClear = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: "New window" }, { "claudecode/toolUseId": "new-window" }));
       assert.equal((await library.history({ id: afterClear }))[0]?.actor, "session:after-clear");
-      await write("write_note", { kind: "memory", text: "No hook saw this call" });
+      await write("write_note", { kind: "definition", term: "Delivery", meaning: "No hook saw this call" });
       const before = await library.history();
       assert.equal((await agent.call("reinforce", { friction, evidence: "Still annoying" })).isError, true);
       assert.deepEqual(await library.history(), before, "a refusal cannot invent an attributed write");
@@ -775,9 +775,28 @@ test("6.16 every library write from a tool names the calling session, including 
     });
     await withAgent(folder, codex("codex-writer"), async (agent) => {
       for (const session of ["codex-writer", "codex-next"]) {
-        const id = idOf(await agent.call("write_note", { kind: "memory", text: session }, { sessionId: session, threadId: "subagent-thread" }));
+        const id = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: session }, { sessionId: session, threadId: "subagent-thread" }));
         assert.equal((await library.history({ id }))[0]?.actor, `session:${session}`, "the session owns the write, including its subagent's");
       }
+    });
+  });
+});
+
+test("ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("artifact-writer"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Mail", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Sender", ...FOUNDED }));
+      await agent.call("claim", { capability, reason: "Build the sender" });
+      const [cover] = await library.frontCovers(capability);
+      const fields = { title: "Verify senders", description: "Check the sending domain", statement: "Verify before sending", why: "Mail must arrive", howToApply: "Verify the domain before enabling delivery" };
+      const id = idOf(await agent.call("write_note", { kind: "principle", fields }));
+      assert.deepEqual((await library.get(id))?.fields, { ...fields, links: [cover!.id] });
+      const before = await library.history();
+      const refused = await agent.call("write_note", { kind: "memory", text: "Remember this" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /memory.*harness.*artifact/i);
+      assert.deepEqual(await library.history(), before);
     });
   });
 });

@@ -19,12 +19,12 @@ test("3.1 `read` returns the whole body", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const body = "First paragraph.\n\n" + "A long record keeps all of its words. ".repeat(80) + "\nLast paragraph.";
-    const note = await library.writeMemory({ text: body });
+    const note = await library.defineTerm({ term: "Long record", meaning: body });
     const ran = await world.run(["library", "read", note.id]);
     assert.equal(ran.code, 0, ran.stderr);
     assert.ok(ran.stdout.includes(body), ran.stdout);
     assert.ok(ran.stdout.includes(note.id));
-    const missing = await world.run(["library", "read", "memory_missing"]);
+    const missing = await world.run(["library", "read", "definition_missing"]);
     assert.equal(missing.code, 1);
     assert.match(missing.stderr, /no record/);
   });
@@ -45,12 +45,12 @@ test("3.2 `edit` changes only the named fields", async () => {
       assert.deepEqual((await library.get(record.id))?.fields, { ...record.fields, title: "New title" });
       assert.equal((await library.history({ id: record.id })).at(-1)?.actor, `person:${userInfo().username}`);
     }
-    const memory = await library.writeMemory({ text: "Before", links: [decision.id] });
+    const definition = await library.defineTerm({ term: "Mailer", meaning: "Before", links: [decision.id] });
     const body = "A whole new body.\n\nKept as written.";
     writeFileSync(path.join(world.folder, "body.md"), body);
-    const ran = await world.run(["library", "edit", memory.id, "--text", "@body.md"]);
+    const ran = await world.run(["library", "edit", definition.id, "--meaning", "@body.md"]);
     assert.equal(ran.code, 0, ran.stderr);
-    assert.deepEqual((await library.get(memory.id))?.fields, { ...memory.fields, text: body });
+    assert.deepEqual((await library.get(definition.id))?.fields, { ...definition.fields, meaning: body });
   });
 });
 
@@ -67,10 +67,10 @@ test("3.3 `new` without a required field is refused, naming it", async () => {
 test("3.4 `history` lists every write with its writer, including retirement", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
-    const note = await library.writeMemory({ text: "First" });
-    await library.editNote(note.id, { text: "Second" }, { actor: "person:Sam" });
+    const note = await library.defineTerm({ term: "History", meaning: "First" });
+    await library.editNote(note.id, { meaning: "Second" }, { actor: "person:Sam" });
     await library.retire(note.id, "Kept in a decision", { actor: "session:scribe" });
-    const unrelated = await library.writeMemory({ text: "Unrelated" }, { actor: "person:Elsewhere" });
+    const unrelated = await library.defineTerm({ term: "Unrelated", meaning: "Another record" }, { actor: "person:Elsewhere" });
     const ran = await world.run(["library", "history", note.id]);
     assert.equal(ran.code, 0, ran.stderr);
     assert.match(ran.stdout, /created.*writer not recorded/s);
@@ -94,11 +94,11 @@ test("3.5 `list` shows only live records of the kind and filters by a field", as
     const proposed = await library.recordDecision({ title: "Alternative", text: "SES", status: "proposed" });
     const retired = await library.recordDecision({ title: "Old", text: "SMTP", status: "accepted" });
     await library.retire(retired.id, "Not needed");
-    const memory = await library.writeMemory({ text: "Another kind" });
+    const definition = await library.defineTerm({ term: "Another kind", meaning: "A definition" });
     const all = await world.run(["library", "list", "decision"]);
     assert.equal(all.code, 0, all.stderr);
     for (const id of [accepted.id, proposed.id]) assert.ok(all.stdout.includes(id), all.stdout);
-    for (const id of [retired.id, memory.id]) assert.ok(!all.stdout.includes(id), all.stdout);
+    for (const id of [retired.id, definition.id]) assert.ok(!all.stdout.includes(id), all.stdout);
     const filtered = await world.run(["library", "list", "decision", "--where", "status=accepted", "--where", "loadBearing=true"]);
     assert.equal(filtered.code, 0, filtered.stderr);
     assert.ok(filtered.stdout.includes(accepted.id), filtered.stdout);
@@ -106,5 +106,17 @@ test("3.5 `list` shows only live records of the kind and filters by a field", as
     const unknown = await world.run(["library", "list", "unknown-kind"]);
     assert.equal(unknown.code, 1);
     assert.match(unknown.stderr, /unknown/i);
+  });
+});
+
+// ADR-0650: a terminal cannot create a harness memory in the library.
+test("3.6 saving a memory is refused with its reason and writes nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const { cursor } = await library.changesSince(0);
+    const ran = await world.run(["library", "new", "memory", "--text", "Keep this"]);
+    assert.notEqual(ran.code, 0);
+    assert.match(ran.stderr, /memor.*harness/i);
+    assert.deepEqual((await library.changesSince(cursor)).changes, []);
   });
 });

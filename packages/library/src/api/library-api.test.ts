@@ -67,8 +67,7 @@ const LIBRARY_API = [
   "recordVerified",
   "health",
   "healthHistory",
-  "writeMemory",
-  "recordDecision",
+    "recordDecision",
   "defineTerm",
   "writeKnowledge",
   "definitions",
@@ -176,7 +175,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     // A decision that is the email form's front cover, and a memory filed inside it: the cover is on
     // the capability's shelf, the memory is found from the cover, and both are found by their words.
     const cover = await lib.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
-    const memory = await lib.writeMemory({ text: "Mailgun needs a verified domain", links: [cover.id] });
+    const memory = await lib.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [cover.id] });
     assert.deepEqual(await lib.frontCovers(capability.id), [cover]);
     assert.deepEqual(await lib.relatedNotes(cover.id), [memory]);
     assert.deepEqual(await lib.search("mailgun DOMAIN"), [memory]);
@@ -209,7 +208,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
         record: healthRecord(verifiedColumn, { node: contract.id, column: "verified", state: "failing", by: "storytree" }, verified.at),
       },
       { recordId: cover.id, type: "decision", action: "created", record: cover },
-      { recordId: memory.id, type: "memory", action: "created", record: memory },
+      { recordId: memory.id, type: "definition", action: "created", record: memory },
     ]);
     assert.notEqual(reportedColumn, verifiedColumn, "each column is its own record");
     assertIncreasing(day.changes);
@@ -270,12 +269,12 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
     const contract = await lib.addContract({ title: "Rejects a bad email", capability: capability.id });
     const failing = await lib.reportHealth(contract.id, "failing", { by: "agent" });
     const passing = await lib.reportHealth(contract.id, "passing", { by: "agent" });
-    const memory = await lib.writeMemory({ text: "Mailgun needs a verified domain" });
-    const reworded = await lib.editNote(memory.id, { text: "Mailgun needs a verified sending domain" });
+    const memory = await lib.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
+    const reworded = await lib.editNote(memory.id, { meaning: "Mailgun needs a verified sending domain" });
     await lib.retire(memory.id, "folded into a decision");
     const decision = await lib.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
     assert.equal(await lib.editCapability("capability_000000000000", { title: "Nothing" }), null);
-    assert.equal(await lib.editNote(memory.id, { text: "Retired, so not edited" }), null);
+    assert.equal(await lib.editNote(memory.id, { meaning: "Retired, so not edited" }), null);
     await lib.retire(memory.id, "already retired");
     await lib.retire("story_000000000000", "never existed");
     await lib.retire("story_\u0000", "not an id the library can store");
@@ -298,9 +297,9 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
         action: "updated",
         record: healthRecord(column, { node: contract.id, column: "reported", state: "passing", by: "agent" }, failing.at, passing.at),
       },
-      { recordId: memory.id, type: "memory", action: "created", record: memory },
-      { recordId: memory.id, type: "memory", action: "updated", record: reworded },
-      { recordId: memory.id, type: "memory", action: "retired", record: reworded },
+      { recordId: memory.id, type: "definition", action: "created", record: memory },
+      { recordId: memory.id, type: "definition", action: "updated", record: reworded },
+      { recordId: memory.id, type: "definition", action: "retired", record: reworded },
       { recordId: decision.id, type: "decision", action: "created", record: decision },
     ]);
     assert.deepEqual(await follow(), []);
@@ -320,7 +319,7 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
     await Promise.all(Array.from({ length: 8 }, () => lib.changesSince(cursor))); // a connection ready for every racer
     const before = followed.length;
     let writing = true;
-    const writes = Promise.all(Array.from({ length: 8 }, (_, n) => lib.writeMemory({ text: `Raced note ${n}` }))).finally(() => {
+    const writes = Promise.all(Array.from({ length: 8 }, (_, n) => lib.defineTerm({ term: "Delivery", meaning: `Raced note ${n}` }))).finally(() => {
       writing = false;
     });
     writes.catch(() => undefined); // a failed write is reported by the `await writes` below

@@ -27,7 +27,7 @@ re-order within the dependencies, telling the owner rather than asking.
 
 Out of the MVP: mapping an existing codebase, 0.2's build machinery as a product feature, the
 terminal, the view of where agents go in the knowledge (its read record is in), a screen for
-browsing notes, acceptance walkthroughs, mutation testing and test-quality judging, anything hosted,
+browsing artifacts, acceptance walkthroughs, mutation testing and test-quality judging, anything hosted,
 art research, showing 0.2's forest, and any paid tier.
 
 The owner reviews each story's capability tree before any code, and answers the reviews one at a

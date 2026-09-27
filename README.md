@@ -41,6 +41,12 @@ or reaches into another story's package files. The rules and the declared shared
 [`scripts/package-boundaries.mjs`](scripts/package-boundaries.mjs) (ADR-0649 D1-D3, in 0.2's
 decision log).
 
+`pnpm test` runs only what a change can reach, locally and in CI alike: the packages holding a file
+changed since the branch left `main`, plus every package that depends on them. A change it cannot
+place in a package (a root file, a `package.json`, the lockfile, `scripts/`) runs everything. Its
+first line says which, as `scope: ...`; `pnpm test -- --full` runs everything anyway, and after a
+failure `pnpm test -- --rerun-failed` runs only the packages that failed.
+
 When an increment lands, `pnpm test-ratio` prints how many lines of test code there are for each
 line of implementation, overall and per package, counting code lines only. A rising ratio is a
 prompt to check that each test still protects something the product does. It is never a failure.

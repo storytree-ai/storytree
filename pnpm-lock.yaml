@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:packages/agent-link
       '@storytree/library':
         specifier: workspace:*
         version: link:packages/library

@@ -75,8 +75,8 @@ Build order: 1 → 2 → 3 → 4 → 5 (4 and 5 in either order).
 **What is built so far.** Capability 1 at part, increment and arc grain (contracts 1.1 to 1.6),
 and the live reading of capability 3, in `packages/arc-surface` (`@storytree/arc-surface`). The
 forest reads the part states and live reading (`stories/forest.md`, ADR-0632 D3), which its lane
-built here under this tree's names. Capability 2 now reads and names holders. Capabilities 4 and 5
-and the overlay remain to be built.
+built here under this tree's names. Capability 2 now reads and names holders, and capability 4 reads waits and queue shapes.
+Capability 5 and the overlay remain to be built.
 Their library and agent-link prerequisites now store and read increments, questions and waits
 (ADR-0638 D4).
 
@@ -239,6 +239,12 @@ you is never hidden under its blocker.
     on hover.
   - **Proposed, approved with the tree:** the queue shows each arc's title, since 0.3's ids are
     generated; a wait's reason shows on hover.
+
+- **As built (reading):** `arcQueues` nests holding arc waits within the selected lifecycle,
+  keeping arcs with open owner questions at the top. `queueRun` distinguishes chains from sets,
+  with titles, hidden depth and other-wait counts. `waitsOnBoard` names blockers, their arcs and
+  reasons in both directions, carrying the library's permanent-wait warning. The overlay draws
+  these readings; no wait is written or rejudged here.
 
 **Contracts:**
 1. An arc waiting on an open arc appears only under that arc's arrow, not also at the top. Once the

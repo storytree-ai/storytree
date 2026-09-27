@@ -699,6 +699,12 @@ test("6.16 every library write from a tool names the calling session, including 
       const before = await library.history();
       assert.equal((await agent.call("reinforce", { friction, evidence: "Still annoying" })).isError, true);
       assert.deepEqual(await library.history(), before, "a refusal cannot invent an attributed write");
+      for (const invalid of ["increment_missing", story]) {
+        const refused = await agent.call("raise_question", { ...questionArgs, holds: [blocker, invalid] });
+        assert.equal(refused.isError, true, "a missing increment or a different record kind is refused");
+        assert.ok(refused.text.includes(invalid), refused.text);
+        assert.deepEqual(await library.history(), before, "a refused question cannot leave its question or an earlier hold behind");
+      }
     });
     await withAgent(folder, codex("codex-writer"), async (agent) => {
       for (const session of ["codex-writer", "codex-next"]) {

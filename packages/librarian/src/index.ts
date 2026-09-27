@@ -11,5 +11,6 @@ export { DRAIN, frictionDrain, openQuestions, route } from "./queues/index.js";
 export type { Route } from "./queues/index.js";
 export { CURATED, roundDue, worklist } from "./rounds/index.js";
 export type { RoundDue, Worklist, WorklistOptions } from "./rounds/index.js";
+export { librarianTools } from "./rounds/tools.js";
 export { LibrarianRefusal } from "./notes.js";
 export type { Reference } from "./notes.js";

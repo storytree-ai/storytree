@@ -5,7 +5,7 @@
  * puts each new note beside what might already cover it, and the one rule a write can keep: a note
  * is retired only if nothing points at it.
  */
-import type { Library, Note } from "@storytree/library";
+import type { Library, Note, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal, noteOf, referencesOf, type Reference } from "../notes.js";
 
@@ -20,14 +20,14 @@ export interface NewNote {
  * other reference, no increment's remedies, and no question it settled. Otherwise refused, naming
  * each record that points at it, and nothing is written.
  */
-export async function retire(library: Library, id: string, reason: string): Promise<void> {
+export async function retire(library: Library, id: string, reason: string, writer?: WriteOptions): Promise<void> {
   await noteOf(library, id);
   const pointers = (await pointersTo(library)).filter((reference) => reference.to === id);
   if (pointers.length > 0) {
     const named = pointers.map((pointer) => `${pointer.from} (${pointer.field})`).join(", ");
     throw new LibrarianRefusal(`${id} is not retired: live records point at it: ${named}. Retire only what nothing points at`);
   }
-  await library.retire(id, reason);
+  await library.retire(id, reason, writer);
 }
 
 /**

@@ -278,15 +278,19 @@ reported.
     server through its one registration point, which also gives them a door on the people's command
     line. The habits card gains at most one line.
   - **U1 (the owner's):** on for 0.3's own library first.
-- **As built (6.1, 6.2):** `roundDue` and `worklist` in `packages/librarian/src/rounds`. The trigger
-  takes the change feed's cursor from when the session started; with none it fires. Matching
-  processes against tools is in the worklist when the tools served are given to it.
-- **Not built yet (6.3, 6.4, 6.5):** the librarian's tool catalogue, conditional next line in the
-  installed server and subagent definition. The agent link now supplies their registration point
-  (ADR-0643 D6): `createAgentTools({ extensions })`, with a `ToolExtension`'s `registerTools`,
-  short `instructions` and `landNext(capability, call)`. Its contract proof already serves this
-  story's `worklist` and asks `roundDue` for a conditional next line. Build the librarian's tools
-  against that public point, using the call's library and session writer, without another server.
+- **As built (6.1–6.5):** `roundDue`, `worklist` and `librarianTools` in
+  `packages/librarian/src/rounds`. The extension serves `worklist`, `link`, `supersede`, `correct`
+  (including the load-bearing mark), `annotate`, `retire`, `park`, `graduate` and `route` through
+  the agent link's shared registration point (ADR-0643 D6), using the call's library and session
+  writer. It fills `land`'s next line from `roundDue`. The cursor is recovered from library history
+  before the calling session's first recorded start; a resume keeps that start, a missing start
+  fires, and writes at the same millisecond stay in the pass. The worklist excludes friction from
+  the current branch and matches processes against the served tools. Memory folders can be named;
+  by default it reads Claude Code's memory folder for the session's folder.
+- **Installed first for 0.3's own library (U1):** a server started in the `storytree` project adds
+  the extension and supplies its tool catalogue. Other hosts can register `librarianTools()` with
+  `createAgentTools({ extensions })`. The existing generated `.claude/agents/librarian-curator.md`
+  names every served verb and guides the six duties; its canonical role remains in the library.
 
 **Contracts:**
 1. The trigger fires when the change feed since the session started holds a write to a curated

@@ -1,0 +1,24 @@
+--- old/The agent link/Agent tools/contract_e7021b3b4351/title
++++ new/The agent link/Agent tools/contract_e7021b3b4351/title
+@@ -1 +1 @@
+-6.12 · It records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; friction whose evidence is vague prose, a re-steer whose evidence quotes nobody, and a defect with no failure mode are each refused as a readable answer, and nothing is written.
++6.12 · It records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; friction whose evidence is vague prose, a re-steer whose evidence quotes nobody, and a defect with no failure mode are each refused as a readable answer, and nothing is written. Shared capture stamps the calling branch and UTC date, and refuses a fourth friction report on that branch that day, counting routed reports too; the refusal names the cap and points to friction reinforce.
+
+--- old/The agent link/Agent tools/definition_89b21a2f5070/meaning
++++ new/The agent link/Agent tools/definition_89b21a2f5070/meaning
+@@ -8,3 +8,6 @@
+     quoted as its evidence (a paraphrase is refused), whether it was a defect or taste, and who
+     judged that (the owner, or the agent: never "owner" for an inference), with the agent's own
+     account kept apart; a defect with no failure mode is the library's refusal (6.7).
++    Shared capture stamps provenance with the calling folder's branch (or "(no branch)"), UTC
++    date and retro source. At most three friction reports may be filed per branch and day,
++    counting already-routed reports; the fourth writes nothing and points to `friction reinforce`.
+
+--- old/The command line/Friction and re-steers/definition_d8988bfcaeda/meaning
++++ new/The command line/Friction and re-steers/definition_d8988bfcaeda/meaning
+@@ -4,3 +4,5 @@
+   Reinforcement uses the current Git branch, or `--branch <branch>`, and the capture function
+   appends its date. Re-steers take `--judged-by <owner|agent>` and optional `--self-report`, kept
+   apart from the owner's quoted evidence. Capture never routes friction.
++  New friction passes the calling folder's branch to shared capture, which stamps provenance
++  and enforces the same three-per-branch-per-UTC-day filing cap as the agent tools.

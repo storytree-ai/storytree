@@ -16,6 +16,39 @@ after(() => command.remove());
 const friction = ["friction", "new", "--title", "Slow mail", "--description", "Mail is delayed", "--statement", "Sending times out", "--impact", "Readers cannot join"];
 const resteer = ["resteer", "new", "--title", "Simpler", "--description", "Less UI", "--doing", "Many fields", "--redirect", "Just email", "--disposition", "taste", "--judged-by", "owner"];
 
+test("9.4 friction capture caps each branch and day at three, including routed reports; reinforcement stays available", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    execFileSync("git", ["init", "-b", "fix/mail", world.folder], { stdio: "ignore" });
+    const date = new Date().toISOString().slice(0, 10);
+    const fields = { title: "Delay", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Wait" };
+    for (const provenance of [
+      { branch: "another/branch", date, source: "retro" as const },
+      { branch: "fix/mail", date: "2000-01-01", source: "retro" as const },
+    ]) await library.writeKnowledge("friction", { ...fields, provenance });
+    for (let i = 0; i < 3; i++) {
+      const accepted = await world.run([...friction, "--evidence", fields.evidence]);
+      assert.equal(accepted.code, 0, accepted.stderr);
+    }
+    const reports = await library.list("friction");
+    const latest = reports.find((report) => report.fields.provenance?.branch === "fix/mail" && report.fields.provenance.date === date)!;
+    await library.editNote(latest.id, { route: "nothing", routeReason: "Outage passed" });
+    const history = await library.history();
+    const refused = await world.run([...friction, "--evidence", fields.evidence]);
+    assert.equal(refused.code, 1, "a fourth report must be refused");
+    assert.match(refused.stderr, /3.*friction.*fix\/mail/);
+    assert.ok(refused.stderr.includes(date), refused.stderr);
+    assert.match(refused.stderr, /friction reinforce/);
+    assert.deepEqual(await library.history(), history, "refusal writes nothing");
+    assert.deepEqual(latest.fields.provenance, { branch: "fix/mail", date, source: "retro" });
+    const reinforced = await world.run(["friction", "reinforce", latest.id, "--evidence", "#81: timed out again"]);
+    assert.equal(reinforced.code, 0, reinforced.stderr);
+    execFileSync("git", ["symbolic-ref", "HEAD", "refs/heads/fix/other"], { cwd: world.folder });
+    const otherBranch = await world.run([...friction, "--evidence", fields.evidence]);
+    assert.equal(otherBranch.code, 0, otherBranch.stderr);
+  });
+});
+
 test("9.1 friction with vague evidence is refused; concrete evidence is captured with its writer", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

@@ -261,6 +261,9 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
       assert.deepEqual((await noteFields(library, loose)).links, undefined);
 
       await agent.call("claim", { capability: form, reason: "building the email form" });
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the release too" })).isError, false);
       // A memory, with no cover opened yet this session, goes inside the shelf's first book: its founding decision.
       const first = idOf(await agent.call("write_note", { kind: "memory", text: "Mailgun needs a verified domain" }));
       // A new decision becomes another front cover of the claimed capability; once this session has opened it, a new memory goes inside that one.

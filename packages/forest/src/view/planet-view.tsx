@@ -6,10 +6,12 @@ import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type Fo
 import type { Descriptor3D } from "@storytree/forest-world";
 import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
+import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { Claims, Names, Overlay, SelectionRing } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickIsland, planetLayout } from "./planet-navigation.js";
 
-export function PlanetView({ scene, places, markers, selected, onPick }: {
+export function PlanetView({ core, scene, places, markers, selected, onPick }: {
+  core: KnowledgeCore;
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
   markers: readonly Marker[];
@@ -29,6 +31,7 @@ export function PlanetView({ scene, places, markers, selected, onPick }: {
     </>;
   }, [markers, selected]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
+    inside={<KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} />}
     rotation={rotation.toArray()} kitBytes={kitBytes} plateChildren={overlays}>
     <Navigation islands={layout.islands} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPick={onPick} />

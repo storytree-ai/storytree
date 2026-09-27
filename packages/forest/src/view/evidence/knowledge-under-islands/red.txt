@@ -1,0 +1,25 @@
+/home/mickh/code/storytree03-wt/planet-lane-s/packages/knowledge-core/src/shelves/globe.test.ts:4
+import { globePoints, knowledge, underShelves } from "@storytree/knowledge-core";
+         ^
+SyntaxError: The requested module '@storytree/knowledge-core' does not provide an export named 'globePoints'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0
+✖ packages/knowledge-core/src/shelves/globe.test.ts (128.535924ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 135.393441
+
+✖ failing tests:
+
+test at packages/knowledge-core/src/shelves/globe.test.ts:1:1
+✖ packages/knowledge-core/src/shelves/globe.test.ts (128.535924ms)
+  'test failed'

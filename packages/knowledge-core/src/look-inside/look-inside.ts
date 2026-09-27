@@ -4,6 +4,7 @@ import type { Change, RecordEnvelope } from "@storytree/library";
 import { linksOf, type Knowledge } from "../ghosts/ghosts.js";
 import type { AgentReplay, Jump, ReadRecord } from "../reads/reads.js";
 import type { Core } from "../shelves/shelves.js";
+import { shelfDirections, shelfPositions, tilt, onSphere, scale, unit, length, type Point } from "../shelves/positions.js";
 
 export type SizeBy = "visits" | "links-in";
 
@@ -13,11 +14,7 @@ export const SIZE_LABELS: Readonly<Record<SizeBy, string>> = {
   "links-in": "Size: links in, the distinct artifacts linking to it",
 };
 
-export interface Point {
-  x: number;
-  y: number;
-  z: number;
-}
+export type { Point } from "../shelves/positions.js";
 
 export interface CoreInput {
   changes: readonly Change[];
@@ -103,9 +100,7 @@ export interface LegendEntry {
 const ORCHESTRATOR = "#0072B2";
 const SUBAGENTS = ["#E69F00", "#009E73", "#CC79A7", "#F0E442", "#56B4E9", "#D55E00"];
 const UNKNOWN = "#9AA0AA";
-/** How far a capability's shelf sits from its story's spot, and notes from their shelf's line, in radians. */
-const CAPABILITY_CONE = 0.14;
-const NOTE_SPREAD = 0.045;
+/** Ghosts sit beside their replacements, in radians. */
 const GHOST_OFFSET = 0.035;
 /** Notes no shelf reaches orbit outside; ghosts with no placed replacement orbit further out. */
 const OUTSIDE = 1.3;
@@ -128,18 +123,7 @@ export function coreScene(input: CoreInput): CoreScene {
     return direction === undefined ? [] : [{ node, story, title: titles.get(node) ?? node, at: scale(direction, radius) }];
   });
 
-  const at = new Map<string, Point>();
-  const deepest = Math.max(0, ...[...core.placed.values()].map(({ depth }) => depth));
-  const step = 0.8 / Math.max(deepest + 1, 5);
-  const siblings = new Map<string, number>();
-  for (const placement of [...core.placed.values()].sort((a, b) => compare(a.note, b.note))) {
-    const home = directions.get(placement.home);
-    if (home === undefined) continue;
-    const key = `${placement.home} ${placement.depth}`;
-    const index = siblings.get(key) ?? 0;
-    siblings.set(key, index + 1);
-    at.set(placement.note, scale(tilt(home, NOTE_SPREAD * Math.sqrt(index), index * GOLDEN), radius * (1 - step * placement.depth)));
-  }
+  const at = shelfPositions(input);
   core.outside.forEach((id, index) => at.set(id, scale(onSphere(index, core.outside.length), radius * OUTSIDE)));
   const unplaced: string[] = [];
   const beside = new Map<string, number>();
@@ -233,20 +217,6 @@ export function legend(agents: readonly AgentReplay[]): LegendEntry[] {
     }));
 }
 
-/** Each shelf's direction from the centre: its story's spot, or a capability's place in a ring around it. */
-function shelfDirections({ core, spots }: CoreInput): Map<string, Point> {
-  const directions = new Map<string, Point>();
-  const capabilities = new Map<string, string[]>();
-  for (const { node, story } of core.shelves) if (node !== story) capabilities.set(story, [...(capabilities.get(story) ?? []), node]);
-  for (const { node, story } of core.shelves) {
-    const spot = spots.get(story);
-    if (spot === undefined) continue;
-    const ring = capabilities.get(story) ?? [];
-    directions.set(node, node === story ? unit(spot) : tilt(unit(spot), CAPABILITY_CONE, (2 * Math.PI * ring.indexOf(node)) / ring.length));
-  }
-  return directions;
-}
-
 function titlesOf(changes: readonly Change[]): Map<string, string> {
   const titles = new Map<string, string>();
   for (const change of changes) {
@@ -276,29 +246,4 @@ function titleOf(knowledge: Knowledge, id: string): string {
   return note === undefined ? id : noteTitle(note);
 }
 
-/** `direction` turned `angle` away from itself, toward `azimuth` around it. */
-function tilt(direction: Point, angle: number, azimuth: number): Point {
-  if (angle === 0) return direction;
-  const up = Math.abs(direction.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
-  const u = unit(cross(up, direction));
-  const v = cross(direction, u);
-  const across = Math.sin(angle);
-  return unit({
-    x: direction.x * Math.cos(angle) + (u.x * Math.cos(azimuth) + v.x * Math.sin(azimuth)) * across,
-    y: direction.y * Math.cos(angle) + (u.y * Math.cos(azimuth) + v.y * Math.sin(azimuth)) * across,
-    z: direction.z * Math.cos(angle) + (u.z * Math.cos(azimuth) + v.z * Math.sin(azimuth)) * across,
-  });
-}
-
-/** Point `index` of `count` spread evenly over the unit sphere. */
-function onSphere(index: number, count: number): Point {
-  const y = 1 - (2 * (index + 0.5)) / count;
-  const across = Math.sqrt(1 - y * y);
-  return { x: Math.cos(index * GOLDEN) * across, y, z: Math.sin(index * GOLDEN) * across };
-}
-
-const cross = (a: Point, b: Point): Point => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
-const length = (p: Point) => Math.hypot(p.x, p.y, p.z);
-const scale = (p: Point, by: number): Point => ({ x: p.x * by, y: p.y * by, z: p.z * by });
-const unit = (p: Point): Point => scale(p, 1 / length(p));
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

@@ -7,7 +7,7 @@
  * cannot drain by going anonymous. The routing judgement is the librarian's own (ADR-0644 D3, S).
  * Settling and retiring a question are the agent link's tools.
  */
-import type { FieldsOf, Library, SchemaRecord } from "@storytree/library";
+import type { FieldsOf, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal } from "../notes.js";
 
@@ -33,9 +33,9 @@ export async function frictionDrain(library: Library, { branch }: { branch?: str
 }
 
 /** Record the routing judgement on friction report `id`, with its reason; a route with no reason is refused. */
-export async function route(library: Library, id: string, to: Route, reason: string): Promise<SchemaRecord<"friction">> {
+export async function route(library: Library, id: string, to: Route, reason: string, writer?: WriteOptions): Promise<SchemaRecord<"friction">> {
   if (reason.trim() === "") throw new LibrarianRefusal("a friction report is routed with its reason: nothing is closed without one");
   const report = (await allNotes(library)).find((note) => note.id === id);
   if (report?.type !== "friction") throw new LibrarianRefusal(`${id} is not a live friction report`);
-  return (await library.editNote(id, { route: to, routeReason: reason })) as SchemaRecord<"friction">;
+  return (await library.editNote(id, { route: to, routeReason: reason }, writer)) as SchemaRecord<"friction">;
 }

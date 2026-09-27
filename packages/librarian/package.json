@@ -9,9 +9,13 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@storytree/library": "workspace:*"
+    "@storytree/library": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.1.0",
+    "@modelcontextprotocol/server": "^2.1.0",
+    "@storytree/agent-link": "workspace:*",
     "@types/node": "^24.13.6",
     "pg": "^8.23.0",
     "@types/pg": "^8.23.1",

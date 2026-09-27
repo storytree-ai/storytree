@@ -7,7 +7,7 @@
  * is still true. The health report (the owner's G1) is what a write cannot refuse: an edge to a
  * record retired since.
  */
-import type { Library, SchemaRecord } from "@storytree/library";
+import type { Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal, referencesOf, type Reference } from "../notes.js";
 
@@ -43,7 +43,7 @@ export type BrokenEdge = Reference;
  * old ones leave the reading list, and stay readable as superseded. The library refuses an old one
  * that is not a live decision, and a supersession loop.
  */
-export async function supersede(library: Library, olds: readonly string[], successor: Successor): Promise<SchemaRecord<"decision">> {
+export async function supersede(library: Library, olds: readonly string[], successor: Successor, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   const replaced = await Promise.all(olds.map(async (id) => (await library.decision(id))?.record));
   const frontCoverOf = successor.frontCoverOf ?? replaced[0]?.fields.frontCoverOf;
   const loadBearing = replaced.some((old) => old?.fields.loadBearing === true);
@@ -54,8 +54,8 @@ export async function supersede(library: Library, olds: readonly string[], succe
     supersedes: [...olds],
     ...(frontCoverOf === undefined ? {} : { frontCoverOf }),
     ...(loadBearing ? { loadBearing } : {}),
-  });
-  for (const old of replaced) if (old?.fields.loadBearing === true) await library.editNote(old.id, { loadBearing: undefined });
+  }, writer);
+  for (const old of replaced) if (old?.fields.loadBearing === true) await library.editNote(old.id, { loadBearing: undefined }, writer);
   return recorded;
 }
 
@@ -64,24 +64,24 @@ export async function supersede(library: Library, olds: readonly string[], succe
  * load-bearing mark. The library's history keeps the old wording. Turning an accepted decision back
  * to proposed is refused: only the owner un-decides.
  */
-export async function correct(library: Library, id: string, fields: Correction): Promise<SchemaRecord<"decision">> {
+export async function correct(library: Library, id: string, fields: Correction, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   const decision = await liveDecision(library, id);
   if (fields.status === "proposed" && decision.fields.status === "accepted") {
     throw new LibrarianRefusal(`${label(decision)} is accepted, and only the owner turns an accepted decision back to proposed`);
   }
-  return (await library.editNote(id, fields)) as SchemaRecord<"decision">;
+  return (await library.editNote(id, fields, writer)) as SchemaRecord<"decision">;
 }
 
 /**
  * Leave a dated note in decision `target`, naming the decision that narrows it: the in-place
  * annotation a narrowing owes its target in the same landing, and the only record of it.
  */
-export async function annotate(library: Library, target: string, { by, note, date }: Annotation): Promise<SchemaRecord<"decision">> {
+export async function annotate(library: Library, target: string, { by, note, date }: Annotation, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
   const decision = await liveDecision(library, target);
   const narrowing = await liveDecision(library, by);
   const day = date ?? new Date().toISOString().slice(0, 10);
   const text = `${decision.fields.text}\n\n*Annotated ${day} by ${label(narrowing)}:* ${note}`;
-  return (await library.editNote(target, { text })) as SchemaRecord<"decision">;
+  return (await library.editNote(target, { text }, writer)) as SchemaRecord<"decision">;
 }
 
 /** The health report: each note's link, supersession or other reference naming a record no longer live, in creation order. */

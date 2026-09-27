@@ -36,6 +36,9 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } f
 /** What a Library offers: the API's list, restated from the spec and the brief. */
 const LIBRARY_API = [
   "name",
+  "get",
+  "list",
+  "history",
   "addStory",
   "createArc",
   "addCapability",

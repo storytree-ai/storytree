@@ -1,2 +1,3 @@
-// Reserved public home for the stopping capability; implemented by its next lane.
-export {};
+export { stopOwned } from './stop.js';
+export type { StopOptions, StopDependencies, StopResult, StopTarget, StopMember, StopExclusion, StopAttempt } from './stop.js';
+export type { StopPhase, SignalResult } from './signal.js';

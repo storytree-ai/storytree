@@ -151,10 +151,10 @@ test('4.3/4.6: late registrations and unreadable inventory stay explicit; a mixe
   assert.ok(incomplete.gaps.length > 0);
 });
 
-async function launch(t: { after(fn: () => Promise<void>): void }, dir: string, fields: Partial<Parameters<typeof launchOwned>[0]> = {}) {
+async function launch(t: { after(fn: () => Promise<void>): void }, dir: string, fields: Partial<Parameters<typeof launchOwned>[0]> = {}, setup = "process.on('SIGTERM', () => {});") {
   const ready = path.join(dir, `${randomUUID()}.ready`);
   const result = await launchOwned({ home: dir, owner, command: process.execPath, folder: process.cwd(),
-    args: ['-e', "process.on('SIGTERM', () => {}); require('fs').writeFileSync(process.argv[1], 'ready'); setTimeout(() => {}, 30000)", ready], ...fields });
+    args: ['-e', `${setup} require('fs').writeFileSync(process.argv[1], 'ready'); setTimeout(() => {}, 30000)`, ready], ...fields });
   if (result.pid !== undefined) t.after(async () => {
     if (result.status === 'tracked' && result.run.birth.state === 'live' && (await probeProcess(result.run.birth.identity)).state === 'live') {
       try { process.kill(result.pid!, 'SIGKILL'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; }
@@ -194,4 +194,50 @@ test('4.2/4.4 native: stale identity leaves the actual process alive; registered
   assert.ok(result.targets[0]?.members.every(member => member.process.state === 'gone'));
   assert.deepEqual(result.targets[0]?.members.find(member => member.run === child.id)?.attempts.map(attempt => attempt.phase), ['polite', 'force']);
   assert.equal((await readLedger({ home: dir })).runs.length, 2);
+});
+
+
+test('4.4 native: a cooperative process exits in the polite phase, while another owner stays live', async t => {
+  const dir = await home(t);
+  // A hidden top-level native window exercises actual WM_CLOSE delivery on Windows CI.
+  // Other systems install a normal SIGTERM handler before publishing readiness.
+  const setup = process.platform !== 'win32' ? "process.on('SIGTERM', () => process.exit(0));" : `
+    const k = require('koffi');
+    const u = k.load('user32.dll');
+    const create = u.func('void * __stdcall CreateWindowExW(uint32_t ex, const char16_t *klass, const char16_t *title, uint32_t style, int x, int y, int w, int h, void *parent, void *menu, void *instance, void *param)');
+    const peek = u.func('int __stdcall PeekMessageW(void *message, void *window, uint32_t first, uint32_t last, uint32_t remove)');
+    const dispatch = u.func('intptr_t __stdcall DispatchMessageW(const void *message)');
+    const isWindow = u.func('int __stdcall IsWindow(void *window)');
+    const window = create(0, 'STATIC', 'own stop polite test', 0, 0, 0, 1, 1, null, null, null, null);
+    if (!window) throw new Error('test window could not be created');
+    setInterval(() => {
+      const message = Buffer.alloc(48);
+      while (peek(message, null, 0, 0, 1)) dispatch(message);
+      if (!isWindow(window)) process.exit(0);
+    }, 10);
+  `;
+  const run = await launch(t, dir, { folder: path.resolve(import.meta.dirname, '../..') }, setup);
+  const foreign = await launch(t, dir, { owner: { session: 'other-session', harness: 'codex' } });
+  const result = await stopping.stopOwned({ home: dir, owner, targets: [run.id], graceMs: 2000, forceMs: 2000 });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.deepEqual(result.targets[0]?.members[0]?.attempts.map(attempt => attempt.phase), ['polite']);
+  assert.equal((await readProcess(foreign.pid)).state, 'live');
+});
+
+test('4.3: a conflicting registration appearing between deliveries prevents the next child signal', async t => {
+  const dir = await home(t);
+  const root = await record(dir);
+  const child = await record(dir, { pid: 4243, parentRun: root.id });
+  const sent: number[] = [];
+  const result = await stopping.stopOwned({ home: dir, owner, targets: [root.id], ...bounds }, {
+    probe: async identity => sent.includes(identity.pid) ? { state: 'gone' } : live(identity),
+    signal: async identity => {
+      sent.push(identity.pid);
+      if (identity.pid === root.pid) await record(dir, { pid: child.pid, birth: child.birth, owner: { session: 'new-conflicting-owner' } });
+      return { status: 'sent' };
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.deepEqual(sent, [root.pid]);
+  assert.ok(result.targets[0]?.excluded.some(row => row.run === child.id));
 });

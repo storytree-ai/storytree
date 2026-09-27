@@ -5,8 +5,8 @@
 // working tree, untracked files included. Each changed file maps to the workspace package
 // (packages/*, apps/*) that holds it. Every package that depends on one of those is added, all the
 // way up: by a dependency its package.json declares, or by a relative path in its code that reaches
-// into the other package (agent-link builds cli's bin by path; forest's tests import forest-world's
-// source), since neither kind of edge would be seen by the other alone.
+// into the other package (agent-link builds cli's bin by path, and cli depends on agent-link, not
+// the other way round), since neither kind of edge would be seen by the other alone.
 //
 // It fails WIDE: whatever the workspace graph cannot account for runs everything. That is a root
 // file (README.md, stories/, decisions/, tsconfig.base.json, .github/, ...), any package.json (the

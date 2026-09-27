@@ -93,13 +93,10 @@ test("a package whose code reaches into another by a relative path depends on it
   assert.deepEqual(decision.dirs, ["packages/forest", "packages/world"]);
 });
 
-test("the real workspace's undeclared reaches are found: agent-link builds cli's bin, forest's tests read forest-world", () => {
+test("the real workspace's undeclared reach is found: agent-link builds cli's bin by path", () => {
   const ws = readWorkspace(repoRoot);
-  const reaches = (dir) => ws.find((p) => p.dir === dir).reaches;
-  assert.ok(reaches("packages/agent-link").includes("packages/cli"));
-  assert.ok(reaches("packages/forest").includes("packages/forest-world"));
+  assert.ok(ws.find((p) => p.dir === "packages/agent-link").reaches.includes("packages/cli"));
   assert.ok(classify(["packages/cli/src/bins/storytree.ts"], ws).dirs.includes("packages/agent-link"));
-  assert.ok(classify(["packages/forest-world/src/coast-clip.ts"], ws).dirs.includes("packages/forest"));
 });
 
 test("any file the workspace graph cannot account for runs everything, and says which file", (t) => {

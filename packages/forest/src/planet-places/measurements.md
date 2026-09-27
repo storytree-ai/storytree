@@ -36,7 +36,7 @@ All three sets pass at every place. The corrected table's nearest coast-vertex a
 
 These are sampled vertex gaps; the continuing test additionally checks whole edges and
 containment, without claiming the vertex minimum is an exact edge distance. The raw
-[spacing record](../../../../apps/desktop/src/forest/evidence/packed/spacing.json) preserves
+[spacing record](../view/evidence/packed/spacing.json) preserves
 place parameters, ids, sizes and measured gaps.
 
 This table was calibrated to those shapes, **not every possible island with up to 13 or 19

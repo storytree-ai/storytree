@@ -234,7 +234,10 @@ flat forest canvas remains in the engine, where its island drawing is reused.
   per capability relaxed into its ground mesh, a smoothed coast, and one parcel per capability
   wearing its tree's form, with ground cover grown from contract count. The globe reuses that
   island drawing and 0.2's kit pines (only `dressing-kit.glb` ships, never the kit).
-  The page (`apps/desktop/src/forest/forest-view.tsx`) mounts the globe alone. Its story names,
+  The page (`packages/forest/src/view/forest-view.tsx`) mounts the globe alone. The desktop
+  imports `openForestView`, `renderStoryPanel` and `renderUnclaimed` from `@storytree/forest/view`;
+  the view, navigation, overlays, tests and evidence live in the forest package, with no
+  `NOT_YET_MOVED` exception (ADR-0649 D2). Its story names,
   island clicks, selection rings and claim markers live in the same scene. The arc surface's
   live reading keeps it current: the tree is read again only when the library changed, and
   unchanged islands retain their objects so only changed islands are recomputed.
@@ -248,9 +251,9 @@ flat forest canvas remains in the engine, where its island drawing is reused.
   hide back-side labels and claims and stop clicks selecting a hidden island. Opening turns,
   edge markers and story selection keep working. The page has no view switch; `forestDrawn`
   continues to report its seeded stories and capability trees to the smoke check.
-  [Headless Chromium comparisons](../apps/desktop/src/forest/evidence/glass/README.md) show the
+  [Headless Chromium comparisons](../packages/forest/src/view/evidence/glass/README.md) show the
   seeded page before (#93) and after this tuning, with the renderer named. The
-  [globe-only page capture](../apps/desktop/src/forest/evidence/globe-only/README.md) records
+  [globe-only page capture](../packages/forest/src/view/evidence/globe-only/README.md) records
   the later removal of the page choices and the surviving selection and smoke journey.
 
 **Contracts:**
@@ -291,7 +294,7 @@ including any in other stories, named with their story and marked if not yet lan
   health saves in the library's change history. Storytree's own column is carried only where an
   entry was written. The diagram's arrows point from each capability to those it builds on; one in
   another story is named with that story and marked until it lands. The page
-  (`apps/desktop/src/forest/story-panel.ts`) draws it as a panel over the forest's right side, with
+  (`packages/forest/src/view/story-panel.ts`) draws it as a panel over the forest's right side, with
   the contracts folded until asked for and the diagram as boxes in columns by build depth, a box
   dashed until it lands. Clicking a story node opens it, the × or empty space closes it, and the
   live reading keeps it current.

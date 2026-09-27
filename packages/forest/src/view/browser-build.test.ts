@@ -6,7 +6,7 @@ import { build } from "esbuild";
 // preventing the forest page (and its claim markers) from loading at all.
 test("the forest page including claim markers can be built for the browser", async () => {
   await build({
-    entryPoints: [fileURLToPath(new URL("../renderer/renderer.ts", import.meta.url))],
+    entryPoints: [fileURLToPath(new URL("../../../../apps/desktop/src/renderer/renderer.ts", import.meta.url))],
     bundle: true, platform: "browser", format: "iife", target: "es2023",
     loader: { ".glb": "binary" }, write: false, logLevel: "silent",
   });

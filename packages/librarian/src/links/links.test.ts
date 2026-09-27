@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Links: one test per contract 1.1-1.3 in stories/librarian.md, each in a fresh
+ * Capability 1 · Links: one test per contract 1.1-1.4 in stories/librarian.md, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -8,6 +8,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
+import { worklist } from "../rounds/index.js";
 import { link, unrestedDecisions } from "./index.js";
 
 /** A story with one capability, and a decision on its shelf. */
@@ -72,5 +73,35 @@ test("1.3 the worklist names each accepted decision on no shelf that no note res
 
     await link(library, cover.id, spec.id);
     assert.deepEqual((await unrestedDecisions(library)).map((decision) => decision.id), [license.id]);
+  });
+});
+
+test("1.4 the worklist finds related but unlinked neighbours for live notes written since the cursor, including edits", async () => {
+  await withLibrary(async (library) => {
+    const source = await wholeProject(library, "Verify Mailgun confirmation domains");
+    const outgoing = await wholeProject(library, "Mailgun confirmation delivery");
+    const incoming = await wholeProject(library, "Mailgun confirmation retries");
+    const neighbour = await wholeProject(library, "Mailgun confirmation bounces");
+    await link(library, source.id, outgoing.id);
+    await link(library, incoming.id, source.id);
+    const { cursor } = await library.changesSince(0);
+
+    await library.editNote(source.id, { text: "Verify Mailgun domains before sending confirmation email." });
+    const added = await wholeProject(library, "Mailgun confirmation monitoring");
+    const retired = await wholeProject(library, "Mailgun confirmation history");
+    await library.retire(retired.id, "Finished business");
+    const { cursor: beforeRead } = await library.changesSince(0);
+
+    const report = await worklist(library, { since: cursor });
+    assert.deepEqual(report.rest?.related.map(({ source }) => source), [source.id, added.id]);
+    const related = report.rest?.related.find((result) => result.source === source.id);
+    assert.ok(related?.hits.some(({ id, score, linked }) => id === neighbour.id && score > 0 && !linked));
+    assert.ok(related?.hits.every(({ id }) => ![source.id, incoming.id, outgoing.id, retired.id].includes(id)));
+    assert.equal(related?.linkedCount, 2);
+    assert.deepEqual((await library.changesSince(beforeRead)).changes, [], "candidate discovery writes no links");
+
+    await link(library, source.id, neighbour.id);
+    const linked = await worklist(library, { since: cursor });
+    assert.ok(!linked.rest?.related.find((result) => result.source === source.id)?.hits.some(({ id }) => id === neighbour.id));
   });
 });

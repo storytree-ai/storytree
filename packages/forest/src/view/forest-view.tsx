@@ -63,7 +63,7 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
   return {
     show(scene, places) {
       const previous = new Map(drawn.scene.islands.map(island => [island.story, island]));
-      scene = { islands: scene.islands.map(island => previous.get(island.story)?.key === island.key ? previous.get(island.story)! : island) };
+      scene = { ...scene, islands: scene.islands.map(island => previous.get(island.story)?.key === island.key ? previous.get(island.story)! : island) };
       render({ scene, places });
     },
     showMarkers(markers) {

@@ -1,5 +1,5 @@
-/** Story nodes' packed globe book (ADR-0648). Distances use the forest engine's ground units. */
-export const PLANET_RADIUS = 160;
+/** Story nodes' packed globe book (ADR-0648, widened by ADR-0655 D3 for pathways). Distances use the forest engine's ground units. */
+export const PLANET_RADIUS = 218;
 /** Historical places, including retired stories. Later places await a new placement book. */
 export const PLANET_CAPACITY = 36;
 

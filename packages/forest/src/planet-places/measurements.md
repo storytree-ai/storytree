@@ -1,6 +1,7 @@
 # Packed places on the globe (ADR-0648)
 
-The current book uses **radius 160 and 36 frozen places**, using
+The current book uses **radius 218 and 36 frozen places** (ADR-0655 D3). It preserves every
+direction from the original radius-160 packing, using
 `spike/globe-land`'s spiral and measurement, corrected before first landing. The measurement walked a spiral
 from +z with pitch 72, selecting successive parameters against the actual clipped shores
 at a target gap of four units. The runtime reads only the place number. Neither a new story,
@@ -26,7 +27,14 @@ consecutive places. Disjoint spherical caps clear distant pairs; nearby pairs us
 projection, which keeps radial projections of straight plate edges straight, and check every
 edge for intersection or touching, plus polygon containment. Concave bays remain bays.
 
-All three sets pass at every place. The corrected table's nearest coast-vertex arc gaps are:
+All three sets now pass the stronger pathway test: every complete shore edge is at least
+`4 × trailFillWidth(22) × RIBBON_GROUND_SCALE = 19.2855` ground units from its neighbours.
+This is the fixed clearance envelope approved with the V2 look, not a radius recalculated
+from the live graph. The [pathway measurements](../view/evidence/planet-pathways/measurements.json)
+record the current seed's nearest coast gaps, physical cross-island ribbon widths and
+within-island usage widths (metadata; the ground material retains its existing falloff).
+
+For comparison, the original radius-160 table's nearest coast-vertex arc gaps were:
 
 | Input | Minimum | Median | Maximum |
 | --- | ---: | ---: | ---: |
@@ -92,16 +100,12 @@ Disjoint enclosing balls imply disjoint flat plates whatever their rotation abou
 The largest curvature-only radial rim lift is `hypot(390, 51.754921) - 390 = 3.419079` ground
 units, 0.877% of the globe radius. This excludes the renderer's clearance above the sea.
 
-The continuing contract test builds 100 real 19-capability shores and 100 smaller shores,
-including the empty story's seedling, then checks every pair of the first 100 places. Run it with:
+The retired W2 contract test built 100 real 19-capability shores and 100 smaller shores,
+including the empty story's seedling, then checked every pair of the first 100 places.
+The current continuing test is the 36-place bounded coast proof above.
 
-```sh
-pnpm test -- packages/forest/src/planet-places/planet-places.test.ts
-```
-
-On the shared Mint box, prefix that command with `flock /tmp/storytree-heavy.lock`.
-These are measured, deterministic geometry samples, not an exhaustive proof over every story id
-or a collision test for tree crowns and vertical relief. The approved promise remains the first
-100 **historical** places and islands of up to 19 capabilities; retiring a story never reclaims
-its place. The API has 128 distinct spots and refuses later place numbers. Their treatment is a
-later book, as the owner decided.
+These were measured, deterministic geometry samples, not an exhaustive proof over every
+story id or a collision test for tree crowns and vertical relief. The historical promise
+covered the first 100 places and islands of up to 19 capabilities. The retired API had
+128 distinct spots and refused later place numbers. The packed book replaced that capacity;
+retirement still never reclaims a place.

@@ -109,10 +109,10 @@ node and a retired story's node goes, with nothing arranged by hand.
     rewrite.
   - **Packed places on a globe (ADR-0648, succeeding W2):** the same permanent place number
     names a fixed spot on a spiral from the front pole. There are 36 frozen places on a sphere
-    of radius 160 ground units; retired stories keep their places. A young project's islands
-    cluster on part of the ball, with neighbouring coasts a few ground units apart. ADR-0655 D3
-    calls for wider spacing measured by pathway width, in the separate pathway look and build;
-    this page change retains the current placement table. This book
+    of radius 218 ground units (ADR-0655 D3); retired stories keep their places. A young project's islands
+    cluster on part of the ball, with the approved pathway envelope of four 22-link trunk
+    widths between the measured coasts (19.2855 ground units). The radius increase keeps
+    every frozen direction. This book
     replaces ADR-0646's even 128-place spread; it does not inherit its 19-capability size bound.
     The clearance proof uses the look's seed, a fresh seven-story seed and its 36-story sample
     at their real sizes (4–13 capabilities). Arbitrary growth can crowd neighbours. Places past 36 are
@@ -127,7 +127,7 @@ node and a retired story's node goes, with nothing arranged by hand.
   apart and its places one width apart along it, so no two places are closer than 0.97 of a width,
   and a hundred stories sit within 5.7 widths of the centre.
 - **Globe book, as built:** `placeOnPackedGlobe(node.place)` in `packages/forest/src/planet-places`
-  returns `{ x, y, z }` in ground units, on `PLANET_RADIUS = 160`. Dividing by the radius gives
+  returns `{ x, y, z }` in ground units, on `PLANET_RADIUS = 218`. Dividing by the radius gives
   the island's outward normal. The 36 directions use the look's spiral, corrected before landing
   for a fresh seed and frozen, never fitted to the live stories or their sizes. The page uses this successor directly. The old W2 algorithm
   is retired; `placeOnGlobe` remains a compatibility alias to the packed rule for existing barrel
@@ -216,8 +216,12 @@ flat forest canvas remains in the engine, where its island drawing is reused.
     See [the decision](../decisions/planet-packed-see-through.md).
   - **The globe alone (ADR-0655 D1/D2):** the page opens on the globe, without a Forest or
     “Look inside” choice. The flat canvas remains in the engine, and knowledge-core calculations
-    remain available in their own package. Pathway spacing is a separate look and build.
+    remain available in their own package.
     See [the globe-only decision](../decisions/globe-only-and-room-for-pathways.md).
+  - **Routed pathways (ADR-0655 D3, V2; ADR-0169):** every recorded capability link
+    has one trail chain, within and across islands. Cross-island trails are raised, faintly
+    lit ribbons over the glass, docking at both shores; see
+    [the pathway book](../decisions/planet-pathways.md).
   - Only meshes exported from the bought pine kit ship, never the kit itself. Its licence allows
     derived output and forbids repackaging, as 0.2 applied it (ADR-0418).
   - The look is judged by the owner's eye, with a screenshot at each landing that changes it.
@@ -243,7 +247,7 @@ flat forest canvas remains in the engine, where its island drawing is reused.
   unchanged islands retain their objects so only changed islands are recomputed.
 
 - **Packed globe, as built:** the page's `planetLayout` selects the frozen packed spots, and
-  `PlanetWorldCanvas` mounts each unchanged island as a tangent plate above a radius-160 shell.
+  `PlanetWorldCanvas` mounts each unchanged island as a tangent plate above a radius-218 shell.
   A small shader on the same double-sided shell makes it read as glass: a nearly clear middle,
   a brighter Fresnel rim, and one soft highlight from L1's lamp over the viewer's shoulder.
   The centre's base opacity is 0.012; the highlight stays faint enough to retain at least 80%
@@ -256,6 +260,17 @@ flat forest canvas remains in the engine, where its island drawing is reused.
   [globe-only page capture](../packages/forest/src/view/evidence/globe-only/README.md) records
   the later removal of the page choices and the surviving selection and smoke journey.
 
+- **Pathways, as built:** `forestScene` carries the library's capability dependencies into
+  `buildPlanetPathways`. The ported cost-grid router merges shared routes, counts their
+  original links, and samples cubic curves before drawing. On-land segments feed
+  the existing worn-ground material with its unchanged falloff; cross-island segments form
+  the V2 ribbon, with width from original-link usage, exact
+  coast docks and no raycast occlusion of names or markers. The complete chain of segment
+  references remains available for every link. Missing endpoints or unroutable links produce
+  a visible pathway error while all islands and their failure markers remain available. The current seed has 75 local and 28
+  cross-story links. [Seeded front and quarter-turn captures](../packages/forest/src/view/evidence/planet-pathways/README.md)
+  record the renderer, link counts, ribbon widths and coast gaps.
+
 **Contracts:**
 1. The app opens a seeded project on the globe alone; its smoke check finds one story node per
    story, each drawn with its capability tree.
@@ -265,6 +280,11 @@ flat forest canvas remains in the engine, where its island drawing is reused.
    D4: in 0.2 the names lived on the 2D map the owner cut, so the 3D forest carries them).
 5. The globe’s glass shell has a nearly clear middle, admitting at least 80% of the far-side
    contribution through both faces, with a bright rim and one soft highlight; there is no opaque sea.
+6. Every recorded "builds on" link has exactly one continuous trail chain; shared trunks are
+   drawn once and their width counts the original links.
+7. A cross-story link docks at both actual clipped shores and continues to its capabilities.
+8. Up to the stated 36-place capacity, the measured coasts leave the approved width-derived
+   pathway clearance, while every previously placed direction remains fixed.
 
 ## 4 · Drill-down
 

@@ -5,6 +5,9 @@
  * it is capability 8's live check.
  */
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { Client } from "@modelcontextprotocol/client";
@@ -15,7 +18,8 @@ import { habitsCard } from "./index.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
 async function sessionStart(): Promise<{ client: Client; close(): Promise<void> }> {
-  const tools = createAgentTools({ folder: process.cwd(), env: {} });
+  // A user's folder, not this checkout: storytree's own project also serves the librarian's tools.
+  const tools = createAgentTools({ folder: mkdtempSync(path.join(tmpdir(), "habits-card-")), env: {} });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   await tools.server.connect(serverSide);
   const client = new Client({ name: "claude-code", version: "test" });

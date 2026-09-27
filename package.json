@@ -8,6 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "storytree": "node --import tsx packages/cli/src/bins/storytree.ts",
     "test": "node --import tsx scripts/test.mjs",
     "typecheck": "pnpm -r typecheck",
     "test-ratio": "node scripts/test-ratio.mjs",

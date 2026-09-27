@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DoubleSide, Quaternion, Vector3 } from 'three';
+import { DoubleSide, Quaternion, ShaderMaterial, Vector3 } from 'three';
 import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 import { LIGHT_DIRECTION } from '../shade-ladder.js';
 import { landHeightRange } from '../land-relief.js';
@@ -45,15 +45,18 @@ test('L1 gives the island under the flat viewing angle its original local light,
 });
 
 // The globe mounts this actual Three mesh; material/depth behaviour is observable without WebGL.
-test('3.5 the shell stays visible while preserving at least 80% of the far-side contribution through both faces', () => {
+test('3.5 the glass has a nearly clear middle, retaining the 80% far-side minimum through both faces', () => {
   const surface = planet.createPlanetSurface(160);
   try {
     const material = surface.material;
     assert.ok(material.transparent);
-    assert.ok(material.opacity > 0 && material.opacity < 1, 'the ball still has a visible, transparent surface');
+    const opacity = material instanceof ShaderMaterial ? material.uniforms.opacity!.value as number : material.opacity;
+    assert.ok(opacity > 0 && opacity < 1, 'the ball still has a visible, transparent surface');
     // The owner found #90 too opaque: each shell face blends over the far side.
-    const farSideTransmission = (1 - material.opacity) ** 2;
+    const farSideTransmission = (1 - opacity) ** 2;
     assert.ok(farSideTransmission >= 0.8, `both shell faces leave only ${farSideTransmission} of the far side`);
+    // The glass request follows #93: move the visible shell toward the rim, clearing its middle.
+    assert.ok(farSideTransmission >= 0.95, `the clear middle leaves only ${farSideTransmission} of the far side`);
     assert.equal(material.depthWrite, false, 'the shell must not hide interior or far-side draws');
     assert.equal(material.side, DoubleSide, 'both faces of the ball remain visible');
     assert.equal(surface.geometry.parameters.radius, 160);

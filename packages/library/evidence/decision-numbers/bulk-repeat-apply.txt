@@ -1,0 +1,4 @@
+$ storytree adr renumber --from-full-record --apply
+One-time N1 move: applied with every write rechecked.
+0 renumbered; 0 refused. Decisions without a Full record line or already matching it are untouched.
+Writer: person:mickh

@@ -57,11 +57,15 @@ export interface SaveInput {
    * same time, on any connection, never get the same number.
    */
   readonly sequence?: string;
+  /** N1 repair: the supplied sequence number must be unused in ALL record history, including this record's. */
+  readonly sequenceNeverHeld?: boolean;
 }
 
 export interface EditInput {
   /** Check the merged record's number against history inside the write, as save does. */
   readonly sequence?: string;
+  /** N1 repair: check all record history, including this record's, under the write lock. */
+  readonly sequenceNeverHeld?: boolean;
   readonly id: string;
   /** Merged shallowly onto the stored fields; a key whose value is `undefined` is removed. */
   readonly fields: Record<string, unknown>;

@@ -1,0 +1,15 @@
+Source snapshot: /home/mickh/storytree-lanes/snapshots/2026-09-27T12-40-59-713Z.json
+Source SHA-256 (unchanged): 1adc01d2f21d4d69703ebe3ff0fa65805edf309fcff3863a0be0181f3b88670a
+Isolated STORYTREE_HOME: /tmp/storytree-adr-numbers.3aBBAD
+Records: 1307 before; 1307 after.
+Decisions: 82 before; 82 after.
+Full record targets: 29; all 29 unused across every record history.
+Dry run: 29 ready; 0 refused; no records or history changed.
+Bulk apply: 29 renumbered; 0 refused.
+History: 4906 before; 4935 after; exactly 29 new events.
+All prior history is byte-for-byte equivalent as snapshot data; old numbers retained.
+All 53 founding decisions and every non-target record unchanged.
+All repaired IDs and read fields preserved except number; normal legacy schema upgrade preserved.
+Unnumbered decisions: 13 before; 0 after.
+After dry run: 0 ready; 0 refused. Repeat apply: 0 renumbered; 0 refused; no writes.
+No live library or source snapshot modified. Temporary server stopped in finally.

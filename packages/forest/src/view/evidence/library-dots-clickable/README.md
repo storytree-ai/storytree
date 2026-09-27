@@ -56,7 +56,7 @@ final verification. `pnpm typecheck` and affected `pnpm test` run under `/tmp/st
 The selected test units are desktop, arc-surface, forest, forest-world, knowledge-core and
 package boundaries; this is the affected proof, not an assertion that unrelated units ran.
 
-`pnpm test-ratio` all row: `all 39,161 30,048 1.30` (test lines, implementation lines, ratio).
+`pnpm test-ratio` all row: `all 39,244 30,115 1.30` (test lines, implementation lines, ratio).
 
 No new desktop-smoke option was added: desktop smoke has no supported note-selection or
 projection hook, and adding that seam solely for a screenshot would expand this increment.

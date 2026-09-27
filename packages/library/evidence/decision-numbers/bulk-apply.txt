@@ -1,0 +1,33 @@
+$ storytree adr renumber --from-full-record --apply
+One-time N1 move: applied with every write rechecked.
+decision_064aa677f191  ADR-0050 → ADR-0638  RENUMBERED
+decision_229b7f7d10de  ADR-0069 → ADR-0658  RENUMBERED
+decision_285848291aa8  ADR-0056 → ADR-0646  RENUMBERED
+decision_2c63f94af33a  ADR-0062 → ADR-0648  RENUMBERED
+decision_36c08baf74dd  ADR-0065 → ADR-0655  RENUMBERED
+decision_37dfcaa8189a  ADR-0066 → ADR-0169  RENUMBERED
+decision_427a75532473  an unnumbered decision → ADR-0624  RENUMBERED
+decision_49f698bd6e83  an unnumbered decision → ADR-0626  RENUMBERED
+decision_4f2235a6ee77  an unnumbered decision → ADR-0629  RENUMBERED
+decision_5a637443cab7  ADR-0054 → ADR-0644  RENUMBERED
+decision_5aceecc28637  ADR-0067 → ADR-0656  RENUMBERED
+decision_5ae1815d9959  ADR-0068 → ADR-0659  RENUMBERED
+decision_611484cb49a2  an unnumbered decision → ADR-0625  RENUMBERED
+decision_66bfbd433f93  ADR-0052 → ADR-0642  RENUMBERED
+decision_69b5ac6855c3  an unnumbered decision → ADR-0632  RENUMBERED
+decision_6be3b0bfb19e  an unnumbered decision → ADR-0630  RENUMBERED
+decision_6e254791da68  ADR-0049 → ADR-0637  RENUMBERED
+decision_8c8442277610  ADR-0055 → ADR-0645  RENUMBERED
+decision_909ba178babf  ADR-0053 → ADR-0643  RENUMBERED
+decision_914f96703a84  an unnumbered decision → ADR-0627  RENUMBERED
+decision_91b4219db238  an unnumbered decision → ADR-0635  RENUMBERED
+decision_94985f0ccb52  ADR-0061 → ADR-0647  RENUMBERED
+decision_9ec9a13fbeb4  ADR-0051 → ADR-0640  RENUMBERED
+decision_a12097957060  an unnumbered decision → ADR-0623  RENUMBERED
+decision_ab42aa0b7279  an unnumbered decision → ADR-0621  RENUMBERED
+decision_b8617ff29caf  an unnumbered decision → ADR-0617  RENUMBERED
+decision_c9ba244fd3d6  ADR-0064 → ADR-0650  RENUMBERED
+decision_d84bf8c77a1e  an unnumbered decision → ADR-0634  RENUMBERED
+decision_e73cd3e83fa5  an unnumbered decision → ADR-0631  RENUMBERED
+29 renumbered; 0 refused. Decisions without a Full record line or already matching it are untouched.
+Writer: person:mickh

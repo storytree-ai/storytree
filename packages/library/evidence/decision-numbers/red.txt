@@ -1,145 +1,123 @@
 
-> storytree@ test /home/mickh/code/storytree03-wt/planet-lane-u
+> storytree@ test /home/mickh/code/storytree03-wt/adr-numbers
 > node --import tsx scripts/test.mjs "packages/library/src/knowledge/decision-log.test.ts" "packages/cli/src/decisions.test.ts"
 
 scope: files — the files named on the command line
-test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/planet-lane-u/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/adr-numbers/.pgtest/data (first run only; it can take minutes under x64 emulation)
 test Postgres: cluster created in 0.5 s
-test Postgres: listening on 127.0.0.1:46625 (started in 0.1 s)
-✔ 6.3 a superseded decision drops out of `--current`; filters use the library's status (886.683837ms)
-✔ 6.5 `adr pull` names a decision by id, number, or ADR number (622.256103ms)
-✔ 6.1 two `adr new` run at once get different, increasing numbers (356.154533ms)
-✔ 6.2 pull then push with no edit changes nothing (353.691115ms)
-✔ 6.4 a composed statement reads stale after its decision's text changes (643.390278ms)
-✖ 6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers (212.712484ms)
-✖ 6.7 `adr number` and its dry run refuse projects other than storytree (205.204086ms)
-✔ 13.1 [memory] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (6.622416ms)
-✖ 13.5 [memory] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (0.733323ms)
-✖ 13.5 [memory] simultaneous repairs cannot share a number or repair the same decision twice (0.363961ms)
-✖ 13.6 [memory] only storytree requires an explicit decision number from 0.2 (2.140134ms)
-✔ 13.2 [memory] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (2.850634ms)
-✔ 13.3 [memory] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (2.737288ms)
-✔ 13.4 [memory] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (1.801551ms)
-✔ 13.1 [postgres] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (250.330983ms)
-✖ 13.5 [postgres] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (111.862909ms)
-✖ 13.5 [postgres] simultaneous repairs cannot share a number or repair the same decision twice (83.202322ms)
-✖ 13.6 [postgres] only storytree requires an explicit decision number from 0.2 (94.342017ms)
-✔ 13.2 [postgres] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (101.238003ms)
-✔ 13.3 [postgres] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (90.787587ms)
-✔ 13.4 [postgres] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (93.918192ms)
-ℹ tests 21
+test Postgres: listening on 127.0.0.1:36431 (started in 0.1 s)
+✔ 6.3 a superseded decision drops out of `--current`; filters use the library's status (959.211367ms)
+✔ 6.5 `adr pull` names a decision by id, number, or ADR number (642.305795ms)
+✔ 6.1 two `adr new` run at once get different, increasing numbers (360.702997ms)
+✔ 6.2 pull then push with no edit changes nothing (352.920926ms)
+✔ 6.4 a composed statement reads stale after its decision's text changes (629.068719ms)
+✔ 6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers (951.011979ms)
+✔ 6.7 `adr number` and its dry run refuse projects other than storytree (343.683916ms)
+✖ 6.7 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations (122.015347ms)
+✔ 13.1 [memory] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (6.480552ms)
+✔ 13.5 [memory] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (3.447599ms)
+✔ 13.5 [memory] simultaneous repairs cannot share a number or repair the same decision twice (0.83324ms)
+✔ 13.6 [memory] only storytree requires an explicit decision number from 0.2 (0.34812ms)
+✖ 13.7 [memory] Full record bulk repair previews by default, reports refusals, and skips completed repairs (0.712531ms)
+✖ 13.5 [memory] repair refuses numbers any record ever held, including a collision arriving after preview (2.842832ms)
+✔ 13.2 [memory] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (2.159516ms)
+✔ 13.3 [memory] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (2.273202ms)
+✔ 13.4 [memory] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (1.802509ms)
+✔ 13.1 [postgres] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (246.798914ms)
+✔ 13.5 [postgres] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (126.330872ms)
+✔ 13.5 [postgres] simultaneous repairs cannot share a number or repair the same decision twice (94.574568ms)
+✔ 13.6 [postgres] only storytree requires an explicit decision number from 0.2 (89.428748ms)
+✖ 13.7 [postgres] Full record bulk repair previews by default, reports refusals, and skips completed repairs (94.160031ms)
+✖ 13.5 [postgres] repair refuses numbers any record ever held, including a collision arriving after preview (94.353118ms)
+✔ 13.2 [postgres] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (110.918128ms)
+✔ 13.3 [postgres] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (105.845516ms)
+✔ 13.4 [postgres] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (144.102741ms)
+ℹ tests 26
 ℹ suites 0
-ℹ pass 13
-ℹ fail 8
+ℹ pass 21
+ℹ fail 5
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 3582.942604
+ℹ duration_ms 4673.34648
 
 ✖ failing tests:
 
-test at packages/cli/src/decisions.test.ts:2:2678
-✖ 6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers (212.712484ms)
-  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+test at packages/cli/src/decisions.test.ts:2:3939
+✖ 6.7 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations (122.015347ms)
+  AssertionError [ERR_ASSERTION]: storytree adr has no "renumber"
 
-  1 !== 621
+  next:
+    - storytree adr   (its verbs)
 
-      at <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/cli/src/decisions.test.ts:125:12)
+
+  2 !== 0
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/cli/src/decisions.test.ts:154:12)
       at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-      at async inWorld (/home/mickh/code/storytree03-wt/planet-lane-u/packages/cli/src/testing/cli.ts:175:5)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/cli/src/decisions.test.ts:121:3)
+      at async inWorld (/home/mickh/code/storytree03-wt/adr-numbers/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/cli/src/decisions.test.ts:152:3)
       at async Test.run (node:internal/test_runner/test:1389:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
-    generatedMessage: true,
-    code: 'ERR_ASSERTION',
-    actual: 1,
-    expected: 621,
-    operator: 'strictEqual',
-    diff: 'simple'
-  }
-
-test at packages/cli/src/decisions.test.ts:2:3389
-✖ 6.7 `adr number` and its dry run refuse projects other than storytree (205.204086ms)
-  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-
-  2 !== 1
-
-      at <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/cli/src/decisions.test.ts:144:14)
-      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-      at async inWorld (/home/mickh/code/storytree03-wt/planet-lane-u/packages/cli/src/testing/cli.ts:175:5)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/cli/src/decisions.test.ts:138:3)
-      at async Test.run (node:internal/test_runner/test:1389:7)
-      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
-    generatedMessage: true,
+    generatedMessage: false,
     code: 'ERR_ASSERTION',
     actual: 2,
-    expected: 1,
+    expected: 0,
     operator: 'strictEqual',
     diff: 'simple'
   }
 
 test at packages/library/src/knowledge/decision-log.test.ts:1:1541
-✖ 13.5 [memory] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (0.733323ms)
-  TypeError: own.decisionNumberPlan is not a function
-      at <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:126:28)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:81:9)
+✖ 13.7 [memory] Full record bulk repair previews by default, reports refusals, and skips completed repairs (0.712531ms)
+  TypeError: own.numberDecisionsFromFullRecord is not a function
+      at <anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:194:31)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
       at async Test.run (node:internal/test_runner/test:1389:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
 
 test at packages/library/src/knowledge/decision-log.test.ts:1:1541
-✖ 13.5 [memory] simultaneous repairs cannot share a number or repair the same decision twice (0.363961ms)
-  TypeError: own.decisionNumberPlan is not a function
-      at <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:156:28)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:81:9)
-      at async Test.run (node:internal/test_runner/test:1389:7)
-      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+✖ 13.5 [memory] repair refuses numbers any record ever held, including a collision arriving after preview (2.842832ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /taken/. Input:
 
-test at packages/library/src/knowledge/decision-log.test.ts:1:1541
-✖ 13.6 [memory] only storytree requires an explicit decision number from 0.2 (2.140134ms)
-  AssertionError [ERR_ASSERTION]: Missing expected rejection.
-      at async <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:171:5)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:81:9)
+  ''
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:225:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
       at async Test.run (node:internal/test_runner/test:1389:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
-    generatedMessage: false,
+    generatedMessage: true,
     code: 'ERR_ASSERTION',
-    actual: undefined,
-    expected: /0\.2.*adr new.*until cutover.*explicit/i,
-    operator: 'rejects',
+    actual: '',
+    expected: /taken/,
+    operator: 'match',
     diff: 'simple'
   }
 
 test at packages/library/src/knowledge/decision-log.test.ts:1:1541
-✖ 13.5 [postgres] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (111.862909ms)
-  TypeError: own.decisionNumberPlan is not a function
-      at <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:126:28)
+✖ 13.7 [postgres] Full record bulk repair previews by default, reports refusals, and skips completed repairs (94.160031ms)
+  TypeError: own.numberDecisionsFromFullRecord is not a function
+      at <anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:194:31)
       at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
       at async Test.run (node:internal/test_runner/test:1389:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
 
 test at packages/library/src/knowledge/decision-log.test.ts:1:1541
-✖ 13.5 [postgres] simultaneous repairs cannot share a number or repair the same decision twice (83.202322ms)
-  TypeError: own.decisionNumberPlan is not a function
-      at <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:156:28)
-      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:81:9)
-      at async Test.run (node:internal/test_runner/test:1389:7)
-      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+✖ 13.5 [postgres] repair refuses numbers any record ever held, including a collision arriving after preview (94.353118ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /taken/. Input:
 
-test at packages/library/src/knowledge/decision-log.test.ts:1:1541
-✖ 13.6 [postgres] only storytree requires an explicit decision number from 0.2 (94.342017ms)
-  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+  ''
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:225:12)
       at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-      at async <anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:171:5)
-      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-u/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/adr-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
       at async Test.run (node:internal/test_runner/test:1389:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
-    generatedMessage: false,
+    generatedMessage: true,
     code: 'ERR_ASSERTION',
-    actual: undefined,
-    expected: /0\.2.*adr new.*until cutover.*explicit/i,
-    operator: 'rejects',
+    actual: '',
+    expected: /taken/,
+    operator: 'match',
     diff: 'simple'
   }
 test Postgres: stopped (0.1 s)

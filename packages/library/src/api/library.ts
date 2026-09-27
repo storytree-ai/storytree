@@ -195,6 +195,8 @@ export interface Library {
   numberDecision(id: string, number: number, options?: WriteOptions): Promise<SchemaRecord<"decision">>;
   /** Read-only Full record proposals, including reasons any would be refused. */
   decisionNumberPlan(): Promise<DecisionNumberPlan[]>;
+  /** One-time N1 bulk move; previews by default, applies only with apply: true, reports each refusal. */
+  numberDecisionsFromFullRecord(options?: WriteOptions & { readonly apply?: boolean }): Promise<DecisionNumberPlan[]>;
   /**
    * Write a principle, guardrail, pattern, process, agent role, friction, re-steer or tech stack,
    * with its kind's fields. Every link, and an agent role's or process's other references, must name
@@ -464,6 +466,10 @@ class LibraryHandle implements Library {
 
   decisionNumberPlan(): Promise<DecisionNumberPlan[]> {
     return this.#project.knowledge.decisionNumberPlan();
+  }
+
+  numberDecisionsFromFullRecord(options?: WriteOptions & { readonly apply?: boolean }): Promise<DecisionNumberPlan[]> {
+    return this.#project.knowledge.numberDecisionsFromFullRecord(options);
   }
 
   recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {

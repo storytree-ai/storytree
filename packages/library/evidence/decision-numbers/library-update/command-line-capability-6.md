@@ -2,7 +2,7 @@
 
 Record: `capability_562b2527ebca` (description).
 
-List decisions (current, by status, load-bearing) and record a new one with an explicit `--number <n>` or, in projects that allow it, the next number, its status, who decided it in their own words, and what it supersedes. The storytree project requires an explicit number from 0.2's `adr new` until cutover. `storytree adr number <decision> <n>` calls the library's one-time Full record repair; `storytree adr number --dry-run` lists every proposed old → new number and any refusal, changes nothing, and exits nonzero when any proposal is refused. Decisions without a Full record line are untouched. Pull a decision out as a markdown file, edit it, push it back, and write its composed statement (the owner's C2).
+List decisions (current, by status, load-bearing) and record a new one with an explicit `--number <n>` or, in projects that allow it, the next number, its status, who decided it in their own words, and what it supersedes. The storytree project requires an explicit number from 0.2's `adr new` until cutover. `storytree adr number <decision> <n>` calls the library's one-time Full record repair; `storytree adr number --dry-run` lists every proposed old → new number and any refusal, changes nothing, and exits nonzero when any proposal is refused. Decisions without a Full record line or already matching that line are untouched. Pull a decision out as a markdown file, edit it, push it back, and write its composed statement (the owner's C2).
 
 6.1 · In projects with automatic numbering, two `adr new` run at once get different, increasing numbers.
 
@@ -17,3 +17,5 @@ List decisions (current, by status, load-bearing) and record a new one with an e
 6.6 · `adr new --number <n>` preserves an explicit unused number and refuses a reused or invalid number. In storytree, omitting the number is refused with the instruction to obtain it from 0.2's adr new until cutover.
 
 6.7 · `adr number <decision> <n>` delegates the one-time Full record repair to the library. `adr number --dry-run` reports old → new proposals and clear refusals, writes nothing, and exits nonzero if any proposal is refused. Both forms refuse projects other than storytree.
+
+As built: `storytree adr renumber <decision> --number <n>` calls the same guarded repair. `storytree adr renumber --from-full-record [--dry-run]` previews the one-time N1 move by default; the supervisor reviews it, then runs `storytree adr renumber --from-full-record --apply`. The library owns bulk selection, refusals and writes. Output lists RENUMBER / RENUMBERED / REFUSED and totals; any refusal exits nonzero, even when other repairs succeeded. `--help` identifies the one-time N1 move. Conflicting modes, unknown flags and explicit false switches are refused before writing. Founding-books mode is deferred.

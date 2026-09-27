@@ -181,6 +181,65 @@ for (const backend of [memory, postgres]) {
     assert.equal((await own.recordDecision({ ...DECIDE, number: 660 })).fields.number, 660);
   });
 
+  contract("13.7", "Full record bulk repair previews by default, reports refusals, and skips completed repairs", async ({ records, transactions, knowledge }) => {
+    const own = new Knowledge(records, "storytree");
+    const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
+    const founding = await records.create("decision", { ...DECIDE, number: 2 });
+    const correct = await records.create("decision", { ...DECIDE, number: 622, text: "Full record: ADR-0622" });
+    const collision = await records.create("decision", { ...DECIDE, number: 3, text: "Full record: ADR-0622" });
+    const malformed = await records.create("decision", { ...DECIDE, text: "Full record: ADR-0623x" });
+    const duplicate = await Promise.all([1, 2].map(() => records.create("decision", { ...DECIDE, text: "Full record: ADR-0624" })));
+    const before = await transactions.history();
+
+    const preview = await own.numberDecisionsFromFullRecord();
+    assert.equal(preview.length, 5);
+    assert.deepEqual(preview.find((row) => row.id === imported.id), { id: imported.id, oldNumber: 1, number: 621 });
+    assert.match(preview.find((row) => row.id === collision.id)?.refusal ?? "", /taken/);
+    assert.match(preview.find((row) => row.id === malformed.id)?.refusal ?? "", /Full record/);
+    for (const record of duplicate) assert.match(preview.find((row) => row.id === record.id)?.refusal ?? "", /same Full record/);
+    await assert.rejects(knowledge.numberDecisionsFromFullRecord({ apply: true }), /storytree project/);
+    assert.deepEqual(await transactions.history(), before, "default preview and refusal write nothing");
+
+    assert.deepEqual(await own.numberDecisionsFromFullRecord({ apply: true, actor: "supervisor" }), preview);
+    assert.deepEqual((await records.get(imported.id))?.fields, { ...imported.fields, number: 621 });
+    assert.deepEqual(await records.get(founding.id), founding);
+    assert.deepEqual(await records.get(correct.id), correct);
+    const history = await records.history({ id: imported.id });
+    assert.equal(history.at(-1)?.actor, "supervisor");
+    assert.deepEqual(history.map((entry) => entry.record.fields.number), [1, 621]);
+    assert.equal((await transactions.history()).length, before.length + 1);
+    assert.deepEqual(await own.decisionNumberPlan(), preview.filter((row) => row.id !== imported.id));
+    const after = await transactions.history();
+    await own.numberDecisionsFromFullRecord({ apply: true });
+    assert.deepEqual(await transactions.history(), after, "repeat apply writes nothing");
+  });
+
+  contract("13.5", "repair refuses numbers any record ever held, including a collision arriving after preview", async ({ records, transactions }) => {
+    const own = new Knowledge(records, "storytree");
+    const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
+    // Transaction history may contain old or foreign schemas; every record counts.
+    await transactions.save({ id: "old-kind", type: "legacy", fields: { number: 621 } });
+    await transactions.retire({ id: "old-kind", reason: "retired" });
+    const definition = await records.create("definition", { term: "A term", meaning: "Full record: ADR-0621" });
+    const before = await transactions.history();
+    assert.match((await own.decisionNumberPlan())[0]?.refusal ?? "", /taken/);
+    await assert.rejects(own.numberDecision(imported.id, 621), NumberTakenError);
+    await assert.rejects(own.numberDecision(definition.id, 621), /live decision/);
+    assert.deepEqual(await transactions.history(), before);
+
+    const later = await records.create("decision", { ...DECIDE, number: 2, text: "Full record: ADR-0622" });
+    // Insert a competing writer after preflight reads history, before the repair takes its lock.
+    const history = records.history.bind(records);
+    records.history = async (filter) => {
+      const read = await history(filter);
+      await transactions.save({ id: "racing-kind", type: "legacy", fields: { number: 622 } });
+      return read;
+    };
+    await assert.rejects(own.numberDecision(later.id, 622), NumberTakenError);
+    assert.deepEqual(await records.get(later.id), later);
+    assert.equal((await history({ id: later.id })).length, 1, "atomic refusal wrote no repair");
+  });
+
   contract("13.2", "a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
     const old = await knowledge.recordDecision({ ...DECIDE, frontCoverOf: story.id });

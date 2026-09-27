@@ -159,6 +159,7 @@ export class Knowledge {
     const updated = await this.#records.edit(id, { number }, {
       ...options,
       sequence: "number",
+      sequenceNeverHeld: true,
       checkCurrent: (current) => {
         if (current.type !== "decision" || current.fields.number !== record.fields.number || current.fields.text !== record.fields.text) {
           throw new RangeError(`${id} changed or was already numbered; read it again before numbering`);
@@ -174,7 +175,10 @@ export class Knowledge {
     this.#requireStorytree();
     const records = await this.#records.list("decision");
     const history = await this.#records.history();
-    const rows = records.filter((record) => fullRecordLines(record.fields.text).length > 0).map((record) => {
+    const rows = records.filter((record) => {
+      const target = fullRecordNumber(record.fields.text);
+      return fullRecordLines(record.fields.text).length > 0 && (target === undefined || target !== record.fields.number);
+    }).map((record) => {
       const number = fullRecordNumber(record.fields.text);
       try {
         this.#checkNumber(record, number, history);
@@ -189,6 +193,31 @@ export class Knowledge {
       : row);
   }
 
+  /**
+   * The one-time N1 move, previewed unless apply is explicit. Every write rechecks the live
+   * decision and history. Refused rows stay in the result; independent repairs can still succeed.
+   * No Full record line, or a number already matching it, means no proposal and no write.
+   */
+  async numberDecisionsFromFullRecord(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
+    const plan = await this.decisionNumberPlan();
+    if (options.apply !== true) return plan;
+    const result: DecisionNumberPlan[] = [];
+    for (const row of plan) {
+      if (row.refusal !== undefined || row.number === undefined) {
+        result.push(row);
+        continue;
+      }
+      try {
+        await this.numberDecision(row.id, row.number, options);
+        result.push(row);
+      } catch (error) {
+        if (!(error instanceof RangeError || error instanceof NumberTakenError)) throw error;
+        result.push({ ...row, refusal: error.message });
+      }
+    }
+    return result;
+  }
+
   #requireStorytree(): void {
     if (this.#project !== "storytree") throw new RangeError("numberDecision is only available in the storytree project");
   }
@@ -200,7 +229,7 @@ export class Knowledge {
     if (record.fields.number === number || history.some((entry) => entry.recordId === record.id && entry.record.fields.number !== record.fields.number)) {
       throw new RangeError(`${record.id} has already been numbered; the Full record repair is one-time`);
     }
-    if (history.some((entry) => entry.type === "decision" && entry.recordId !== record.id && entry.record.fields.number === number)) {
+    if (history.some((entry) => entry.record.fields.number === number)) {
       throw new NumberTakenError("decision", "number", number);
     }
   }

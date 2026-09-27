@@ -45,8 +45,8 @@ export interface LiveReadingOptions {
   /** The project on show. */
   project: string;
   reads: LiveReads;
-  /** Called with what is new: first with everything so far, then only when something is. */
-  onNews(news: News): void;
+  /** Called with what is new. A returned promise is awaited before advancing either cursor. */
+  onNews(news: News): unknown;
   /** Called once a minute with the time, so quiet time can pass without a record. */
   onClock(now: number): void;
   /** Called when a read fails; the next ask tries again. */
@@ -81,9 +81,10 @@ export function liveReading({ project, reads, onNews, onClock, onError, timers =
     try {
       const [changes, lines] = await Promise.all([reads.changesSince(project, changesCursor), reads.linesSince(project, linesCursor)]);
       if (stopped) return;
+      if (first || changes.changes.length > 0 || lines.lines.length > 0) await onNews({ changes: changes.changes, lines: lines.lines });
+      if (stopped) return;
       changesCursor = changes.cursor;
       linesCursor = lines.cursor;
-      if (first || changes.changes.length > 0 || lines.lines.length > 0) onNews({ changes: changes.changes, lines: lines.lines });
       first = false;
     } catch (error) {
       if (!stopped) onError?.(error);

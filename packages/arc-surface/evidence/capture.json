@@ -1,0 +1,19 @@
+{
+  "browser": "148.0.7778.96",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "claimVisibleMs": 1825,
+  "idleChip": "idle · 42 min",
+  "smokeProblems": [],
+  "checks": [
+    "read error and retry",
+    "live claim",
+    "question fold and scroll survive refresh",
+    "all scopes smoke",
+    "idle without a new line",
+    "queued briefing",
+    "read-only UI",
+    "live settlement",
+    "close and Escape preserve the forest"
+  ],
+  "errors": []
+}

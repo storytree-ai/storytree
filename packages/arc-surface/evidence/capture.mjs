@@ -95,6 +95,7 @@ try {
   await page.locator('.arc-question > summary').first().click();
   await page.screenshot({ path: path.join(here, 'arc-surface.png') });
   await page.locator('.arc-question').first().evaluate(node => { if (!node.open) node.querySelector('summary').click(); });
+  await page.locator('.arc-briefing').evaluate(node => { node.scrollTop = 0; });
   await page.screenshot({ path: path.join(here, 'arc-briefing.png') });
   const history = await library.history();
   await page.evaluate(() => window.advanceArcClock(42 * 60000));

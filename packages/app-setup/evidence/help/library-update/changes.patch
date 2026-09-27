@@ -1,0 +1,26 @@
+--- old/The app setup/capability 3/capability_47e1fb495a56/description
++++ new/The app setup/capability 3/capability_47e1fb495a56/description
+@@ -1 +1,5 @@
+ A short in-app guide tells the user what to do next, what storytree will ask, and what a working first project looks like. They can reopen it when adding another project or recovering from a connection problem.
++
++As built: @storytree/app-setup/view mounts one Help entry outside the project surface, available with no project, either forest or a library error. First launch offers the guide; dismissal is remembered locally and Help reopens it. The guide covers the chosen agent, explicit project consent, harness approval, received-hook verification, first visible work, a second project, the unsigned Windows installer and feedback. Check a folder calls the agent link’s public runSetupCheck and displays its diagnostic lines and fixes. The adjacent copy action prepares a check_setup request for the agent; this folder check does not install hooks or the command and cannot verify hook receipt. The app’s existing projectSelection/followProjects refresh remains responsible for the project list.
++
++Evidence: packages/app-setup/evidence/help/README.md. Headless Chromium exercises the actual renderer and isolated library, including two setup fixtures and both selectable forests. Contract 3.3’s real two-empty-folder/two-yes harness walkthrough and the final installer handoff remain Windows acceptance work.
+
+--- old/The app setup/capability 4/capability_fc05f276586f/description
++++ new/The app setup/capability 4/capability_fc05f276586f/description
+@@ -1 +1,5 @@
+ The license travels with the installed product and is available without visiting the source repository. The user can open it from the same help surface they use after installation.
++
++As built: the desktop build copies the repository LICENSE and both Windows distribution paths carry it at resources/LICENSE. Help → License reads that resource and displays it inside the app without network access or a source checkout. Each open reads the current installation’s file; a failed read offers retry. The Windows installer check compares the NSIS-installed and arm64 unpacked resources with the repository license.
++
++Evidence: packages/app-setup/evidence/help/README.md. Unit tests and headless Chromium cover offline reading, a replaced resource and retry; a real installed-release update and arm64 installation remain Windows acceptance work.
+
+--- old/The app setup/capability 5/capability_418c90ffcd4c/description
++++ new/The app setup/capability 5/capability_418c90ffcd4c/description
+@@ -1 +1,5 @@
+ A button in the app lets the user describe a problem or suggestion and opens it as a draft GitHub issue on storytree's repository. They see what they are sending and submit it themselves.
++
++As built: Help → Send feedback provides editable title and message fields and an explicit Open GitHub draft action. The package constructs https://github.com/storytree-ai/storytree/issues/new with only those two user-authored fields; the desktop carries the OS external-browser action. It attaches no project contents, paths, transcripts or logs. A failed handoff preserves the message and offers retry or copy, with an explicit copy failure and selectable original text. Success says “Opened a draft”, leaving GitHub submission to the user. Closing help sends nothing.
++
++Evidence: packages/app-setup/evidence/help/README.md. Fake-opener tests and the actual desktop renderer cover no-project and both-forest access, cancellation, editing, retry, copy, exact payloads and honest success status. No issue was submitted by the checks.

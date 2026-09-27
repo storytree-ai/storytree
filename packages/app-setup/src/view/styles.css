@@ -1,0 +1,49 @@
+/* The frame's palette and control shapes keep help at home beside the project picker. */
+.setup-help button, .setup-help input, .setup-help textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .35rem .65rem;
+}
+.setup-help button { cursor: pointer; }
+.setup-help button:hover { background: var(--row-hover); }
+.setup-help button:disabled { opacity: .6; cursor: wait; }
+.setup-help button:focus-visible, .setup-help input:focus-visible, .setup-help textarea:focus-visible {
+  outline: 2px solid var(--text); outline-offset: 2px;
+}
+.setup-help-panel {
+  position: fixed;
+  z-index: 8;
+  top: 4.5rem; /* below both the app bar and the arc drawer's top-edge handle */
+  right: 1rem;
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 5.5rem);
+  overflow: auto;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 30px rgb(0 0 0 / .25);
+  font-size: .9rem;
+  line-height: 1.5;
+}
+.setup-help-panel header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.setup-help-panel h2 { margin: 0; font-size: 1.2rem; }
+.setup-help-panel h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
+.setup-help-panel p { margin: .7rem 0; }
+.setup-help-panel ol, .setup-help-panel ul { padding-left: 1.35rem; }
+.setup-help-panel li + li { margin-top: .65rem; }
+.setup-help-panel summary { cursor: pointer; font-weight: 600; }
+.setup-help-nav, .setup-help-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .85rem 0; }
+.setup-help-nav button[aria-pressed="true"] { font-weight: 600; background: var(--code-bg); border-color: var(--muted); }
+.setup-help-panel label { display: grid; gap: .3rem; margin: .7rem 0; font-weight: 600; }
+.setup-help-panel input, .setup-help-panel textarea { width: 100%; font-weight: 400; }
+.setup-help-panel textarea { min-height: 9rem; resize: vertical; }
+.setup-help-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.setup-help-panel [role="status"] { color: var(--muted); }
+.setup-help-panel [role="alert"] { color: var(--fail-text); }
+.setup-help-diagnostics { border-top: 1px solid var(--line); margin-top: .8rem; padding-top: .3rem; }
+.setup-help-diagnostics small { display: block; color: var(--muted); }

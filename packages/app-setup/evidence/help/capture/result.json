@@ -1,0 +1,31 @@
+{
+  "passed": [
+    "3.1 first-run guide without project",
+    "3.2 folder diagnostics/cancel/recovery through public agent-link API; no project created",
+    "4.1/4.2 offline shipped license; replacement resource read; missing-resource retry (not a real release update)",
+    "5.1–5.4 empty-app composer: cancel, editable text, browser failure, retry, copy/copy failure, exact draft payload and honest handoff status",
+    "3.1 reopen guide; dismiss persists and Escape restores focus",
+    "3.3 app-side only: two setup fixtures appear through normal refresh and both forests selectable",
+    "5.1 feedback over both forests",
+    "Help leaves arc handle clickable at normal and minimum window sizes",
+    "Help remains available on database error; dark theme"
+  ],
+  "calls": {
+    "projectSelection": 6,
+    "checkSetupFolder": 2,
+    "copyHelpText": 3,
+    "readSetupLicense": 4,
+    "openFeedbackDraft": 4,
+    "changesSince": 5,
+    "linesSince": 5,
+    "projectTree": 4,
+    "chooseProject": 2
+  },
+  "opened": [
+    "https://github.com/storytree-ai/storytree/issues/new?title=Help+%26+ideas+%F0%9F%8C%B3&body=My+reviewed+message%0A%3Cproject+details+deliberately+omitted%3E",
+    "https://github.com/storytree-ai/storytree/issues/new?title=Feedback+from+either+forest&body=Only+my+words",
+    "https://github.com/storytree-ai/storytree/issues/new?title=Feedback+from+either+forest&body=Only+my+words"
+  ],
+  "errors": [],
+  "limits": "Fake OS opener/clipboard; fixture setup yes; no Windows installer, real harness approvals, actual GitHub submission, arm64 launch or real release update."
+}

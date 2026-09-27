@@ -1,0 +1,19 @@
+{
+  "name": "@storytree/app-setup",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./view": "./src/view/index.ts",
+    "./view/styles.css": "./src/view/styles.css",
+    "./deliver": "./src/deliver/index.ts",
+    "./connect": "./src/connect/index.ts"
+  },
+  "scripts": { "typecheck": "tsc -p ." },
+  "dependencies": { "@storytree/agent-link": "workspace:*" },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

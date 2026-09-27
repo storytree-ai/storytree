@@ -36,6 +36,9 @@ importers:
       '@storytree/app':
         specifier: workspace:*
         version: link:../../packages/app
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../../packages/app-setup
       '@storytree/arc-surface':
         specifier: workspace:^
         version: link:../../packages/arc-surface
@@ -128,6 +131,22 @@ importers:
       builder-util:
         specifier: 26.15.3
         version: 26.15.3
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/app-setup:
+    dependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

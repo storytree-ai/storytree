@@ -1,0 +1,74 @@
+flock /tmp/storytree-heavy.lock pnpm typecheck — exit 0
+> storytree@ typecheck /home/mickh/code/storytree03-wt/flaky-621
+> pnpm -r typecheck
+
+Scope: 12 of 13 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app-setup typecheck: Done
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+flock /tmp/storytree-heavy.lock pnpm test — exit 0
+scope: full — everything — packages/agent-link/src/tools/agent-tools.test.ts changed in @storytree/agent-link, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, scripts
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/app-setup
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+Visible skips (not passes):
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.180046ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.569456ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+
+pnpm test-ratio — exit 0
+> storytree@ test-ratio /home/mickh/code/storytree03-wt/flaky-621
+> node scripts/test-ratio.mjs
+
+Test code per line of implementation, in code lines (comments and blanks left out):
+
+                              test   implementation   ratio
+  apps/desktop                 171            1,112    0.15
+  packages/agent-link        3,061            3,474    0.88
+  packages/app-setup            48              418    0.11
+  packages/app                 788              707    1.11
+  packages/arc-surface         495              903    0.55
+  packages/cli               1,306            1,448    0.90
+  packages/forest-world     25,483           13,202    1.93
+  packages/forest              741            2,834    0.26
+  packages/knowledge-core      571            1,086    0.53
+  packages/librarian           648              482    1.34
+  packages/library           5,259            3,642    1.44
+  packages/local-postgres      218              325    0.67
+  scripts                    1,166            1,355    0.86
+  all                       39,955           30,988    1.29

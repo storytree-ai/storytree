@@ -86,7 +86,7 @@ export class NumberTakenError extends Error {
   readonly number: number;
 
   constructor(type: string, field: string, number: number) {
-    super(`${type} number ${number} is taken: another ${type} has held it in field ${JSON.stringify(field)}, and a number is never used twice`);
+    super(`${type} number ${number} is taken: a record has held it in field ${JSON.stringify(field)}, and a number is never used twice`);
     this.name = "NumberTakenError";
     this.type = type;
     this.field = field;

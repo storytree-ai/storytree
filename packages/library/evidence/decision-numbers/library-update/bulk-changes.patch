@@ -1,0 +1,52 @@
+--- library/library-capability-13.md
++++ library/library-capability-13.md
+@@ -2,7 +2,7 @@
+ 
+ Record: `capability_78d6e026f902` (description).
+ 
+-Decision numbers do not collide, even across concurrent writers, and history reserves every number a decision has held. Other projects start at 1 and may allocate the next number automatically. In the project named exactly `storytree`, recording a decision requires an explicit number from 0.2's `adr new` until cutover. A narrow one-time repair gives an existing live decision the number in its own single `Full record: ADR-NNNN` line, provided no other decision has ever held it. `editNote` still refuses number changes. The repair preserves the record's identity, other fields, and old number in history. Its dry run lists every proposed old → new number and any refusal without writing; it reserves nothing and the write checks again. The 53 founding books have no Full record line and remain untouched until cutover. A decision's status is proposed or accepted, and it can be superseded: the superseded decision is kept, and reads as superseded. A decision carries the load-bearing mark, who decided it, in their own words, and one composed statement.
++Decision numbers do not collide, even across concurrent writers, and history reserves every number a decision has held. Other projects start at 1 and may allocate the next number automatically. In the project named exactly `storytree`, recording a decision requires an explicit number from 0.2's `adr new` until cutover. A narrow one-time repair gives an existing live decision the number in its own single `Full record: ADR-NNNN` line, provided no record of any type has ever held it. `editNote` still refuses number changes. The repair preserves the record's identity, other fields, and old number in history. Its dry run lists every proposed old → new number and any refusal without writing; it reserves nothing and the write checks again. The 53 founding books have no Full record line and remain untouched until cutover. A decision's status is proposed or accepted, and it can be superseded: the superseded decision is kept, and reads as superseded. A decision carries the load-bearing mark, who decided it, in their own words, and one composed statement.
+ 
+ 13.1 · In projects with automatic numbering, decisions recorded at once from separate connections get distinct numbers, each higher than any before. A number held by another decision is never reused, including retired decisions and old numbers kept in history.
+ 
+@@ -12,6 +12,8 @@
+ 
+ 13.4 · A decision may carry one composed statement. A read returns it marked stale when the decision's text changed after it was written, and the full text is always readable.
+ 
+-13.5 · Only in the storytree project, numberDecision repairs a live decision once to the number in its own single Full record: ADR-NNNN line. Missing or ambiguous lines, mismatches, retired records, previous repairs, and numbers another decision has ever held are refused without writing. Concurrent repairs cannot share a number or repair a record twice. The old number stays in history; editNote still refuses number. decisionNumberPlan lists proposed old → new numbers and refusals, including duplicate targets, without writing. Decisions without a Full record line are untouched.
++13.5 · Only in the storytree project, numberDecision repairs a live decision once to the number in its own single Full record: ADR-NNNN line. Missing or ambiguous lines, mismatches, retired records, previous repairs, and numbers any record has ever held are refused without writing. Concurrent repairs cannot share a number or repair a record twice. The old number stays in history; editNote still refuses number. decisionNumberPlan lists proposed old → new numbers and refusals, including duplicate targets, without writing. Decisions without a Full record line are untouched.
+ 
+ 13.6 · Recording a decision without an explicit number is refused in the project named storytree, explaining that numbers come from 0.2's adr new until cutover. An explicit unused number is accepted; other projects still auto-number from 1.
++
++13.7 · numberDecisionsFromFullRecord previews by default; apply: true applies every eligible proposal through numberDecision and returns each refusal. Decisions already matching their Full record number are omitted. Duplicate targets are refused, the write checks history again under the project lock, and repeated bulk application writes nothing once all eligible repairs are complete.
+--- library/command-line-capability-6.md
++++ library/command-line-capability-6.md
+@@ -2,7 +2,7 @@
+ 
+ Record: `capability_562b2527ebca` (description).
+ 
+-List decisions (current, by status, load-bearing) and record a new one with an explicit `--number <n>` or, in projects that allow it, the next number, its status, who decided it in their own words, and what it supersedes. The storytree project requires an explicit number from 0.2's `adr new` until cutover. `storytree adr number <decision> <n>` calls the library's one-time Full record repair; `storytree adr number --dry-run` lists every proposed old → new number and any refusal, changes nothing, and exits nonzero when any proposal is refused. Decisions without a Full record line are untouched. Pull a decision out as a markdown file, edit it, push it back, and write its composed statement (the owner's C2).
++List decisions (current, by status, load-bearing) and record a new one with an explicit `--number <n>` or, in projects that allow it, the next number, its status, who decided it in their own words, and what it supersedes. The storytree project requires an explicit number from 0.2's `adr new` until cutover. `storytree adr number <decision> <n>` calls the library's one-time Full record repair; `storytree adr number --dry-run` lists every proposed old → new number and any refusal, changes nothing, and exits nonzero when any proposal is refused. Decisions without a Full record line or already matching that line are untouched. Pull a decision out as a markdown file, edit it, push it back, and write its composed statement (the owner's C2).
+ 
+ 6.1 · In projects with automatic numbering, two `adr new` run at once get different, increasing numbers.
+ 
+@@ -17,3 +17,5 @@
+ 6.6 · `adr new --number <n>` preserves an explicit unused number and refuses a reused or invalid number. In storytree, omitting the number is refused with the instruction to obtain it from 0.2's adr new until cutover.
+ 
+ 6.7 · `adr number <decision> <n>` delegates the one-time Full record repair to the library. `adr number --dry-run` reports old → new proposals and clear refusals, writes nothing, and exits nonzero if any proposal is refused. Both forms refuse projects other than storytree.
++
++As built: `storytree adr renumber <decision> --number <n>` calls the same guarded repair. `storytree adr renumber --from-full-record [--dry-run]` previews the one-time N1 move by default; the supervisor reviews it, then runs `storytree adr renumber --from-full-record --apply`. The library owns bulk selection, refusals and writes. Output lists RENUMBER / RENUMBERED / REFUSED and totals; any refusal exits nonzero, even when other repairs succeeded. `--help` identifies the one-time N1 move. Conflicting modes, unknown flags and explicit false switches are refused before writing. Founding-books mode is deferred.
+--- library/definition_15f873f38fda/meaning
++++ library/definition_15f873f38fda/meaning
+@@ -12,3 +12,11 @@
+   (13-b). A composed statement remembers a fingerprint of the text it was composed against, and
+   reads as stale once the text differs; editing the title does not make it stale. The agent link's
+   tools and the seed record their decisions as accepted, as they were in effect before.
++
++- **As built, one-time N1 repair:** `numberDecision` repairs an already-loaded decision only in
++  `storytree`, to the number in its own single `Full record: ADR-NNNN` line, provided no record
++  has ever held the target number. Existing history reserves the old number; the transaction
++  rechecks collisions under the write lock. `editNote` still refuses number changes.
++  `numberDecisionsFromFullRecord` previews by default and applies only with `apply: true`,
++  returning every refusal. Already-correct numbers are omitted; founding books are untouched.
++  The CLI is `storytree adr renumber --from-full-record --dry-run`, then `--apply` after review.

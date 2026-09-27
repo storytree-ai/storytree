@@ -128,7 +128,7 @@ function decisionNumber(value: string): number {
 const number: Verb = {
   name: "number",
   usage: "adr number <decision> <n> | adr number --dry-run",
-  summary: "repair an imported storytree decision's number once, or preview every Full record proposal",
+  summary: "one-time N1 move: repair an imported storytree decision's number, or preview Full record proposals",
   switches: ["dry-run"],
   async act(args, context) {
     const library = await context.library();
@@ -148,6 +148,44 @@ const number: Verb = {
     const view = await viewOf(library, args.word(0, "the decision", this.usage));
     const updated = await library.numberDecision(view.record.id, decisionNumber(args.word(1, "the number", this.usage)), context.writer());
     return { text: `${updated.id}: ${adr(view.record.fields.number)} → ${adr(updated.fields.number)}.` };
+  },
+};
+
+const renumber: Verb = {
+  name: "renumber",
+  usage: "adr renumber <decision> --number <n> | adr renumber --from-full-record [--dry-run | --apply]",
+  summary: "one-time N1 move in storytree: bulk previews by default; --apply writes after you review the dry run",
+  switches: ["from-full-record", "dry-run", "apply", "help"],
+  async act(args, context) {
+    if (args.has("help")) return { text: `storytree ${this.usage}\n${this.summary}` };
+    const allowed = [...this.switches!, "number"];
+    if (args.names.some((flag) => !allowed.includes(flag) || (this.switches!.includes(flag) && args.texts(flag).some((value) => value !== "true")))) {
+      throw new Refusal(`usage: storytree ${this.usage}`, { code: 2 });
+    }
+    if (args.has("from-full-record")) {
+      if (args.words.length !== 0 || args.has("number") || (args.has("dry-run") && args.has("apply"))) {
+        throw new Refusal(`usage: storytree ${this.usage}`, { code: 2 });
+      }
+      const apply = args.has("apply");
+      const library = await context.library();
+      const plan = await library.numberDecisionsFromFullRecord(apply ? { ...context.writer(), apply: true } : {});
+      const refused = plan.filter((row) => row.refusal !== undefined).length;
+      const text = [
+        apply ? "One-time N1 move: applied with every write rechecked." : "Dry run: nothing changed. Review this output, then use --apply. Numbers are not reserved by this preview.",
+        ...plan.map((row) => `${row.id}  ${adr(row.oldNumber)} → ${adr(row.number)}  ${row.refusal === undefined ? (apply ? "RENUMBERED" : "RENUMBER") : `REFUSED: ${row.refusal}`}`),
+        `${plan.length - refused} ${apply ? "renumbered" : "ready"}; ${refused} refused. Decisions without a Full record line or already matching it are untouched.`,
+      ].join("\n");
+      if (refused > 0) throw new Refusal(text);
+      return { text };
+    }
+    if (args.words.length !== 1 || !args.has("number") || args.has("apply") || args.has("dry-run")) {
+      throw new Refusal(`usage: storytree ${this.usage}`, { code: 2 });
+    }
+    const target = decisionNumber(args.need("number", this.usage));
+    const library = await context.library();
+    const view = await viewOf(library, args.word(0, "the decision", this.usage));
+    const updated = await library.numberDecision(view.record.id, target, context.writer());
+    return { text: `${updated.id}: ${adr(view.record.fields.number)} → ${adr(updated.fields.number)}  RENUMBERED.` };
   },
 };
 
@@ -229,6 +267,6 @@ const list: Verb = {
 
 export const decisions: Family = {
   name: "adr",
-  summary: "the decision log: new, number, pull, push, compose, list",
-  verbs: [list, create, number, pull, push, compose],
+  summary: "the decision log: new, number, renumber, pull, push, compose, list",
+  verbs: [list, create, number, renumber, pull, push, compose],
 };

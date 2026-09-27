@@ -51,7 +51,7 @@ export class MemoryTransactions implements Transactions {
     if (current === undefined) return null;
     const record = editedRecord(current, input.fields, now(), input.upgrade);
     if (input.sequence !== undefined) {
-      record.fields = (this.#numbered({ ...record, sequence: input.sequence })).fields;
+      record.fields = (this.#numbered({ ...record, sequence: input.sequence, sequenceNeverHeld: input.sequenceNeverHeld === true })).fields;
     }
     check(record, input.validate);
     this.#append("updated", record, record.updatedAt, input.actor);
@@ -77,9 +77,9 @@ export class MemoryTransactions implements Transactions {
   #numbered(input: SaveInput): SaveInput {
     const field = input.sequence;
     if (field === undefined) return input;
-    const held = this.#history.filter((entry) => entry.type === input.type && typeof entry.record.fields[field] === "number");
+    const held = this.#history.filter((entry) => (input.sequenceNeverHeld || entry.type === input.type) && typeof entry.record.fields[field] === "number");
     const highest = Math.max(0, ...held.map((entry) => entry.record.fields[field] as number));
-    return numbered(input, highest, (number) => held.some((entry) => entry.recordId !== input.id && entry.record.fields[field] === number));
+    return numbered(input, highest, (number) => held.some((entry) => (input.sequenceNeverHeld || entry.recordId !== input.id) && entry.record.fields[field] === number));
   }
 
   /** Append one history entry, numbered one past the last. */

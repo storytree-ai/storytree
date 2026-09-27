@@ -1,0 +1,3 @@
+$ storytree adr renumber --from-full-record
+Dry run: nothing changed. Review this output, then use --apply. Numbers are not reserved by this preview.
+0 ready; 0 refused. Decisions without a Full record line or already matching it are untouched.

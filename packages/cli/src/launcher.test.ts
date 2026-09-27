@@ -44,7 +44,11 @@ test("8.5 setup installs the full command beside its hooks; the launcher reads t
     const checked = await run(["doctor"]);
     assert.match(checked.stdout, /storytree is running/);
     assert.match(checked.stdout, /Hooks for Claude Code: registered/);
-    const removed = await run(["setup", "remove"]);
+    // Use the bundled command to remove the wrapper. On Windows a running .cmd cannot remove
+    // itself cleanly: cmd.exe tries to read it again (PR #83's first Windows run). That wrapper
+    // is the agent link's; this contract proves its installed target is the full command line.
+    const removed = await world.run(["setup", "remove"], env);
+    assert.equal(removed.code, 0, removed.stderr);
     assert.match(removed.stdout, /taken off the path/);
     assert.equal(existsSync(launcher), false);
   });

@@ -281,6 +281,10 @@ fix for the rest, and it sets a folder up as a project only when you tell it to.
   run from beside this one. The agent link's `buildBins` bundles this package's command as
   `storytree.mjs` beside its hook and setup scripts, so setup installs a launcher for the full
   command line.
+- **Known agent-link launcher limit:** on Windows, `storytree setup remove` removes the running
+  `.cmd` wrapper but `cmd.exe` then exits 1 because the batch file is gone. Removal through
+  `node <installed storytree.mjs> setup remove` succeeds; fixing wrapper self-removal belongs to
+  the agent link's launcher generator.
 
 **Contracts:**
 1. With storytree closed, it opens it.
@@ -288,7 +292,7 @@ fix for the rest, and it sets a folder up as a project only when you tell it to.
 3. In a folder that is not a project, it creates nothing unless told to.
 4. A second run changes nothing.
 5. Setup installs the full command beside its hooks; the launcher reads the library and runs
-   `doctor`, and `setup remove` removes it again.
+   `doctor`; `setup remove` through the bundled command removes it again.
 
 ## 9 · Friction and re-steers
 

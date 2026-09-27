@@ -115,3 +115,35 @@ test("6.4 a composed statement reads stale after its decision's text changes", a
     assert.match(read.stdout, /stale/);
   });
 });
+
+
+test("6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers", async () => {
+  await inWorld(command, async (world) => {
+    const args = ["adr", "new", "--title", "Imported", "--text", "Full record: ADR-0621", "--status", "accepted", "--number"];
+    const created = await world.run([...args, "621"]);
+    assert.equal(created.code, 0, created.stderr);
+    assert.equal(numberIn(created.stdout), 621);
+    const library = await world.library();
+    const before = await library.history();
+    for (const number of ["621", "-1", "0", "1.5", "wat", "9007199254740992"]) {
+      const refused = await world.run([...args, number]);
+      assert.equal(refused.code, 1, refused.stdout);
+      assert.match(refused.stderr, /number/);
+    }
+    assert.deepEqual(await library.history(), before);
+  });
+});
+
+test("6.7 `adr number` and its dry run refuse projects other than storytree", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const decision = await library.recordDecision({ title: "Imported", text: "Full record: ADR-0621", status: "accepted" });
+    const before = await library.history();
+    for (const args of [[decision.id, "621"], ["--dry-run"]]) {
+      const refused = await world.run(["adr", "number", ...args]);
+      assert.equal(refused.code, 1);
+      assert.match(refused.stderr, /storytree project/);
+    }
+    assert.deepEqual(await library.history(), before);
+  });
+});

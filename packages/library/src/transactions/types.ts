@@ -42,6 +42,8 @@ export interface HistoryEntry {
 export type Validate = (candidate: RecordEnvelope) => void;
 
 export interface SaveInput {
+  /** Abort before the write starts; ignored after it takes the write lock. */
+  readonly signal?: AbortSignal;
   readonly id: string;
   readonly type: string;
   readonly fields: Record<string, unknown>;
@@ -66,6 +68,8 @@ export interface SaveInput {
 }
 
 export interface EditInput {
+  /** Abort before the write starts; ignored after it takes the write lock. */
+  readonly signal?: AbortSignal;
   /** Check the merged record's number against history inside the write, as save does. */
   readonly sequence?: string;
   /** N1 repair: check all record history, including this record's, under the write lock. */
@@ -87,6 +91,8 @@ export interface EditInput {
 export type Upgrade = (current: RecordEnvelope) => RecordEnvelope;
 
 export interface RetireInput {
+  /** Abort before the write starts; ignored after it takes the write lock. */
+  readonly signal?: AbortSignal;
   readonly id: string;
   readonly reason: string;
   readonly actor?: string;

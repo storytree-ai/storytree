@@ -1,0 +1,55 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/cancel-write
+> node --import tsx scripts/test.mjs "--test-name-pattern=6.20" "packages/agent-link/src/tools/agent-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/cancel-write/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:42045 (started in 0.1 s)
+✖ 6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged (317.996542ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 855.852522
+
+✖ failing tests:
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:322
+✖ 6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged (317.996542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      createdAt: '2026-09-27T14:34:28.719Z',
+      fields: {
+  +     title: 'Cancelled edit'
+  -     title: 'Before cancellation'
+      },
+      id: 'story_5b7d689aeabe',
+      type: 'story',
+  +   updatedAt: '2026-09-27T14:34:28.805Z',
+  -   updatedAt: '2026-09-27T14:34:28.719Z',
+      version: 1
+    }
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/agent-tools.test.ts:144:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/agent-tools.test.ts:90:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/agent-tools.test.ts:83:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/agent-link/src/tools/agent-tools.test.ts:103:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'story_5b7d689aeabe', type: 'story', version: 1, fields: { title: 'Cancelled edit' }, createdAt: '2026-09-27T14:34:28.719Z', updatedAt: '2026-09-27T14:34:28.805Z' },
+    expected: { id: 'story_5b7d689aeabe', type: 'story', version: 1, fields: { title: 'Before cancellation' }, createdAt: '2026-09-27T14:34:28.719Z', updatedAt: '2026-09-27T14:34:28.719Z' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server): one test per contract 6.1-6.19 in
+ * Capability 6 · Agent tools (the MCP server): contracts 6.1-6.20 in
  * the agent link story. A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
  * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
@@ -15,9 +15,13 @@ import { hostname } from "node:os";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { connect, type Library } from "@storytree/library";
 import { roundDue, worklist } from "@storytree/librarian";
+import pg from "pg";
 import { z } from "zod";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
@@ -26,8 +30,8 @@ import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { NOT_RUNNING_ANSWER } from "./index.js";
+import { dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { createAgentTools, NOT_RUNNING_ANSWER } from "./index.js";
 
 /** The toolbox: every tool the server offers. */
 const TOOLS = [
@@ -95,6 +99,65 @@ async function withProject(body: (world: World) => Promise<void>): Promise<void>
     }
   });
 }
+
+test("6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged", async () => {
+  await withProject(async ({ folder, project, library }) => {
+    const story = await library.addStory({ title: "Before cancellation" });
+    const before = await library.history({ id: story.id });
+    const url = new URL(testServerUrl());
+    url.pathname = `/${projectDatabase(project)}`;
+    const pool = new pg.Pool({ connectionString: url.href });
+    const blocker = await pool.connect();
+    const tools = createAgentTools({ folder, dataDir: testServerDataDir(), env: { CLAUDE_CODE_SESSION_ID: "cancelled-writer" } });
+    const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "claude-code", version: "test" });
+    try {
+      await tools.server.connect(serverSide);
+      let cancellationReceived = false;
+      const receive = serverSide.onmessage!;
+      serverSide.onmessage = (message, extra) => {
+        if ("method" in message && message.method === "notifications/cancelled") cancellationReceived = true;
+        receive(message, extra);
+      };
+      await client.connect(clientSide);
+      await client.callTool({ name: "show_plan", arguments: {} }); // Connect before blocking writes.
+      await blocker.query("BEGIN");
+      await blocker.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+      const abort = new AbortController();
+      const pending = client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Cancelled edit" } }, { signal: abort.signal });
+      const cancelled = assert.rejects(pending, /cancel/i);
+      // Observe a real queued writer, not a sleep that guesses when it reached the lock.
+      const deadline = Date.now() + 10_000;
+      while (true) {
+        const waiting = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'");
+        if (waiting.rowCount) break;
+        assert.ok(Date.now() < deadline, "the MCP edit reached the project's write lock");
+        await delay(10);
+      }
+      assert.deepEqual(await library.get(story.id), story);
+      abort.abort(new Error("cancel queued edit"));
+      await cancelled;
+      await client.ping(); // The server has processed the preceding cancellation notice.
+      assert.equal(cancellationReceived, true);
+      await blocker.query("COMMIT");
+      // This write takes its turn after the queued edit, so the assertion cannot race it.
+      await library.addStory({ title: "Following write" });
+      assert.deepEqual(await library.get(story.id), story);
+      assert.deepEqual(await library.history({ id: story.id }), before);
+
+      const accepted = await client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Wanted edit" } });
+      assert.notEqual(accepted.isError, true);
+      assert.deepEqual((await library.get(story.id))?.fields, { title: "Wanted edit" });
+      assert.equal((await library.history({ id: story.id })).at(-1)?.actor, "session:cancelled-writer");
+    } finally {
+      await blocker.query("ROLLBACK");
+      blocker.release();
+      await client.close();
+      await tools.close();
+      await pool.end();
+    }
+  });
+});
 
 test("6.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them", async () => {
   await withProject(async ({ folder, library }) => {

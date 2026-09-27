@@ -102,6 +102,8 @@ export interface ToolExtension {
   readonly registerTools?: (define: Define) => void;
   /** A short addition to the habits card, naming the added tools in backticks. */
   readonly instructions?: string;
+  /** Suggest the next step after a successful landing; undefined means nothing is due. */
+  readonly landNext?: (capability: string, call: Call) => Promise<string | undefined> | string | undefined;
 }
 
 export function createAgentTools(options: AgentToolOptions): AgentTools {
@@ -153,7 +155,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     callerOf,
   });
   registerPlanTools(define);
-  registerClaimTools(define);
+  registerClaimTools(define, extensions);
   registerWorkTools(define);
   registerNoteTools(define);
   for (const extension of extensions) extension.registerTools?.(define);

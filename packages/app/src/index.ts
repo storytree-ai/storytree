@@ -13,6 +13,8 @@ export { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp } from "./lifecycle/backups.js";
 export type { BackUpOptions } from "./lifecycle/backups.js";
 export { appDirIn, buildApp, electronIn, setUpRuntime, slotOf, slotSha, updateToMain } from "./updates/follow-main.js";
 export type { Build, RunningBuild, Slot } from "./updates/follow-main.js";
+export { refreshOwnHealth } from "./updates/own-health.js";
+export type { OwnHealthOptions } from "./updates/own-health.js";
 export { SEED_CONNECTION, seedWriting } from "./updates/seed-writing.js";
 export { ReleaseUpdater } from "./updates/releases.js";
 export type { ReleaseOptions } from "./updates/releases.js";

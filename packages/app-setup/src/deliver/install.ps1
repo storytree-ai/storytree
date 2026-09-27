@@ -19,6 +19,19 @@ function Add-StorytreePath([string]$Current, [string]$Entry) {
   return $Current.TrimEnd(';') + ';' + $Entry
 }
 
+function Invoke-StorytreeConnection($Report, [hashtable]$Operations) {
+  Write-Host 'Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.'
+  $choice = [string](& $Operations.Choose)
+  $flags = switch ($choice.Trim().ToLowerInvariant()) {
+    '1' { @('--claude') }
+    '2' { @('--codex') }
+    '3' { @('--claude', '--codex') }
+    's' { Write-Host 'Skipped agent connection. Later run storytree setup connect --claude or --codex (or both).'; return }
+    default { throw 'Choose 1, 2, 3 or S. The app is installed; retry connection with storytree setup connect --claude or --codex (or both).' }
+  }
+  & $Operations.Connect $Report.tools @($flags)
+}
+
 function Invoke-StorytreeDelivery([string]$InstallDir, [string]$Architecture, [hashtable]$Operations) {
   $step = 'inspect'
   try {
@@ -165,7 +178,15 @@ namespace StorytreeDelivery {
   } else {
     Write-Host 'The storytree command is available in a fresh Windows terminal.'
   }
-  Write-Host 'Open Help > First-run guide to connect your already installed and signed-in agent. Delivery alone does not verify an agent connection.'
+  Invoke-StorytreeConnection $answer.report @{
+    Choose = { Read-Host 'Choose 1, 2, 3 or S' }
+    Connect = {
+      param($Tools, $Flags)
+      # Use the delivered command explicitly, including when an unrelated storytree is on PATH.
+      & $Tools.node $Tools.cli setup connect @Flags | Out-Host
+      if ($LASTEXITCODE -ne 0) { throw 'Agent connection needs attention; read each agent result above. The app remains installed. Retry with storytree setup connect --claude or --codex (or both).' }
+    }
+  }
 } catch {
   Write-Error "$_ Retry: run the same delivery command again after resolving the named step."
   exit 1

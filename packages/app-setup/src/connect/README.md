@@ -34,7 +34,17 @@ conflicting entries or failed hook cleanup keep the command and give a retry act
 Setup still registers hooks for all detected homes: another setup check may re-create a
 disconnected harness's hooks. This does not re-register its MCP server.
 
-This export is the connection logic for the installer/app integration lane. This lane's
-file fence excludes app, CLI and delivery callers, so choosing agents in the installed UI
-and calling these functions must be joined there. It adds no second installer or setup check.
-See [evidence](../../evidence/connect/README.md) for proofs and Windows acceptance limits.
+After delivery, the PowerShell one-liner offers Claude Code, Codex, both, or skip. It calls
+the installed CLI explicitly, so a conflicting command on PATH cannot redirect setup.
+From a terminal, use `storytree setup connect --claude`, `--codex`, or both switches;
+`storytree setup disconnect claude-code` or `codex` removes one connection. Run
+`storytree setup --help` for all setup verbs. `setup install` and `setup remove` retain
+their existing hook/command meaning.
+
+The CLI forwards to app-setup's bundled `storytree-deliver.mjs` helper. It reads the schema-1
+`delivery.json` from the current storytree home and calls these same connection functions
+with `tools.node` and `tools.mcp`. No project or running app is needed for these commands.
+Failure for any selected agent exits nonzero while reporting each result. Missing or
+invalid delivery metadata names the installer as the recovery path. This adds no second
+installer or setup check. See the [join evidence](../../evidence/join/README.md) and
+[connection evidence](../../evidence/connect/README.md) for proofs and acceptance limits.

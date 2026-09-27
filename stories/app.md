@@ -196,6 +196,14 @@ on show when the app opens.
 
 **Contracts:**
 1. The Project list lists every project, with the one on show selected.
+2. The list is read again every three seconds, including while empty; a first project appears
+   without restarting, unchanged reads leave the surface alone, and closing the page stops polling.
+3. Reopening follows the last picker choice; `--project` wins on launch, and a remembered project
+   that has gone falls back to the first. An unknown explicit project is named as missing.
+4. A single newly set-up project discovered by the next read becomes the project on show and
+   is remembered as the user's choice (ADR-0657 O1).
+5. With no projects, the app tells the user to start Claude Code or Codex in a folder and say yes
+   when asked to set it up.
 
 ## 3 · Surfaces
 

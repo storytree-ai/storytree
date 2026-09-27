@@ -75,10 +75,15 @@ proof. Main then merged #121 (`8d8a73d`) while CI was finishing; this branch mer
 it at `6304348`, preserving both the stable overlay host and the knowledge component.
 The browser bridge now provides the project-selection reads used by the updated page.
 Installation, locked typecheck and the same six scoped units (1,562 tests) passed again.
-All captures were repeated on this merged renderer. The final test-ratio all row is:
+All captures were repeated on this merged renderer. Main's later #122 panel update
+(`91dd873`) merged cleanly at `6d626c6`; install, locked typecheck and the same 1,562
+scoped tests passed again. Its changes are confined to the story panel; the front and
+quarter-turn globe captures remain the `6304348` render. The full synthetic failure,
+claim and picking journey was recaptured on `6d626c6`, including its updated panel.
+The final test-ratio all row is:
 
 ```text
-  all                       38,402           28,379    1.35
+  all                       38,436           28,280    1.36
 ```
 
 ## Initial red, green and checks (before #118)

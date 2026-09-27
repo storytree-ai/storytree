@@ -19,11 +19,13 @@
  * Everything here but setting a folder up is synchronous and touches only the file system, so an
  * answer, "not running" included, comes back in milliseconds.
  */
-import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
 import type { Storytree } from "@storytree/library";
+
+import { recordProjectChoice } from "./project-choice.js";
 
 /** The marker a folder set up as a storytree project holds. */
 export const MARKER_FILE = ".storytree.json";
@@ -42,6 +44,8 @@ export interface SetUpOptions {
   readonly project: string;
   /** A connection to the running storytree's library. */
   readonly storytree: Storytree;
+  /** The app's home; defaults to STORYTREE_HOME, else ~/.storytree/0.3. */
+  readonly storytreeHome?: string;
 }
 
 export interface LocateOptions {
@@ -79,15 +83,25 @@ export function findProject(from: string): ProjectLookup {
 
 /**
  * Set `folder` up as project `project`, after the user said yes: open the project in the library
- * (creating its library the first time), then leave the marker. The name is judged by the library,
+ * (creating its library the first time), leave the marker, then record the user's choice for the app.
+ * The name is judged by the library,
  * which refuses one that breaks its rule (ProjectNameError) before anything touches the server; a
  * refusal leaves nothing behind.
  */
-export async function setUpProject({ folder, project, storytree }: SetUpOptions): Promise<{ project: string; marker: string }> {
+export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome() }: SetUpOptions): Promise<{ project: string; marker: string }> {
   const library = await storytree.openProject(project);
   await library.close();
   const marker = path.join(folder, MARKER_FILE);
+  const previous = existsSync(marker) ? readFileSync(marker) : undefined;
   writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
+  try {
+    recordProjectChoice(path.join(home, "project-choice.json"), project);
+  } catch (error) {
+    // A new marker would make the tool's explicit retry stop at "already set up".
+    if (previous === undefined) rmSync(marker);
+    else writeFileSync(marker, previous);
+    throw error;
+  }
   return { project, marker };
 }
 

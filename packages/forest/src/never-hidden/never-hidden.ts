@@ -1,6 +1,7 @@
+/** Capability 3's planet book: face failures on opening and keep hidden ones reachable at the rim. */
 import type { TreeForm } from "../capability-tree/capability-tree.js";
 
-/** A direction from the globe's centre, in globe coordinates (+y is north). Need not be unit length. */
+/** A finite, nonzero direction from the globe's centre (+y is north). Need not be unit length. */
 export interface GlobeDirection {
   x: number;
   y: number;
@@ -31,14 +32,42 @@ export interface EdgeMarker {
   turn: GlobeTurn;
 }
 
+/** Bring `spot` to view +z, keeping north upward. At a pole, use the zero meridian. */
 export function turnToIsland(spot: GlobeDirection): GlobeTurn {
-  throw new Error("turnToIsland is not implemented");
+  const horizontal = Math.hypot(spot.x, spot.z);
+  return { yaw: horizontal === 0 ? 0 : -Math.atan2(spot.x, spot.z), pitch: Math.atan2(spot.y, horizontal) };
 }
 
+/** Face the first failing island in input order, else the first story; an empty globe stays neutral. */
 export function openingTurn(islands: readonly FacingIsland[]): GlobeTurn {
-  throw new Error("openingTurn is not implemented");
+  const chosen = islands.find(isFailing) ?? islands[0];
+  return chosen === undefined ? { yaw: 0, pitch: 0 } : turnToIsland(chosen.spot);
 }
 
+/**
+ * One marker per failing island on or behind the horizon. `viewDirection` points FROM the globe
+ * centre TO the eye in globe coordinates, with the north-up view defined by turnToIsland(viewDirection).
+ * Project each hidden spot into that view and extend its bearing to the unit rim. Directly behind
+ * the centre has no bearing, so its marker sits at the top. The page flips y for CSS coordinates.
+ */
 export function edgeMarkers(islands: readonly FacingIsland[], viewDirection: GlobeDirection): EdgeMarker[] {
-  throw new Error("edgeMarkers is not implemented");
+  const { yaw, pitch } = turnToIsland(viewDirection);
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  return islands.filter(isFailing).flatMap(({ story, spot }) => {
+    const turnedZ = -spot.x * sy + spot.z * cy;
+    const x = spot.x * cy + spot.z * sy;
+    const y = spot.y * cp - turnedZ * sp;
+    const depth = spot.y * sp + turnedZ * cp;
+    // Trig roundoff must not hide an edge-on island or give a directly-behind one a random bearing.
+    const tolerance = 1e-12 * Math.hypot(spot.x, spot.y, spot.z);
+    if (depth > tolerance) return [];
+    const reach = Math.hypot(x, y);
+    const at = reach <= tolerance ? { x: 0, y: 1 } : { x: x / reach, y: y / reach };
+    return [{ story, at, turn: turnToIsland(spot) }];
+  });
+}
+
+/** The ground join's worst-form rule: one dead tree makes the island failing. */
+function isFailing(island: FacingIsland): boolean {
+  return island.trees.some(({ form }) => form === "dead");
 }

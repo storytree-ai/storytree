@@ -174,6 +174,14 @@ place of today's plain list.
 - **Its shelf,** founding book first:
   - **Founding book:** the land look endorsed for 0.2 is ported as it stands, with no art research
     (ADR-0625 D4, ADR-0508).
+  - **Planet book: a failing island is never hidden** (ADR-0646, H1). The globe opens facing a
+    failing island: any dead tree makes its island failing, as in the ground's worst-form rule.
+    If several fail it faces the first in story order; if none fail it faces the first story.
+    A failing island on or behind the horizon gets an edge marker, whose turn brings it to the
+    front. `openingTurn`, `edgeMarkers` and `turnToIsland` in `packages/forest/src/never-hidden`
+    calculate this without drawing: absolute north-up turns and unit-circle marker positions.
+    Pure tests prove opening toward failure, a hidden island's marker bringing it to the front,
+    and no marker for a failure already in front. The globe page adds the drawing in its own lane.
   - Only meshes exported from the bought pine kit ship, never the kit itself. Its licence allows
     derived output and forbids repackaging, as 0.2 applied it (ADR-0418).
   - The look is judged by the owner's eye, with a screenshot at each landing that changes it.

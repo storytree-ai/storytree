@@ -272,12 +272,12 @@ class ServerHandle implements Storytree {
     return this.#server.listProjects();
   }
 
-  snapshot(_name: string): Promise<ProjectSnapshot> {
-    throw new Error("snapshot is not built yet");
+  snapshot(name: string): Promise<ProjectSnapshot> {
+    return this.#server.snapshot(name);
   }
 
-  restore(_name: string, _snapshot: ProjectSnapshot): Promise<void> {
-    throw new Error("restore is not built yet");
+  restore(name: string, snapshot: ProjectSnapshot): Promise<void> {
+    return this.#server.restore(name, snapshot);
   }
 
   close(): Promise<void> {

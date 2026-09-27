@@ -539,6 +539,8 @@ A sketch, not a promise of exact signatures. The shape is fixed by the contracts
 const storytree = await connect({ url: "postgres://localhost:5432/postgres" }); // 1 (or a cloud config, 8)
 await storytree.listProjects();                        // ["my-website"]
 const lib = await storytree.openProject("my-website"); // 1: created the first time
+const kept = await storytree.snapshot("my-website");      // 1: records and history, to keep as a file
+await storytree.restore("my-website-copy", kept);        // 1: only into an empty project
 
 const story = await lib.addStory({ title: "Visitor can sign up" }, { actor: "person:Sam" }); // 4, 7
 const arc   = await lib.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] }); // 4, 10

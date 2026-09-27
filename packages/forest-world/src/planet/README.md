@@ -77,6 +77,6 @@ errors. A separate cold mount checked that the globe loads its kit without
 preloading it or mounting the flat canvas first.
 
 The packed placement is shown in the
-[ADR-0648 page capture](../../../../apps/desktop/src/forest/evidence/packed/README.md), and the
-[glass comparison](../../../../apps/desktop/src/forest/evidence/glass/README.md)
+[ADR-0648 page capture](../../../forest/src/view/evidence/packed/README.md), and the
+[glass comparison](../../../forest/src/view/evidence/glass/README.md)
 shows the current glass beside #93’s shell on the same seed.

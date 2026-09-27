@@ -29,7 +29,7 @@ then frozen. Nothing repacks in response to live story counts, ids, retirement o
 The original seed, fresh seed and 36-story sample all pass the complete coast-edge and
 containment check, including beaches. The seven-story fresh-seed nearest coast-vertex arc gaps run from
 4.22 to 10.84 ground units, median 4.44. See [spacing.json](spacing.json) and the
-[bounded proof](../../../../../../packages/forest/src/planet-places/measurements.md).
+[bounded proof](../../../planet-places/measurements.md).
 This is not a guarantee for arbitrary ids or future island growth, and does not inherit
 W2's 100-place/19-capability bound. Place 37 is refused. The merged main adds the four-capability
 knowledge-core story at historical place 8; [that current seed also passes](current-seed-coasts.json)

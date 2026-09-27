@@ -55,7 +55,7 @@ and no depth writing. It keeps ray hits for the near-side labels and picking rul
 far-side blend contribution (`0.92²`), compared with 67.2% before (`0.82²`). The existing shell
 test protects at least 80% transmission and a nonzero shell, without pinning the exact colour
 or opacity. The ball's outline remains visible in the
-[front and quarter-turn comparisons](../apps/desktop/src/forest/evidence/shell/README.md).
+[front and quarter-turn comparisons](../packages/forest/src/view/evidence/shell/README.md).
 The shell comparison showed the seeded islands through the shell, with no core placeholder.
 
 **Glass tuning, 2026-09-27.** After #93 the owner said “doesnt look seethrough, maybe try
@@ -72,7 +72,7 @@ back-face/front-face draws and ray hits, with depth writing off. It needs no tra
 buffer, refraction, post-processing, extra mesh or render target. Placement, islands, kit,
 light, labels, claims and picking retain their existing code. The earlier 80% test remains,
 with a 95% clear-centre base target added red then green; the rim and highlight are judged in
-the [matched seeded captures](../apps/desktop/src/forest/evidence/glass/README.md), with an
+the [matched seeded captures](../packages/forest/src/view/evidence/glass/README.md), with an
 actual shader pixel readback checking the composited transparency. These are shell changes
 only; that landing left the knowledge core's separate “Look inside” view unchanged. ADR-0655
 subsequently removes its page entry, as noted above.
@@ -82,7 +82,7 @@ their real sizes, including beaches (4–13 capabilities, original ids). It does
 100-place/19-capability guarantee: arbitrary growth or different coast shapes can crowd a
 neighbour. Far-side trees can cross near coasts in the view. The
 [measurements](../packages/forest/src/planet-places/measurements.md) state the bound, and the
-[page pictures](../apps/desktop/src/forest/evidence/packed/README.md) show the result.
+[page pictures](../packages/forest/src/view/evidence/packed/README.md) show the result.
 
 References: ADR-0646, ADR-0629, ADR-0642, ADR-0632; `spike/globe-land` and `spike/globe-look-2`;
 storytree-ai/storytree #72, #74, #75 and #78. The spike branch itself is not merged.

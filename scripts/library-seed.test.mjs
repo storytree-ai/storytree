@@ -6,7 +6,7 @@
 // dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -618,3 +618,14 @@ async function withLibrary(body) {
     }
   }
 }
+
+test("every decision file in decisions/ names a record no other file names, so the seed can file them all", () => {
+  const dir = path.join(root, "decisions");
+  /** @type {Map<string, string>} record -> the file that names it */
+  const owners = new Map();
+  for (const name of readdirSync(dir).filter((file) => file.endsWith(".md")).sort()) {
+    const { record } = parseDecision(readFileSync(path.join(dir, name), "utf8"));
+    assert.equal(owners.get(record), undefined, `${record} is the full record of both decisions/${owners.get(record)} and decisions/${name}`);
+    owners.set(record, name);
+  }
+});

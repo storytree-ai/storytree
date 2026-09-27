@@ -11,7 +11,7 @@ import { newNotes, retire } from "./index.js";
 test("3.1 retire retires a note nothing points at, and refuses one a live record points at, naming it", async () => {
   await withLibrary(async (library) => {
     const decision = await library.recordDecision({ title: "Send through Mailgun", text: "Simplest API.", status: "accepted" });
-    const memory = await library.writeMemory({ text: "Mailgun needs a verified domain.", links: [decision.id] });
+    const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [decision.id] });
     const friction = await library.writeKnowledge("friction", {
       title: "Mailgun bounced a test email",
       description: "An unverified domain bounces.",
@@ -24,16 +24,16 @@ test("3.1 retire retires a note nothing points at, and refuses one a live record
     const answer = await library.recordDecision({ title: "Use Mailgun", text: "The owner chose Mailgun.", status: "accepted" });
     const question = await library.raiseQuestion({ arc: arc.id, title: "Which mailer?", stakes: "Sign-up needs one.", statement: "Which?", context: "Two options.", options: "Mailgun or Postmark." });
     await library.settleQuestion(question.id, { answer: "Mailgun", decision: answer.id });
-    const lone = await library.writeMemory({ text: "A lone memory nothing rests on." });
+    const lone = await library.defineTerm({ term: "Lone artifact", meaning: "An artifact nothing rests on." });
     const { cursor } = await library.changesSince(0);
 
-    await assert.rejects(retire(library, decision.id, "overtaken"), new RegExp(`${memory.id}.*links`));
+    await assert.rejects(retire(library, decision.id, "overtaken"), new RegExp(`${definition.id}.*links`));
     await assert.rejects(retire(library, friction.id, "remedied"), new RegExp(`${increment.id}.*remedies`));
     await assert.rejects(retire(library, answer.id, "done"), new RegExp(`${question.id}.*settled`));
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
 
     await retire(library, lone.id, "event-specific");
-    assert.deepEqual(await library.search("lone memory"), []);
+    assert.deepEqual(await library.search("lone artifact"), []);
   });
 });
 
@@ -46,16 +46,16 @@ test("3.2 the worklist lists each note written new since a cursor, with the live
       why: "Providers refuse the rest.",
       howToApply: "Verify the domain before the first send.",
     });
-    const unrelated = await library.writeMemory({ text: "Arcs hold increments." });
+    const unrelated = await library.defineTerm({ term: "Arc", meaning: "Arcs hold increments." });
     const { cursor } = await library.changesSince(0);
 
-    const memory = await library.writeMemory({ text: "Mailgun needs a verified domain." });
-    await library.editNote(unrelated.id, { text: "Arcs hold their increments." });
+    const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain." });
+    await library.editNote(unrelated.id, { meaning: "Arcs hold their increments." });
 
     const listed = await newNotes(library, cursor);
     assert.deepEqual(
       listed.map(({ note, lookalikes }) => ({ note: note.id, lookalikes: lookalikes.map((one) => one.id) })),
-      [{ note: memory.id, lookalikes: [principle.id] }],
+      [{ note: definition.id, lookalikes: [principle.id] }],
     );
   });
 });

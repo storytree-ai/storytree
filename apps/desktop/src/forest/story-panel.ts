@@ -56,8 +56,8 @@ function opened(book: Book): string {
   return `
     <div class="panel-book">
       ${book.text.split(/\n\s*\n/).map((paragraph) => `<p>${text(paragraph)}</p>`).join("")}
-      ${titles("Linked from", book.linksIn, "No note links here yet.")}
-      ${titles("Links to", book.linksOut, "It links to no note.")}
+      ${titles("Linked from", book.linksIn, "No artifact links here yet.")}
+      ${titles("Links to", book.linksOut, "It links to no artifact.")}
     </div>`;
 }
 

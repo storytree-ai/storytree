@@ -24,7 +24,7 @@ for (const backend of ["memory", "public postgres"] as const) {
 
       const original = await records.create("story", { title: "Sign up", description: "Visitors join." }, { id: "z-story", actor: "person:Sam" });
       const first = await records.create("story", { title: "First by id" }, { id: "a-story" });
-      await records.create("memory", { text: "Not a story" });
+      await records.create("definition", { term: "Delivery", meaning: "Not a story" });
       const edited = await records.edit(original.id, { title: "Join" }, { actor: "session:agent-42" });
       assert.deepEqual(await reader.get(original.id), edited, "the complete envelope and fields");
       const stories: SchemaRecord<"story">[] = await reader.list("story");

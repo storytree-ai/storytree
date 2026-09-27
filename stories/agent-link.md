@@ -4,7 +4,7 @@
 through two layers that share one base. A passive layer of hooks records what every agent does,
 so even an agent that ignores storytree shows up as unplanned activity. An active layer, an MCP
 tool server, is what the agent chooses to call to plan, claim, report red, green and landed, and
-take notes, taught by a short habits card. A setup check at every session start keeps it all set
+write artifacts, taught by a short habits card. A setup check at every session start keeps it all set
 up. Red-green is a convention the card teaches, not a loop storytree runs.
 
 **Approved** by the owner on 2026-09-26. The tree below is ADR-0626 in storytree 0.2's decision
@@ -36,7 +36,7 @@ came first.
 
 **The owner's choices** (ADR-0626):
 - **B1:** the link keeps its own agent activity log beside the library, not inside it. Sessions,
-  activity, claims and note reads live there, not as library record types.
+  activity, claims and artifact reads live there, not as library record types.
 - **C1:** one holder per capability, and no queue.
 - **E1:** Codex gets the same two layers as Claude Code, through user-level hooks and its one-time
   approval.
@@ -86,7 +86,7 @@ picks a project by itself: a folder the user hasn't said yes to is ignored, and 
 running it says so at once, so everything built on it quietly does nothing.
 
 - **Depends on:** nothing in this story. It uses the library API's `connect` and `openProject`, and
-  the note the running 0.3 app keeps of where its database is listening.
+  the record the running 0.3 app keeps of where its database is listening.
 - **Its shelf,** founding book first:
   - **Founding book (ADR-0626 D5):** project routing sends what an agent does in a folder to one
     storytree project. It never picks a project by itself: storytree asks, and the user's yes is
@@ -118,14 +118,14 @@ running it says so at once, so everything built on it quietly does nothing.
 
 The agent link's own logbook of what agents do, one per project and kept beside the library rather
 than inside it, with one line for each thing that happens: a session starts or ends, a file is
-edited, a command runs, a note is read, work is claimed, released or landed. Lines are only ever
+edited, a command runs, an artifact is read, work is claimed, released or landed. Lines are only ever
 added, never changed, and can be read back in order as "everything since line N", including lines
 that other processes wrote.
 
 - **Depends on:** 1.
 - **Its shelf,** founding book first:
   - **Founding book (ADR-0626 D2, B1):** the link keeps its own log of what agents do, beside the
-    library and not inside it. Sessions, activity, claims and note reads live there, not as library
+    library and not inside it. Sessions, activity, claims and artifact reads live there, not as library
     record types.
 - **Leaves out (vs 0.2):** 0.2's claim-event, work-event and trace tables, its retired presence
   rows, and the machine-wide register of running jobs (`storytree own`). Lines can't be edited or
@@ -136,7 +136,7 @@ that other processes wrote.
   own; a project's writes take turns on a lock, so its lines commit in the order they are numbered.
   The kinds of line: a session started or ended, files edited, a command started or run, a turn
   ended, a storytree tool asked for (naming the agent that asked, as a hook saw it) or called, a
-  subagent started, a note read, and a capability claimed, released or landed. Every line names
+  subagent started, an artifact read, and a capability claimed, released or landed. Every line names
   its session and its harness, and, since ADR-0636 D1 (b1), the machine it was written on: the
   hooks and the tool server open the log with the machine's host name, trimmed, and it goes on
   every line they write. It reads the same on every line until two machines share one log, which
@@ -183,7 +183,7 @@ running they do nothing.
   call, equal to its hooks' `session_id` in a top-level session. So the hooks did not need to
   record a pairing for the session. ADR-0629 D2's agent needs one, below.
 - **Added by ADR-0629 D2** (storytree 0.2's decision log, decided by the owner after approval):
-  each note read names the agent that made it (capability 6), and only a hook sees that agent. So a
+  each artifact read names the agent that made it (capability 6), and only a hook sees that agent. So a
   hook also runs just before each call to one of storytree's own tools (`mcp__storytree__…`, which
   is why the tool server is registered under the name storytree), and it is the one hook the
   harness waits for: its line is written before the call reaches the tool server. That adds about
@@ -442,37 +442,42 @@ idle.
 
 The toolbox the agent calls, served as an MCP server: plan work (arc, story, capability, contract),
 see the plan and who is on what, claim or release a capability, report a contract red or green,
-report a capability landed, and search, read and write notes (plus list and add a node's front
+report a capability landed, and search, read and write artifacts (plus list and add a node's front
 covers, once the library has them). Each tool is a thin wrapper over the library API and the claims
-above that answers in a short plain sentence the agent can act on, and every note read is logged in
-the agent activity log (ADR-0624); a new note with no place named goes onto the claimed
+above that answers in a short plain sentence the agent can act on, and every artifact read is logged in
+the agent activity log (ADR-0624); a new artifact with no place named goes onto the claimed
 capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's default link).
 
 - **Depends on:** 1, 2 and 5; the library API, plus three edit functions it gains for this story
-  (edit a story, a contract and an arc: `stories/library.md`, capability 7). The note tools also
+  (edit a story, a contract and an arc: `stories/library.md`, capability 7). The artifact tools also
   need the library's knowledge entrances (ADR-0627 D8), which land first.
 - **Its shelf,** founding book first:
-  - Every knowledge read is recorded, and a new note has a default place (ADR-0624, decisions/adr-0624.md).
+  - Every knowledge read is recorded, and a new artifact has a default place (ADR-0624, decisions/adr-0624.md).
 - **Leaves out (vs 0.2):** the whole storytree command line (dozens of commands for the library,
   arcs, decisions, questions, the gate and the notice board), the build workers, the prove-it spine,
   signed verdicts and paid `--real` builds.
 - **As built:** one command, `storytree-mcp`, a plain Node script a harness starts for each
   session and talks to on stdio. Its founding tools: `plan_arc`, `plan_story`, `plan_capability`,
   `plan_contract`, `edit_plan`, `show_plan`, `claim`, `release`, `report` (red or green), `land`,
-  `search_notes`, `open` (a story's or capability's shelf as spines, or a note whole) and
+  `search_notes`, `open` (a story's or capability's shelf as spines, or an artifact whole) and
   `write_note`. Each call is routed from the session's folder afresh and recorded as a
   `tool-called` line on the calling session: Claude Code's id from `CLAUDE_CODE_SESSION_ID`, Codex's
-  from the call's `_meta.sessionId` (or `threadId` before Codex 0.155). A note shown as a spine or
-  title is a peek, an opened note is read whole, and how it was found is where the session last saw
-  it shown (search, shelf or link), else by its id. The note tools were built after the library's
+  from the call's `_meta.sessionId` (or `threadId` before Codex 0.155). An artifact shown as a spine or
+  title is a peek, an opened artifact is read whole, and how it was found is where the session last saw
+  it shown (search, shelf or link), else by its id. The artifact tools were built after the library's
   knowledge entrances landed (its capability 9), on ADR-0627 D4 from their first version.
 - **Increment claims in the tools (6.2, 6.5):** `show_plan` includes each arc's increments with
   their title, id, status and holder, and keeps the full capability or increment claim in its data.
-  A note's default shelf comes from the latest held capability even when the session claimed an
+  An artifact's default shelf comes from the latest held capability even when the session claimed an
   increment more recently; an increment alone gives no capability shelf.
-- **Corrected after approval (ADR-0627).** A note no longer links to a capability. A new note with
+- **Changed by ADR-0650:** knowledge records are artifacts, and `write_note` refuses `memory`
+  with the reason. Decisions take `title` and `text`, definitions `term` and `meaning`; principles,
+  guardrails, patterns, processes, agent roles and tech stack take their required fields in
+  `fields`. All keep the same default filing. Friction and re-steers are directed to their
+  evidence-checking capture tools. Existing tool names remain compatible.
+- **Corrected after approval (ADR-0627).** An artifact no longer links to a capability. A new artifact with
   no place named goes onto the claimed capability's shelf: a decision becomes a front cover; a
-  memory or definition links to the cover the session last opened, else to the shelf's first book;
+  definition or other remaining artifact kind links to the cover the session last opened, else to the shelf's first book;
   with an empty shelf nothing is added and the agent is told; with no claim there is no default.
   Reads can be found "from a shelf". Opening a story or capability returns its shelf as spines
   first (ADR-0627 D7): built, as `open`.
@@ -480,15 +485,15 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
   take one short founding decision, the one choice that shapes the new node and what it is for,
   and record it as the first book on its shelf, so no shelf planned through the tools starts
   empty. A node made another way, such as through the library directly, can still have an empty
-  shelf, and a note written there is handled as D4 says.
-- **Added by ADR-0629 D2:** every note read also names the agent that made it: the session's
+  shelf, and an artifact written there is handled as D4 says.
+- **Added by ADR-0629 D2:** every artifact read also names the agent that made it: the session's
   orchestrator, or a subagent by its id, type and task. It is what the harness revealed before the
   read, and nothing else: the hook's line for the call (capability 3), which is all Claude Code
   shows, or for Codex the call's own thread; a subagent's type and task come from the line its
   start left. When nothing was revealed the read names the agent as "unknown". It is never worked
   out from timing or from transcripts. Reads recorded before this landed name no agent.
   **Live-checked 2026-09-26** with the built tool server and hook against a throwaway storytree:
-  in Claude Code 2.1.283 (Haiku) and in Codex 0.155, the orchestrator opened a note and then one
+  in Claude Code 2.1.283 (Haiku) and in Codex 0.155, the orchestrator opened an artifact and then one
   subagent did. Each read named its agent: the orchestrator, and the subagent by its id, type
   (`note-reader`, `explorer`) and task. Each hook's line was written before its call reached the
   tool server. Codex starts a tool server with a trimmed environment, so a storytree home other
@@ -535,10 +540,10 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     backwards, a wait loop, retiring a question work is held on) come back as readable answers.
     `raise_question` holds the increments it names by adding the question to each one's `heldOn`,
     through the library's `editIncrement`, and `retire_question` is the library's `retire`.
-  - **Correcting a note and retiring a capability or contract (ADR-0641 D2 step 3, E1), as built
-    (6.13, 6.14):** `correct_note` changes only the wording fields given (a memory's or decision's
+  - **Correcting an artifact and retiring a capability or contract (ADR-0641 D2 step 3, E1), as built
+    (6.13, 6.14):** `correct_note` changes only the wording fields given (a decision's
     text, a decision's title, a definition's term or meaning) through the library's `editNote`,
-    which keeps the old wording in history and refuses a field the note's kind does not have.
+    which keeps the old wording in history and refuses a field the artifact's kind does not have.
     `retire_from_plan` retires a capability or a contract, with its reason, through the library's
     `retire`; any other id is refused, since a question has its own retire and an arc or increment
     closes instead. The repo wiring ADR-0641 E1 also names (ADR-0636 b5) is not in this landing: the
@@ -586,12 +591,12 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
    passes, and the machine it ran on.
 4. A bad call, such as an unknown capability, gets a readable refusal rather than a crash, and with
    storytree stopped every tool answers "storytree isn't running, carry on without it".
-5. A note written with no place named while holding a capability claim goes onto that capability's
+5. An artifact written with no place named while holding a capability claim goes onto that capability's
    shelf as ADR-0627 D4 says, even with a newer increment claim; one with no capability claim gets
    no default place.
-6. Searching and opening a note leaves a log line saying which session read it, how it was found (a
-   search result, a link from another note, by id, or from a shelf) and whether it took a peek or
-   the whole note.
+6. Searching and opening an artifact leaves a log line saying which session read it, how it was found (a
+   search result, a link from another artifact, by id, or from a shelf) and whether it took a peek or
+   the whole artifact.
 7. Each read also names the agent that made it: a subagent by its id, type and task, or the
    orchestrator, as the harness revealed them (Claude Code through the hook's line for the call,
    Codex on the call itself), and "unknown" for a call the harness said nothing about.
@@ -612,8 +617,8 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     agent's account kept apart; friction whose evidence is vague prose, a re-steer whose evidence
     quotes nobody, and a defect with no failure mode are each refused as a readable answer, and
     nothing is written.
-13. It corrects a note's wording in place: the note keeps its id and takes the new words, only the
-    fields given change, and a note that is not there, or a field its kind does not have, gets a
+13. It corrects an artifact's wording in place: the artifact keeps its id and takes the new words, only the
+    fields given change, and an artifact that is not there, or a field its kind does not have, gets a
     readable refusal.
 14. It retires a contract and then a capability with a reason, and each is gone from the plan, its
     history keeping it. An id that is not a capability or a contract gets a readable refusal, and
@@ -633,11 +638,15 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     session and the way into it named (`EnterWorktree` with its path); for work another session
     holds it gets a readable refusal naming the holder.
 
+19. The writing tool saves a proper artifact kind with its required fields and default filing.
+    A request to save a memory is refused, explains that memories belong to the harness, and
+    writes nothing. Friction and re-steers use their capture tools and evidence rules.
+
 ## 7 · Instructions (the habits card)
 
 One short text, a screen or less, that teaches the agent storytree's habits: plan the story first,
 claim a capability and open the knowledge it needs before touching it, write the failing test and
-report red, make it pass and report green, report it landed, and note down anything worth
+report red, make it pass and report green, report it landed, and record an artifact for anything worth
 remembering. The tool server hands this text to the agent at the start of every session (Claude Code
 and Codex both read it from there), and the setup check can also add it as a short section of the
 project's CLAUDE.md or AGENTS.md, where people can read it too.
@@ -651,7 +660,7 @@ project's CLAUDE.md or AGENTS.md, where people can read it too.
   and it outgrew its own declared size budget within five weeks), the per-harness agent role files,
   the generators that rebuild them, and the gate checks that compare them with the database.
 - **Added after approval (ADR-0627 D7):** the card also teaches three reading lines: start at the
-  shelf, open what matches your task, stop when you can act. They join the card with the note tools.
+  shelf, open what matches your task, stop when you can act. They join the card with the artifact tools.
 - **As built:** the base card is 26 lines, handed to every session as the tool server's MCP
   `instructions`. It names each tool in backticks and uses backticks for nothing else, which is how
   its test knows the tools it teaches. An extension can add a short line for its tools; the
@@ -794,5 +803,5 @@ set one up.
   `report`, and nothing reacts to the "landed" line by running tests.
 - **Showing** sessions, claims and unplanned activity belongs to the arc surface and the forest,
   which read them from capabilities 2, 4 and 5.
-- **The view of note reads** (the planet idea) stays out of the MVP. This story keeps only the
+- **The view of artifact reads** (the planet idea) stays out of the MVP. This story keeps only the
   record (ADR-0624), which names the agent behind each read (ADR-0629 D2).

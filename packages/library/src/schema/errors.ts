@@ -40,7 +40,9 @@ export class UnknownTypeError extends Error {
   constructor(type: string, id?: string) {
     const known = `the record types are ${Object.keys(SCHEMA_VERSIONS).join(", ")}`;
     super(
-      id === undefined
+      type === "memory"
+        ? `memory belongs to the agent harness, not the library (ADR-0650); write an artifact kind such as decision, definition or principle${id === undefined ? "" : `; legacy record ${JSON.stringify(id)} is preserved in history and needs classification`}`
+        : id === undefined
         ? `unknown record type ${JSON.stringify(type)}: ${known}`
         : `record ${JSON.stringify(id)} has type ${JSON.stringify(type)}, which this code does not know (${known})`,
     );

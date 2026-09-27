@@ -150,7 +150,7 @@ for (const backend of [memory, postgres]) {
     // A child added later to an earlier parent goes after that parent's older children.
     const late = await work.addCapability({ title: "Late capability", story: planned.id });
     // Records that are not part of the plan stay out of the tree.
-    await records.create("memory", { text: "Not part of the plan", links: [planned.id] });
+    await records.create("definition", { term: "Delivery", meaning: "Not part of the plan", links: [planned.id] });
     await records.create("health", { node: expiry.id, column: "reported", state: "passing" });
 
     const leaf = (record: SchemaRecord<"capability">) => ({ id: record.id, title: record.fields.title, dependsOn: [], contracts: [] });

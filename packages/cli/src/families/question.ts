@@ -37,9 +37,9 @@ const raise: Verb = {
       }
       return increment;
     });
-    const question = await library.raiseQuestion(fields as never);
+    const question = await library.raiseQuestion(fields as never, context.writer());
     for (const increment of held) {
-      await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] });
+      await library.editIncrement(increment.id, { heldOn: [...(increment.fields.heldOn ?? []), question.id] }, context.writer());
     }
     return {
       text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.`,
@@ -58,7 +58,7 @@ const settle: Verb = {
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
     const decision = args.text("decision");
-    const settled = await (await context.library()).settleQuestion(id, { answer: args.text("answer") as string, ...(decision === undefined ? {} : { decision }) });
+    const settled = await (await context.library()).settleQuestion(id, { answer: args.text("answer") as string, ...(decision === undefined ? {} : { decision }) }, context.writer());
     if (settled === null) throw new Refusal(`no question "${id}" in this project`);
     return { text: `Settled question ${id}.`, next: [{ command: `storytree arc show ${settled.fields.arc}`, why: "see what it released" }] };
   },
@@ -70,7 +70,7 @@ const retire: Verb = {
   summary: "retire a question that was wrong",
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
-    await (await context.library()).retire(id, args.need("reason", this.usage));
+    await (await context.library()).retire(id, args.need("reason", this.usage), context.writer());
     return { text: `Retired ${id}.` };
   },
 };

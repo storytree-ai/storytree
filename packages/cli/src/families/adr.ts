@@ -14,7 +14,6 @@
  *   its number wait on the library's list(kind) (0-3-library-writer-and-public-reads).
  */
 import { writeFileSync } from "node:fs";
-import { userInfo } from "node:os";
 import path from "node:path";
 
 import type { DecisionView, Library } from "@storytree/library";
@@ -22,6 +21,7 @@ import type { DecisionView, Library } from "@storytree/library";
 import { Refusal } from "../answer.js";
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
+import { person } from "../writer.js";
 
 /** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;
@@ -35,15 +35,6 @@ function adr(number: number | undefined): string {
 function listFrom(args: Args, name: string): string[] | undefined {
   const value = args.text(name);
   return value === undefined ? undefined : value.split(",").map((one) => one.trim()).filter((one) => one !== "");
-}
-
-/** The person running the command, by their computer user name. */
-function person(): string {
-  try {
-    return userInfo().username;
-  } catch {
-    return process.env.USER ?? process.env.USERNAME ?? "unknown";
-  }
 }
 
 async function viewOf(library: Library, id: string): Promise<DecisionView> {
@@ -113,7 +104,7 @@ const create: Verb = {
       authority: basis === undefined ? undefined : { basis, scribedBy: person(), at: new Date().toISOString(), ...(ownerSaid === undefined ? {} : { ownerSaid }) },
     };
     const fields = { title: args.text("title"), text: args.text("text"), status: args.text("status"), ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value !== undefined)) };
-    const decision = await (await context.library()).recordDecision(fields as never);
+    const decision = await (await context.library()).recordDecision(fields as never, context.writer());
     return {
       text: `Recorded ${adr(decision.fields.number)} (${decision.id}), ${decision.fields.status}.`,
       next: [{ command: `storytree adr pull ${decision.id} --out ${decision.id}.md`, why: "read or edit it as a file" }],
@@ -153,7 +144,7 @@ const push: Verb = {
     }
     const names = Object.keys(changes);
     if (names.length === 0) return { text: `No change: ${file} says what ${id} already says.` };
-    await library.editNote(id, changes as never);
+    await library.editNote(id, changes as never, context.writer());
     return { text: `Pushed ${id}: ${names.join(", ")}.`, next: [{ command: `storytree adr pull ${id}`, why: "read it back" }] };
   },
 };
@@ -164,7 +155,7 @@ const compose: Verb = {
   summary: "write a decision's one composed statement, beside its text",
   async act(args, context) {
     const id = args.word(0, "the decision's id", this.usage);
-    const composed = await (await context.library()).composeStatement(id, args.text("statement") as string);
+    const composed = await (await context.library()).composeStatement(id, args.text("statement") as string, context.writer());
     if (composed === null) throw new Refusal(`no decision "${id}" in this project`);
     return { text: `Composed ${id}'s statement.` };
   },

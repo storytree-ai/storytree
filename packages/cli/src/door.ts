@@ -14,11 +14,12 @@
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
 import { openActivityLog, readClaims, route, type Claim } from "@storytree/agent-link";
-import type { Library, Storytree } from "@storytree/library";
+import type { Library, Storytree, WriteOptions } from "@storytree/library";
 
 import { Refusal, render, type Answer } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
 import { FAMILIES } from "./families/index.js";
+import { commandWriter } from "./writer.js";
 
 /** Where a command runs, and where its answer goes. */
 export interface Io {
@@ -36,6 +37,8 @@ export interface Context {
   readonly script?: string;
   /** The project's library: the project the folder belongs to, on the running storytree. */
   library(): Promise<Library>;
+  /** The writer to pass to every write; using it also names that writer in the answer. */
+  writer(): WriteOptions;
   /** Who holds what in the project right now: the agent link's reading of its activity log. */
   claims(): Promise<Claim[]>;
 }
@@ -67,9 +70,16 @@ export interface Family {
 /** Run one `storytree` command, and return the exit code. */
 export async function run(argv: readonly string[], io: Io): Promise<number> {
   const opened = new Opened(io.cwd);
+  let writer: WriteOptions | undefined;
   try {
-    const answer = await dispatch(argv, { cwd: io.cwd, ...(io.script === undefined ? {} : { script: io.script }), library: () => opened.library(), claims: () => opened.claims() });
-    io.out(render(answer));
+    const answer = await dispatch(argv, {
+      cwd: io.cwd,
+      ...(io.script === undefined ? {} : { script: io.script }),
+      library: () => opened.library(),
+      claims: () => opened.claims(),
+      writer: () => (writer ??= commandWriter()),
+    });
+    io.out(render(writer === undefined ? answer : { ...answer, text: `${answer.text}\nWriter: ${writer.actor}` }));
     return 0;
   } catch (error) {
     if (error instanceof Refusal) {

@@ -12,7 +12,7 @@
  * - `read`, `edit`, `list` and `history` wait on the library's `get`, `list` and `history`
  *   (0-3-library-writer-and-public-reads).
  */
-import type { KnowledgeKind, Library } from "@storytree/library";
+import type { KnowledgeKind, Library, WriteOptions } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import type { Args } from "../args.js";
@@ -42,23 +42,23 @@ export function valueOf(text: string): unknown {
 }
 
 type Fields = Record<string, unknown>;
-type Writer = (library: Library, fields: Fields) => Promise<{ id: string }>;
+type Writer = (library: Library, fields: Fields, options: WriteOptions) => Promise<{ id: string }>;
 
 /** The library's writer for each kind `new` writes. */
 const WRITERS: Readonly<Record<string, Writer>> = {
-  story: (library, fields) => library.addStory(fields as never),
-  capability: (library, fields) => library.addCapability(fields as never),
-  contract: (library, fields) => library.addContract(fields as never),
-  arc: (library, fields) => library.createArc(fields as never),
-  increment: (library, fields) => library.addIncrement(fields as never),
-  question: (library, fields) => library.raiseQuestion(fields as never),
-  memory: (library, fields) => library.writeMemory(fields as never),
-  decision: (library, fields) => library.recordDecision(fields as never),
-  definition: (library, fields) => library.defineTerm(fields as never),
+  story: (library, fields, options) => library.addStory(fields as never, options),
+  capability: (library, fields, options) => library.addCapability(fields as never, options),
+  contract: (library, fields, options) => library.addContract(fields as never, options),
+  arc: (library, fields, options) => library.createArc(fields as never, options),
+  increment: (library, fields, options) => library.addIncrement(fields as never, options),
+  question: (library, fields, options) => library.raiseQuestion(fields as never, options),
+  memory: (library, fields, options) => library.writeMemory(fields as never, options),
+  decision: (library, fields, options) => library.recordDecision(fields as never, options),
+  definition: (library, fields, options) => library.defineTerm(fields as never, options),
   ...Object.fromEntries(
     (["principle", "guardrail", "pattern", "process", "agent", "techstack"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
       kind,
-      ((library, fields) => library.writeKnowledge(kind, fields as never)) satisfies Writer,
+      ((library, fields, options) => library.writeKnowledge(kind, fields as never, options)) satisfies Writer,
     ]),
   ),
 };
@@ -111,7 +111,7 @@ const create: Verb = {
     if (write === undefined) {
       throw new Refusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { code: 2 });
     }
-    const written = await write(await context.library(), fieldsOf(args));
+    const written = await write(await context.library(), fieldsOf(args), context.writer());
     return { text: `Wrote ${kind} ${written.id}.`, next: [{ command: `storytree library links ${written.id}`, why: "what links to it" }] };
   },
 };

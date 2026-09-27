@@ -16,7 +16,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
-import { worklist } from "@storytree/librarian";
+import { roundDue, worklist } from "@storytree/librarian";
 import { z } from "zod";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
@@ -676,6 +676,44 @@ test("6.17 another story registers its tools on this server, sharing routing, th
       assert.ok(instructions.includes(extension.instructions!));
       assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), await agent.tools());
       assert.ok(instructions.split("\n").length <= 60);
+    });
+  });
+});
+
+test("6.18 another story supplies land's next line only when needed; a refused landing asks for none", async () => {
+  await withProject(async ({ folder, library }) => {
+    const story = await library.addStory({ title: "Signup" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const { cursor: since } = await library.changesSince(0);
+    let calls = 0;
+    let unavailable = false;
+    const extension: ToolExtension = {
+      async landNext(id, call) {
+        calls++;
+        assert.equal(id, capability.id);
+        assert.equal(call.writer.actor, "session:builder");
+        if (unavailable) throw new Error("The librarian is unavailable");
+        return (await roundDue(call.library, { since })).rest ? "run the librarian's pass" : undefined;
+      },
+    };
+    await withAgent(folder, claudeCode("builder", { extensions: [extension] }), async (agent) => {
+      const quiet = await agent.call("land", { capability: capability.id });
+      assert.equal(quiet.data.landed, true);
+      assert.doesNotMatch(quiet.text, /Next:/);
+      await agent.call("write_note", { kind: "definition", term: "Sender", meaning: "The mail domain" });
+      const due = await agent.call("land", { capability: capability.id });
+      assert.equal(due.data.landed, true);
+      assert.ok(due.text.endsWith("Next: run the librarian's pass"), due.text);
+      assert.deepEqual(due.data.next, ["run the librarian's pass"]);
+      const refused = await agent.call("land", { capability: "missing" });
+      assert.equal(refused.isError, true);
+      assert.doesNotMatch(refused.text, /Next:/);
+      assert.equal(calls, 2, "only successful landings ask for the next step");
+      unavailable = true;
+      const landed = await agent.call("land", { capability: capability.id });
+      assert.equal(landed.isError, false, "a follow-up failure cannot turn a recorded landing into a refusal");
+      assert.equal(landed.data.landed, true);
+      assert.match(landed.text, /next step.*unavailable/i);
     });
   });
 });

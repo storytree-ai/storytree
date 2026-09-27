@@ -40,9 +40,9 @@ units: apps/desktop, packages/agent-link, packages/app, packages/arc-surface, pa
 ✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (209.436807ms)
 ✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (268.02496ms)
 ✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (341.353721ms)
-✔ ⚠ coverPoint SKIPS a degenerate cell and a point outside every parcel, and keeps trying (17.295675ms)
-✔ worldTo3D SKIPS the story tree — the island keeps its parcels and its blooms, and stands no cone (1.876558ms)
-✔ a ring bounding no area is SKIPPED, not emitted as a degenerate parcel (0.172908ms)
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.169753ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (1.048434ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+
 results:
   PASS    apps/desktop
   PASS    packages/agent-link

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, readdir, readFile, rename, rm } from 'node:fs/promises';
+import { mkdir, open, readdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import { homedir, hostname } from 'node:os';
 import path from 'node:path';
 import type { z } from 'zod';
@@ -43,6 +43,16 @@ export interface LedgerReading {
 export async function readLedger(options: LedgerOptions = {}): Promise<LedgerReading> {
   const home = ledgerHome(options);
   const gaps: ObservationGap[] = [];
+  // A home that exists but is not a folder is a read gap, not an empty ledger: Windows reports
+  // ENOENT (not ENOTDIR) for a folder beneath a file, so the per-folder check alone cannot tell.
+  try {
+    if (!(await stat(home)).isDirectory()) {
+      gaps.push({ kind: 'read', path: home, reason: 'cannot read ledger: its home is not a folder' });
+      return { machine: localMachine(), runs: [], outcomes: [], gaps };
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') gaps.push({ kind: 'read', path: home, reason: `cannot read ledger: ${reason(error)}` });
+  }
   const runs = await readFolder(path.join(home, 'runs'), runSchema, gaps, (run, name) => name === `${run.id}.json`);
   const outcomes = await readFolder(path.join(home, 'requests'), outcomeSchema, gaps);
   const recordedGaps = await readFolder(path.join(home, 'gaps'), gapSchema, gaps);

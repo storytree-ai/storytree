@@ -1,0 +1,177 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/cancel-claim
+> node --import tsx scripts/test.mjs "--test-name-pattern=6.21|5.15" "packages/agent-link/src/tools/agent-tools.test.ts" "packages/agent-link/src/claims/claims.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:45469 (started in 0.1 s)
+✖ 5.15 cancelling a claim queued for the activity lock leaves no claim on an capability (216.941417ms)
+✖ 5.15 cancelling a claim queued for the activity lock leaves no claim on an active increment (116.881659ms)
+✖ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (314.80194ms)
+✖ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (223.330225ms)
+✖ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (226.135303ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (186.378386ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (219.989365ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (225.600262ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 3
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1839.503498
+
+✖ failing tests:
+
+test at packages/agent-link/src/claims/claims.test.ts:2:9219
+✖ 5.15 cancelling a claim queued for the activity lock leaves no claim on an capability (216.941417ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/claims/claims.test.ts:411:7)
+      at async withWorld (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/claims/claims.test.ts:48:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/claims/claims.test.ts:378:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /cancel claim/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/claims/claims.test.ts:2:9219
+✖ 5.15 cancelling a claim queued for the activity lock leaves no claim on an active increment (116.881659ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/claims/claims.test.ts:411:7)
+      at async withWorld (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/claims/claims.test.ts:48:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/claims/claims.test.ts:378:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /cancel claim/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:3147
+✖ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (314.80194ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      createdAt: '2026-09-27T15:04:25.306Z',
+      fields: {
+        arc: 'arc_dee6ea604db2',
+        body: 'Red then green',
+        objective: 'Build',
+        parked: '2026-09-27T15:04:25.305Z',
+  +     status: 'active',
+  -     status: 'proposal',
+        title: 'Queued work'
+      },
+      id: 'increment_452cf3ac8f68',
+      type: 'increment',
+  +   updatedAt: '2026-09-27T15:04:25.456Z',
+  -   updatedAt: '2026-09-27T15:04:25.306Z',
+      version: 1
+    }
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:247:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:91:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:84:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:172:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'increment_452cf3ac8f68', type: 'increment', version: 1, fields: { arc: 'arc_dee6ea604db2', body: 'Red then green', title: 'Queued work', parked: '2026-09-27T15:04:25.305Z', status: 'active', objective: 'Build' }, createdAt: '2026-09-27T15:04:25.306Z', updatedAt: '2026-09-27T15:04:25.456Z' },
+    expected: { id: 'increment_452cf3ac8f68', type: 'increment', version: 1, fields: { arc: 'arc_dee6ea604db2', body: 'Red then green', title: 'Queued work', parked: '2026-09-27T15:04:25.305Z', status: 'proposal', objective: 'Build' }, createdAt: '2026-09-27T15:04:25.306Z', updatedAt: '2026-09-27T15:04:25.306Z' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:3147
+✖ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (223.330225ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      createdAt: '2026-09-27T15:04:25.574Z',
+      fields: {
+        arc: 'arc_c1c75e00afe0',
+        body: 'Red then green',
+        objective: 'Build',
+        parked: '2026-09-27T15:04:25.574Z',
+  +     status: 'active',
+  -     status: 'ready',
+        title: 'Queued work'
+      },
+      id: 'increment_ad0c6b452373',
+      type: 'increment',
+  +   updatedAt: '2026-09-27T15:04:25.690Z',
+  -   updatedAt: '2026-09-27T15:04:25.577Z',
+      version: 1
+    }
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:247:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:91:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:84:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:172:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'increment_ad0c6b452373', type: 'increment', version: 1, fields: { arc: 'arc_c1c75e00afe0', body: 'Red then green', title: 'Queued work', parked: '2026-09-27T15:04:25.574Z', status: 'active', objective: 'Build' }, createdAt: '2026-09-27T15:04:25.574Z', updatedAt: '2026-09-27T15:04:25.690Z' },
+    expected: { id: 'increment_ad0c6b452373', type: 'increment', version: 1, fields: { arc: 'arc_c1c75e00afe0', body: 'Red then green', title: 'Queued work', parked: '2026-09-27T15:04:25.574Z', status: 'ready', objective: 'Build' }, createdAt: '2026-09-27T15:04:25.574Z', updatedAt: '2026-09-27T15:04:25.577Z' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:3147
+✖ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (226.135303ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      createdAt: '2026-09-27T15:04:25.797Z',
+      fields: {
+        arc: 'arc_55281c48b197',
+        body: 'Red then green',
+        objective: 'Build',
+        parked: '2026-09-27T15:04:25.797Z',
+  +     status: 'active',
+  -     status: 'proposal',
+        title: 'Queued work'
+      },
+      id: 'increment_1c9c6d613b03',
+      type: 'increment',
+  +   updatedAt: '2026-09-27T15:04:25.920Z',
+  -   updatedAt: '2026-09-27T15:04:25.797Z',
+      version: 1
+    }
+
+      at <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:247:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:91:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:84:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-claim/packages/agent-link/src/tools/agent-tools.test.ts:172:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'increment_1c9c6d613b03', type: 'increment', version: 1, fields: { arc: 'arc_55281c48b197', body: 'Red then green', title: 'Queued work', parked: '2026-09-27T15:04:25.797Z', status: 'active', objective: 'Build' }, createdAt: '2026-09-27T15:04:25.797Z', updatedAt: '2026-09-27T15:04:25.920Z' },
+    expected: { id: 'increment_1c9c6d613b03', type: 'increment', version: 1, fields: { arc: 'arc_55281c48b197', body: 'Red then green', title: 'Queued work', parked: '2026-09-27T15:04:25.797Z', status: 'proposal', objective: 'Build' }, createdAt: '2026-09-27T15:04:25.797Z', updatedAt: '2026-09-27T15:04:25.797Z' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

@@ -1,0 +1,21 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/flaky-621
+> node --import tsx scripts/test.mjs "--test-name-pattern=6.21" "packages/agent-link/src/tools/agent-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:36987 (started in 0.1 s)
+✔ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (268.025662ms)
+✔ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (213.774699ms)
+✔ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (216.245152ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (195.083264ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (220.581769ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (236.18862ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1761.541867
+test Postgres: stopped (0.1 s)

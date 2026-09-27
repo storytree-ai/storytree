@@ -1,0 +1,6 @@
+--- old/The agent link/6 · Agent tools (the MCP server)/capability_11fe600afeda/description
++++ new/The agent link/6 · Agent tools (the MCP server)/capability_11fe600afeda/description
+@@ -1 +1,3 @@
+ The toolbox the agent calls, served as an MCP server: plan work (arc, story, capability, contract), see the plan and who is on what, claim or release a capability, report a contract red or green, report a capability landed, and search, read and write artifacts (plus list and add a node's front covers, once the library has them). Each tool is a thin wrapper over the library API and the claims above that answers in a short plain sentence the agent can act on, and every artifact read is logged in the agent activity log (ADR-0624); a new artifact with no place named goes onto the claimed capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's default link).
++
++As built: the 6.21 MCP cancellation checks cover claim, make_workspace and attach_workspace before and after library admission. They wait for their blocking and observing database connections to disconnect before removing the throwaway project. An admitted claim still finishes normally; this corrects the test teardown, not the cancellation contract.

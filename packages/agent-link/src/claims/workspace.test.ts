@@ -182,7 +182,7 @@ test("5.12 Codex prepares without creating or claiming, then attaches the app's 
       assert.equal(prepared.ref, fresh);
       assert.equal(prepared.base, "origin/main");
       assert.match(prepared.name, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
-      assert.ok(prepared.name.startsWith(increment.slice(0, 32)));
+      assert.ok(prepared.name.startsWith(increment.replace(/[^a-z0-9-]+/g, "-").slice(0, 32)));
       assert.deepEqual(await readClaims(log, project), before);
       assert.equal(await statusOf(library, increment), "proposal");
       assert.equal(worktrees(site).length, detached ? 1 : 2, "preparation made no worktree");
@@ -264,5 +264,29 @@ test("5.14 Codex refuses invalid returned directories and releases a claim if na
     assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
     assert.ok(existsSync(folder));
     assert.equal(await statusOf(library, increment), "active");
+  });
+});
+
+test("5.13 a claim taken by this session during attachment is refused as already yours and never released or retargeted", async () => {
+  await withWorld(async ({ dir, log, project, site, park, as }) => {
+    const increment = await park("email form");
+    const prepared = await makeWorkspace(as("B"), increment, "build form");
+    assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
+    const folder = path.join(dir, "app-worktree");
+    git(site, "worktree", "add", "--detach", folder, prepared.ref);
+    const branch = `codex/${prepared.name}`;
+    // The other call wins after preflight but immediately before attachment's atomic claim.
+    const locked = log.locked.bind(log);
+    log.locked = async (project, work) => {
+      log.locked = locked;
+      await claim({ ...as("B"), branch }, increment, "the other call");
+      return locked(project, work);
+    };
+    const refused = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
+    assert.ok(!refused.ok && refused.refused === "yours", JSON.stringify(refused));
+    const [held] = await readClaims(log, project);
+    assert.equal(held?.branch, branch);
+    assert.equal(held?.reason, "the other call");
+    assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
   });
 });

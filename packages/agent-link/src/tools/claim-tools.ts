@@ -7,7 +7,7 @@
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
-import { claim, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext } from "../claims/index.js";
+import { attachWorkspace, claim, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext, type WorkspaceRefusal } from "../claims/index.js";
 import { refusalOf } from "./answers.js";
 import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
 import { quoted } from "./text.js";
@@ -42,28 +42,45 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
 
   define(
     "make_workspace",
-    "Make a workspace for the increment you are about to drive, already claimed: a fresh branch from the project's main as just fetched, a worktree for it where your harness keeps its own, and your claim on it, in one step. Refused, with nothing made, if another live session holds it or it waits on other work; then pick other work.",
+    "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work.",
     z.object({ ...part, reason: z.string().min(1).describe("One line: what you are about to do") }),
     async ({ capability, increment, reason }, call) => {
       const id = capability ?? increment;
       if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { made: false } };
       const made = await makeWorkspace(claimContext(call), id, reason);
-      if (!made.ok) {
-        const text =
-          made.refused === "yours"
-            ? `You already hold ${await titleOf(call.library, id)}${made.claim.branch === undefined ? "" : `, on branch ${made.claim.branch}`}: work there, or release it first.`
-            : made.refused === "no-workspace"
-              ? `No workspace was made, and nothing was claimed: ${made.why}.`
-              : await refusalText(call.library, id, made);
-        return { text, refused: true, data: { made: false } };
+      if (!made.ok) return { text: await workspaceRefusalText(call.library, id, made), refused: true, data: { made: false } };
+      if (made.status === "prepared") {
+        const { ref, name, base, status } = made;
+        return {
+          text: `Work is available; nothing is claimed yet. Call the Codex app's create_worktree with ${JSON.stringify({ ref, name })} (the exact commit from freshly fetched ${base}), then call attach_workspace for ${id} with its returned folder, this ref and name, and your reason. Use the returned directory explicitly: the app does not change your cwd or permissions. If it returns a worktree with a registration error, attach that directory; do not create another as a retry. If create_worktree is unavailable, continue this setup in the Codex desktop app.`,
+          data: { made: false, status, ref, name, base },
+        };
       }
-      const enter =
-        call.caller.harness === "claude-code"
-          ? `Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it`
-          : `Work in ${made.folder} from now on, as your working folder`;
       return {
-        text: `Made a workspace at ${made.folder}, on branch ${made.branch} from ${made.base} as just fetched, and you hold ${await titleOf(call.library, id)} there. ${enter}, and set it up as this project does at session start (install its packages).`,
-        data: { made: true, folder: made.folder, branch: made.branch, base: made.base },
+        text: `Made a workspace at ${made.folder}, on branch ${made.branch} from ${made.base} as just fetched, and you hold ${await titleOf(call.library, id)} there. Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it, and set it up as this project does at session start (install its packages).`,
+        data: { made: true, status: made.status, folder: made.folder, branch: made.branch, base: made.base },
+      };
+    },
+  );
+
+  define(
+    "attach_workspace",
+    "Attach the Codex app's returned worktree after make_workspace and the app's create_worktree. Verifies this repository and the exact prepared commit, names a detached branch codex/<name>, and claims the work. A refusal keeps the app's folder; do not recreate it.",
+    z.object({
+      ...part,
+      reason: z.string().min(1),
+      folder: z.string().min(1).describe("The directory returned by the app's create_worktree"),
+      ref: z.string().min(1).describe("The exact commit returned by make_workspace and passed to create_worktree"),
+      name: z.string().min(1).describe("The work-derived name returned by make_workspace"),
+    }),
+    async ({ capability, increment, reason, folder, ref, name }, call) => {
+      const id = capability ?? increment;
+      if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { attached: false } };
+      const attached = await attachWorkspace(claimContext(call), id, reason, { folder, ref, name });
+      if (!attached.ok) return { text: `${await workspaceRefusalText(call.library, id, attached)} The app's worktree is kept.`, refused: true, data: { attached: false } };
+      return {
+        text: `Attached ${attached.folder}, on branch ${attached.branch} at ${attached.base}; you hold ${await titleOf(call.library, id)} there. Use that directory explicitly for your commands and set it up as this project does at session start (install its packages).`,
+        data: { attached: true, folder: attached.folder, branch: attached.branch, base: attached.base },
       };
     },
   );
@@ -149,6 +166,12 @@ async function refusalText(library: Library, id: string, answer: Exclude<ClaimAn
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan; plan it first, or find its id with show_plan.`;
   }
+}
+
+async function workspaceRefusalText(library: Library, id: string, answer: WorkspaceRefusal): Promise<string> {
+  if (answer.refused === "yours") return `You already hold ${await titleOf(library, id)}${answer.claim.branch === undefined ? "" : `, on branch ${answer.claim.branch}`}: work there, or release it first.`;
+  if (answer.refused === "no-workspace") return `Workspace setup refused: ${answer.why}.`;
+  return refusalText(library, id, answer);
 }
 
 /** Who holds a claim, and why, as a sentence names them. */

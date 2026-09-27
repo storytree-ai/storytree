@@ -163,6 +163,8 @@ refused with the library's own message.
 3. `new` without a required field is refused, naming it.
 4. `history` lists every write with its writer.
 5. `list` shows only live records of the kind and filters by a field.
+6. `new memory` is refused with the reason that memories belong to the harness, and writes
+   nothing (ADR-0650).
 
 ## 4 · Arcs and increments
 

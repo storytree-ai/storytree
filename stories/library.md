@@ -263,6 +263,10 @@ artifact never links straight to the work: capability 9 is how the work reaches 
   that retrieves it. Converted records keep their ids and creation times; one `upgrade:adr-0650`
   history entry records the conversion, under the project's write lock. Reopening converts none
   twice. Original writes, including those of retired memories, remain in history and snapshots.
+- **Story text move/export (ADR-0650):** the move files each block as a definition whose term
+  starts `Story text: ` and names its source file and section, with the exact block as its meaning.
+  The export prints only those definitions behind the linked front cover; ordinary definitions
+  stay out of the story printout. Round trips preserve block order, and a second move writes nothing.
 - **Depends on:** 3.
 - **Grown** on 2026-09-27 by ADR-0640 with the eight kinds 0.3 had left out (ADR-0633 D3 item 7).
   They are written with `writeKnowledge(kind, fields)`, which joins 7's list of functions, and

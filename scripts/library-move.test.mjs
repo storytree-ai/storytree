@@ -1,5 +1,5 @@
 // Moving the story text only the files hold into the library (scripts/library-move.mjs, ADR-0641 D2
-// step 2): each block the round trip lists as missing becomes a memory note behind its node's
+// step 2): each block the round trip lists as missing becomes a story-text definition behind its node's
 // first front cover, in file order, so the export prints it back in place. The test runs against
 // the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), in a project of its own that is
 // dropped afterwards.
@@ -156,7 +156,7 @@ test("each block only the file holds is filed as a definition behind its node's 
     ];
     const at = order.map((part) => text.indexOf(part));
     assert.ok(at.every((index) => index >= 0), `every part prints:\n${text}`);
-    assert.deepEqual(at, [...at].sort((a, b) => a - b), `the notes print in file order:\n${text}`);
+    assert.deepEqual(at, [...at].sort((a, b) => a - b), `the artifacts print in file order:\n${text}`);
 
     const again = await moveStoryText(library, committed);
     assert.deepEqual([again.filed.length, again.unplaced.length], [0, 1], "a second run files nothing");

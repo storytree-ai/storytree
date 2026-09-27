@@ -3,14 +3,15 @@
 // seed's file half when the library becomes the one copy (`0-3-library-is-the-one-copy`).
 //
 // The worklist is the round trip (scripts/library-export.mjs): each block a committed story file
-// holds that the library's printout lacks. Each becomes one memory note, its text the block exactly
+// holds that the library's printout lacks. Each becomes one definition with a term
+// starting `Story text: ` and naming its file and section. Its meaning is the block exactly
 // as the file writes it, linked to the first front cover of the node it sits under, so the export
 // prints it back in its place:
 // - a block under the story's `# Story:` title goes behind the story's first cover;
 // - a block under `## N · Name` goes behind capability N's first cover (its founding book);
 // - a closing `## ` section that is not a capability goes behind the story's first cover as one
-//   note, heading and all, as the file writes it.
-// Notes are written in file order, so they print in it. A block whose node has no front cover, or
+//   artifact, heading and all, as the file writes it.
+// Artifacts are written in file order, so they print in it. A block whose node has no front cover, or
 // whose story or capability the library does not hold, is not written: it comes back as unplaced,
 // with the reason, for the owner by name (ADR-0633 D1). A second run finds nothing missing and
 // writes nothing. Decision files are not moved: a decision prints back whole.
@@ -23,7 +24,7 @@ import { exportLibrary, roundTrip } from "./library-export.mjs";
  */
 
 /**
- * File every block the committed story files hold and the library does not as a note behind its
+ * File every block the committed story files hold and the library does not as a artifact behind its
  * node's cover. With `dryRun` nothing is written, and the result says what would be.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} committed repo path (`stories/app.md`) -> markdown
@@ -72,7 +73,7 @@ export async function moveStoryText(library, committed, { dryRun = false } = {})
       } else if (block.section.startsWith("## ")) {
         if (closing.has(block.section)) continue;
         if (!missing.some((other) => other.section === block.section && other.text === block.section)) {
-          skip(block, `the library already holds part of the section "${block.section}"; correct that note in place`);
+          skip(block, `the library already holds part of the section "${block.section}"; correct that artifact in place`);
           continue;
         }
         closing.add(block.section);

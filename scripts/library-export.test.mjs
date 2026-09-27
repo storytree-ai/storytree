@@ -68,7 +68,7 @@ const DECISION = [
   "",
 ].join("\n");
 
-test("a story and its decision print back from the library, and the round trip lists what only the files hold until it is filed as notes behind its covers", async () => {
+test("a story and its decision print back from the library, and the round trip lists what only the files hold until it is filed as artifacts behind its covers", async () => {
   await withLibrary(async (library) => {
     const story = parseStory(STORY);
     const nodes = new Map([["stories/kettle.md", await syncStory(library, story, { source: "stories/kettle.md" })]]);
@@ -108,9 +108,9 @@ test("a story and its decision print back from the library, and the round trip l
     const decision = before.find(({ file }) => file === "decisions/kettle-own-story.md");
     assert.deepEqual([decision.missing, decision.extra], [[], []], "a decision prints back whole, found by its full record");
 
-    // Placing each block as a memory note, its text the block as the file writes it: behind the
+    // Placing each block as a story-text definition, its text the block as the file writes it: behind the
     // story's founding cover for an opening block or a closing `##` section, and behind the
-    // capability's for a block of its section. A note starting with a line the export makes
+    // capability's for a block of its section. A artifact starting with a line the export makes
     // (`- **Depends on:**`, `**Contracts**`) takes that line's place.
     const [storyCover] = await library.frontCovers((await library.projectTree()).stories[0].id);
     const [heating] = (await library.projectTree()).stories[0].capabilities;
@@ -138,7 +138,7 @@ test("a story and its decision print back from the library, and the round trip l
         text.indexOf("(each one a test):\n1. Water") > text.indexOf("**As built:**") &&
         text.indexOf("A second element") < text.indexOf("**As built:**") &&
         text.indexOf("## 2 · Switching off") < text.indexOf("## Also out of this story"),
-      `each note prints in its place:\n${text}`,
+      `each artifact prints in its place:\n${text}`,
     );
   });
 });

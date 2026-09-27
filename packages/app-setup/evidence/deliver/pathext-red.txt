@@ -1,0 +1,32 @@
+✖ 1.6: command conflicts of every Windows executable kind are named and left untouched (5.060779ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 345.072405
+
+✖ failing tests:
+
+test at packages/app-setup/src/deliver/delivery.test.ts:1:4180
+✖ 1.6: command conflicts of every Windows executable kind are named and left untouched (5.060779ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'installed'
+  - 'conflict'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/setup-deliver/packages/app-setup/src/deliver/delivery.test.ts:91:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'installed',
+    expected: 'conflict',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

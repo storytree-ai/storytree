@@ -58,8 +58,10 @@ if (process.argv[2] === "source") {
   if (newerThanPublished(version)) {
     const tag = `v${version}`;
     const dir = "apps/desktop/release";
-    const files = readdirSync(dir).filter((name) => /\.(exe|blockmap|yml)$/.test(name) && name !== "builder-debug.yml" && name !== "builder-effective-config.yaml");
+    const delivery = ["install-storytree.ps1", "install-storytree.txt", "storytree-delivery.json"];
+    const files = readdirSync(dir).filter((name) => delivery.includes(name) || /\.(exe|blockmap|yml)$/.test(name) && name !== "builder-debug.yml" && name !== "builder-effective-config.yaml");
     if (!files.includes("latest.yml") || !files.includes(`storytree-0.3-${version}-setup.exe`)) throw new Error("Missing release feed or installer");
+    if (delivery.some((name) => !files.includes(name))) throw new Error("Missing one-command delivery assets");
     // A draft keeps partially uploaded releases invisible to installed clients. Reruns can finish it.
     const existing = spawnSync("gh", ["release", "view", tag, "--repo", repository, "--json", "isDraft,targetCommitish"], { encoding: "utf8" });
     if (existing.status === 0) {

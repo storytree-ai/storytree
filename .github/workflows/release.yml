@@ -86,7 +86,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm desktop:dist
       - run: node apps/desktop/check-install.mjs
-      - name: Publish the complete feed
+      # desktop:dist stages the PowerShell bootstrap, one-liner and installer checksum manifest
+      # beside NSIS. Publish them together, so an incomplete release never reaches first run.
+      - name: Publish the complete feed and one-command delivery
         run: node apps/desktop/release.mjs publish
         env:
           GH_TOKEN: ${{ github.token }}

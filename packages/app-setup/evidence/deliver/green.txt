@@ -1,0 +1,101 @@
+Required check after merging connection PR #149: STORYTREE_TEST_PWSH=/tmp/storytree-pwsh/pwsh flock /tmp/storytree-heavy.lock pnpm test
+Exit status: 0
+Selected scope, unit totals and final table from the complete local run.
+
+> storytree@ test /home/mickh/code/storytree03-wt/setup-deliver
+> node --import tsx scripts/test.mjs
+scope: full — everything — .github/workflows/release.yml changed outside the workspace packages
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, scripts
+=== apps/desktop ===
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ skipped 0
+=== packages/agent-link ===
+ℹ tests 89
+ℹ suites 0
+ℹ pass 88
+ℹ fail 0
+ℹ skipped 1
+=== packages/app ===
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ skipped 0
+=== packages/app-setup ===
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ skipped 0
+=== packages/arc-surface ===
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ skipped 0
+=== packages/cli ===
+ℹ tests 53
+ℹ suites 0
+ℹ pass 53
+ℹ fail 0
+ℹ skipped 0
+=== packages/forest ===
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ skipped 0
+=== packages/forest-world ===
+ℹ tests 1474
+ℹ suites 0
+ℹ pass 1474
+ℹ fail 0
+ℹ skipped 0
+=== packages/knowledge-core ===
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ skipped 0
+=== packages/librarian ===
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ skipped 0
+=== packages/library ===
+ℹ tests 176
+ℹ suites 1
+ℹ pass 175
+ℹ fail 0
+ℹ skipped 1
+=== packages/local-postgres ===
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ skipped 0
+=== scripts ===
+ℹ tests 60
+ℹ suites 0
+ℹ pass 60
+ℹ fail 0
+ℹ skipped 0
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/app-setup
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)

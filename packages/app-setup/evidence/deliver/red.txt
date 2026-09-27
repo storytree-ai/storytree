@@ -1,0 +1,51 @@
+✖ 1.1 / 1.3 / 1.4 / 1.6: PowerShell delivery selects Windows architecture, reuses, retries, preserves failures and persists PATH (667.77112ms)
+/home/mickh/code/storytree03-wt/setup-deliver/packages/app-setup/src/deliver/delivery.test.ts:8
+import { finishDelivery, installCommand, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
+         ^
+SyntaxError: The requested module './index.js' does not provide an export named 'finishDelivery'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0
+✖ packages/app-setup/src/deliver/delivery.test.ts (108.847371ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 794.262785
+
+✖ failing tests:
+
+test at packages/app-setup/src/deliver/bootstrap.test.ts:1:146
+✖ 1.1 / 1.3 / 1.4 / 1.6: PowerShell delivery selects Windows architecture, reuses, retries, preserves failures and persists PATH (667.77112ms)
+  AssertionError [ERR_ASSERTION]: .: /home/mickh/code/storytree03-wt/setup-deliver/packages/app-setup/src/deliver/bootstrap.test.ps1:2
+  Line |
+     2 |  . "$PSScriptRoot/install.ps1" -LibraryOnly
+       |    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+       | The term
+       | '/home/mickh/code/storytree03-wt/setup-deliver/packages/app-setup/src/deliver/install.ps1' is not recognized as a name of a cmdlet, function, script file, or executable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/setup-deliver/packages/app-setup/src/deliver/bootstrap.test.ts:11:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/app-setup/src/deliver/delivery.test.ts:1:1
+✖ packages/app-setup/src/deliver/delivery.test.ts (108.847371ms)
+  'test failed'

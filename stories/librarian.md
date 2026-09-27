@@ -255,7 +255,9 @@ nothing is closed without a reason.
   routed to (a decision, a tool, an artifact, an edit) is then that route's own work.
 
 **Contracts:**
-1. The worklist lists every open question on every arc, oldest first.
+1. The worklist lists only open questions whose review lease has lapsed, across every arc,
+   longest lapsed first. Fresh and settled questions are excluded; gathering the list neither
+   settles nor renews a question.
 2. The worklist's friction drain holds at most the three oldest friction reports not yet routed that
    another session filed, never one filed from the session's own branch.
 3. `route(friction, route, reason)` records the routing judgement with its reason. A route with no

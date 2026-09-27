@@ -251,6 +251,12 @@ test("8.4 setup records the chosen project only after a successful yes, never on
         assert.equal(refused.isError, true);
         assert.equal(existsSync(choice), false, "a refused setup records no choice");
 
+        mkdirSync(choice); // an unwritable choice destination, on every supported OS
+        const unsaved = await agent.call("set_up_project", { name });
+        assert.equal(unsaved.isError, true, "setup cannot report success without saving the choice");
+        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, "a failed choice write leaves setup retryable");
+        rmSync(choice, { recursive: true });
+
         const yes = await agent.call("set_up_project", { name });
         assert.equal(yes.isError, false, yes.text);
         assert.deepEqual(readJson(path.join(folder, MARKER_FILE)), { project: name });

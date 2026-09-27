@@ -23,6 +23,7 @@ import {
   resultsTable,
   scopeFor,
   scopeLine,
+  unitGlobs,
 } from "./test-scope.mjs";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -197,6 +198,24 @@ test("a run is one unit per selected package with tests, plus scripts/ when ever
     "packages/pg",
     "scripts",
   ], "a package with no test files is no unit");
+});
+
+test("the package-boundary check runs in every scoped run, since a change inside any one package can break it", (t) => {
+  const root = fixture(t);
+  const ws = readWorkspace(root);
+  const decision = classify(["packages/agent-link/src/x.ts"], ws);
+  assert.deepEqual(planRun({ root, workspace: ws, decision }).units, ["packages/agent-link", "packages/cli"], "until the check exists");
+
+  write(root, "scripts/package-boundaries.test.mjs", "");
+  write(root, "scripts/other.test.mjs", "");
+  assert.deepEqual(planRun({ root, workspace: ws, decision }).units, [
+    "packages/agent-link",
+    "packages/cli",
+    "scripts/package-boundaries.test.mjs",
+  ]);
+  assert.deepEqual(unitGlobs("scripts/package-boundaries.test.mjs"), ["scripts/package-boundaries.test.mjs"]);
+  const all = planRun({ root, workspace: ws, decision: classify(["README.md"], ws) }).units;
+  assert.ok(all.includes("scripts") && !all.includes("scripts/package-boundaries.test.mjs"), "a full run has it in scripts/ already");
 });
 
 test("--full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {

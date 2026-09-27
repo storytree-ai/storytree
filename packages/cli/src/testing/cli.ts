@@ -81,6 +81,11 @@ export class BuiltCommand {
     if (this.#script === undefined) throw new Error("build the command first");
     return this.#script;
   }
+
+  /** The folder it is built in. */
+  get dir(): string {
+    return path.dirname(this.script);
+  }
 }
 
 /** What one run of the command did. */
@@ -105,9 +110,13 @@ export interface RunOptions {
 export function storytree(script: string, args: readonly string[], options: RunOptions): Promise<Ran> {
   return new Promise((resolve, reject) => {
     const started = performance.now();
+    // A variable given replaces the test's own of the same name in any case (Windows spells PATH `Path`).
+    const given = { ...options.env, STORYTREE_HOME: options.home };
+    const env: Record<string, string | undefined> = { ...process.env };
+    for (const name of Object.keys(given)) for (const own of Object.keys(env)) if (own.toLowerCase() === name.toLowerCase()) delete env[own];
     const child = spawn(process.execPath, [script, ...args], {
       cwd: options.cwd,
-      env: { ...process.env, ...options.env, STORYTREE_HOME: options.home },
+      env: { ...env, ...given },
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
     });

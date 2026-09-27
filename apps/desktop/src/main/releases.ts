@@ -7,10 +7,10 @@ import { app } from "electron";
 import { ReleaseUpdater, type ReleaseOptions } from "@storytree/app";
 
 export function followReleases(options: ReleaseOptions, home: string): void {
-  // app-update.yml is emitted for the NSIS target. Unpacked development bundles, portable
+  // The installer writes a marker. Unpacked development bundles, portable
   // executables and smoke runs must never replace themselves with an installed release.
   if (!app.isPackaged || process.platform !== "win32" || process.env.PORTABLE_EXECUTABLE_FILE !== undefined ||
-      !existsSync(path.join(process.resourcesPath, "app-update.yml"))) return;
+      !existsSync(path.join(process.resourcesPath, "storytree-installed"))) return;
 
   const updater = new ReleaseUpdater(options);
   const log = (...parts: unknown[]): void => {

@@ -278,9 +278,8 @@ installed app does the same from published releases.
     session's.
   - 0.2's reference and its pain: ADR-0181's pinned-main runtime, refreshed by hand as main moved,
     and ADR-0207's electron-updater feed, planned and never built.
-  - **Parked** with the users' work (`0-3-app-users-own-projects`, due before first users): the
-    users' half. It needs an installer (NSIS on Windows), since electron-updater cannot update
-    today's portable exe, and `dist.mjs`'s Windows arm64 7z workaround will matter there.
+  - **Un-parked** by the owner on 2026-09-27 (ADR-0657 D1): the installed-user half is built
+    below. It uses NSIS on Windows; portable executables remain available for development.
 - **Approved** by the owner on 2026-09-27, as worded above ("Yes, build it"), added to the tree
   ADR-0634 approved. The capability is ADR-0637 D2, the owner's answer to d2: "Can't we also bring
   an auto update feature for 0.3? … i'd hope it works better than 0.2 which seems to constantly
@@ -302,11 +301,42 @@ installed app does the same from published releases.
   `~/.storytree/0.3/app.log`, so a restart is never silent.
 - **Proved by** `packages/app/src/updates/follow-main.test.ts`, red→green, against real git with a
   throwaway origin and a stand-in build.
+- **As built** (`0-3-app-updates-itself-for-users`): an installed Windows app checks GitHub
+  Releases at start and every three minutes. `electron-updater` selects a newer stable version,
+  downloads it and verifies it. A seed writing the library defers installation. Its NSIS command
+  goes through the same `background().restart` as the development updater: stop the database,
+  relaunch the installer, exit, and reopen the updated app. Feed and download failures are logged
+  to `~/.storytree/0.3/releases.log` and retried without stopping the app. Portable, unpacked and
+  development builds do not use this feed; the NSIS installation writes their distinguishing
+  marker. The logic is `packages/app/src/updates/releases.ts`, wired beside `followMain` in the
+  desktop frame without changing its lifecycle.
+- **As built:** `pnpm desktop:dist` builds an NSIS installer for Windows x64 and arm64, retaining
+  the arm64 portable and unpacked app. Both keep the BCJ 7z workaround. Packaging never publishes.
+  The release workflow starts after CI completes, accepts only merged main, verifies that exact
+  commit on Linux, macOS and Windows, packages and exercises the Windows installer, and publishes
+  a complete GitHub Release. Its version is `0.3.<main first-parent commit count>`, so each later
+  main build is newer and a rerun has the same identity. Uploads stay in a draft until complete;
+  an already published or superseded version is skipped.
+- **Proved by** `releases.test.ts` against a local HTTP feed using electron-updater's real
+  download and checksum path, with the existing lifecycle stopping a stand-in database before
+  handing off to NSIS; `release-source.test.ts` pins release eligibility and version progression.
+  CI also builds and silently installs NSIS on Windows, runs its Electron and Postgres binaries,
+  checks the installed feed configuration, and uninstalls (`apps/desktop/check-install.mjs`).
+  A live upgrade between two published releases is a separate Windows acceptance check.
 
 **Contracts:**
 1. When merged main moves, the app is built at main's new commit beside the one running, and work
    not merged to main is never run.
 2. A build that fails leaves the running app as it is.
+3. After each update, the app refreshes its own verified health from the new build (ADR-0656 D2;
+   reserved for `0-3-app-refreshes-own-health`, which waits on the one-copy library flip).
+4. An installed Windows app checks for a newer published release, downloads and verifies it,
+   waits for a library seed to finish, then stops its database and restarts through the installer
+   into the new app using the same lifecycle handoff as the development updater.
+5. A failed release check or download leaves the app running and can be retried; equal and older
+   releases never replace it, concurrent checks share one download, and quitting stops updates.
+6. Releases contain only work merged to main and verified on all three systems; every later
+   main build has a higher version, and a rerun cannot replace a newer published release.
 
 ## Also out of this story
 

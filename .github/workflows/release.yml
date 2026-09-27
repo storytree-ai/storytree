@@ -1,0 +1,92 @@
+name: Release installed app
+
+# CI's automatic merge uses GITHUB_TOKEN, which does not trigger push workflows.
+# workflow_run fires after the whole CI run (including automerge) completes. Source selection
+# refuses unmerged PRs; the jobs below verify the exact merged commit again before it can ship.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+concurrency:
+  group: installed-app-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+      version: ${{ steps.source.outputs.version }}
+    steps:
+      # Trusted main supplies the release policy, never a workflow_run's branch or artifacts.
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - id: source
+        run: node apps/desktop/release.mjs source
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  verify:
+    needs: source
+    if: needs.source.outputs.sha != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # A release is a complete artifact. Verify its exact merged commit, even if main moved.
+      - run: pnpm test -- --full
+
+  publish:
+    needs: [source, verify]
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    env:
+      STORYTREE_RELEASE_VERSION: ${{ needs.source.outputs.version }}
+      RELEASE_SHA: ${{ needs.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm desktop:dist
+      - run: node apps/desktop/check-install.mjs
+      - name: Publish the complete feed
+        run: node apps/desktop/release.mjs publish
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,41 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/flaky-621
+> node --import tsx scripts/test.mjs "--test-name-pattern=6.21 cancelling claim at admitted" "packages/agent-link/src/tools/agent-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:35719 (started in 0.1 s)
+✖ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (256.304308ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 663.269989
+
+✖ failing tests:
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:3147
+✖ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (256.304308ms)
+  AssertionError [ERR_ASSERTION]: test connections have ended before the project is force-dropped
+  
+  2 !== 0
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/flaky-621/packages/agent-link/src/tools/agent-tools.test.ts:282:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/flaky-621/packages/agent-link/src/tools/agent-tools.test.ts:91:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/flaky-621/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/flaky-621/packages/agent-link/src/tools/agent-tools.test.ts:84:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/flaky-621/packages/agent-link/src/tools/agent-tools.test.ts:172:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

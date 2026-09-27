@@ -177,6 +177,16 @@ note, full reads advance as jumps, and an unknown agent stays pale with no path.
   - **Reach, never usefulness** (ADR-0624 D3, ADR-0548): a read proves the note was reached through
     storytree's tools, not that it helped, and nothing read outside those tools is seen. With no
     captured reads the view says "no recorded reads", never that the knowledge went unused.
+- **As built:** `ReadRecord` in `packages/knowledge-core`, fed with the lines the page already
+  reads from the log (`linesSince`, from 0 and then its new lines). It keeps one project's
+  `note-read` lines in memory, each taken once by its line number, and `switchTo(project)` starts
+  again. `visits(note)` counts distinct sessions and `totals(note)` its peeks and whole reads.
+  `replay(session, present)` gives each agent of the session in line order: every read of a
+  present note lit, and for a known agent its whole reads as jumps from its previous whole read.
+  "unknown" and a read with no agent are one pale agent with no path. A subagent is labelled only
+  by what the harness recorded, on the read or on its `subagent-started` line: its type, else its
+  id. Reads of notes no longer present are counted as missing. Opening cost grows with the whole
+  log; a real log's size was not measured.
 
 **Contracts:**
 1. Repeated peeks and whole reads of one note by several agents in one session count as one visit;

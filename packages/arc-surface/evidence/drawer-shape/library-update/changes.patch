@@ -1,0 +1,175 @@
+--- old/library/The arc surface/capability story/story_7722ddb5461e/description
++++ new/library/The arc surface/capability story/story_7722ddb5461e/description
+@@ -1 +1 @@
+-Over the forest, one read-only overlay shows each arc of the project as a lane, with a bar for each of its increments: what has landed, what an agent is on right now, what is queued behind other work, and what is waiting on you. Picking an arc opens its briefing, with what the arc is about and the questions waiting on your answer, and every state is worked out from what storytree has recorded, never typed in.
++Over the forest, one read-only top drawer shows the project’s arcs as dense two-line lanes, with queued arcs behind their blocker’s caret and a bar for each root lane’s increments: what has landed, what an agent is on right now, what is queued behind other work, and what is waiting on you. Picking an arc opens its briefing, with what the arc is about and the questions waiting on your answer, and every state is worked out from what storytree has recorded, never typed in.
+
+--- old/library/The arc surface/capability 3/capability_d077e76e50d7/description
++++ new/library/The arc surface/capability 3/capability_d077e76e50d7/description
+@@ -1 +1 @@
+-Over the forest, one read-only overlay lists each arc of the project as a lane with a bar for each increment, finished work first, each bar coloured by its work state, a count of what landed and what is open (never a percentage), and a chip with the lane's state and who is on it; Active, Parked and Closed each show their own arcs. It stays current while it is open: about every two seconds it asks for what changed in the library and the agent log, which the app carries to it, and it re-checks the clock once a minute, so an agent that goes quiet turns idle without any new record.
++Over the forest, one read-only top drawer leaves the forest usable below and lists root arcs as dense two-line lanes (state chip and title, then small bars and count), with a bar for each increment, finished work first, each bar coloured by its work state, a count of what landed and what is open (never a percentage), and a chip with the lane's state and who is on it; Active, Parked and Closed each show their own arcs. It stays current while it is open: about every two seconds it asks for what changed in the library and the agent log, which the app carries to it, and it re-checks the clock once a minute, so an agent that goes quiet turns idle without any new record.
+
+--- old/library/The arc surface/capability 4/capability_fa8ea39882fe/description
++++ new/library/The arc surface/capability 4/capability_fa8ea39882fe/description
+@@ -1 +1 @@
+-Every arc or increment that waits on other work says so and names what it waits for: an arc queued behind another arc folds away under that arc's lane, behind a small arrow, and an increment waiting on another increment, on any arc, draws yellow and names its blocker and why. A blocker shows what it holds up, a wait that will never release by itself says so, and an arc with something waiting on you is never hidden under its blocker.
++Every arc or increment that waits on other work says so and names what it waits for: an arc queued behind another arc folds away under that arc’s lane, behind a ▸/▾ caret in a fixed gutter; expansion shows chips, and an increment waiting on another increment, on any arc, draws yellow and names its blocker and why. A blocker shows what it holds up, a wait that will never release by itself says so, and an arc with something waiting on you is never hidden under its blocker.
+
+--- old/library/The arc surface/capability 5/capability_ee7d649bbc20/description
++++ new/library/The arc surface/capability 5/capability_ee7d649bbc20/description
+@@ -1 +1 @@
+-Picking a lane, or a queued arc, opens its briefing: what the arc is about, then the questions waiting on your answer there, with the questions you have settled below, under their answers. A question opens in place, statement first, with its stakes, diagram, options as for and against, a recommendation marked not binding, and the longer parts folded with their word counts, so you can read it whole without leaving the overlay.
++Picking a lane, or a queued arc, opens its briefing: what the arc is about, then the questions waiting on your answer there, with the questions you have settled below, under their answers. “Open ↗” replaces the question list with the full reading, and “← back to questions” restores it. The reading is statement first, with its stakes, diagram, options as for and against, a recommendation marked not binding, and the longer parts folded with their word counts, so you can read it whole without leaving the overlay.
+
+--- old/library/The arc surface/capability 3/contract_f64050164f89/title
++++ new/library/The arc surface/capability 3/contract_f64050164f89/title
+@@ -1 +1 @@
+-3.1 · It opens over the surface on show and closes back to it, and nothing on it writes. While its first read is on the way it says so, and a read that fails says so rather than drawing an empty board.
++3.1 · A centered top-edge handle opens the drawer over the surface on show; the forest stays visible and receives input below. The handle or Escape closes it. No action writes library data, and it carries no Library switch or artifact links. While its first read is on the way it says so, and a read that fails says so rather than drawing an empty board.
+
+--- old/library/The arc surface/capability 3/contract_837ebb83e46d/title
++++ new/library/The arc surface/capability 3/contract_837ebb83e46d/title
+@@ -1 +1 @@
+-3.2 · Each lane has one bar per increment, finished ones first and then open ones, longest-waiting first. Its count reads like "3 landed · 1 not completed · 2 open", skips zeros, and is never a percentage.
++3.2 · Each root lane has a state chip and title on line one, then small separated bars and the count on line two. It has one bar per increment, finished ones first and then open ones, longest-waiting first. Its count reads like "3 landed · 1 not completed · 2 open", skips zeros, and is never a percentage.
+
+--- old/library/The arc surface/capability 3/contract_539e1843ff1c/title
++++ new/library/The arc surface/capability 3/contract_539e1843ff1c/title
+@@ -1 +1 @@
+-3.3 · Lanes sort waiting, blocked, claimed, idle, quiet, then the most recently active. An idle chip carries its age on its face ("idle · 42 min"), and its hover names who holds what. Active shows by default; Parked and Closed show only their own arcs, and there is no "All".
++3.3 · Lanes sort waiting, blocked, claimed, idle, quiet, then the most recently active. An idle chip carries its age on its face ("idle · 42 min"), and its hover names who holds what. Active shows on the first launch, then the saved scope is restored; Parked and Closed show only their own arcs, and there is no "All".
+
+--- old/library/The arc surface/capability 3/contract_4d0a071b920f/title
++++ new/library/The arc surface/capability 3/contract_4d0a071b920f/title
+@@ -1 +1 @@
+-3.6 · In the app: the smoke check, run on a project with an arc whose increment an agent holds, finds every arc and increment drawn, and the held one showing its agent.
++3.6 · In the app: the smoke check visits every scope and opens every root queue caret, then judges document.body.dataset.drew.arcSurface against the expected root lanes, expanded queue chips, root-lane increment bars and their agent marks. It does not count +N descendants or queued increments as drawn bars.
+
+--- old/library/The arc surface/capability 4/contract_87e90d46c55b/title
++++ new/library/The arc surface/capability 4/contract_87e90d46c55b/title
+@@ -1 +1 @@
+-4.1 · An arc waiting on an open arc appears only under that arc's arrow, not also at the top. Once the blocker closes it returns to the top, with nothing written.
++4.1 · An arc waiting on an open arc appears only as a chip under that arc’s initially collapsed caret, not also at the top. Selecting the chip opens the queued arc’s briefing. Once the blocker closes it returns to the top, with nothing written.
+
+--- old/library/The arc surface/capability 4/contract_dc6a9d61ef84/title
++++ new/library/The arc surface/capability 4/contract_dc6a9d61ef84/title
+@@ -1 +1 @@
+-4.2 · A one-behind-one queue draws as a chain (A → B → C). Two arcs behind one blocker draw as a set, with no arrow between them. A queued arc that holds up others carries "+N", and one also waiting on another arc says "+1 other wait".
++4.2 · A one-behind-one queue draws as a chain (A → B → C). Two arcs behind one blocker draw as a set, with a · separator and no arrow between them. A queued arc that holds up others carries "+N", and one also waiting on another arc says "+1 other wait".
+
+--- old/library/The arc surface/capability 5/contract_b2ab71987bbd/title
++++ new/library/The arc surface/capability 5/contract_b2ab71987bbd/title
+@@ -1 +1 @@
+-5.1 · Picking an arc shows its intent, then its open questions under "Waiting on you", or "Nothing is waiting on you here", then a note that "blocked" comes only from waits. The overlay opens on the first arc with a question waiting on you.
++5.1 · Picking an arc shows its intent, then its open questions under "Waiting on you", or "Nothing is waiting on you here", then a note that "blocked" comes only from waits. The drawer restores a valid saved selection; otherwise it opens on the first arc with a question waiting on you (or the first lane).
+
+--- old/library/The arc surface/capability 5/contract_e0552cf341f0/title
++++ new/library/The arc surface/capability 5/contract_e0552cf341f0/title
+@@ -1 +1 @@
+-5.2 · A question opens in place: statement first, then stakes, the diagram or "no diagram stored", options split into for and against, the recommendation marked not binding, and analogy and context folded with their word counts. Each row in the list shows its word count and whether it has a diagram.
++5.2 · “Open ↗” swaps the list for one full reading; “← back to questions” restores the list. The full reading is statement first, then stakes, the diagram or "no diagram stored", options split into for and against, the recommendation marked not binding, and analogy and context folded with their word counts. Each row in the list shows its word count and whether it has a diagram.
+
+--- old/library/The arc surface/capability 3/definition_d40b09a10211/meaning
++++ new/library/The arc surface/capability 3/definition_d40b09a10211/meaning
+@@ -1,7 +1,13 @@
+-- **As built (overlay):** `boardView` composes the five capabilities; `watchBoard` uses the shared
+-  live reading and the app's public read bridge. `mountArcSurface` from the `/view` subpath draws
+-  lifecycle tabs, lanes, bars, queues and briefings in a dialog over the current forest. It retains
+-  question folds and reading position across refreshes, reports loading and errors, and stops reading on close. No
+-  action writes. `data-drew` on the dialog comes from the rendered DOM; `smokeArcSurface` visits
+-  all three scopes and requires every arc, increment and held agent. The desktop's existing smoke
+-  command invokes it when the project has arcs.
++- **As built (top drawer, ADR-0660 D1–D3):** `boardView` and `watchBoard` keep their
++  existing state and live-reading rules. `mountArcSurface` from the `/view` subpath draws a
++  nonmodal, half-height top drawer with a centered handle. The forest remains usable below.
++  Root lanes use chip/title then bars/count; a fixed gutter caret reveals queued chips.
++  The viewer’s open/closed state, scope and selected arc persist per project in localStorage
++  under Electron’s existing userData home, with safe defaults if storage is unavailable or
++  stale. Refresh preserves selection, queue expansion, the open question, folds, focus and
++  reading position. Loading and failures remain explicit; close stops the reading.
++  No action writes library data; no Library switch or artifact links are mounted.
++  `document.body.dataset.drew.arcSurface` comes from rendered DOM. `smokeArcSurface`
++  visits all scopes and opens every root queue, checking the expected root lanes, their bars
++  and held agents, and the expanded queue chips. +N descendants and queued increments are
++  not reported as drawn rows or bars. The desktop merges mounted surfaces’ census fields.
+
+--- old/library/The arc surface/capability 3/definition_d7bec65ac642/meaning
++++ new/library/The arc surface/capability 3/definition_d7bec65ac642/meaning
+@@ -1,5 +1,8 @@
+-- **Proved in the app:** the Postgres-backed test uses `pageReads` and a stand-in clock. The Chromium
+-  acceptance also drives the actual desktop renderer over isolated Postgres: a new claim appears
+-  on the next poll, the clock alone makes it idle, failures retry, questions settle live, queued
+-  arcs open their briefing, and closing or Escape leaves the forest mounted. The capture records
+-  its renderer and timings in `packages/arc-surface/evidence/capture.json`.
++- **Proved in the app:** the existing Postgres-backed test uses `pageReads` and a stand-in
++  clock. The headless Chromium acceptance reuses the actual desktop renderer and isolated
++  Postgres, restoring the supplied forest snapshot and adding explicit fixture arcs (the
++  snapshot predates plan cutover and contains no arcs). It asserts top-edge/half-height
++  geometry, dense rows, pointer input reaching the forest, queue nesting, question swap/back,
++  live claim and clock-only idle, failed-read retry, preserved reading/folds/scroll, all-scope
++  smoke, live settlement, read-only UI and persisted open/scope/selection across fresh
++  contexts. Evidence: `packages/arc-surface/evidence/drawer-shape/README.md`.
+
+--- old/library/The arc surface/capability 4/definition_e45f1bfe6988/meaning
++++ new/library/The arc surface/capability 4/definition_e45f1bfe6988/meaning
+@@ -1,5 +1,5 @@
+ - **As built (reading):** `arcQueues` nests holding arc waits within the selected lifecycle,
+   keeping arcs with open owner questions at the top. `queueRun` distinguishes chains from sets,
+   with titles, hidden depth and other-wait counts. `waitsOnBoard` names blockers, their arcs and
+-  reasons in both directions, carrying the library's permanent-wait warning. The overlay draws
+-  these readings; no wait is written or rejudged here.
++  reasons in both directions, carrying the library's permanent-wait warning. The drawer draws
++  these readings as chips beneath a fixed-gutter caret (→ chains, · sets, +N downstream); no wait is written or rejudged here.
+
+--- old/library/The arc surface/capability 5/definition_42906594a25b/meaning
++++ new/library/The arc surface/capability 5/definition_42906594a25b/meaning
+@@ -2,4 +2,5 @@
+   retaining answers. `firstBriefing` selects the first lane with an open question. `questionReading`
+   puts the statement before stakes, retains the diagram (or says none is stored), splits the
+   existing FOR/AGAINST option convention, labels recommendations as not binding, and measures
+-  analogy/context folds and the whole question. The overlay renders these read-only readings.
++  analogy/context folds and the whole question. The drawer lists reading costs, then “Open ↗” swaps the list for one full reading with
++  “← back to questions”. A valid saved arc takes precedence over `firstBriefing`.
+
+--- old/library/The arc surface/capability story/definition_eb3bbc4479b5/meaning
++++ new/library/The arc surface/capability story/definition_eb3bbc4479b5/meaning
+@@ -1,6 +1,6 @@
+ **What is built so far.** All five capabilities are built in `packages/arc-surface`
+ (`@storytree/arc-surface`). The forest shares the part states and live reading (ADR-0632 D3).
+-The package's `@storytree/arc-surface/view` subpath mounts the read-only overlay over the forest;
++The package's `@storytree/arc-surface/view` subpath mounts the read-only top drawer over the live forest (ADR-0660);
+ the desktop only mounts it, carries the library reads and calls its smoke check. The package's
+ Postgres-backed tests and headless Chromium capture prove live updates through the app's reads.
+ Evidence and the reproducible capture are in `packages/arc-surface/evidence/`.
+
+--- old/library/The arc surface/capability story/definition_8799636c1e9d/meaning
++++ new/library/The arc surface/capability story/definition_8799636c1e9d/meaning
+@@ -2,7 +2,7 @@
+ as an overlay over the forest rather than a separate view behind a toggle (ADR-0633 D3 item 14). Its
+ behavioural reference is 0.2's `apps/studio/src/components/ArcSurface.tsx`,
+ `apps/studio/src/lib/arcSurface.ts` and `packages/arc/src/arc-rollup.ts`. It is read-only: the owner
+-answers by telling his agent, and nothing on the overlay writes. It reads the library only through
++answers by telling his agent, and nothing on the drawer writes library data. Viewer preferences stay browser-local. It reads the library only through
+ its public API (`stories/library.md`), the agent link only through what it records
+ (`stories/agent-link.md`), and reaches both through the reads the 0.3 app carries for the page
+ (`stories/app.md`, capability 3). It adds nothing to the library or the agent link of its own.
+
+--- old/library/The arc surface/capability story/definition_cebb27e98962/meaning
++++ new/library/The arc surface/capability story/definition_cebb27e98962/meaning
+@@ -1,7 +1,8 @@
+ ## Also out of this story
+ 
+ - The floor-health lamp: not cut, parked to come back reworked (L above).
+-- Anything that writes: the overlay is read-only.
++- Library writes: the drawer is read-only; browser-local viewer preferences persist.
++- A Library switch and artifact links on the drawer (ADR-0660 D2/D3).
+ - Health: it stays on the forest (C0).
+ - What the library and the agent link add for this story (increments, open questions, waits and
+   their readings, increment claims) is theirs, decided in their own revised trees
+
+--- old/library/The arc surface/capability 3/ADD contract under capability_d077e76e50d7/title
++++ new/library/The arc surface/capability 3/ADD contract under capability_d077e76e50d7/title
+@@ -0,0 +1 @@
++3.7 · Between launches, each project remembers drawer open/closed, scope and selected arc. A valid saved arc is restored; if it disappears the normal briefing fallback applies. Closing keeps scope and selection for the next open.
+

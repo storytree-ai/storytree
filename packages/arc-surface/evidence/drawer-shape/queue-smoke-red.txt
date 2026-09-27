@@ -1,0 +1,30 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'arc not drawn: Library navigation review',
++   'arc not drawn: Library navigation follow-up',
++   'arc not drawn: Developer workflow review',
++   'arc not drawn: Developer workflow follow-up'
++ ]
+- []
+
+    at <anonymous> (/home/mickh/code/storytree03-wt/arc-drawer/packages/arc-surface/evidence/capture.mjs:154:10) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    'arc not drawn: Library navigation review',
+    'arc not drawn: Library navigation follow-up',
+    'arc not drawn: Developer workflow review',
+    'arc not drawn: Developer workflow follow-up'
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

@@ -11,5 +11,5 @@ export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandA
 export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER } from "./tools/index.js";
 export type { AgentToolOptions, AgentTools } from "./tools/index.js";
 export { CHECK_COMMAND, CHECK_FILE, defaultHomes, openStorytree, registerHooks, removeHooks, runSetupCheck, suggestedName, verifyHooks } from "./setup/index.js";
-export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
+export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
 export { habitsCard } from "./instructions/index.js";

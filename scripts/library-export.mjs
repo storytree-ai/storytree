@@ -32,7 +32,9 @@
 // its whitespace collapsed. For each committed file it lists the blocks the printout lacks in the
 // same section ("missing": the text only the file holds) and those the printout adds ("extra").
 // The order of blocks within a section is not compared. A decision file is paired with its
-// printout by its full record, since the library does not keep file names.
+// printout by its full record, and a story file by its title line, since the library does not keep
+// file names (stories/cli.md holds "the command line"); a printed story path is then read as the
+// committed one wherever a printout names it, as a decision's cover line does.
 
 // --- the export ------------------------------------------------------------------------------
 
@@ -190,14 +192,32 @@ export function roundTrip(committed, printed) {
     const record = file.startsWith("decisions/") ? recordOfFile(text) : undefined;
     if (record !== undefined) printedByRecord.set(record, file);
   }
+  const titleOf = (text) => /^# Story: (.*)$/m.exec(text)?.[1].trim().toLowerCase();
+  /** @type {Map<string, string>} story title -> printed path, since the library does not keep file names either */
+  const printedByTitle = new Map();
+  for (const [file, text] of printed) {
+    const title = file.startsWith("stories/") ? titleOf(text) : undefined;
+    if (title !== undefined) printedByTitle.set(title, file);
+  }
+  const printedAsOf = (file, text) => {
+    const record = file.startsWith("decisions/") ? recordOfFile(text) : undefined;
+    const title = file.startsWith("stories/") ? titleOf(text) : undefined;
+    return record !== undefined ? printedByRecord.get(record) : (title !== undefined && printedByTitle.get(title)) || (printed.has(file) ? file : undefined);
+  };
+  /** @type {[string, string][]} printed story path -> the committed one it pairs with, where they differ */
+  const renamed = [...committed]
+    .filter(([file]) => file.startsWith("stories/"))
+    .map(([file, text]) => [printedAsOf(file, text), file])
+    .filter(([printedAs, file]) => printedAs !== undefined && printedAs !== file);
+  /** A printout with each renamed story's printed path read as its committed one, as a decision's cover line names it. */
+  const underCommittedNames = (text) => renamed.reduce((out, [printedAs, file]) => out.split(printedAs).join(file), text);
   const paired = new Set();
   /** @type {FileDiff[]} */
   const diffs = [];
   for (const [file, text] of committed) {
-    const record = file.startsWith("decisions/") ? recordOfFile(text) : undefined;
-    const printedAs = record === undefined ? (printed.has(file) ? file : undefined) : printedByRecord.get(record);
+    const printedAs = printedAsOf(file, text);
     if (printedAs !== undefined) paired.add(printedAs);
-    const [missing, extra] = compare(blocksOf(text), blocksOf(printedAs === undefined ? "" : printed.get(printedAs)));
+    const [missing, extra] = compare(blocksOf(text), blocksOf(printedAs === undefined ? "" : underCommittedNames(printed.get(printedAs))));
     diffs.push({ file, ...(printedAs === undefined ? {} : { printedAs }), missing, extra });
   }
   for (const [file, text] of printed) {

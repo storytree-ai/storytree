@@ -12,6 +12,8 @@ const bridge: StorytreeBridge = {
   heldOnQuestion: (name, id) => ipcRenderer.invoke(CHANNELS.heldOnQuestion, name, id) as ReturnType<StorytreeBridge["heldOnQuestion"]>,
 
   listProjects: () => ipcRenderer.invoke(CHANNELS.listProjects) as Promise<string[]>,
+  projectSelection: () => ipcRenderer.invoke(CHANNELS.projectSelection) as ReturnType<StorytreeBridge["projectSelection"]>,
+  chooseProject: (name) => ipcRenderer.invoke(CHANNELS.chooseProject, name) as ReturnType<StorytreeBridge["chooseProject"]>,
   projectTree: (name) => ipcRenderer.invoke(CHANNELS.projectTree, name) as ReturnType<StorytreeBridge["projectTree"]>,
   changesSince: (name, cursor) => ipcRenderer.invoke(CHANNELS.changesSince, name, cursor) as ReturnType<StorytreeBridge["changesSince"]>,
   linesSince: (name, cursor) => ipcRenderer.invoke(CHANNELS.linesSince, name, cursor) as ReturnType<StorytreeBridge["linesSince"]>,

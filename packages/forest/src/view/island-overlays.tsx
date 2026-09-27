@@ -1,11 +1,20 @@
 /** Names, claims and selection use the same drawing on flat ground and on a globe plate. */
 import { Html } from "@react-three/drei";
+import { useThree } from "@react-three/fiber";
+import { useState, type ComponentProps } from "react";
 import { DoubleSide } from "three";
 import type { Island, Marker } from "@storytree/forest";
 import { GROUND_PER_WORLD_UNIT, islandReach, parcelSpots, type Descriptor3D } from "@storytree/forest-world";
 
 const NAME_HEIGHT = 30;
 const MARKER_HEIGHT = 24;
+
+/** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
+export function Overlay(props: ComponentProps<typeof Html>) {
+  const gl = useThree((state) => state.gl);
+  const [portal] = useState(() => ({ current: gl.domElement.parentElement! }));
+  return <Html {...props} portal={portal} />;
+}
 
 /** Where an island's middle is, in 0.2 ground units. */
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
@@ -15,11 +24,11 @@ export function Names({ islands, selected, onGlobe = false }: { islands: readonl
   return islands.map((island) => {
     const { x, z } = centreOf(island);
     return (
-      <Html occlude={onGlobe} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
+      <Overlay occlude={onGlobe} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
         <div className={`forest-label${onGlobe ? " planet-label" : ""}${island.story === selected ? " selected" : ""}`} data-story-id={island.story}>
           {island.title}
         </div>
-      </Html>
+      </Overlay>
     );
   });
 }
@@ -31,7 +40,7 @@ export function Claims({ markers, descriptors, occlude = false }: { markers: rea
     const spot = spots.get(marker.capability);
     if (spot === undefined) return null;
     return (
-      <Html occlude={occlude} key={`${marker.capability}:${marker.text}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
+      <Overlay occlude={occlude} key={`${marker.capability}:${marker.text}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
         <div
           className={`forest-claim${marker.faded ? " faded" : ""}${marker.hooksNotRunning ? " no-hooks" : ""}`}
           data-capability-id={marker.capability}
@@ -39,7 +48,7 @@ export function Claims({ markers, descriptors, occlude = false }: { markers: rea
         >
           {marker.hooksNotRunning ? `${marker.text} · hooks not running` : marker.text}
         </div>
-      </Html>
+      </Overlay>
     );
   });
 }

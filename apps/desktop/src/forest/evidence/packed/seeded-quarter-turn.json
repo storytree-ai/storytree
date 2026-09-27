@@ -230,8 +230,8 @@
         129.5269791590409
       ],
       "meshes": 6,
-      "vertices": 52493,
-      "triangles": 58146,
+      "vertices": 52886,
+      "triangles": 58664,
       "materials": [
         {
           "type": "ShaderMaterial",
@@ -328,8 +328,57 @@
         119.31352080435522
       ],
       "meshes": 6,
-      "vertices": 107950,
-      "triangles": 124040,
+      "vertices": 108343,
+      "triangles": 124558,
+      "materials": [
+        {
+          "type": "ShaderMaterial",
+          "side": 0,
+          "transparent": false
+        },
+        {
+          "type": "MeshStandardMaterial",
+          "side": 2,
+          "transparent": false
+        },
+        {
+          "type": "MeshStandardMaterial",
+          "side": 2,
+          "transparent": false
+        },
+        {
+          "type": "MeshStandardMaterial",
+          "side": 2,
+          "transparent": false
+        },
+        {
+          "type": "MeshStandardMaterial",
+          "side": 2,
+          "transparent": false
+        },
+        {
+          "type": "MeshStandardMaterial",
+          "side": 2,
+          "transparent": false
+        }
+      ]
+    },
+    {
+      "story": "story_9f597bb9a758",
+      "facing": -0.07154822345060075,
+      "at": [
+        0.3793021168837435,
+        -0.608103243349874,
+        -0.18561312200987712
+      ],
+      "position": [
+        11.568783048198906,
+        -114.80989234445616,
+        113.26601235276125
+      ],
+      "meshes": 6,
+      "vertices": 33185,
+      "triangles": 35730,
       "materials": [
         {
           "type": "ShaderMaterial",
@@ -366,14 +415,14 @@
   ],
   "render": {
     "frame": 28,
-    "calls": 44,
-    "triangles": 487748,
+    "calls": 50,
+    "triangles": 524514,
     "points": 0,
     "lines": 0
   },
   "memory": {
-    "geometries": 43,
-    "textures": 39
+    "geometries": 49,
+    "textures": 43
   },
   "shell": {
     "radius": 160,
@@ -491,6 +540,21 @@
         "bottom": 732.2477416992188,
         "left": 1016.9134521484375
       }
+    },
+    {
+      "text": "The knowledge core",
+      "visible": true,
+      "opacity": "1",
+      "bounds": {
+        "x": 969.4862060546875,
+        "y": 789.5243530273438,
+        "width": 148.5625,
+        "height": 22.875,
+        "top": 789.5243530273438,
+        "right": 1118.0487060546875,
+        "bottom": 812.3993530273438,
+        "left": 969.4862060546875
+      }
     }
   ],
   "drew": {
@@ -502,7 +566,8 @@
       "story_c9107adf051c",
       "story_4280df77bc0e",
       "story_3c99aeeade44",
-      "story_1e9d6400be09"
+      "story_1e9d6400be09",
+      "story_9f597bb9a758"
     ],
     "capabilities": [
       "capability_2890d6eb898e",
@@ -557,7 +622,11 @@
       "capability_29ab23e1c395",
       "capability_29b0ae484bf4",
       "capability_33f7395e2847",
-      "capability_2a90476083b6"
+      "capability_2a90476083b6",
+      "capability_3216b06ba422",
+      "capability_b78d99e6df8e",
+      "capability_702daa72c42b",
+      "capability_70acabef44a6"
     ],
     "labels": [
       "The agent link",
@@ -566,7 +635,8 @@
       "The command line",
       "The forest",
       "The librarian",
-      "The library"
+      "The library",
+      "The knowledge core"
     ],
     "trees": [
       {
@@ -780,6 +850,22 @@
       {
         "capability": "capability_2a90476083b6",
         "form": "seedling"
+      },
+      {
+        "capability": "capability_3216b06ba422",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b78d99e6df8e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_702daa72c42b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_70acabef44a6",
+        "form": "seedling"
       }
     ],
     "unclaimed": 0
@@ -790,6 +876,6 @@
   "warnings": [
     "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
     "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition.",
-    "[.WebGL-0xe5c00130800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    "[.WebGL-0x38ac00130800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
   ]
 }

@@ -1,0 +1,86 @@
+{
+  "checks": "PNG dimensions and hashes; all stories/trees and expected forms; no sea; core present; unchanged plate geometry and local positions across A/B/C; identical first seven slots at 7/36; unchanged camera/zoom; exactly 90-degree turn; B adds one draw and its recorded triangle count; no browser errors. All six PNGs visually inspected.",
+  "pictures": {
+    "a-7": {
+      "sha256": "31b5dfccae4da5176d536e63b275be9397d747f9743b32213f382941695b7b78",
+      "stories": 7,
+      "trees": 53,
+      "forms": {
+        "seedling": 53
+      },
+      "drawCalls": 43,
+      "triangles": 460740,
+      "nearCentres": 7,
+      "farCentres": 0,
+      "horizonCentres": 0
+    },
+    "b-7": {
+      "sha256": "e0094a9a7bda39fb613cc304abe1184287e1dac3927a4d33f64a9f3234c0e2b3",
+      "stories": 7,
+      "trees": 53,
+      "forms": {
+        "seedling": 53
+      },
+      "drawCalls": 44,
+      "triangles": 481216,
+      "nearCentres": 7,
+      "farCentres": 0,
+      "horizonCentres": 0
+    },
+    "c-7-quarter-turn": {
+      "sha256": "42ce983e5b1126935a29ad1f8974129ab050fb8eadd00ff94938b6c335210975",
+      "stories": 7,
+      "trees": 53,
+      "forms": {
+        "seedling": 53
+      },
+      "drawCalls": 44,
+      "triangles": 481216,
+      "nearCentres": 3,
+      "farCentres": 3,
+      "horizonCentres": 1
+    },
+    "a-36": {
+      "sha256": "bf0798518d1ed4f0b306f63bdbf8f0591138120a4caf5983c5c5fc12c88f86c7",
+      "stories": 36,
+      "trees": 273,
+      "forms": {
+        "seedling": 68,
+        "green": 205
+      },
+      "drawCalls": 190,
+      "triangles": 3018674,
+      "nearCentres": 27,
+      "farCentres": 9,
+      "horizonCentres": 0
+    },
+    "b-36": {
+      "sha256": "ae1efeaf71c8192a903cbe08902110a00ac26b30851a3268ce58e98b062962da",
+      "stories": 36,
+      "trees": 273,
+      "forms": {
+        "seedling": 68,
+        "green": 205
+      },
+      "drawCalls": 191,
+      "triangles": 3161186,
+      "nearCentres": 27,
+      "farCentres": 9,
+      "horizonCentres": 0
+    },
+    "c-36-quarter-turn": {
+      "sha256": "1f905ee59b874abdea66000c5d6f8009f83b21415422696304e7d79a3e0e7522",
+      "stories": 36,
+      "trees": 273,
+      "forms": {
+        "seedling": 68,
+        "green": 205
+      },
+      "drawCalls": 191,
+      "triangles": 3161186,
+      "nearCentres": 16,
+      "farCentres": 19,
+      "horizonCentres": 1
+    }
+  }
+}

@@ -1,0 +1,404 @@
+{
+  "radius": 160,
+  "pitch": 72,
+  "targetGap": 4,
+  "measurements": [
+    {
+      "stories": 7,
+      "islands": [
+        {
+          "title": "The agent link",
+          "story": "story_c49a3e654505",
+          "capabilities": 8,
+          "place": 1,
+          "nearestUnrolledGap": 7.734338398633843,
+          "nearestCoastVertexArc": 7.727066240425572,
+          "neighbour": 2
+        },
+        {
+          "title": "The app",
+          "story": "story_5575e4b90dd3",
+          "capabilities": 4,
+          "place": 2,
+          "nearestUnrolledGap": 4.369470128613315,
+          "nearestCoastVertexArc": 4.29214545970984,
+          "neighbour": 3
+        },
+        {
+          "title": "The arc surface",
+          "story": "story_f9e22610d77a",
+          "capabilities": 5,
+          "place": 3,
+          "nearestUnrolledGap": 4.369470128613315,
+          "nearestCoastVertexArc": 4.29214545970984,
+          "neighbour": 2
+        },
+        {
+          "title": "The command line",
+          "story": "story_af6675767df3",
+          "capabilities": 10,
+          "place": 4,
+          "nearestUnrolledGap": 5.302274941455164,
+          "nearestCoastVertexArc": 5.104098245766416,
+          "neighbour": 5
+        },
+        {
+          "title": "The forest",
+          "story": "story_3112ce58d261",
+          "capabilities": 7,
+          "place": 5,
+          "nearestUnrolledGap": 5.302274941455164,
+          "nearestCoastVertexArc": 5.104098245766416,
+          "neighbour": 4
+        },
+        {
+          "title": "The librarian",
+          "story": "story_430046bf71e9",
+          "capabilities": 6,
+          "place": 6,
+          "nearestUnrolledGap": 4.630759467642074,
+          "nearestCoastVertexArc": 4.39126536443003,
+          "neighbour": 7
+        },
+        {
+          "title": "The library",
+          "story": "story_3fb7c1773675",
+          "capabilities": 13,
+          "place": 7,
+          "nearestUnrolledGap": 4.630759467642074,
+          "nearestCoastVertexArc": 4.39126536443003,
+          "neighbour": 6
+        }
+      ]
+    },
+    {
+      "stories": 36,
+      "islands": [
+        {
+          "title": "Story 01",
+          "story": "synthetic-story-1",
+          "capabilities": 8,
+          "place": 1,
+          "nearestUnrolledGap": 4.11907856455455,
+          "nearestCoastVertexArc": 4.156998006629071,
+          "neighbour": 2
+        },
+        {
+          "title": "Story 02",
+          "story": "synthetic-story-2",
+          "capabilities": 4,
+          "place": 2,
+          "nearestUnrolledGap": 4.11907856455455,
+          "nearestCoastVertexArc": 4.156998006629071,
+          "neighbour": 1
+        },
+        {
+          "title": "Story 03",
+          "story": "synthetic-story-3",
+          "capabilities": 5,
+          "place": 3,
+          "nearestUnrolledGap": 4.567385273715282,
+          "nearestCoastVertexArc": 4.458318358810345,
+          "neighbour": 4
+        },
+        {
+          "title": "Story 04",
+          "story": "synthetic-story-4",
+          "capabilities": 10,
+          "place": 4,
+          "nearestUnrolledGap": 4.475895827223846,
+          "nearestCoastVertexArc": 4.322424373541254,
+          "neighbour": 5
+        },
+        {
+          "title": "Story 05",
+          "story": "synthetic-story-5",
+          "capabilities": 7,
+          "place": 5,
+          "nearestUnrolledGap": 4.475895827223846,
+          "nearestCoastVertexArc": 4.203133644414367,
+          "neighbour": 4
+        },
+        {
+          "title": "Story 06",
+          "story": "synthetic-story-6",
+          "capabilities": 6,
+          "place": 6,
+          "nearestUnrolledGap": 4.488219121643691,
+          "nearestCoastVertexArc": 4.203133644414367,
+          "neighbour": 5
+        },
+        {
+          "title": "Story 07",
+          "story": "synthetic-story-7",
+          "capabilities": 13,
+          "place": 7,
+          "nearestUnrolledGap": 4.497858270309168,
+          "nearestCoastVertexArc": 4.139742146936996,
+          "neighbour": 8
+        },
+        {
+          "title": "Story 08",
+          "story": "synthetic-story-8",
+          "capabilities": 8,
+          "place": 8,
+          "nearestUnrolledGap": 4.497858270309168,
+          "nearestCoastVertexArc": 4.139742146936996,
+          "neighbour": 7
+        },
+        {
+          "title": "Story 09",
+          "story": "synthetic-story-9",
+          "capabilities": 4,
+          "place": 9,
+          "nearestUnrolledGap": 4.81709950651196,
+          "nearestCoastVertexArc": 4.416422439168919,
+          "neighbour": 10
+        },
+        {
+          "title": "Story 10",
+          "story": "synthetic-story-10",
+          "capabilities": 5,
+          "place": 10,
+          "nearestUnrolledGap": 4.81709950651196,
+          "nearestCoastVertexArc": 4.416422439168919,
+          "neighbour": 9
+        },
+        {
+          "title": "Story 11",
+          "story": "synthetic-story-11",
+          "capabilities": 10,
+          "place": 11,
+          "nearestUnrolledGap": 5.162989059627074,
+          "nearestCoastVertexArc": 4.54628996253006,
+          "neighbour": 12
+        },
+        {
+          "title": "Story 12",
+          "story": "synthetic-story-12",
+          "capabilities": 7,
+          "place": 12,
+          "nearestUnrolledGap": 5.162989059627074,
+          "nearestCoastVertexArc": 4.54628996253006,
+          "neighbour": 11
+        },
+        {
+          "title": "Story 13",
+          "story": "synthetic-story-13",
+          "capabilities": 6,
+          "place": 13,
+          "nearestUnrolledGap": 5.30187955652795,
+          "nearestCoastVertexArc": 4.686131369189509,
+          "neighbour": 12
+        },
+        {
+          "title": "Story 14",
+          "story": "synthetic-story-14",
+          "capabilities": 13,
+          "place": 14,
+          "nearestUnrolledGap": 4.856851024625691,
+          "nearestCoastVertexArc": 4.348066358147602,
+          "neighbour": 4
+        },
+        {
+          "title": "Story 15",
+          "story": "synthetic-story-15",
+          "capabilities": 8,
+          "place": 15,
+          "nearestUnrolledGap": 5.07300494113616,
+          "nearestCoastVertexArc": 4.180179115855446,
+          "neighbour": 16
+        },
+        {
+          "title": "Story 16",
+          "story": "synthetic-story-16",
+          "capabilities": 4,
+          "place": 16,
+          "nearestUnrolledGap": 5.07300494113616,
+          "nearestCoastVertexArc": 4.180179115855446,
+          "neighbour": 15
+        },
+        {
+          "title": "Story 17",
+          "story": "synthetic-story-17",
+          "capabilities": 5,
+          "place": 17,
+          "nearestUnrolledGap": 5.496418468264473,
+          "nearestCoastVertexArc": 4.615704011639076,
+          "neighbour": 16
+        },
+        {
+          "title": "Story 18",
+          "story": "synthetic-story-18",
+          "capabilities": 10,
+          "place": 18,
+          "nearestUnrolledGap": 5.463035223012223,
+          "nearestCoastVertexArc": 4.40110007913335,
+          "neighbour": 19
+        },
+        {
+          "title": "Story 19",
+          "story": "synthetic-story-19",
+          "capabilities": 7,
+          "place": 19,
+          "nearestUnrolledGap": 5.463035223012223,
+          "nearestCoastVertexArc": 4.40110007913335,
+          "neighbour": 18
+        },
+        {
+          "title": "Story 20",
+          "story": "synthetic-story-20",
+          "capabilities": 6,
+          "place": 20,
+          "nearestUnrolledGap": 5.780813638786273,
+          "nearestCoastVertexArc": 4.560980183694311,
+          "neighbour": 19
+        },
+        {
+          "title": "Story 21",
+          "story": "synthetic-story-21",
+          "capabilities": 13,
+          "place": 21,
+          "nearestUnrolledGap": 5.625289897798069,
+          "nearestCoastVertexArc": 4.388215769683443,
+          "neighbour": 11
+        },
+        {
+          "title": "Story 22",
+          "story": "synthetic-story-22",
+          "capabilities": 8,
+          "place": 22,
+          "nearestUnrolledGap": 5.782259087404405,
+          "nearestCoastVertexArc": 4.388215769683443,
+          "neighbour": 21
+        },
+        {
+          "title": "Story 23",
+          "story": "synthetic-story-23",
+          "capabilities": 4,
+          "place": 23,
+          "nearestUnrolledGap": 6.477768361960024,
+          "nearestCoastVertexArc": 4.56063370372943,
+          "neighbour": 24
+        },
+        {
+          "title": "Story 24",
+          "story": "synthetic-story-24",
+          "capabilities": 5,
+          "place": 24,
+          "nearestUnrolledGap": 5.936967362570131,
+          "nearestCoastVertexArc": 4.1207884855031205,
+          "neighbour": 25
+        },
+        {
+          "title": "Story 25",
+          "story": "synthetic-story-25",
+          "capabilities": 10,
+          "place": 25,
+          "nearestUnrolledGap": 5.936967362570131,
+          "nearestCoastVertexArc": 4.1207884855031205,
+          "neighbour": 24
+        },
+        {
+          "title": "Story 26",
+          "story": "synthetic-story-26",
+          "capabilities": 7,
+          "place": 26,
+          "nearestUnrolledGap": 6.282549856454332,
+          "nearestCoastVertexArc": 4.490357146757721,
+          "neighbour": 27
+        },
+        {
+          "title": "Story 27",
+          "story": "synthetic-story-27",
+          "capabilities": 6,
+          "place": 27,
+          "nearestUnrolledGap": 6.282549856454332,
+          "nearestCoastVertexArc": 4.490357146757721,
+          "neighbour": 26
+        },
+        {
+          "title": "Story 28",
+          "story": "synthetic-story-28",
+          "capabilities": 13,
+          "place": 28,
+          "nearestUnrolledGap": 6.510952048028799,
+          "nearestCoastVertexArc": 4.570045589649666,
+          "neighbour": 17
+        },
+        {
+          "title": "Story 29",
+          "story": "synthetic-story-29",
+          "capabilities": 8,
+          "place": 29,
+          "nearestUnrolledGap": 7.40037691515461,
+          "nearestCoastVertexArc": 4.570045589649666,
+          "neighbour": 28
+        },
+        {
+          "title": "Story 30",
+          "story": "synthetic-story-30",
+          "capabilities": 4,
+          "place": 30,
+          "nearestUnrolledGap": 7.7482718682228935,
+          "nearestCoastVertexArc": 4.914265888611617,
+          "neighbour": 31
+        },
+        {
+          "title": "Story 31",
+          "story": "synthetic-story-31",
+          "capabilities": 5,
+          "place": 31,
+          "nearestUnrolledGap": 7.7482718682228935,
+          "nearestCoastVertexArc": 4.775195503920899,
+          "neighbour": 30
+        },
+        {
+          "title": "Story 32",
+          "story": "synthetic-story-32",
+          "capabilities": 10,
+          "place": 32,
+          "nearestUnrolledGap": 7.724093930795043,
+          "nearestCoastVertexArc": 4.703373761127547,
+          "neighbour": 33
+        },
+        {
+          "title": "Story 33",
+          "story": "synthetic-story-33",
+          "capabilities": 7,
+          "place": 33,
+          "nearestUnrolledGap": 7.632076279242921,
+          "nearestCoastVertexArc": 4.703373761127547,
+          "neighbour": 34
+        },
+        {
+          "title": "Story 34",
+          "story": "synthetic-story-34",
+          "capabilities": 6,
+          "place": 34,
+          "nearestUnrolledGap": 7.632076279242921,
+          "nearestCoastVertexArc": 4.969320029123818,
+          "neighbour": 33
+        },
+        {
+          "title": "Story 35",
+          "story": "synthetic-story-35",
+          "capabilities": 13,
+          "place": 35,
+          "nearestUnrolledGap": 7.931049611753726,
+          "nearestCoastVertexArc": 5.1962002177803495,
+          "neighbour": 22
+        },
+        {
+          "title": "Story 36",
+          "story": "synthetic-story-36",
+          "capabilities": 8,
+          "place": 36,
+          "nearestUnrolledGap": 8.59736510503478,
+          "nearestCoastVertexArc": 7.684199856882988,
+          "neighbour": 25
+        }
+      ]
+    }
+  ]
+}

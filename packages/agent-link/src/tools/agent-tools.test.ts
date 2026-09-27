@@ -16,9 +16,11 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
+import { roundDue, worklist } from "@storytree/librarian";
+import { z } from "zod";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
-import { recordFriction, reinforceFriction } from "../index.js";
+import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
@@ -137,16 +139,23 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
 
       const claimed = await agent.call("claim", { capability, reason: "building the email form" });
       assert.equal(claimed.isError, false, claimed.text);
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the signup release" })).isError, false);
       const plan = await agent.call("show_plan");
       assert.deepEqual(
-        (plan.data.claims as { capability: string; session: string; label: string; reason: string }[]).map(({ capability: held, session, label, reason }) => ({
-          held,
+        (plan.data.claims as { capability?: string; increment?: string; session: string; label: string; reason: string }[]).map(({ capability, increment, session, label, reason }) => ({
+          held: capability ?? increment,
           session,
           label,
           reason,
         })),
-        [{ held: capability, session: "claude-1", label: "Claude Code", reason: "building the email form" }],
+        [
+          { held: capability, session: "claude-1", label: "Claude Code", reason: "building the email form" },
+          { held: increment, session: "claude-1", label: "Claude Code", reason: "driving the signup release" },
+        ],
       );
+      assert.ok(plan.text.split("\n").some((line) => line.includes(increment) && line.includes("Signup release") && line.includes("Claude Code claude-1") && line.includes("driving the signup release")), plan.text);
       assert.deepEqual((plan.data.sessions as { session: string; state: string }[]).map(({ session, state }) => ({ session, state })), [
         { session: "claude-1", state: "live" },
       ]);
@@ -157,6 +166,7 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
       assert.deepEqual(await library.health(contract).then(({ reported, verified }) => [reported.state, verified.state]), ["passing", "not-checked"]);
 
       assert.equal((await agent.call("land", { capability })).isError, false);
+      assert.equal((await agent.call("release", { increment })).isError, false);
       assert.deepEqual(await readClaims(log, project), [], "landing ended the claim");
       const landed = (await log.since(project, 0)).lines.filter((line) => line.kind === "landed");
       assert.deepEqual(landed.map((line) => line.session), ["claude-1"]);
@@ -253,6 +263,9 @@ test("6.5 a note written with no place named while holding a claim goes onto tha
       assert.deepEqual((await noteFields(library, loose)).links, undefined);
 
       await agent.call("claim", { capability: form, reason: "building the email form" });
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the release too" })).isError, false);
       // A memory, with no cover opened yet this session, goes inside the shelf's first book: its founding decision.
       const first = idOf(await agent.call("write_note", { kind: "memory", text: "Mailgun needs a verified domain" }));
       // A new decision becomes another front cover of the claimed capability; once this session has opened it, a new memory goes inside that one.
@@ -640,6 +653,71 @@ test("6.15 reinforce appends dated concrete evidence to the existing friction, p
   });
 });
 
+test("6.17 another story registers its tools on this server, sharing routing, the session log and its instructions", async () => {
+  await withProject(async ({ folder, library, log, project }) => {
+    const decision = await library.recordDecision({ title: "One mailer", text: "Use Mailgun", status: "accepted" });
+    const extension: ToolExtension = {
+      instructions: "Use `librarian_worklist` to see what needs the librarian's attention.",
+      registerTools(define) {
+        define("librarian_worklist", "Read the librarian's worklist", z.object({}), async (_args, call) => ({
+          text: "The librarian's worklist.", data: { worklist: await worklist(call.library, {}) },
+        }));
+      },
+    };
+    await withAgent(folder, claudeCode("librarian-reader", { extensions: [extension] }), async (agent) => {
+      assert.deepEqual(await agent.tools(), [...TOOLS, "librarian_worklist"].sort());
+      const result = await agent.call("librarian_worklist");
+      assert.equal(result.isError, false, result.text);
+      assert.deepEqual(result.data.worklist, await worklist(library, {}));
+      assert.ok(JSON.stringify(result.data.worklist).includes(decision.id));
+      const calls = (await log.since(project, 0)).lines.filter((line) => line.kind === "tool-called");
+      assert.deepEqual(calls.map((line) => [line.session, line.kind === "tool-called" && line.tool]), [["librarian-reader", "librarian_worklist"]]);
+      const instructions = agent.instructions()!;
+      assert.ok(instructions.includes(extension.instructions!));
+      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), await agent.tools());
+      assert.ok(instructions.split("\n").length <= 60);
+    });
+  });
+});
+
+test("6.18 another story supplies land's next line only when needed; a refused landing asks for none", async () => {
+  await withProject(async ({ folder, library }) => {
+    const story = await library.addStory({ title: "Signup" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const { cursor: since } = await library.changesSince(0);
+    let calls = 0;
+    let unavailable = false;
+    const extension: ToolExtension = {
+      async landNext(id, call) {
+        calls++;
+        assert.equal(id, capability.id);
+        assert.equal(call.writer.actor, "session:builder");
+        if (unavailable) throw new Error("The librarian is unavailable");
+        return (await roundDue(call.library, { since })).rest ? "run the librarian's pass" : undefined;
+      },
+    };
+    await withAgent(folder, claudeCode("builder", { extensions: [extension] }), async (agent) => {
+      const quiet = await agent.call("land", { capability: capability.id });
+      assert.equal(quiet.data.landed, true);
+      assert.doesNotMatch(quiet.text, /Next:/);
+      await agent.call("write_note", { kind: "definition", term: "Sender", meaning: "The mail domain" });
+      const due = await agent.call("land", { capability: capability.id });
+      assert.equal(due.data.landed, true);
+      assert.ok(due.text.endsWith("Next: run the librarian's pass"), due.text);
+      assert.deepEqual(due.data.next, ["run the librarian's pass"]);
+      const refused = await agent.call("land", { capability: "missing" });
+      assert.equal(refused.isError, true);
+      assert.doesNotMatch(refused.text, /Next:/);
+      assert.equal(calls, 2, "only successful landings ask for the next step");
+      unavailable = true;
+      const landed = await agent.call("land", { capability: capability.id });
+      assert.equal(landed.isError, false, "a follow-up failure cannot turn a recorded landing into a refusal");
+      assert.equal(landed.data.landed, true);
+      assert.match(landed.text, /next step.*unavailable/i);
+    });
+  });
+});
+
 test("6.16 every library write from a tool names the calling session, including compound writes, claims, and a session changed by the harness", async () => {
   await withProject(async ({ folder, library, log, project }) => {
     await withAgent(folder, claudeCode("claude-writer"), async (agent) => {
@@ -688,6 +766,12 @@ test("6.16 every library write from a tool names the calling session, including 
       const before = await library.history();
       assert.equal((await agent.call("reinforce", { friction, evidence: "Still annoying" })).isError, true);
       assert.deepEqual(await library.history(), before, "a refusal cannot invent an attributed write");
+      for (const invalid of ["increment_missing", story]) {
+        const refused = await agent.call("raise_question", { ...questionArgs, holds: [blocker, invalid] });
+        assert.equal(refused.isError, true, "a missing increment or a different record kind is refused");
+        assert.ok(refused.text.includes(invalid), refused.text);
+        assert.deepEqual(await library.history(), before, "a refused question cannot leave its question or an earlier hold behind");
+      }
     });
     await withAgent(folder, codex("codex-writer"), async (agent) => {
       for (const session of ["codex-writer", "codex-next"]) {

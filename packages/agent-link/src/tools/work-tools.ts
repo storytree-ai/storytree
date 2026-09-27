@@ -120,14 +120,19 @@ export function registerWorkTools(define: Define): void {
       holds: z.array(z.string().min(1)).optional().describe("The ids of the increments held until the owner answers"),
     }),
     async ({ holds, ...asked }, { library, writer }) => {
-      const question = await library.raiseQuestion(defined(asked), writer);
+      // Check the entire request before the first write: a refusal must leave no question or hold.
+      const holding = new Map<string, string[]>();
       for (const increment of holds ?? []) {
         const held = await heldOn(library, increment);
-        if (held === undefined) return { text: `Raised ${quoted(asked.title)} (${question.id}), but there is no increment ${increment} to hold on it.`, refused: true, data: { id: question.id } };
+        if (held === undefined) return { text: `There is no increment ${increment} to hold on the question. Nothing was written.`, refused: true };
+        holding.set(increment, held);
+      }
+      const question = await library.raiseQuestion(defined(asked), writer);
+      for (const [increment, held] of holding) {
         await library.editIncrement(increment, { heldOn: [...held, question.id] }, writer);
       }
-      const holding = holds === undefined || holds.length === 0 ? "" : ` ${holds.join(", ")} ${holds.length === 1 ? "waits" : "wait"} on the answer.`;
-      return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${holding}`, data: { id: question.id } };
+      const waiting = holding.size === 0 ? "" : ` ${[...holding.keys()].join(", ")} ${holding.size === 1 ? "waits" : "wait"} on the answer.`;
+      return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${waiting}`, data: { id: question.id } };
     },
   );
 

@@ -190,7 +190,7 @@ function write(library: Library, args: NoteArgs, place: { links?: string[]; fron
 /** The capability the calling session claimed most recently of those it still holds. */
 async function latestClaim(call: Call): Promise<string | undefined> {
   const { lines } = await call.log.since(call.project, 0);
-  const mine = claimsFrom(lines, { quietMs: call.quietMs }).filter((held) => held.session === call.caller.session);
+  const mine = claimsFrom(lines, { quietMs: call.quietMs }).filter((held) => held.session === call.caller.session && held.capability !== undefined);
   return mine.sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0)).at(-1)?.capability;
 }
 

@@ -36,6 +36,9 @@ and raise a question on the arc instead of only asking in chat. The setup check 
 The command line is not this story's. It is a story of its own, as in 0.2 (the owner's H): a front
 door that sends each verb to the function its owning story already has.
 
-Left out, because they did not last in 0.2 (measured under ADR-0639): increment plans, `increment
-check` and the planner hand-off; a question's park lease; workspaces made by claiming; and
-similarity search.
+Left out, because they did not last in 0.2 (ADR-0639; ADR-0643 D4 as corrected): increment plans,
+`increment check`, the planner hand-off and `branch next`. The first measurements of the question
+lease, `worktree create --node` and `library related --unlinked` missed subagent transcripts.
+Remeasurement found sustained use, so those three await the owner's named choices in
+`oq-0-3-question-review-date-and-unlinked-search` and `oq-0-3-workspace-born-claimed`: neither
+ported nor cut until he answers.

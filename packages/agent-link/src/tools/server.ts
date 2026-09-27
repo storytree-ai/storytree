@@ -27,12 +27,13 @@ import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import type { Library, WriteOptions } from "@storytree/library";
+import { librarianTools } from "@storytree/librarian";
 import type { z } from "zod";
 
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
 import { endMergedClaims, type MergeWatch } from "../claims/index.js";
 import { habitsCard } from "../instructions/index.js";
-import { route } from "../routing/index.js";
+import { findProject, route } from "../routing/index.js";
 import { QUIET_MS } from "../sessions/index.js";
 import type { SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
@@ -107,7 +108,13 @@ export interface ToolExtension {
 }
 
 export function createAgentTools(options: AgentToolOptions): AgentTools {
-  const extensions = options.extensions ?? [];
+  // ADR-0644 U1: enable the librarian for storytree's own library first. Its behaviour stays in
+  // its package; this is the shared registration point for other stories (ADR-0643 D6).
+  const servedTools = ["check_setup", "set_up_project"];
+  const extensions = [
+    ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools })] : []),
+    ...options.extensions ?? [],
+  ];
   const instructions = [habitsCard(), ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");
   const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions });
   const connections = new Connections();
@@ -119,6 +126,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const callerOf = (context: ServerContext): Caller => callerFrom(server, context, env, ownSession);
 
   const define: Define = (name, description, input, act) => {
+    servedTools.push(name);
     const handle = async (args: unknown, context: ServerContext): Promise<CallToolResult> => {
       const where = route(options.folder, locate);
       if (where.status === "not-running") return result({ text: NOT_RUNNING_ANSWER });

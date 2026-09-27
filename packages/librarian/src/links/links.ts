@@ -4,7 +4,7 @@
  * its term; friction and re-steers carry no links. Neighbours nobody linked are found with the
  * library's plain search (ADR-0644 D3, R), so this capability adds no search of its own.
  */
-import type { Library, Note, SchemaRecord } from "@storytree/library";
+import type { Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal, noteOf } from "../notes.js";
 
@@ -15,7 +15,7 @@ const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
  * Make note `from` rest on note `to`, keeping its other links. A link it already has writes nothing.
  * Refused, with nothing written, when either is not a live note or the link breaks a rule above.
  */
-export async function link(library: Library, from: string, to: string): Promise<Note> {
+export async function link(library: Library, from: string, to: string, writer?: WriteOptions): Promise<Note> {
   const note = await noteOf(library, from);
   const target = await noteOf(library, to);
   if (note.type === "friction" || note.type === "resteer") {
@@ -26,7 +26,7 @@ export async function link(library: Library, from: string, to: string): Promise<
   }
   const links = note.fields.links ?? [];
   if (links.includes(to)) return note;
-  const linked = await library.editNote(from, { links: [...links, to] });
+  const linked = await library.editNote(from, { links: [...links, to] }, writer);
   if (linked === null) throw new LibrarianRefusal(`there is no live note ${from}`);
   return linked;
 }

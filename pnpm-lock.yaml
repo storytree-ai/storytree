@@ -271,6 +271,25 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/knowledge-core:
+    dependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/librarian:
     dependencies:
       '@storytree/library':

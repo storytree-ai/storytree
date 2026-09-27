@@ -5,6 +5,7 @@ import { connect } from "node:net";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
+import { runInstalledConnection } from "../connect/installed.js";
 import { verifyPayload, type Architecture } from "./payload.js";
 
 interface DeliveryOptions {
@@ -60,8 +61,12 @@ export async function finishDelivery(options: DeliveryOptions, effects = { launc
   return { state: "ready", tools, command };
 }
 
-/** The installed helper's two commands. inspect has no side effects, including no app launch. */
+/** Installed delivery and connection commands. inspect has no side effects, including no app launch. */
 export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<void> {
+  if (args[0] === "connect" || args[0] === "disconnect") {
+    process.stdout.write(await runInstalledConnection(args[0], args.slice(1)) + "\n");
+    return;
+  }
   const [action, installDir, arch] = args;
   if (!installDir || (arch !== "x64" && arch !== "arm64") || (action !== "inspect" && action !== "finish")) throw new Error("usage: storytree-deliver inspect|finish <installation directory> x64|arm64");
   if (process.platform !== "win32" || process.arch !== arch || process.versions.node.split(".")[0] !== "24") throw new Error("The bundled Node runtime does not match this Windows installation");

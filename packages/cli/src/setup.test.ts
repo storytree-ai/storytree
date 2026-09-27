@@ -18,6 +18,7 @@ before(async () => {
     banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' },
     external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
   });
+  writeFileSync(path.join(command.dir, "storytree-setup.mjs"), 'console.log(JSON.stringify(process.argv.slice(2)));');
 });
 after(() => command.remove());
 
@@ -31,9 +32,11 @@ function user(t: { after(fn: () => void): void }) {
   for (const folder of [home, claude, codex, bin]) mkdirSync(folder, { recursive: true });
   const mcp = path.join(dir, "installed tools", "storytree-mcp.mjs");
   mkdirSync(path.dirname(mcp));
+  const node = path.join(path.dirname(mcp), process.platform === "win32" ? "node.exe" : "node");
+  writeFileSync(node, "delivered Node fixture\n");
   writeFileSync(mcp, "// delivered server\n");
   const record = path.join(home, "delivery.json");
-  writeFileSync(record, JSON.stringify({ schema: 1, installDir: dir, tools: { node: process.execPath, mcp } }));
+  writeFileSync(record, JSON.stringify({ schema: 1, installDir: dir, tools: { node, mcp } }));
   const settings = path.join(claude, ".claude.json");
   writeFileSync(settings, JSON.stringify({ theme: "kept", mcpServers: { other: { command: "keep" } } }));
   writeFileSync(path.join(codex, "config.toml"), '# keep my settings\nmodel = "kept"\n');
@@ -58,7 +61,7 @@ else process.exit(1);
       : `#!/bin/sh\nexec "${process.execPath}" "${fake}" "$@"\n`, { mode: 0o755 });
   }
   const env = { HOME: dir, USERPROFILE: dir, CLAUDE_CONFIG_DIR: claude, CODEX_HOME: codex, PATH: bin };
-  return { dir, record, settings, codex, mcp, bin, run: (args: string[]) => storytree(command.script, ["setup", ...args], { cwd: dir, home, env }) };
+  return { dir, record, settings, codex, node, mcp, bin, run: (args: string[]) => storytree(command.script, ["setup", ...args], { cwd: dir, home, env }) };
 }
 
 test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged and disconnects one without the other", async (t) => {
@@ -71,6 +74,7 @@ test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged a
   const claude = readFileSync(u.settings, "utf8");
   const codex = readFileSync(path.join(u.codex, "config.toml"), "utf8");
   assert.deepEqual(JSON.parse(claude).mcpServers.storytree.args, [u.mcp]);
+  assert.equal(JSON.parse(claude).mcpServers.storytree.command, u.node, "registration uses delivery's bundled Node, not the invoking runtime");
   assert.match(codex, /# keep my settings/);
   const second = await u.run(["connect", "--claude", "--codex"]);
   assert.equal(second.code, 0, second.stderr);
@@ -83,6 +87,10 @@ test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged a
   assert.deepEqual(JSON.parse(readFileSync(u.settings, "utf8")), { theme: "kept", mcpServers: { other: { command: "keep" } } });
   assert.equal(readFileSync(path.join(u.codex, "config.toml"), "utf8"), codex);
   assert.equal((await u.run(["disconnect", "codex"])).code, 0);
+  const onlyCodex = await u.run(["connect", "--codex"]);
+  assert.equal(onlyCodex.code, 0, onlyCodex.stderr);
+  assert.doesNotMatch(onlyCodex.stdout, /Claude Code/);
+  assert.equal(JSON.parse(readFileSync(u.settings, "utf8")).mcpServers.storytree, undefined);
   assert.equal(existsSync(path.join(u.dir, ".storytree.json")), false);
 });
 
@@ -100,6 +108,11 @@ test("2.2 / 2.3: partial connection is nonzero, preserves a conflict and still c
 
 test("2.1 / 2.2: explicit selection, a readable delivery record and installed tools are required", async (t) => {
   const u = user(t);
+  for (const verb of ["install", "remove"]) {
+    const hooks = await u.run([verb]);
+    assert.equal(hooks.code, 0, hooks.stderr);
+    assert.deepEqual(JSON.parse(hooks.stdout), [verb], "existing hook command still receives its own arguments");
+  }
   for (const args of [["connect"], ["connect", "--claud"], ["disconnect", "both"]]) {
     assert.equal((await u.run(args)).code, 2, args.join(" "));
   }
@@ -109,7 +122,11 @@ test("2.1 / 2.2: explicit selection, a readable delivery record and installed to
   assert.match(missing.stderr, /delivery.json.*[Rr]e-run.*installer/);
   writeFileSync(u.record, '{"schema":99}');
   assert.equal((await u.run(["connect", "--claude"])).code, 1);
-  writeFileSync(u.record, JSON.stringify({ schema: 1, installDir: u.dir, tools: { node: process.execPath, mcp: u.mcp } }));
+  writeFileSync(u.record, JSON.stringify({ schema: 1, installDir: u.dir, tools: { node: u.node, mcp: u.mcp } }));
+  rmSync(path.join(u.bin, process.platform === "win32" ? "claude.cmd" : "claude"));
+  const noHarness = await u.run(["connect", "--claude"]);
+  assert.equal(noHarness.code, 1);
+  assert.match(noHarness.stderr, /Install Claude Code, sign in/);
   rmSync(u.mcp);
   const absent = await u.run(["connect", "--claude"]);
   assert.equal(absent.code, 1);

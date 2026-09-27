@@ -18,8 +18,13 @@ only after startup succeeds. Schema 1 holds `installDir` and `tools` with absolu
 `{ dir, app, node, mcp, hook, setup, cli, deliver }`. `toolPaths(installDir)` constructs these;
 `verifyPayload(installDir, arch)` validates the installed inventory. A harness runs
 `tools.node` with `[tools.mcp]`; hooks/setup/CLI use their corresponding `.mjs` entry.
-Connection and harness consent belong to capability 2. This lane leaves `setup install`
-unchanged and never writes harness settings.
+Connection and harness consent belong to capability 2. After successful delivery the
+one-liner prompts for Claude Code, Codex, both, or skip, then invokes the installed
+`tools.node tools.cli setup connect` with the chosen switches. The CLI delegates to the
+bundled app-setup helper, which reads `delivery.json` and reuses `connectAgents`.
+Registration reports tools connected separately from hooks not verified and directs the
+user to start a session in their folder. `setup install` retains its hook/command meaning;
+delivery's own `inspect` and `finish` operations do not write harness settings.
 
 Delivery owns `~/.storytree/0.3/bin/storytree.cmd`, recognizes the agent-link's 0.3 launcher
 marker, and adds its directory to the per-user Windows PATH. Unrelated commands anywhere on

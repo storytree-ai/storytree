@@ -23,6 +23,7 @@ import { openActivityLog, runSetupCheck, setUpProject, type SetupReport } from "
 
 import { Refusal, type Answer } from "../answer.js";
 import type { Family, Verb } from "../door.js";
+import { setupConnectionVerbs } from "./setup.js";
 
 const HARNESSES = { "claude-code": "Claude Code", codex: "Codex" } as const;
 
@@ -152,7 +153,7 @@ export const doctorFamily: Family = {
 
 export const setupFamily: Family = {
   name: "setup",
-  summary: "install or remove storytree's hooks (the agent link's)",
-  verbs: [],
+  summary: "connect or disconnect agents; install or remove storytree's hooks",
+  verbs: setupConnectionVerbs,
   bare: setup,
 };

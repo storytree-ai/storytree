@@ -1,2 +1,2 @@
-export { CaptureError, hasConcreteEvidence, recordFriction, recordResteer } from "./capture.js";
-export type { NewFriction, NewResteer } from "./capture.js";
+export { CaptureError, hasConcreteEvidence, recordFriction, recordResteer, reinforceFriction } from "./capture.js";
+export type { NewFriction, NewResteer, Reinforcement } from "./capture.js";

@@ -13,3 +13,5 @@ export type { AgentToolOptions, AgentTools } from "./tools/index.js";
 export { CHECK_COMMAND, CHECK_FILE, defaultHomes, openStorytree, registerHooks, removeHooks, runSetupCheck, suggestedName, verifyHooks } from "./setup/index.js";
 export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
 export { habitsCard } from "./instructions/index.js";
+export { CaptureError, hasConcreteEvidence, recordFriction, recordResteer, reinforceFriction } from "./capture/index.js";
+export type { NewFriction, NewResteer, Reinforcement } from "./capture/index.js";

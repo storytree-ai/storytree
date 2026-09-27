@@ -11,8 +11,8 @@
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
-import { recordFriction, recordResteer } from "../capture/index.js";
-import { closed, increments } from "../claims/index.js";
+import { recordFriction, recordResteer, reinforceFriction } from "../capture/index.js";
+import { closed, currentBranch, increments } from "../claims/index.js";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -169,6 +169,16 @@ export function registerWorkTools(define: Define): void {
     async (fields, { library }) => {
       const friction = await recordFriction(library, fields);
       return { text: `Recorded friction ${quoted(fields.title)} (${friction.id}).`, data: { id: friction.id } };
+    },
+  );
+
+  define(
+    "reinforce",
+    "Record a recurrence of existing friction with its own concrete evidence. It appends the date and this session's branch, keeping the original item and its route.",
+    z.object({ friction: id("friction"), evidence: z.string().min(1).describe("Concrete evidence of what happened this time") }),
+    async ({ friction, evidence }, { library, folder }) => {
+      const saved = await reinforceFriction(library, friction, { branch: currentBranch(folder) ?? "(no branch)", evidence });
+      return { text: `Reinforced friction ${quoted(saved.fields.title)} (${saved.id}).`, data: { id: saved.id } };
     },
   );
 

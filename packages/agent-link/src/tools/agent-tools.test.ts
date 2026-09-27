@@ -223,6 +223,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["set_wait", { waiter: "increment_000000000000", on: "increment_000000000001", reason: "it comes first" }],
         ["clear_wait", { waiter: "increment_000000000000", on: "increment_000000000001" }],
         ["record_friction", { title: "Slow", description: "Slow", statement: "Slow", evidence: "`pnpm test` took 9 s", impact: "Slow" }],
+        ["reinforce", { friction: "friction_000000000000", evidence: "#81: timed out again" }],
         ["record_resteer", { title: "Redirected", description: "Redirected", doing: "a", redirect: "b", evidence: '"not that"', disposition: "taste", judged_by: "owner" }],
         ["raise_question", { arc: "arc_000000000000", title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" }],
         ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],

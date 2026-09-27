@@ -41,9 +41,9 @@ export function render(answer: Answer): string {
   return `${text}\n\nnext:\n${lines.join("\n")}\n`;
 }
 
-/** A record's one-line label: its title, or the first line of its text. */
+/** A record's one-line label: its title, definition term, or the first line of its text. */
 export function labelOf(fields: Readonly<Record<string, unknown>>): string {
-  const title = typeof fields.title === "string" ? fields.title : typeof fields.text === "string" ? fields.text : "";
+  const title = typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : typeof fields.text === "string" ? fields.text : "";
   const line = title.split(/\r?\n/, 1)[0] ?? "";
   return line.length > 100 ? `${line.slice(0, 99)}…` : line;
 }

@@ -25,7 +25,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
       const reader = lib ?? records;
       const work: Pick<Library, "addStory" | "editStory" | "createArc" | "editArc" | "addCapability" | "editCapability" | "addContract" | "editContract"> = lib ?? project?.work ?? new WorkModel(records);
       const flight: Pick<Library, "addIncrement" | "advanceIncrement" | "closeIncrement" | "editIncrement" | "parkArc" | "unparkArc" | "addWait" | "removeWait" | "raiseQuestion" | "settleQuestion" | "retire"> = lib ?? project?.flight ?? new WorkInFlight(records);
-      const knowledge: Pick<Library, "writeMemory" | "recordDecision" | "defineTerm" | "writeKnowledge" | "editNote" | "composeStatement"> = lib ?? project?.knowledge ?? new Knowledge(records);
+      const knowledge: Pick<Library, "recordDecision" | "defineTerm" | "writeKnowledge" | "editNote" | "composeStatement"> = lib ?? project?.knowledge ?? new Knowledge(records);
       const health = lib ?? project?.health ?? new HealthRecord(records, new WorkModel(records));
 
       for (const actor of ["person:Sam", "session:agent-42", undefined]) {
@@ -52,8 +52,8 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         await flight.settleQuestion(question.id, { answer: "Mailgun" }, options);
         const decision = await knowledge.recordDecision({ title: "Mailgun", text: "Simple API", status: "accepted" }, options);
         await knowledge.composeStatement(decision.id, "We send via Mailgun.", options);
-        const note = await knowledge.writeMemory({ text: "Verify the domain" }, options);
-        await knowledge.editNote(note.id, { text: "Verify the sending domain" }, options);
+        const note = await knowledge.defineTerm({ term: "Delivery", meaning: "Verify the domain" }, options);
+        await knowledge.editNote(note.id, { meaning: "Verify the sending domain" }, options);
         await knowledge.defineTerm({ term: "Sender", meaning: "The sending domain" }, options);
         await knowledge.writeKnowledge("principle", { title: "Keep it simple", description: "One mailer", statement: "Use one mailer", why: "Less setup", howToApply: "Reuse it" }, options);
         await health.reportHealth(contract.id, "failing", options);

@@ -26,7 +26,8 @@ original `LIGHT_DIRECTION`. Paint, terrain slope and atlases stay in plate
 coordinates. The baked shadows and skirt colours stay as approved; they do
 not become a moving-sun simulation. Clearance of 1.692108 ground units keeps
 negative relief above the shell. ADR-0648 replaces the opaque sea with a light grey
-(`#bfbfbf`), double-sided shell at 0.18 opacity with depth writing off. The far
+(`#bfbfbf`), double-sided shell at 0.08 opacity with depth writing off, lowered from
+0.18 at the owner's request after #90. The far
 side remains visible through it. It still answers rays, so the page keeps its
 near-side names, claims and picking rule. The surface owns and disposes its
 geometry and material. The islands and L1 light are unchanged.
@@ -74,5 +75,7 @@ its ground and kit geometry. All six groves loaded without browser or shader
 errors. A separate cold mount checked that the globe loads its kit without
 preloading it or mounting the flat canvas first.
 
-The current packed placement and transparent shell are shown in the
-[ADR-0648 page capture](../../../../apps/desktop/src/forest/evidence/packed/README.md).
+The packed placement is shown in the
+[ADR-0648 page capture](../../../../apps/desktop/src/forest/evidence/packed/README.md), and the
+[shell tuning comparison](../../../../apps/desktop/src/forest/evidence/shell/README.md)
+shows the current transparency beside #90's opacity on the same seed.

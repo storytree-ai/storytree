@@ -237,11 +237,13 @@ place of today's plain list.
 
 - **Packed globe, as built:** the page's `planetLayout` selects the frozen packed spots, and
   `PlanetWorldCanvas` mounts each unchanged island as a tangent plate above a radius-160 shell.
-  The shell is light grey (`#bfbfbf`), double-sided, at 0.18 opacity, with depth writing off, so
-  far land and a future core can show through it. Its ray hits still hide back-side labels and
+  The shell is light grey (`#bfbfbf`), double-sided, at 0.08 opacity, with depth writing off, so
+  far land and a future core can show through it. The owner asked for more transparency after
+  #90: the two faces now retain 84.6% of the far-side blend contribution, up from 67.2%.
+  Its ray hits still hide back-side labels and
   claims and stop clicks selecting a hidden island. Opening turns, edge markers, story selection
-  and the flat Forest button keep working. [Headless Chromium evidence](../apps/desktop/src/forest/evidence/packed/README.md)
-  shows the actual seeded page, with the renderer named.
+  and the flat Forest button keep working. [Headless Chromium comparisons](../apps/desktop/src/forest/evidence/shell/README.md)
+  show the actual seeded page before and after tuning, with the renderer named.
 
 **Contracts:**
 1. The app's smoke check opens a seeded project and finds one story node per story, each drawn with
@@ -272,7 +274,7 @@ including any in other stories, named with their story and marked if not yet lan
   - Cross-story capability links are shown, the same ones the arc surface shows.
 - **Leaves out (vs 0.2), by the owner's decisions:** the pannable sub-map of 0.2's story panel
   (part of a 5,624-line studio component), with its ancestor and descendant highlighting, and its
-  session dock (ADR-0635, c5). The panel's library drawer is the note browser he cut from the MVP
+  session dock (ADR-0635, c5). The panel's library drawer is the artifact browser he cut from the MVP
   (ADR-0625 D4).
 - **As built:** `drillDown(tree, story, states, history)` in `packages/forest`, a pure function of
   what the page already holds: the story's sentences, its capabilities in the grove's build order
@@ -365,25 +367,25 @@ never calls storytree.
 
 Inside the drill-down, shows the story's and each capability's shelf of front-cover decisions as
 spines (each cover's title and first line), with the founding book first. Opening a book shows its
-text and the titles of the notes it links to and from.
+text and the titles of the artifacts it links to and from.
 
 - **Depends on:** 4. It reads the library's shelf read (`frontCovers`) and `relatedNotes`, and the
-  titles of the notes a book links out to from the change history the app already follows, since the
-  library has no "read one note" function. It is not a priority (ADR-0627 D8), so it lands last.
+  titles of the artifacts a book links out to from the change history the app already follows, since the
+  library has no "read one artifact" function. It is not a priority (ADR-0627 D8), so it lands last.
 - **Its shelf,** founding book first:
-  - **Founding book:** one step in, and no note browser (ADR-0625 D4). Opening a book lists its
+  - **Founding book:** one step in, and no artifact browser (ADR-0625 D4). Opening a book lists its
     links' titles, and stops there.
   - The founding book first, then oldest first (ADR-0627 D2).
-- **Leaves out (vs 0.2), by the owner's decisions:** the library drawer, which is the note browser
+- **Leaves out (vs 0.2), by the owner's decisions:** the library drawer, which is the artifact browser
   he cut from the MVP (ADR-0625 D4), and its lists of citations, which his rabbit-hole model replaces
   (ADR-0627): 0.2 offered agents 3,351 pointers to decisions and 156 were opened, 4.7% (ADR-0464).
 - **As built:** `shelved(panel, covers)` and `openBook(cover, linkingIn, history)` in
   `packages/forest`. `shelved` puts each front cover on the shelf its mark names, the story's or one
   of its capabilities', founding book first and then oldest first, and an empty shelf says so.
-  `openBook` gives the book's full text, the titles of the notes that link to it, and the titles of
-  the notes it links to, found in the change history. The page reads the shelves when a story opens,
+  `openBook` gives the book's full text, the titles of the artifacts that link to it, and the titles of
+  the artifacts it links to, found in the change history. The page reads the shelves when a story opens,
   through two new reads the app answers (`frontCovers` and `relatedNotes`, the app story's Surfaces).
-  It reads them again when a note changes. The panel shows each shelf as spines under "Front covers",
+  It reads them again when an artifact changes. The panel shows each shelf as spines under "Front covers",
   and a spine opens its book in place.
 - **Founding books on the shelves:** `pnpm seed:library` now files each capability's founding book,
   the first item of its shelf in its story file, as that capability's first front cover. It is found
@@ -396,7 +398,7 @@ text and the titles of the notes it links to and from.
 **Contracts:**
 1. A capability with three front covers shows three spines, founding book first, each with its
    title and first line.
-2. Opening a book shows its full text, and the titles of the notes that link to it and of those it
+2. Opening a book shows its full text, and the titles of the artifacts that link to it and of those it
    links to.
 3. An empty shelf says "no decisions on this shelf yet".
 4. A decision on another capability's shelf never appears here.

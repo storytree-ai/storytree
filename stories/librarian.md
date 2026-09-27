@@ -1,7 +1,7 @@
 # Story: the librarian
 
-**What it is.** The librarian keeps a project's library honest as a library: new notes are
-genuinely new, a note links to what it really rests on, every accepted decision stays true, durable
+**What it is.** The librarian keeps a project's library honest as a library: new artifacts are
+genuinely new, an artifact links to what it really rests on, every accepted decision stays true, durable
 lessons move to where agents read them, and the question and friction queues are drained. It is
 0.2's `librarian-curator`, ported whole. In 0.3 storytree runs no agents of its own, so the
 librarian is a hat the user's own agent puts on for a few minutes at a landing, using storytree's
@@ -38,7 +38,7 @@ the activity log and the habits card; the librarian registers its tools there. R
 retiring a question stay the agent link's tools, since any agent may settle a question it opened.
 
 **Rule for building it: port behaviour, not code.** Storytree 0.2's `librarian-curator` agent role
-and the notes it works to (`accepted-adrs-carry-no-stale-prose`, `pre-merge-librarian-pass`,
+and the artifacts it works to (`accepted-adrs-carry-no-stale-prose`, `pre-merge-librarian-pass`,
 `edit-first-curation`, `two-consumer-extraction`, `friction-adjudication`) and its graduation engine
 (`packages/library/src/graduation`) are the behavioural reference. Most of the librarian's work is
 judgement its agent makes; what is code is what the judgement needs to see (the worklist) and the
@@ -72,8 +72,8 @@ Build order: 1 → 2 → 3 → 4 → 5 → 6. Links comes first, because ADR-063
 
 ## 1 · Links
 
-The librarian links one note to another only where the first really rests on the second, and finds
-the notes nobody has linked yet by plain search. This is how the whole-project decisions come to sit
+The librarian links one artifact to another only where the first really rests on the second, and finds
+the artifacts nobody has linked yet by plain search. This is how the whole-project decisions come to sit
 behind the covers that rest on them.
 
 - **Depends on:** nothing.
@@ -86,7 +86,7 @@ behind the covers that rest on them.
   - **Proposed, approved:** a definition links to the decision that created the term, and never to
     another definition.
   - **Proposed, approved:** friction and re-steers carry no links, as in 0.2 (open questions are not
-    notes in 0.3, so carry none either).
+    artifacts in 0.3, so carry none either).
   - **R (settled, ADR-0644 D3):** neighbours nobody linked are found with the library's plain
     `search`.
 - **As built:** `link` and `unrestedDecisions` in `packages/librarian/src/links`. The library itself
@@ -100,11 +100,11 @@ behind the covers that rest on them.
   the worklist, as ADR-0631's context expected.
 
 **Contracts:**
-1. `link(from, to)` makes note `from` rest on note `to`, keeping its other links. Linking it again
+1. `link(from, to)` makes artifact `from` rest on artifact `to`, keeping its other links. Linking it again
    writes nothing.
 2. A definition rests only on a decision, and a friction or re-steer rests on nothing: any other
    link is refused, naming the rule, and nothing is written.
-3. The worklist names each accepted decision on no shelf that no note rests on, and drops it once
+3. The worklist names each accepted decision on no shelf that no artifact rests on, and drops it once
    one does.
 
 ## 2 · Decision log
@@ -122,7 +122,7 @@ that supersedes it if it did; finished business is retired or consolidated.
     restates what is still true and supersedes it.
   - **Proposed, approved:** "superseded" is read from the replacing decision's edge and never stored
     (0.2's ADR-0609; the library's 13-b).
-  - **Proposed, approved:** a decision that narrows a clause of another leaves a note in that other
+  - **Proposed, approved:** a decision that narrows a clause of another leaves an annotation in that other
     decision, in the same landing.
   - **Proposed, approved:** only the owner ever turns an accepted decision back to proposed.
   - **Proposed, approved:** the load-bearing mark is a curated reading list with no cap, and the
@@ -136,7 +136,7 @@ that supersedes it if it did; finished business is retired or consolidated.
   `packages/librarian/src/decision-log`. Consolidating is `supersede` with several old decisions.
   Marking load-bearing is a correction in place (`correct(id, { loadBearing })`). An annotation
   names the narrowing decision by its number and title, or its title when it has no number yet. The
-  health report reads every note-to-note reference, not only links and supersessions: a process's
+  health report reads every artifact-to-artifact reference, not only links and supersessions: a process's
   hand-ons and an agent role's reading too.
 
 **Contracts:**
@@ -146,7 +146,7 @@ that supersedes it if it did; finished business is retired or consolidated.
 2. `correct(id, fields)` changes a decision in place (its text, title or load-bearing mark), and
    the old wording stays in its history. A correction that would turn an accepted decision back to
    proposed is refused, since only the owner does that, and nothing is written.
-3. `annotate(target, { by, note })` adds a dated note to the target decision's text, naming the
+3. `annotate(target, { by, note })` adds a dated annotation to the target decision's text, naming the
    decision that narrows it. A narrowing decision that is not a live decision is refused, and
    nothing is written.
 4. The worklist's health report names each link or supersession that points at a record no longer
@@ -154,36 +154,39 @@ that supersedes it if it did; finished business is retired or consolidated.
 
 ## 3 · Catalogue
 
-Every note that lands is either genuinely new or an edit to the note that already covers it, and
+Every artifact that lands is either genuinely new or an edit to the artifact that already covers it, and
 never a near-copy. Guidance any capable agent would work out for itself is pruned.
 
 - **Depends on:** nothing.
 - **Its shelf,** founding book first:
-  - **Founding book (proposed, approved; 0.2's `edit-first-curation`):** look for an existing note
+  - **Founding book (proposed, approved; 0.2's `edit-first-curation`):** look for an existing artifact
     before a new one is written. If one exists, edit it instead.
   - **Proposed, approved (0.2's `two-consumer-extraction`):** pull a shared piece out into its own
-    note only when two or more current notes use it.
-  - **Proposed, approved:** prune with the blind test: if a reader without the note would work it
+    artifact only when two or more current artifacts use it.
+  - **Proposed, approved:** prune with the blind test: if a reader without the artifact would work it
     out anyway, it goes.
-  - **Proposed, approved:** a note is retired only if nothing points at it.
-  - **Proposed, approved:** a rule that moved into a note stops being cited by decision number in
+  - **Proposed, approved:** an artifact is retired only if nothing points at it.
+  - **Proposed, approved:** a rule that moved into an artifact stops being cited by decision number in
     the place it left. When in doubt, the citation stays.
-- **As built:** `retire` and `newNotes` in `packages/librarian/src/catalogue`. What points at a note:
-  any note's reference (links, supersessions, a process's hand-ons, an agent role's reading), an
+- **As built:** `retire` and `newNotes` in `packages/librarian/src/catalogue`. What points at an artifact:
+  any artifact's reference (links, supersessions, a process's hand-ons, an agent role's reading), an
   increment's `remedies` and a question's `settledBy`. A title's words are those of four letters or
-  more, each searched on its own; a memory's text stands for its title, and a definition's term.
+  more, each searched on its own; a definition's term stands for its title.
 
 **Contracts:**
-1. `retire(id, reason)` retires a note nothing points at. A note that another live record points at
+1. `retire(id, reason)` retires an artifact nothing points at. An artifact that another live record points at
    (a link, a supersession, a process's hand-on, an agent role's reading, rules or anti-patterns, an
    increment's remedies, or a question it settled) is refused, naming what points at it, and nothing
    is written.
-2. The worklist lists each note written new since a cursor, with the live notes a plain search for
+2. The worklist lists each artifact written new since a cursor, with the live artifacts a plain search for
    any word of its title finds, so the agent can see what might already cover it.
 
 ## 4 · Graduation
 
-A durable lesson moves out of the agent's private memory and into the kind of note agents actually
+ADR-0650 keeps the built graduation functions, but graduation is not needed for the MVP.
+Harness memories remain outside the library; promotion writes a proper artifact kind.
+
+A durable lesson moves out of the agent's private memory and into the kind of artifact agents actually
 read: a principle, a process or a definition. Then the memory is deleted.
 
 - **Depends on:** 3.
@@ -195,7 +198,7 @@ read: a principle, a process or a definition. Then the memory is deleted.
     60 days. An edit, or the end of those 60 days, brings it back with the question "is this still
     alive?".
   - **Proposed, approved (0.2's ADR-0154):** a way of working decided in a load-bearing decision gets
-    a current process note.
+    a current process artifact.
   - **Proposed, approved:** every process matches a real tool or command, and every tool or command
     has a process behind it, or a stated reason why not.
 - **As built:** `memoryWorklist`, `park`, `graduate` and `processGaps` in
@@ -240,7 +243,7 @@ nothing is closed without a reason.
 - **As built:** `openQuestions`, `frictionDrain` and `route` in `packages/librarian/src/queues`. A
   friction report with no provenance counts as another session's, as in 0.2, so the queue cannot
   drain by going anonymous. A report is drained once it carries a route and its reason; what it is
-  routed to (a decision, a tool, a note, an edit) is then that route's own work.
+  routed to (a decision, a tool, an artifact, an edit) is then that route's own work.
 
 **Contracts:**
 1. The worklist lists every open question on every arc, oldest first.
@@ -252,7 +255,7 @@ nothing is closed without a reason.
 ## 6 · Rounds
 
 When the librarian runs, and how an agent is told to put on its hat. At a landing where the session
-wrote to a curated kind of note, storytree asks for the librarian's pass before the landing is
+wrote to a curated kind of artifact, storytree asks for the librarian's pass before the landing is
 reported.
 
 - **Depends on:** 1, 2, 3, 4 and 5; the agent link's tool server and `land` (ADR-0643 D6).

@@ -37,8 +37,18 @@ As built, the 36 directions use the spike's spiral, with no live repacking. The 
 corrected before first landing because a fresh seed's different ids made its first two shores
 overlap under the look-only table. Both seed shapes and all 36 sample shores now pass. The page uses
 `placeOnPackedGlobe`. The even-spread implementation is retired; `placeOnGlobe` remains a
-compatibility alias for existing callers. The shell uses light grey, 0.18 opacity, both faces,
+compatibility alias for existing callers. The shell uses light grey, 0.08 opacity, both faces,
 and no depth writing. It keeps ray hits for the near-side labels and picking rule.
+
+**Shell tuning, 2026-09-27.** After seeing #90's 0.18 shell in the real app, the owner said
+“needs to be more transparent”. Increment `0-3-planet-shell-more-transparent` lowers opacity to
+0.08, tuning D2 rather than making a new decision. Both faces together retain 84.6% of the
+far-side blend contribution (`0.92²`), compared with 67.2% before (`0.82²`). The existing shell
+test protects at least 80% transmission and a nonzero shell, without pinning the exact colour
+or opacity. The ball's outline remains visible in the
+[front and quarter-turn comparisons](../apps/desktop/src/forest/evidence/shell/README.md).
+The future core's drawing is still unbuilt; these captures show the seeded islands through the
+shell, with no core placeholder.
 
 The clearance proof is bounded to the look's seed, a fresh seven-story seed, and all 36 sample shores at
 their real sizes, including beaches (4–13 capabilities, original ids). It does not inherit W2's

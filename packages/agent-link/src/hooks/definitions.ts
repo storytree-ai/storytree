@@ -59,7 +59,7 @@ export function definitionsNamedIn(prompt: string, definitions: readonly Definit
 /** What the agent is shown for `definitions`. */
 export function definitionsContext(definitions: readonly Definition[]): string {
   return [
-    "[storytree] Definitions from this project's library for terms in this prompt (open a note by its id to read all of it):",
+    "[storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):",
     ...definitions.map((definition) => `- ${definition.term} (${definition.id}): ${firstLine(definition.meaning)}`),
   ].join("\n");
 }

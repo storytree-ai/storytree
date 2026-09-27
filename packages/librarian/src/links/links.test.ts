@@ -42,7 +42,6 @@ test("1.1 link makes a note rest on another, keeping its other links, and linkin
 test("1.2 a definition rests only on a decision, and friction or a re-steer on nothing: other links are refused, naming the rule", async () => {
   await withLibrary(async (library) => {
     const decision = await wholeProject(library, "Arcs hold increments");
-    const memory = await library.writeMemory({ text: "An increment is a slice of an arc." });
     const term = await library.defineTerm({ term: "increment", meaning: "One slice of work on an arc." });
     const other = await library.defineTerm({ term: "arc", meaning: "An initiative." });
     const friction = await library.writeKnowledge("friction", {
@@ -55,7 +54,6 @@ test("1.2 a definition rests only on a decision, and friction or a re-steer on n
     const { cursor } = await library.changesSince(0);
 
     await assert.rejects(link(library, term.id, other.id), /definition rests only on a decision/);
-    await assert.rejects(link(library, term.id, memory.id), /definition rests only on a decision/);
     await assert.rejects(link(library, friction.id, decision.id), /friction rests on nothing/);
     assert.deepEqual((await library.changesSince(cursor)).changes, []);
 

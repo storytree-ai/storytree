@@ -12,7 +12,7 @@
  */
 import { Html, Line } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Quaternion, Raycaster, Vector2, Vector3, type Object3D } from "three";
 
 import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, SizeBy } from "../look-inside/look-inside.js";
@@ -145,7 +145,7 @@ export function pickNote(ray: Raycaster, scene: Object3D): string | undefined {
 }
 
 /** The panel beside the core: what is drawn, the session, the size, the replay, the legend and the pinned note's card. */
-export function CorePanel({ scene, counts, sessions, session, sizeBy, frame, step, playing, legend, hidden, card, links, titles, on }: {
+export function CorePanel({ scene, counts, sessions, session, sizeBy, frame, step, playing, legend, hidden, card, on }: {
   scene: CoreScene;
   counts: { placed: number; outside: number; ghosts: number; loops: number };
   sessions: readonly { id: string; label: string }[];
@@ -209,25 +209,20 @@ export function CorePanel({ scene, counts, sessions, session, sizeBy, frame, ste
       </ul>
       <p className="core-note">A dashed line is a jump between one agent's full reads, not a link it followed. Reads show reach, never usefulness.</p>
     </>}
-    {card !== undefined && <section className="core-card" aria-label="Pinned artifact">
-      <header>
-        <h3>{card.title}</h3>
-        <button type="button" className="panel-close" aria-label="Unpin" onClick={on.unpin}>×</button>
-      </header>
-      <dl>
-        <dt>Home</dt><dd>{card.home ?? "no shelf route"}</dd>
-        <dt>Depth</dt><dd>{card.depth}</dd>
-        {card.entrances.length > 1 && <><dt>Entrances</dt><dd>{card.entrances.join(", ")}</dd></>}
-        {card.replacement !== undefined && <><dt>Replacement</dt><dd>{card.replacement}</dd></>}
-        <dt>Recorded</dt><dd>{card.visits} session{card.visits === 1 ? "" : "s"} · {card.peeks} peek{card.peeks === 1 ? "" : "s"} · {card.wholes} whole read{card.wholes === 1 ? "" : "s"}</dd>
-      </dl>
-      {card.linksToReplaced.length > 0 && <p className="core-note">Links to a replaced decision: {card.linksToReplaced.join("; ")}</p>}
-      {links.length > 0 && <ul className="core-links">
-        {links.map(({ from, to }) => <li key={`${from}>${to}`}>{from === card.id ? `→ ${titles.get(to) ?? to}` : `← ${titles.get(from) ?? from}`}</li>)}
-      </ul>}
-      <p className="core-card-text">{card.text}</p>
-    </section>}
+    {card !== undefined && <NoteCard card={card} onClose={on.unpin} />}
   </aside>;
+}
+
+/** One summary card, shared by the globe's right-hand slot and the inspection panel. */
+export function NoteCard({ card, onClose }: { card: Card; onClose: () => void }) {
+  return <section className="core-card" aria-label="Pinned artifact">
+    <p className="core-card-kind">{card.kind}</p>
+    <header>
+      <h3>{card.title}</h3>
+      <button type="button" className="panel-close" aria-label="Close artifact" onClick={onClose}>×</button>
+    </header>
+    <p className="core-card-text">{card.summary ?? card.text}</p>
+  </section>;
 }
 
 function vector({ x, y, z }: Point): Vector3 {

@@ -11,5 +11,6 @@ export { coreScene, legend, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_
 export type { Card, CoreInput, CoreScene, DrawnNote, Entrance, LegendEntry, Link, Point, ReplayFrame, SizeBy } from "./look-inside/look-inside.js";
 export { lookInside, returnToGlobe, shown, toForest } from "./look-inside/view-state.js";
 export type { CoreViewState, Shown } from "./look-inside/view-state.js";
-export { globePoints } from "./shelves/positions.js";
+export { globePoints, LOOSE_BALL_RADIUS, LOOSE_MIN_SEPARATION } from "./shelves/positions.js";
+export { isStoryText } from "./shelves/story-text.js";
 export type { GlobePoint } from "./shelves/positions.js";

@@ -1,0 +1,7646 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "sceneId": "ed76d8fc-a76f-411e-b75b-7f1ded8f20c6",
+  "cameraId": "a9aab9e3-e667-469b-a5c0-f87cacff9502",
+  "pointLayerId": "e4db423f-0c2a-46c7-9ae6-d85a4e8b8695",
+  "zoom": 1.7696266132794276,
+  "camera": [
+    0,
+    667.9907543997489,
+    560.5107956466624
+  ],
+  "cameraQuaternion": [
+    -0.4226182617406994,
+    0,
+    0,
+    0.90630778703665
+  ],
+  "rotation": [
+    -0.4226182617406994,
+    0,
+    0,
+    0.90630778703665
+  ],
+  "canvas": {
+    "width": 1440,
+    "height": 910.4375,
+    "top": 49.5625,
+    "left": 0
+  },
+  "plates": [
+    {
+      "story": "story_754e87e7d531",
+      "facing": 1,
+      "screen": [
+        0,
+        -2.2097426084904369e-16,
+        -0.40161668668105555
+      ],
+      "position": [
+        0,
+        0,
+        219.69210764801653
+      ],
+      "meshes": 6,
+      "vertices": 111928,
+      "triangles": 128448
+    },
+    {
+      "story": "story_609c3b171b3f",
+      "facing": 0.9024679421630114,
+      "screen": [
+        0.23209865703783217,
+        -0.023963510121780968,
+        -0.38195796531818915
+      ],
+      "position": [
+        94.43293393828044,
+        -6.164373343726886,
+        198.26508429856025
+      ],
+      "meshes": 6,
+      "vertices": 75237,
+      "triangles": 85944
+    },
+    {
+      "story": "story_a93c6fb1a257",
+      "facing": 0.8721475028369807,
+      "screen": [
+        0.17339207244050273,
+        0.31523225882311673,
+        -0.3758465278941334
+      ],
+      "position": [
+        70.54725060096567,
+        81.09034625965862,
+        191.60392307821078
+      ],
+      "meshes": 6,
+      "vertices": 38809,
+      "triangles": 42244
+    },
+    {
+      "story": "story_deee4230348c",
+      "facing": 0.8366324701778857,
+      "screen": [
+        -0.0703111454346465,
+        0.45440005014580503,
+        -0.3686880597276444
+      ],
+      "position": [
+        -28.60717867433645,
+        116.88986889950692,
+        183.80155070014604
+      ],
+      "meshes": 6,
+      "vertices": 50844,
+      "triangles": 56262
+    },
+    {
+      "story": "story_7722ddb5461e",
+      "facing": 0.8010717470577161,
+      "screen": [
+        -0.28891928722121646,
+        0.2291316693815252,
+        -0.36152038211696724
+      ],
+      "position": [
+        -117.55128750791948,
+        58.941830631703596,
+        175.98914048838844
+      ],
+      "meshes": 6,
+      "vertices": 39410,
+      "triangles": 42606
+    },
+    {
+      "story": "story_f9fb5136c28f",
+      "facing": 0.7728945230172037,
+      "screen": [
+        -0.3374973072835776,
+        -0.09340288277608266,
+        -0.3558409346770567
+      ],
+      "position": [
+        -137.31600746773236,
+        -24.02695756531948,
+        169.79882675125788
+      ],
+      "meshes": 6,
+      "vertices": 79448,
+      "triangles": 87526
+    },
+    {
+      "story": "story_cec2df1b2320",
+      "facing": 0.737905656249381,
+      "screen": [
+        -0.22100016007062762,
+        -0.4583065431075789,
+        -0.3487885213696219
+      ],
+      "position": [
+        -89.91733852599248,
+        -117.89477514899355,
+        162.11204886681935
+      ],
+      "meshes": 6,
+      "vertices": 42457,
+      "triangles": 45344
+    },
+    {
+      "story": "story_d754d997f22a",
+      "facing": 0.7005042732161494,
+      "screen": [
+        0.0386333576468186,
+        -0.606410122390126,
+        -0.3412498373313436
+      ],
+      "position": [
+        15.71858000833376,
+        -155.99293988363604,
+        153.89526019929792
+      ],
+      "meshes": 6,
+      "vertices": 35065,
+      "triangles": 38280
+    }
+  ],
+  "pathways": [
+    {
+      "name": "pathways:cross-island",
+      "children": 15,
+      "data": {
+        "links": [
+          {
+            "from": "capability_5a80222c88c4",
+            "to": "capability_5e0362aae607"
+          },
+          {
+            "from": "capability_a1d4fadbec3e",
+            "to": "capability_5a80222c88c4"
+          },
+          {
+            "from": "capability_dd486ffa5b02",
+            "to": "capability_a1d4fadbec3e"
+          },
+          {
+            "from": "capability_baaeecb42577",
+            "to": "capability_a1d4fadbec3e"
+          },
+          {
+            "from": "capability_f27ac2abb10b",
+            "to": "capability_dd486ffa5b02"
+          },
+          {
+            "from": "capability_75d059640d9d",
+            "to": "capability_5e0362aae607"
+          },
+          {
+            "from": "capability_75d059640d9d",
+            "to": "capability_dd486ffa5b02"
+          },
+          {
+            "from": "capability_75d059640d9d",
+            "to": "capability_f27ac2abb10b"
+          },
+          {
+            "from": "capability_75d059640d9d",
+            "to": "capability_baaeecb42577"
+          },
+          {
+            "from": "capability_a954e1eb16f6",
+            "to": "capability_5e0362aae607"
+          },
+          {
+            "from": "capability_13b04e769a4b",
+            "to": "capability_dd486ffa5b02"
+          },
+          {
+            "from": "capability_13b04e769a4b",
+            "to": "capability_baaeecb42577"
+          },
+          {
+            "from": "capability_a7f068502213",
+            "to": "capability_dd486ffa5b02"
+          },
+          {
+            "from": "capability_d632ff0454c0",
+            "to": "capability_a7f068502213"
+          },
+          {
+            "from": "capability_5f1ce148e63a",
+            "to": "capability_a7f068502213"
+          },
+          {
+            "from": "capability_78d6e026f902",
+            "to": "capability_baaeecb42577"
+          },
+          {
+            "from": "capability_f1d66d700591",
+            "to": "capability_07c95281a87e"
+          },
+          {
+            "from": "capability_10e1dea84e5b",
+            "to": "capability_07c95281a87e"
+          },
+          {
+            "from": "capability_10e1dea84e5b",
+            "to": "capability_f1d66d700591"
+          },
+          {
+            "from": "capability_b91cd36a9783",
+            "to": "capability_f1d66d700591"
+          },
+          {
+            "from": "capability_7077da59ee64",
+            "to": "capability_b91cd36a9783"
+          },
+          {
+            "from": "capability_11fe600afeda",
+            "to": "capability_07c95281a87e"
+          },
+          {
+            "from": "capability_11fe600afeda",
+            "to": "capability_f1d66d700591"
+          },
+          {
+            "from": "capability_11fe600afeda",
+            "to": "capability_7077da59ee64"
+          },
+          {
+            "from": "capability_11fe600afeda",
+            "to": "capability_75d059640d9d"
+          },
+          {
+            "from": "capability_18edee1c0154",
+            "to": "capability_11fe600afeda"
+          },
+          {
+            "from": "capability_199d7af33d32",
+            "to": "capability_07c95281a87e"
+          },
+          {
+            "from": "capability_199d7af33d32",
+            "to": "capability_10e1dea84e5b"
+          },
+          {
+            "from": "capability_199d7af33d32",
+            "to": "capability_11fe600afeda"
+          },
+          {
+            "from": "capability_199d7af33d32",
+            "to": "capability_18edee1c0154"
+          },
+          {
+            "from": "capability_3c5ed8b3ca70",
+            "to": "capability_076723ee3066"
+          },
+          {
+            "from": "capability_7789d00d3390",
+            "to": "capability_3c5ed8b3ca70"
+          },
+          {
+            "from": "capability_7789d00d3390",
+            "to": "capability_076723ee3066"
+          },
+          {
+            "from": "capability_7789d00d3390",
+            "to": "capability_f1d66d700591"
+          },
+          {
+            "from": "capability_6a0c1b26f586",
+            "to": "capability_076723ee3066"
+          },
+          {
+            "from": "capability_8595861a88df",
+            "to": "capability_33812c1d778b"
+          },
+          {
+            "from": "capability_8ffc78a4bad2",
+            "to": "capability_33812c1d778b"
+          },
+          {
+            "from": "capability_8ffc78a4bad2",
+            "to": "capability_8595861a88df"
+          },
+          {
+            "from": "capability_f0ffead428df",
+            "to": "capability_8595861a88df"
+          },
+          {
+            "from": "capability_f0ffead428df",
+            "to": "capability_8ffc78a4bad2"
+          },
+          {
+            "from": "capability_efa4328b624c",
+            "to": "capability_8ffc78a4bad2"
+          },
+          {
+            "from": "capability_8b120b7271d8",
+            "to": "capability_8ffc78a4bad2"
+          },
+          {
+            "from": "capability_396a53756a5c",
+            "to": "capability_f1d66d700591"
+          },
+          {
+            "from": "capability_396a53756a5c",
+            "to": "capability_7077da59ee64"
+          },
+          {
+            "from": "capability_62c8006ef894",
+            "to": "capability_396a53756a5c"
+          },
+          {
+            "from": "capability_62c8006ef894",
+            "to": "capability_b91cd36a9783"
+          },
+          {
+            "from": "capability_62c8006ef894",
+            "to": "capability_7077da59ee64"
+          },
+          {
+            "from": "capability_d077e76e50d7",
+            "to": "capability_396a53756a5c"
+          },
+          {
+            "from": "capability_d077e76e50d7",
+            "to": "capability_62c8006ef894"
+          },
+          {
+            "from": "capability_fa8ea39882fe",
+            "to": "capability_396a53756a5c"
+          },
+          {
+            "from": "capability_fa8ea39882fe",
+            "to": "capability_d077e76e50d7"
+          },
+          {
+            "from": "capability_ee7d649bbc20",
+            "to": "capability_d077e76e50d7"
+          },
+          {
+            "from": "capability_7b7421be1a1b",
+            "to": "capability_75d059640d9d"
+          },
+          {
+            "from": "capability_7b7421be1a1b",
+            "to": "capability_07c95281a87e"
+          },
+          {
+            "from": "capability_3c32df358d67",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_3c32df358d67",
+            "to": "capability_b91cd36a9783"
+          },
+          {
+            "from": "capability_ab59a8461dd7",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_ab59a8461dd7",
+            "to": "capability_3c32df358d67"
+          },
+          {
+            "from": "capability_ab59a8461dd7",
+            "to": "capability_5a80222c88c4"
+          },
+          {
+            "from": "capability_ab59a8461dd7",
+            "to": "capability_a1d4fadbec3e"
+          },
+          {
+            "from": "capability_ab59a8461dd7",
+            "to": "capability_baaeecb42577"
+          },
+          {
+            "from": "capability_ab59a8461dd7",
+            "to": "capability_75d059640d9d"
+          },
+          {
+            "from": "capability_ab59a8461dd7",
+            "to": "capability_13b04e769a4b"
+          },
+          {
+            "from": "capability_81ad90bacdbc",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_81ad90bacdbc",
+            "to": "capability_3c32df358d67"
+          },
+          {
+            "from": "capability_81ad90bacdbc",
+            "to": "capability_a7f068502213"
+          },
+          {
+            "from": "capability_81ad90bacdbc",
+            "to": "capability_d632ff0454c0"
+          },
+          {
+            "from": "capability_81ad90bacdbc",
+            "to": "capability_5f1ce148e63a"
+          },
+          {
+            "from": "capability_bfc6fa737f09",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_bfc6fa737f09",
+            "to": "capability_3c32df358d67"
+          },
+          {
+            "from": "capability_bfc6fa737f09",
+            "to": "capability_5f1ce148e63a"
+          },
+          {
+            "from": "capability_562b2527ebca",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_562b2527ebca",
+            "to": "capability_3c32df358d67"
+          },
+          {
+            "from": "capability_562b2527ebca",
+            "to": "capability_78d6e026f902"
+          },
+          {
+            "from": "capability_f874f7de8110",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_f874f7de8110",
+            "to": "capability_dd486ffa5b02"
+          },
+          {
+            "from": "capability_f874f7de8110",
+            "to": "capability_f27ac2abb10b"
+          },
+          {
+            "from": "capability_f874f7de8110",
+            "to": "capability_75d059640d9d"
+          },
+          {
+            "from": "capability_56dfc9b9c3cf",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_56dfc9b9c3cf",
+            "to": "capability_7077da59ee64"
+          },
+          {
+            "from": "capability_053416712f7c",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_053416712f7c",
+            "to": "capability_199d7af33d32"
+          },
+          {
+            "from": "capability_8419d8d4cdae",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_8419d8d4cdae",
+            "to": "capability_3c32df358d67"
+          },
+          {
+            "from": "capability_8419d8d4cdae",
+            "to": "capability_11fe600afeda"
+          },
+          {
+            "from": "capability_8c01238b7f31",
+            "to": "capability_7b7421be1a1b"
+          },
+          {
+            "from": "capability_8c01238b7f31",
+            "to": "capability_7077da59ee64"
+          },
+          {
+            "from": "capability_b7a12a2b7273",
+            "to": "capability_a19bf216935b"
+          },
+          {
+            "from": "capability_53fd994f7b4c",
+            "to": "capability_36bcae448803"
+          },
+          {
+            "from": "capability_389fd5e3722d",
+            "to": "capability_a19bf216935b"
+          },
+          {
+            "from": "capability_389fd5e3722d",
+            "to": "capability_b7a12a2b7273"
+          },
+          {
+            "from": "capability_389fd5e3722d",
+            "to": "capability_36bcae448803"
+          },
+          {
+            "from": "capability_389fd5e3722d",
+            "to": "capability_53fd994f7b4c"
+          },
+          {
+            "from": "capability_389fd5e3722d",
+            "to": "capability_d8451645c169"
+          },
+          {
+            "from": "capability_7889e605384c",
+            "to": "capability_78d6e026f902"
+          },
+          {
+            "from": "capability_c72570081c61",
+            "to": "capability_7889e605384c"
+          },
+          {
+            "from": "capability_e8f28605e711",
+            "to": "capability_c72570081c61"
+          },
+          {
+            "from": "capability_e8f28605e711",
+            "to": "capability_7889e605384c"
+          },
+          {
+            "from": "capability_062b84e5c6b0",
+            "to": "capability_c72570081c61"
+          },
+          {
+            "from": "capability_062b84e5c6b0",
+            "to": "capability_7889e605384c"
+          },
+          {
+            "from": "capability_062b84e5c6b0",
+            "to": "capability_e8f28605e711"
+          },
+          {
+            "from": "capability_062b84e5c6b0",
+            "to": "capability_8ffc78a4bad2"
+          }
+        ],
+        "segmentCount": 325,
+        "localSegmentCount": 310
+      },
+      "vertices": 0
+    },
+    {
+      "name": "pathway:cross:twyluxa",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_062b84e5c6b0->capability_8ffc78a4bad2",
+          "capability_7889e605384c->capability_78d6e026f902"
+        ],
+        "widthGround": 1.8727922061357858
+      },
+      "vertices": 226
+    },
+    {
+      "name": "pathway-halo:cross:twyluxa",
+      "children": 0,
+      "data": {},
+      "vertices": 226
+    },
+    {
+      "name": "pathway:cross:t14lzyjp",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_062b84e5c6b0->capability_8ffc78a4bad2"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 178
+    },
+    {
+      "name": "pathway-halo:cross:t14lzyjp",
+      "children": 0,
+      "data": {},
+      "vertices": 178
+    },
+    {
+      "name": "pathway:cross:t676kuv",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_053416712f7c->capability_199d7af33d32",
+          "capability_062b84e5c6b0->capability_8ffc78a4bad2",
+          "capability_3c32df358d67->capability_b91cd36a9783",
+          "capability_562b2527ebca->capability_78d6e026f902",
+          "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "capability_7b7421be1a1b->capability_07c95281a87e",
+          "capability_7b7421be1a1b->capability_75d059640d9d",
+          "capability_81ad90bacdbc->capability_5f1ce148e63a",
+          "capability_81ad90bacdbc->capability_a7f068502213",
+          "capability_81ad90bacdbc->capability_d632ff0454c0",
+          "capability_8419d8d4cdae->capability_11fe600afeda",
+          "capability_8c01238b7f31->capability_7077da59ee64",
+          "capability_ab59a8461dd7->capability_13b04e769a4b",
+          "capability_ab59a8461dd7->capability_5a80222c88c4",
+          "capability_ab59a8461dd7->capability_75d059640d9d",
+          "capability_ab59a8461dd7->capability_a1d4fadbec3e",
+          "capability_ab59a8461dd7->capability_baaeecb42577",
+          "capability_bfc6fa737f09->capability_5f1ce148e63a",
+          "capability_f874f7de8110->capability_75d059640d9d",
+          "capability_f874f7de8110->capability_dd486ffa5b02",
+          "capability_f874f7de8110->capability_f27ac2abb10b"
+        ],
+        "widthGround": 4.724318125460256
+      },
+      "vertices": 18
+    },
+    {
+      "name": "pathway-halo:cross:t676kuv",
+      "children": 0,
+      "data": {},
+      "vertices": 18
+    },
+    {
+      "name": "pathway:cross:t189mf6o",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_053416712f7c->capability_199d7af33d32",
+          "capability_062b84e5c6b0->capability_8ffc78a4bad2",
+          "capability_3c32df358d67->capability_b91cd36a9783",
+          "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "capability_7b7421be1a1b->capability_07c95281a87e",
+          "capability_8419d8d4cdae->capability_11fe600afeda",
+          "capability_8c01238b7f31->capability_7077da59ee64"
+        ],
+        "widthGround": 2.981176179958132
+      },
+      "vertices": 154
+    },
+    {
+      "name": "pathway-halo:cross:t189mf6o",
+      "children": 0,
+      "data": {},
+      "vertices": 154
+    },
+    {
+      "name": "pathway:cross:t6uvk7p",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_053416712f7c->capability_199d7af33d32",
+          "capability_062b84e5c6b0->capability_8ffc78a4bad2",
+          "capability_396a53756a5c->capability_7077da59ee64",
+          "capability_396a53756a5c->capability_f1d66d700591",
+          "capability_3c32df358d67->capability_b91cd36a9783",
+          "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_b91cd36a9783",
+          "capability_7b7421be1a1b->capability_07c95281a87e",
+          "capability_8419d8d4cdae->capability_11fe600afeda",
+          "capability_8c01238b7f31->capability_7077da59ee64"
+        ],
+        "widthGround": 3.58496231131986
+      },
+      "vertices": 116
+    },
+    {
+      "name": "pathway-halo:cross:t6uvk7p",
+      "children": 0,
+      "data": {},
+      "vertices": 116
+    },
+    {
+      "name": "pathway:cross:t1yddona",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_062b84e5c6b0->capability_8ffc78a4bad2"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 50
+    },
+    {
+      "name": "pathway-halo:cross:t1yddona",
+      "children": 0,
+      "data": {},
+      "vertices": 50
+    },
+    {
+      "name": "pathway:cross:t13drexi",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_053416712f7c->capability_199d7af33d32",
+          "capability_3c32df358d67->capability_b91cd36a9783",
+          "capability_562b2527ebca->capability_78d6e026f902",
+          "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "capability_7b7421be1a1b->capability_07c95281a87e",
+          "capability_7b7421be1a1b->capability_75d059640d9d",
+          "capability_81ad90bacdbc->capability_5f1ce148e63a",
+          "capability_81ad90bacdbc->capability_a7f068502213",
+          "capability_81ad90bacdbc->capability_d632ff0454c0",
+          "capability_8419d8d4cdae->capability_11fe600afeda",
+          "capability_8c01238b7f31->capability_7077da59ee64",
+          "capability_ab59a8461dd7->capability_13b04e769a4b",
+          "capability_ab59a8461dd7->capability_5a80222c88c4",
+          "capability_ab59a8461dd7->capability_75d059640d9d",
+          "capability_ab59a8461dd7->capability_a1d4fadbec3e",
+          "capability_ab59a8461dd7->capability_baaeecb42577",
+          "capability_bfc6fa737f09->capability_5f1ce148e63a",
+          "capability_f874f7de8110->capability_75d059640d9d",
+          "capability_f874f7de8110->capability_dd486ffa5b02",
+          "capability_f874f7de8110->capability_f27ac2abb10b"
+        ],
+        "widthGround": 4.624922359499622
+      },
+      "vertices": 110
+    },
+    {
+      "name": "pathway-halo:cross:t13drexi",
+      "children": 0,
+      "data": {},
+      "vertices": 110
+    },
+    {
+      "name": "pathway:cross:t26lsor",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_053416712f7c->capability_199d7af33d32",
+          "capability_396a53756a5c->capability_7077da59ee64",
+          "capability_396a53756a5c->capability_f1d66d700591",
+          "capability_3c32df358d67->capability_b91cd36a9783",
+          "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_b91cd36a9783",
+          "capability_7b7421be1a1b->capability_07c95281a87e",
+          "capability_8419d8d4cdae->capability_11fe600afeda",
+          "capability_8c01238b7f31->capability_7077da59ee64"
+        ],
+        "widthGround": 3.4460498941515416
+      },
+      "vertices": 254
+    },
+    {
+      "name": "pathway-halo:cross:t26lsor",
+      "children": 0,
+      "data": {},
+      "vertices": 254
+    },
+    {
+      "name": "pathway:cross:tp1o9pb",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_053416712f7c->capability_199d7af33d32",
+          "capability_11fe600afeda->capability_75d059640d9d",
+          "capability_396a53756a5c->capability_7077da59ee64",
+          "capability_396a53756a5c->capability_f1d66d700591",
+          "capability_3c32df358d67->capability_b91cd36a9783",
+          "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_b91cd36a9783",
+          "capability_7b7421be1a1b->capability_07c95281a87e",
+          "capability_8419d8d4cdae->capability_11fe600afeda",
+          "capability_8c01238b7f31->capability_7077da59ee64"
+        ],
+        "widthGround": 3.58496231131986
+      },
+      "vertices": 18
+    },
+    {
+      "name": "pathway-halo:cross:tp1o9pb",
+      "children": 0,
+      "data": {},
+      "vertices": 18
+    },
+    {
+      "name": "pathway:cross:t10aazlm",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_053416712f7c->capability_199d7af33d32",
+          "capability_11fe600afeda->capability_75d059640d9d",
+          "capability_396a53756a5c->capability_7077da59ee64",
+          "capability_396a53756a5c->capability_f1d66d700591",
+          "capability_3c32df358d67->capability_b91cd36a9783",
+          "capability_56dfc9b9c3cf->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_b91cd36a9783",
+          "capability_7789d00d3390->capability_f1d66d700591",
+          "capability_7b7421be1a1b->capability_07c95281a87e",
+          "capability_8419d8d4cdae->capability_11fe600afeda",
+          "capability_8c01238b7f31->capability_7077da59ee64"
+        ],
+        "widthGround": 3.717691453623979
+      },
+      "vertices": 34
+    },
+    {
+      "name": "pathway-halo:cross:t10aazlm",
+      "children": 0,
+      "data": {},
+      "vertices": 34
+    },
+    {
+      "name": "pathway:cross:t1ralhw5",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_396a53756a5c->capability_7077da59ee64",
+          "capability_396a53756a5c->capability_f1d66d700591",
+          "capability_62c8006ef894->capability_7077da59ee64",
+          "capability_62c8006ef894->capability_b91cd36a9783"
+        ],
+        "widthGround": 2.4
+      },
+      "vertices": 114
+    },
+    {
+      "name": "pathway-halo:cross:t1ralhw5",
+      "children": 0,
+      "data": {},
+      "vertices": 114
+    },
+    {
+      "name": "pathway:cross:tuqjpx4",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_7889e605384c->capability_78d6e026f902"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 86
+    },
+    {
+      "name": "pathway-halo:cross:tuqjpx4",
+      "children": 0,
+      "data": {},
+      "vertices": 86
+    },
+    {
+      "name": "pathway:cross:t1ut34r7",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_562b2527ebca->capability_78d6e026f902",
+          "capability_7b7421be1a1b->capability_75d059640d9d",
+          "capability_81ad90bacdbc->capability_5f1ce148e63a",
+          "capability_81ad90bacdbc->capability_a7f068502213",
+          "capability_81ad90bacdbc->capability_d632ff0454c0",
+          "capability_ab59a8461dd7->capability_13b04e769a4b",
+          "capability_ab59a8461dd7->capability_5a80222c88c4",
+          "capability_ab59a8461dd7->capability_75d059640d9d",
+          "capability_ab59a8461dd7->capability_a1d4fadbec3e",
+          "capability_ab59a8461dd7->capability_baaeecb42577",
+          "capability_bfc6fa737f09->capability_5f1ce148e63a",
+          "capability_f874f7de8110->capability_75d059640d9d",
+          "capability_f874f7de8110->capability_dd486ffa5b02",
+          "capability_f874f7de8110->capability_f27ac2abb10b"
+        ],
+        "widthGround": 3.9674916480965474
+      },
+      "vertices": 44
+    },
+    {
+      "name": "pathway-halo:cross:t1ut34r7",
+      "children": 0,
+      "data": {},
+      "vertices": 44
+    },
+    {
+      "name": "pathway:cross:tc3ttb0",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_11fe600afeda->capability_75d059640d9d"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 92
+    },
+    {
+      "name": "pathway-halo:cross:tc3ttb0",
+      "children": 0,
+      "data": {},
+      "vertices": 92
+    },
+    {
+      "name": "pathway:cross:t14s060i",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_7789d00d3390->capability_f1d66d700591"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 80
+    },
+    {
+      "name": "pathway-halo:cross:t14s060i",
+      "children": 0,
+      "data": {},
+      "vertices": 80
+    }
+  ],
+  "points": [
+    {
+      "id": "decision_026dc42f1fa9",
+      "title": "1 · Project routing: founding book (ADR-0626 D5)",
+      "depth": 1,
+      "home": "capability_07c95281a87e",
+      "at": [
+        101.01254296078301,
+        -5.0879190839296555,
+        152.65488411443428
+      ],
+      "world": [
+        101.01254296078301,
+        113.66997434459626,
+        102.02224020817621
+      ],
+      "screen": [
+        0.24827011708115715,
+        -0.019778879971737308,
+        -0.34011182541807816
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_03b7fe15e4e8",
+      "title": "2 · Capability tree: founding book (T1)",
+      "depth": 1,
+      "home": "capability_8595861a88df",
+      "at": [
+        -9.176296347829584,
+        115.21526796656944,
+        142.03581243027557
+      ],
+      "world": [
+        -9.176296347829584,
+        182.86469153172737,
+        3.0388445736879817
+      ],
+      "screen": [
+        -0.02255363642841396,
+        0.44789017247150287,
+        -0.3303691109044228
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_064aa677f191",
+      "title": "The arc surface's capability tree",
+      "depth": 1,
+      "home": "story_7722ddb5461e",
+      "at": [
+        -97.98254474820939,
+        49.129794150686735,
+        146.69225832120898
+      ],
+      "world": [
+        -97.98254474820939,
+        143.95281228204746,
+        56.656360285097456
+      ],
+      "screen": [
+        -0.24082294281010247,
+        0.19098815950352466,
+        -0.33464127558255785
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_0c5d8fd4535c",
+      "title": "1 · Links: founding book (proposed, approved with ADR-0644)",
+      "depth": 1,
+      "home": "capability_a19bf216935b",
+      "at": [
+        -51.86958134207544,
+        -97.3073892395859,
+        146.19765022316034
+      ],
+      "world": [
+        -51.86958134207544,
+        49.44591341635287,
+        168.51582293013422
+      ],
+      "screen": [
+        -0.1274858216147205,
+        -0.3782747210371091,
+        -0.33418748586922375
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_101478dc54ed",
+      "title": "6 · Decisions: founding book (ADR-0645 D1 item 6 and D4, V1)",
+      "depth": 1,
+      "home": "capability_562b2527ebca",
+      "at": [
+        -132.89650457623353,
+        -12.675281950053689,
+        125.34269304154029
+      ],
+      "world": [
+        -132.89650457623353,
+        87.87055930326177,
+        90.27855935465024
+      ],
+      "screen": [
+        -0.32663498793043627,
+        -0.04927414846079048,
+        -0.31505361992893277
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_11abba9f5405",
+      "title": "3 · Reads by session and agent: founding book (R1 and T1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_e8f28605e711",
+      "at": [
+        -12.447159721097059,
+        -128.75265846769702,
+        129.61772854196323
+      ],
+      "world": [
+        -12.447159721097059,
+        16.532327102036746,
+        181.94692845846222
+      ],
+      "screen": [
+        -0.030592812641934853,
+        -0.5005156992213382,
+        -0.31897585076559765
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_11c04f68a90a",
+      "title": "3 · Library: founding book (ADR-0645 D1 item 3)",
+      "depth": 1,
+      "home": "capability_ab59a8461dd7",
+      "at": [
+        -106.68178476863055,
+        3.2732724241239084,
+        148.79925028781923
+      ],
+      "world": [
+        -106.68178476863055,
+        116.0908577806094,
+        93.13884226434175
+      ],
+      "screen": [
+        -0.26220406316488404,
+        0.012724585694774762,
+        -0.3365743844101282
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_13c403f3a480",
+      "title": "5 · Queues: founding book (proposed, approved; 0.2's ADR-0168 D4)",
+      "depth": 1,
+      "home": "capability_d8451645c169",
+      "at": [
+        -79.62828419731684,
+        -115.9807010418203,
+        117.2209355944545
+      ],
+      "world": [
+        -79.62828419731684,
+        15.245488736898679,
+        164.1945365381091
+      ],
+      "screen": [
+        -0.19571157067409664,
+        -0.4508657325525592,
+        -0.3076021244960361
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_1f685a9fd9b0",
+      "title": "4 · Look inside and inspect an artifact: founding book (E1 and V1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_062b84e5c6b0",
+      "at": [
+        11.130111109065194,
+        -146.7458652466092,
+        108.97112488968762
+      ],
+      "world": [
+        11.130111109065194,
+        -10.849699271081619,
+        182.459143515547
+      ],
+      "screen": [
+        0.02735575114910941,
+        -0.570462856657632,
+        -0.3000331436209803
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_201187b6b53c",
+      "title": "5 · Briefing: founding book (0.2's ADR-0314 D3)",
+      "depth": 1,
+      "home": "capability_ee7d649bbc20",
+      "at": [
+        -94.07914841739436,
+        25.237624575212724,
+        155.06485913597095
+      ],
+      "world": [
+        -94.07914841739436,
+        135.00900603900487,
+        80.34062808702606
+      ],
+      "screen": [
+        -0.2312291177695642,
+        0.09810925429642614,
+        -0.34232291310240914
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_229b50334c5b",
+      "title": "4 · Graduation: founding book (proposed, approved; 0.2's ADR-0095)",
+      "depth": 1,
+      "home": "capability_53fd994f7b4c",
+      "at": [
+        -96.56144875707412,
+        -97.30738923958593,
+        121.40878474521797
+      ],
+      "world": [
+        -96.56144875707412,
+        30.45654076575125,
+        152.5818473427265
+      ],
+      "screen": [
+        -0.23733015213518902,
+        -0.37827472103710913,
+        -0.3114443641866306
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_229b7f7d10de",
+      "title": "Knowledge beneath the islands, with loose artifacts at the core",
+      "depth": 1,
+      "home": "capability_c72570081c61",
+      "at": [
+        14.817331960087044,
+        -110.75945168878489,
+        145.07144769107504
+      ],
+      "world": [
+        14.817331960087044,
+        39.936373157747724,
+        178.09679158421056
+      ],
+      "screen": [
+        0.03641825690884148,
+        -0.43056854178504483,
+        -0.3331542251397541
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_26d8e2e52df5",
+      "title": "5 · Health record: founding book (ADR-0621 D1 and D5)",
+      "depth": 1,
+      "home": "capability_f27ac2abb10b",
+      "at": [
+        -19.12679631197777,
+        16.944862909476416,
+        181.32835322645815
+      ],
+      "world": [
+        -19.12679631197777,
+        149.79752529509193,
+        103.57510066761425
+      ],
+      "screen": [
+        -0.0470101219172926,
+        0.06587180418860357,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_285848291aa8",
+      "title": "The planet begins with islands spread around a globe",
+      "depth": 1,
+      "home": "capability_33812c1d778b",
+      "at": [
+        1.6374959094554302,
+        96.47796483596409,
+        155.635006692765
+      ],
+      "world": [
+        1.6374959094554302,
+        181.23817243610893,
+        26.13384508957253
+      ],
+      "screen": [
+        0.0040246615840396245,
+        0.37505039976661486,
+        -0.3428460082506215
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_2c63f94af33a",
+      "title": "The globe packs its islands together on a see-through grey ball, with no sea",
+      "depth": 1,
+      "home": "capability_33812c1d778b",
+      "at": [
+        -4.468832975650082,
+        101.10980977716082,
+        152.6098630451587
+      ],
+      "world": [
+        -4.468832975650082,
+        181.89807049341402,
+        20.641121156776762
+      ],
+      "screen": [
+        -0.010983563561126505,
+        0.39305632785399147,
+        -0.3400705197900442
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_2ec8215ae769",
+      "title": "1 · Lifecycle: founding book (ADR-0621 D4 and D5, ADR-0626 D8)",
+      "depth": 1,
+      "home": "capability_076723ee3066",
+      "at": [
+        82.20731134182475,
+        66.92993711629099,
+        149.31602686770643
+      ],
+      "world": [
+        82.20731134182475,
+        157.40444694606163,
+        44.70718559194678
+      ],
+      "screen": [
+        0.20205034160644558,
+        0.2601847967512476,
+        -0.3370485131131763
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_2ffb006ea686",
+      "title": "11 · Workspace: founding book (ADR-0653 D1, K1 with owner A2/B1)",
+      "depth": 1,
+      "home": "capability_8c01238b7f31",
+      "at": [
+        -95.67219460397106,
+        -33.56344599573414,
+        152.49019861142338
+      ],
+      "world": [
+        -95.67219460397106,
+        95.24010205194898,
+        123.72990156301856
+      ],
+      "screen": [
+        -0.23514453016949396,
+        -0.13047522156637456,
+        -0.33996073086969436
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_3054205bc3cb",
+      "title": "4 · Sessions: founding book (ADR-0626 D1 row 4 and D9)",
+      "depth": 1,
+      "home": "capability_b91cd36a9783",
+      "at": [
+        61.847656519042715,
+        12.973761739426768,
+        171.87054223871846
+      ],
+      "world": [
+        61.847656519042715,
+        139.99984711494469,
+        100.53777693431778
+      ],
+      "screen": [
+        0.1520100818681429,
+        0.050434464855491835,
+        -0.35774167827764436
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_32b9bddc1975",
+      "title": "5 · Questions: founding book (ADR-0645 D1 item 5 and D5)",
+      "depth": 1,
+      "home": "capability_bfc6fa737f09",
+      "at": [
+        -127.67674192552698,
+        -0.6353186782418881,
+        131.26759059821075
+      ],
+      "world": [
+        -127.67674192552698,
+        100.14843336480003,
+        84.86386313301205
+      ],
+      "screen": [
+        -0.31380577834475254,
+        -0.0024697507317755565,
+        -0.32048955511556565
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_36c08baf74dd",
+      "title": "The globe is the only view, and islands get room for pathways between them",
+      "depth": 1,
+      "home": "capability_8ffc78a4bad2",
+      "at": [
+        -34.42543973523352,
+        115.21526796656944,
+        138.10599381065043
+      ],
+      "world": [
+        -34.42543973523352,
+        179.85427581569803,
+        0.5128058566774882
+      ],
+      "screen": [
+        -0.08461135323516157,
+        0.4478901724715028,
+        -0.32676360733120824
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_37781df2ef78",
+      "title": "1 · Front door: founding book (ADR-0645 D1)",
+      "depth": 1,
+      "home": "capability_7b7421be1a1b",
+      "at": [
+        -93.46812416572163,
+        -19.831247899636168,
+        156.21576671925413
+      ],
+      "world": [
+        -93.46812416572163,
+        106.92093958834687,
+        115.60517653845062
+      ],
+      "screen": [
+        -0.22972733335689863,
+        -0.07709239581572154,
+        -0.343378840056199
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_37dfcaa8189a",
+      "title": "Routed pathways on the glass globe",
+      "depth": 1,
+      "home": "capability_8ffc78a4bad2",
+      "at": [
+        -39.437624629176504,
+        119.42364463324432,
+        133.0999671905322
+      ],
+      "world": [
+        -39.437624629176504,
+        178.72452931948334,
+        -5.928809588553364
+      ],
+      "screen": [
+        -0.09693037515043745,
+        0.46424990138875866,
+        -0.32217071167533573
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_394cc68a71c6",
+      "title": "2 · Decision log: founding book (proposed, approved)",
+      "depth": 1,
+      "home": "capability_b7a12a2b7273",
+      "at": [
+        -68.80274590183272,
+        -78.63407743735154,
+        150.3854993739238
+      ],
+      "world": [
+        -68.80274590183272,
+        64.65696544520543,
+        156.90313373475163
+      ],
+      "screen": [
+        -0.16910440307581287,
+        -0.3056837095216591,
+        -0.33802972555981825
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_427a75532473",
+      "title": "Every knowledge read is recorded, and a new artifact has a default place",
+      "depth": 1,
+      "home": "capability_11fe600afeda",
+      "at": [
+        61.41162917378011,
+        -23.14959990728607,
+        170.95508833127693
+      ],
+      "world": [
+        61.41162917378011,
+        116.07891944948457,
+        127.62143496161681
+      ],
+      "screen": [
+        0.15093840743162307,
+        -0.08999222479896639,
+        -0.35690177377978527
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_4731de1d51ef",
+      "title": "11 · Waits: founding book (11-b)",
+      "depth": 1,
+      "home": "capability_d632ff0454c0",
+      "at": [
+        3.080090081536882,
+        -25.36682402805787,
+        181.32835322645815
+      ],
+      "world": [
+        3.080090081536882,
+        122.60009718670908,
+        135.98773332510225
+      ],
+      "screen": [
+        0.007570290804980096,
+        -0.09861150687318426,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_49f698bd6e83",
+      "title": "The agent link's capability tree",
+      "depth": 1,
+      "home": "story_609c3b171b3f",
+      "at": [
+        78.71269954987862,
+        -5.138191165755603,
+        165.25992956889064
+      ],
+      "world": [
+        78.71269954987862,
+        123.29368509893382,
+        110.16311789476319
+      ],
+      "screen": [
+        0.19346123323129563,
+        -0.01997430868354705,
+        -0.3516766177979639
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_4de11a09692e",
+      "title": "5 · Agent capability claims: founding book",
+      "depth": 1,
+      "home": "capability_efa4328b624c",
+      "at": [
+        -38.046998608067426,
+        77.74066170535875,
+        161.3745637160042
+      ],
+      "world": [
+        -38.046998608067426,
+        173.5908219084319,
+        44.17676817143609
+      ],
+      "screen": [
+        -0.09351247401700204,
+        0.3022106270617272,
+        -0.3481118984503915
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_4fa45187cbe1",
+      "title": "3 · Surfaces: founding book (ADR-0632 D1 row 3; ADR-0633 D3 item 14)",
+      "depth": 1,
+      "home": "capability_7789d00d3390",
+      "at": [
+        34.2485496636387,
+        66.92993711629099,
+        166.9741140522884
+      ],
+      "world": [
+        34.2485496636387,
+        170.93132650992106,
+        56.057585244960734
+      ],
+      "screen": [
+        0.08417659020971838,
+        0.26018479675124756,
+        -0.35324933625605615
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_519f8d2b30c5",
+      "title": "3 · Arc surface: founding book (ADR-0633 D3 item 14)",
+      "depth": 1,
+      "home": "capability_d077e76e50d7",
+      "at": [
+        -111.97639405326557,
+        63.11820057846138,
+        130.4235957584551
+      ],
+      "world": [
+        -111.97639405326557,
+        140.48186805990517,
+        35.483324551501426
+      ],
+      "screen": [
+        -0.2752172319107264,
+        0.24536697472578645,
+        -0.3197152124028213
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_54a5cc32d370",
+      "title": "7 · Instructions (the habits card): founding book (ADR-0626 D1 row 7 and D7)",
+      "depth": 1,
+      "home": "capability_18edee1c0154",
+      "at": [
+        77.63425630675107,
+        -30.630993063574355,
+        162.99570212627364
+      ],
+      "world": [
+        77.63425630675107,
+        105.17272905244818,
+        128.23631978249372
+      ],
+      "screen": [
+        0.19081061953136522,
+        -0.11907554448598348,
+        -0.34959924962271083
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_57a1e3f80bf9",
+      "title": "2 · Agents on the board: founding book (ADR-0626 D3 and D4)",
+      "depth": 1,
+      "home": "capability_62c8006ef894",
+      "at": [
+        -86.83605316558118,
+        72.06059154207536,
+        144.22102973294335
+      ],
+      "world": [
+        -86.83605316558118,
+        156.79937379774685,
+        37.50187524989674
+      ],
+      "screen": [
+        -0.21342693149161077,
+        0.2801298069587751,
+        -0.3323739893875346
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_59bc36372634",
+      "title": "2 · Library transactions: founding book (ADR-0621 D1)",
+      "depth": 1,
+      "home": "capability_5a80222c88c4",
+      "at": [
+        22.62617749613255,
+        11.875134024268563,
+        181.32835322645815
+      ],
+      "world": [
+        22.62617749613255,
+        146.53876638321034,
+        107.4587383082475
+      ],
+      "screen": [
+        0.05561095257491701,
+        0.04616363716478193,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5a637443cab7",
+      "title": "The librarian is a story of its own: six capabilities, on for 0.3's own library first",
+      "depth": 1,
+      "home": "story_cec2df1b2320",
+      "at": [
+        -74.94881453484204,
+        -98.26885206032394,
+        135.1252837723867
+      ],
+      "world": [
+        -74.94881453484204,
+        40.345972236216056,
+        162.13516621675987
+      ],
+      "screen": [
+        -0.18421030115916734,
+        -0.38201233113172123,
+        -0.3240288855198741
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5aceecc28637",
+      "title": "The app can be controlled from outside",
+      "depth": 1,
+      "home": "capability_076723ee3066",
+      "at": [
+        75.8221834265288,
+        72.04162323631002,
+        150.3127919437044
+      ],
+      "world": [
+        75.8221834265288,
+        161.45374179617983,
+        41.43211508535755
+      ],
+      "screen": [
+        0.18635688009519405,
+        0.2800560691817367,
+        -0.33796301843543686
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5ae1815d9959",
+      "title": "The story panel is a description and a clickable capability diagram",
+      "depth": 1,
+      "home": "capability_f0ffead428df",
+      "at": [
+        -48.86079086535244,
+        96.47796483596409,
+        147.77536945351474
+      ],
+      "world": [
+        -48.86079086535244,
+        175.2173410040503,
+        21.081767655551545
+      ],
+      "screen": [
+        -0.12009077202945562,
+        0.3750503997666149,
+        -0.33563500110419264
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5b9ef03b8a42",
+      "title": "3 · Data schema: founding book (ADR-0621 D1; ADR-0636 a1)",
+      "depth": 1,
+      "home": "capability_a1d4fadbec3e",
+      "at": [
+        14.515835249246658,
+        21.029817954456103,
+        181.32835322645815
+      ],
+      "world": [
+        14.515835249246658,
+        152.42328378413137,
+        100.44584355501672
+      ],
+      "screen": [
+        0.035677233848675695,
+        0.08175174138724944,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_5f30662977ae",
+      "title": "10 · Work in flight: founding book (10-b)",
+      "depth": 1,
+      "home": "capability_a7f068502213",
+      "at": [
+        -9.061266604743633,
+        -23.892596420200835,
+        181.32835322645815
+      ],
+      "world": [
+        -9.061266604743633,
+        123.5477124268974,
+        134.8584094582108
+      ],
+      "screen": [
+        -0.0222709146302423,
+        -0.09288056453195805,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_611484cb49a2",
+      "title": "The 0.3 MVP one-page spec",
+      "depth": 3,
+      "home": "story_609c3b171b3f",
+      "at": [
+        48.72690924516295,
+        -3.180785007372516,
+        102.30376592359897
+      ],
+      "world": [
+        48.72690924516295,
+        76.32466220410188,
+        68.19621583961532
+      ],
+      "screen": [
+        0.11976171580984965,
+        -0.012365048232672152,
+        -0.2939160199308215
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_66bfbd433f93",
+      "title": "The forest keeps 0.2's fixed view and full-size seedlings",
+      "depth": 1,
+      "home": "capability_8ffc78a4bad2",
+      "at": [
+        -35.13328690948155,
+        105.96485962374908,
+        145.15521029523953
+      ],
+      "world": [
+        -35.13328690948155,
+        179.30824106475427,
+        12.130178778568435
+      ],
+      "screen": [
+        -0.08635111045416706,
+        0.4119299472234062,
+        -0.3332310750908203
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_69b5ac6855c3",
+      "title": "The forest's capability tree",
+      "depth": 2,
+      "home": "story_deee4230348c",
+      "at": [
+        -19.303051948857398,
+        78.87290240496424,
+        124.02239737916976
+      ],
+      "world": [
+        -19.303051948857398,
+        145.70519274053336,
+        19.29991175896233
+      ],
+      "screen": [
+        -0.0474433256197408,
+        0.30661212255078596,
+        -0.3138422839388686
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6e254791da68",
+      "title": "The app updates itself",
+      "depth": 1,
+      "home": "capability_6a0c1b26f586",
+      "at": [
+        61.48681044022845,
+        43.181208732347116,
+        166.99607706260912
+      ],
+      "world": [
+        61.48681044022845,
+        155.68276280092127,
+        74.26428420552847
+      ],
+      "screen": [
+        0.15112318905652172,
+        0.1678635077450904,
+        -0.3532694867311428
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6fb213bb979d",
+      "title": "4 · Drill-down: founding book",
+      "depth": 1,
+      "home": "capability_f0ffead428df",
+      "at": [
+        -53.65809708065075,
+        101.10980977716082,
+        142.93547279982607
+      ],
+      "world": [
+        -53.65809708065075,
+        174.4870576054125,
+        14.422542975804632
+      ],
+      "screen": [
+        -0.1318816619609038,
+        0.3930563278539914,
+        -0.3311945252532924
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_70ff04f90448",
+      "title": "8 · Doctor: founding book (ADR-0645 D1 item 8)",
+      "depth": 1,
+      "home": "capability_053416712f7c",
+      "at": [
+        -114.42542719197701,
+        -44.972568497004175,
+        135.71007366704887
+      ],
+      "world": [
+        -114.42542719197701,
+        75.05213800225646,
+        121.68374005274418
+      ],
+      "screen": [
+        -0.2812365016594306,
+        -0.17482727607294435,
+        -0.32456541462181643
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_7f839e27f1d8",
+      "title": "2 · Agent activity log: founding book (ADR-0626 D2, B1)",
+      "depth": 1,
+      "home": "capability_f1d66d700591",
+      "at": [
+        94.47351922495797,
+        12.973761739426763,
+        156.33096325290165
+      ],
+      "world": [
+        94.47351922495797,
+        128.09583898445126,
+        90.54912810248942
+      ],
+      "screen": [
+        0.23219840815368234,
+        0.05043446485549178,
+        -0.3434845297976069
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_7ff487c18ba8",
+      "title": "1 · Work states: founding book (ADR-0632 D3)",
+      "depth": 1,
+      "home": "capability_396a53756a5c",
+      "at": [
+        -75.77494705760704,
+        48.64910805864404,
+        159.45016802598616
+      ],
+      "world": [
+        -75.77494705760704,
+        153.416959053092,
+        65.22521347852177
+      ],
+      "screen": [
+        -0.1862407818513626,
+        0.18911953062760062,
+        -0.3463463168273647
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_861e6fa952db",
+      "title": "12 · Owner questions: founding book (12-a)",
+      "depth": 1,
+      "home": "capability_5f1ce148e63a",
+      "at": [
+        14.51583524924663,
+        -21.02981795445612,
+        181.32835322645815
+      ],
+      "world": [
+        14.51583524924663,
+        125.38787095395554,
+        132.66539392264636
+      ],
+      "screen": [
+        0.035677233848675625,
+        -0.08175174138724989,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_8c8442277610",
+      "title": "The command line is a front door onto the library and the agent link: ten capabilities, writes recorded by writer, friction and plan verbs, no anchors yet",
+      "depth": 1,
+      "home": "story_f9fb5136c28f",
+      "at": [
+        -114.4570351511131,
+        -20.02719404199328,
+        141.53244505491034
+      ],
+      "world": [
+        -114.4570351511131,
+        95.54691086837478,
+        106.31702275707175
+      ],
+      "screen": [
+        -0.2813141881673176,
+        -0.07785412082877204,
+        -0.32990728478821074
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_909ba178babf",
+      "title": "The agent link's revised tree: increment claims, the wait refusal, release on merge, and planning tools",
+      "depth": 1,
+      "home": "story_609c3b171b3f",
+      "at": [
+        73.21625798603749,
+        0.42925124248741153,
+        167.84555314303927
+      ],
+      "world": [
+        73.21625798603749,
+        128.85307066756982,
+        107.56021637231986
+      ],
+      "screen": [
+        0.17995199813447832,
+        0.001668679997229699,
+        -0.3540488583357395
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_91348293f1ee",
+      "title": "9 · Friction and re-steers: founding book (ADR-0645 D1 item 9, F1)",
+      "depth": 1,
+      "home": "capability_8419d8d4cdae",
+      "at": [
+        -103.48477534029826,
+        -42.93576822339626,
+        144.84597156923215
+      ],
+      "world": [
+        -103.48477534029826,
+        83.35987180240761,
+        125.9959024962883
+      ],
+      "screen": [
+        -0.2543464062658812,
+        -0.1669093773262179,
+        -0.332947356823003
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_914f96703a84",
+      "title": "Every story and capability has a shelf of front covers",
+      "depth": 2,
+      "home": "capability_13b04e769a4b",
+      "at": [
+        -15.483597014458194,
+        -13.717269974338045,
+        146.78961927856133
+      ],
+      "world": [
+        -15.483597014458194,
+        103.63008097766262,
+        104.86258694146807
+      ],
+      "screen": [
+        -0.03805581298066544,
+        -0.053324793866965065,
+        -0.3347306016593067
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_91b4219db238",
+      "title": "Five pieces of 0.2's forest are left out",
+      "depth": 1,
+      "home": "story_deee4230348c",
+      "at": [
+        -23.844946525059143,
+        97.4312323826029,
+        153.20413793897444
+      ],
+      "world": [
+        -23.844946525059143,
+        179.98876750301184,
+        23.841067466953476
+      ],
+      "screen": [
+        -0.05860646105967982,
+        0.3787561513862651,
+        -0.34061575112525755
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_94985f0ccb52",
+      "title": "The knowledge inside the planet: four capabilities, a graph that refuses loops, built alongside the MVP",
+      "depth": 1,
+      "home": "story_d754d997f22a",
+      "at": [
+        13.10191067827404,
+        -130.0248218168038,
+        128.2763425113413
+      ],
+      "world": [
+        13.10191067827404,
+        14.687034948898216,
+        182.05923580249473
+      ],
+      "screen": [
+        0.03220206919594953,
+        -0.5054611328596014,
+        -0.3177451649262272
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_95280f2cfbbe",
+      "title": "5 · Claims: founding book (ADR-0626 D3, C1; ADR-0643 D1)",
+      "depth": 1,
+      "home": "capability_7077da59ee64",
+      "at": [
+        54.87260543795509,
+        -5.087919083929652,
+        174.63116746974436
+      ],
+      "world": [
+        54.87260543795509,
+        130.50478408933964,
+        116.14832285593005
+      ],
+      "screen": [
+        0.13486669850414829,
+        -0.019778879971737252,
+        -0.360274478159314
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_9c33ec3787a9",
+      "title": "1 · Knowledge under its shelves: founding book (D1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_c72570081c61",
+      "at": [
+        9.101585348517892,
+        -106.2161345683713,
+        148.8899872439288
+      ],
+      "world": [
+        9.101585348517892,
+        45.78193211491998,
+        177.07091866246276
+      ],
+      "screen": [
+        0.022370010633015802,
+        -0.41290675854599335,
+        -0.33665763314273933
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_9d11b2ad1587",
+      "title": "13 · Decision log: founding book (13-a)",
+      "depth": 1,
+      "home": "capability_78d6e026f902",
+      "at": [
+        22.626177496132552,
+        -11.875134024268561,
+        181.32835322645815
+      ],
+      "world": [
+        22.626177496132552,
+        131.2723883548766,
+        125.65249916941558
+      ],
+      "screen": [
+        0.055610952574917015,
+        -0.04616363716478232,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_9ec9a13fbeb4",
+      "title": "The library's revised tree: eight more knowledge kinds, work in flight, waits, owner questions and the decision log",
+      "depth": 1,
+      "home": "story_754e87e7d531",
+      "at": [
+        0,
+        0,
+        183.12
+      ],
+      "world": [
+        0,
+        140.27805842394724,
+        117.70726708579912
+      ],
+      "screen": [
+        0,
+        -2.2097426084904369e-16,
+        -0.3680627551722556
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_a12097957060",
+      "title": "Minimal viable TDD",
+      "depth": 2,
+      "home": "story_a93c6fb1a257",
+      "at": [
+        47.602640536557146,
+        54.71672632314664,
+        129.28714582055397
+      ],
+      "world": [
+        47.602640536557146,
+        134.21093334567635,
+        41.18873127968057
+      ],
+      "screen": [
+        0.11699847160536893,
+        0.212706913089514,
+        -0.31867254995234096
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_a821017e746d",
+      "title": "1 · Project libraries: founding book (ADR-0621 D3)",
+      "depth": 1,
+      "home": "capability_5e0362aae607",
+      "at": [
+        25.553135153652594,
+        0,
+        181.32835322645815
+      ],
+      "world": [
+        25.553135153652594,
+        138.90557736904347,
+        116.55561873883154
+      ],
+      "screen": [
+        0.06280487225087462,
+        -2.2097426084904369e-16,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_a8ca582fe22d",
+      "title": "4 · Arcs and increments: founding book (ADR-0645 D1 item 4)",
+      "depth": 1,
+      "home": "capability_81ad90bacdbc",
+      "at": [
+        -117.90427193162965,
+        5.310072697731844,
+        140.01185731293307
+      ],
+      "world": [
+        -117.90427193162965,
+        110.66855420197643,
+        85.9301354072978
+      ],
+      "screen": [
+        -0.2897868575410368,
+        0.02064248444150131,
+        -0.328512186167194
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_ab42aa0b7279",
+      "title": "The library's capability tree",
+      "depth": 1,
+      "home": "story_754e87e7d531",
+      "at": [
+        -6.074163988147483,
+        5.564431781335217,
+        182.93462228565693
+      ],
+      "world": [
+        -6.074163988147483,
+        143.7127986599849,
+        113.3255065427009
+      ],
+      "screen": [
+        -0.014929169787290685,
+        0.021631285108595702,
+        -0.36789267607289966
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_ac738439f3a0",
+      "title": "6 · Unclaimed work: founding book",
+      "depth": 1,
+      "home": "capability_8b120b7271d8",
+      "at": [
+        -12.79785522066348,
+        77.74066170535875,
+        165.30438233562933
+      ],
+      "world": [
+        -12.79785522066348,
+        176.60123762446125,
+        46.702806888446595
+      ],
+      "screen": [
+        -0.03145475721025439,
+        0.3022106270617272,
+        -0.3517174020236059
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_aeed8aeee659",
+      "title": "2 · Storytree projects: founding book (ADR-0632 D4 and D3)",
+      "depth": 1,
+      "home": "capability_3c5ed8b3ca70",
+      "at": [
+        54.96905056523498,
+        90.67866550023486,
+        149.2940638573857
+      ],
+      "world": [
+        54.96905056523498,
+        172.65301065506142,
+        26.500486631379047
+      ],
+      "screen": [
+        0.1351037427596422,
+        0.3525060857574048,
+        -0.33702836263808955
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_b211a3cf352a",
+      "title": "8 · Cloud connection (GCP): founding book (ADR-0621 D4)",
+      "depth": 1,
+      "home": "capability_a954e1eb16f6",
+      "at": [
+        -24.81060748702099,
+        -6.115265513926106,
+        181.32835322645815
+      ],
+      "world": [
+        -24.81060748702099,
+        134.9747604667484,
+        121.24018390397175
+      ],
+      "screen": [
+        -0.06097987680647524,
+        -0.023772607346937282,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_b77bc6d23919",
+      "title": "8 · Setup check: founding book (ADR-0626 D5)",
+      "depth": 1,
+      "home": "capability_199d7af33d32",
+      "at": [
+        94.03749187969538,
+        -23.14959990728608,
+        155.41550934546015
+      ],
+      "world": [
+        94.03749187969538,
+        104.17491131899119,
+        117.63278612978849
+      ],
+      "screen": [
+        0.23112673371716255,
+        -0.08999222479896644,
+        -0.3426446252997478
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_b940ed415ec9",
+      "title": "4 · Waits: founding book (ADR-0633 D3 item 3; ADR-0628 D6)",
+      "depth": 1,
+      "home": "capability_fa8ea39882fe",
+      "at": [
+        -116.45287310263912,
+        34.18001553882671,
+        137.12545089773164
+      ],
+      "world": [
+        -116.45287310263912,
+        127.0146801576428,
+        61.95912984050334
+      ],
+      "screen": [
+        -0.28621958810455866,
+        0.13287208652941476,
+        -0.32586398541009376
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_c9ba244fd3d6",
+      "title": "ADR-0650: 0.3's library has no memory type, and its knowledge records are called artifacts",
+      "depth": 1,
+      "home": "capability_baaeecb42577",
+      "at": [
+        -9.06126660474362,
+        23.89259642020084,
+        181.32835322645815
+      ],
+      "world": [
+        -9.06126660474362,
+        154.26344231118955,
+        98.2528280194523
+      ],
+      "screen": [
+        -0.022270914630242267,
+        0.09288056453195771,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_ca11ceae8dba",
+      "title": "2 · Earlier decisions beside their replacements: founding book (G2, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_7889e605384c",
+      "at": [
+        38.3946027902493,
+        -128.75265846769702,
+        124.42484403879938
+      ],
+      "world": [
+        38.3946027902493,
+        12.554346784629416,
+        178.60900664129525
+      ],
+      "screen": [
+        0.09436682069988575,
+        -0.5005156992213382,
+        -0.3142115179951368
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_cc981dbccd5f",
+      "title": "7 · Board, read only: founding book (ADR-0645 D1 item 7)",
+      "depth": 1,
+      "home": "capability_56dfc9b9c3cf",
+      "at": [
+        -125.02057049905139,
+        -39.027177121030455,
+        127.98308793764687
+      ],
+      "world": [
+        -125.02057049905139,
+        72.95454743340153,
+        112.16249533992772
+      ],
+      "screen": [
+        -0.30727740105902535,
+        -0.15171504089966767,
+        -0.31747611169103807
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_d04020c2b4c1",
+      "title": "3 · Hooks: founding book (ADR-0626 D1 row 3 and D4, E1)",
+      "depth": 1,
+      "home": "capability_10e1dea84e5b",
+      "at": [
+        78.25089209198697,
+        20.45515489571504,
+        164.29034945790488
+      ],
+      "world": [
+        78.25089209198697,
+        139.00202938148763,
+        89.93424328161248
+      ],
+      "screen": [
+        0.19232619605394008,
+        0.07951778454250887,
+        -0.35078705395468135
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_d23dbdb96a2b",
+      "title": "7 · Library API: founding book (ADR-0621 D1 and D5)",
+      "depth": 1,
+      "home": "capability_75d059640d9d",
+      "at": [
+        -24.810607487020985,
+        6.115265513926112,
+        181.32835322645815
+      ],
+      "world": [
+        -24.810607487020985,
+        142.83639427133858,
+        111.87105357369133
+      ],
+      "screen": [
+        -0.06097987680647522,
+        0.023772607346937005,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_d84bf8c77a1e",
+      "title": "The app's capability tree",
+      "depth": 1,
+      "home": "story_a93c6fb1a257",
+      "at": [
+        58.80326183927648,
+        67.59125016388703,
+        159.70765071950788
+      ],
+      "world": [
+        58.80326183927648,
+        165.78997648583552,
+        50.88019746313484
+      ],
+      "screen": [
+        0.1445275237478087,
+        0.26275559852234087,
+        -0.3465825503183704
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_da37f3db9903",
+      "title": "3 · Catalogue: founding book (proposed, approved; 0.2's `edit-first-curation`)",
+      "depth": 1,
+      "home": "capability_36bcae448803",
+      "at": [
+        -91.14867960933206,
+        -78.63407743735155,
+        137.99106663495263
+      ],
+      "world": [
+        -91.14867960933206,
+        55.162279119904625,
+        148.93614594104776
+      ],
+      "screen": [
+        -0.22402656833604714,
+        -0.3056837095216591,
+        -0.3266581647185216
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e360a095c406",
+      "title": "4 · Work model: founding book (ADR-0621 D2)",
+      "depth": 1,
+      "home": "capability_dd486ffa5b02",
+      "at": [
+        3.0800900815368766,
+        25.36682402805787,
+        181.32835322645815
+      ],
+      "world": [
+        3.0800900815368766,
+        155.21105755137785,
+        97.12350415256084
+      ],
+      "screen": [
+        0.007570290804980083,
+        0.09861150687318382,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e73cd3e83fa5",
+      "title": "Decisions about the whole project sit on no shelf",
+      "depth": 1,
+      "home": "capability_13b04e769a4b",
+      "at": [
+        -19.126796311977774,
+        -16.94486290947641,
+        181.32835322645815
+      ],
+      "world": [
+        -19.126796311977774,
+        128.01362944299504,
+        129.53613681004882
+      ],
+      "screen": [
+        -0.04701012191729261,
+        -0.06587180418860379,
+        -0.3664189671328576
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e9a82de47352",
+      "title": "10 · Plan view: founding book (ADR-0645 D1 item 10, P1)",
+      "depth": 1,
+      "home": "capability_f874f7de8110",
+      "at": [
+        -131.90632212323044,
+        -26.98721384921864,
+        124.11827775383892
+      ],
+      "world": [
+        -131.90632212323044,
+        77.73307028058746,
+        100.45509628025758
+      ],
+      "screen": [
+        -0.32420130290149657,
+        -0.10491064317065266,
+        -0.31393025162056876
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_fae3dd7b8ffa",
+      "title": "6 · Rounds: founding book (proposed, approved; 0.2's `pre-merge-librarian-pass`)",
+      "depth": 1,
+      "home": "capability_389fd5e3722d",
+      "at": [
+        -57.2823504898175,
+        -115.9807010418203,
+        129.61536833342572
+      ],
+      "world": [
+        -57.2823504898175,
+        24.740175062199512,
+        172.16152433181298
+      ],
+      "screen": [
+        -0.1407894054138624,
+        -0.4508657325525592,
+        -0.3189736853373326
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_fee3ecbf6de5",
+      "title": "2 · Who wrote it: founding book (ADR-0645 D2, W1 and A1)",
+      "depth": 1,
+      "home": "capability_3c32df358d67",
+      "at": [
+        -97.57234081647665,
+        -6.099049803538197,
+        154.83983434209458
+      ],
+      "world": [
+        -97.57234081647665,
+        114.69380102664918,
+        104.20127021132105
+      ],
+      "screen": [
+        -0.23981473754001065,
+        -0.023709570065068557,
+        -0.34211645886700726
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "agent_0b14b89a31ce",
+      "title": "frontend-builder",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "world": [
+        0,
+        0,
+        0
+      ],
+      "screen": [
+        0,
+        -2.2097426084904369e-16,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "agent_14dfa5f34189",
+      "title": "session-orchestrator",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        0,
+        0
+      ],
+      "world": [
+        98.96099581204905,
+        0,
+        0
+      ],
+      "screen": [
+        0.24322779425782778,
+        -2.2097426084904369e-16,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "agent_82228ab38aec",
+      "title": "explorer",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -65.9739972080327,
+        -65.9739972080327
+      ],
+      "world": [
+        -32.98699860401635,
+        -92.94628191837819,
+        8.13174598474265
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.25646865653876827,
+        -0.13952566887652407
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "agent_bf87c8aaa4b8",
+      "title": "story-author",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        65.9739972080327,
+        65.9739972080327
+      ],
+      "world": [
+        -32.98699860401635,
+        92.94628191837819,
+        -8.13174598474265
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.2564686565387678,
+        -0.26058442791690684
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "agent_d6a2ac6972a3",
+      "title": "corpus-investigator",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -65.9739972080327,
+        -98.96099581204905
+      ],
+      "world": [
+        0,
+        -118.2157888941584,
+        -13.071887998666234
+      ],
+      "screen": [
+        0,
+        -0.25646865653876827,
+        -0.10926097911642818
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "agent_e314f29707ec",
+      "title": "librarian-curator",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        32.98699860401635,
+        65.9739972080327
+      ],
+      "world": [
+        -65.9739972080327,
+        71.74264793496931,
+        17.13776099103756
+      ],
+      "screen": [
+        -0.16215186283855185,
+        0.1282343282693838,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_086ba2fa35d6",
+      "title": "6 · Knowledge and memory: founding book (6-a)",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        32.98699860401635,
+        -65.9739972080327
+      ],
+      "world": [
+        65.9739972080327,
+        -29.335379968151535,
+        -67.67677494259797
+      ],
+      "screen": [
+        0.16215186283855185,
+        0.12823432826938377,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_4f2235a6ee77",
+      "title": "The forest becomes a planet, and each read names its agent",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        32.98699860401635,
+        0
+      ],
+      "world": [
+        65.9739972080327,
+        21.203633983408885,
+        -25.26950697578021
+      ],
+      "screen": [
+        0.16215186283855185,
+        0.1282343282693838,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_6be3b0bfb19e",
+      "title": "Verified health is dropped from the MVP",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        -32.98699860401635,
+        -65.9739972080327
+      ],
+      "world": [
+        -65.9739972080327,
+        -71.74264793496931,
+        -17.13776099103756
+      ],
+      "screen": [
+        -0.16215186283855185,
+        -0.12823432826938425,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_b8617ff29caf",
+      "title": "The license: PolyForm Shield",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        -32.98699860401635,
+        65.9739972080327
+      ],
+      "world": [
+        65.9739972080327,
+        29.335379968151535,
+        67.67677494259797
+      ],
+      "screen": [
+        0.16215186283855185,
+        -0.12823432826938422,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "decision_e3661ebef646",
+      "title": "7 · Library entrypoints: founding book",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        65.9739972080327,
+        -98.96099581204905
+      ],
+      "world": [
+        0,
+        -33.401252960522854,
+        -114.14991590178707
+      ],
+      "screen": [
+        0,
+        0.2564686565387678,
+        -0.10926097911642818
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "guardrail_2d0fb4d45f75",
+      "title": "Never mock a module — give the code a seam",
+      "depth": null,
+      "home": null,
+      "at": [
+        -98.96099581204905,
+        -65.9739972080327,
+        0
+      ],
+      "world": [
+        -98.96099581204905,
+        -42.40726796681777,
+        50.53901395156042
+      ],
+      "screen": [
+        -0.24322779425782778,
+        -0.25646865653876827,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "guardrail_2f0b3ec349d9",
+      "title": "Verification is never bypassed",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        -65.9739972080327,
+        -32.98699860401635
+      ],
+      "world": [
+        -65.9739972080327,
+        -67.67677494259797,
+        29.335379968151535
+      ],
+      "screen": [
+        -0.16215186283855185,
+        -0.25646865653876827,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "guardrail_40e3fd9d51a3",
+      "title": "Types stay honest",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        65.9739972080327,
+        -32.98699860401635
+      ],
+      "world": [
+        65.9739972080327,
+        17.13776099103756,
+        -71.74264793496931
+      ],
+      "screen": [
+        0.16215186283855185,
+        0.2564686565387678,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "guardrail_647d58a593c5",
+      "title": "The owner owns the outer loop",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -65.9739972080327,
+        32.98699860401635
+      ],
+      "world": [
+        0,
+        -17.13776099103756,
+        71.74264793496931
+      ],
+      "screen": [
+        0,
+        -0.25646865653876827,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "guardrail_6ac067d45164",
+      "title": "Escalate up when blocked or out of scope",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        0,
+        -32.98699860401635
+      ],
+      "world": [
+        65.9739972080327,
+        -25.26950697578021,
+        -21.203633983408885
+      ],
+      "screen": [
+        0.16215186283855185,
+        -2.2097426084904369e-16,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "guardrail_b114f702f8de",
+      "title": "The library is the edit surface",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -65.9739972080327,
+        98.96099581204905
+      ],
+      "world": [
+        0,
+        33.401252960522854,
+        114.14991590178707
+      ],
+      "screen": [
+        0,
+        -0.25646865653876827,
+        -0.2908491176770027
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "guardrail_bdb3f0e65931",
+      "title": "An agent never self-attests",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        0,
+        98.96099581204905
+      ],
+      "world": [
+        -32.98699860401635,
+        75.80852092734062,
+        63.610901950226655
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -2.2097426084904369e-16,
+        -0.2908491176770027
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_28ad4dd7868e",
+      "title": "Parallel build-lane fan-out",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        0,
+        -98.96099581204905
+      ],
+      "world": [
+        32.98699860401635,
+        -75.80852092734062,
+        -63.610901950226655
+      ],
+      "screen": [
+        0.08107593141927592,
+        -2.2097426084904369e-16,
+        -0.10926097911642818
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_3d1ac0a1ee70",
+      "title": "Proof-walkthrough first",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        65.9739972080327,
+        0
+      ],
+      "world": [
+        98.96099581204905,
+        42.40726796681777,
+        -50.53901395156042
+      ],
+      "screen": [
+        0.24322779425782778,
+        0.2564686565387678,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_4ed1969a172c",
+      "title": "Edit-first curation",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        -65.9739972080327,
+        0
+      ],
+      "world": [
+        -65.9739972080327,
+        -42.40726796681777,
+        50.53901395156042
+      ],
+      "screen": [
+        -0.16215186283855185,
+        -0.25646865653876827,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_67e658cde793",
+      "title": "Decompose by testability; delegate the glue",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        65.9739972080327,
+        0
+      ],
+      "world": [
+        65.9739972080327,
+        42.40726796681777,
+        -50.53901395156042
+      ],
+      "screen": [
+        0.16215186283855185,
+        0.2564686565387678,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_71e822187330",
+      "title": "Pull-based context architecture",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        32.98699860401635,
+        0
+      ],
+      "world": [
+        -65.9739972080327,
+        21.203633983408885,
+        -25.26950697578021
+      ],
+      "screen": [
+        -0.16215186283855185,
+        0.1282343282693838,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_a45e96114c7a",
+      "title": "An example carries its discriminator",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -65.9739972080327,
+        -32.98699860401635
+      ],
+      "world": [
+        0,
+        -67.67677494259797,
+        29.335379968151535
+      ],
+      "screen": [
+        0,
+        -0.25646865653876827,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_ad3e87c83f34",
+      "title": "When a term is in question, the definition note wins",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        65.9739972080327,
+        32.98699860401635
+      ],
+      "world": [
+        -65.9739972080327,
+        67.67677494259797,
+        -29.335379968151535
+      ],
+      "screen": [
+        -0.16215186283855185,
+        0.2564686565387678,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_e99d4cdbe809",
+      "title": "A measured claim carries the method that produced it",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        -65.9739972080327,
+        32.98699860401635
+      ],
+      "world": [
+        65.9739972080327,
+        -17.13776099103756,
+        71.74264793496931
+      ],
+      "screen": [
+        0.16215186283855185,
+        -0.25646865653876827,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_ee166b5c76ba",
+      "title": "Pair the fence with the affordance",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        -65.9739972080327,
+        -65.9739972080327
+      ],
+      "world": [
+        -65.9739972080327,
+        -92.94628191837819,
+        8.13174598474265
+      ],
+      "screen": [
+        -0.16215186283855185,
+        -0.25646865653876827,
+        -0.13952566887652407
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "pattern_efc36d671fa5",
+      "title": "Render and witness a flag-guarded surface",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        65.9739972080327,
+        65.9739972080327
+      ],
+      "world": [
+        -65.9739972080327,
+        92.94628191837819,
+        -8.13174598474265
+      ],
+      "screen": [
+        -0.16215186283855185,
+        0.2564686565387678,
+        -0.26058442791690684
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_00574b7381cb",
+      "title": "A compliance gate turns a judgment ceremony into theatre",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        -65.9739972080327,
+        65.9739972080327
+      ],
+      "world": [
+        65.9739972080327,
+        8.13174598474265,
+        92.94628191837819
+      ],
+      "screen": [
+        0.16215186283855185,
+        -0.2564686565387682,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_037c644a6e7c",
+      "title": "Minimum test to red: pin the missing behaviour, nothing else",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        65.9739972080327,
+        -65.9739972080327
+      ],
+      "world": [
+        65.9739972080327,
+        -8.13174598474265,
+        -92.94628191837819
+      ],
+      "screen": [
+        0.16215186283855185,
+        0.25646865653876777,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_049430a6e917",
+      "title": "Test creation principles",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        65.9739972080327,
+        -32.98699860401635
+      ],
+      "world": [
+        0,
+        17.13776099103756,
+        -71.74264793496931
+      ],
+      "screen": [
+        0,
+        0.2564686565387678,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_084e4640a77f",
+      "title": "A contract that says \"observable\" must name its observer",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        0,
+        32.98699860401635
+      ],
+      "world": [
+        -65.9739972080327,
+        25.26950697578021,
+        21.203633983408885
+      ],
+      "screen": [
+        -0.16215186283855185,
+        -2.2097426084904369e-16,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_08737a12669c",
+      "title": "Cross-story dependency direction and the no-cycle rule",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -65.9739972080327,
+        65.9739972080327
+      ],
+      "world": [
+        0,
+        8.13174598474265,
+        92.94628191837819
+      ],
+      "screen": [
+        0,
+        -0.2564686565387682,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_139ec9dc3f17",
+      "title": "Observability-first",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        65.9739972080327,
+        -65.9739972080327
+      ],
+      "world": [
+        0,
+        -8.13174598474265,
+        -92.94628191837819
+      ],
+      "screen": [
+        0,
+        0.25646865653876777,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_13a38824af26",
+      "title": "Two-consumer extraction",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        0,
+        0
+      ],
+      "world": [
+        32.98699860401635,
+        0,
+        0
+      ],
+      "screen": [
+        0.08107593141927592,
+        -2.2097426084904369e-16,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_155218ce771f",
+      "title": "Signal and noise",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        -32.98699860401635,
+        0
+      ],
+      "world": [
+        65.9739972080327,
+        -21.203633983408885,
+        25.26950697578021
+      ],
+      "screen": [
+        0.16215186283855185,
+        -0.12823432826938425,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_183377547f97",
+      "title": "Deep modules",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        65.9739972080327,
+        32.98699860401635
+      ],
+      "world": [
+        0,
+        67.67677494259797,
+        -29.335379968151535
+      ],
+      "screen": [
+        0,
+        0.2564686565387678,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_1e3418812c33",
+      "title": "Legible at the resting view",
+      "depth": null,
+      "home": null,
+      "at": [
+        -98.96099581204905,
+        0,
+        -32.98699860401635
+      ],
+      "world": [
+        -98.96099581204905,
+        -25.26950697578021,
+        -21.203633983408885
+      ],
+      "screen": [
+        -0.24322779425782778,
+        -2.2097426084904369e-16,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_1f4e24939fac",
+      "title": "Exploration principles",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        0,
+        32.98699860401635
+      ],
+      "world": [
+        98.96099581204905,
+        25.26950697578021,
+        21.203633983408885
+      ],
+      "screen": [
+        0.24322779425782778,
+        -2.2097426084904369e-16,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_2366111e8a67",
+      "title": "Claim by write-ownership — the capability you will write",
+      "depth": null,
+      "home": null,
+      "at": [
+        -65.9739972080327,
+        -98.96099581204905,
+        0
+      ],
+      "world": [
+        -65.9739972080327,
+        -63.610901950226655,
+        75.80852092734062
+      ],
+      "screen": [
+        -0.16215186283855185,
+        -0.3847029848081523,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_25e8591976f5",
+      "title": "Slow growth: the minimum to green",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        0,
+        98.96099581204905
+      ],
+      "world": [
+        0,
+        75.80852092734062,
+        63.610901950226655
+      ],
+      "screen": [
+        0,
+        -2.2097426084904369e-16,
+        -0.2908491176770027
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_275d164491ec",
+      "title": "Least-authority tool grants",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -32.98699860401635,
+        98.96099581204905
+      ],
+      "world": [
+        -32.98699860401635,
+        54.60488694393174,
+        88.88040892600687
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.12823432826938422,
+        -0.2908491176770027
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_31651a3224fb",
+      "title": "Defects amend the owning capability",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        32.98699860401635,
+        -98.96099581204905
+      ],
+      "world": [
+        -32.98699860401635,
+        -54.60488694393174,
+        -88.88040892600687
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.12823432826938377,
+        -0.10926097911642818
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_34cb39f936b3",
+      "title": "One way to do things",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        -32.98699860401635,
+        -98.96099581204905
+      ],
+      "world": [
+        32.98699860401635,
+        -97.0121549107495,
+        -38.341394974446445
+      ],
+      "screen": [
+        0.08107593141927592,
+        -0.12823432826938422,
+        -0.10926097911642829
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_3c243d0d86a1",
+      "title": "The reader chooses the thread and the depth",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        32.98699860401635,
+        98.96099581204905
+      ],
+      "world": [
+        32.98699860401635,
+        97.0121549107495,
+        38.341394974446445
+      ],
+      "screen": [
+        0.08107593141927592,
+        0.12823432826938377,
+        -0.2908491176770026
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_3e47feb3d912",
+      "title": "Red-green",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -32.98699860401635,
+        65.9739972080327
+      ],
+      "world": [
+        0,
+        29.335379968151535,
+        67.67677494259797
+      ],
+      "screen": [
+        0,
+        -0.12823432826938422,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_425d1687511a",
+      "title": "An observable is evidence only for what it observes",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        98.96099581204905,
+        0
+      ],
+      "world": [
+        65.9739972080327,
+        63.610901950226655,
+        -75.80852092734062
+      ],
+      "screen": [
+        0.16215186283855185,
+        0.38470298480815185,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_43ea5d4f68c4",
+      "title": "The resting view is designed, not fitted",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -98.96099581204905,
+        0
+      ],
+      "world": [
+        -32.98699860401635,
+        -63.610901950226655,
+        75.80852092734062
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.3847029848081523,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_4642c49301e6",
+      "title": "Price the deferral",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        98.96099581204905,
+        0
+      ],
+      "world": [
+        32.98699860401635,
+        63.610901950226655,
+        -75.80852092734062
+      ],
+      "screen": [
+        0.08107593141927592,
+        0.38470298480815185,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_48af5028121b",
+      "title": "Implementation outranks the doc",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        4.065872992371325,
+        46.473140959189095
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.12823432826938422,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_4e9e67b0f6ee",
+      "title": "A spec body describes only what it contracts",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        -4.065872992371325,
+        -46.473140959189095
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.12823432826938377,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_5126b1c5db6b",
+      "title": "Reference, don't restate",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        -32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        -46.473140959189095,
+        4.065872992371325
+      ],
+      "screen": [
+        0.08107593141927592,
+        -0.12823432826938425,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_561ef0d505d9",
+      "title": "Durable notes carry intent, not implementation surface",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        46.473140959189095,
+        -4.065872992371325
+      ],
+      "screen": [
+        0.08107593141927592,
+        0.1282343282693838,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_5a995978191e",
+      "title": "The owner-fork bar: escalate ownership, not uncertainty",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        -46.473140959189095,
+        4.065872992371325
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.12823432826938425,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_653f7dd8ad04",
+      "title": "Register follows audience",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        46.473140959189095,
+        -4.065872992371325
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.1282343282693838,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_67593a23b40a",
+      "title": "The splitting rule",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        -32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        4.065872992371325,
+        46.473140959189095
+      ],
+      "screen": [
+        0.08107593141927592,
+        -0.12823432826938422,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_6a4150acf3ea",
+      "title": "Route structural forks to story-author, not the owner",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        -4.065872992371325,
+        -46.473140959189095
+      ],
+      "screen": [
+        0.08107593141927592,
+        0.12823432826938377,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_758d83408b98",
+      "title": "An awaited notification is never a turn-ending state",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        32.98699860401635,
+        -65.9739972080327
+      ],
+      "world": [
+        0,
+        -29.335379968151535,
+        -67.67677494259797
+      ],
+      "screen": [
+        0,
+        0.12823432826938377,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_786a13e07cbc",
+      "title": "The author of the work is not its only witness",
+      "depth": null,
+      "home": null,
+      "at": [
+        -98.96099581204905,
+        -32.98699860401635,
+        0
+      ],
+      "world": [
+        -98.96099581204905,
+        -21.203633983408885,
+        25.26950697578021
+      ],
+      "screen": [
+        -0.24322779425782778,
+        -0.12823432826938425,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_79e34898a2c8",
+      "title": "Machine in the loop is the default; a human is the exception",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        32.98699860401635,
+        0
+      ],
+      "world": [
+        98.96099581204905,
+        21.203633983408885,
+        -25.26950697578021
+      ],
+      "screen": [
+        0.24322779425782778,
+        0.1282343282693838,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_7e2a7e9b607f",
+      "title": "Decide against a standard, not a budget",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        32.98699860401635,
+        65.9739972080327
+      ],
+      "world": [
+        0,
+        71.74264793496931,
+        17.13776099103756
+      ],
+      "screen": [
+        0,
+        0.1282343282693838,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_8048cf08cfde",
+      "title": "A human's words are stored verbatim, or not at all",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -65.9739972080327,
+        0
+      ],
+      "world": [
+        0,
+        -42.40726796681777,
+        50.53901395156042
+      ],
+      "screen": [
+        0,
+        -0.25646865653876827,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_882f0f72455d",
+      "title": "The authoritative source beats the derived one",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        0,
+        -98.96099581204905
+      ],
+      "world": [
+        -32.98699860401635,
+        -75.80852092734062,
+        -63.610901950226655
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -2.2097426084904369e-16,
+        -0.10926097911642818
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_94a7609d8047",
+      "title": "Escalate inline, or on a named signal",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        0,
+        98.96099581204905
+      ],
+      "world": [
+        32.98699860401635,
+        75.80852092734062,
+        63.610901950226655
+      ],
+      "screen": [
+        0.08107593141927592,
+        -2.2097426084904369e-16,
+        -0.2908491176770027
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_95fd6ea3af9e",
+      "title": "A decision that blinds an instrument escalates inline",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        98.96099581204905,
+        0
+      ],
+      "world": [
+        0,
+        63.610901950226655,
+        -75.80852092734062
+      ],
+      "screen": [
+        0,
+        0.38470298480815185,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_9d0928f79f5b",
+      "title": "No claim without evidence",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        65.9739972080327,
+        -32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        17.13776099103756,
+        -71.74264793496931
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.2564686565387678,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_9e78ac0605c3",
+      "title": "Read the force a decision answered, not the clause it left behind",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        65.9739972080327,
+        32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        67.67677494259797,
+        -29.335379968151535
+      ],
+      "screen": [
+        0.08107593141927592,
+        0.2564686565387678,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_a04ef5bf4787",
+      "title": "A deferral recorded without a status reads as pending work",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -32.98699860401635,
+        -65.9739972080327
+      ],
+      "world": [
+        0,
+        -71.74264793496931,
+        -17.13776099103756
+      ],
+      "screen": [
+        0,
+        -0.12823432826938425,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_a24f9d3a9648",
+      "title": "Prose names a set it never checked",
+      "depth": null,
+      "home": null,
+      "at": [
+        65.9739972080327,
+        0,
+        0
+      ],
+      "world": [
+        65.9739972080327,
+        0,
+        0
+      ],
+      "screen": [
+        0.16215186283855185,
+        -2.2097426084904369e-16,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_ac5f245517d1",
+      "title": "Delegate exploration to digest-returning subagents",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        0,
+        -98.96099581204905
+      ],
+      "world": [
+        0,
+        -75.80852092734062,
+        -63.610901950226655
+      ],
+      "screen": [
+        0,
+        -2.2097426084904369e-16,
+        -0.10926097911642818
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_b6c49306c650",
+      "title": "An owner-approved reference is repo-resident",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -65.9739972080327,
+        32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        -17.13776099103756,
+        71.74264793496931
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.25646865653876827,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_bc27a43350bf",
+      "title": "Stateless graduates, stateful stays",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        -65.9739972080327,
+        -32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        -67.67677494259797,
+        29.335379968151535
+      ],
+      "screen": [
+        0.08107593141927592,
+        -0.25646865653876827,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_bc9f530a3303",
+      "title": "Guidance quality: structure over emphasis",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -32.98699860401635,
+        -65.9739972080327
+      ],
+      "world": [
+        -32.98699860401635,
+        -71.74264793496931,
+        -17.13776099103756
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.12823432826938425,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_bd1191c7312a",
+      "title": "Plain language first",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        32.98699860401635,
+        -65.9739972080327
+      ],
+      "world": [
+        32.98699860401635,
+        -29.335379968151535,
+        -67.67677494259797
+      ],
+      "screen": [
+        0.08107593141927592,
+        0.12823432826938377,
+        -0.13952566887652396
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_c1855a8e6514",
+      "title": "A check that could not run is unverified, not refuted",
+      "depth": null,
+      "home": null,
+      "at": [
+        -98.96099581204905,
+        0,
+        32.98699860401635
+      ],
+      "world": [
+        -98.96099581204905,
+        25.26950697578021,
+        21.203633983408885
+      ],
+      "screen": [
+        -0.24322779425782778,
+        -2.2097426084904369e-16,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_c21ba0716b71",
+      "title": "One element per signal",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        0,
+        -32.98699860401635
+      ],
+      "world": [
+        98.96099581204905,
+        -25.26950697578021,
+        -21.203633983408885
+      ],
+      "screen": [
+        0.24322779425782778,
+        -2.2097426084904369e-16,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_c660f3c89819",
+      "title": "The journey principle",
+      "depth": null,
+      "home": null,
+      "at": [
+        -98.96099581204905,
+        -32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        -98.96099581204905,
+        -46.473140959189095,
+        4.065872992371325
+      ],
+      "screen": [
+        -0.24322779425782778,
+        -0.12823432826938425,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_d1d6fab2499e",
+      "title": "De-noising promotes a signal, never drops it",
+      "depth": null,
+      "home": null,
+      "at": [
+        -98.96099581204905,
+        32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        -98.96099581204905,
+        46.473140959189095,
+        -4.065872992371325
+      ],
+      "screen": [
+        -0.24322779425782778,
+        0.1282343282693838,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_d5794238a5ab",
+      "title": "Tightening a shared contract needs a full sweep",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        -32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        98.96099581204905,
+        4.065872992371325,
+        46.473140959189095
+      ],
+      "screen": [
+        0.24322779425782778,
+        -0.12823432826938422,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_d7c1d363bd3b",
+      "title": "Mechanical waiting never pays context rent",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        98.96099581204905,
+        -4.065872992371325,
+        -46.473140959189095
+      ],
+      "screen": [
+        0.24322779425782778,
+        0.12823432826938377,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_da258f7e96be",
+      "title": "Verify an edit persisted, or escalate",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -32.98699860401635,
+        -98.96099581204905
+      ],
+      "world": [
+        0,
+        -97.0121549107495,
+        -38.341394974446445
+      ],
+      "screen": [
+        0,
+        -0.12823432826938422,
+        -0.10926097911642829
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_e1f7a9a377d0",
+      "title": "Citing a document is not reading it",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        32.98699860401635,
+        98.96099581204905
+      ],
+      "world": [
+        0,
+        97.0121549107495,
+        38.341394974446445
+      ],
+      "screen": [
+        0,
+        0.12823432826938377,
+        -0.2908491176770026
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_e3e5bf53649f",
+      "title": "Accepted decisions carry no stale prose",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        0,
+        4.065872992371325,
+        46.473140959189095
+      ],
+      "screen": [
+        0,
+        -0.12823432826938422,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_e575d0cb1d97",
+      "title": "Show what matters at the stage they are at",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        0,
+        -4.065872992371325,
+        -46.473140959189095
+      ],
+      "screen": [
+        0,
+        0.12823432826938377,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_eabea9e3d90b",
+      "title": "A story's proof proves the goal, not the surface",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        32.98699860401635,
+        65.9739972080327
+      ],
+      "world": [
+        -32.98699860401635,
+        71.74264793496931,
+        17.13776099103756
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.1282343282693838,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_efa652a21e64",
+      "title": "An escape sequence in a tool argument becomes a real byte",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        -32.98699860401635,
+        65.9739972080327
+      ],
+      "world": [
+        32.98699860401635,
+        29.335379968151535,
+        67.67677494259797
+      ],
+      "screen": [
+        0.08107593141927592,
+        -0.12823432826938422,
+        -0.26058442791690695
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_f077cb889052",
+      "title": "The same file in another tree is a different file",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        32.98699860401635,
+        0
+      ],
+      "world": [
+        0,
+        21.203633983408885,
+        -25.26950697578021
+      ],
+      "screen": [
+        0,
+        0.1282343282693838,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_f39ecf3320a9",
+      "title": "Signals must be real",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        -98.96099581204905,
+        -32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        -88.88040892600687,
+        54.60488694393174
+      ],
+      "screen": [
+        -0.08107593141927592,
+        -0.3847029848081523,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_f72b66ffa0cd",
+      "title": "Cold rebuild",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        98.96099581204905,
+        32.98699860401635
+      ],
+      "world": [
+        -32.98699860401635,
+        88.88040892600687,
+        -54.60488694393174
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.38470298480815185,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "principle_fb9b404a41b3",
+      "title": "Friction earns durable guidance by supporting evidence, not by being reported",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        -98.96099581204905,
+        32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        -38.341394974446445,
+        97.0121549107495
+      ],
+      "screen": [
+        0.08107593141927592,
+        -0.3847029848081522,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_0967b1a1d3cb",
+      "title": "Merge ceremony",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        98.96099581204905,
+        -32.98699860401635
+      ],
+      "world": [
+        32.98699860401635,
+        38.341394974446445,
+        -97.0121549107495
+      ],
+      "screen": [
+        0.08107593141927592,
+        0.38470298480815174,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_529c2dd67bbf",
+      "title": "Pre-merge librarian pass",
+      "depth": null,
+      "home": null,
+      "at": [
+        32.98699860401635,
+        -65.9739972080327,
+        0
+      ],
+      "world": [
+        32.98699860401635,
+        -42.40726796681777,
+        50.53901395156042
+      ],
+      "screen": [
+        0.08107593141927592,
+        -0.25646865653876827,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_642f0040a5de",
+      "title": "Stage the owner's look",
+      "depth": null,
+      "home": null,
+      "at": [
+        -32.98699860401635,
+        65.9739972080327,
+        0
+      ],
+      "world": [
+        -32.98699860401635,
+        42.40726796681777,
+        -50.53901395156042
+      ],
+      "screen": [
+        -0.08107593141927592,
+        0.2564686565387678,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_693209c6a91a",
+      "title": "Library edit ceremony",
+      "depth": null,
+      "home": null,
+      "at": [
+        -98.96099581204905,
+        32.98699860401635,
+        0
+      ],
+      "world": [
+        -98.96099581204905,
+        21.203633983408885,
+        -25.26950697578021
+      ],
+      "screen": [
+        -0.24322779425782778,
+        0.1282343282693838,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_911ad6a734c1",
+      "title": "Attempt privileged actions, approve inline",
+      "depth": null,
+      "home": null,
+      "at": [
+        98.96099581204905,
+        -32.98699860401635,
+        0
+      ],
+      "world": [
+        98.96099581204905,
+        -21.203633983408885,
+        25.26950697578021
+      ],
+      "screen": [
+        0.24322779425782778,
+        -0.12823432826938425,
+        -0.2000550483967155
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_c919b1ebdbcd",
+      "title": "Justify a new check",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -32.98699860401635,
+        -32.98699860401635
+      ],
+      "world": [
+        0,
+        -46.473140959189095,
+        4.065872992371325
+      ],
+      "screen": [
+        0,
+        -0.12823432826938425,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_cd52098612cb",
+      "title": "Friction adjudication",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        32.98699860401635,
+        32.98699860401635
+      ],
+      "world": [
+        0,
+        46.473140959189095,
+        -4.065872992371325
+      ],
+      "screen": [
+        0,
+        0.1282343282693838,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_d7eaa00da14b",
+      "title": "Migrate a library schema: expand, migrate, contract",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        -98.96099581204905,
+        -32.98699860401635
+      ],
+      "world": [
+        0,
+        -88.88040892600687,
+        54.60488694393174
+      ],
+      "screen": [
+        0,
+        -0.3847029848081523,
+        -0.16979035863661973
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    },
+    {
+      "id": "process_e94a82a59c04",
+      "title": "Affected-only test scope",
+      "depth": null,
+      "home": null,
+      "at": [
+        0,
+        98.96099581204905,
+        32.98699860401635
+      ],
+      "world": [
+        0,
+        88.88040892600687,
+        -54.60488694393174
+      ],
+      "screen": [
+        0,
+        0.38470298480815185,
+        -0.23031973815681117
+      ],
+      "material": {
+        "colour": "a5c5d1",
+        "opacity": 0.52,
+        "transparent": true,
+        "depthTest": true,
+        "depthWrite": false
+      },
+      "radius": 1.308,
+      "rayHits": 0
+    }
+  ],
+  "threads": [],
+  "knowledgeObjects": [
+    {
+      "name": "knowledge-point:decision_026dc42f1fa9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_03b7fe15e4e8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_064aa677f191",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_0c5d8fd4535c",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_101478dc54ed",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_11abba9f5405",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_11c04f68a90a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_13c403f3a480",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_1f685a9fd9b0",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_201187b6b53c",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_229b50334c5b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_229b7f7d10de",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_26d8e2e52df5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_285848291aa8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_2c63f94af33a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_2ec8215ae769",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_2ffb006ea686",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_3054205bc3cb",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_32b9bddc1975",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_36c08baf74dd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_37781df2ef78",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_37dfcaa8189a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_394cc68a71c6",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_427a75532473",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_4731de1d51ef",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_49f698bd6e83",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_4de11a09692e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_4fa45187cbe1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_519f8d2b30c5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_54a5cc32d370",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_57a1e3f80bf9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_59bc36372634",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5a637443cab7",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5aceecc28637",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5ae1815d9959",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5b9ef03b8a42",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_5f30662977ae",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_611484cb49a2",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_66bfbd433f93",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_69b5ac6855c3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6e254791da68",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6fb213bb979d",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_70ff04f90448",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_7f839e27f1d8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_7ff487c18ba8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_861e6fa952db",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_8c8442277610",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_909ba178babf",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_91348293f1ee",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_914f96703a84",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_91b4219db238",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_94985f0ccb52",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_95280f2cfbbe",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_9c33ec3787a9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_9d11b2ad1587",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_9ec9a13fbeb4",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_a12097957060",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_a821017e746d",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_a8ca582fe22d",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_ab42aa0b7279",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_ac738439f3a0",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_aeed8aeee659",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_b211a3cf352a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_b77bc6d23919",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_b940ed415ec9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_c9ba244fd3d6",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_ca11ceae8dba",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_cc981dbccd5f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_d04020c2b4c1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_d23dbdb96a2b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_d84bf8c77a1e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_da37f3db9903",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e360a095c406",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e73cd3e83fa5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e9a82de47352",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_fae3dd7b8ffa",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_fee3ecbf6de5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:agent_0b14b89a31ce",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:agent_14dfa5f34189",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:agent_82228ab38aec",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:agent_bf87c8aaa4b8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:agent_d6a2ac6972a3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:agent_e314f29707ec",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_086ba2fa35d6",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_4f2235a6ee77",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_6be3b0bfb19e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_b8617ff29caf",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:decision_e3661ebef646",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:guardrail_2d0fb4d45f75",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:guardrail_2f0b3ec349d9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:guardrail_40e3fd9d51a3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:guardrail_647d58a593c5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:guardrail_6ac067d45164",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:guardrail_b114f702f8de",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:guardrail_bdb3f0e65931",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_28ad4dd7868e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_3d1ac0a1ee70",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_4ed1969a172c",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_67e658cde793",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_71e822187330",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_a45e96114c7a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_ad3e87c83f34",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_e99d4cdbe809",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_ee166b5c76ba",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:pattern_efc36d671fa5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_00574b7381cb",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_037c644a6e7c",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_049430a6e917",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_084e4640a77f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_08737a12669c",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_139ec9dc3f17",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_13a38824af26",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_155218ce771f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_183377547f97",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_1e3418812c33",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_1f4e24939fac",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_2366111e8a67",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_25e8591976f5",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_275d164491ec",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_31651a3224fb",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_34cb39f936b3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_3c243d0d86a1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_3e47feb3d912",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_425d1687511a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_43ea5d4f68c4",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_4642c49301e6",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_48af5028121b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_4e9e67b0f6ee",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_5126b1c5db6b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_561ef0d505d9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_5a995978191e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_653f7dd8ad04",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_67593a23b40a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_6a4150acf3ea",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_758d83408b98",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_786a13e07cbc",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_79e34898a2c8",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_7e2a7e9b607f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_8048cf08cfde",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_882f0f72455d",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_94a7609d8047",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_95fd6ea3af9e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_9d0928f79f5b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_9e78ac0605c3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_a04ef5bf4787",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_a24f9d3a9648",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_ac5f245517d1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_b6c49306c650",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_bc27a43350bf",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_bc9f530a3303",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_bd1191c7312a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_c1855a8e6514",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_c21ba0716b71",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_c660f3c89819",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_d1d6fab2499e",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_d5794238a5ab",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_d7c1d363bd3b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_da258f7e96be",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_e1f7a9a377d0",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_e3e5bf53649f",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_e575d0cb1d97",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_eabea9e3d90b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_efa652a21e64",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_f077cb889052",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_f39ecf3320a9",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_f72b66ffa0cd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:principle_fb9b404a41b3",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_0967b1a1d3cb",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_529c2dd67bbf",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_642f0040a5de",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_693209c6a91a",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_911ad6a734c1",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_c919b1ebdbcd",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_cd52098612cb",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_d7eaa00da14b",
+      "type": "Mesh"
+    },
+    {
+      "name": "knowledge-point:process_e94a82a59c04",
+      "type": "Mesh"
+    }
+  ],
+  "drawn": {
+    "islands": [
+      "story_609c3b171b3f",
+      "story_754e87e7d531",
+      "story_7722ddb5461e",
+      "story_a93c6fb1a257",
+      "story_cec2df1b2320",
+      "story_d754d997f22a",
+      "story_deee4230348c",
+      "story_f9fb5136c28f"
+    ],
+    "points": [
+      "agent_0b14b89a31ce",
+      "agent_14dfa5f34189",
+      "agent_82228ab38aec",
+      "agent_bf87c8aaa4b8",
+      "agent_d6a2ac6972a3",
+      "agent_e314f29707ec",
+      "decision_026dc42f1fa9",
+      "decision_03b7fe15e4e8",
+      "decision_064aa677f191",
+      "decision_086ba2fa35d6",
+      "decision_0c5d8fd4535c",
+      "decision_101478dc54ed",
+      "decision_11abba9f5405",
+      "decision_11c04f68a90a",
+      "decision_13c403f3a480",
+      "decision_1f685a9fd9b0",
+      "decision_201187b6b53c",
+      "decision_229b50334c5b",
+      "decision_229b7f7d10de",
+      "decision_26d8e2e52df5",
+      "decision_285848291aa8",
+      "decision_2c63f94af33a",
+      "decision_2ec8215ae769",
+      "decision_2ffb006ea686",
+      "decision_3054205bc3cb",
+      "decision_32b9bddc1975",
+      "decision_36c08baf74dd",
+      "decision_37781df2ef78",
+      "decision_37dfcaa8189a",
+      "decision_394cc68a71c6",
+      "decision_427a75532473",
+      "decision_4731de1d51ef",
+      "decision_49f698bd6e83",
+      "decision_4de11a09692e",
+      "decision_4f2235a6ee77",
+      "decision_4fa45187cbe1",
+      "decision_519f8d2b30c5",
+      "decision_54a5cc32d370",
+      "decision_57a1e3f80bf9",
+      "decision_59bc36372634",
+      "decision_5a637443cab7",
+      "decision_5aceecc28637",
+      "decision_5ae1815d9959",
+      "decision_5b9ef03b8a42",
+      "decision_5f30662977ae",
+      "decision_611484cb49a2",
+      "decision_66bfbd433f93",
+      "decision_69b5ac6855c3",
+      "decision_6be3b0bfb19e",
+      "decision_6e254791da68",
+      "decision_6fb213bb979d",
+      "decision_70ff04f90448",
+      "decision_7f839e27f1d8",
+      "decision_7ff487c18ba8",
+      "decision_861e6fa952db",
+      "decision_8c8442277610",
+      "decision_909ba178babf",
+      "decision_91348293f1ee",
+      "decision_914f96703a84",
+      "decision_91b4219db238",
+      "decision_94985f0ccb52",
+      "decision_95280f2cfbbe",
+      "decision_9c33ec3787a9",
+      "decision_9d11b2ad1587",
+      "decision_9ec9a13fbeb4",
+      "decision_a12097957060",
+      "decision_a821017e746d",
+      "decision_a8ca582fe22d",
+      "decision_ab42aa0b7279",
+      "decision_ac738439f3a0",
+      "decision_aeed8aeee659",
+      "decision_b211a3cf352a",
+      "decision_b77bc6d23919",
+      "decision_b8617ff29caf",
+      "decision_b940ed415ec9",
+      "decision_c9ba244fd3d6",
+      "decision_ca11ceae8dba",
+      "decision_cc981dbccd5f",
+      "decision_d04020c2b4c1",
+      "decision_d23dbdb96a2b",
+      "decision_d84bf8c77a1e",
+      "decision_da37f3db9903",
+      "decision_e360a095c406",
+      "decision_e3661ebef646",
+      "decision_e73cd3e83fa5",
+      "decision_e9a82de47352",
+      "decision_fae3dd7b8ffa",
+      "decision_fee3ecbf6de5",
+      "guardrail_2d0fb4d45f75",
+      "guardrail_2f0b3ec349d9",
+      "guardrail_40e3fd9d51a3",
+      "guardrail_647d58a593c5",
+      "guardrail_6ac067d45164",
+      "guardrail_b114f702f8de",
+      "guardrail_bdb3f0e65931",
+      "pattern_28ad4dd7868e",
+      "pattern_3d1ac0a1ee70",
+      "pattern_4ed1969a172c",
+      "pattern_67e658cde793",
+      "pattern_71e822187330",
+      "pattern_a45e96114c7a",
+      "pattern_ad3e87c83f34",
+      "pattern_e99d4cdbe809",
+      "pattern_ee166b5c76ba",
+      "pattern_efc36d671fa5",
+      "principle_00574b7381cb",
+      "principle_037c644a6e7c",
+      "principle_049430a6e917",
+      "principle_084e4640a77f",
+      "principle_08737a12669c",
+      "principle_139ec9dc3f17",
+      "principle_13a38824af26",
+      "principle_155218ce771f",
+      "principle_183377547f97",
+      "principle_1e3418812c33",
+      "principle_1f4e24939fac",
+      "principle_2366111e8a67",
+      "principle_25e8591976f5",
+      "principle_275d164491ec",
+      "principle_31651a3224fb",
+      "principle_34cb39f936b3",
+      "principle_3c243d0d86a1",
+      "principle_3e47feb3d912",
+      "principle_425d1687511a",
+      "principle_43ea5d4f68c4",
+      "principle_4642c49301e6",
+      "principle_48af5028121b",
+      "principle_4e9e67b0f6ee",
+      "principle_5126b1c5db6b",
+      "principle_561ef0d505d9",
+      "principle_5a995978191e",
+      "principle_653f7dd8ad04",
+      "principle_67593a23b40a",
+      "principle_6a4150acf3ea",
+      "principle_758d83408b98",
+      "principle_786a13e07cbc",
+      "principle_79e34898a2c8",
+      "principle_7e2a7e9b607f",
+      "principle_8048cf08cfde",
+      "principle_882f0f72455d",
+      "principle_94a7609d8047",
+      "principle_95fd6ea3af9e",
+      "principle_9d0928f79f5b",
+      "principle_9e78ac0605c3",
+      "principle_a04ef5bf4787",
+      "principle_a24f9d3a9648",
+      "principle_ac5f245517d1",
+      "principle_b6c49306c650",
+      "principle_bc27a43350bf",
+      "principle_bc9f530a3303",
+      "principle_bd1191c7312a",
+      "principle_c1855a8e6514",
+      "principle_c21ba0716b71",
+      "principle_c660f3c89819",
+      "principle_d1d6fab2499e",
+      "principle_d5794238a5ab",
+      "principle_d7c1d363bd3b",
+      "principle_da258f7e96be",
+      "principle_e1f7a9a377d0",
+      "principle_e3e5bf53649f",
+      "principle_e575d0cb1d97",
+      "principle_eabea9e3d90b",
+      "principle_efa652a21e64",
+      "principle_f077cb889052",
+      "principle_f39ecf3320a9",
+      "principle_f72b66ffa0cd",
+      "principle_fb9b404a41b3",
+      "process_0967b1a1d3cb",
+      "process_529c2dd67bbf",
+      "process_642f0040a5de",
+      "process_693209c6a91a",
+      "process_911ad6a734c1",
+      "process_c919b1ebdbcd",
+      "process_cd52098612cb",
+      "process_d7eaa00da14b",
+      "process_e94a82a59c04"
+    ],
+    "otherMeshes": [
+      "pathway-halo:cross:t10aazlm",
+      "pathway-halo:cross:t13drexi",
+      "pathway-halo:cross:t14lzyjp",
+      "pathway-halo:cross:t14s060i",
+      "pathway-halo:cross:t189mf6o",
+      "pathway-halo:cross:t1ralhw5",
+      "pathway-halo:cross:t1ut34r7",
+      "pathway-halo:cross:t1yddona",
+      "pathway-halo:cross:t26lsor",
+      "pathway-halo:cross:t676kuv",
+      "pathway-halo:cross:t6uvk7p",
+      "pathway-halo:cross:tc3ttb0",
+      "pathway-halo:cross:tp1o9pb",
+      "pathway-halo:cross:tuqjpx4",
+      "pathway-halo:cross:twyluxa",
+      "pathway:cross:t10aazlm",
+      "pathway:cross:t13drexi",
+      "pathway:cross:t14lzyjp",
+      "pathway:cross:t14s060i",
+      "pathway:cross:t189mf6o",
+      "pathway:cross:t1ralhw5",
+      "pathway:cross:t1ut34r7",
+      "pathway:cross:t1yddona",
+      "pathway:cross:t26lsor",
+      "pathway:cross:t676kuv",
+      "pathway:cross:t6uvk7p",
+      "pathway:cross:tc3ttb0",
+      "pathway:cross:tp1o9pb",
+      "pathway:cross:tuqjpx4",
+      "pathway:cross:twyluxa",
+      "planet:shell"
+    ]
+  },
+  "render": {
+    "frame": 55,
+    "calls": 271,
+    "triangles": 585046,
+    "points": 0,
+    "lines": 0
+  },
+  "memory": {
+    "geometries": 255,
+    "textures": 43
+  },
+  "shellPresent": true,
+  "seaPresent": false,
+  "corePresent": false,
+  "labels": [
+    {
+      "story": "story_754e87e7d531",
+      "text": "The library",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 675.859375,
+        "y": 461.34375,
+        "width": 88.28125,
+        "height": 22.875,
+        "top": 461.34375,
+        "right": 764.140625,
+        "bottom": 484.21875,
+        "left": 675.859375
+      }
+    },
+    {
+      "story": "story_609c3b171b3f",
+      "text": "The agent link",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 854.2433471679688,
+        "y": 473.74200439453125,
+        "width": 111.375,
+        "height": 22.875,
+        "top": 473.74200439453125,
+        "right": 965.6183471679688,
+        "bottom": 496.61700439453125,
+        "left": 854.2433471679688
+      }
+    },
+    {
+      "story": "story_a93c6fb1a257",
+      "text": "The app",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 827.1557006835938,
+        "y": 298.2485656738281,
+        "width": 69.46875,
+        "height": 22.875,
+        "top": 298.2485656738281,
+        "right": 896.6244506835938,
+        "bottom": 321.1235656738281,
+        "left": 827.1557006835938
+      }
+    },
+    {
+      "story": "story_deee4230348c",
+      "text": "The forest",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 620.5645751953125,
+        "y": 226.24578857421875,
+        "width": 83.796875,
+        "height": 22.875,
+        "top": 226.24578857421875,
+        "right": 704.3614501953125,
+        "bottom": 249.12078857421875,
+        "left": 620.5645751953125
+      }
+    },
+    {
+      "story": "story_7722ddb5461e",
+      "text": "The arc surface",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 424.9389343261719,
+        "y": 342.7953796386719,
+        "width": 117.26565551757812,
+        "height": 22.875,
+        "top": 342.7953796386719,
+        "right": 542.20458984375,
+        "bottom": 365.6703796386719,
+        "left": 424.9389343261719
+      }
+    },
+    {
+      "story": "story_f9fb5136c28f",
+      "text": "The command line",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 374.74127197265625,
+        "y": 509.66864013671875,
+        "width": 138.15625,
+        "height": 22.875,
+        "top": 509.66864013671875,
+        "right": 512.8975219726562,
+        "bottom": 532.5436401367188,
+        "left": 374.74127197265625
+      }
+    },
+    {
+      "story": "story_cec2df1b2320",
+      "text": "The librarian",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 488.47943115234375,
+        "y": 698.462890625,
+        "width": 101.34375,
+        "height": 22.875,
+        "top": 698.462890625,
+        "right": 589.8231811523438,
+        "bottom": 721.337890625,
+        "left": 488.47943115234375
+      }
+    },
+    {
+      "story": "story_d754d997f22a",
+      "text": "The knowledge core",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 677.3331909179688,
+        "y": 775.0888671875,
+        "width": 148.5625,
+        "height": 22.875,
+        "top": 775.0888671875,
+        "right": 825.8956909179688,
+        "bottom": 797.9638671875,
+        "left": 677.3331909179688
+      }
+    }
+  ],
+  "markers": [],
+  "mode": "forest",
+  "drew": {
+    "surface": "forest",
+    "stories": [
+      "story_754e87e7d531",
+      "story_609c3b171b3f",
+      "story_a93c6fb1a257",
+      "story_deee4230348c",
+      "story_7722ddb5461e",
+      "story_f9fb5136c28f",
+      "story_cec2df1b2320",
+      "story_d754d997f22a"
+    ],
+    "capabilities": [
+      "capability_5e0362aae607",
+      "capability_5a80222c88c4",
+      "capability_a1d4fadbec3e",
+      "capability_dd486ffa5b02",
+      "capability_baaeecb42577",
+      "capability_f27ac2abb10b",
+      "capability_75d059640d9d",
+      "capability_a954e1eb16f6",
+      "capability_13b04e769a4b",
+      "capability_a7f068502213",
+      "capability_d632ff0454c0",
+      "capability_5f1ce148e63a",
+      "capability_78d6e026f902",
+      "capability_07c95281a87e",
+      "capability_f1d66d700591",
+      "capability_10e1dea84e5b",
+      "capability_b91cd36a9783",
+      "capability_7077da59ee64",
+      "capability_11fe600afeda",
+      "capability_18edee1c0154",
+      "capability_199d7af33d32",
+      "capability_076723ee3066",
+      "capability_3c5ed8b3ca70",
+      "capability_7789d00d3390",
+      "capability_6a0c1b26f586",
+      "capability_33812c1d778b",
+      "capability_8595861a88df",
+      "capability_8ffc78a4bad2",
+      "capability_f0ffead428df",
+      "capability_efa4328b624c",
+      "capability_8b120b7271d8",
+      "capability_396a53756a5c",
+      "capability_62c8006ef894",
+      "capability_d077e76e50d7",
+      "capability_fa8ea39882fe",
+      "capability_ee7d649bbc20",
+      "capability_7b7421be1a1b",
+      "capability_3c32df358d67",
+      "capability_ab59a8461dd7",
+      "capability_81ad90bacdbc",
+      "capability_bfc6fa737f09",
+      "capability_562b2527ebca",
+      "capability_f874f7de8110",
+      "capability_56dfc9b9c3cf",
+      "capability_053416712f7c",
+      "capability_8419d8d4cdae",
+      "capability_8c01238b7f31",
+      "capability_a19bf216935b",
+      "capability_b7a12a2b7273",
+      "capability_36bcae448803",
+      "capability_53fd994f7b4c",
+      "capability_d8451645c169",
+      "capability_389fd5e3722d",
+      "capability_7889e605384c",
+      "capability_c72570081c61",
+      "capability_e8f28605e711",
+      "capability_062b84e5c6b0"
+    ],
+    "labels": [
+      "The library",
+      "The agent link",
+      "The app",
+      "The forest",
+      "The arc surface",
+      "The command line",
+      "The librarian",
+      "The knowledge core"
+    ],
+    "trees": [
+      {
+        "capability": "capability_5e0362aae607",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5a80222c88c4",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a1d4fadbec3e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_dd486ffa5b02",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_baaeecb42577",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f27ac2abb10b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_75d059640d9d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a954e1eb16f6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_13b04e769a4b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a7f068502213",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d632ff0454c0",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_5f1ce148e63a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_78d6e026f902",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_07c95281a87e",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f1d66d700591",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_10e1dea84e5b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b91cd36a9783",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7077da59ee64",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_11fe600afeda",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_18edee1c0154",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_199d7af33d32",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_076723ee3066",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3c5ed8b3ca70",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7789d00d3390",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6a0c1b26f586",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_33812c1d778b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8595861a88df",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8ffc78a4bad2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f0ffead428df",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_efa4328b624c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8b120b7271d8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_396a53756a5c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_62c8006ef894",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d077e76e50d7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_fa8ea39882fe",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ee7d649bbc20",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7b7421be1a1b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3c32df358d67",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ab59a8461dd7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_81ad90bacdbc",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_bfc6fa737f09",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_562b2527ebca",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f874f7de8110",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_56dfc9b9c3cf",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_053416712f7c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8419d8d4cdae",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_8c01238b7f31",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a19bf216935b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b7a12a2b7273",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_36bcae448803",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_53fd994f7b4c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_d8451645c169",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_389fd5e3722d",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7889e605384c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c72570081c61",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e8f28605e711",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_062b84e5c6b0",
+        "form": "seedling"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "view": "globe",
+  "selected": null,
+  "noteSelected": "guardrail_2d0fb4d45f75",
+  "card": "Guardrail\n\nNever mock a module — give the code a seam\n×\n\nIf a test must substitute a collaborator, the code offers a narrow seam with a real default; the module system is never rewritten under test.",
+  "panelVisible": true,
+  "browser": "148.0.7778.96",
+  "seed": {
+    "stories": 8,
+    "capabilities": 57,
+    "within": 74,
+    "cross": 28,
+    "links": 102
+  },
+  "counts": {
+    "islandsDrawn": 8,
+    "pointsDrawn": 176,
+    "shelfPoints": 77,
+    "loosePoints": 99,
+    "excludedStoryText": 460
+  },
+  "spread": {
+    "shape": "filled ball sampled from a shuffled cubic lattice",
+    "maximumRadius": 0.55,
+    "requiredSeparation": 0.035,
+    "dotDiameter": 0.012,
+    "measuredMinimum": 0.15131650735787316,
+    "measuredShelfClearance": 0.07524002669272253,
+    "measuredMaximumRadius": 0.5455794261029357
+  }
+}

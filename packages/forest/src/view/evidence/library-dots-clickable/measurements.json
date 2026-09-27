@@ -1,0 +1,3528 @@
+{
+  "seed": {
+    "stories": 8,
+    "capabilities": 57,
+    "within": 74,
+    "cross": 28,
+    "links": 102
+  },
+  "radius": 218,
+  "artifacts": 636,
+  "active": 636,
+  "placed": 77,
+  "depthCounts": {
+    "1": 73,
+    "2": 3,
+    "3": 1
+  },
+  "noShelf": 99,
+  "drawn": 176,
+  "excludedStoryText": 460,
+  "excludedIds": [
+    "definition_d7613fe1d9b7",
+    "definition_9c99677f9c8d",
+    "definition_3b4956dbb6c1",
+    "definition_f98133412642",
+    "definition_ecfae3677321",
+    "definition_1e7104a5b1bf",
+    "definition_b7fb9a2ec43a",
+    "definition_0ff2b36c28ee",
+    "definition_d77e3928470d",
+    "definition_af64e1ab0d4b",
+    "definition_f2ce651f8532",
+    "definition_e2c0ca027a38",
+    "definition_15b9487a91ab",
+    "definition_598267e356b0",
+    "definition_4f4db88da9e6",
+    "definition_aae3fc7fe88a",
+    "definition_4f2ba6c70b68",
+    "definition_ae4d8f7110d0",
+    "definition_b565ce9a4c06",
+    "definition_35218d10655c",
+    "definition_ec0506fb990b",
+    "definition_07b607b8e192",
+    "definition_66f95061c43e",
+    "definition_13793f67802d",
+    "definition_a3a6686d7d30",
+    "definition_f44c35b631fd",
+    "definition_e622a237aea2",
+    "definition_f2426c12a603",
+    "definition_49767dd187a1",
+    "definition_8119217d0bd7",
+    "definition_644456479666",
+    "definition_a11d16da8ed2",
+    "definition_32d3970c724f",
+    "definition_2867093dc34f",
+    "definition_a17f21baefd3",
+    "definition_58e2e57e5835",
+    "definition_6d6291d674ed",
+    "definition_6872c08cc2b8",
+    "definition_f606731fb8c5",
+    "definition_10764fb8d6bc",
+    "definition_c33c1f9099c4",
+    "definition_c7b0b655a6c7",
+    "definition_d63dfe3cbaa7",
+    "definition_6d3723ad9283",
+    "definition_edb0998f087a",
+    "definition_a5b5d168ad87",
+    "definition_964fe9bf09d7",
+    "definition_2261dccda0a2",
+    "definition_6a0ee93c1cc8",
+    "definition_0afba8abf27c",
+    "definition_cda20fe6da48",
+    "definition_2954d5837c02",
+    "definition_0054209a5355",
+    "definition_6e7e8b8c3aba",
+    "definition_75393669bfb9",
+    "definition_89b21a2f5070",
+    "definition_f19fb6f40e5a",
+    "definition_75c23a59334f",
+    "definition_ca50bcfa0f62",
+    "definition_1655f6d65a9c",
+    "definition_8ab0e44055ae",
+    "definition_3f752e1da947",
+    "definition_34a02ff608a6",
+    "definition_bb7370b67cc0",
+    "definition_55a2b2b6a6f4",
+    "definition_6af33aa36229",
+    "definition_2f2f8e885e1f",
+    "definition_427f93a383f0",
+    "definition_3c2e6fc29df8",
+    "definition_909c0c343449",
+    "definition_626dab1727e3",
+    "definition_63f641308d53",
+    "definition_c97d5c35b837",
+    "definition_3fedf1d50b2d",
+    "definition_9e89712e0fdb",
+    "definition_fa0e13b2f933",
+    "definition_84ed5b2d1175",
+    "definition_ffa45cdd3699",
+    "definition_dee55d48c6f1",
+    "definition_17a9e9377cfa",
+    "definition_e562d66c29ed",
+    "definition_04ea9a5c8eca",
+    "definition_ba5e0e79517d",
+    "definition_0f005937f389",
+    "definition_8acc6e6b6a8d",
+    "definition_580a3a3eee4d",
+    "definition_329cd95c7bf1",
+    "definition_42110199630b",
+    "definition_9c57d94c6383",
+    "definition_d5f583b77f29",
+    "definition_1f8f4508edc0",
+    "definition_d3074e1b5954",
+    "definition_26105e6a083a",
+    "definition_debdbed93bad",
+    "definition_de3708c71c2d",
+    "definition_69bc8eb6f261",
+    "definition_2bded8cddf67",
+    "definition_20ee9cec4855",
+    "definition_51ea59f7077a",
+    "definition_1be250107f9f",
+    "definition_b5284f2d8f14",
+    "definition_1a0b6e4322c1",
+    "definition_b0a07a153ec5",
+    "definition_77eacc09a89c",
+    "definition_4f2c1c1a2655",
+    "definition_b7178be85573",
+    "definition_4d85e83c5135",
+    "definition_d99af17571e7",
+    "definition_3fc78920ec4f",
+    "definition_2e3858d1b4ff",
+    "definition_91c3051dec8c",
+    "definition_bba7bc7fd34c",
+    "definition_4b080646104e",
+    "definition_ea5ce3ad7ab9",
+    "definition_a4f2d094fc8a",
+    "definition_58108195c178",
+    "definition_2357b194b215",
+    "definition_187856218f30",
+    "definition_4dcfcfaf2ed3",
+    "definition_a5a4becd2a5c",
+    "definition_eec8eeb9a724",
+    "definition_1d35d1a22418",
+    "definition_2bb187c56e26",
+    "definition_6c69d08909d5",
+    "definition_a6887ae27c30",
+    "definition_9ba05541e54b",
+    "definition_49963aeb05c1",
+    "definition_8799636c1e9d",
+    "definition_b7d82ee8807c",
+    "definition_5094165112b1",
+    "definition_98ac0a78ea12",
+    "definition_901f54cda2a2",
+    "definition_a3a02c8589bc",
+    "definition_f8e71d97896b",
+    "definition_e32729f6c0e1",
+    "definition_6e4b4580a2d4",
+    "definition_898ba05eb028",
+    "definition_14d2525c84d3",
+    "definition_5f8948b54c7f",
+    "definition_eb3bbc4479b5",
+    "definition_3cb9962e414c",
+    "definition_3e739046ac53",
+    "definition_cecdd3a3a7d6",
+    "definition_a9be126b931f",
+    "definition_7ea0b83da07b",
+    "definition_d26d8d29bcde",
+    "definition_ba6bf775d9db",
+    "definition_e4a6cfad677f",
+    "definition_4fab6c702c05",
+    "definition_09f970647231",
+    "definition_9ddc389113fd",
+    "definition_56a874a606e4",
+    "definition_643da24e61f1",
+    "definition_56c6044b429d",
+    "definition_7720a7e36c1d",
+    "definition_f33624c5513c",
+    "definition_cfe7c36b89a2",
+    "definition_beb30a6e6b89",
+    "definition_186b4569223b",
+    "definition_20bad27910a9",
+    "definition_4761578834de",
+    "definition_12274ac85155",
+    "definition_b8235e99f105",
+    "definition_c3da2dd44325",
+    "definition_9fa67cf902b5",
+    "definition_6fab77e06a79",
+    "definition_cebb27e98962",
+    "definition_7fb06e82f968",
+    "definition_b3ec99840397",
+    "definition_62125621f0f1",
+    "definition_94396adf69e7",
+    "definition_67a16c6f9e8e",
+    "definition_20c672ed860f",
+    "definition_2ba0bd8f5b6c",
+    "definition_7b2b4f6d19e9",
+    "definition_7df3087c91fd",
+    "definition_5275707092fe",
+    "definition_2801c11c22b0",
+    "definition_2f6befd59406",
+    "definition_103467e1f246",
+    "definition_aadbab6ec875",
+    "definition_ce1626f986cd",
+    "definition_b11c0cc764a1",
+    "definition_33540a43dca3",
+    "definition_63b9a43c3a49",
+    "definition_b3be639f99fe",
+    "definition_d2b6235117c0",
+    "definition_cf53b68032f2",
+    "definition_7aa3372b644c",
+    "definition_e15a5ad51274",
+    "definition_b653dd92e59d",
+    "definition_4c73f57af8cc",
+    "definition_d1435e69dfd2",
+    "definition_8717cd781f6d",
+    "definition_7805f2aa12ac",
+    "definition_10f39b00e3a2",
+    "definition_13ecbb41920a",
+    "definition_ffae961f6a87",
+    "definition_11433ced7ff2",
+    "definition_30fd5140d462",
+    "definition_79d3c7b09427",
+    "definition_f5d3cee4a34f",
+    "definition_b3277c70f490",
+    "definition_ba21d7dfa2ec",
+    "definition_32d7c431fb7d",
+    "definition_54ed5267d8b9",
+    "definition_e219bf22b6e4",
+    "definition_d8988bfcaeda",
+    "definition_244bb0471b93",
+    "definition_0548d6765db5",
+    "definition_b94f13c82041",
+    "definition_dc6e53b3c7eb",
+    "definition_897b3b609689",
+    "definition_f75fedfa7e97",
+    "definition_e79d382c1822",
+    "definition_b3660bc85a14",
+    "definition_22d584d400ad",
+    "definition_209276b1c5e0",
+    "definition_7a707b92597e",
+    "definition_afea094e3f48",
+    "definition_b4ecfc81b2de",
+    "definition_9921175aed88",
+    "definition_f7580c36d97f",
+    "definition_8e1a885d69c7",
+    "definition_76451ed85dd9",
+    "definition_ab6eca24d678",
+    "definition_03280e79037f",
+    "definition_eb5bfa3df277",
+    "definition_5229d30e894e",
+    "definition_d653eed65e01",
+    "definition_ba09d515cd53",
+    "definition_4dde1fb8eee0",
+    "definition_01f2b28f6813",
+    "definition_0d1f9c2792c9",
+    "definition_3ea6f321b73e",
+    "definition_aec72bebecf0",
+    "definition_797bae64f2d3",
+    "definition_b29eff7c3d77",
+    "definition_78a2e27a9a68",
+    "definition_8a85866fb50d",
+    "definition_6f2452fab711",
+    "definition_8d5ed5ab0d6f",
+    "definition_0d15af193cfa",
+    "definition_6e2472172e12",
+    "definition_43c7002c42f9",
+    "definition_78a6205e8cd4",
+    "definition_5126fe37ac57",
+    "definition_1675df6d5e0d",
+    "definition_d13d1c4e4607",
+    "definition_4f21be27e328",
+    "definition_394e08e16b06",
+    "definition_ac155a110875",
+    "definition_bad00cac2189",
+    "definition_4e3a12837741",
+    "definition_d706c4dfe91c",
+    "definition_d9a80eaafb6b",
+    "definition_436891b5b577",
+    "definition_d4e0b05aaee8",
+    "definition_5dad9d72b619",
+    "definition_7c841c6b4298",
+    "definition_5f165d2fa47c",
+    "definition_6942d4fd0c95",
+    "definition_1e3d9e7e9517",
+    "definition_57b9c3f215e7",
+    "definition_7050124123f4",
+    "definition_9360eb9726e1",
+    "definition_75260128bd05",
+    "definition_1f2812545bd9",
+    "definition_793754d929a7",
+    "definition_76bd9f9c7874",
+    "definition_0c1867c2b409",
+    "definition_91deca07e455",
+    "definition_458c54c6ff8d",
+    "definition_f5c6b3473a3d",
+    "definition_3529eed48d94",
+    "definition_4b53d473ea9a",
+    "definition_97b97bfb74c3",
+    "definition_c0323fb69574",
+    "definition_4c86d264b313",
+    "definition_9bf90faad181",
+    "definition_aabb7187b27f",
+    "definition_dfcef77bebc4",
+    "definition_c805e743580e",
+    "definition_f43116359e32",
+    "definition_6ebbc310dd6e",
+    "definition_791c8168be87",
+    "definition_8b690309e5d0",
+    "definition_d9975b611cfc",
+    "definition_c2cd103728be",
+    "definition_6327178885a0",
+    "definition_d3a0e664d88a",
+    "definition_2fd81f65606e",
+    "definition_7a81e2ed597b",
+    "definition_d1e50ff998ac",
+    "definition_c3773cb3f00a",
+    "definition_1477774c3872",
+    "definition_0984b17957e1",
+    "definition_a160125cff71",
+    "definition_c8d964975134",
+    "definition_185c602466b2",
+    "definition_7d428f5895bb",
+    "definition_5d21da289198",
+    "definition_1a494a317fa8",
+    "definition_96b3b73e85f5",
+    "definition_66dfec14a7ad",
+    "definition_1d7199fdc445",
+    "definition_d0ae6ea44fe2",
+    "definition_2ca8c1e7e857",
+    "definition_d55ca6c92e72",
+    "definition_a562bae69893",
+    "definition_87df03e50f7e",
+    "definition_bc57e34c3f5a",
+    "definition_1f2a597275e0",
+    "definition_df42f0538bc2",
+    "definition_6631769fef03",
+    "definition_caceba465c73",
+    "definition_daed279f0a03",
+    "definition_fe617ddcdd02",
+    "definition_dea9add3dd77",
+    "definition_ccb5502c5cb6",
+    "definition_c36fda30d50c",
+    "definition_4e91ac4251b4",
+    "definition_60f105dd789b",
+    "definition_85b8a6c5a30a",
+    "definition_9d8a9dc7e392",
+    "definition_d5aef75e0fc0",
+    "definition_d85744060c90",
+    "definition_795036198fcb",
+    "definition_700a82f7594e",
+    "definition_b06dcb7dd8e6",
+    "definition_a71f1b44eaa3",
+    "definition_2a51329bca33",
+    "definition_799051e984ab",
+    "definition_6aedfebff547",
+    "definition_6fe663dddd3f",
+    "definition_d757123f7a17",
+    "definition_209c3ef2bc9f",
+    "definition_673a507c2132",
+    "definition_7011352f4cb1",
+    "definition_1a218ab48dcd",
+    "definition_87b305135e25",
+    "definition_8d16f9c31a39",
+    "definition_2bccbb89da3f",
+    "definition_7fdbfcf3534f",
+    "definition_87d614c3bf24",
+    "definition_5459b275cdcc",
+    "definition_3f46ac3ddd43",
+    "definition_3c63486d5d5c",
+    "definition_6def5775dc8f",
+    "definition_32708de1c02c",
+    "definition_054ed8e134ac",
+    "definition_904342c5a8a7",
+    "definition_20904b69efc1",
+    "definition_daef6479a82c",
+    "definition_60b8dcf186df",
+    "definition_3bd6b83af2c1",
+    "definition_df2da378a812",
+    "definition_9f431bb4d813",
+    "definition_e2d021c62c9d",
+    "definition_30b6b948b765",
+    "definition_4979172ae1d2",
+    "definition_0b320860917d",
+    "definition_5c5a90cd341a",
+    "definition_472736925eb7",
+    "definition_baf53040d831",
+    "definition_82b8f5392f51",
+    "definition_7f920b7c1f47",
+    "definition_16f8d9f65559",
+    "definition_4580d17b41d1",
+    "definition_ca1d6185f856",
+    "definition_cabad58b5d18",
+    "definition_2968bd99852f",
+    "definition_0c86fce863cf",
+    "definition_353bd46152c4",
+    "definition_be1e60495d13",
+    "definition_b75333a38a55",
+    "definition_5300dbf75d2b",
+    "definition_9bdbe0f1c36f",
+    "definition_9d54e2ce2741",
+    "definition_af9ddd3f0955",
+    "definition_4e09c4496410",
+    "definition_e5ba680de13c",
+    "definition_3b547ff4be52",
+    "definition_3a6893a4ff3a",
+    "definition_0bc084e8077d",
+    "definition_81898a7049ed",
+    "definition_a8f81ecde21b",
+    "definition_e192e14c8e66",
+    "definition_6628257decdd",
+    "definition_53684cc6c018",
+    "definition_fb36a5c841f9",
+    "definition_852a53882940",
+    "definition_8510d4ebf9f5",
+    "definition_696f2530af78",
+    "definition_b6f88f9b3652",
+    "definition_2471c21011cf",
+    "definition_86aa841bba69",
+    "definition_73c5b4a9faa6",
+    "definition_50dba672afa2",
+    "definition_af10f1849952",
+    "definition_bd76f8680a24",
+    "definition_58544a7f6db0",
+    "definition_b5fccebf957a",
+    "definition_18023bf46e54",
+    "definition_c0fc49728a99",
+    "definition_053331a42550",
+    "definition_7fe798a9a68b",
+    "definition_39a24a9c2be9",
+    "definition_5a3c744035b5",
+    "definition_a97d9d9c5f62",
+    "definition_f30a245741c4",
+    "definition_c5a6aea2bfde",
+    "definition_91b586da4667",
+    "definition_e2829df0d45e",
+    "definition_12915991ccfb",
+    "definition_aa12a998dc44",
+    "definition_66f3c3d68179",
+    "definition_2c8b73027a41",
+    "definition_2b0f4f141e9b",
+    "definition_76a79b4d5905",
+    "definition_e9847bcf58d0",
+    "definition_15f873f38fda",
+    "definition_bceba1b5cd38",
+    "definition_d1ec7293c6e8",
+    "definition_1ea1fa023299",
+    "definition_d1e25c55c8c8",
+    "definition_b6ef1d247c3c",
+    "definition_6fbda6a13216",
+    "definition_3c4ba77c9079",
+    "definition_22601142ae3c",
+    "definition_7ac5d849c326",
+    "definition_9ec334e59d5d",
+    "definition_ffb9e00780a0",
+    "definition_d40b09a10211",
+    "definition_d7bec65ac642",
+    "definition_e45f1bfe6988",
+    "definition_42906594a25b",
+    "definition_ce9a354beb4b",
+    "definition_c42267c4ad7e",
+    "definition_530b73b7db20",
+    "definition_035d7d498ef7",
+    "definition_4763abbca820",
+    "definition_e182ef3f553c",
+    "definition_252c5ee28de9",
+    "definition_c717d917e342",
+    "definition_57f0ac1e2be5",
+    "definition_a52b08498216",
+    "definition_1ba6e6c01de2",
+    "definition_790fe2aba43e",
+    "definition_eafe61c2fac6",
+    "definition_8968f73bc6fe",
+    "definition_e51fe26f7832",
+    "definition_6ac190ac24f2",
+    "definition_9b881a59a34a",
+    "definition_5c323c0b7d3f",
+    "definition_95cb050cf84e",
+    "definition_dda0f014d6bb",
+    "definition_b220dd373e7a",
+    "definition_35a9bf6d841b",
+    "definition_904f0e864bf7"
+  ],
+  "spread": {
+    "shape": "filled ball sampled from a shuffled cubic lattice",
+    "maximumRadius": 0.55,
+    "requiredSeparation": 0.035,
+    "dotDiameter": 0.012,
+    "measuredMinimum": 0.15131650735787316,
+    "measuredShelfClearance": 0.07524002669272253,
+    "measuredMaximumRadius": 0.5455794261029357
+  },
+  "shelves": 65,
+  "emptyShelves": 0,
+  "artifactLinks": 566,
+  "ghosts": 0,
+  "proposed": 0,
+  "loops": 0,
+  "threads": 0,
+  "stories": [
+    {
+      "id": "story_754e87e7d531",
+      "title": "The library",
+      "artifacts": 16,
+      "shelves": 14
+    },
+    {
+      "id": "story_609c3b171b3f",
+      "title": "The agent link",
+      "artifacts": 11,
+      "shelves": 9
+    },
+    {
+      "id": "story_a93c6fb1a257",
+      "title": "The app",
+      "artifacts": 7,
+      "shelves": 5
+    },
+    {
+      "id": "story_deee4230348c",
+      "title": "The forest",
+      "artifacts": 12,
+      "shelves": 7
+    },
+    {
+      "id": "story_7722ddb5461e",
+      "title": "The arc surface",
+      "artifacts": 6,
+      "shelves": 6
+    },
+    {
+      "id": "story_f9fb5136c28f",
+      "title": "The command line",
+      "artifacts": 12,
+      "shelves": 12
+    },
+    {
+      "id": "story_cec2df1b2320",
+      "title": "The librarian",
+      "artifacts": 7,
+      "shelves": 7
+    },
+    {
+      "id": "story_d754d997f22a",
+      "title": "The knowledge core",
+      "artifacts": 6,
+      "shelves": 5
+    }
+  ],
+  "notes": [
+    {
+      "id": "decision_026dc42f1fa9",
+      "kind": "decision",
+      "title": "1 · Project routing: founding book (ADR-0626 D5)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_07c95281a87e",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_07c95281a87e"
+      ],
+      "at": {
+        "x": 101.01254296078301,
+        "y": -5.0879190839296555,
+        "z": 152.65488411443428
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_03b7fe15e4e8",
+      "kind": "decision",
+      "title": "2 · Capability tree: founding book (T1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_8595861a88df",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_8595861a88df"
+      ],
+      "at": {
+        "x": -9.176296347829584,
+        "y": 115.21526796656944,
+        "z": 142.03581243027557
+      },
+      "radius": 183.12000000000006
+    },
+    {
+      "id": "decision_064aa677f191",
+      "kind": "decision",
+      "title": "The arc surface's capability tree",
+      "summary": null,
+      "depth": 1,
+      "home": "story_7722ddb5461e",
+      "story": "story_7722ddb5461e",
+      "entrances": [
+        "story_7722ddb5461e"
+      ],
+      "at": {
+        "x": -97.98254474820939,
+        "y": 49.129794150686735,
+        "z": 146.69225832120898
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_0c5d8fd4535c",
+      "kind": "decision",
+      "title": "1 · Links: founding book (proposed, approved with ADR-0644)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_a19bf216935b",
+      "story": "story_cec2df1b2320",
+      "entrances": [
+        "capability_a19bf216935b"
+      ],
+      "at": {
+        "x": -51.86958134207544,
+        "y": -97.3073892395859,
+        "z": 146.19765022316034
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_101478dc54ed",
+      "kind": "decision",
+      "title": "6 · Decisions: founding book (ADR-0645 D1 item 6 and D4, V1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_562b2527ebca",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_562b2527ebca"
+      ],
+      "at": {
+        "x": -132.89650457623353,
+        "y": -12.675281950053689,
+        "z": 125.34269304154029
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_11abba9f5405",
+      "kind": "decision",
+      "title": "3 · Reads by session and agent: founding book (R1 and T1, approved with ADR-0647)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_e8f28605e711",
+      "story": "story_d754d997f22a",
+      "entrances": [
+        "capability_e8f28605e711"
+      ],
+      "at": {
+        "x": -12.447159721097059,
+        "y": -128.75265846769702,
+        "z": 129.61772854196323
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_11c04f68a90a",
+      "kind": "decision",
+      "title": "3 · Library: founding book (ADR-0645 D1 item 3)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_ab59a8461dd7",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_ab59a8461dd7"
+      ],
+      "at": {
+        "x": -106.68178476863055,
+        "y": 3.2732724241239084,
+        "z": 148.79925028781923
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_13c403f3a480",
+      "kind": "decision",
+      "title": "5 · Queues: founding book (proposed, approved; 0.2's ADR-0168 D4)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_d8451645c169",
+      "story": "story_cec2df1b2320",
+      "entrances": [
+        "capability_d8451645c169"
+      ],
+      "at": {
+        "x": -79.62828419731684,
+        "y": -115.9807010418203,
+        "z": 117.2209355944545
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_1f685a9fd9b0",
+      "kind": "decision",
+      "title": "4 · Look inside and inspect an artifact: founding book (E1 and V1, approved with ADR-0647)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_062b84e5c6b0",
+      "story": "story_d754d997f22a",
+      "entrances": [
+        "capability_062b84e5c6b0"
+      ],
+      "at": {
+        "x": 11.130111109065194,
+        "y": -146.7458652466092,
+        "z": 108.97112488968762
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_201187b6b53c",
+      "kind": "decision",
+      "title": "5 · Briefing: founding book (0.2's ADR-0314 D3)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_ee7d649bbc20",
+      "story": "story_7722ddb5461e",
+      "entrances": [
+        "capability_ee7d649bbc20"
+      ],
+      "at": {
+        "x": -94.07914841739436,
+        "y": 25.237624575212724,
+        "z": 155.06485913597095
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_229b50334c5b",
+      "kind": "decision",
+      "title": "4 · Graduation: founding book (proposed, approved; 0.2's ADR-0095)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_53fd994f7b4c",
+      "story": "story_cec2df1b2320",
+      "entrances": [
+        "capability_53fd994f7b4c"
+      ],
+      "at": {
+        "x": -96.56144875707412,
+        "y": -97.30738923958593,
+        "z": 121.40878474521797
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_229b7f7d10de",
+      "kind": "decision",
+      "title": "Knowledge beneath the islands, with loose artifacts at the core",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_c72570081c61",
+      "story": "story_d754d997f22a",
+      "entrances": [
+        "capability_c72570081c61"
+      ],
+      "at": {
+        "x": 14.817331960087044,
+        "y": -110.75945168878489,
+        "z": 145.07144769107504
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_26d8e2e52df5",
+      "kind": "decision",
+      "title": "5 · Health record: founding book (ADR-0621 D1 and D5)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_f27ac2abb10b",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_f27ac2abb10b"
+      ],
+      "at": {
+        "x": -19.12679631197777,
+        "y": 16.944862909476416,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_285848291aa8",
+      "kind": "decision",
+      "title": "The planet begins with islands spread around a globe",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_33812c1d778b",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_33812c1d778b"
+      ],
+      "at": {
+        "x": 1.6374959094554302,
+        "y": 96.47796483596409,
+        "z": 155.635006692765
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_2c63f94af33a",
+      "kind": "decision",
+      "title": "The globe packs its islands together on a see-through grey ball, with no sea",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_33812c1d778b",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_33812c1d778b"
+      ],
+      "at": {
+        "x": -4.468832975650082,
+        "y": 101.10980977716082,
+        "z": 152.6098630451587
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_2ec8215ae769",
+      "kind": "decision",
+      "title": "1 · Lifecycle: founding book (ADR-0621 D4 and D5, ADR-0626 D8)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_076723ee3066",
+      "story": "story_a93c6fb1a257",
+      "entrances": [
+        "capability_076723ee3066"
+      ],
+      "at": {
+        "x": 82.20731134182475,
+        "y": 66.92993711629099,
+        "z": 149.31602686770643
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_2ffb006ea686",
+      "kind": "decision",
+      "title": "11 · Workspace: founding book (ADR-0653 D1, K1 with owner A2/B1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_8c01238b7f31",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_8c01238b7f31"
+      ],
+      "at": {
+        "x": -95.67219460397106,
+        "y": -33.56344599573414,
+        "z": 152.49019861142338
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_3054205bc3cb",
+      "kind": "decision",
+      "title": "4 · Sessions: founding book (ADR-0626 D1 row 4 and D9)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_b91cd36a9783",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_b91cd36a9783"
+      ],
+      "at": {
+        "x": 61.847656519042715,
+        "y": 12.973761739426768,
+        "z": 171.87054223871846
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_32b9bddc1975",
+      "kind": "decision",
+      "title": "5 · Questions: founding book (ADR-0645 D1 item 5 and D5)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_bfc6fa737f09",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_bfc6fa737f09"
+      ],
+      "at": {
+        "x": -127.67674192552698,
+        "y": -0.6353186782418856,
+        "z": 131.26759059821075
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_36c08baf74dd",
+      "kind": "decision",
+      "title": "The globe is the only view, and islands get room for pathways between them",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_8ffc78a4bad2",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_8ffc78a4bad2"
+      ],
+      "at": {
+        "x": -34.42543973523352,
+        "y": 115.21526796656944,
+        "z": 138.10599381065043
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_37781df2ef78",
+      "kind": "decision",
+      "title": "1 · Front door: founding book (ADR-0645 D1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_7b7421be1a1b",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_7b7421be1a1b"
+      ],
+      "at": {
+        "x": -93.46812416572163,
+        "y": -19.831247899636168,
+        "z": 156.21576671925413
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_37dfcaa8189a",
+      "kind": "decision",
+      "title": "Routed pathways on the glass globe",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_8ffc78a4bad2",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_8ffc78a4bad2"
+      ],
+      "at": {
+        "x": -39.437624629176504,
+        "y": 119.42364463324432,
+        "z": 133.0999671905322
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_394cc68a71c6",
+      "kind": "decision",
+      "title": "2 · Decision log: founding book (proposed, approved)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_b7a12a2b7273",
+      "story": "story_cec2df1b2320",
+      "entrances": [
+        "capability_b7a12a2b7273"
+      ],
+      "at": {
+        "x": -68.80274590183272,
+        "y": -78.63407743735154,
+        "z": 150.3854993739238
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_427a75532473",
+      "kind": "decision",
+      "title": "Every knowledge read is recorded, and a new artifact has a default place",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_11fe600afeda",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_11fe600afeda"
+      ],
+      "at": {
+        "x": 61.41162917378011,
+        "y": -23.14959990728607,
+        "z": 170.95508833127693
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_4731de1d51ef",
+      "kind": "decision",
+      "title": "11 · Waits: founding book (11-b)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_d632ff0454c0",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_d632ff0454c0"
+      ],
+      "at": {
+        "x": 3.080090081536882,
+        "y": -25.36682402805787,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_49f698bd6e83",
+      "kind": "decision",
+      "title": "The agent link's capability tree",
+      "summary": null,
+      "depth": 1,
+      "home": "story_609c3b171b3f",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "story_609c3b171b3f"
+      ],
+      "at": {
+        "x": 78.71269954987862,
+        "y": -5.138191165755603,
+        "z": 165.25992956889064
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_4de11a09692e",
+      "kind": "decision",
+      "title": "5 · Agent capability claims: founding book",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_efa4328b624c",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_efa4328b624c"
+      ],
+      "at": {
+        "x": -38.046998608067426,
+        "y": 77.74066170535875,
+        "z": 161.3745637160042
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_4fa45187cbe1",
+      "kind": "decision",
+      "title": "3 · Surfaces: founding book (ADR-0632 D1 row 3; ADR-0633 D3 item 14)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_7789d00d3390",
+      "story": "story_a93c6fb1a257",
+      "entrances": [
+        "capability_7789d00d3390"
+      ],
+      "at": {
+        "x": 34.2485496636387,
+        "y": 66.92993711629099,
+        "z": 166.9741140522884
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_519f8d2b30c5",
+      "kind": "decision",
+      "title": "3 · Arc surface: founding book (ADR-0633 D3 item 14)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_d077e76e50d7",
+      "story": "story_7722ddb5461e",
+      "entrances": [
+        "capability_d077e76e50d7"
+      ],
+      "at": {
+        "x": -111.97639405326557,
+        "y": 63.11820057846138,
+        "z": 130.4235957584551
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_54a5cc32d370",
+      "kind": "decision",
+      "title": "7 · Instructions (the habits card): founding book (ADR-0626 D1 row 7 and D7)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_18edee1c0154",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_18edee1c0154"
+      ],
+      "at": {
+        "x": 77.63425630675107,
+        "y": -30.630993063574355,
+        "z": 162.99570212627364
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_57a1e3f80bf9",
+      "kind": "decision",
+      "title": "2 · Agents on the board: founding book (ADR-0626 D3 and D4)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_62c8006ef894",
+      "story": "story_7722ddb5461e",
+      "entrances": [
+        "capability_62c8006ef894"
+      ],
+      "at": {
+        "x": -86.83605316558118,
+        "y": 72.06059154207536,
+        "z": 144.22102973294335
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_59bc36372634",
+      "kind": "decision",
+      "title": "2 · Library transactions: founding book (ADR-0621 D1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_5a80222c88c4",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_5a80222c88c4"
+      ],
+      "at": {
+        "x": 22.62617749613255,
+        "y": 11.875134024268563,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_5a637443cab7",
+      "kind": "decision",
+      "title": "The librarian is a story of its own: six capabilities, on for 0.3's own library first",
+      "summary": null,
+      "depth": 1,
+      "home": "story_cec2df1b2320",
+      "story": "story_cec2df1b2320",
+      "entrances": [
+        "story_cec2df1b2320"
+      ],
+      "at": {
+        "x": -74.94881453484204,
+        "y": -98.26885206032394,
+        "z": 135.1252837723867
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_5aceecc28637",
+      "kind": "decision",
+      "title": "The app can be controlled from outside",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_076723ee3066",
+      "story": "story_a93c6fb1a257",
+      "entrances": [
+        "capability_076723ee3066"
+      ],
+      "at": {
+        "x": 75.8221834265288,
+        "y": 72.04162323631002,
+        "z": 150.3127919437044
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_5ae1815d9959",
+      "kind": "decision",
+      "title": "The story panel is a description and a clickable capability diagram",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_f0ffead428df",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_f0ffead428df"
+      ],
+      "at": {
+        "x": -48.86079086535244,
+        "y": 96.47796483596409,
+        "z": 147.77536945351474
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_5b9ef03b8a42",
+      "kind": "decision",
+      "title": "3 · Data schema: founding book (ADR-0621 D1; ADR-0636 a1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_a1d4fadbec3e",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_a1d4fadbec3e"
+      ],
+      "at": {
+        "x": 14.515835249246658,
+        "y": 21.029817954456103,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_5f30662977ae",
+      "kind": "decision",
+      "title": "10 · Work in flight: founding book (10-b)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_a7f068502213",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_a7f068502213"
+      ],
+      "at": {
+        "x": -9.061266604743633,
+        "y": -23.892596420200835,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_611484cb49a2",
+      "kind": "decision",
+      "title": "The 0.3 MVP one-page spec",
+      "summary": null,
+      "depth": 3,
+      "home": "story_609c3b171b3f",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "story_609c3b171b3f",
+        "capability_13b04e769a4b",
+        "story_a93c6fb1a257",
+        "story_deee4230348c",
+        "capability_f0ffead428df"
+      ],
+      "at": {
+        "x": 48.72690924516295,
+        "y": -3.180785007372516,
+        "z": 102.30376592359897
+      },
+      "radius": 113.36000000000001
+    },
+    {
+      "id": "decision_66bfbd433f93",
+      "kind": "decision",
+      "title": "The forest keeps 0.2's fixed view and full-size seedlings",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_8ffc78a4bad2",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_8ffc78a4bad2"
+      ],
+      "at": {
+        "x": -35.13328690948155,
+        "y": 105.96485962374908,
+        "z": 145.15521029523953
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_69b5ac6855c3",
+      "kind": "decision",
+      "title": "The forest's capability tree",
+      "summary": null,
+      "depth": 2,
+      "home": "story_deee4230348c",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "story_deee4230348c",
+        "capability_f0ffead428df"
+      ],
+      "at": {
+        "x": -19.303051948857398,
+        "y": 78.87290240496424,
+        "z": 124.02239737916976
+      },
+      "radius": 148.23999999999998
+    },
+    {
+      "id": "decision_6e254791da68",
+      "kind": "decision",
+      "title": "The app updates itself",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_6a0c1b26f586",
+      "story": "story_a93c6fb1a257",
+      "entrances": [
+        "capability_6a0c1b26f586"
+      ],
+      "at": {
+        "x": 61.48681044022845,
+        "y": 43.181208732347116,
+        "z": 166.99607706260912
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_6fb213bb979d",
+      "kind": "decision",
+      "title": "4 · Drill-down: founding book",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_f0ffead428df",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_f0ffead428df"
+      ],
+      "at": {
+        "x": -53.65809708065075,
+        "y": 101.10980977716082,
+        "z": 142.93547279982607
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_70ff04f90448",
+      "kind": "decision",
+      "title": "8 · Doctor: founding book (ADR-0645 D1 item 8)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_053416712f7c",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_053416712f7c"
+      ],
+      "at": {
+        "x": -114.42542719197701,
+        "y": -44.972568497004175,
+        "z": 135.71007366704887
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_7f839e27f1d8",
+      "kind": "decision",
+      "title": "2 · Agent activity log: founding book (ADR-0626 D2, B1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_f1d66d700591",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_f1d66d700591"
+      ],
+      "at": {
+        "x": 94.47351922495797,
+        "y": 12.973761739426763,
+        "z": 156.33096325290165
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_7ff487c18ba8",
+      "kind": "decision",
+      "title": "1 · Work states: founding book (ADR-0632 D3)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_396a53756a5c",
+      "story": "story_7722ddb5461e",
+      "entrances": [
+        "capability_396a53756a5c"
+      ],
+      "at": {
+        "x": -75.77494705760704,
+        "y": 48.64910805864404,
+        "z": 159.45016802598616
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_861e6fa952db",
+      "kind": "decision",
+      "title": "12 · Owner questions: founding book (12-a)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_5f1ce148e63a",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_5f1ce148e63a"
+      ],
+      "at": {
+        "x": 14.51583524924663,
+        "y": -21.02981795445612,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_8c8442277610",
+      "kind": "decision",
+      "title": "The command line is a front door onto the library and the agent link: ten capabilities, writes recorded by writer, friction and plan verbs, no anchors yet",
+      "summary": null,
+      "depth": 1,
+      "home": "story_f9fb5136c28f",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "story_f9fb5136c28f"
+      ],
+      "at": {
+        "x": -114.4570351511131,
+        "y": -20.02719404199328,
+        "z": 141.53244505491034
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_909ba178babf",
+      "kind": "decision",
+      "title": "The agent link's revised tree: increment claims, the wait refusal, release on merge, and planning tools",
+      "summary": null,
+      "depth": 1,
+      "home": "story_609c3b171b3f",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "story_609c3b171b3f"
+      ],
+      "at": {
+        "x": 73.21625798603749,
+        "y": 0.42925124248741153,
+        "z": 167.84555314303927
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_91348293f1ee",
+      "kind": "decision",
+      "title": "9 · Friction and re-steers: founding book (ADR-0645 D1 item 9, F1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_8419d8d4cdae",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_8419d8d4cdae"
+      ],
+      "at": {
+        "x": -103.48477534029826,
+        "y": -42.93576822339626,
+        "z": 144.84597156923215
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_914f96703a84",
+      "kind": "decision",
+      "title": "Every story and capability has a shelf of front covers",
+      "summary": null,
+      "depth": 2,
+      "home": "capability_13b04e769a4b",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_13b04e769a4b",
+        "capability_f0ffead428df"
+      ],
+      "at": {
+        "x": -15.483597014458194,
+        "y": -13.717269974338045,
+        "z": 146.78961927856133
+      },
+      "radius": 148.23999999999998
+    },
+    {
+      "id": "decision_91b4219db238",
+      "kind": "decision",
+      "title": "Five pieces of 0.2's forest are left out",
+      "summary": null,
+      "depth": 1,
+      "home": "story_deee4230348c",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "story_deee4230348c"
+      ],
+      "at": {
+        "x": -23.844946525059143,
+        "y": 97.4312323826029,
+        "z": 153.20413793897444
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_94985f0ccb52",
+      "kind": "decision",
+      "title": "The knowledge inside the planet: four capabilities, a graph that refuses loops, built alongside the MVP",
+      "summary": null,
+      "depth": 1,
+      "home": "story_d754d997f22a",
+      "story": "story_d754d997f22a",
+      "entrances": [
+        "story_d754d997f22a"
+      ],
+      "at": {
+        "x": 13.10191067827404,
+        "y": -130.0248218168038,
+        "z": 128.2763425113413
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_95280f2cfbbe",
+      "kind": "decision",
+      "title": "5 · Claims: founding book (ADR-0626 D3, C1; ADR-0643 D1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_7077da59ee64",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_7077da59ee64"
+      ],
+      "at": {
+        "x": 54.87260543795509,
+        "y": -5.087919083929652,
+        "z": 174.63116746974436
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_9c33ec3787a9",
+      "kind": "decision",
+      "title": "1 · Knowledge under its shelves: founding book (D1, approved with ADR-0647)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_c72570081c61",
+      "story": "story_d754d997f22a",
+      "entrances": [
+        "capability_c72570081c61"
+      ],
+      "at": {
+        "x": 9.101585348517892,
+        "y": -106.2161345683713,
+        "z": 148.8899872439288
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_9d11b2ad1587",
+      "kind": "decision",
+      "title": "13 · Decision log: founding book (13-a)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_78d6e026f902",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_78d6e026f902"
+      ],
+      "at": {
+        "x": 22.626177496132552,
+        "y": -11.875134024268561,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_9ec9a13fbeb4",
+      "kind": "decision",
+      "title": "The library's revised tree: eight more knowledge kinds, work in flight, waits, owner questions and the decision log",
+      "summary": null,
+      "depth": 1,
+      "home": "story_754e87e7d531",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "story_754e87e7d531"
+      ],
+      "at": {
+        "x": 0,
+        "y": 0,
+        "z": 183.12
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_a12097957060",
+      "kind": "decision",
+      "title": "Minimal viable TDD",
+      "summary": null,
+      "depth": 2,
+      "home": "story_a93c6fb1a257",
+      "story": "story_a93c6fb1a257",
+      "entrances": [
+        "story_a93c6fb1a257"
+      ],
+      "at": {
+        "x": 47.602640536557146,
+        "y": 54.71672632314664,
+        "z": 129.28714582055397
+      },
+      "radius": 148.23999999999998
+    },
+    {
+      "id": "decision_a821017e746d",
+      "kind": "decision",
+      "title": "1 · Project libraries: founding book (ADR-0621 D3)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_5e0362aae607",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_5e0362aae607"
+      ],
+      "at": {
+        "x": 25.553135153652594,
+        "y": 0,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_a8ca582fe22d",
+      "kind": "decision",
+      "title": "4 · Arcs and increments: founding book (ADR-0645 D1 item 4)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_81ad90bacdbc",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_81ad90bacdbc"
+      ],
+      "at": {
+        "x": -117.90427193162965,
+        "y": 5.310072697731844,
+        "z": 140.01185731293307
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_ab42aa0b7279",
+      "kind": "decision",
+      "title": "The library's capability tree",
+      "summary": null,
+      "depth": 1,
+      "home": "story_754e87e7d531",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "story_754e87e7d531"
+      ],
+      "at": {
+        "x": -6.074163988147483,
+        "y": 5.564431781335217,
+        "z": 182.93462228565693
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_ac738439f3a0",
+      "kind": "decision",
+      "title": "6 · Unclaimed work: founding book",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_8b120b7271d8",
+      "story": "story_deee4230348c",
+      "entrances": [
+        "capability_8b120b7271d8"
+      ],
+      "at": {
+        "x": -12.79785522066348,
+        "y": 77.74066170535875,
+        "z": 165.30438233562933
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_aeed8aeee659",
+      "kind": "decision",
+      "title": "2 · Storytree projects: founding book (ADR-0632 D4 and D3)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_3c5ed8b3ca70",
+      "story": "story_a93c6fb1a257",
+      "entrances": [
+        "capability_3c5ed8b3ca70"
+      ],
+      "at": {
+        "x": 54.96905056523498,
+        "y": 90.67866550023486,
+        "z": 149.2940638573857
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_b211a3cf352a",
+      "kind": "decision",
+      "title": "8 · Cloud connection (GCP): founding book (ADR-0621 D4)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_a954e1eb16f6",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_a954e1eb16f6"
+      ],
+      "at": {
+        "x": -24.81060748702099,
+        "y": -6.115265513926106,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_b77bc6d23919",
+      "kind": "decision",
+      "title": "8 · Setup check: founding book (ADR-0626 D5)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_199d7af33d32",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_199d7af33d32"
+      ],
+      "at": {
+        "x": 94.03749187969538,
+        "y": -23.14959990728608,
+        "z": 155.41550934546015
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_b940ed415ec9",
+      "kind": "decision",
+      "title": "4 · Waits: founding book (ADR-0633 D3 item 3; ADR-0628 D6)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_fa8ea39882fe",
+      "story": "story_7722ddb5461e",
+      "entrances": [
+        "capability_fa8ea39882fe"
+      ],
+      "at": {
+        "x": -116.45287310263912,
+        "y": 34.18001553882671,
+        "z": 137.12545089773164
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_c9ba244fd3d6",
+      "kind": "decision",
+      "title": "ADR-0650: 0.3's library has no memory type, and its knowledge records are called artifacts",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_baaeecb42577",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_baaeecb42577"
+      ],
+      "at": {
+        "x": -9.06126660474362,
+        "y": 23.89259642020084,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_ca11ceae8dba",
+      "kind": "decision",
+      "title": "2 · Earlier decisions beside their replacements: founding book (G2, approved with ADR-0647)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_7889e605384c",
+      "story": "story_d754d997f22a",
+      "entrances": [
+        "capability_7889e605384c"
+      ],
+      "at": {
+        "x": 38.3946027902493,
+        "y": -128.75265846769702,
+        "z": 124.42484403879938
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_cc981dbccd5f",
+      "kind": "decision",
+      "title": "7 · Board, read only: founding book (ADR-0645 D1 item 7)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_56dfc9b9c3cf",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_56dfc9b9c3cf"
+      ],
+      "at": {
+        "x": -125.02057049905139,
+        "y": -39.027177121030455,
+        "z": 127.98308793764687
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_d04020c2b4c1",
+      "kind": "decision",
+      "title": "3 · Hooks: founding book (ADR-0626 D1 row 3 and D4, E1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_10e1dea84e5b",
+      "story": "story_609c3b171b3f",
+      "entrances": [
+        "capability_10e1dea84e5b"
+      ],
+      "at": {
+        "x": 78.25089209198697,
+        "y": 20.45515489571504,
+        "z": 164.29034945790488
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_d23dbdb96a2b",
+      "kind": "decision",
+      "title": "7 · Library API: founding book (ADR-0621 D1 and D5)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_75d059640d9d",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_75d059640d9d"
+      ],
+      "at": {
+        "x": -24.810607487020985,
+        "y": 6.115265513926112,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_d84bf8c77a1e",
+      "kind": "decision",
+      "title": "The app's capability tree",
+      "summary": null,
+      "depth": 1,
+      "home": "story_a93c6fb1a257",
+      "story": "story_a93c6fb1a257",
+      "entrances": [
+        "story_a93c6fb1a257"
+      ],
+      "at": {
+        "x": 58.80326183927648,
+        "y": 67.59125016388703,
+        "z": 159.70765071950788
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_da37f3db9903",
+      "kind": "decision",
+      "title": "3 · Catalogue: founding book (proposed, approved; 0.2's `edit-first-curation`)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_36bcae448803",
+      "story": "story_cec2df1b2320",
+      "entrances": [
+        "capability_36bcae448803"
+      ],
+      "at": {
+        "x": -91.14867960933206,
+        "y": -78.63407743735155,
+        "z": 137.99106663495263
+      },
+      "radius": 183.12
+    },
+    {
+      "id": "decision_e360a095c406",
+      "kind": "decision",
+      "title": "4 · Work model: founding book (ADR-0621 D2)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_dd486ffa5b02",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_dd486ffa5b02"
+      ],
+      "at": {
+        "x": 3.0800900815368766,
+        "y": 25.36682402805787,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_e73cd3e83fa5",
+      "kind": "decision",
+      "title": "Decisions about the whole project sit on no shelf",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_13b04e769a4b",
+      "story": "story_754e87e7d531",
+      "entrances": [
+        "capability_13b04e769a4b"
+      ],
+      "at": {
+        "x": -19.126796311977774,
+        "y": -16.94486290947641,
+        "z": 181.32835322645815
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_e9a82de47352",
+      "kind": "decision",
+      "title": "10 · Plan view: founding book (ADR-0645 D1 item 10, P1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_f874f7de8110",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_f874f7de8110"
+      ],
+      "at": {
+        "x": -131.90632212323044,
+        "y": -26.98721384921864,
+        "z": 124.11827775383892
+      },
+      "radius": 183.11999999999998
+    },
+    {
+      "id": "decision_fae3dd7b8ffa",
+      "kind": "decision",
+      "title": "6 · Rounds: founding book (proposed, approved; 0.2's `pre-merge-librarian-pass`)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_389fd5e3722d",
+      "story": "story_cec2df1b2320",
+      "entrances": [
+        "capability_389fd5e3722d"
+      ],
+      "at": {
+        "x": -57.2823504898175,
+        "y": -115.9807010418203,
+        "z": 129.61536833342572
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "decision_fee3ecbf6de5",
+      "kind": "decision",
+      "title": "2 · Who wrote it: founding book (ADR-0645 D2, W1 and A1)",
+      "summary": null,
+      "depth": 1,
+      "home": "capability_3c32df358d67",
+      "story": "story_f9fb5136c28f",
+      "entrances": [
+        "capability_3c32df358d67"
+      ],
+      "at": {
+        "x": -97.57234081647665,
+        "y": -6.099049803538197,
+        "z": 154.83983434209458
+      },
+      "radius": 183.12000000000003
+    },
+    {
+      "id": "agent_0b14b89a31ce",
+      "kind": "agent",
+      "title": "frontend-builder",
+      "summary": "The builder for storytree's visual surfaces (the forest planet, the arc surface, the desktop app's views): it proves geometry and behaviour red→green, witnesses the look with seeded captures, judges appearance against a named principle, and leaves the look's final call to the owner.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "radius": 0
+    },
+    {
+      "id": "agent_14dfa5f34189",
+      "kind": "agent",
+      "title": "session-orchestrator",
+      "summary": "The interactive session developing storytree 0.3: it turns the owner's intent into landed work, one green increment at a time, and escalates the rest.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": 0,
+        "z": 0
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "agent_82228ab38aec",
+      "kind": "agent",
+      "title": "explorer",
+      "summary": "The read-only sweep a session sends hunting when it does not yet know the answer's shape; it returns a short cited digest and its raw search output dies with it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -65.9739972080327,
+        "z": -65.9739972080327
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "agent_bf87c8aaa4b8",
+      "kind": "agent",
+      "title": "story-author",
+      "summary": "The author of WHAT gets built: the plan of stories, capabilities and contracts, each story one user journey living in one package, each capability founded on its decision, each contract one testable promise.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 65.9739972080327,
+        "z": 65.9739972080327
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "agent_d6a2ac6972a3",
+      "kind": "agent",
+      "title": "corpus-investigator",
+      "summary": "A read-only subagent that checks one question about the current state of a project's library and code against the source the system enforces, and returns a structured verdict — never a guess, never a write.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -65.9739972080327,
+        "z": -98.96099581204905
+      },
+      "radius": 118.93631489043999
+    },
+    {
+      "id": "agent_e314f29707ec",
+      "kind": "agent",
+      "title": "librarian-curator",
+      "summary": "The keeper of a project's library as a library: new notes are genuinely new, links mean 'rests on', every accepted decision stays true in full, durable lessons graduate out of agent memory, and the question and friction queues are drained.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": 32.98699860401635,
+        "z": 65.9739972080327
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "decision_086ba2fa35d6",
+      "kind": "decision",
+      "title": "6 · Knowledge and memory: founding book (6-a)",
+      "summary": null,
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 32.98699860401635,
+        "z": -65.9739972080327
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "decision_4f2235a6ee77",
+      "kind": "decision",
+      "title": "The forest becomes a planet, and each read names its agent",
+      "summary": null,
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 32.98699860401635,
+        "z": 0
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "decision_6be3b0bfb19e",
+      "kind": "decision",
+      "title": "Verified health is dropped from the MVP",
+      "summary": null,
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": -32.98699860401635,
+        "z": -65.9739972080327
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "decision_b8617ff29caf",
+      "kind": "decision",
+      "title": "The license: PolyForm Shield",
+      "summary": null,
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": -32.98699860401635,
+        "z": 65.9739972080327
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "decision_e3661ebef646",
+      "kind": "decision",
+      "title": "7 · Library entrypoints: founding book",
+      "summary": null,
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 65.9739972080327,
+        "z": -98.96099581204905
+      },
+      "radius": 118.93631489043999
+    },
+    {
+      "id": "guardrail_2d0fb4d45f75",
+      "kind": "guardrail",
+      "title": "Never mock a module — give the code a seam",
+      "summary": "If a test must substitute a collaborator, the code offers a narrow seam with a real default; the module system is never rewritten under test.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -98.96099581204905,
+        "y": -65.9739972080327,
+        "z": 0
+      },
+      "radius": 118.93631489043999
+    },
+    {
+      "id": "guardrail_2f0b3ec349d9",
+      "kind": "guardrail",
+      "title": "Verification is never bypassed",
+      "summary": "A change reaches main only through a PR that CI verifies green; no path skips, waives or hand-merges around it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": -65.9739972080327,
+        "z": -32.98699860401635
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "guardrail_40e3fd9d51a3",
+      "kind": "guardrail",
+      "title": "Types stay honest",
+      "summary": "Never launder a value past the compiler — `as unknown as T`, a known value annotated wider than it is, or an omission hidden in `...(c ? {x} : {})`.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 65.9739972080327,
+        "z": -32.98699860401635
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "guardrail_647d58a593c5",
+      "kind": "guardrail",
+      "title": "The owner owns the outer loop",
+      "summary": "Driving a unit to green is the agent's job; owner-level calls — design forks, how work is split, abandoning work, irreversible or outward actions — are the owner's.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -65.9739972080327,
+        "z": 32.98699860401635
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "guardrail_6ac067d45164",
+      "kind": "guardrail",
+      "title": "Escalate up when blocked or out of scope",
+      "summary": "A spawned specialist that hits work outside its role, with no process, or blocked by a missing capability stops and hands it up with the reason.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 0,
+        "z": -32.98699860401635
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "guardrail_b114f702f8de",
+      "kind": "guardrail",
+      "title": "The library is the edit surface",
+      "summary": "Library content is edited only through the library's own validated write path; generated files are regenerated from it, never hand-edited.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -65.9739972080327,
+        "z": 98.96099581204905
+      },
+      "radius": 118.93631489043999
+    },
+    {
+      "id": "guardrail_bdb3f0e65931",
+      "kind": "guardrail",
+      "title": "An agent never self-attests",
+      "summary": "A verdict only the owner can give — a look, a feel, a live check, a spend — is never granted by the agent that did the work.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 0,
+        "z": 98.96099581204905
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "pattern_28ad4dd7868e",
+      "kind": "pattern",
+      "title": "Parallel build-lane fan-out",
+      "summary": "When two or more genuinely independent increments are ready, build them as about three subagent lanes in separate claimed worktrees and land their PRs concurrently — after screening for the conflicts file-disjointness cannot see.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 0,
+        "z": -98.96099581204905
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "pattern_3d1ac0a1ee70",
+      "kind": "pattern",
+      "title": "Proof-walkthrough first",
+      "summary": "Draft a story, capability or contract's proof before its prose; if no coherent proof exists, the unit is the wrong size or tier.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": 65.9739972080327,
+        "z": 0
+      },
+      "radius": 118.93631489043999
+    },
+    {
+      "id": "pattern_4ed1969a172c",
+      "kind": "pattern",
+      "title": "Edit-first curation",
+      "summary": "Editing the closest existing note is the default; writing a new one is the justified exception, taken only after a named search.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": -65.9739972080327,
+        "z": 0
+      },
+      "radius": 93.30132161556456
+    },
+    {
+      "id": "pattern_67e658cde793",
+      "kind": "pattern",
+      "title": "Decompose by testability; delegate the glue",
+      "summary": "Split work by whether each piece has an isolatable behaviour worth a red-green test, not by package; test those pieces, and hand the untestable glue to subagents without faking a proof.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 65.9739972080327,
+        "z": 0
+      },
+      "radius": 93.30132161556456
+    },
+    {
+      "id": "pattern_71e822187330",
+      "kind": "pattern",
+      "title": "Pull-based context architecture",
+      "summary": "Brief an agent thinly and let it pull fresh context just-in-time, rather than pushing a fat static brief at session start.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": 32.98699860401635,
+        "z": 0
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "pattern_a45e96114c7a",
+      "kind": "pattern",
+      "title": "An example carries its discriminator",
+      "summary": "A worked example in guidance must include the rationale naming why this move beats the tempting alternative; without it the example is decoration.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -65.9739972080327,
+        "z": -32.98699860401635
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "pattern_ad3e87c83f34",
+      "kind": "pattern",
+      "title": "When a term is in question, the definition note wins",
+      "summary": "The library's definition notes are the authoritative vocabulary every layer speaks; when a term's meaning is contested, the definition wins.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": 65.9739972080327,
+        "z": 32.98699860401635
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "pattern_e99d4cdbe809",
+      "kind": "pattern",
+      "title": "A measured claim carries the method that produced it",
+      "summary": "A live number written into a durable note travels with how it was measured, so the next reader can re-run it instead of reconstructing it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": -65.9739972080327,
+        "z": 32.98699860401635
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "pattern_ee166b5c76ba",
+      "kind": "pattern",
+      "title": "Pair the fence with the affordance",
+      "summary": "When guidance grants a capability, tool, or move, state its boundary — the when-NOT-to — in the same place, not separately.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": -65.9739972080327,
+        "z": -65.9739972080327
+      },
+      "radius": 114.27031514271988
+    },
+    {
+      "id": "pattern_efc36d671fa5",
+      "kind": "pattern",
+      "title": "Render and witness a flag-guarded surface",
+      "summary": "A visual builder's own screenshots are feedback, never a verdict: push machine-checkable visual facts into tests, witness the rest with a committed harness, and hand the owner a working surface to attest.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": 65.9739972080327,
+        "z": 65.9739972080327
+      },
+      "radius": 114.27031514271988
+    },
+    {
+      "id": "principle_00574b7381cb",
+      "kind": "principle",
+      "title": "A compliance gate turns a judgment ceremony into theatre",
+      "summary": "A ceremony whose value is a judgment cannot be enforced by a check — a check reads only a proxy, and every proxy can be produced without the judgment.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": -65.9739972080327,
+        "z": 65.9739972080327
+      },
+      "radius": 114.27031514271988
+    },
+    {
+      "id": "principle_037c644a6e7c",
+      "kind": "principle",
+      "title": "Minimum test to red: pin the missing behaviour, nothing else",
+      "summary": "Write the minimum test that goes red for a missing product behaviour; no tests whose subject is a decision, a retirement, prose or repo structure.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 65.9739972080327,
+        "z": -65.9739972080327
+      },
+      "radius": 114.27031514271988
+    },
+    {
+      "id": "principle_049430a6e917",
+      "kind": "principle",
+      "title": "Test creation principles",
+      "summary": "A test verifies the real outcome, not a proxy, and must fail if the behaviour it pins were removed.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 65.9739972080327,
+        "z": -32.98699860401635
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_084e4640a77f",
+      "kind": "principle",
+      "title": "A contract that says \"observable\" must name its observer",
+      "summary": "An observability predicate with no named observer gets satisfied by whatever can observe most cheaply — usually a machine-readable marker no person will ever see.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": 0,
+        "z": 32.98699860401635
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_08737a12669c",
+      "kind": "principle",
+      "title": "Cross-story dependency direction and the no-cycle rule",
+      "summary": "A story depends on another only when it needs that story's delivered outcome to deliver its own; the story graph is acyclic, and an apparent cycle is fixed by re-allocating the double-counted outcome.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -65.9739972080327,
+        "z": 65.9739972080327
+      },
+      "radius": 93.30132161556456
+    },
+    {
+      "id": "principle_139ec9dc3f17",
+      "kind": "principle",
+      "title": "Observability-first",
+      "summary": "If a state change is not a recorded, typed fact the app can render, it does not exist; design the record before the feature.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 65.9739972080327,
+        "z": -65.9739972080327
+      },
+      "radius": 93.30132161556456
+    },
+    {
+      "id": "principle_13a38824af26",
+      "kind": "principle",
+      "title": "Two-consumer extraction",
+      "summary": "Extract shared content into its own note only when two or more current consumers share it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 0,
+        "z": 0
+      },
+      "radius": 32.98699860401635
+    },
+    {
+      "id": "principle_155218ce771f",
+      "kind": "principle",
+      "title": "Signal and noise",
+      "summary": "Judge guidance by discriminatory power: keep what helps an agent choose the right move, cut the rest.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": -32.98699860401635,
+        "z": 0
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_183377547f97",
+      "kind": "principle",
+      "title": "Deep modules",
+      "summary": "An interface is a cost every caller pays; draw a boundary only where the functionality it hides justifies that cost.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 65.9739972080327,
+        "z": 32.98699860401635
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_1e3418812c33",
+      "kind": "principle",
+      "title": "Legible at the resting view",
+      "summary": "A visual surface's primary objects, and the meaning they carry, must be distinguishable at the view a reader arrives at, before any zoom or pan.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -98.96099581204905,
+        "y": 0,
+        "z": -32.98699860401635
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_1f4e24939fac",
+      "kind": "principle",
+      "title": "Exploration principles",
+      "summary": "Exploration is read-only reconnaissance: discover patterns over enumerating files, stay context-minimal, stay in scope, never mutate.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": 0,
+        "z": 32.98699860401635
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_2366111e8a67",
+      "kind": "principle",
+      "title": "Claim by write-ownership — the capability you will write",
+      "summary": "A session claims what it will WRITE: the capability that owns the files it will change, every one of them, or the increment it is driving when no capability can be named.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -65.9739972080327,
+        "y": -98.96099581204905,
+        "z": 0
+      },
+      "radius": 118.93631489043999
+    },
+    {
+      "id": "principle_25e8591976f5",
+      "kind": "principle",
+      "title": "Slow growth: the minimum to green",
+      "summary": "Write the minimum source that turns the failing test green — no speculative abstraction, dependency or refactor.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 0,
+        "z": 98.96099581204905
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "principle_275d164491ec",
+      "kind": "principle",
+      "title": "Least-authority tool grants",
+      "summary": "Grant an agent role only the tools a named workflow step uses; every grant names the step that demands it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -32.98699860401635,
+        "z": 98.96099581204905
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_31651a3224fb",
+      "kind": "principle",
+      "title": "Defects amend the owning capability",
+      "summary": "A defect is fixed under the capability whose contract it violates, not filed as a new unit.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 32.98699860401635,
+        "z": -98.96099581204905
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_34cb39f936b3",
+      "kind": "principle",
+      "title": "One way to do things",
+      "summary": "A surface offers one pathway to a capability; a second pathway needs a strong, stated justification.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": -32.98699860401635,
+        "z": -98.96099581204905
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_3c243d0d86a1",
+      "kind": "principle",
+      "title": "The reader chooses the thread and the depth",
+      "summary": "Triage is pushed and investigation is pulled: the system says what needs attention; the operator chooses which thread and how deep.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 32.98699860401635,
+        "z": 98.96099581204905
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_3e47feb3d912",
+      "kind": "principle",
+      "title": "Red-green",
+      "summary": "Author the failing test before the implementation that turns it green.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -32.98699860401635,
+        "z": 65.9739972080327
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_425d1687511a",
+      "kind": "principle",
+      "title": "An observable is evidence only for what it observes",
+      "summary": "A check must key on something that can see the property it gates, and a number is evidence only for what it measured, over the interval it spanned.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 98.96099581204905,
+        "z": 0
+      },
+      "radius": 118.93631489043999
+    },
+    {
+      "id": "principle_43ea5d4f68c4",
+      "kind": "principle",
+      "title": "The resting view is designed, not fitted",
+      "summary": "The composition a reader arrives at is a decision someone made; 'the fit function computes it' is not evidence it is right.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -98.96099581204905,
+        "z": 0
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_4642c49301e6",
+      "kind": "principle",
+      "title": "Price the deferral",
+      "summary": "A blocker that exists only as prose is an untested estimate; state its quantity or spend the probe that settles it before it defers work again.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 98.96099581204905,
+        "z": 0
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_48af5028121b",
+      "kind": "principle",
+      "title": "Implementation outranks the doc",
+      "summary": "Code is ground truth; when a doc claim and the code disagree, the gap itself is what must be surfaced, not built on.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_4e9e67b0f6ee",
+      "kind": "principle",
+      "title": "A spec body describes only what it contracts",
+      "summary": "An implementing agent reads a capability's body as instruction: a concretely described but uncontracted behaviour gets built instead of the contract it was asked for.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_5126b1c5db6b",
+      "kind": "principle",
+      "title": "Reference, don't restate",
+      "summary": "Durable discipline lives once in the library; every other surface links to it rather than copying it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": -32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_561ef0d505d9",
+      "kind": "principle",
+      "title": "Durable notes carry intent, not implementation surface",
+      "summary": "File lists, package paths and edit footprints rot fast; a durable note carries intent, outcomes and pointers, and names code only by its owning surface.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_5a995978191e",
+      "kind": "principle",
+      "title": "The owner-fork bar: escalate ownership, not uncertainty",
+      "summary": "Raise an open question for the owner only when the decision is his - irreversible, outward-facing, or value-laden and unsettled; decide and record a reversible engineering call.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_653f7dd8ad04",
+      "kind": "principle",
+      "title": "Register follows audience",
+      "summary": "Translate machine vocabulary for the owner; keep it compressed and precise between agents.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_67593a23b40a",
+      "kind": "principle",
+      "title": "The splitting rule",
+      "summary": "Split a unit only when its outcome needs conjunctions or its proof shares no common precondition and observable; length never counts.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": -32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_6a4150acf3ea",
+      "kind": "principle",
+      "title": "Route structural forks to story-author, not the owner",
+      "summary": "Package layout, dependency edges and story boundaries are the story-author's call, not the owner's.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 57.13515757135994
+    },
+    {
+      "id": "principle_758d83408b98",
+      "kind": "principle",
+      "title": "An awaited notification is never a turn-ending state",
+      "summary": "Never end a turn waiting for a notification from work you dispatched — delivery rides your next tool call, so ending the turn forfeits the result.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 32.98699860401635,
+        "z": -65.9739972080327
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_786a13e07cbc",
+      "kind": "principle",
+      "title": "The author of the work is not its only witness",
+      "summary": "Whoever authored the work does not get to be the only witness that it worked.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -98.96099581204905,
+        "y": -32.98699860401635,
+        "z": 0
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_79e34898a2c8",
+      "kind": "principle",
+      "title": "Machine in the loop is the default; a human is the exception",
+      "summary": "Require a human only for taste or a judgment models cannot yet make; independence, not a person, is what keeps a verdict honest.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": 32.98699860401635,
+        "z": 0
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_7e2a7e9b607f",
+      "kind": "principle",
+      "title": "Decide against a standard, not a budget",
+      "summary": "What licenses a session to decide in the owner's stead is a written standard it can be checked against, never a spend, turn or agent budget; a recurring escalation signals a missing standard.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 32.98699860401635,
+        "z": 65.9739972080327
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_8048cf08cfde",
+      "kind": "principle",
+      "title": "A human's words are stored verbatim, or not at all",
+      "summary": "A field that durably records what a human said holds his exact words or stays empty — a paraphrase in it is a defect, never a lesser filling.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -65.9739972080327,
+        "z": 0
+      },
+      "radius": 65.9739972080327
+    },
+    {
+      "id": "principle_882f0f72455d",
+      "kind": "principle",
+      "title": "The authoritative source beats the derived one",
+      "summary": "When sources disagree — or before you rely on one — resolve to the source the system enforces, not the one that merely mentions the fact.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 0,
+        "z": -98.96099581204905
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_94a7609d8047",
+      "kind": "principle",
+      "title": "Escalate inline, or on a named signal",
+      "summary": "An owner decision reaches the owner either before it lands or on a named instrument's signal, never on nothing.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 0,
+        "z": 98.96099581204905
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_95fd6ea3af9e",
+      "kind": "principle",
+      "title": "A decision that blinds an instrument escalates inline",
+      "summary": "A decision that removes, narrows or weakens a signal the owner relies on goes to the owner before it lands, however reversible it looks.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 98.96099581204905,
+        "z": 0
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "principle_9d0928f79f5b",
+      "kind": "principle",
+      "title": "No claim without evidence",
+      "summary": "A claim is admissible only with the evidence that proves it - verbatim output, a path and line, a command and field, a record id - never a paraphrase or impression.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 65.9739972080327,
+        "z": -32.98699860401635
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_9e78ac0605c3",
+      "kind": "principle",
+      "title": "Read the force a decision answered, not the clause it left behind",
+      "summary": "A decision's clause binds only while the force it answered still holds — read the why before complying or escalating.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 65.9739972080327,
+        "z": 32.98699860401635
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_a04ef5bf4787",
+      "kind": "principle",
+      "title": "A deferral recorded without a status reads as pending work",
+      "summary": "A decision not to build, written into a medium with no status and no owner, cannot be told apart from unfinished work — promote it into a status-bearing record.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -32.98699860401635,
+        "z": -65.9739972080327
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "principle_a24f9d3a9648",
+      "kind": "principle",
+      "title": "Prose names a set it never checked",
+      "summary": "A written list or existence claim reads as a checked set even when nobody checked it; re-derive it against the code before using it as a worklist, and scope it to what you searched when writing it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 65.9739972080327,
+        "y": 0,
+        "z": 0
+      },
+      "radius": 65.9739972080327
+    },
+    {
+      "id": "principle_ac5f245517d1",
+      "kind": "principle",
+      "title": "Delegate exploration to digest-returning subagents",
+      "summary": "Multi-step or broad exploration runs in a read-only subagent that returns conclusions plus file:line pointers, not raw file contents in the main session.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 0,
+        "z": -98.96099581204905
+      },
+      "radius": 98.96099581204905
+    },
+    {
+      "id": "principle_b6c49306c650",
+      "kind": "principle",
+      "title": "An owner-approved reference is repo-resident",
+      "summary": "An owner's approval is only as durable as the artifact it was given to: commit the approved thing and cite it by repo path.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -65.9739972080327,
+        "z": 32.98699860401635
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_bc27a43350bf",
+      "kind": "principle",
+      "title": "Stateless graduates, stateful stays",
+      "summary": "Only stateless rules graduate from memory into library guidance; stateful context stays ephemeral, and uncertainty withholds.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": -65.9739972080327,
+        "z": -32.98699860401635
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_bc9f530a3303",
+      "kind": "principle",
+      "title": "Guidance quality: structure over emphasis",
+      "summary": "Fix unfollowed guidance with structure (path, signpost, fence, offload), not emphasis (caps, repetition, strong language).",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -32.98699860401635,
+        "z": -65.9739972080327
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_bd1191c7312a",
+      "kind": "principle",
+      "title": "Plain language first",
+      "summary": "Lead with the stake, gloss every internal term and decision number on first use, and draw structural subjects - so a reader without the repo loaded can decide.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 32.98699860401635,
+        "z": -65.9739972080327
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_c1855a8e6514",
+      "kind": "principle",
+      "title": "A check that could not run is unverified, not refuted",
+      "summary": "A verdict from a checker that did not run, could not match, or could not read an item is unknown — never a negative.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -98.96099581204905,
+        "y": 0,
+        "z": 32.98699860401635
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_c21ba0716b71",
+      "kind": "principle",
+      "title": "One element per signal",
+      "summary": "Each observed signal renders as its own distinct element on the forest planet; complexity emerges from the stack, never from a composite score.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": 0,
+        "z": -32.98699860401635
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_c660f3c89819",
+      "kind": "principle",
+      "title": "The journey principle",
+      "summary": "A story covers one complete consumer journey; if finishing A naturally leads the consumer to need B, they are the same story.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -98.96099581204905,
+        "y": -32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_d1d6fab2499e",
+      "kind": "principle",
+      "title": "De-noising promotes a signal, never drops it",
+      "summary": "When a dense observability view is de-noised, every real signal is kept at lower salience — a stamp, a thin line, a badge — never deleted.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -98.96099581204905,
+        "y": 32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_d5794238a5ab",
+      "kind": "principle",
+      "title": "Tightening a shared contract needs a full sweep",
+      "summary": "When a shared validator starts rejecting what it accepted, test every consumer; scope any completeness-claiming sweep by enumerating units, never by grepping a marker.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": -32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_d7c1d363bd3b",
+      "kind": "principle",
+      "title": "Mechanical waiting never pays context rent",
+      "summary": "Wait for a machine by dispatching it and being notified, never by a sleep-and-re-read loop that re-bills the whole context to learn \"not yet\".",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": 32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_da258f7e96be",
+      "kind": "principle",
+      "title": "Verify an edit persisted, or escalate",
+      "summary": "Read back every write your report depends on; if it did not land, say so before any workaround.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -32.98699860401635,
+        "z": -98.96099581204905
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_e1f7a9a377d0",
+      "kind": "principle",
+      "title": "Citing a document is not reading it",
+      "summary": "A sentence describing what another document says is derived from it, and the citation riding alongside makes it look checked — open the passage before you write the sentence.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 32.98699860401635,
+        "z": 98.96099581204905
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "principle_e3e5bf53649f",
+      "kind": "principle",
+      "title": "Accepted decisions carry no stale prose",
+      "summary": "An accepted decision is true in full: overtaken content is corrected in place, a genuine re-decision supersedes, and a narrowed clause is annotated where it sits.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 46.65066080778228
+    },
+    {
+      "id": "principle_e575d0cb1d97",
+      "kind": "principle",
+      "title": "Show what matters at the stage they are at",
+      "summary": "A surface takes a position on what deserves the operator's attention now — and always leaves one way to overrule it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 46.65066080778228
+    },
+    {
+      "id": "principle_eabea9e3d90b",
+      "kind": "principle",
+      "title": "A story's proof proves the goal, not the surface",
+      "summary": "Prove the story's outcome with the minimal end-to-end case; grow the list one case per real defect.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 32.98699860401635,
+        "z": 65.9739972080327
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_efa652a21e64",
+      "kind": "principle",
+      "title": "An escape sequence in a tool argument becomes a real byte",
+      "summary": "Tool-call channels decode escapes before text lands, so keep tool-call strings printable ASCII and build control characters at runtime.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": -32.98699860401635,
+        "z": 65.9739972080327
+      },
+      "radius": 80.80131472574105
+    },
+    {
+      "id": "principle_f077cb889052",
+      "kind": "principle",
+      "title": "The same file in another tree is a different file",
+      "summary": "In a worktree session, resolve every path against your own tree's root; another checkout's bytes and status are not evidence about your branch.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 32.98699860401635,
+        "z": 0
+      },
+      "radius": 32.98699860401635
+    },
+    {
+      "id": "principle_f39ecf3320a9",
+      "kind": "principle",
+      "title": "Signals must be real",
+      "summary": "Everything a surface shows is a reading taken from real code and telemetry, never a description generated alongside it.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": -98.96099581204905,
+        "z": -32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_f72b66ffa0cd",
+      "kind": "principle",
+      "title": "Cold rebuild",
+      "summary": "Write a story self-contained enough that a cold agent could rebuild it from its own spec plus its upstream stories' declared interfaces.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 98.96099581204905,
+        "z": 32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "principle_fb9b404a41b3",
+      "kind": "principle",
+      "title": "Friction earns durable guidance by supporting evidence, not by being reported",
+      "summary": "A friction item graduates into guidance only when its evidence actually supports the lesson and the lesson is not already reconstructible; worth is judged, never counted.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": -98.96099581204905,
+        "z": 32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "process_0967b1a1d3cb",
+      "kind": "process",
+      "title": "Merge ceremony",
+      "summary": "How a green unit lands on main: PR, CI on three systems, automerge; then the closing leg and the continue-or-inert call.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": 98.96099581204905,
+        "z": -32.98699860401635
+      },
+      "radius": 109.40549732949961
+    },
+    {
+      "id": "process_529c2dd67bbf",
+      "kind": "process",
+      "title": "Pre-merge librarian pass",
+      "summary": "After green and before opening the PR: graduate what this session learned (always), and curate the decision log and guidance notes (only when the trigger fires).",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 32.98699860401635,
+        "y": -65.9739972080327,
+        "z": 0
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "process_642f0040a5de",
+      "kind": "process",
+      "title": "Stage the owner's look",
+      "summary": "When the owner must see something running to judge it, start it yourself, prove it serves, and hand over a working link plus what to judge.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -32.98699860401635,
+        "y": 65.9739972080327,
+        "z": 0
+      },
+      "radius": 73.76117125227123
+    },
+    {
+      "id": "process_693209c6a91a",
+      "kind": "process",
+      "title": "Library edit ceremony",
+      "summary": "How a session changes library state: search first, write through `storytree library`, carry long text in files, regenerate guidance after guidance edits.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": -98.96099581204905,
+        "y": 32.98699860401635,
+        "z": 0
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "process_911ad6a734c1",
+      "kind": "process",
+      "title": "Attempt privileged actions, approve inline",
+      "summary": "When an action needs the owner's go-ahead, attempt it and let approval happen inline - never decline in prose and hand the command back.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 98.96099581204905,
+        "y": -32.98699860401635,
+        "z": 0
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "process_c919b1ebdbcd",
+      "kind": "process",
+      "title": "Justify a new check",
+      "summary": "Before adding a check every change pays for, show a real escape it would have caught - by replaying recorded history through its own predicate, not by argument.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -32.98699860401635,
+        "z": -32.98699860401635
+      },
+      "radius": 46.65066080778228
+    },
+    {
+      "id": "process_cd52098612cb",
+      "kind": "process",
+      "title": "Friction adjudication",
+      "summary": "How a friction item is judged and routed: the ordered seven-question gate, then one route, with verification matched to how widely the result will be read.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 32.98699860401635,
+        "z": 32.98699860401635
+      },
+      "radius": 46.65066080778228
+    },
+    {
+      "id": "process_d7eaa00da14b",
+      "kind": "process",
+      "title": "Migrate a library schema: expand, migrate, contract",
+      "summary": "A schema change that drops or narrows something lands as expand, then migrate, then contract, in separate PRs - never a one-shot swap.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": -98.96099581204905,
+        "z": -32.98699860401635
+      },
+      "radius": 104.31404876148642
+    },
+    {
+      "id": "process_e94a82a59c04",
+      "kind": "process",
+      "title": "Affected-only test scope",
+      "summary": "How `pnpm test` narrows to the packages a change can reach, what forces the full run, and how to read a narrow green.",
+      "depth": null,
+      "home": null,
+      "story": null,
+      "entrances": [],
+      "at": {
+        "x": 0,
+        "y": 98.96099581204905,
+        "z": 32.98699860401635
+      },
+      "radius": 104.31404876148642
+    }
+  ],
+  "noShelfMeaning": "No recorded route from a shelf; no depth. Spread in a filled ball within 0.55 radii, at least 0.035 radii apart and clear of shelf points."
+}

@@ -56,7 +56,7 @@ test("4.1 the core keeps each shelf's entrance, named, at its island's place, an
   assert.ok(length(scene.notes.find(({ id }) => id === "loose")!.at) > RADIUS, "a note with no depth orbits outside");
 
   assert.deepEqual(noteCard("deep", input(history, lines)), {
-    id: "deep", title: "Deep note", text: "deep's text", home: "cap", depth: "depth 2", entrances: ["cap"],
+    id: "deep", kind: "memory", title: "Deep note", summary: undefined, text: "deep's text", home: "cap", depth: "depth 2", entrances: ["cap"],
     replacement: undefined, visits: 2, peeks: 1, wholes: 1, linksToReplaced: [],
   });
   assert.equal(noteCard("loose", input(history))?.depth, "no depth");
@@ -67,6 +67,27 @@ test("4.1 the core keeps each shelf's entrance, named, at its island's place, an
   const untitled = new History().memory("plain").update("plain", { title: undefined, text: "Round half to even, once, at the total.\nNever per line." });
   assert.equal(noteCard("plain", input(untitled))?.title, "Round half to even, once, at the total.", "a memory has no title field: its first line names it");
   assert.equal(noteTitle({ id: "d", type: "definition", version: 1, createdAt: "", updatedAt: "", fields: { term: "shelf", meaning: "an entrance" } }), "shelf");
+});
+
+test("4.1 a card uses an artifact's description or summary fields and preserves whole text when there is no summary", () => {
+  const history = new History()
+    .memory("described", { title: "A short title", description: "The compact description.", text: "The longer explanation." })
+    .decision("summarised", { summary: "The decision in one line.", text: "All the decision's details." })
+    .create("defined", "definition", { term: "shelf", meaning: "An entrance to a story's knowledge." })
+    .create("principle", "principle", { title: "Write minimally", statement: "Protect one missing behaviour.", why: "Longer reasoning." })
+    .create("agent", "agent", { title: "Builder", oneLine: "Builds a green unit.", role: "The complete role." })
+    .memory("whole", { description: "  ", text: "First paragraph.\n\nSecond paragraph, kept whole." });
+  const model = input(history);
+
+  assert.equal(noteCard("described", model)?.kind, "memory");
+  assert.equal(noteCard("described", model)?.title, "A short title");
+  assert.equal(noteCard("described", model)?.summary, "The compact description.");
+  assert.equal(noteCard("summarised", model)?.summary, "The decision in one line.");
+  assert.equal(noteCard("defined", model)?.summary, "An entrance to a story's knowledge.");
+  assert.equal(noteCard("principle", model)?.summary, "Protect one missing behaviour.");
+  assert.equal(noteCard("agent", model)?.summary, "Builds a green unit.");
+  assert.equal(noteCard("whole", model)?.summary, undefined);
+  assert.equal(noteCard("whole", model)?.text, "First paragraph.\n\nSecond paragraph, kept whole.");
 });
 
 test("4.2 links show only for the pinned note, in their stored direction both ways, and never as replay cues", () => {

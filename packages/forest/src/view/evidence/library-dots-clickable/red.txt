@@ -1,0 +1,224 @@
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/mickh/code/storytree03-wt/planet-lane-v/packages/forest/src/view/globe-picking.js' imported from /home/mickh/code/storytree03-wt/planet-lane-v/packages/forest/src/view/globe-picking.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+    at resolveDirectorySync (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+    at resolveTsPathsSync (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+    at resolve (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/mickh/code/storytree03-wt/planet-lane-v/packages/forest/src/view/globe-picking.js'
+}
+
+Node.js v24.19.0
+✖ packages/forest/src/view/globe-picking.test.ts (120.286378ms)
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/mickh/code/storytree03-wt/planet-lane-v/packages/forest/src/view/panel-selection.js' imported from /home/mickh/code/storytree03-wt/planet-lane-v/packages/forest/src/view/panel-selection.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+    at resolveDirectorySync (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+    at resolveTsPathsSync (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+    at resolve (file:///home/mickh/code/storytree03-wt/planet-lane-v/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/mickh/code/storytree03-wt/planet-lane-v/packages/forest/src/view/panel-selection.js'
+}
+
+Node.js v24.19.0
+✖ packages/forest/src/view/panel-selection.test.ts (119.15861ms)
+✖ 4.1 the core keeps each shelf's entrance, named, at its island's place, and a pinned note's card says all it knows (6.017197ms)
+✖ 4.1 a card uses an artifact's description or summary fields and preserves whole text when there is no summary (0.599887ms)
+✔ 4.2 links show only for the pinned note, in their stored direction both ways, and never as replay cues (0.863066ms)
+✔ 4.3 an unreached note is grey whatever other sessions did, every note has a visible size, and the size toggle moves nothing (0.910476ms)
+✔ 4.4 replay steps one session's agents in order; each agent hides on its own; the legend invents no names or tasks (0.56992ms)
+✔ 4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection (0.197425ms)
+✔ 1.5 the globe draws each placed artifact once beneath its home island at its longest-chain depth (3.803941ms)
+✖ 1.6 loose artifacts fill a stable ball within 0.55 radii, separated by 0.035 radii from each other and shelves (2.741557ms)
+✖ 1.6 a larger library keeps 2,000 loose dots separately clickable inside the shell (15.062725ms)
+✖ 1.7 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge (0.736907ms)
+/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/shelves/story-text.test.ts:4
+import { isStoryText } from "@storytree/knowledge-core";
+         ^
+SyntaxError: The requested module '@storytree/knowledge-core' does not provide an export named 'isStoryText'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0
+✖ packages/knowledge-core/src/shelves/story-text.test.ts (139.523126ms)
+✖ 4.1 the shared artifact card shows kind, title and summary without inspection metadata; Close dismisses it (1.959465ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 5
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 807.026701
+
+✖ failing tests:
+
+test at packages/forest/src/view/globe-picking.test.ts:1:1
+✖ packages/forest/src/view/globe-picking.test.ts (120.286378ms)
+  'test failed'
+
+test at packages/forest/src/view/panel-selection.test.ts:1:1
+✖ packages/forest/src/view/panel-selection.test.ts (119.15861ms)
+  'test failed'
+
+test at packages/knowledge-core/src/look-inside/look-inside.test.ts:1:1551
+✖ 4.1 the core keeps each shelf's entrance, named, at its island's place, and a pinned note's card says all it knows (6.017197ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      depth: 'depth 2',
+      entrances: [
+        'cap'
+      ],
+      home: 'cap',
+      id: 'deep',
+  -   kind: 'memory',
+      linksToReplaced: [],
+      peeks: 1,
+      replacement: undefined,
+  -   summary: undefined,
+      text: "deep's text",
+      title: 'Deep note',
+      visits: 2,
+      wholes: 1
+    }
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/look-inside/look-inside.test.ts:58:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'deep', title: 'Deep note', text: "deep's text", home: 'cap', depth: 'depth 2', entrances: [ 'cap' ], replacement: undefined, visits: 2, peeks: 1, wholes: 1, linksToReplaced: [] },
+    expected: { id: 'deep', kind: 'memory', title: 'Deep note', summary: undefined, text: "deep's text", home: 'cap', depth: 'depth 2', entrances: [ 'cap' ], replacement: undefined, visits: 2, peeks: 1, wholes: 1, linksToReplaced: [] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/knowledge-core/src/look-inside/look-inside.test.ts:1:3578
+✖ 4.1 a card uses an artifact's description or summary fields and preserves whole text when there is no summary (0.599887ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'memory'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/look-inside/look-inside.test.ts:82:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'memory',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/knowledge-core/src/shelves/globe.test.ts:1:1919
+✖ 1.6 loose artifacts fill a stable ball within 0.55 radii, separated by 0.035 radii from each other and shelves (2.741557ms)
+  AssertionError [ERR_ASSERTION]: loose notes fill a volume rather than a thin shell
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/shelves/globe.test.ts:49:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/knowledge-core/src/shelves/globe.test.ts:1:3143
+✖ 1.6 a larger library keeps 2,000 loose dots separately clickable inside the shell (15.062725ms)
+  AssertionError [ERR_ASSERTION]: loose-0 and loose-1: 0.0032376642151476444 radii, minimum 0.035
+      at assertLooseSpacing (/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/shelves/globe.test.ts:88:14)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/shelves/globe.test.ts:61:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/knowledge-core/src/shelves/globe.test.ts:1:3492
+✖ 1.7 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge (0.736907ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  5 !== 3
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/shelves/globe.test.ts:74:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 5,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/knowledge-core/src/shelves/story-text.test.ts:1:1
+✖ packages/knowledge-core/src/shelves/story-text.test.ts (139.523126ms)
+  'test failed'
+
+test at packages/knowledge-core/src/view/card.test.ts:1:262
+✖ 4.1 the shared artifact card shows kind, title and summary without inspection metadata; Close dismisses it (1.959465ms)
+  AssertionError [ERR_ASSERTION]: the globe and inside view share the built card
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-v/packages/knowledge-core/src/view/card.test.ts:16:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

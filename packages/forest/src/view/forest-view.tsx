@@ -6,10 +6,11 @@
  */
 import { createRoot } from "react-dom/client";
 import type { ForestScene, Marker } from "@storytree/forest";
-import type { KnowledgeCore } from "@storytree/knowledge-core/view";
+import { KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { preloadKit } from "@storytree/forest-world/canvas";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { PlanetView } from "./planet-view.js";
+import { PanelSelection, type Selection } from "./panel-selection.js";
 import type { ForestMode } from "./planet-navigation.js";
 
 export interface ForestView {
@@ -34,10 +35,10 @@ interface Drawn {
 }
 
 /**
- * Open the globe in `container`. `onSelect` hears the story picked, or undefined for empty space.
+ * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
  */
-export async function openForestView(container: HTMLElement, onSelect: (story: string | undefined) => void, core: KnowledgeCore): Promise<ForestView> {
+export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore): Promise<ForestView> {
   await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {
@@ -51,7 +52,7 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
     container.dataset.forestMode = drawn.mode;
     root.render(<>
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} markers={drawn.markers}
-        selected={drawn.selected} onPick={pick} mode={drawn.mode} />
+        selected={drawn.selected} onPick={pick} onNote={pickNote} mode={drawn.mode} />
       <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
@@ -60,14 +61,19 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
       </div>
     </>);
   };
+  const selection = new PanelSelection(next => {
+    core.pin(next?.kind === "note" ? next.id : undefined);
+    render({ selected: next?.kind === "story" ? next.id : undefined });
+    onSelect(next);
+  });
   const changeMode = (mode: ForestMode): void => {
-    render({ mode, ...(mode === "library" ? { selected: undefined } : {}) });
-    if (mode === "library") onSelect(undefined);
+    render({ mode });
+    if (mode === "library" && selection.current?.kind === "story") selection.close();
   };
-  const pick = (story: string | undefined): void => {
-    render({ selected: story });
-    onSelect(story);
-  };
+  const pick = (story: string | undefined): void => selection.story(story);
+  const pickNote = (note: string): void => selection.note(note);
+  const onKey = (event: KeyboardEvent): void => selection.key(event.key);
+  window.addEventListener("keydown", onKey);
 
   const observer = new ResizeObserver(() => {
     const { clientWidth: width, clientHeight: height } = container;
@@ -85,13 +91,21 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
       render({ markers });
     },
     select(story) {
-      render({ selected: story });
+      selection.story(story);
     },
     dispose() {
+      window.removeEventListener("keydown", onKey);
       core.dispose();
       observer.disconnect();
       root.unmount();
       container.replaceChildren();
     },
   };
+}
+
+/** Mount the knowledge core's existing card in the slot also used by the story panel. */
+export function mountArtifactCard(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {
+  const root = createRoot(container);
+  root.render(<KnowledgeNoteCard core={core} onClose={onClose} />);
+  return () => root.unmount();
 }

@@ -15,7 +15,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { openForestView, renderStoryPanel, renderUnclaimed, type ForestView } from "@storytree/forest/view";
+import { openForestView, mountArtifactCard, renderStoryPanel, renderUnclaimed, type ForestView } from "@storytree/forest/view";
 import { renderNoProjects, renderSwitcher } from "../view/view.js";
 
 declare global {
@@ -29,7 +29,7 @@ const switcher = element("switcher");
 const params = new URLSearchParams(location.search);
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined } | undefined;
+let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; card: (() => void) | undefined } | undefined;
 let current: string | undefined;
 let following: ReturnType<typeof followProjects> | undefined;
 
@@ -103,7 +103,7 @@ async function showForest(name: string): Promise<void> {
   unclaimed.className = "unclaimed";
   content.replaceChildren(holder, panel, unclaimed);
   document.body.dataset.surface = "forest";
-  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined };
+  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, card: undefined };
   showing = mine;
   mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
   const history: Change[] = [];
@@ -117,6 +117,13 @@ async function showForest(name: string): Promise<void> {
 
   /** The drill-down for the selected story node, or none (capability 4), with one capability shown below its diagram. */
   const showPanel = (): void => {
+    if (document.body.dataset.note !== undefined) {
+      panel.hidden = false;
+      mine.card ??= mountArtifactCard(panel, core, () => mine.view?.select(undefined));
+      return;
+    }
+    mine.card?.();
+    mine.card = undefined;
     const story = document.body.dataset.selected;
     const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, workStates(lines), history);
     panel.hidden = drilled === undefined;
@@ -142,15 +149,15 @@ async function showForest(name: string): Promise<void> {
       });
     }
     panel.querySelector(".panel-close")?.addEventListener("click", () => {
-      delete document.body.dataset.selected;
       mine.view?.select(undefined);
-      showPanel();
     });
   };
   const core = createKnowledgeCore(name);
-  const view = await openForestView(holder, (story) => {
-    if (story === undefined) delete document.body.dataset.selected;
-    else document.body.dataset.selected = story;
+  const view = await openForestView(holder, (selection) => {
+    delete document.body.dataset.selected;
+    delete document.body.dataset.note;
+    if (selection?.kind === "story") document.body.dataset.selected = selection.id;
+    if (selection?.kind === "note") document.body.dataset.note = selection.id;
     chosen = undefined;
     showPanel();
   }, core);
@@ -192,11 +199,13 @@ async function showForest(name: string): Promise<void> {
 }
 
 function stopShowing(): void {
+  showing?.card?.();
   showing?.arcs?.stop();
   showing?.reading?.stop();
   showing?.view?.dispose();
   showing = undefined;
   delete document.body.dataset.surface;
+  delete document.body.dataset.note;
 }
 
 /**

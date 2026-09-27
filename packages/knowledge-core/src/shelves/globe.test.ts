@@ -1,4 +1,4 @@
-/** Capability 1's globe drawing: shelf depths and the no-shelf pool (ADR-0658). */
+/** Capability 1's globe drawing: shelf depths and separate loose artifacts (ADR-0661 D3). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { globePoints, knowledge, underShelves } from "@storytree/knowledge-core";
@@ -35,16 +35,57 @@ test("1.5 the globe draws each placed artifact once beneath its home island at i
   assert.equal(points.find(point => point.id === "deep")!.depth, 3, "the shared shortcut does not shorten depth");
 });
 
-test("1.6 no-shelf artifacts form a small, distinct, stable centre cluster inside the shell", () => {
-  const history = new History().story("front").decision("cover", { frontCoverOf: "front" });
-  for (let index = 0; index < 5; index++) history.decision(`loose-${index}`);
+test("1.6 loose artifacts fill a stable ball within 0.55 radii, separated by 0.035 radii from each other and shelves", () => {
+  const history = new History().story("front").decision("cover", { frontCoverOf: "front", links: ["deep-0"] });
+  for (let index = 0; index < 8; index++) history.decision(`deep-${index}`, { links: index < 7 ? [`deep-${index + 1}`] : [] });
+  for (let index = 0; index < 99; index++) history.decision(`loose-${index}`);
   const core = underShelves(history.changes, knowledge(history.changes));
   const points = globePoints(core, spots, radius);
   const pool = points.filter(point => point.depth === undefined);
   assert.deepEqual(pool.map(point => point.id).sort(), core.outside);
-  assert.ok(pool.every(point => point.home === undefined && length(point.at) + radius * 0.006 < radius * 0.06));
-  assert.equal(new Set(pool.map(point => JSON.stringify(point.at))).size, 5);
+  assert.equal(pool.length, 99);
+  const shelf = points.filter(point => point.depth !== undefined);
+  const radialDistances = pool.map(point => length(point.at));
+  assert.ok(Math.max(...radialDistances) - Math.min(...radialDistances) > radius * 0.2, "loose notes fill a volume rather than a thin shell");
+  assertLooseSpacing(pool, shelf);
   assert.deepEqual(globePoints(core, spots, radius), points);
-  assert.ok(Math.abs(length(points.find(point => point.id === "cover")!.at) - radius * 0.84) < 1e-8);
+  assert.deepEqual(globePoints({ ...core, outside: [...core.outside].reverse() }, spots, radius), points, "the same IDs keep the same layout despite input ordering");
   assert.deepEqual(globePoints(underShelves([], knowledge([])), new Map(), radius), []);
 });
+
+test("1.6 a larger library keeps 2,000 loose dots separately clickable inside the shell", () => {
+  const history = new History();
+  for (let index = 0; index < 2_000; index++) history.decision(`loose-${index}`);
+  const points = globePoints(underShelves(history.changes, knowledge(history.changes)), spots, radius);
+  assert.equal(points.length, 2_000);
+  assertLooseSpacing(points, []);
+});
+
+test("1.8 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge", () => {
+  const history = new History().story("front")
+    .create("shelved-story-text", "definition", { term: "Story text: stories/forest.md", frontCoverOf: "front" })
+    .create("loose-story-text", "definition", { title: "Story text: stories/knowledge-core.md" })
+    .create("ordinary-definition", "definition", { term: "A shelf", definition: "An entrance into knowledge." })
+    .create("principle", "principle", { title: "Story text: stories/still-a-principle.md" })
+    .decision("decision", { title: "Story text: stories/still-a-decision.md", frontCoverOf: "front" });
+  const known = knowledge(history.changes);
+  const points = globePoints(underShelves(history.changes, known), spots, radius, known.notes);
+  assert.equal(known.active.size, 5, "the read-only drawing does not remove library records");
+  assert.equal(points.length, 3);
+  assert.deepEqual(points.map(point => point.id).sort(), ["decision", "ordinary-definition", "principle"]);
+});
+
+function assertLooseSpacing(pool: ReturnType<typeof globePoints>, shelf: ReturnType<typeof globePoints>): void {
+  const margin = radius * 0.035;
+  assert.ok(margin > radius * 0.012, "the separation exceeds one drawn dot diameter");
+  for (let index = 0; index < pool.length; index++) {
+    const point = pool[index]!;
+    assert.equal(point.home, undefined);
+    assert.ok(length(point.at) <= radius * 0.55 + 1e-8, `${point.id} stays within the filled ball`);
+    assert.ok(length(point.at) + radius * 0.006 < radius, `${point.id}'s entire dot stays inside the shell`);
+    for (const other of [...pool.slice(index + 1), ...shelf]) {
+      const distance = Math.hypot(point.at.x - other.at.x, point.at.y - other.at.y, point.at.z - other.at.z);
+      assert.ok(distance >= margin - 1e-8, `${point.id} and ${other.id}: ${distance / radius} radii, minimum 0.035`);
+    }
+  }
+}

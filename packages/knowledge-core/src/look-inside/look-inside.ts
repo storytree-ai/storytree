@@ -61,7 +61,10 @@ export interface CoreScene {
 
 export interface Card {
   id: string;
+  kind: string;
   title: string;
+  /** The description or the artifact kind's summary field; absent means show its whole text. */
+  summary: string | undefined;
   text: string;
   /** The title of the shelf it hangs under. */
   home: string | undefined;
@@ -153,7 +156,7 @@ export function coreScene(input: CoreInput): CoreScene {
   return { entrances, notes, sizeLabel: SIZE_LABELS[sizeBy], status: reads.status() };
 }
 
-/** A pinned note's card: its text, home, depth or "no depth", replacement evidence and recorded counts. */
+/** A pinned artifact's shared summary, with inspection metadata retained for the inside view's model. */
 export function noteCard(id: string, input: CoreInput): Card | undefined {
   const { knowledge, core, reads } = input;
   const note = knowledge.notes.get(id);
@@ -162,11 +165,13 @@ export function noteCard(id: string, input: CoreInput): Card | undefined {
   const placement = core.placed.get(id);
   const ghost = knowledge.ghosts.get(id);
   const replaced = [...knowledge.ghosts.values()].filter(({ beside }) => beside === id).map(({ note: old }) => titleOf(knowledge, old));
-  const text = note.fields.text ?? note.fields.description;
+  const text = firstWords(note.fields.text, note.fields.meaning, note.fields.statement, note.fields.role, note.fields.description);
   return {
     id,
+    kind: note.type,
     title: titleOf(knowledge, id),
-    text: typeof text === "string" ? text : "",
+    summary: firstWords(note.fields.description, note.fields.summary, note.fields.oneLine, note.fields.statement, note.fields.meaning),
+    text: text ?? "",
     home: placement === undefined ? undefined : titles.get(placement.home) ?? placement.home,
     depth: placement === undefined ? "no depth" : placement.loop === undefined ? `depth ${placement.depth}` : `depth ${placement.depth}, in a loop (a refused shape)`,
     entrances: placement?.entrances.map((node) => titles.get(node) ?? node) ?? [],
@@ -178,6 +183,10 @@ export function noteCard(id: string, input: CoreInput): Card | undefined {
       return old === undefined ? [] : [`${titleOf(knowledge, target)}: ${old.label}`];
     }),
   };
+}
+
+function firstWords(...fields: unknown[]): string | undefined {
+  return fields.find((field): field is string => typeof field === "string" && field.trim() !== "");
 }
 
 /** The pinned note's stored links, out and then in, each in its stored direction; none with nothing pinned. */

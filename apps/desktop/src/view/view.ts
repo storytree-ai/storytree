@@ -121,14 +121,14 @@ export function renderProject(project: string, tree: AnnotatedTree): string {
   return view.stories.map(renderStory).join("\n");
 }
 
-/** The page when the library has no projects at all: how to add this repo's own stories. */
+/** The page when the library has no projects at all: how a user starts their first project. */
 export function renderNoProjects(): string {
   return [
     `<div class="empty">`,
     `<h1>No projects yet</h1>`,
     `<p>This app shows the projects in storytree 0.3's local library, and it has none yet.</p>`,
-    `<p>To add this repo's own stories and decisions, quit this app and run <code>pnpm seed:library</code> ` +
-      `in the storytree 0.3 repo. Then open the app again.</p>`,
+    `<p>Start Claude Code or Codex in your project folder, and say yes when it asks to set up storytree.</p>`,
+    `<p>Your project will appear here automatically.</p>`,
     `</div>`,
   ].join("\n");
 }

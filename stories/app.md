@@ -16,12 +16,10 @@ desktop-app step. Answering the forest's review, the owner said "yes we need a s
 and arc and forest surfaces can depend on it" (ADR-0632 D4). So the app's frame is this story's, and
 the forest and the arc surface sit inside it.
 
-**Growing storytree 0.3 comes first** (ADR-0634 D4, the owner's). The work that serves a user
-growing their own project waits until storytree 0.3 is in a good place, and is due before first
-users. It is parked as `0-3-app-users-own-projects`: the project list keeping itself current, which
-project a user's app shows, the first-run fix, the empty app telling a user how to add a project,
-and the `storytree` default giving way to "the project just set up, or the one last opened"
-(ADR-0625). Nothing of it is cut; only the order moved.
+**Users' own projects are ready work** (ADR-0657 D1, 2026-09-27), ending ADR-0634 D4's parking.
+The owner chose O1: open on the project last chosen, with a yes to setting up a new project
+counting as choosing it. The agent link's setup flow stays as it is; the app observes new projects
+through the library. The work is `0-3-app-users-own-projects` on the app arc.
 
 **Rule for building it: port behaviour, not code.** Storytree 0.2's desktop app (`apps/desktop` in
 `storytree-ai/storytree02`) is the behavioural reference where the two do the same job. It was a
@@ -52,7 +50,7 @@ the seed just cannot count those tests for this story.
 - **Surfaces** is his word for capability 3: "the app hosts different surfaces".
 - **Storytree projects** is his rename of "Switching projects".
 - **L1:** the app passes the live reading through. The reading itself stays the arc surface's.
-- **D4:** growing storytree 0.3 comes first, and users' own projects wait (above).
+- **D4, narrowed by ADR-0657:** users' own projects are un-parked, with O1 chosen (above).
 
 ```mermaid
 flowchart BT
@@ -176,23 +174,22 @@ on show when the app opens.
 - **Its shelf,** founding book first:
   - **Founding book (ADR-0632 D4 and D3):** the switcher belongs to the app, outside the surfaces,
     and every surface shows the project it picks.
-  - Growing storytree 0.3 comes first (the owner's, ADR-0634 D4). So the switcher stays as built,
-    and the app keeps opening on 0.3's own project, until 0.3 is in a good place.
-  - **Decided, waiting** (ADR-0625, Consequences; moved here by ADR-0632 D4): "the project just set
-    up, or the one last opened" replaces the `storytree` default, when the users' work comes back.
-  - **Parked with the users' work:** which project a user's app shows (the old choice O). It is put
-    to the owner when that work comes back. The options were: the one you last chose, with a yes
-    counting as choosing; the agent's own project; or only what you pick.
-- **As built:** the Project list is read once, when the window opens, and lists only projects.
-  Choosing another project redraws the page for it, in place. The app opens on `--project <name>`,
-  else on storytree 0.3's own project (`storytree`), else the first. Nothing is new here now: the
-  users' work is parked (above). That work includes the first-run gap, read from the code and not
-  yet seen live: the agent link's setup check opens the app before the user's yes creates the
-  project, and the list is read once, so a user's first project appears only after a restart. It
-  cannot happen to storytree 0.3's own project, which already exists.
-- **Proved by** the page's existing test of the switcher (`apps/desktop/src/view/view.test.ts`).
-  It is the page's test, not this story's package's, so `pnpm seed:library` leaves the contract not
-  checked.
+  - **O1 (ADR-0657 D2):** the last project chosen, including a yes to setting up a new one,
+    replaces the `storytree` default anticipated by ADR-0625's Consequences.
+- **As built:** `projectSelection` in `packages/app/src/projects` reads the project list once per
+  refresh and remembers the choice and the known list in `project-choice.json` in the app's home.
+  The renderer's `followProjects` refreshes every three seconds, including while empty, and
+  stops with the page. An unchanged list and choice leave the forest alone. A single new project
+  becomes the choice; a picker choice or `--project` takes precedence when made, and a missing
+  remembered choice falls back to the first. Reopening the window reads the latest choice.
+  With no projects, the page explains how to start Claude Code or Codex in a folder and say yes.
+- **Remaining O1 limit:** names alone cannot order several new projects between reads, or
+  distinguish a setup that finished before the first-ever list read. A batch keeps the existing
+  choice (or the first project). The app arc's setup-choice question records this residue;
+  no setup-to-app signal has been added.
+- **Proved by** the page's existing switcher test for contract 1, and the app package's
+  `projects/selection.test.ts` and `projects/follow.test.ts` for contracts 2–4. Contract 5 is
+  checked in the rendered page; its prose is not pinned by a wording test (ADR-0623).
 
 **Contracts:**
 1. The Project list lists every project, with the one on show selected.

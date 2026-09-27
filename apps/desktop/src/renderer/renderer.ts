@@ -6,6 +6,7 @@
  * smoke check reads. `data-selected` names the story node a click selected.
  */
 import type { Line } from "@storytree/agent-link";
+import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { claimMarkers, drillDown, forestDrawn, forestScene, openBook, shelved, storyNodes, unclaimedWork, type Book, type ForestDrawn } from "@storytree/forest";
@@ -29,32 +30,54 @@ const params = new URLSearchParams(location.search);
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined } | undefined;
+let current: string | undefined;
+let following: ReturnType<typeof followProjects> | undefined;
 
 void open().catch((error: unknown) => showMessage("error", "Something went wrong", messageOf(error)));
 
 async function open(): Promise<void> {
   const problem = params.get("problem");
   if (problem !== null) return showMessage("error", "The library could not be opened", problem);
-  const projects = await window.storytree.listProjects();
-  if (projects.length === 0) {
+  following = followProjects({
+    read: () => window.storytree.projectSelection(),
+    onChange: (selection) => show(selection),
+    onError: (error) => {
+      // An intermittent read must not tear down a working forest; the next poll retries.
+      if (document.body.dataset.state !== "ready" && document.body.dataset.state !== "empty") {
+        showMessage("error", "The projects could not be read", messageOf(error));
+      }
+    },
+  });
+  window.addEventListener("beforeunload", () => { following?.stop(); stopShowing(); });
+}
+
+/** Redraw the picker when the list changes; only replace the surface when its project changes. */
+async function show({ current: name, projects }: ProjectSelection): Promise<void> {
+  switcher.innerHTML = projects.length === 0 ? "" : renderSwitcher(projects, projects.includes(name ?? "") ? name : undefined);
+  const select = switcher.querySelector("select");
+  if (select !== null) {
+    if (!projects.includes(name ?? "")) select.selectedIndex = -1;
+    select.addEventListener("change", () => {
+      void window.storytree.chooseProject(select.value).then(() => following?.refresh())
+        .catch((error: unknown) => showMessage("error", "The project could not be selected", messageOf(error)));
+    });
+  }
+  if (name === undefined) {
+    current = undefined;
+    stopShowing();
+    delete document.body.dataset.project;
+    delete document.body.dataset.drew;
+    delete document.body.dataset.selected;
     content.innerHTML = renderNoProjects();
     return setState("empty");
   }
-  await show(params.get("project") ?? projects[0] ?? "", projects);
-}
-
-/** Show project `name`, with the switcher listing `projects`. */
-async function show(name: string, projects: readonly string[]): Promise<void> {
+  if (name === current && showing !== undefined) return;
+  current = name;
   stopShowing();
   setState("loading");
+  document.body.dataset.project = name;
   delete document.body.dataset.drew;
   delete document.body.dataset.selected;
-  switcher.innerHTML = renderSwitcher(projects, projects.includes(name) ? name : undefined);
-  const select = switcher.querySelector("select");
-  if (select !== null) {
-    if (!projects.includes(name)) select.selectedIndex = -1;
-    select.addEventListener("change", () => void show(select.value, projects).catch((error: unknown) => showMessage("error", "Something went wrong", messageOf(error))));
-  }
   if (!projects.includes(name)) {
     return showMessage("missing", `There is no project called “${name}”`, "Pick one of the projects in the switcher above.");
   }

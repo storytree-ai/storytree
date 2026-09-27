@@ -1,5 +1,5 @@
 
-> storytree@ typecheck /home/mickh/code/storytree03-wt/setup-deliver
+> storytree@ typecheck /home/mickh/code/storytree03-wt/setup-connect
 > pnpm -r typecheck
 
 Scope: 12 of 13 workspace projects
@@ -11,8 +11,8 @@ packages/agent-link typecheck$ tsc -p .
 packages/librarian typecheck$ tsc -p .
 packages/forest typecheck$ tsc -p .
 packages/forest-world typecheck$ tsc -p .
-packages/librarian typecheck: Done
 packages/agent-link typecheck: Done
+packages/librarian typecheck: Done
 packages/forest typecheck: Done
 packages/forest-world typecheck: Done
 packages/app typecheck$ tsc -p .

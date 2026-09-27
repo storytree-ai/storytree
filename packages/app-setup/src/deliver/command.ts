@@ -32,10 +32,10 @@ export function installCommand(options: { home: string; tools: InstalledTools; s
   }
   const quote = windows
     ? (value: string) => `"${value.replaceAll("%", "%%")}"`
-    : (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+    : (value: string) => `"${value.replace(/[\\$`]/g, "\\$&")}"`;
   if ([options.tools.node, options.tools.cli].some((value) => /[\r\n"]/.test(value))) throw new Error("Command paths contain an unsupported quote or newline");
   const command = windows
-    ? `@echo off\r\nrem ${marker}\r\nsetlocal DisableDelayedExpansion\r\ngoto #_storytree_handoff_# 2>nul || ${quote(options.tools.node)} ${quote(options.tools.cli)} %*\r\n`
+    ? `@echo off\r\nrem ${marker}\r\ngoto #_storytree_handoff_# 2>nul || ${quote(options.tools.node)} ${quote(options.tools.cli)} %*\r\n`
     : `#!/bin/sh\n# ${marker}\nexec ${quote(options.tools.node)} ${quote(options.tools.cli)} "$@"\n`;
   const targets = [...new Set([...ours, file])];
   const same = targets.every((target) => existsSync(target) && readFileSync(target, "utf8") === command);

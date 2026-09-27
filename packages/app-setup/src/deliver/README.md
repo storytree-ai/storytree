@@ -27,6 +27,9 @@ the supplied PATH cause a named conflict; the user can run the bundled Node/CLI 
 PowerShell owns registry PATH persistence and Explorer notification; no global Node or tool
 installation occurs. Node patch versions and both hashes are pinned in `runtime.ts`.
 
+The launcher uses the existing agent-link format so capability 2's exact-match disconnect
+recognises it. The delivery tests exercise that public disconnect seam after both lanes merge.
+
 See `../../evidence/deliver/README.md` for observed proofs and the outstanding real Windows
 first-run, update and harness acceptance. The fixed payload paths are the update interface;
 this Linux lane does not attest a real Windows release update with live agent processes.

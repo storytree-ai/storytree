@@ -1,0 +1,1 @@
+PASS: real CLI formats, paths with spaces, preservation, repeat, independent invalid-TOML recovery and removal. No agent session or Windows artifact exercised.

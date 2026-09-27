@@ -1,4 +1,4 @@
-Required check after merging origin/main: STORYTREE_TEST_PWSH=/tmp/storytree-pwsh/pwsh flock /tmp/storytree-heavy.lock pnpm test
+Required check after merging connection PR #149: STORYTREE_TEST_PWSH=/tmp/storytree-pwsh/pwsh flock /tmp/storytree-heavy.lock pnpm test
 Exit status: 0
 Selected scope, unit totals and final table from the complete local run.
 
@@ -25,9 +25,9 @@ units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, pack
 ℹ fail 0
 ℹ skipped 0
 === packages/app-setup ===
-ℹ tests 12
+ℹ tests 24
 ℹ suites 0
-ℹ pass 12
+ℹ pass 24
 ℹ fail 0
 ℹ skipped 0
 === packages/arc-surface ===

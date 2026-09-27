@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
 
 import { finishDelivery, installCommand, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
 
@@ -127,5 +128,18 @@ test("1.6: a fresh shell runs the installed command with spaces and preserves it
     });
     assert.equal(result.status, 23, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), ["an argument with spaces"]);
+  } finally { f.close(); }
+});
+
+test("1.6 / 2.5: disconnect recognises the delivered launcher and removes it once no agent is connected", async () => {
+  const f = fixture();
+  try {
+    const launcher = installCommand({ home: f.home, tools: f.tools, searchPath: "" });
+    const report = await disconnectAgents({
+      harnesses: ["claude-code"], installed: installedToolServerCommand(f.tools.node, f.tools.mcp), home: f.dir,
+      env: { PATH: launcher.pathEntry, CLAUDE_CONFIG_DIR: path.join(f.dir, ".claude"), CODEX_HOME: path.join(f.dir, ".codex") },
+    });
+    assert.equal(report.command, "removed");
+    assert.equal(existsSync(launcher.file), false);
   } finally { f.close(); }
 });

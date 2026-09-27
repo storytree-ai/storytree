@@ -1,0 +1,28 @@
+✖ 1.6 / 2.5: disconnect recognises the delivered launcher and removes it once no agent is connected (5.100887ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 351.389211
+
+✖ failing tests:
+
+test at packages/app-setup/src/deliver/delivery.test.ts:1:6717
+✖ 1.6 / 2.5: disconnect recognises the delivered launcher and removes it once no agent is connected (5.100887ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'none' !== 'removed'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/setup-deliver/packages/app-setup/src/deliver/delivery.test.ts:142:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'none',
+    expected: 'removed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

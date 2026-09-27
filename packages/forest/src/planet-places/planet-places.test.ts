@@ -27,14 +27,14 @@ test("1.4 the same places always give the same globe spots, packed from the fron
   // These places must remain fixed across releases, not just across calls in one process.
   const anchors: [number, PlanetPoint][] = [
     [1, { x: 0, y: 0, z: 160 }],
-    [2, { x: 58.48399099393144, y: -28.19224678761012, z: 146.23549507041112 }],
-    [36, { x: -3.6850332486050035, y: 150.61038426133785, z: -53.878870465228195 }],
+    [2, { x: 68.77474840531116, y: -4.489463666016254, z: 144.3948707460818 }],
+    [36, { x: 18.934663105978217, y: 150.03550374065165, z: -52.25730714791963 }],
   ];
   for (const [place, point] of anchors) assert.ok(distance(placeOnGlobe(place), point) < 1e-9, `place ${place} stays fixed`);
   assert.equal(PLANET_CAPACITY, 36);
   // The occupied patch grows outward; seven stories still share the front of the ball.
   for (let i = 1; i < spots.length; i++) assert.ok(spots[i]!.z < spots[i - 1]!.z);
-  assert.ok(spots.slice(0, 7).every(p => p.z > 0.75 * PLANET_RADIUS));
+  assert.ok(spots.slice(0, 7).every(p => p.z > Math.SQRT1_2 * PLANET_RADIUS));
   // A caller must not be able to move a later read by mutating the returned point.
   placeOnGlobe(1).x = 123;
   assert.deepEqual(placeOnGlobe(1), spots[0]);

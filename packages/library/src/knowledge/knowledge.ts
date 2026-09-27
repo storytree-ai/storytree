@@ -27,6 +27,13 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 
+/**
+ * The fields that link a note to other notes (6-a), which the loop check follows: its links,
+ * and an agent role's required reading, rules, anti-patterns and step reading, and a process's
+ * branch edges.
+ */
+const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges"] as const;
+
 /** The kinds of note: memory notes, decisions, definitions, and the eight kinds of ADR-0640. */
 export type NoteType = "memory" | "decision" | "definition" | KnowledgeKind;
 /** A new note of one of the eight kinds: its fields. Every reference in it must name a live note. */
@@ -209,6 +216,7 @@ export class Knowledge {
     const note = await liveRecord(this.#records, id, NOTE_TYPES);
     if (note === null) return null;
     await this.#checkNoteReferences(fields);
+    if (LINK_FIELDS.some((field) => field in fields)) await this.#refuseLinkLoop(id, { ...note.fields, ...fields });
     if ("frontCoverOf" in fields) await this.#checkFrontCover(fields.frontCoverOf);
     if ("supersedes" in fields) {
       await checkReferences(this.#records, "supersedes", fields.supersedes, "decision");
@@ -267,21 +275,21 @@ export class Knowledge {
     const graph = new Map<string, readonly unknown[]>();
     for (const decision of await this.#records.list("decision")) graph.set(decision.id, decision.fields.supersedes ?? []);
     graph.set(id, supersedes);
-    const path = [id];
-    const walk = (at: string, seen: Set<string>): boolean => {
-      for (const next of graph.get(at) ?? []) {
-        if (typeof next !== "string") continue;
-        path.push(next);
-        if (next === id) return true;
-        if (!seen.has(next)) {
-          seen.add(next);
-          if (walk(next, seen)) return true;
-        }
-        path.pop();
-      }
-      return false;
-    };
-    if (walk(id, new Set([id]))) throw new SupersessionLoopError(path);
+    const path = loopThrough(graph, id);
+    if (path !== null) throw new SupersessionLoopError(path);
+  }
+
+  /**
+   * Throw a LinkLoopError if note `id`, holding `fields`, would close a loop through the notes it
+   * links to (ADR-0647 D2): the knowledge is a DAG under its covers, so a note may not rest on
+   * itself, directly or through others.
+   */
+  async #refuseLinkLoop(id: string, fields: object): Promise<void> {
+    const graph = new Map<string, readonly unknown[]>();
+    for (const note of await this.#notes()) graph.set(note.id, linksOf(note.fields));
+    graph.set(id, linksOf(fields));
+    const path = loopThrough(graph, id);
+    if (path !== null) throw new LinkLoopError(path);
   }
 
   /** Every live note, of all three kinds, in creation order. */
@@ -333,6 +341,39 @@ function textsIn(value: unknown): string[] {
   return [];
 }
 
+/** Every note id a note's fields link it to, through each of LINK_FIELDS. */
+function linksOf(fields: object): unknown[] {
+  const at = fields as Record<string, unknown>;
+  return [
+    ...["links", "context", "rules", "antiPatterns"].flatMap((field) => listOf(at[field])),
+    ...listOf(at["stepRefs"]).flatMap((step) => listOf(fieldOf(step, "refs"))),
+    ...listOf(at["branchEdges"]).map((edge) => fieldOf(edge, "to")),
+  ];
+}
+
+/**
+ * The first loop in `graph` from `id` back round to it, as the ids along it (`[id, …, id]`), or
+ * null if there is none. Only ids that are strings are followed.
+ */
+function loopThrough(graph: ReadonlyMap<string, readonly unknown[]>, id: string): string[] | null {
+  const path = [id];
+  const seen = new Set([id]);
+  const walk = (at: string): boolean => {
+    for (const next of graph.get(at) ?? []) {
+      if (typeof next !== "string") continue;
+      path.push(next);
+      if (next === id) return true;
+      if (!seen.has(next)) {
+        seen.add(next);
+        if (walk(next)) return true;
+      }
+      path.pop();
+    }
+    return false;
+  };
+  return walk(id) ? path : null;
+}
+
 /** `value` when it is a list, and an empty one otherwise (the schema check refuses it inside the write). */
 function listOf(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
@@ -353,6 +394,23 @@ export class SupersessionLoopError extends Error {
   constructor(path: readonly string[]) {
     super(`supersession loop: ${path.join(" → ")} (a decision may not supersede itself, directly or through others)`);
     this.name = "SupersessionLoopError";
+    this.path = [...path];
+  }
+}
+
+/**
+ * A note would rest on itself, directly or through others (ADR-0647 D2). The message names the loop
+ * from the note being written back round to it, `A → B → A`, so the chain it would close,
+ * `B → A`, is plain. A loop that seems needed is a discussion with the owner first.
+ */
+export class LinkLoopError extends Error {
+  readonly path: readonly string[];
+
+  constructor(path: readonly string[]) {
+    const [from, ...rest] = path;
+    const chain = rest.length > 1 ? `the existing chain ${rest.join(" → ")}` : "a link to itself";
+    super(`link loop between notes: ${path.join(" → ")} (the link from ${from} would close ${chain}; notes form a tree under their covers, so a note may not rest on itself, directly or through others)`);
+    this.name = "LinkLoopError";
     this.path = [...path];
   }
 }

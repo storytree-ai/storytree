@@ -36,7 +36,9 @@
 .arc-count, .arc-other-waits, .arc-blocked-note { color: var(--muted, #adb8b2); font-size: .68rem; }
 .arc-count { white-space: nowrap; }
 .arc-queue { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 2px 14px 7px 27px; color: var(--muted, #adb8b2); font-size: .75rem; }
-.arc-queue-chip { max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem !important; background: transparent; border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 1px 6px; }
+.arc-queue-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem !important; background: transparent; border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 1px 6px; }
+.arc-queue-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-queue-more { flex: 0 0 auto; }
 .arc-queue-chip[aria-pressed=true] { border-color: #79af95; background: var(--row-hover, #2c3630); }
 .arc-briefing { padding: 12px 20px 20px; font-size: .84rem; }
 .arc-briefing h3 { font-size: 1rem; margin: 0 0 10px; font-weight: 600; }

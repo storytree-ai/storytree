@@ -43,7 +43,7 @@ try {
   const queued = await makeArc('Desktop release', 'Package the working board for the owner.');
   await library.addIncrement({ arc: queued.id, title: 'Package the app', objective: 'Package', body: 'Package' });
   await library.addWait(queued.id, build.id, 'The board must land before packaging.');
-  const verification = await makeArc('Release verification', 'Check the packaged release.');
+  const verification = await makeArc('Release verification across the supported desktop platforms before distribution', 'Check the packaged release.');
   await library.addWait(verification.id, queued.id, 'Packaging comes first.');
   for (const title of ['Linux verification', 'Windows verification']) {
     const child = await makeArc(title, 'Verify the release on this platform.');
@@ -129,6 +129,9 @@ try {
   await page.locator(`[data-arc-queue="${build.id}"]`).click();
   assert.equal(await page.locator(`[data-arc-queue="${build.id}"]`).getAttribute('aria-expanded'), 'true');
   assert.equal(await page.locator(`[data-arc-id="${build.id}"] [data-arc-select="${queued.id}"]`).count(), 1, 'queue chip is nested under its blocker');
+  const queuedChip = await page.locator(`[data-arc-select="${verification.id}"]`).boundingBox();
+  const downstreamCount = await page.locator(`[data-arc-select="${verification.id}"] span`).last().boundingBox();
+  assert.ok(downstreamCount.x + downstreamCount.width <= queuedChip.x + queuedChip.width, '+N remains visible beside a long queued title');
   await page.screenshot({ path: path.join(output, 'queue-expanded.png') });
   await page.locator('[data-question-open]').first().click();
   assert.equal(await page.locator('[data-question-open]').count(), 0, 'reading replaces the question list');

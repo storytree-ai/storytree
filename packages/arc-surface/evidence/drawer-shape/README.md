@@ -13,10 +13,11 @@ removed after capture, and the source snapshot and live library are never change
 - [Measured acceptance results](capture.json)
 - [Initial failing rendering tests](red.txt)
 - [Multi-queue smoke regression reproduced before its fix](queue-smoke-red.txt)
+- [Long queue title clipped +N before its fix](queue-label-red.txt)
 - [Pending library text patch and supervisor checklist](library-update/README.md)
 
 The browser asserts top-edge/half-height geometry, row heights, a real pointer event received
-by the forest below the drawer, initial queue hiding and nested chip placement, question list
+by the forest below the drawer, initial queue hiding and nested chip placement, visible +N beside a long title, question list
 swap/back, and remembered open/scope/selected arc in a fresh browser context with saved local
 storage. A second reload proves remembered closed state. The fixture has two parked arcs so
 saved selection cannot pass by accidentally choosing the only candidate.

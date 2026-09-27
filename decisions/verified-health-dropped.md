@@ -1,6 +1,6 @@
 # Verified health is dropped from the MVP
 
-- **Front cover of:** none: the story it concerns will not exist in 0.3, so it sits on no shelf (ADR-0631)
+- **Front cover of:** none
 - **Full record:** ADR-0630 in storytree 0.2's decision log, storytree-ai/storytree02 (`pnpm storytree library artifact adr-0630`)
 
 No MVP story runs a user's tests: health shows what the agent reports, labelled as the agent's.

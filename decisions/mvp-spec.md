@@ -1,6 +1,6 @@
 # The 0.3 MVP one-page spec
 
-- **Front cover of:** none: it decides the whole project, so it sits on no shelf (ADR-0631)
+- **Front cover of:** none
 - **Full record:** ADR-0625 in storytree 0.2's decision log, storytree-ai/storytree02 (`pnpm storytree library artifact adr-0625`)
 
 Storytree 0.3 sits beside a vibecoder's own Claude Code or Codex and shows, as a forest, what it builds.

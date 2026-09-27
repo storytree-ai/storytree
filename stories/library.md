@@ -277,6 +277,7 @@ artifact never links straight to the work: capability 9 is how the work reaches 
   - **6-b:** friction keeps its adjudication fields, recurrences and discharge; re-steers keep
     defect-or-taste, who judged it, the failure mode, and the owner's words as evidence apart from
     the agent's account. The library stores them; counting rates is not its job.
+  - ADR-0650: 0.3's library has no memory type, and its knowledge records are called artifacts (ADR-0650, decisions/adr-0650.md).
 - **As built (6.6, 6.7):** each kind is a record type of its own at version 1, with 0.2's fields
   (`packages/library/src/schema/types.ts`). An agent role's `context`, `rules`, `antiPatterns` and
   `stepRefs`, and a process's `branchEdges`, must name live artifacts, as links do. `search` reads every

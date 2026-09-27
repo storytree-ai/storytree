@@ -71,7 +71,7 @@ test('1.1 setting a folder up as project "site" leaves a marker naming it, and a
     git(folder, "commit", "-q", "--allow-empty", "-m", "first");
 
     await withStorytree([project], async (storytree) => {
-      const setUp = await setUpProject({ folder, project, storytree });
+      const setUp = await setUpProject({ folder, project, storytree, storytreeHome: path.join(dir, "app-home") });
       assert.equal(setUp.project, project);
       assert.deepEqual(JSON.parse(readFileSync(path.join(folder, MARKER_FILE), "utf8")), { project }, "the marker names the project");
       assert.ok((await storytree.listProjects()).includes(project), "the project's library now exists");
@@ -117,7 +117,7 @@ test("1.3 a project name the library would refuse is refused when setting a fold
   await withTempDir(async (dir) => {
     await withStorytree([], async (storytree) => {
       for (const name of refused) {
-        await assert.rejects(setUpProject({ folder: dir, project: name, storytree }), ProjectNameError, `${JSON.stringify(name)} is refused`);
+        await assert.rejects(setUpProject({ folder: dir, project: name, storytree, storytreeHome: path.join(dir, "app-home") }), ProjectNameError, `${JSON.stringify(name)} is refused`);
       }
       assert.equal(existsSync(path.join(dir, MARKER_FILE)), false, "no marker was written");
       const projects = await storytree.listProjects();

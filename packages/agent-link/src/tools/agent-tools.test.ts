@@ -137,16 +137,23 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
 
       const claimed = await agent.call("claim", { capability, reason: "building the email form" });
       assert.equal(claimed.isError, false, claimed.text);
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch", intent: "Ship signup", end_state: "Visitors join" }));
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Signup release", objective: "Ship the form", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the signup release" })).isError, false);
       const plan = await agent.call("show_plan");
       assert.deepEqual(
-        (plan.data.claims as { capability: string; session: string; label: string; reason: string }[]).map(({ capability: held, session, label, reason }) => ({
-          held,
+        (plan.data.claims as { capability?: string; increment?: string; session: string; label: string; reason: string }[]).map(({ capability, increment, session, label, reason }) => ({
+          held: capability ?? increment,
           session,
           label,
           reason,
         })),
-        [{ held: capability, session: "claude-1", label: "Claude Code", reason: "building the email form" }],
+        [
+          { held: capability, session: "claude-1", label: "Claude Code", reason: "building the email form" },
+          { held: increment, session: "claude-1", label: "Claude Code", reason: "driving the signup release" },
+        ],
       );
+      assert.ok(plan.text.split("\n").some((line) => line.includes(increment) && line.includes("Signup release") && line.includes("Claude Code claude-1") && line.includes("driving the signup release")), plan.text);
       assert.deepEqual((plan.data.sessions as { session: string; state: string }[]).map(({ session, state }) => ({ session, state })), [
         { session: "claude-1", state: "live" },
       ]);
@@ -157,6 +164,7 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
       assert.deepEqual(await library.health(contract).then(({ reported, verified }) => [reported.state, verified.state]), ["passing", "not-checked"]);
 
       assert.equal((await agent.call("land", { capability })).isError, false);
+      assert.equal((await agent.call("release", { increment })).isError, false);
       assert.deepEqual(await readClaims(log, project), [], "landing ended the claim");
       const landed = (await log.since(project, 0)).lines.filter((line) => line.kind === "landed");
       assert.deepEqual(landed.map((line) => line.session), ["claude-1"]);

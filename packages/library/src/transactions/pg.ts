@@ -52,6 +52,10 @@ export class PgTransactions implements Transactions {
 
   save(input: SaveInput): Promise<RecordEnvelope> {
     return this.#write(async (client) => {
+      if (input.onlyIfNew) {
+        const held = await client.query("SELECT 1 FROM record_event WHERE record_id = $1 LIMIT 1", [input.id]);
+        if (held.rows.length > 0) throw new RangeError(`${input.id} already exists in history; this setting can only be written once`);
+      }
       const current = await lockCurrent(client, input.id);
       const record = savedRecord(await numberedIn(client, input), current, now());
       check(record, input.validate);

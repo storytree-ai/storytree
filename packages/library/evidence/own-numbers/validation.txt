@@ -1,0 +1,76 @@
+$ flock /tmp/storytree-heavy.lock pnpm typecheck
+exit: 0
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/own-numbers
+> pnpm -r typecheck
+
+Scope: 11 of 12 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/librarian typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+$ flock /tmp/storytree-heavy.lock pnpm test
+exit: 0
+scope: full — everything — packages/library/src/api/library-api.test.ts changed in @storytree/library, which the test harness and scripts/ run on
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+Existing conditional skips:
+
+
+$ pnpm test-ratio
+
+> storytree@ test-ratio /home/mickh/code/storytree03-wt/own-numbers
+> node scripts/test-ratio.mjs
+
+Test code per line of implementation, in code lines (comments and blanks left out):
+
+                              test   implementation   ratio
+  apps/desktop                 171            1,079    0.16
+  packages/agent-link        2,730            3,281    0.83
+  packages/app                 788              707    1.11
+  packages/arc-surface         495              903    0.55
+  packages/cli               1,339            1,511    0.89
+  packages/forest-world     25,483           13,202    1.93
+  packages/forest              741            2,834    0.26
+  packages/knowledge-core      571            1,086    0.53
+  packages/librarian           607              465    1.31
+  packages/library           5,162            3,619    1.43
+  packages/local-postgres      218              325    0.67
+  scripts                    1,166            1,355    0.86
+  all                       39,471           30,367    1.30
+
+Librarian review: supervisor patch/checklist passed. No new durable guidance, friction or resteer.
+Supervisor curation: correct any stale cutover wording in 0.3 imported ADR-0640 summary under ADR-0662.
+No real library writes.

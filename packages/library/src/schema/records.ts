@@ -38,6 +38,9 @@ export interface CreateOptions {
   readonly actor?: string;
   /** A field the record is numbered in, within its type: capability 2's save `sequence`. */
   readonly sequence?: string;
+  readonly sequenceFloor?: number;
+  readonly sequenceNeverHeld?: boolean;
+  readonly onlyIfNew?: boolean;
 }
 
 export interface WriteOptions {
@@ -71,6 +74,9 @@ export class SchemaRecords {
       validate: this.#check,
       ...actorOf(options),
       ...(options.sequence === undefined ? {} : { sequence: options.sequence }),
+      ...(options.sequenceFloor === undefined ? {} : { sequenceFloor: options.sequenceFloor }),
+      ...(options.sequenceNeverHeld === undefined ? {} : { sequenceNeverHeld: options.sequenceNeverHeld }),
+      ...(options.onlyIfNew === undefined ? {} : { onlyIfNew: options.onlyIfNew }),
     });
     return record as SchemaRecord<T>;
   }

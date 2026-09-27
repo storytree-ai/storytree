@@ -1,0 +1,14 @@
+Source: /home/mickh/storytree-lanes/snapshots/2026-09-27T14-03-38-576Z.json
+Source snapshot: 1400 records; 7149 events.
+Restored before switch: 1400 records; 7149 events; 82 decisions.
+53 founding decisions; 29 Full record decisions.
+Dry run: 53 ready, 0 refused; no writes.
+Applied: 53 renumbered, 0 refused; 663 through 715.
+After move: 1401 records; 7203 events (+1 setting, +53 repair events).
+Next automatic decision: ADR-0716.
+Repeated and lower floor writes refused; no events appended.
+Repeat founding apply: 0 changed, 0 refused; post-switch decision untouched.
+All original history, decision IDs and other fields preserved (normal legacy schema upgrade on write).
+Every other record unchanged; all 29 Full record decisions unchanged.
+Floor and completed moves survived server restart and snapshot roundtrip.
+Real library untouched. Temporary server stopped and home removed in finally.

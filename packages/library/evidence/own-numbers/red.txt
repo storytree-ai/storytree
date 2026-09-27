@@ -1,0 +1,179 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/own-numbers
+> node --import tsx scripts/test.mjs "packages/library/src/knowledge/decision-log.test.ts" "packages/cli/src/decisions.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/own-numbers/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:37883 (started in 0.1 s)
+✔ 6.3 a superseded decision drops out of `--current`; filters use the library's status (977.927163ms)
+✔ 6.5 `adr pull` names a decision by id, number, or ADR number (643.042962ms)
+✔ 6.1 two `adr new` run at once get different, increasing numbers (359.300968ms)
+✔ 6.2 pull then push with no edit changes nothing (351.957576ms)
+✔ 6.4 a composed statement reads stale after its decision's text changes (646.745842ms)
+✔ 6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers (938.512691ms)
+✔ 6.7 `adr number` and its dry run refuse projects other than storytree (354.204932ms)
+✔ 6.7 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations (1573.8863ms)
+✖ 6.8 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects (123.41944ms)
+✖ 6.9 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects (123.455619ms)
+✔ 13.1 [memory] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (6.506012ms)
+✔ 13.5 [memory] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (3.347826ms)
+✔ 13.5 [memory] simultaneous repairs cannot share a number or repair the same decision twice (0.81134ms)
+✖ 13.6 [memory] storytree switches once to a stored floor; concurrent decisions exceed it and every held number (2.586732ms)
+✖ 13.8 [memory] founding books preview in creation order, preserve history, skip Full record decisions and finish once (0.726069ms)
+✖ 13.8 [memory] concurrent founding moves cannot share numbers or move a book twice (0.286494ms)
+✔ 13.7 [memory] Full record bulk repair previews by default, reports refusals, and skips completed repairs (1.823051ms)
+✔ 13.5 [memory] repair refuses numbers any record ever held, including a collision arriving after preview (1.244082ms)
+✔ 13.2 [memory] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (2.824192ms)
+✔ 13.3 [memory] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (2.73883ms)
+✔ 13.4 [memory] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (1.675841ms)
+✔ 13.1 [postgres] decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused (255.198182ms)
+✔ 13.5 [postgres] storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs (125.555617ms)
+✔ 13.5 [postgres] simultaneous repairs cannot share a number or repair the same decision twice (95.223078ms)
+✖ 13.6 [postgres] storytree switches once to a stored floor; concurrent decisions exceed it and every held number (82.260468ms)
+✖ 13.8 [postgres] founding books preview in creation order, preserve history, skip Full record decisions and finish once (100.05397ms)
+✖ 13.8 [postgres] concurrent founding moves cannot share numbers or move a book twice (85.169109ms)
+✔ 13.7 [postgres] Full record bulk repair previews by default, reports refusals, and skips completed repairs (100.825144ms)
+✔ 13.5 [postgres] repair refuses numbers any record ever held, including a collision arriving after preview (134.092524ms)
+✔ 13.2 [postgres] a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused (148.950042ms)
+✔ 13.3 [postgres] status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one (88.24013ms)
+✔ 13.4 [postgres] a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable (90.751809ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 24
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6397.775384
+
+✖ failing tests:
+
+test at packages/cli/src/decisions.test.ts:2:5236
+✖ 6.8 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects (123.41944ms)
+  AssertionError [ERR_ASSERTION]: storytree adr has no "set-floor"
+  
+  next:
+    - storytree adr   (its verbs)
+  
+  
+  2 !== 0
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/cli/src/decisions.test.ts:185:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/own-numbers/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/cli/src/decisions.test.ts:183:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/decisions.test.ts:2:6505
+✖ 6.9 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects (123.455619ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /one-time ADR-0662/. Input:
+  
+  'storytree adr renumber <decision> --number <n> | adr renumber --from-full-record [--dry-run | --apply]\n' +
+    'one-time N1 move in storytree: bulk previews by default; --apply writes after you review the dry run\n'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/cli/src/decisions.test.ts:220:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/own-numbers/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/cli/src/decisions.test.ts:217:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'storytree adr renumber <decision> --number <n> | adr renumber --from-full-record [--dry-run | --apply]\none-time N1 move in storytree: bulk previews by default; --apply writes after you review the dry run\n',
+    expected: /one-time ADR-0662/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/library/src/knowledge/decision-log.test.ts:1:1541
+✖ 13.6 [memory] storytree switches once to a stored floor; concurrent decisions exceed it and every held number (2.586732ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /floor.*unset/i. Input:
+  
+  "RangeError: In the storytree project, numbers come from 0.2's adr new until cutover; pass the number explicitly."
+  
+      at async <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:179:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: RangeError: In the storytree project, numbers come from 0.2's adr new until cutover; pass the number explicitly.
+        at Knowledge.recordDecision (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/knowledge.ts:142:13)
+        at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:179:30)
+        at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /floor.*unset/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/library/src/knowledge/decision-log.test.ts:1:1541
+✖ 13.8 [memory] founding books preview in creation order, preserve history, skip Full record decisions and finish once (0.726069ms)
+  TypeError: own.numberFoundingDecisions is not a function
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:219:30)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/library/src/knowledge/decision-log.test.ts:1:1541
+✖ 13.8 [memory] concurrent founding moves cannot share numbers or move a book twice (0.286494ms)
+  TypeError: own.setDecisionNumberFloor is not a function
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:250:15)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/library/src/knowledge/decision-log.test.ts:1:1541
+✖ 13.6 [postgres] storytree switches once to a stored floor; concurrent decisions exceed it and every held number (82.260468ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /floor.*unset/i. Input:
+  
+  "RangeError: In the storytree project, numbers come from 0.2's adr new until cutover; pass the number explicitly."
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:179:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: RangeError: In the storytree project, numbers come from 0.2's adr new until cutover; pass the number explicitly.
+        at Knowledge.recordDecision (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/knowledge.ts:142:13)
+        at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:179:30)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /floor.*unset/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/library/src/knowledge/decision-log.test.ts:1:1541
+✖ 13.8 [postgres] founding books preview in creation order, preserve history, skip Full record decisions and finish once (100.05397ms)
+  TypeError: own.numberFoundingDecisions is not a function
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:219:30)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/library/src/knowledge/decision-log.test.ts:1:1541
+✖ 13.8 [postgres] concurrent founding moves cannot share numbers or move a book twice (85.169109ms)
+  TypeError: own.setDecisionNumberFloor is not a function
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:250:15)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-numbers/packages/library/src/knowledge/decision-log.test.ts:81:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

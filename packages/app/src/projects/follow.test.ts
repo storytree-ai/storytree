@@ -28,3 +28,28 @@ test("2.2 the list is reread every three seconds, unchanged reads leave the surf
   t.mock.timers.tick(3000);
   assert.equal(reads, 3);
 });
+
+test("2.2, 2.3 a transient read or picker failure can redraw the unchanged project after recovery", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let fail = false;
+  let draws = 0;
+  const errors: unknown[] = [];
+  const follow = followProjects({
+    read: async () => {
+      if (fail) throw new Error("temporary read failure");
+      return { projects: ["site"], current: "site" };
+    },
+    onChange: () => { draws++; },
+    onError: (error) => { errors.push(error); },
+  });
+  t.after(() => follow.stop());
+  await follow.refresh();
+  fail = true;
+  await follow.refresh();
+  assert.equal(errors.length, 1);
+  fail = false;
+  await follow.refresh();
+  assert.equal(draws, 2, "a failed read invalidates the old render");
+  await follow.refresh(true);
+  assert.equal(draws, 3, "a picker error that replaced the surface can request a redraw");
+});

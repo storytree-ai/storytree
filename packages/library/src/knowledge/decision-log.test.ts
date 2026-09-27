@@ -1,5 +1,5 @@
 /**
- * Capability 13 · Decision log (ADR-0640): one test per contract 13.1-13.4 in stories/library.md,
+ * Capability 13 · Decision log (ADR-0640): one test per contract 13.1-13.4 in the library story,
  * each run on BOTH backends:
  *
  * - memory: Knowledge layers over one fresh MemoryTransactions; "separate connections" are two

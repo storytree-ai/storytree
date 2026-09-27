@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle, contract 1.8 in stories/app.md (ADR-0641 D2 step 4, choice B1): the app
+ * Capability 1 · Lifecycle, contract 1.8 in the app story (ADR-0641 D2 step 4, choice B1): the app
  * writes a snapshot of each project at start and once a day, keeping each project's newest 14.
  * Against the real Postgres `pnpm test` provides; apps/desktop wires the timing to the app.
  */

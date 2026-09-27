@@ -1,5 +1,5 @@
 /**
- * The live reading (part of capability 3 · Arc surface, stories/arc-surface.md): while it runs it
+ * The live reading (part of capability 3 · Arc surface, the arc surface story): while it runs it
  * asks the app's two reads about every two seconds, carrying each read's cursor forward, and re-reads
  * the clock once a minute even when nothing is new. The reads and the clock are stand-ins here, so
  * no app and no database are needed.

@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view (stories/cli.md): `storytree tree` prints the plan as an indented
+ * Capability 10 · Plan view (the command line story): `storytree tree` prints the plan as an indented
  * tree: stories, capabilities and contracts, each with the health its agent reported (labelled as
  * the agent's) and any claim on it. Name a story to see only that story.
  *

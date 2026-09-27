@@ -1,5 +1,5 @@
 /**
- * The forest's globe-only page (stories/forest.md, capability 3; ADR-0655).
+ * The forest's globe-only page (the forest story, capability 3; ADR-0655).
  * PlanetView reuses the ported island drawing, with story names, selection and claims.
  * Unchanged islands retain their objects so only changed plates are recomputed.
  * The flat canvas remains available in the engine; the page mounts only the globe.

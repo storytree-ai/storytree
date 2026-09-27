@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.4 in stories/library.md, each run
+ * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.4 in the library story, each run
  * on BOTH backends: a WorkModel and a WorkInFlight over a fresh MemoryTransactions, and the `work`
  * and `flight` of a fresh Postgres project, dropped afterwards, pass or fail.
  *

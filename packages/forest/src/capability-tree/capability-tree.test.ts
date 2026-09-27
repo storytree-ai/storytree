@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Capability tree (stories/forest.md): each story node is a grove, one tree per
+ * Capability 2 · Capability tree (the forest story): each story node is a grove, one tree per
  * capability. A tree's size follows the arc surface's work state, and its leaves the health the
  * agent reports. The story is written out as the library's projectTree() hands it over, and the
  * work states come from agent activity log lines written out as linesSince hands them over, so no

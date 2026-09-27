@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Agent activity log (stories/agent-link.md): the agent link's own logbook of what
+ * Capability 2 · Agent activity log (the agent link story): the agent link's own logbook of what
  * agents do, one per project, kept beside the library rather than in it (ADR-0626 D2). Lines are
  * only ever added, and are read back in order as "everything since line N", including lines other
  * processes wrote.

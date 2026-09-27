@@ -29,7 +29,7 @@ export type RecordType =
   | "question";
 
 /**
- * Capability 6's eight kinds beyond decisions, definitions and other artifacts (ADR-0640), each with
+ * Capability 6's eight kinds beyond decisions and definitions (ADR-0640), each with
  * 0.2's fields (`packages/library/src/knowledge.ts` in storytree 0.2), a title and a one-line
  * description.
  */

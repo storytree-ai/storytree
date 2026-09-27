@@ -122,8 +122,8 @@ export interface Library {
   /** Move an increment on, to ready or active, only forward (LifecycleError otherwise). Null if `id` is not a live increment. */
   advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /**
-   * Close an increment with its pull request, artifact and what the close meant; a close with no pull
-   * request needs an artifact. Null if `id` is not a live increment.
+   * Close an increment with its pull request, note and what the close meant; a close with no pull
+   * request needs a note. Null if `id` is not a live increment.
    */
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /** Change an increment's title, objective, body, or what it touches and remedies. Null if `id` is not a live increment. */

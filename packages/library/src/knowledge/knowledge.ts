@@ -280,7 +280,7 @@ export class Knowledge {
     if (path !== null) throw new LinkLoopError(path);
   }
 
-  /** Every live artifact, of all three kinds, in creation order. */
+  /** Every live artifact, of every supported kind, in creation order. */
   async #notes(): Promise<Note[]> {
     const lists = await Promise.all(NOTE_TYPES.map((type) => this.#records.list(type)));
     return lists.flat().sort(byCreation);

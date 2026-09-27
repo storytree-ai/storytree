@@ -1,0 +1,56 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/own-list
+> node --import tsx scripts/test.mjs
+
+scope: affected — packages/own — changed: packages/own
+units: packages/own, scripts/package-boundaries.test.mjs
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/own-list/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:36307 (started in 0.1 s)
+
+=== packages/own ===
+✔ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (113.129699ms)
+✔ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (232.340342ms)
+✔ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (32.070253ms)
+✔ 1.5: absent owner and failed registration report an untracked launch instead of guessing (31.611021ms)
+✔ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (10.795575ms)
+✔ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (39.634894ms)
+✔ 3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime (27.97041ms)
+✔ 3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline (3.684594ms)
+✔ 3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal (3.868274ms)
+✔ 3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle (3.172052ms)
+✔ 3.1: the inventory observes a real owned process live and then gone through the native probe (35.318279ms)
+✔ 2.3/2.4 native observation identifies one live process lifetime consistently (14.273708ms)
+✔ 2.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE (29.974374ms)
+✔ 2.3 invalid process identifiers remain uncertain (0.322683ms)
+✔ 2.3 Linux distinguishes absent processes from unreadable or malformed evidence (0.525849ms)
+✔ 2.3/2.4 Linux uses exact boot and start ticks even with spaces and parentheses in command (0.393617ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 671.462664
+
+=== scripts/package-boundaries.test.mjs ===
+✔ this repo keeps every story in its own package, behind a thin frame and front door (39.0956ms)
+✔ the planted trees start from one that keeps the rules (2.588063ms)
+✔ a story with no package is refused, and so is a package that is neither a story's nor declared (2.407761ms)
+✔ a story's code in the frame or the front door is refused (2.534552ms)
+✔ story code the frame still holds passes only while it is declared, and its declaration only while it is there (4.238316ms)
+✔ a package reaching into another story's files is refused, by relative path or by a subpath it does not export (2.475961ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134.157529
+
+results:
+  PASS    packages/own
+  PASS    scripts/package-boundaries.test.mjs
+test Postgres: stopped (0.1 s)

@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { localMachine, readProcess, type RunOwner, type RunRecord } from '../index.js';
+import { launchOwned, localMachine, readProcess, type RunOwner, type RunRecord } from '../index.js';
 import * as listing from './index.js';
 
 const owner: RunOwner = { session: 'parent', harness: 'codex' };
@@ -113,4 +113,29 @@ test('3.1/3.4: ended requests are not missing reports, and empty coverage never 
   assert.equal(result.rows[0]?.endedWithoutReport, false);
   assert.equal(result.rows[0]?.request.state, 'completed');
   assert.equal(result.complete, true);
+});
+
+
+test('3.1: the inventory observes a real owned process live and then gone through the native probe', async t => {
+  const home = await ledger(t);
+  const launched = await launchOwned({ home, owner, command: process.execPath,
+    args: ['-e', 'setTimeout(() => {}, 30000)'], folder: process.cwd() });
+  if (launched.pid !== undefined) t.after(() => {
+    try { process.kill(launched.pid!, 'SIGKILL'); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; }
+  });
+  assert.equal(launched.status, 'tracked');
+  if (launched.status !== 'tracked') throw new Error('launch was not tracked');
+  let inventory = await listing.listRuns({ home, owner });
+  assert.equal(inventory.rows[0]?.process.state, 'live');
+  assert.equal(inventory.rows[0]?.run.id, launched.run.id);
+  assert.equal(inventory.complete, true);
+  process.kill(launched.pid, 'SIGKILL');
+  for (let attempt = 0; attempt < 200; attempt++) {
+    inventory = await listing.listRuns({ home, owner });
+    if (inventory.rows[0]?.process.state === 'gone') break;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.equal(inventory.rows[0]?.process.state, 'gone');
+  assert.equal(inventory.rows[0]?.endedWithoutReport, true);
 });

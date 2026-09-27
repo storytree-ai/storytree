@@ -1,15 +1,17 @@
-// How `pnpm seed:library` reaches the app's library (~/.storytree/0.3/pgdata) without anyone
-// quitting the app first.
+// How this repo's library scripts (`pnpm check:own-health`, `library:export`, `library:restore`)
+// reach the app's library (~/.storytree/0.3/pgdata) without anyone quitting the app first. The
+// "seed" in the names below is the first such script, `pnpm seed:library`, deleted by the flip
+// (ADR-0641 D2 step 4).
 //
-// - The app is running: the seed joins the app's own database (its owner record names the port)
+// - The app is running: the script joins the app's own database (its owner record names the port)
 //   and leaves it running when done. It used to refuse, and the app hides in its tray, so "I've
 //   quit the app" was not enough (seen 2026-09-27).
-// - Nobody holds the library: the seed starts the database itself and stops it at the end.
-// - Another seed holds it: the seed waits its turn, saying so once, rather than refusing.
+// - Nobody holds the library: the script starts the database itself and stops it at the end.
+// - Another script holds it: the script waits its turn, saying so once, rather than refusing.
 //
-// And once connected, two seeds never write at once: each holds a writing lock (a Postgres advisory
-// lock) on a connection named `storytree-seed`, which is also how the app knows not to restart into
-// an update while a seed is writing (@storytree/app's seedWriting).
+// And once connected, two scripts never write at once: each writer holds a writing lock (a Postgres
+// advisory lock) on a connection named `storytree-seed`, which is also how the app knows not to
+// restart into an update while a script is writing (@storytree/app's seedWriting).
 
 import pg from "pg";
 
@@ -72,7 +74,7 @@ export async function holdSeedLock(url, { log }) {
 }
 
 /**
- * The app's library for one of this repo's library scripts (`pnpm seed:library`, `library:move`,
+ * The app's library for one of this repo's library scripts (`pnpm check:own-health`,
  * `library:export`, `library:restore`): the running app's database, or one started for the script,
  * waiting its turn behind another script. A script that `writes` also takes the writing lock, so
  * two never write at once and the app does not restart under it. `stop()` lets go of both.

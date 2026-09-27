@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Workspace (stories/cli.md): one test per contract 11.1-11.3, each running the real,
+ * Capability 11 · Workspace (the command line story): one test per contract 11.1-11.3, each running the real,
  * built `storytree` command in a project folder that is a git clone with an origin beside it. The
  * agent's session reaches the command as its shell does, in CLAUDE_CODE_SESSION_ID or
  * CODEX_THREAD_ID.

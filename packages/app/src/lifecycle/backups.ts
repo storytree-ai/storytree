@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle, contract 1.8 (stories/app.md; ADR-0641 D2 step 4, choice B1): once a
+ * Capability 1 · Lifecycle, contract 1.8 (the app story; ADR-0641 D2 step 4, choice B1): once a
  * project's library is the only copy of its plan, the app keeps snapshots of it. At start and once
  * a day while it runs, apps/desktop calls backUp, which writes one snapshot of each project to
  * <dir>/<project>/<time>.json (the library's `snapshot`, records and history) and keeps that

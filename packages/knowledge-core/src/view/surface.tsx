@@ -1,5 +1,5 @@
 /**
- * Capability 4's surface (stories/knowledge-core.md): everything the knowledge core shows, owned
+ * Capability 4's surface (the knowledge core story): everything the knowledge core shows, owned
  * here so the app only mounts it (ADR-0649 D2). The app makes one core per project it shows,
  * hands it the library's change history and the activity log's new lines as they come, and mounts
  * the two pieces while looking inside: `KnowledgeCoreInside` in the turning globe and

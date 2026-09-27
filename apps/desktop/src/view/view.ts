@@ -121,18 +121,14 @@ export function renderProject(project: string, tree: AnnotatedTree): string {
   return view.stories.map(renderStory).join("\n");
 }
 
-/**
- * The page when the library has no projects at all: how to bring storytree 0.3's own stories back.
- * The library is their only copy (ADR-0641), so they come back from a snapshot the app kept.
- */
+/** The page when the library has no projects at all: how a user starts their first project. */
 export function renderNoProjects(): string {
   return [
     `<div class="empty">`,
     `<h1>No projects yet</h1>`,
     `<p>This app shows the projects in storytree 0.3's local library, and it has none yet.</p>`,
-    `<p>To bring back storytree 0.3's own stories and decisions, quit this app and run ` +
-      `<code>pnpm library:restore &lt;snapshot&gt;</code> in the storytree 0.3 repo, with one of the ` +
-      `snapshots the app keeps in <code>~/.storytree/0.3/backups</code>. Then open the app again.</p>`,
+    `<p>Start Claude Code or Codex in your project folder, and say yes when it asks to set up storytree.</p>`,
+    `<p>Your project will appear here automatically.</p>`,
     `</div>`,
   ].join("\n");
 }

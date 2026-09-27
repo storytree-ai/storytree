@@ -33,9 +33,3 @@ export function parseArgs(argv: readonly string[]): AppArgs {
   }
   return args;
 }
-
-/** The project to open: the one asked for, else `storytree` if there is one, else the first. */
-export function chooseProject(projects: readonly string[], requested: string | undefined): string | undefined {
-  if (requested !== undefined) return requested;
-  return projects.includes("storytree") ? "storytree" : projects[0];
-}

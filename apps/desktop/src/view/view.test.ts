@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import type { AnnotatedTree, HealthColumn, NodeHealth } from "@storytree/library";
 
-import { inBuildOrder, projectView, renderNoProjects, renderProject, renderSwitcher } from "./view.js";
+import { inBuildOrder, projectView, renderProject, renderSwitcher } from "./view.js";
 
 const NOT_CHECKED: HealthColumn = { state: "not-checked" };
 const health = (reported: HealthColumn, verified: HealthColumn): NodeHealth => ({ reported, verified });
@@ -159,14 +159,10 @@ test("the story heads the page with its title, description and rolled-up health,
   assert.match(html, /1\.1 · <code>openProject\(&quot;site&quot;\)<\/code> creates it/);
 });
 
-test("a project with no stories says so, and with no projects at all the page says how to bring this repo's own stories back from a snapshot", () => {
+test("a project with no stories says so", () => {
   const empty = renderProject("site", { stories: [], arcs: [] });
   assert.match(empty, /site has no stories yet/);
   assert.doesNotMatch(empty, /data-story-id/);
-  const none = renderNoProjects();
-  assert.match(none, /<code>pnpm library:restore &lt;snapshot&gt;<\/code>/);
-  assert.match(none, /~\/\.storytree\/0\.3\/backups/);
-  assert.doesNotMatch(none, /seed:library/, "the seed is gone: the library is the one copy (ADR-0641)");
 });
 
 test("the project switcher lists every project, the one shown selected, names escaped", () => {

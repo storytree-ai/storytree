@@ -3,11 +3,15 @@
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { LinesSince } from "@storytree/agent-link";
+import type { ProjectSelection } from "@storytree/app";
 import type { AnnotatedTree, ArcView, Hold, Changes, Note, SchemaRecord } from "@storytree/library";
 
 export interface StorytreeBridge {
   /** The names of the projects in the app's library, sorted. */
   listProjects(): Promise<string[]>;
+  /** The current project list and the last chosen project, including newly set-up projects. */
+  projectSelection(): Promise<ProjectSelection>;
+  chooseProject(name: string): Promise<ProjectSelection>;
   arcView(name: string, id: string): Promise<ArcView | null>;
   waitHolds(name: string, id: string): Promise<Hold[]>;
   heldOnQuestion(name: string, id: string): Promise<string[]>;
@@ -32,6 +36,8 @@ export interface StorytreeBridge {
 /** The IPC channels the functions travel on. */
 export const CHANNELS = {
   listProjects: "storytree:list-projects",
+  projectSelection: "storytree:project-selection",
+  chooseProject: "storytree:choose-project",
   arcView: "storytree:arc-view",
   waitHolds: "storytree:wait-holds",
   heldOnQuestion: "storytree:held-on-question",

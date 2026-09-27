@@ -30,6 +30,7 @@ import { NOT_RUNNING_ANSWER } from "./index.js";
 
 /** The toolbox: every tool the server offers. */
 const TOOLS = [
+  "attach_workspace",
   "check_setup",
   "claim",
   "clear_wait",
@@ -221,6 +222,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],
         ["make_workspace", { increment: "increment_000000000000", reason: "building it" }],
+        ["attach_workspace", { increment: "increment_000000000000", reason: "building it", folder, ref: "a".repeat(40), name: "form" }],
         ["report", { contract: "contract_000000000000", result: "red" }],
         ["land", { capability: "capability_000000000000" }],
         ["search_notes", { query: "mailgun" }],
@@ -834,6 +836,43 @@ test("ADR-0650 writes proper artifact kinds with default filing and refuses harn
       assert.equal(refused.isError, true);
       assert.match(refused.text, /memory.*harness.*artifact/i);
       assert.deepEqual(await library.history(), before);
+    });
+  });
+});
+
+
+test("6.19 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const origin = path.join(path.dirname(folder), "origin.git");
+    git(path.dirname(folder), "init", "--bare", "-b", "main", origin);
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "first");
+    git(folder, "remote", "add", "origin", origin);
+    git(folder, "push", "origin", "main");
+    await withAgent(folder, codex("codex-app"), async (agent) => {
+      const { arc } = await planned(agent);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Form", objective: "Build form", body: "Red then green" }));
+      const prepared = await agent.call("make_workspace", { increment, reason: "build form" });
+      assert.equal(prepared.isError, false, prepared.text);
+      assert.equal(prepared.data.status, "prepared");
+      const { ref, name } = prepared.data as { ref: string; name: string };
+      assert.equal(ref, git(folder, "rev-parse", "HEAD").trim());
+      assert.match(prepared.text, /create_worktree/);
+      assert.match(prepared.text, /attach_workspace/);
+      assert.deepEqual(await readClaims(log, project), []);
+      const returnedFolder = path.join(path.dirname(folder), "app returned");
+      git(folder, "worktree", "add", "--detach", returnedFolder, ref);
+      const refused = await agent.call("attach_workspace", { increment, reason: "build form", ref, name, folder });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /kept|untouched/);
+      const attached = await agent.call("attach_workspace", { increment, reason: "build form", ref, name, folder: returnedFolder });
+      assert.equal(attached.isError, false, attached.text);
+      assert.equal(attached.data.folder, returnedFolder);
+      assert.equal(attached.data.branch, `codex/${name}`);
+      assert.equal((await readClaims(log, project))[0]?.session, "codex-app");
+      assert.equal((await readClaims(log, project))[0]?.branch, attached.data.branch);
+      assert.ok(attached.text.includes(returnedFolder));
     });
   });
 });

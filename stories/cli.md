@@ -352,10 +352,12 @@ that story.
 
 ## 11 · Workspace
 
-`storytree workspace <increment> --reason <text>` makes a workspace already claimed for that work,
-in one step: a fresh branch from `origin`'s main as just fetched, a git worktree for it where the
-agent's harness keeps its own, and the claim, held by the agent session the command runs in. It is
-refused if the work is held or waiting.
+`storytree workspace <increment> --reason <text>` makes a claimed Claude Code workspace, or
+prepares a Codex workspace by checking availability and fetching main. For Codex it prints the
+exact ref and name for the agent to pass to the app's `create_worktree`; the agent then runs
+`storytree workspace attach <increment> --folder <returned-directory> --ref <commit> --name <name>
+--reason <text>`. Storytree verifies the worktree and claims its branch; only the app creates the
+Codex folder. Both steps refuse held or waiting work, and only a running agent session may claim.
 
 - **Depends on:** 1, and the agent link's `makeWorkspace` (its 5.12-5.14).
 - **Its shelf,** founding book first:
@@ -370,9 +372,14 @@ refused if the work is held or waiting.
   read only.
 
 **Contracts:**
-1. From an agent's shell, `workspace <increment> --reason` makes a worktree on a fresh branch from
+1. From a Claude Code agent's shell, `workspace <increment> --reason` makes a worktree on a fresh branch from
    `origin`'s main and claims the increment for that session on that branch, naming the folder to
    work in.
 2. Work another live session holds is refused naming its holder, and no worktree is made.
 3. From a shell no agent session runs, it is refused saying to run it from the agent, and nothing is
-   claimed.
+   claimed, for both preparation and attachment.
+4. From a Codex agent's shell, `workspace <increment> --reason` returns the exact freshly fetched
+   commit and suggested name for the app's `create_worktree`, without creating a folder or claim.
+   `workspace attach` with that ref, name and returned folder claims its verified branch for the
+   same session and names the working directory. A bad directory is refused without a claim,
+   explaining that the app's worktree is kept.

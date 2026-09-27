@@ -92,3 +92,41 @@ test("11.3 from a shell no agent session runs, it is refused saying to run it fr
     }
   });
 });
+
+
+test("11.4 Codex prepares app creation then attaches its returned folder; an invalid directory and a person-only shell are refused", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const env = { CODEX_THREAD_ID: "codex-app" };
+    const prepared = await world.run(["workspace", increment, "--reason", "build form"], env);
+    assert.equal(prepared.code, 0, prepared.stderr);
+    assert.match(prepared.stdout, /create_worktree/);
+    const args = prepared.stdout.match(/\{"ref":"[^"\n]+","name":"[^"\n]+"\}/)?.[0];
+    assert.ok(args, prepared.stdout);
+    const { ref, name } = JSON.parse(args) as { ref: string; name: string };
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.deepEqual(await readClaims(log, world.project), []);
+      assert.equal(git(world.folder, "worktree", "list").trim().split(/\r?\n/).length, 1);
+      const folder = path.join(path.dirname(world.folder), "app returned");
+      git(world.folder, "worktree", "add", "--detach", folder, ref);
+      const attach = ["workspace", "attach", increment, "--folder", folder, "--ref", ref, "--name", name, "--reason", "build form"];
+      const person = await world.run(attach);
+      assert.equal(person.code, 1);
+      assert.match(person.stderr, /agent/);
+      const bad = await world.run([...attach, "--folder", world.folder], env);
+      assert.equal(bad.code, 1);
+      assert.match(bad.stderr, /kept|untouched/);
+      assert.deepEqual(await readClaims(log, world.project), []);
+      const attached = await world.run(attach, env);
+      assert.equal(attached.code, 0, attached.stderr);
+      assert.ok(attached.stdout.includes(folder), attached.stdout);
+      assert.equal(git(folder, "symbolic-ref", "--short", "HEAD").trim(), `codex/${name}`);
+      const [held] = await readClaims(log, world.project);
+      assert.equal(held?.session, "codex-app");
+      assert.equal(held?.branch, `codex/${name}`);
+    } finally {
+      await log.close();
+    }
+  });
+});

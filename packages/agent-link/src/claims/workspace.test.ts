@@ -15,6 +15,7 @@ import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claim, makeWorkspace, readClaims, type ClaimContext } from "./index.js";
+import * as workspace from "./workspace.js";
 
 interface World {
   dir: string;
@@ -102,12 +103,12 @@ async function statusOf(library: Library, increment: string): Promise<string | u
 }
 
 test("5.12 session A makes a workspace for a proposed increment: a new folder where its harness keeps worktrees, on a fresh branch cut from origin's main as just fetched, and A holds the increment there, the claim naming that branch, and the increment is active", async () => {
-  await withWorld(async ({ dir, log, library, project, site, fresh, park, as }) => {
+  await withWorld(async ({ log, library, project, site, fresh, park, as }) => {
     const increment = await park("email form");
 
     const made = await makeWorkspace(as("A"), increment, "building the email form");
 
-    assert.ok(made.ok, JSON.stringify(made));
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
     assert.equal(path.dirname(made.folder), path.join(site, ".claude", "worktrees"), "where Claude Code keeps its worktrees");
     assert.ok(existsSync(path.join(made.folder, "NEWS.md")), "cut from origin's main as just fetched, not the clone's stale view");
     assert.equal(git(made.folder, "rev-parse", "HEAD").trim(), fresh);
@@ -120,15 +121,7 @@ test("5.12 session A makes a workspace for a proposed increment: a new folder wh
     );
     assert.equal(await statusOf(library, increment), "active");
 
-    // Codex's workspace goes where Codex keeps its own, on a branch named for it.
-    const other = await park("welcome email");
-    const codexHome = path.join(dir, "codex-home");
-    const codexMade = await makeWorkspace(as("B"), other, "sending the welcome email", { codexHome });
-    assert.ok(codexMade.ok, JSON.stringify(codexMade));
-    assert.equal(path.dirname(path.dirname(codexMade.folder)), path.join(codexHome, "worktrees"));
-    assert.equal(path.basename(codexMade.folder), "site");
-    assert.match(codexMade.branch, /^codex\//);
-    assert.equal(git(codexMade.folder, "rev-parse", "HEAD").trim(), fresh);
+
   });
 });
 
@@ -175,5 +168,101 @@ test("5.14 when main cannot be fetched fresh, as from a folder with no origin, i
     assert.deepEqual(await readClaims(log, project), []);
     assert.equal(await statusOf(library, increment), "proposal");
     assert.deepEqual(branches(alone), ["main"]);
+  });
+});
+
+
+test("5.12 Codex prepares without creating or claiming, then attaches the app's detached or named worktree at the pinned fresh commit", async () => {
+  await withWorld(async ({ dir, log, library, project, site, fresh, park, as }) => {
+    for (const detached of [true, false]) {
+      const increment = await park(detached ? "detached form" : "named form");
+      const before = await readClaims(log, project);
+      const prepared = await makeWorkspace(as("B"), increment, "build form");
+      assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
+      assert.equal(prepared.ref, fresh);
+      assert.equal(prepared.base, "origin/main");
+      assert.match(prepared.name, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      assert.ok(prepared.name.startsWith(increment.slice(0, 32)));
+      assert.deepEqual(await readClaims(log, project), before);
+      assert.equal(await statusOf(library, increment), "proposal");
+      assert.equal(worktrees(site).length, detached ? 1 : 2, "preparation made no worktree");
+
+      const folder = path.join(dir, detached ? "app detached" : "app named");
+      const branch = detached ? `codex/${prepared.name}` : "codex/app-chosen";
+      git(site, "worktree", "add", ...(detached ? ["--detach"] : ["-b", branch]), folder, prepared.ref);
+      // The expected commit is the prepared SHA, even if another fetch moves the remote ref.
+      git(site, "update-ref", "refs/remotes/origin/main", git(site, "rev-parse", "main").trim());
+      const attached = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
+      assert.ok(attached.ok, JSON.stringify(attached));
+      assert.equal(attached.folder, folder);
+      assert.equal(attached.branch, branch);
+      assert.equal(git(folder, "rev-parse", "HEAD").trim(), fresh);
+      assert.equal(git(folder, "symbolic-ref", "--short", "HEAD").trim(), branch);
+      const held = (await readClaims(log, project)).find((c) => c.increment === increment);
+      assert.equal(held?.session, "B");
+      assert.equal(held?.branch, branch);
+      assert.equal(await statusOf(library, increment), "active");
+    }
+  });
+});
+
+test("5.13 Codex checks held, waiting and already-owned work before creation, and refuses a claim lost before attachment without changing the app worktree", async () => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
+    const increment = await park("email form");
+    const waiting = await park("confirmation");
+    await library.addWait(waiting, increment, "needs the form");
+    const prepared = await makeWorkspace(as("B"), increment, "build form");
+    assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
+    const folder = path.join(dir, "app-worktree");
+    git(site, "worktree", "add", "--detach", folder, prepared.ref);
+    await claim({ ...as("A"), branch: "claude/winner" }, increment, "won the race");
+    const lines = (await log.since(project, 0)).lines.length;
+    const held = await makeWorkspace(as("B"), increment, "again");
+    assert.ok(!held.ok && held.refused === "held");
+    const blocked = await makeWorkspace(as("B"), waiting, "send confirmation");
+    assert.ok(!blocked.ok && blocked.refused === "waiting");
+    const yours = await makeWorkspace({ ...as("A"), harness: "codex" }, increment, "again");
+    assert.ok(!yours.ok && yours.refused === "yours" && yours.claim.branch === "claude/winner");
+
+    const refused = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
+    assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A", JSON.stringify(refused));
+    assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
+    assert.deepEqual(branches(site), ["main"]);
+    assert.ok(existsSync(folder));
+    assert.equal((await log.since(project, 0)).lines.length, lines);
+    assert.equal((await readClaims(log, project))[0]?.session, "A");
+  });
+});
+
+test("5.14 Codex refuses invalid returned directories and releases a claim if naming the branch fails, keeping the app worktree", async () => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
+    const increment = await park("email form");
+    const prepared = await makeWorkspace(as("B"), increment, "build form");
+    assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
+    const folder = path.join(dir, "app-worktree");
+    git(site, "worktree", "add", "--detach", folder, prepared.ref);
+    const subfolder = path.join(folder, "nested");
+    mkdirSync(subfolder);
+    const foreign = path.join(dir, "foreign");
+    git(dir, "clone", site, foreign);
+    const foreignWorktree = path.join(dir, "foreign-worktree");
+    git(foreign, "worktree", "add", "--detach", foreignWorktree, prepared.ref);
+    const stale = path.join(dir, "stale");
+    git(site, "worktree", "add", "--detach", stale, "main");
+    for (const badFolder of [foreignWorktree, site, subfolder, stale]) {
+      const refused = await workspace.attachWorkspace(as("B"), increment, "build form", { folder: badFolder, ref: prepared.ref, name: prepared.name });
+      assert.ok(!refused.ok && refused.refused === "no-workspace", JSON.stringify(refused));
+      assert.deepEqual(await readClaims(log, project), []);
+      assert.equal(await statusOf(library, increment), "proposal");
+      assert.ok(existsSync(badFolder));
+    }
+    git(site, "branch", `codex/${prepared.name}`, prepared.ref);
+    const failed = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
+    assert.ok(!failed.ok && failed.refused === "no-workspace", JSON.stringify(failed));
+    assert.deepEqual(await readClaims(log, project), []);
+    assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "claimed" || line.kind === "released").map((line) => line.kind), ["claimed", "released"]);
+    assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
+    assert.ok(existsSync(folder));
+    assert.equal(await statusOf(library, increment), "active");
   });
 });

@@ -62,7 +62,7 @@ export class PgTransactions implements Transactions {
       await appendEvent(client, current === undefined ? "created" : "updated", record, record.updatedAt, input.actor);
       await putRecord(client, record);
       return record;
-    });
+    }, input.signal);
   }
 
   async get(id: string): Promise<RecordEnvelope | null> {
@@ -92,7 +92,7 @@ export class PgTransactions implements Transactions {
       await appendEvent(client, "updated", record, record.updatedAt, input.actor);
       await putRecord(client, record);
       return record;
-    });
+    }, input.signal);
   }
 
   retire(input: RetireInput): Promise<void> {
@@ -101,7 +101,7 @@ export class PgTransactions implements Transactions {
       if (current === undefined) return;
       await appendEvent(client, "retired", current, now(), input.actor, input.reason);
       await client.query("DELETE FROM record WHERE id = $1", [input.id]);
-    });
+    }, input.signal);
   }
 
   async history(filter: HistoryFilter = {}): Promise<HistoryEntry[]> {
@@ -148,12 +148,16 @@ export class PgTransactions implements Transactions {
    *   would miss the entry that committed late (2.8). One writer at a time makes seq order commit
    *   order.
    */
-  async #write<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+  async #write<T>(work: (client: PoolClient) => Promise<T>, signal?: AbortSignal): Promise<T> {
+    signal?.throwIfAborted();
     const client = await this.#pool.connect();
     let broken = false;
     try {
       await client.query("BEGIN");
       await client.query(WRITE_LOCK);
+      // Cancellation while queued writes nothing. Once admitted, finish the transaction and
+      // its history normally: cancellation cannot undo a write that has already started.
+      signal?.throwIfAborted();
       const result = await work(client);
       await client.query("COMMIT");
       return result;

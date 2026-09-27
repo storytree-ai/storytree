@@ -86,7 +86,7 @@ export interface Call {
   readonly log: ActivityLog;
   readonly project: string;
   readonly caller: Caller;
-  /** Library history names the session resolved for this call, including a hook's /clear change. */
+  /** Library history names the resolved session; cancellation stops writes still waiting to start. */
   readonly writer: WriteOptions;
   /** The folder the agent works in. */
   readonly folder: string;
@@ -140,7 +140,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name });
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder: options.folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
-        return result(await act(args as never, { library, log, project: where.project, caller, writer: { actor: `session:${caller.session}` }, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
+        return result(await act(args as never, { library, log, project: where.project, caller, writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal }, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

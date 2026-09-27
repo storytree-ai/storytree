@@ -193,7 +193,7 @@ export class HealthRecord {
     const record = await this.#records.create(
       "health",
       { node: contractId, column, state, ...(by === undefined ? {} : { by }), ...(note === undefined ? {} : { note }) },
-      { id: healthId(contractId, column), ...(actor === undefined ? {} : { actor }) },
+      { id: healthId(contractId, column), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
     );
     return entryOf(record.fields, record.updatedAt);
   }

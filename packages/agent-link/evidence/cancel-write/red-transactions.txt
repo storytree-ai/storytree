@@ -1,0 +1,51 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/cancel-write
+> node --import tsx scripts/test.mjs "--test-name-pattern=2.11" "packages/library/src/transactions/memory.test.ts" "packages/library/src/transactions/pg.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:43089 (started in 0.1 s)
+✖ 2.11 [memory] cancellation before a write leaves no change; cancellation after it starts preserves the write and its history (3.578249ms)
+✖ 2.11 [postgres] cancellation before a write leaves no change; cancellation after it starts preserves the write and its history (124.122634ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 367.669056
+
+✖ failing tests:
+
+test at packages/library/src/transactions/behaviour-suite.ts:1:287
+✖ 2.11 [memory] cancellation before a write leaves no change; cancellation after it starts preserves the write and its history (3.578249ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/library/src/transactions/behaviour-suite.ts:483:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/library/src/transactions/behaviour-suite.ts:33:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /cancel queued write/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/library/src/transactions/behaviour-suite.ts:1:287
+✖ 2.11 [postgres] cancellation before a write leaves no change; cancellation after it starts preserves the write and its history (124.122634ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/library/src/transactions/behaviour-suite.ts:483:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cancel-write/packages/library/src/transactions/behaviour-suite.ts:33:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /cancel queued write/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

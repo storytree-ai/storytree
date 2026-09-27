@@ -36,7 +36,7 @@ record; change them there first. Its front cover is `decisions/knowledge-core-ca
   ADR-0629 D3's "ranks below every MVP increment" for the core.
 
 **What it reads.** The library only through its public API (`stories/library.md`, capability 7):
-`projectTree`, `list`, `frontCovers`, `decision` and `changesSince`. The agent link only through
+`projectTree` and the change history `changesSince`, the two reads the page already makes. The agent link only through
 its activity log (`stories/agent-link.md`, capability 2): `note-read` lines and the agent on each
 (ADR-0629 D2). The forest's globe places (`stories/forest.md`, capabilities 1 and 3). It adds
 nothing to any of them.
@@ -79,8 +79,8 @@ The project's notes hang below the stories' and capabilities' front covers, with
 longest chain of references from any shelf. A shared note appears once, a loop is drawn as a
 labelled error, and a note no shelf reaches orbits outside with "no depth".
 
-- **Depends on:** 2, for which notes are ghosts. It reads the library's `projectTree`, `list` and
-  `frontCovers`, and places entrances at the forest's island places.
+- **Depends on:** 2, for which notes are ghosts. It reads the library's `projectTree` and its
+  change history (`changesSince`), and places entrances at the forest's island places.
 - **Its shelf,** founding book first:
   - **Founding book (D1, approved with ADR-0647):** a chain follows stored references in their
     direction. The shelf-to-cover step counts as 1, and each later link adds 1. A note's depth is
@@ -113,8 +113,8 @@ A replaced decision appears as a see-through ghost beside the decision that repl
 when its recorded reader reaches it. Its card tells an explicit supersession from an earlier cover
 found in write history. Proposed decisions stay out of this first slice.
 
-- **Depends on:** nothing in this story. It reads the library's `decision` reading (status and
-  `supersededBy`, capability 13) and its write history (`changesSince`).
+- **Depends on:** nothing in this story. It reads the library's change history
+  (`changesSince`): each decision's status and `supersedes` (capability 13), and its writes.
 - **Its shelf,** founding book first:
   - **Founding book (G2, approved with ADR-0647):** the decision log's explicit supersession is
     authoritative: an accepted decision naming an old one in `supersedes` makes it a ghost, even
@@ -124,6 +124,15 @@ found in write history. Proposed decisions stay out of this first slice.
     mark alone, an edited wording, or a plain link to an old decision prove no replacement.
   - **Replacement is not support.** Ghosts and proposed decisions take no part in depth or
     incoming-link sizes, and drawing or lighting a ghost never moves the layout.
+- **As built:** `knowledge(changes)` in `packages/knowledge-core`, a pure function of the library's
+  `changesSince(0)`. It replays the history to the live notes and returns them with the ghosts,
+  the proposed decisions, the active notes (neither) and each active note's count of distinct
+  active notes linking to it. Supersession is the library's own reading, repeated over the
+  history: an accepted decision naming another in `supersedes` (capability 13). An "earlier cover"
+  needs its mark cleared (not moved) while a newer cover on the same shelf links to it, and no mark
+  since. Each ghost names the decision that replaced it directly and the current one it sits
+  beside; a chain that branches, or ends at a note no longer live or proposed, is "replacement not
+  placed".
 
 **Contracts:**
 1. An accepted decision that explicitly supersedes an old one makes a ghost, even when the old

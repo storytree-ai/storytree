@@ -1,0 +1,26 @@
+Commands and exit status:
+flock /tmp/storytree-heavy.lock pnpm typecheck — PASS (0)
+flock /tmp/storytree-heavy.lock pnpm test — PASS (0)
+
+scope: affected — apps/desktop, packages/agent-link, packages/app, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian — changed: packages/cli; their dependents: apps/desktop, packages/agent-link, packages/app, packages/arc-surface, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian
+units: apps/desktop, packages/agent-link, packages/app, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, scripts/package-boundaries.test.mjs
+
+✔ 3.8 `library retire` retires records with a reason and their writer (461.553275ms)
+✔ 5.4 question retire only retires questions; either door refuses a question an increment is held on (748.946209ms)
+
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    scripts/package-boundaries.test.mjs
+test Postgres: stopped (0.1 s)
+
+pnpm test-ratio:
+                              test   implementation   ratio
+  all                       39,605           30,378    1.30

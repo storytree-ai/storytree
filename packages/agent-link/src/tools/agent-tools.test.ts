@@ -18,6 +18,7 @@ import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
+import { recordFriction, reinforceFriction } from "../index.js";
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
@@ -45,6 +46,7 @@ const TOOLS = [
   "ready_increment",
   "record_friction",
   "record_resteer",
+  "reinforce",
   "release",
   "report",
   "retire_from_plan",
@@ -603,6 +605,36 @@ test("6.11 it raises a question on an arc and holds an increment on it, which a 
       const wrong = idOf(await agent.call("raise_question", { ...asked, title: "Asked in error" }));
       assert.equal((await agent.call("retire_question", { question: wrong, reason: "asked in error" })).isError, false);
       assert.equal((await library.arcView(arc))?.questions.some((one) => one.id === wrong), false, "retired");
+    });
+  });
+});
+
+test("6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences", async () => {
+  await withProject(async ({ folder, library }) => {
+    const friction = await recordFriction(library, { title: "Slow mail", description: "Mail takes too long", statement: "The mailer timed out", evidence: "src/mail.ts: TimeoutError", impact: "Signup was delayed" });
+    await library.editNote(friction.id, { route: "nothing", routeReason: "An upstream outage" });
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      assert.equal(idOf(await agent.call("reinforce", { friction: friction.id, evidence: "#81: mail still times out" })), friction.id);
+      const first = await library.get(friction.id);
+      assert.ok(first?.type === "friction");
+      assert.equal(first.fields.reinforcedBy?.[0]?.date, new Date().toISOString().slice(0, 10));
+      assert.equal(first.fields.reinforcedBy?.[0]?.evidence, "#81: mail still times out");
+      const second = await reinforceFriction(library, friction.id, { branch: "fix/mail", evidence: "src/mail.ts: TimeoutError again" }, { actor: "person:Sam" });
+      assert.equal(second.id, friction.id);
+      assert.deepEqual(second.fields, { ...first.fields, reinforcedBy: [
+        ...first.fields.reinforcedBy!, { branch: "fix/mail", date: new Date().toISOString().slice(0, 10), evidence: "src/mail.ts: TimeoutError again" },
+      ] });
+      assert.equal((await library.list("friction")).length, 1, "no twin was created");
+      assert.equal((await library.history({ id: friction.id })).at(-1)?.actor, "person:Sam");
+      const note = await library.writeMemory({ text: "Not friction" });
+      const before = await library.history();
+      for (const [id, evidence] of [[friction.id, "It happened again"], [note.id, "src/mail.ts"], ["missing", "src/mail.ts"]]) {
+        await assert.rejects(reinforceFriction(library, id!, { branch: "fix/mail", evidence: evidence! }));
+        const refused = await agent.call("reinforce", { friction: id, evidence });
+        assert.equal(refused.isError, true, refused.text);
+        assert.match(refused.text, /concrete|friction/i);
+      }
+      assert.deepEqual(await library.history(), before, "refused recurrences wrote nothing");
     });
   });
 });

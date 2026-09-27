@@ -1,0 +1,54 @@
+--- a/packages/forest-world/src/planet/PlanetWorldCanvas.tsx
++++ b/packages/forest-world/src/planet/PlanetWorldCanvas.tsx
+@@ -87,6 +87,43 @@
+   return null;
+ }
+ 
++/** Sparse projects fit their actual projected land and trees, with 64px for names. */
++function IslandFraming({ count }: { count: number }) {
++  const { camera, scene, size, invalidate } = useThree();
++  const fitted = useRef('');
++  const settling = useRef(0);
++  useFrame(() => {
++    const key = `${size.width}:${size.height}`;
++    if (fitted.current === key) return;
++    // Let the opening turn and the preloaded kit mount before reading their geometry.
++    if (settling.current++ < 3) { invalidate(); return; }
++    scene.updateMatrixWorld(true);
++    camera.updateMatrixWorld(true);
++    let x = 0, y = 0, plates = 0;
++    const point = new Vector3();
++    scene.traverse(plate => {
++      if (!plate.name.startsWith('planet:') || plate.name === 'planet:sea') return;
++      plates++;
++      plate.traverse(object => {
++        const mesh = object as import('three').Mesh;
++        const positions = mesh.geometry?.attributes.position;
++        if (!mesh.isMesh || positions === undefined) return;
++        for (let i = 0; i < positions.count; i++) {
++          point.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld).applyMatrix4(camera.matrixWorldInverse);
++          x = Math.max(x, Math.abs(point.x));
++          y = Math.max(y, Math.abs(point.y));
++        }
++      });
++    });
++    if (plates !== count || x === 0 || y === 0) { invalidate(); return; }
++    camera.zoom = Math.max(0.1, Math.min(30, (size.width - 128) / (2 * x), (size.height - 128) / (2 * y)));
++    camera.updateProjectionMatrix();
++    fitted.current = key;
++    invalidate();
++  });
++  return null;
++}
++
+ /** A second mount of 0.2's ground and pines: one Canvas and one calibrated sun for all plates.
+  * The flat ForestWorldCanvas retains its own camera, controls, material defaults and lighting. */
+ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children }: PlanetWorldCanvasProps) {
+@@ -103,6 +140,7 @@
+     <color attach="background" args={['#101418']} />
+     <Lights />
+     <Framing radius={radius} />
++    {scene.islands.length > 0 && scene.islands.length <= 12 && <IslandFraming count={scene.islands.length} />}
+     <group quaternion={rotation}>
+       <mesh name="planet:sea">
+         <sphereGeometry args={[radius, 96, 64]} />

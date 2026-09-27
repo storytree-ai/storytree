@@ -1,0 +1,17 @@
+/** A slate sea, the existing L1 shading, and a soft inner rim in the same palette. */
+function SeaMaterial() {
+  const material = useMemo(() => {
+    const sea = new MeshStandardMaterial({ color: '#29343c', roughness: 1 });
+    sea.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+        float rim = pow(1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0), 3.0);
+        outgoingLight += vec3(0.065, 0.082, 0.094) * rim;
+        #include <opaque_fragment>
+      `);
+    };
+    sea.customProgramCacheKey = () => 'globe-look-2-slate-rim';
+    return sea;
+  }, []);
+  useEffect(() => () => material.dispose(), [material]);
+  return <primitive object={material} attach="material" />;
+}

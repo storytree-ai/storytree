@@ -1,0 +1,25 @@
+--- a/packages/forest/src/never-hidden/never-hidden.ts
++++ b/packages/forest/src/never-hidden/never-hidden.ts
+@@ -38,10 +38,19 @@
+   return { yaw: horizontal === 0 ? 0 : -Math.atan2(spot.x, spot.z), pitch: Math.atan2(spot.y, horizontal) };
+ }
+ 
+-/** Face the first failing island in input order, else the first story; an empty globe stays neutral. */
++/** Keep failure priority; otherwise face the mean of the islands' unit directions. */
+ export function openingTurn(islands: readonly FacingIsland[]): GlobeTurn {
+-  const chosen = islands.find(isFailing) ?? islands[0];
+-  return chosen === undefined ? { yaw: 0, pitch: 0 } : turnToIsland(chosen.spot);
++  const failing = islands.find(isFailing);
++  if (failing !== undefined) return turnToIsland(failing.spot);
++  const sum = islands.reduce((sum, { spot }) => {
++    const length = Math.hypot(spot.x, spot.y, spot.z);
++    return { x: sum.x + spot.x / length, y: sum.y + spot.y / length, z: sum.z + spot.z / length };
++  }, { x: 0, y: 0, z: 0 });
++  // Opposite directions have no middle; retain a deterministic opening in that case.
++  if (Math.hypot(sum.x, sum.y, sum.z) <= islands.length * 1e-6) {
++    return islands[0] === undefined ? { yaw: 0, pitch: 0 } : turnToIsland(islands[0].spot);
++  }
++  return turnToIsland(sum);
+ }
+ 
+ /**

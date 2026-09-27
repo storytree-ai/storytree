@@ -1,0 +1,14 @@
+/** Keep failure priority; otherwise face the mean of the islands' unit directions. */
+export function openingTurn(islands: readonly FacingIsland[]): GlobeTurn {
+  const failing = islands.find(isFailing);
+  if (failing !== undefined) return turnToIsland(failing.spot);
+  const sum = islands.reduce((sum, { spot }) => {
+    const length = Math.hypot(spot.x, spot.y, spot.z);
+    return { x: sum.x + spot.x / length, y: sum.y + spot.y / length, z: sum.z + spot.z / length };
+  }, { x: 0, y: 0, z: 0 });
+  // Opposite directions have no middle; retain a deterministic opening in that case.
+  if (Math.hypot(sum.x, sum.y, sum.z) <= islands.length * 1e-6) {
+    return islands[0] === undefined ? { yaw: 0, pitch: 0 } : turnToIsland(islands[0].spot);
+  }
+  return turnToIsland(sum);
+}

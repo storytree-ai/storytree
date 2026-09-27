@@ -1,0 +1,36 @@
+/** Sparse projects fit their actual projected land and trees, with 64px for names. */
+function IslandFraming({ count }: { count: number }) {
+  const { camera, scene, size, invalidate } = useThree();
+  const fitted = useRef('');
+  const settling = useRef(0);
+  useFrame(() => {
+    const key = `${size.width}:${size.height}`;
+    if (fitted.current === key) return;
+    // Let the opening turn and the preloaded kit mount before reading their geometry.
+    if (settling.current++ < 3) { invalidate(); return; }
+    scene.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    let x = 0, y = 0, plates = 0;
+    const point = new Vector3();
+    scene.traverse(plate => {
+      if (!plate.name.startsWith('planet:') || plate.name === 'planet:sea') return;
+      plates++;
+      plate.traverse(object => {
+        const mesh = object as import('three').Mesh;
+        const positions = mesh.geometry?.attributes.position;
+        if (!mesh.isMesh || positions === undefined) return;
+        for (let i = 0; i < positions.count; i++) {
+          point.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld).applyMatrix4(camera.matrixWorldInverse);
+          x = Math.max(x, Math.abs(point.x));
+          y = Math.max(y, Math.abs(point.y));
+        }
+      });
+    });
+    if (plates !== count || x === 0 || y === 0) { invalidate(); return; }
+    camera.zoom = Math.max(0.1, Math.min(30, (size.width - 128) / (2 * x), (size.height - 128) / (2 * y)));
+    camera.updateProjectionMatrix();
+    fitted.current = key;
+    invalidate();
+  });
+  return null;
+}

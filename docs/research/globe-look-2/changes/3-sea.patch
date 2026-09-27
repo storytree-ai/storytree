@@ -1,0 +1,45 @@
+--- a/packages/forest-world/src/planet/PlanetWorldCanvas.tsx
++++ b/packages/forest-world/src/planet/PlanetWorldCanvas.tsx
+@@ -1,7 +1,7 @@
+ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+ import { Canvas, useFrame, useThree } from '@react-three/fiber';
+ import { OrbitControls } from '@react-three/drei';
+-import { DirectionalLight, Group, Quaternion, Vector3, type Camera } from 'three';
++import { DirectionalLight, Group, MeshStandardMaterial, Quaternion, Vector3, type Camera } from 'three';
+ import type { ForestScene, Island } from '@storytree/forest';
+ import { CellGround, KitProps, SHIPPED_GROUND_INPUT, preloadKit } from '../ForestWorldCanvas.js';
+ import { forestDescriptors } from '../forest-ground/forest-ground.js';
+@@ -87,6 +87,24 @@
+   return null;
+ }
+ 
++/** A slate sea, the existing L1 shading, and a soft inner rim in the same palette. */
++function SeaMaterial() {
++  const material = useMemo(() => {
++    const sea = new MeshStandardMaterial({ color: '#29343c', roughness: 1 });
++    sea.onBeforeCompile = shader => {
++      shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
++        float rim = pow(1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0), 3.0);
++        outgoingLight += vec3(0.065, 0.082, 0.094) * rim;
++        #include <opaque_fragment>
++      `);
++    };
++    sea.customProgramCacheKey = () => 'globe-look-2-slate-rim';
++    return sea;
++  }, []);
++  useEffect(() => () => material.dispose(), [material]);
++  return <primitive object={material} attach="material" />;
++}
++
+ /** A second mount of 0.2's ground and pines: one Canvas and one calibrated sun for all plates.
+  * The flat ForestWorldCanvas retains its own camera, controls, material defaults and lighting. */
+ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children }: PlanetWorldCanvasProps) {
+@@ -106,7 +124,7 @@
+     <group quaternion={rotation}>
+       <mesh name="planet:sea">
+         <sphereGeometry args={[radius, 96, 64]} />
+-        <meshStandardMaterial color="#101418" roughness={1} />
++        <SeaMaterial />
+       </mesh>
+       {scene.islands.map(island => {
+         const spot = spots.get(island.story);

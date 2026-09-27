@@ -76,7 +76,7 @@ Build order: 1 → 2 → 3 → 4 → 5 (4 and 5 in either order).
 and the live reading of capability 3, in `packages/arc-surface` (`@storytree/arc-surface`). The
 forest reads the part states and live reading (`stories/forest.md`, ADR-0632 D3), which its lane
 built here under this tree's names. Capability 2 now reads and names holders, and capability 4 reads waits and queue shapes.
-Capability 5 and the overlay remain to be built.
+Capability 5 reads complete briefings. The overlay remains to be built.
 Their library and agent-link prerequisites now store and read increments, questions and waits
 (ADR-0638 D4).
 
@@ -279,6 +279,12 @@ read it whole without leaving the overlay.
     read in place, with its word counts.
   - **Proposed, approved with the tree:** the intent shows in full, in place, since 0.3 has no artifact
     browser to link out to (ADR-0625 D4).
+
+- **As built (reading):** `briefing(intent, questions)` separates open and settled questions,
+  retaining answers. `firstBriefing` selects the first lane with an open question. `questionReading`
+  puts the statement before stakes, retains the diagram (or says none is stored), splits the
+  existing FOR/AGAINST option convention, labels recommendations as not binding, and measures
+  analogy/context folds and the whole question. The overlay renders these read-only readings.
 
 **Contracts:**
 1. Picking an arc shows its intent, then its open questions under "Waiting on you", or "Nothing is

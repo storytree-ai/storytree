@@ -42,7 +42,14 @@ async function withClient(body: (world: { client: Client; library: Library; log:
 }
 
 async function call(client: Client, name: string, args: Record<string, unknown> = {}, session = "curator") {
-  return client.callTool({ name, arguments: args, _meta: { sessionId: session, threadId: `${session}-subagent` } });
+  const result = await client.callTool({ name, arguments: args, _meta: { sessionId: session, threadId: `${session}-subagent` } });
+  return { ...result, structuredContent: result.structuredContent as Record<string, unknown> };
+}
+
+async function fields(library: Library, id: string): Promise<Record<string, unknown>> {
+  const record = await library.get(id);
+  assert.ok(record);
+  return record.fields;
 }
 
 test("6.4 the shared server lists and calls every librarian verb, attributes writes and preserves refusals", async () => {
@@ -81,16 +88,16 @@ test("6.4 the shared server lists and calls every librarian verb, attributes wri
     assert.ok(!work.rest.friction.some((item) => item.id === own.id));
     assert.deepEqual(work.rest.processes.tools, names);
     await write("link", { from: narrowing.id, to: first.id });
-    assert.deepEqual((await library.get(narrowing.id))?.fields.links, [first.id]);
+    assert.deepEqual((await fields(library, narrowing.id)).links, [first.id]);
     await write("correct", { id: first.id, fields: { text: "The library holds the single copy", loadBearing: false } });
-    assert.equal((await library.get(first.id))?.fields.loadBearing, false);
+    assert.equal((await fields(library, first.id)).loadBearing, false);
     await write("annotate", { target: first.id, by: narrowing.id, note: "Shelf placement narrows this", date: "2026-09-27" });
-    assert.match(String((await library.get(first.id))?.fields.text), /Shelf placement narrows this/);
+    assert.match(String((await fields(library, first.id)).text), /Shelf placement narrows this/);
     await write("correct", { id: first.id, fields: { loadBearing: true } });
     const successor = await write("supersede", { olds: [first.id], successor: { title: "One live copy", text: "The library is authoritative" } });
     assert.equal((await library.decision(first.id))?.status, "superseded");
-    assert.equal((await library.get(successor.id as string))?.fields.loadBearing, true);
-    assert.equal((await library.get(first.id))?.fields.loadBearing, undefined);
+    assert.equal((await fields(library, successor.id as string)).loadBearing, true);
+    assert.equal((await fields(library, first.id)).loadBearing, undefined);
     await write("retire", { id: discarded.id, reason: "No longer used" });
     assert.equal(await library.get(discarded.id), null);
     assert.notEqual((await call(client, "park", { memory: kept, reason: "This experiment is still running" })).isError, true);
@@ -99,10 +106,10 @@ test("6.4 the shared server lists and calls every librarian verb, attributes wri
     assert.equal((await call(client, "graduate", { memory: durable, kind: "definition", fields: { term: "Missing meaning" } })).isError, true);
     assert.ok(existsSync(durable), "a refused graduation keeps its source");
     const graduated = await write("graduate", { memory: durable, kind: "definition", fields: { term: "Library", meaning: "The single copy" } }, "after-clear");
-    assert.equal((await library.get(graduated.id as string))?.fields.meaning, "The single copy");
+    assert.equal((await fields(library, graduated.id as string)).meaning, "The single copy");
     assert.ok(!existsSync(durable));
     await write("route", { friction: friction.id, route: "tool", reason: "The missing verb is now served" });
-    assert.equal((await library.get(friction.id))?.fields.route, "tool");
+    assert.equal((await fields(library, friction.id)).route, "tool");
     const before = await library.history();
     const refused = await call(client, "correct", { id: narrowing.id, fields: { status: "proposed" } });
     assert.equal(refused.isError, true);

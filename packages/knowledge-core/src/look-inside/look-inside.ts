@@ -10,7 +10,7 @@ export type SizeBy = "visits" | "links-in";
 /** What each size mode counts, as the view labels it. */
 export const SIZE_LABELS: Readonly<Record<SizeBy, string>> = {
   visits: "Size: visits, the distinct recorded sessions that reached it",
-  "links-in": "Size: links in, the distinct notes linking to it",
+  "links-in": "Size: links in, the distinct artifacts linking to it",
 };
 
 export interface Point {

@@ -173,7 +173,7 @@ export function CorePanel({ scene, counts, sessions, session, sizeBy, frame, ste
   return <aside className="core-panel" aria-label="Inside the globe">
     <h2>Inside the globe</h2>
     <p className="core-counts">
-      {counts.placed} notes under shelves · {counts.outside} with no shelf route, outside · {counts.ghosts} replaced
+      {counts.placed} artifacts under shelves · {counts.outside} with no shelf route, outside · {counts.ghosts} replaced
       {counts.loops > 0 && <strong className="core-loop-warning"> · {counts.loops} loop{counts.loops === 1 ? "" : "s"}: a refused shape</strong>}
     </p>
     {scene.status !== undefined && <p className="core-status">{scene.status}</p>}
@@ -209,7 +209,7 @@ export function CorePanel({ scene, counts, sessions, session, sizeBy, frame, ste
       </ul>
       <p className="core-note">A dashed line is a jump between one agent's full reads, not a link it followed. Reads show reach, never usefulness.</p>
     </>}
-    {card !== undefined && <section className="core-card" aria-label="Pinned note">
+    {card !== undefined && <section className="core-card" aria-label="Pinned artifact">
       <header>
         <h3>{card.title}</h3>
         <button type="button" className="panel-close" aria-label="Unpin" onClick={on.unpin}>×</button>

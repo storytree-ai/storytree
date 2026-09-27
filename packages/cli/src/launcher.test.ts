@@ -6,7 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { promisify } from "node:util";
 
-import { buildBins } from "../../agent-link/src/bins/build.js";
+import { buildBins } from "@storytree/agent-link/bins";
 import { BuiltCommand, inWorld } from "./testing/cli.js";
 
 const command = new BuiltCommand();

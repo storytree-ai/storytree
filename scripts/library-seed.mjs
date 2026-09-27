@@ -29,7 +29,7 @@ export const VERIFIED_BY = "storytree test run";
 /**
  * Read a story file: its `# Story: <name>` title and the paragraph under it; each `## N · Name`
  * heading as a capability, with the first paragraph under it as its description, its
- * `**Depends on:**` line as its dependencies, and the numbered items under `**Contracts**` as its
+ * `**Depends on:**` line as its dependencies within this story, and the numbered items under `**Contracts**` as its
  * contracts, numbered N.M; and the `**Founding book**` item under its `**Its shelf**` line as its
  * founding book, with the label in brackets that follows the words `Founding book`, if any. Capabilities come in the order the file's `Build order:` line gives
  * (heading order without one), which must put every capability after the ones it depends on.
@@ -70,11 +70,12 @@ function capabilityAt(lines, at, number, name) {
   const description = first === undefined || /^(- |\*\*)/.test(first) ? undefined : first;
 
   const dependsLine = section.find((line) => /^- \*\*Depends on:\*\*/.test(line));
-  // Only what comes before the first full stop or bracket names dependencies: "3 (links point at
-  // 4's records but do not require them)" depends on 3 alone.
-  const dependsOn = dependsLine === undefined
-    ? []
-    : [...dependsLine.replace(/^- \*\*Depends on:\*\*/, "").split(/[.(]/)[0].matchAll(/\d+/g)].map(([digits]) => Number(digits));
+  // Numbers after another story's name ("the library's 2, 3", including a later "its 7")
+  // belong to that story. Keep only our part, also stopping at the first full stop or bracket:
+  // "3 (links point at 4's records but do not require them)" depends on 3 alone.
+  const ownDepends = dependsLine?.replace(/^- \*\*Depends on:\*\*/, "")
+    .split(/[.(]|\bthe\s+[^,;.(]*['’]s\b/i)[0] ?? "";
+  const dependsOn = [...ownDepends.matchAll(/\d+/g)].map(([digits]) => Number(digits));
 
   /** @type {ParsedContract[]} */
   const contracts = [];

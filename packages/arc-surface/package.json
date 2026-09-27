@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./view": "./src/view/index.ts",
+    "./view/styles.css": "./src/view/styles.css"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -15,6 +17,9 @@
   "devDependencies": {
     "@types/node": "^24.13.6",
     "tsx": "^4.23.15",
-    "typescript": "~7.0.2"
+    "typescript": "~7.0.2",
+    "@storytree/app": "workspace:*",
+    "pg": "^8.23.0",
+    "@types/pg": "^8.23.1"
   }
 }

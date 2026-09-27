@@ -269,6 +269,13 @@ what just changed without re-reading everything.
 - **Writer book (ADR-0645 D2):** every public write takes optional `WriteOptions` as its final
   argument, with `actor` passed through to capability 2's history. `reportHealth` and
   `recordVerified` take it within their existing `HealthOptions`, alongside `by` and `note`.
+- **Public reads book (ADR-0645 D6):** `get(id)` returns the whole live `SchemaRecord`, or `null`
+  when missing or retired. `list(kind)` returns that kind's live records in id order, with the
+  fields typed for the kind; an unknown kind raises `UnknownTypeError`. Both apply capability 3's
+  schema upgrades and refuse records they cannot interpret. `history({ id, since })` returns
+  `HistoryEntry` data, oldest first, with either filter optional: `since` is exclusive and both
+  filters combine. History includes retirement reasons and optional actors, and preserves each
+  record on the schema version it was written on. These reads make no writes.
 
 **Contracts:**
 1. An end-to-end "agent's day" against a real local Postgres: open a project, create an arc, add a
@@ -277,11 +284,28 @@ what just changed without re-reading everything.
    `changesSince(0)`. Every step is visible where the next step expects it.
 2. `changesSince(n)` returns only changes after `n`, in order, each carrying the new cursor to pass
    next time.
-3. The package's public entry exports exactly the API (listed below) and nothing else, and its
-   internals cannot be imported through the package.
+3. The package's public entry exports exactly this API and nothing else, and its internals cannot
+   be imported through the package. At runtime it exports `connect`, `ConnectionError`,
+   `DependencyLoopError`, `LifecycleError`, `MissingReferenceError`, `MissingUpgradeError`,
+   `NewerSchemaError`, `NumberTakenError`, `ProjectNameError`, `RetireRefusedError`, `SchemaError`,
+   `SupersessionLoopError`, `UnknownTypeError` and `WaitLoopError`. Everything else exported is a
+   data type, including `WriteOptions`, `HistoryEntry` and `HistoryFilter`.
+   The connection offers exactly `openProject`, `listProjects` and `close`. A project library
+   offers exactly `name`, `get`, `list`, `history`, `addStory`, `editStory`, `createArc`, `editArc`,
+   `addCapability`, `editCapability`, `addContract`, `editContract`, `projectTree`, `arcsFor`,
+   `addIncrement`, `advanceIncrement`, `closeIncrement`, `editIncrement`, `parkArc`, `unparkArc`,
+   `arcView`, `addWait`, `removeWait`, `waitHolds`, `raiseQuestion`, `settleQuestion`, `questions`,
+   `heldOnQuestion`, `reportHealth`, `recordVerified`, `health`, `healthHistory`, `writeMemory`,
+   `recordDecision`, `writeKnowledge`, `defineTerm`, `editNote`, `search`, `relatedNotes`,
+   `definitions`, `frontCovers`, `decision`, `composeStatement`, `retire`, `changesSince` and `close`.
 4. `editStory`, `editContract` and `editArc` change only the fields they name, merged onto what is
    stored now, and check a new reference as adding does (a contract's capability, an arc's
    stories). Each gives `null`, writing nothing, for an id that is not a live record of its type.
+5. `get`, `list` and `history` return whole records through the public API, agreeing with the
+   in-memory twin. Live reads upgrade old records; history preserves original writes, including
+   actors and retirement reasons, and can filter by id and sequence. Reads write nothing.
+6. Every public write carries its optional actor to history, as in 2.10. Health can name a writer
+   separately from its reporter; omitting the writer preserves its existing `by` attribution.
 
 ## 8 · Cloud connection (GCP)
 
@@ -505,7 +529,7 @@ const storytree = await connect({ url: "postgres://localhost:5432/postgres" }); 
 await storytree.listProjects();                        // ["my-website"]
 const lib = await storytree.openProject("my-website"); // 1: created the first time
 
-const story = await lib.addStory({ title: "Visitor can sign up" });                  // 4
+const story = await lib.addStory({ title: "Visitor can sign up" }, { actor: "person:Sam" }); // 4, 7
 const arc   = await lib.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] }); // 4, 10
 const cap   = await lib.addCapability({ title: "Email form", story: story.id });      // 4
 const k     = await lib.addContract({ title: "Rejects a bad email", capability: cap.id });
@@ -526,6 +550,9 @@ await lib.closeIncrement(inc.id, { pr: "#12", disposition: "landed" }); // 10
 await lib.arcView(arc.id);                                     // 10: closed, with its log
 await lib.waitHolds(inc.id);                                   // 11: the blockers still holding
 await lib.decision(cover.id);                                  // 13: status, supersession, composed statement
+await lib.get(story.id);          // 7: the whole live record, on its current schema
+await lib.list("story");         // 7: all live stories, in id order
+await lib.history({ id: story.id }); // 7: every original write, including its actor when supplied
 await lib.projectTree();          // 4 + 5: what the forest reads
 await lib.changesSince(cursor);   // 7: what just changed
 await storytree.close();

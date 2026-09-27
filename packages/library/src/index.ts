@@ -15,7 +15,7 @@ export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";
-export type { RecordEnvelope } from "./transactions/index.js";
+export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./transactions/index.js";
 export type {
   ArcEdit,
   ArcNode,

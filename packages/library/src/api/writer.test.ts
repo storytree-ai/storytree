@@ -12,7 +12,7 @@ import { MemoryTransactions } from "../transactions/index.js";
 import { WorkInFlight, WorkModel } from "../work/index.js";
 
 // The same journey runs on the domain layers over memory and Postgres, then on the public handle.
-// History is read through the already-existing records layer until public reads land separately.
+// The public journey reads its history through the public API too.
 for (const backend of ["memory", "postgres", "public postgres"] as const) {
   test(`2.10 / 7.6 [${backend}] every write keeps its optional writer in history`, async () => {
     const name = uniqueProjectName();
@@ -22,6 +22,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
       const project = await server?.openProject(name);
       const records = project?.records ?? new SchemaRecords(new MemoryTransactions());
       const lib = await api?.openProject(name);
+      const reader = lib ?? records;
       const work: Pick<Library, "addStory" | "editStory" | "createArc" | "editArc" | "addCapability" | "editCapability" | "addContract" | "editContract"> = lib ?? project?.work ?? new WorkModel(records);
       const flight: Pick<Library, "addIncrement" | "advanceIncrement" | "closeIncrement" | "editIncrement" | "parkArc" | "unparkArc" | "addWait" | "removeWait" | "raiseQuestion" | "settleQuestion" | "retire"> = lib ?? project?.flight ?? new WorkInFlight(records);
       const knowledge: Pick<Library, "writeMemory" | "recordDecision" | "defineTerm" | "writeKnowledge" | "editNote" | "composeStatement"> = lib ?? project?.knowledge ?? new Knowledge(records);
@@ -29,7 +30,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
 
       for (const actor of ["person:Sam", "session:agent-42", undefined]) {
         const options = actor === undefined ? {} : { actor };
-        const before = (await records.history()).at(-1)?.seq ?? 0;
+        const before = (await reader.history()).at(-1)?.seq ?? 0;
         const story = await work.addStory({ title: "Sign up" }, options);
         await work.editStory(story.id, { description: "Visitors join." }, options);
         const arc = await work.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors join" }, options);
@@ -60,7 +61,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         await health.recordVerified(contract.id, "passing", options);
         await flight.retire(note.id, "Folded into the decision", options);
 
-        const entries = await records.history({ since: before });
+        const entries = await reader.history({ since: before });
         assert.equal(entries.length, 29, "one history entry for each write");
         for (const entry of entries) {
           assert.equal(entry.actor, actor, `${entry.type} ${entry.action} by ${actor}`);
@@ -73,11 +74,11 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
         await assert.rejects(work.editStory(story.id, { title: "" }, options));
         assert.equal(await work.editStory("missing", { title: "Missing" }, options), null);
         await flight.retire(note.id, "Already retired", options);
-        assert.deepEqual(await records.history({ since: before }), entries);
+        assert.deepEqual(await reader.history({ since: before }), entries);
 
         // Health's reporter can differ from the person/session recording it.
         await health.reportHealth(contract.id, "passing", { by: "test-runner", actor: "session:scribe" });
-        const report = (await records.history()).at(-1)!;
+        const report = (await reader.history()).at(-1)!;
         assert.equal(report.actor, "session:scribe");
         assert.equal(report.record.fields.by, "test-runner");
       }

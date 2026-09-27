@@ -65,7 +65,8 @@ for (const backend of ["memory", "public postgres"] as const) {
       // A caller owns its returned data, never the store's current record or history.
       upgraded!.fields.title = "Changed locally";
       history[0]!.record.fields.title = "Changed locally";
-      assert.equal((await reader.get(old.id))?.fields.title, "Launch");
+      const unchanged = await reader.get(old.id);
+      assert.equal(unchanged?.type === "arc" && unchanged.fields.title, "Launch");
       assert.equal((await reader.history({ id: original.id }))[0]?.record.fields.title, "Sign up");
       await assert.rejects(reader.list("unknown" as never), UnknownTypeError);
       await transactions.save({ id: "future-story", type: "story", version: 999, fields: { title: "Future" } });

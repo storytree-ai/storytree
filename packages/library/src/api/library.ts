@@ -12,9 +12,9 @@ import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth
 import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
-import type { SchemaRecord, WriteOptions } from "../schema/index.js";
+import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { KnowledgeKind } from "../schema/types.js";
-import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
+import type { HistoryEntry, HistoryFilter, RecordEnvelope } from "../transactions/index.js";
 import type {
   ArcEdit,
   ArcView,
@@ -55,6 +55,17 @@ export interface Storytree {
 export interface Library {
   /** The project's name. */
   readonly name: string;
+
+  /** The live record whole, upgraded to its current schema, or null if missing or retired. */
+  get(id: string): Promise<SchemaRecord | null>;
+  /** Every live record of this kind, upgraded, in id order. An unknown kind is refused. */
+  list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
+  /**
+   * Every original write, oldest first, including retired records, its optional actor and retirement
+   * reason. Filter by record id and/or entries after a sequence number. Records stay as written,
+   * on their original schema versions; reading history never upgrades or rewrites them.
+   */
+  history(filter?: HistoryFilter): Promise<HistoryEntry[]>;
 
   /** Add a story to the project, under an id the library makes. */
   addStory(story: NewStory, options?: WriteOptions): Promise<SchemaRecord<"story">>;
@@ -266,6 +277,18 @@ class LibraryHandle implements Library {
   constructor(project: Project) {
     this.name = project.name;
     this.#project = project;
+  }
+
+  get(id: string): Promise<SchemaRecord | null> {
+    return this.#project.records.get(id);
+  }
+
+  list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]> {
+    return this.#project.records.list(kind);
+  }
+
+  history(filter?: HistoryFilter): Promise<HistoryEntry[]> {
+    return this.#project.records.history(filter);
   }
 
   addStory(story: NewStory, options?: WriteOptions): Promise<SchemaRecord<"story">> {

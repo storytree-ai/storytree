@@ -20,8 +20,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "knowledge-core", "librarian", "library"];
+export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "knowledge-core", "librarian", "library", "own"];
 // app-setup: story_b91056a06337 (The app setup).
+// own: story_9abd84ab493f (What did I leave running?).
 
 /** Packages that belong to no story and hold no story's code (ADR-0649 D1). */
 export const SHARED_ENGINES = ["forest-world", "local-postgres"];

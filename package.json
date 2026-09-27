@@ -13,6 +13,7 @@
     "test-ratio": "node scripts/test-ratio.mjs",
     "seed:library": "node --import tsx scripts/seed-library.mjs",
     "library:export": "node --import tsx scripts/export-library.mjs",
+    "library:move": "node --import tsx scripts/move-story-text.mjs",
     "library:restore": "node --import tsx scripts/restore-library.mjs",
     "desktop": "pnpm --filter @storytree/desktop start",
     "desktop:smoke": "pnpm --filter @storytree/desktop smoke",

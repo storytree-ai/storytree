@@ -94,7 +94,7 @@ database is and how to open the app, which is how an agent's session finds it or
 - **Depends on:** nothing in this story. It starts the database through `local-postgres`, and
   connects the library through the library's `connect`.
 - **Its shelf,** founding book first:
-  - **Founding book** (ADR-0621 D4 and D5, ADR-0626 D8): a local Postgres shipped inside the app,
+  - **Founding book (ADR-0621 D4 and D5, ADR-0626 D8):** a local Postgres shipped inside the app,
     kept in its own folder (`~/.storytree/0.3`), and never touching 0.2's files.
   - The app owns the database, and the library is only handed its address (ADR-0621 D5).
   - A cloud database exists in the library as an alternative (its capability 8), but the app does
@@ -149,7 +149,7 @@ on show when the app opens.
 
 - **Depends on:** 1. It reads the library's `listProjects` and `projectTree`.
 - **Its shelf,** founding book first:
-  - **Founding book** (ADR-0632 D4 and D3): the switcher belongs to the app, outside the surfaces,
+  - **Founding book (ADR-0632 D4 and D3):** the switcher belongs to the app, outside the surfaces,
     and every surface shows the project it picks.
   - Growing storytree 0.3 comes first (the owner's, ADR-0634 D4). So the switcher stays as built,
     and the app keeps opening on 0.3's own project, until 0.3 is in a good place.
@@ -182,7 +182,7 @@ surfaces when the project changes.
 - **Depends on:** 2, for the project on show, and 1. It reads the library's `projectTree` and
   `changesSince`, and the agent activity log's lines since a point (the agent link's capability 2).
 - **Its shelf,** founding book first:
-  - **Founding book** (ADR-0632 D1 row 3; ADR-0633 D3 item 14): the forest is the surface the app
+  - **Founding book (ADR-0632 D1 row 3; ADR-0633 D3 item 14):** the forest is the surface the app
     opens on, and the forest hosts the arc surface as an overlay. There is no Forest | Arcs toggle.
   - **L1** (ADR-0634 D3): the live reading stays the arc surface's, and the app only carries what
     it reads. The app owns no timing.
@@ -238,13 +238,10 @@ merged main, notices new merges within a few minutes, and rebuilds and restarts 
 background, so it never runs unmerged work and nobody rebuilds it by hand. Before first users, an
 installed app does the same from published releases.
 
-- **Approved** by the owner on 2026-09-27, as worded above ("Yes, build it"), added to the tree
-  ADR-0634 approved. The capability is ADR-0637 D2, the owner's answer to d2: "Can't we also bring
-  an auto update feature for 0.3? … i'd hope it works better than 0.2 which seems to constantly
-  need updating every time main moves."
 - **Depends on:** 1. Restarting stops and starts the database, as quitting and opening do.
 - **Its shelf,** founding book first:
-  - **Founding book** (ADR-0637 D2): the app keeps itself current. Two halves: for storytree 0.3's
+  - The app updates itself (ADR-0637, decisions/adr-0637.md).
+  - **Founding book (ADR-0637 D2):** the app keeps itself current. Two halves: for storytree 0.3's
     own development now, the app follows merged main; for users, before first users, an installed
     app updates itself from releases published off merged main. The split is the recording
     session's.
@@ -253,6 +250,10 @@ installed app does the same from published releases.
   - **Parked** with the users' work (`0-3-app-users-own-projects`, due before first users): the
     users' half. It needs an installer (NSIS on Windows), since electron-updater cannot update
     today's portable exe, and `dist.mjs`'s Windows arm64 7z workaround will matter there.
+- **Approved** by the owner on 2026-09-27, as worded above ("Yes, build it"), added to the tree
+  ADR-0634 approved. The capability is ADR-0637 D2, the owner's answer to d2: "Can't we also bring
+  an auto update feature for 0.3? … i'd hope it works better than 0.2 which seems to constantly
+  need updating every time main moves."
 - **As built** (`0-3-app-updates-itself`, the first half): `pnpm app:follow-main` sets it up once,
   with the app quit. It clones the repository into the app's runtime folder
   (`~/.storytree/0.3/runtime`: a bare clone, `repo.git`, and two build slots, `a` and `b`), builds

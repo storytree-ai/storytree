@@ -1,4 +1,4 @@
-Tested source commit: 5308a77d2ce0f63da1cb266ff295db5453952763
+Tested source commit: ef5f45afbb7451b1795a6ee29b85c813939c581c
 After merging origin/main and pnpm install.
 
 $ flock /tmp/storytree-heavy.lock pnpm typecheck
@@ -34,8 +34,8 @@ $ flock /tmp/storytree-heavy.lock pnpm test
 Exit: 0
 scope: full — everything — packages/library/evidence/retire-numbering/README.md changed in @storytree/library, which the test harness and scripts/ run on
 units: apps/desktop, packages/agent-link, packages/app, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, scripts
-﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.170875ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
-﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.556726ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.182777ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.733401ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
 results:
   PASS    apps/desktop
   PASS    packages/agent-link
@@ -52,4 +52,4 @@ results:
 test Postgres: stopped (0.1 s)
 
 $ pnpm test-ratio
-  all                       39,459           30,346    1.30
+  all                       39,565           30,357    1.30

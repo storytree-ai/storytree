@@ -31,5 +31,5 @@ The exact green SHA and CI result are recorded in the PR and `/tmp/retire-number
 `pnpm test-ratio` reports (test / implementation code lines / ratio):
 
 ```text
-  all                       39,459           30,346    1.30
+  all                       39,565           30,357    1.30
 ```

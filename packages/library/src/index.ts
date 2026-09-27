@@ -8,7 +8,7 @@ export type { Change, Changes, Library, Storytree } from "./api/index.js";
 export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
 export { ConnectionError, ProjectNameError, RestoreRefusedError } from "./project/index.js";
-export { SupersessionLoopError } from "./knowledge/index.js";
+export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";

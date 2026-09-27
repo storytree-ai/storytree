@@ -6,7 +6,9 @@ this project's library (ADR-0636 D1); edit those, not this file, then run `pnpm 
 The text above that marker is written by hand, and it counts toward the file's 40,000-byte budget.
 
 - A fresh or stale worktree is installed at session start (`scripts/provision-worktree.mjs`).
-- `pnpm test` runs every test against a throwaway local Postgres; `pnpm typecheck` checks types.
+- `pnpm test` runs the packages a change can reach (its first line, `scope: ...`, says which) against a
+  throwaway local Postgres; `-- --full` runs everything, `-- --rerun-failed` only what failed.
+  `pnpm typecheck` checks types.
 - `pnpm check:guidance` says whether this file, AGENTS.md and the role files match the library.
 
 <!-- storytree:guidance START: generated from the library's `session-orchestrator` agent role; do not edit by hand. Regenerate with `pnpm build:guidance`; `pnpm check:guidance` fails when this file has drifted from the library. -->

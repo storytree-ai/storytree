@@ -166,3 +166,12 @@ async function withLibrary(body) {
     }
   }
 }
+
+test("a story file named apart from its story's title pairs with its printout by the title line", () => {
+  const file = ["# Story: the command line", "", "**What it is.** It types.", ""].join("\n");
+  const diffs = roundTrip(new Map([["stories/cli.md", file]]), new Map([["stories/command-line.md", file]]));
+  assert.deepEqual(
+    diffs.map(({ file: name, printedAs, missing, extra }) => [name, printedAs, missing.length, extra.length]),
+    [["stories/cli.md", "stories/command-line.md", 0, 0]],
+  );
+});

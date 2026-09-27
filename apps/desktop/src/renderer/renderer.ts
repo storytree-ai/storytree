@@ -205,7 +205,8 @@ function stopShowing(): void {
  * show by it.
  */
 function sayWhatWasDrawn(drawn: ForestDrawn & { unclaimed: number }): void {
-  document.body.dataset.drew = JSON.stringify(drawn);
+  // Each mounted surface contributes its own reading to the page census.
+  document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"), ...drawn });
 }
 
 /** A heading and a line of text in place of the project, written as text (never as HTML). */

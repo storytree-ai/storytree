@@ -2,7 +2,7 @@
 // Run under the heavy lock, after apps/desktop/build.mjs. No live project is opened or changed.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,13 +14,20 @@ import { smokeArcSurface } from '../src/index.ts';
 
 const { chromium } = await import(process.env.ARC_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
+const output = path.join(here, 'drawer-shape');
+mkdirSync(output, { recursive: true });
 const dist = path.resolve(here, '../../../apps/desktop/dist/renderer');
 const temporary = mkdtempSync(path.join(tmpdir(), 'storytree-arc-capture-'));
 let postgres, store, log, reads, browser, server;
 try {
   postgres = await start({ dataDir: path.join(temporary, 'pgdata'), owner: 'arc surface capture' });
   store = await connect({ url: postgres.url }); log = await openActivityLog(postgres.url);
-  const project = 'arc-surface-proof';
+  const project = 'storytree';
+  // The supplied snapshot predates plan cutover: real forest, no arcs/questions.
+  // Restore it only into this throwaway database, then add the explicit arc fixture.
+  const snapshotPath = process.env.ARC_SNAPSHOT ?? '/home/mickh/storytree-lanes/snapshots/2026-09-27T12-40-59-713Z.json';
+  const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
+  await store.restore(project, snapshot);
   const library = await store.openProject(project);
   const story = await library.addStory({ title: 'Understand the work' });
   const part = await library.addCapability({ story: story.id, title: 'Read the board' });
@@ -36,14 +43,34 @@ try {
   const queued = await makeArc('Desktop release', 'Package the working board for the owner.');
   await library.addIncrement({ arc: queued.id, title: 'Package the app', objective: 'Package', body: 'Package' });
   await library.addWait(queued.id, build.id, 'The board must land before packaging.');
+  const verification = await makeArc('Release verification across the supported desktop platforms before distribution', 'Check the packaged release.');
+  await library.addWait(verification.id, queued.id, 'Packaging comes first.');
+  for (const title of ['Linux verification', 'Windows verification']) {
+    const child = await makeArc(title, 'Verify the release on this platform.');
+    await library.addWait(child.id, verification.id, 'Prepare verification first.');
+  }
+  for (const title of ['Developer workflow', 'Library navigation', 'Workspace recovery', 'Project switching']) {
+    const lane = await makeArc(title, 'Keep the working project easy to understand.');
+    await library.addIncrement({ arc: lane.id, title: 'First slice', objective: 'Build', body: 'Build', outcome: { disposition: 'landed', pr: '100' } });
+    await library.addIncrement({ arc: lane.id, title: 'Earlier attempt', objective: 'Try', body: 'Try', outcome: { disposition: 'withdrawn', note: 'A smaller approach worked better.' } });
+    await library.addIncrement({ arc: lane.id, title: 'Next slice', objective: 'Continue', body: 'Continue' });
+    if (title === 'Developer workflow' || title === 'Library navigation') {
+      for (const suffix of ['follow-up', 'review']) {
+        const child = await makeArc(`${title} ${suffix}`, 'Follow the first slice.');
+        await library.addWait(child.id, lane.id, 'The first slice comes first.');
+      }
+    }
+  }
   const parked = await makeArc('Later improvements', 'Keep useful ideas available without putting them on the active board.');
   await library.addIncrement({ arc: parked.id, title: 'Explore refinements', objective: 'Explore', body: 'Explore' }); await library.parkArc(parked.id);
+  const anotherParked = await makeArc('Another parked idea', 'A distinct fallback selection.');
+  await library.parkArc(anotherParked.id);
   const closed = await makeArc('Earlier experiment', 'Keep the outcome, including experiments that did not land.');
   await library.addIncrement({ arc: closed.id, title: 'Alternative layout', objective: 'Explore', body: 'Explore', outcome: { disposition: 'withdrawn', note: 'Kept the smaller layout.' } });
   reads = pageReads({ storytree: store, serverUrl: postgres.url });
   let failRead = false;
-  const bridge = { ...reads, arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); } };
-  const allowed = ['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'];
+  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); } };
+  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'];
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
     if (!['index.html', 'renderer.js', 'arc-surface.css', 'styles.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -69,34 +96,66 @@ try {
   await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
   await page.waitForSelector('canvas', { timeout: 120000 });
   const forestBefore = await page.getAttribute('body', 'data-drew');
+  const handle = page.getByRole('button', { name: 'Open arc surface', exact: true });
+  const handleBox = await handle.boundingBox();
+  assert.ok(handleBox.y < 4 && Math.abs(handleBox.x + handleBox.width / 2 - 720) < 2, 'closed handle is centered on the top edge');
+  await page.screenshot({ path: path.join(output, 'drawer-closed.png') });
   failRead = true;
   await page.locator('[data-open-arcs]').click();
   await page.waitForSelector('.arc-overlay[data-arc-state=error]');
   assert.match(await page.locator('.arc-status').innerText(), /temporary read failure/);
   failRead = false;
   await page.waitForSelector('.arc-overlay[data-arc-state=ready]');
+  const drawerBox = await page.locator('.arc-overlay').boundingBox();
+  assert.equal(drawerBox.y, 0);
+  assert.equal(drawerBox.width, 1440);
+  assert.ok(drawerBox.height <= 500, 'drawer leaves the lower half of the forest exposed');
+  await page.locator('canvas').evaluate(canvas => {
+    window.forestPointerCount = 0;
+    canvas.addEventListener('pointerdown', () => { window.forestPointerCount++; });
+  });
+  await page.mouse.click(720, 800);
+  assert.equal(await page.evaluate(() => window.forestPointerCount), 1, 'forest receives pointer input below the open drawer');
+  const rowHeights = await page.locator('.arc-lane').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
+  assert.ok(rowHeights.every(height => height <= 65), `dense two-line rows: ${rowHeights}`);
+  assert.equal(await page.locator(`[data-arc-select="${queued.id}"]`).count(), 0, 'queued arc starts behind the caret');
   const started = Date.now();
   await log.append(project, { kind: 'session-started', source: 'hook', harness: 'codex', session: 'capture-agent' });
   assert.equal((await claim({ library, log, project, session: 'capture-agent', harness: 'codex' }, held.id, 'Draw the board and check it over the forest.')).ok, true);
   await page.waitForSelector('[data-agent-label=Codex]');
   const claimVisibleMs = Date.now() - started;
   assert.ok(claimVisibleMs < 4000, `claim appeared after ${claimVisibleMs} ms`);
-  await page.locator('.arc-question > summary').first().click();
-  await page.waitForSelector('.arc-question[open]');
+  await page.screenshot({ path: path.join(output, 'drawer-open.png') });
+  await page.locator(`[data-arc-queue="${build.id}"]`).click();
+  assert.equal(await page.locator(`[data-arc-queue="${build.id}"]`).getAttribute('aria-expanded'), 'true');
+  assert.equal(await page.locator(`[data-arc-id="${build.id}"] [data-arc-select="${queued.id}"]`).count(), 1, 'queue chip is nested under its blocker');
+  const queuedChip = await page.locator(`[data-arc-select="${verification.id}"]`).boundingBox();
+  const downstreamCount = await page.locator(`[data-arc-select="${verification.id}"] span`).last().boundingBox();
+  assert.ok(downstreamCount.x + downstreamCount.width <= queuedChip.x + queuedChip.width, '+N remains visible beside a long queued title');
+  await page.screenshot({ path: path.join(output, 'queue-expanded.png') });
+  await page.locator('[data-question-open]').first().click();
+  assert.equal(await page.locator('[data-question-open]').count(), 0, 'reading replaces the question list');
+  await page.waitForSelector('[data-question-back]');
+  await page.locator('.arc-fold > summary').first().click();
   const scrollBefore = await page.locator('.arc-briefing').evaluate(node => { node.scrollTop = node.scrollHeight; return node.scrollTop; });
   assert.ok(scrollBefore > 0, 'the open question has enough content to exercise scrolling');
   // A refresh must preserve the question and reading position.
   await log.append(project, { kind: 'file-edited', source: 'hook', session: 'capture-agent', files: ['view.ts'] });
   await page.waitForTimeout(2300);
-  assert.equal(await page.locator('.arc-question[open]').count(), 1);
+  assert.equal(await page.locator('[data-question-back]').count(), 1);
+  assert.equal(await page.locator('.arc-fold[open]').count(), 1);
+  assert.equal(await page.locator(`[data-arc-queue="${build.id}"]`).getAttribute('aria-expanded'), 'true');
   assert.equal(await page.locator('.arc-briefing').evaluate(node => node.scrollTop), scrollBefore, 'a live refresh preserves the reading position');
+  await page.locator('.arc-briefing').evaluate(node => { node.scrollTop = 0; });
+  await page.screenshot({ path: path.join(output, 'question-reading.png') });
+  await page.locator('[data-question-back]').click();
+  assert.equal(await page.locator('[data-question-open]').count(), 1);
+  for (const id of await page.locator('[data-arc-queue]').evaluateAll(nodes => nodes.map(node => node.dataset.arcQueue))) {
+    await page.locator(`[data-arc-queue="${id}"]`).evaluate(button => { if (button.getAttribute('aria-expanded') === 'true') button.click(); });
+  }
   const problems = await smokeArcSurface({ executeJavaScript: code => page.evaluate(code) }, project, reads);
   assert.deepEqual(problems, []);
-  await page.locator('.arc-question > summary').first().click();
-  await page.screenshot({ path: path.join(here, 'arc-surface.png') });
-  await page.locator('.arc-question').first().evaluate(node => { if (!node.open) node.querySelector('summary').click(); });
-  await page.locator('.arc-briefing').evaluate(node => { node.scrollTop = 0; });
-  await page.screenshot({ path: path.join(here, 'arc-briefing.png') });
+  await page.locator(`[data-arc-queue="${build.id}"]`).evaluate(button => { if (button.getAttribute('aria-expanded') !== 'true') button.click(); });
   const history = await library.history();
   await page.evaluate(() => window.advanceArcClock(42 * 60000));
   await page.waitForFunction(() => [...document.querySelectorAll('.arc-chip')].some(node => node.textContent.startsWith('idle ·')));
@@ -115,10 +174,29 @@ try {
   await page.waitForSelector('.arc-overlay[data-arc-state=ready]');
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.arc-overlay').isVisible(), false);
+  // A fresh browser context with the same local storage models the next desktop launch.
+  await page.locator('[data-open-arcs]').click();
+  await page.locator('[data-arc-scope="parked"]').click();
+  await page.locator(`[data-arc-select="${parked.id}"]`).click();
+  const saved = await page.context().storageState();
+  const relaunched = await browser.newPage({ storageState: saved, viewport: { width: 1440, height: 960 } });
+  await relaunched.exposeFunction('arcRead', (method, args) => bridge[method](...args));
+  await relaunched.addInitScript(methods => {
+    window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.arcRead(method, args)]));
+  }, allowed);
+  await relaunched.goto(page.url());
+  await relaunched.waitForSelector('.arc-overlay[data-arc-state=ready]');
+  assert.equal(await relaunched.locator('[data-arc-scope="parked"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await relaunched.locator(`[data-arc-select="${parked.id}"]`).getAttribute('aria-pressed'), 'true');
+  await relaunched.keyboard.press('Escape');
+  await relaunched.reload();
+  await relaunched.waitForFunction(() => document.body.dataset.state === 'ready');
+  assert.equal(await relaunched.locator('.arc-overlay').isVisible(), false, 'closed state survives relaunch');
+  await relaunched.close();
   assert.deepEqual(errors, []);
   const renderer = await page.evaluate(() => { const gl = document.querySelector('canvas')?.getContext('webgl2'); const debug = gl?.getExtension('WEBGL_debug_renderer_info'); return debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable'; });
-  const result = { browser: await browser.version(), renderer, claimVisibleMs, idleChip, smokeProblems: problems, checks: ['read error and retry', 'live claim', 'question fold and scroll survive refresh', 'all scopes smoke', 'idle without a new line', 'queued briefing', 'read-only UI', 'live settlement', 'close and Escape preserve the forest'], errors };
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
+  const result = { snapshot: { takenAt: snapshot.takenAt, records: snapshot.records.length, arcs: snapshot.records.filter(record => record.type === 'arc').length }, drawerBox, rowHeights, forestPointerCount: await page.evaluate(() => window.forestPointerCount), browser: await browser.version(), renderer, claimVisibleMs, idleChip, smokeProblems: problems, checks: ['read error and retry', 'live claim', 'question reading, fold, queue and scroll survive refresh', 'drawer geometry', 'forest receives input below drawer', 'queue nesting', 'question list swap and back', 'open/scope/selection persist across launch', 'closed state persists', 'all scopes smoke', 'idle without a new line', 'queued briefing', 'read-only UI', 'live settlement', 'close and Escape preserve the forest'], errors };
+  writeFileSync(path.join(output, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result));
 } finally {
   await browser?.close();

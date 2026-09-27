@@ -1,0 +1,34 @@
+After integrating origin/main c44ab5c (PR #139):
+Commands and exit status:
+flock /tmp/storytree-heavy.lock pnpm install — PASS (0)
+flock /tmp/storytree-heavy.lock pnpm typecheck — PASS (0)
+flock /tmp/storytree-heavy.lock pnpm test — PASS (0)
+
+scope: full — everything — packages/agent-link/evidence/cancel-claim/README.md changed in @storytree/agent-link, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, scripts
+
+✔ 3.8 `library retire` retires records with a reason and their writer (484.604405ms)
+✔ 5.4 question retire only retires questions; either door refuses a question an increment is held on (911.274472ms)
+
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+Conditional skips (not passed):
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.174111ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.576575ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+
+pnpm test-ratio:
+                              test   implementation   ratio
+  all                       39,766           30,380    1.31

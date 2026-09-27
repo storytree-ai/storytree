@@ -104,18 +104,33 @@ test("5.3 a held increment reads as waiting on you until its question is settled
   });
 });
 
-test("5.4 a question an increment is held on cannot be retired", async () => {
+test("5.4 question retire only retires questions; either door refuses a question an increment is held on", async () => {
   await inWorld(command, async (world) => {
     const { arc, increment } = await arcWithWork(world);
     const library = await world.library();
     const question = await library.raiseQuestion({ arc, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
     await library.editIncrement(increment, { heldOn: [question.id] });
 
-    const ran = await world.run(["question", "retire", question.id, "--reason", "asked wrongly"]);
-
-    assert.equal(ran.code, 1);
-    assert.match(ran.stderr, new RegExp(increment));
+    const { cursor } = await library.changesSince(0);
+    for (const family of ["question", "library"]) {
+      const ran = await world.run([family, "retire", question.id, "--reason", "asked wrongly"]);
+      assert.equal(ran.code, 1);
+      assert.match(ran.stderr, new RegExp(increment));
+      assert.deepEqual((await library.changesSince(cursor)).changes, []);
+    }
     assert.deepEqual((await library.questions(arc)).map((one) => one.id), [question.id]);
+
+    const wrongKind = await world.run(["question", "retire", increment, "--reason", "asked wrongly"]);
+    assert.equal(wrongKind.code, 1);
+    assert.match(wrongKind.stderr, /not a question/);
+    assert.ok(wrongKind.stderr.includes(`storytree library retire ${increment}`), wrongKind.stderr);
+    assert.deepEqual((await library.changesSince(cursor)).changes, []);
+
+    await library.editIncrement(increment, { heldOn: [] });
+    const retired = await world.run(["question", "retire", question.id, "--reason", "asked wrongly"]);
+    assert.equal(retired.code, 0, retired.stderr);
+    assert.equal(await library.get(question.id), null);
+    assert.equal((await library.history({ id: question.id })).at(-1)?.reason, "asked wrongly");
   });
 });
 

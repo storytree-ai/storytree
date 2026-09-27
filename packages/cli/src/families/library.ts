@@ -1,8 +1,8 @@
 /**
  * Capability 3 · Library (the command line story): read any record whole, list a kind, search the artifacts,
  * see what links to an artifact and a record's history, all through the library's own reads; write a
- * new record of any kind, or edit named fields of one, with long text taken from a file. A bad
- * record is refused with the library's own message.
+ * new record of any kind, edit named fields of one, or retire one with its reason and writer.
+ * Long text can come from a file; refusals are the library's own messages.
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
  *   judges them. Friction and re-steers are not written here: they go through the agent link's
@@ -190,6 +190,18 @@ const edit: Verb = {
   },
 };
 
+const retire: Verb = {
+  name: "retire",
+  usage: "library retire <id> --reason <why>",
+  summary: "retire a record, keeping its reason and writer in history",
+  async act(args, context) {
+    const id = args.word(0, "the record's id", this.usage);
+    const reason = args.need("reason", this.usage);
+    await (await context.library()).retire(id, reason, context.writer());
+    return { text: `Retired ${id}.` };
+  },
+};
+
 const list: Verb = {
   name: "list",
   usage: "library list <kind> [--where <field>=<value>]…",
@@ -234,6 +246,7 @@ export const library: Family = {
     create,
     read,
     edit,
+    retire,
     list,
     history,
   ],

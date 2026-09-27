@@ -1,7 +1,8 @@
 /**
  * Capability 5 · Questions (the command line story): raise a question for the owner on an arc, optionally
  * holding increments on it; settle it with his answer in his words and the decision that carried
- * it, retire one that was wrong, or list the open ones.
+ * it, retire one that was wrong, or list the open ones. Retirement checks the record is a
+ * question first; other kinds are directed to `library retire`.
  *
  * Every rule is the library's (its capability 12): the required fields, that settling needs an
  * answer, that a held increment waits on the owner, and that a question work is held on cannot be
@@ -69,10 +70,19 @@ const settle: Verb = {
 const retire: Verb = {
   name: "retire",
   usage: "question retire <question> --reason <why>",
-  summary: "retire a question that was wrong",
+  summary: "retire a question that was wrong; other records use library retire",
   async act(args, context) {
     const id = args.word(0, "the question's id", this.usage);
-    await (await context.library()).retire(id, args.need("reason", this.usage), context.writer());
+    const reason = args.need("reason", this.usage);
+    const library = await context.library();
+    const record = await library.get(id);
+    if (record === null) throw new Refusal(`no question "${id}" in this project`);
+    if (record.type !== "question") {
+      throw new Refusal(`${id} is a ${record.type}, not a question`, {
+        next: [{ command: `storytree library retire ${id} --reason <why>`, why: "retire another kind of record" }],
+      });
+    }
+    await library.retire(id, reason, context.writer());
     return { text: `Retired ${id}.` };
   },
 };

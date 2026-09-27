@@ -1,0 +1,135 @@
+Red commit: d1fad1c
+Command: flock /tmp/storytree-heavy.lock pnpm test -- packages/cli/src/library.test.ts packages/cli/src/questions.test.ts
+
+First run: both commands lack the required behavior.
+
+> storytree@ test /home/mickh/code/storytree03-wt/library-retire
+> node --import tsx scripts/test.mjs "packages/cli/src/library.test.ts" "packages/cli/src/questions.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/library-retire/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:35915 (started in 0.1 s)
+✔ 3.1 `read` returns the whole body (555.763938ms)
+✔ 3.2 `edit` changes only the named fields (1177.65274ms)
+✔ 3.3 `new` without a required field is refused, naming it (226.436003ms)
+✔ 3.4 `history` lists every write with its writer, including retirement (265.468785ms)
+✔ 3.5 `list` shows only live records of the kind and filters by a field (546.073294ms)
+✔ 3.6 saving a memory is refused with its reason and writes nothing (204.114961ms)
+✔ 3.7 `related <artifact> --unlinked` lists the artifacts most like it that no link reaches (552.474479ms)
+✖ 3.8 `library retire` retires records with a reason and their writer (199.577266ms)
+✔ 5.5 `question list` lists open questions across arcs, or on one arc (564.151599ms)
+✔ 5.1 a question with no stakes is refused (295.975204ms)
+✔ 5.2 settling needs an answer (375.355758ms)
+✔ 5.3 a held increment reads as waiting on you until its question is settled (719.441304ms)
+✖ 5.4 question retire only retires questions; either door refuses a question an increment is held on (404.209482ms)
+✔ 5.6 `question check` says whether a question's review is fresh or lapsed; `question renew` re-stamps it, and renewing a settled question is refused (833.465292ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 12
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4044.115161
+
+✖ failing tests:
+
+test at packages/cli/src/library.test.ts:1:6959
+✖ 3.8 `library retire` retires records with a reason and their writer (199.577266ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /needs --reason/. Input:
+  
+  'storytree library has no "retire"\n' +
+    '\n' +
+    'next:\n' +
+    '  - storytree library   (its verbs)\n'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/library.test.ts:160:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/library.test.ts:151:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'storytree library has no "retire"\n\nnext:\n  - storytree library   (its verbs)\n',
+    expected: /needs --reason/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/questions.test.ts:1:4147
+✖ 5.4 question retire only retires questions; either door refuses a question an increment is held on (404.209482ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 1
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/questions.test.ts:117:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/questions.test.ts:108:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.
+
+Second run: only the library retire verb has been implemented; question retire still has no type check.
+
+> storytree@ test /home/mickh/code/storytree03-wt/library-retire
+> node --import tsx scripts/test.mjs "packages/cli/src/library.test.ts" "packages/cli/src/questions.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:41163 (started in 0.1 s)
+✔ 3.1 `read` returns the whole body (522.375868ms)
+✔ 3.2 `edit` changes only the named fields (1197.353973ms)
+✔ 3.3 `new` without a required field is refused, naming it (277.020721ms)
+✔ 3.4 `history` lists every write with its writer, including retirement (226.72023ms)
+✔ 3.5 `list` shows only live records of the kind and filters by a field (544.823271ms)
+✔ 3.6 saving a memory is refused with its reason and writes nothing (202.710673ms)
+✔ 3.7 `related <artifact> --unlinked` lists the artifacts most like it that no link reaches (544.567994ms)
+✔ 3.8 `library retire` retires records with a reason and their writer (477.890492ms)
+✔ 5.5 `question list` lists open questions across arcs, or on one arc (528.304694ms)
+✔ 5.1 a question with no stakes is refused (279.984144ms)
+✔ 5.2 settling needs an answer (373.772205ms)
+✔ 5.3 a held increment reads as waiting on you until its question is settled (689.673492ms)
+✖ 5.4 question retire only retires questions; either door refuses a question an increment is held on (569.035594ms)
+✔ 5.6 `question check` says whether a question's review is fresh or lapsed; `question renew` re-stamps it, and renewing a settled question is refused (839.312595ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 13
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4184.525042
+
+✖ failing tests:
+
+test at packages/cli/src/questions.test.ts:1:4147
+✖ 5.4 question retire only retires questions; either door refuses a question an increment is held on (569.035594ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/questions.test.ts:124:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async inWorld (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/testing/cli.ts:175:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/library-retire/packages/cli/src/questions.test.ts:108:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

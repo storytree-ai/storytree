@@ -192,6 +192,11 @@ for (const scenario of [
       const url = new URL(testServerUrl());
       url.pathname = `/${projectDatabase(project)}`;
       const pool = new pg.Pool({ connectionString: url.href });
+      let openConnections = 0;
+      pool.on("connect", (connection) => {
+        openConnections++;
+        connection.once("end", () => openConnections--);
+      });
       const blocker = await pool.connect();
       const session = "cancelled-claimant";
       const isCodex = tool === "attach_workspace";
@@ -274,6 +279,7 @@ for (const scenario of [
         await client.close();
         await tools.close();
         await pool.end();
+        assert.equal(openConnections, 0, "test connections have ended before the project is force-dropped");
       }
     });
   });

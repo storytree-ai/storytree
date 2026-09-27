@@ -13,9 +13,11 @@ the globe alone. The flat forest canvas remains in the engine because the globe'
 are drawn with its parts. This narrows ADR-0646's one-click flat view, not the engine's abilities.
 
 **D2 — No “Look inside” yet.** The knowledge core's page entry is deferred. Capabilities 1
-to 3 (placement, ghosts and reads) remain as calculations. Its implementation has already
-landed; the globe-only page removes the entry point without deleting it. How the core is seen
-returns when it is ready for review.
+to 3 (placement, ghosts and reads) initially remained as calculations. Its implementation has already
+landed; the globe-only page removes the entry point without deleting it.
+**Narrowed in place by ADR-0658 (2026-09-27):** capability 1's placements now show as faint
+points beneath the islands, with no-shelf artifacts at the centre. Ghosts and reads remain
+calculations, and Look inside stays unmounted. See [the knowledge layer](knowledge-under-islands.md).
 
 **D3 — Pathways come to the globe, with room for them.** They follow ADR-0169: a pathway is
 a “builds on” link between capabilities, including across stories, drawn as a routed trail.

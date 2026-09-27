@@ -6,6 +6,10 @@ them; replaced decisions sit as see-through ghosts beside the decisions that rep
 artifacts one recorded session reached light up in each of its agents' colours. The owner looks inside
 the globe on purpose, pins an artifact to read it, and replays a session.
 
+**Current page (ADR-0655, ADR-0658).** The globe shows capability 1's faint points beneath
+the islands and its no-shelf artifacts at the centre. Look inside remains implemented but
+unmounted; ghosts, reads and inspection controls are not offered on the page.
+
 **Approved** by the owner on 2026-09-27. The tree below is ADR-0647 in storytree 0.2's decision
 log (`storytree-ai/storytree02`), approved through the question `oq-0-3-knowledge-core-tree`
 with "L3 ... else I think we just get this moving". Names, proof lines and scope come from that
@@ -16,7 +20,8 @@ record; change them there first. Its front cover is `decisions/knowledge-core-ca
   40 front covers at depth 1, five artifacts outside, no artifact-to-artifact links and no captured reads.
 - **D1:** a chain follows stored references in their direction. The shelf-to-cover step counts 1,
   and an artifact's depth is its greatest over every entrance. An artifact that points only back at its
-  cover has no route down from that shelf, so it orbits outside.
+  cover has no route down from that shelf. ADR-0658 pools it at the globe's centre instead
+  of the outside orbit originally chosen here.
 - **L3 (ADR-0647 D2):** the knowledge graph refuses loops. The library refuses an artifact-to-artifact link
   that would close one, naming the chain it would close; that is the library's own increment
   (`0-3-library-refuses-loops`, landed as storytree-ai/storytree#87), not this story's. Capability 1
@@ -78,7 +83,9 @@ Build order: 2 → 1 → 3 → 4.
 
 The project's artifacts hang below the stories' and capabilities' front covers, with depth counting the
 longest chain of references from any shelf. A shared artifact appears once, a loop is drawn as a
-labelled error, and an artifact no shelf reaches orbits outside with "no depth".
+labelled error, and an artifact no shelf reaches has "no depth". On the globe, shelf-placed
+artifacts are faint points beneath their islands, and no-shelf artifacts pool at the centre
+(ADR-0658); the separate Look-inside view stays unmounted.
 
 - **Depends on:** 2, for which artifacts are ghosts. It reads the library's `projectTree` and its
   change history (`changesSince`), and places entrances at the forest's island places.
@@ -93,8 +100,11 @@ labelled error, and an artifact no shelf reaches orbits outside with "no depth".
   - **Loops (L3, ADR-0647 D2):** the graph is a DAG, and the library refuses a loop-closing link
     (storytree-ai/storytree#87). For a loop stored before that, a group of artifacts that all lead back to one another is drawn as one knot,
     labelled as a refused shape, at one group depth; artifacts beyond it still get their longest-chain
-    depth. An unreachable loop, like any unreachable artifact, stays outside with no depth.
-  - **Outside means only "no recorded route from a shelf"**, never "unimportant": several
+    depth. An unreachable loop, like any unreachable artifact, has no depth.
+  - **Faint points on the globe (ADR-0658):** [the knowledge-under-islands book](../decisions/knowledge-under-islands.md).
+    Each placement is a point under its island; no-shelf artifacts pool at the centre. No threads,
+    ghosts or reads are drawn, and the forest's surface and failure attention stay available.
+  - **No shelf means only "no recorded route from a shelf"**, never "unimportant": several
     whole-project decisions sit on no shelf (ADR-0631).
 - **As built:** `underShelves(changes, knowledge)` in `packages/knowledge-core`, a pure function of
   the library's `changesSince(0)` and capability 2's `knowledge`. Each live story and capability is
@@ -103,8 +113,15 @@ labelled error, and an artifact no shelf reaches orbits outside with "no depth".
   Artifacts that all lead back to one another (Tarjan's strongly connected groups), or an artifact linking
   to itself, form one loop with one depth and the label "loop: a refused shape"; depth is the
   longest chain over the groups. Each placed artifact carries its depth, home, entrances (oldest
-  first) and loop; the rest are outside, by id.
-- **On the real seed** (this repo's stories and decisions synced into a scratch project on
+  first) and loop; the rest are in the `outside` collection, by id, meaning no shelf route.
+  `globePoints(core, spots, radius)` reuses the shelf directions and longest-depth spacing,
+  placing the no-shelf collection in a small centre cluster at 0.04 radii. The forest mounts
+  `KnowledgeGlobePoints` from `@storytree/knowledge-core/view` in its turning globe: faint,
+  fixed-size points with no raycast or depth writing, fed by the existing core's live history
+  subscription. The core's public `take`/`dispose` API is unchanged. No ghosts, reads or threads
+  enter this drawing. [Seeded evidence](../packages/forest/src/view/evidence/knowledge-under-islands/README.md)
+  records the census, renderer and unchanged forest interactions.
+- **Historical placement seed** (this repo's stories and decisions synced into a scratch project on
   2026-09-27, with this story added): 74 artifacts and 65 shelves, all with a cover; 69 artifacts at depth
   1; the five outside are the planet, licence, testing-rule, MVP-spec and verified-health
   decisions, as the review measured; no loops and no ghosts.
@@ -116,9 +133,13 @@ labelled error, and an artifact no shelf reaches orbits outside with "no depth".
    front cover keeps its own shelf as its home, and another shared artifact hangs under the oldest
    reachable shelf, with a stable tie-break.
 3. With A → B → C → B and C → D, B and C share a loop marked as an error at group depth 2, and D is
-   at 3. An unreachable loop, like any unreachable artifact, stays outside with no depth.
+   at 3. An unreachable loop, like any unreachable artifact, is classified as no shelf, with no depth.
 4. Forty covers on their shelves and five artifacts on none, with no links, give forty artifacts at depth 1
-   and five outside, with no invented links. An empty shelf says it is empty.
+   and five with no shelf route, with no invented links. An empty shelf says it is empty.
+5. The globe draws every shelf-placed artifact once beneath its home island at its computed
+   longest-chain depth. Ghosts, proposals and retired artifacts add no points.
+6. No-shelf artifacts form a small, distinct, stable cluster at the centre, wholly inside the
+   shell. They gain no depth or invented shelf, and an empty corpus draws no points.
 
 ## 2 · Earlier decisions beside their replacements
 
@@ -204,6 +225,9 @@ artifact, full reads advance as jumps, and an unknown agent stays pale with no p
 
 ## 4 · Look inside and inspect an artifact
 
+**Page entry deferred by ADR-0655 D2.** The following describes the retained implementation
+and its contracts. ADR-0658 mounts only capability 1's faint points on the globe.
+
 "Look inside" reveals the core at the globe's existing positions, keeping the named shelf entrances
 while hiding the sea and island surfaces until you return. You can pin an artifact to read it and see its
 links, replay the selected session, and size artifacts by visits or incoming links without moving them.
@@ -222,7 +246,7 @@ links, replay the selected session, and size artifacts by visits or incoming lin
   see-through sea, a flying dive and a cutaway; proposed-decision ghosts; the full stale-links
   colouring; recording exact source artifacts for future walks; changes to default artifact filing; a
   dedicated indexed read query; side-by-side sessions, a general artifact browser and graph editing.
-- **As built:** the pure view is in `packages/knowledge-core/src/look-inside`.
+- **Retained implementation, unmounted:** the pure view is in `packages/knowledge-core/src/look-inside`.
   - `coreScene` places each shelf's entrance on its island: a story's own at its spot, and its
     capabilities' in a ring around it. Artifacts hang below their home shelf, further in the deeper
     they are. Artifacts with no depth orbit outside at 1.3 radii, and a ghost sits beside the decision
@@ -241,13 +265,14 @@ links, replay the selected session, and size artifacts by visits or incoming lin
     named entrances, white arrows for the pinned artifact's links, dashed bowed arcs for jumps, and
     a red cage and label for a loop. `KnowledgeCorePanel` has the counts, the session picker, the
     size toggle, play, pause and restart, the per-agent checkboxes, and the card.
-  - The app only mounts it. The renderer makes one core per project it shows and feeds it. The
-    forest view adds a third view button, "Look inside", and mounts the two pieces. The globe
-    canvas gained `surface` and `inside` props (`packages/forest-world`, the shared engine);
+  - The renderer makes one core per project it shows and feeds it. The forest's former
+    "Look inside" button and mounts were removed by ADR-0655; ADR-0658 now mounts
+    `KnowledgeGlobePoints` using that same core. The globe canvas retains its `surface`
+    and `inside` props (`packages/forest-world`, the shared engine);
     `surface={false}` hides ADR-0648's see-through shell, which replaced the sea, and every
     island.
   - It reads only `changesSince` and `linesSince`, which the page already reads.
-  - Pictures are in `packages/forest/src/view/evidence/core`.
+  - Historical Look-inside pictures are in `packages/forest/src/view/evidence/core`.
 
 **Contracts:**
 1. From the globe, the owner can open the core, find a shelf's entrance and pin an artifact; its card

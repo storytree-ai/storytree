@@ -212,11 +212,13 @@ flat forest canvas remains in the engine, where its island drawing is reused.
     through empty areas;
     names, claims and clicks keep their near-side rule. The islands and kit pines keep their
     existing drawing, and L1 keeps the light over the viewer's shoulder. The knowledge core
-    is not mounted on the globe; ADR-0655 D2 defers its page entry.
+    shows faint artifact points beneath the islands (ADR-0658); ADR-0655 D2 still defers
+    the separate Look-inside page entry.
     See [the decision](../decisions/planet-packed-see-through.md).
   - **The globe alone (ADR-0655 D1/D2):** the page opens on the globe, without a Forest or
     “Look inside” choice. The flat canvas remains in the engine, and knowledge-core calculations
-    remain available in their own package.
+    remain available in their own package. ADR-0658 mounts capability 1's faint points on
+    this globe, with no-shelf artifacts pooled at the centre.
     See [the globe-only decision](../decisions/globe-only-and-room-for-pathways.md).
   - **Routed pathways (ADR-0655 D3, V2; ADR-0169):** every recorded capability link
     has one trail chain, within and across islands. Cross-island trails are raised, faintly
@@ -259,6 +261,14 @@ flat forest canvas remains in the engine, where its island drawing is reused.
   seeded page before (#93) and after this tuning, with the renderer named. The
   [globe-only page capture](../packages/forest/src/view/evidence/globe-only/README.md) records
   the later removal of the page choices and the surviving selection and smoke journey.
+
+- **Knowledge beneath the islands, as built (ADR-0658):** the forest mounts
+  `KnowledgeGlobePoints` through `@storytree/knowledge-core/view`, in `PlanetWorldCanvas`'s
+  existing turning inside slot while its surface stays visible. Capability 1 still owns all
+  placement calculations. The point layer adds no threads and intercepts no clicks; names,
+  claims, failure markers and V2 pathways retain their existing drawing. The
+  [seeded front and quarter-turn captures](../packages/forest/src/view/evidence/knowledge-under-islands/README.md)
+  compare those layers against the same seed without points and exercise failure attention.
 
 - **Pathways, as built:** `forestScene` carries the library's capability dependencies into
   `buildPlanetPathways`. The ported cost-grid router merges shared routes, counts their
@@ -451,7 +461,8 @@ text and the titles of the artifacts it links to and from.
   whichever lands first retires today's plain list.
 - **The planet** (ADR-0629): islands on a sphere, with the project's knowledge inside as a core. It
   arrived as books on Story nodes and Story node render (ADR-0646). The knowledge core remains
-  a separate story; ADR-0655 defers its page entry.
+  a separate story; ADR-0655 defers its Look-inside entry, while ADR-0658 composes its
+  capability 1 placements on the globe.
 - **Storytree's own check of the tests** is out of the MVP (ADR-0630): the forest shows what the
   agent reports, labelled as the agent's.
 - **Left out by the owner's own decisions** (ADR-0632 D6, as ADR-0633 annotated it): health from

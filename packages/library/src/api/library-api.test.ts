@@ -72,6 +72,7 @@ const LIBRARY_API = [
   "healthHistory",
   "recordDecision",
   "numberDecision",
+  "numberDecisionsFromFullRecord",
   "decisionNumberPlan",
   "defineTerm",
   "writeKnowledge",

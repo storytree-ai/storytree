@@ -82,7 +82,7 @@ export class PgTransactions implements Transactions {
       if (current === undefined) return null;
       const record = editedRecord(current, input.fields, now(), input.upgrade);
       if (input.sequence !== undefined) {
-        record.fields = (await numberedIn(client, { ...record, sequence: input.sequence })).fields;
+        record.fields = (await numberedIn(client, { ...record, sequence: input.sequence, sequenceNeverHeld: input.sequenceNeverHeld === true })).fields;
       }
       check(record, input.validate);
       await appendEvent(client, "updated", record, record.updatedAt, input.actor);
@@ -185,15 +185,15 @@ async function numberedIn(client: PoolClient, input: SaveInput): Promise<SaveInp
   if (field === undefined) return input;
   const { rows } = await client.query<{ highest: string }>(
     `SELECT COALESCE(MAX((record->'fields'->>$2::text)::numeric), 0) AS highest FROM record_event
-     WHERE type = $1 AND jsonb_typeof(record->'fields'->$2::text) = 'number'`,
-    [input.type, field],
+     WHERE ($3::boolean OR type = $1) AND jsonb_typeof(record->'fields'->$2::text) = 'number'`,
+    [input.type, field, input.sequenceNeverHeld === true],
   );
   const given = input.fields[field];
   let taken = false;
   if (typeof given === "number") {
     const found = await client.query(
-      `SELECT 1 FROM record_event WHERE type = $1 AND record_id <> $3 AND record->'fields'->$2::text = to_jsonb($4::numeric) LIMIT 1`,
-      [input.type, field, input.id, given],
+      `SELECT 1 FROM record_event WHERE ($5::boolean OR (type = $1 AND record_id <> $3)) AND record->'fields'->$2::text = to_jsonb($4::numeric) LIMIT 1`,
+      [input.type, field, input.id, given, input.sequenceNeverHeld === true],
     );
     taken = found.rows.length > 0;
   }

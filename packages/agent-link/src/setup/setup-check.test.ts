@@ -18,12 +18,13 @@ import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
 
+import { runSetupCheck, setUpProject } from "../index.js";
 import { buildBins } from "../bins/build.js";
 import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { registerHooks, removeCommand, removeHooks, runSetupCheck, type GhState, type HookCommand, type Homes } from "./index.js";
+import { registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -251,6 +252,39 @@ test("8.4 in a folder that isn't a project, the agent is told to ask the user, a
         assert.ok((await storytree.listProjects()).includes(name), "the project, once the user said yes");
         assert.deepEqual((await agent.call("check_setup")).data.project, { status: "set up", name });
       });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
+test("8.10 a terminal runs the shared setup check with diagnostic lines and fixes, creating a project only on request", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { folder, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed out" as const };
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const report = await runSetupCheck(options);
+      assert.equal(report.lines.find((line) => line.check === "storytree")?.state, "ok");
+      assert.equal(report.lines.find((line) => line.check === "hooks")?.state, "fixed");
+      assert.match(report.lines.find((line) => line.check === "gh")?.fix ?? "", /gh auth login/);
+      assert.match(report.lines.find((line) => line.check === "project")?.fix ?? "", /only.*yes/i);
+      assert.equal(existsSync(path.join(folder, MARKER_FILE)), false);
+      assert.equal((await storytree.listProjects()).includes(name), false);
+
+      await setUpProject({ folder, project: name, storytree }); // the terminal's explicit yes
+      const ready = await runSetupCheck({ ...options, gh: async () => "signed in" as const });
+      assert.deepEqual(ready.project, { status: "set up", name });
+      assert.equal(ready.lines.find((line) => line.check === "project")?.state, "ok");
+      assert.equal(ready.lines.find((line) => line.check === "gh")?.fix, undefined);
+
+      const stopped = await runSetupCheck({ ...options, storytreeHome: path.join(dir, "not-running") });
+      assert.match(stopped.lines.find((line) => line.check === "storytree")?.fix ?? "", /open the storytree app/i);
+      assert.match(stopped.lines.find((line) => line.check === "gh")?.fix ?? "", /gh auth login/, "one failure does not hide another fix");
     } finally {
       await storytree.close();
       await dropTestProjects([name]);

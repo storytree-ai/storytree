@@ -92,7 +92,7 @@ test("4.3 an unreached note is grey whatever other sessions did, every note has 
   const byLinks = coreScene(input(history, lines, { session: "s1", sizeBy: "links-in" }));
   assert.equal(byLinks.sizeLabel, SIZE_LABELS["links-in"]);
   assert.match(SIZE_LABELS.visits, /sessions/);
-  assert.match(SIZE_LABELS["links-in"], /link/);
+  assert.match(SIZE_LABELS["links-in"], /the distinct artifacts linking to it/, "the records are artifacts (ADR-0650)");
   assert.deepEqual(byLinks.notes.map(({ id, at }) => [id, at]), byVisits.notes.map(({ id, at }) => [id, at]), "size, never place");
   assert.notDeepEqual(byLinks.notes.map(({ size }) => size), byVisits.notes.map(({ size }) => size));
 

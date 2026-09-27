@@ -10,7 +10,7 @@
 //
 // It reads the library of the running app when there is one, through the address the app leaves
 // beside its data directory, and otherwise starts the app's Postgres on that directory, as
-// `pnpm seed:library` does, and stops it again at the end. The rules live in scripts/guidance.mjs.
+// `pnpm library:export` does, and stops it again at the end. The rules live in scripts/guidance.mjs.
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -89,7 +89,7 @@ async function withLibrary(read) {
   const storytree = await connect({ url });
   try {
     if (!(await storytree.listProjects()).includes(PROJECT)) {
-      console.error(`The app's library has no project "${PROJECT}". Run \`pnpm seed:library\` first.`);
+      console.error(`The app's library has no project "${PROJECT}". Restore it from a snapshot with \`pnpm library:restore\`.`);
       return undefined;
     }
     const library = await storytree.openProject(PROJECT);

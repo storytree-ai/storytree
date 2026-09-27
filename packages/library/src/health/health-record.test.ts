@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Health record: one test per contract 5.1-5.5 in stories/library.md, each run on
+ * Capability 5 · Health record: one test per contract 5.1-5.5 in the library story, each run on
  * BOTH backends, as capabilities 2-4 and 6 are:
  *
  * - memory: a HealthRecord over SchemaRecords and a WorkModel over a fresh MemoryTransactions;

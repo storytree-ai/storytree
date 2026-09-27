@@ -1,6 +1,6 @@
 /**
  * The families `storytree` answers, in the order `storytree` alone lists them: the capabilities of
- * stories/cli.md, each a front door onto its owning story.
+ * the command line story, each a front door onto its owning story.
  */
 import type { Family } from "../door.js";
 import { decisions } from "./adr.js";

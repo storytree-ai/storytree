@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.2 in stories/cli.md, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.2 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";

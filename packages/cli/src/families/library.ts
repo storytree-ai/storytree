@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Library (stories/cli.md): read any record whole, list a kind, search the artifacts,
+ * Capability 3 · Library (the command line story): read any record whole, list a kind, search the artifacts,
  * see what links to an artifact and a record's history, all through the library's own reads; write a
  * new record of any kind, or edit named fields of one, with long text taken from a file. A bad
  * record is refused with the library's own message.

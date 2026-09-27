@@ -1,5 +1,5 @@
 /**
- * The one join between 0.3's forest and 0.2's drawing engine (stories/forest.md, capability 3).
+ * The one join between 0.3's forest and 0.2's drawing engine (the forest story, capability 3).
  *
  * 0.3 decides WHERE and WHAT: each story node's place on the spiral (P1, `storyNodes`) and its
  * grove, one tree per capability in one of four forms (G1, `grove`), both carried by

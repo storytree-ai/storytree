@@ -1,6 +1,6 @@
 /**
  * Capability 5 · Claims, a workspace already claimed (ADR-0653, the owner's K1): one test per
- * contract 5.12-5.14 in stories/agent-link.md, against the real Postgres `pnpm test` provides and
+ * contract 5.12-5.14 in the agent link story, against the real Postgres `pnpm test` provides and
  * real git. Each test clones a throwaway repository whose origin gains a commit after the clone, so
  * a workspace cut from the clone's own, stale view of main would show it.
  */

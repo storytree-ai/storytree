@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Surfaces (stories/app.md): the smoke check's judgement. The surface on show says
+ * Capability 3 · Surfaces (the app story): the smoke check's judgement. The surface on show says
  * what it drew, and the check passes only if that is every story and capability of the project. A
  * surface drawn on a canvas, as the forest is, has no page text to search, so the check never reads
  * the page itself: it reads what the surface says.

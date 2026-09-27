@@ -1,5 +1,5 @@
 /**
- * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.4 in stories/library.md,
+ * Capability 12 · Owner questions (ADR-0640): one test per contract 12.1-12.4 in the library story,
  * and the half of 10.3 that waits for questions, each run on BOTH backends: a WorkModel, a
  * WorkInFlight and a Knowledge over a fresh MemoryTransactions, and those of a fresh Postgres
  * project, dropped afterwards, pass or fail.

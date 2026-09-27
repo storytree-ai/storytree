@@ -1,6 +1,6 @@
 /**
  * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9 in
- * stories/library.md. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
+ * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
  *

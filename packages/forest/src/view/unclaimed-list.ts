@@ -1,5 +1,5 @@
 /**
- * Unclaimed work beside the forest (stories/forest.md, capability 6): a count always in view, and
+ * Unclaimed work beside the forest (the forest story, capability 6): a count always in view, and
  * on request the list of edits and commands made while holding no claim, newest first, with who
  * made them, which files and when. It names no story, since storytree cannot know which it belongs
  * to. Every word from the log is written as text, never as HTML.

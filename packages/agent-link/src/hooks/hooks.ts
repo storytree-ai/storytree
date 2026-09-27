@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Hooks (stories/agent-link.md): the commands Claude Code and Codex run by
+ * Capability 3 · Hooks (the agent link story): the commands Claude Code and Codex run by
  * themselves when a session starts, after every file edit and shell command, and when it ends, each
  * adding one line about that session to the agent activity log, so an agent that never calls
  * storytree still shows up. They always exit cleanly and never print, so they can never break the

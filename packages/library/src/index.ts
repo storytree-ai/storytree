@@ -1,5 +1,5 @@
 // @storytree/library: the project library every later storytree story reads and writes, and the
-// only way to reach it (capability 7 · Library API, stories/library.md). At run time this entry
+// only way to reach it (capability 7 · Library API, the library story). At run time this entry
 // exports connect() and the errors a caller may need to catch by class. Everything else it exports
 // is a type, and none of them reaches a connection pool, a store or a table. The package exports
 // nothing but this entry, so the internals behind it cannot be imported at all.

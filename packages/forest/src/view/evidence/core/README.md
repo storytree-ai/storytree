@@ -1,6 +1,6 @@
 # Looking inside the globe
 
-The knowledge core's capability 4 (`stories/knowledge-core.md`), following the owner's
+The knowledge core's capability 4 (the knowledge core story), following the owner's
 ADR-0647 picks E1, V1, S1 and T1. "Look inside" sits between Globe and Forest. It hides the
 globe's surface (since ADR-0648 a see-through grey shell, not a sea) and its islands. It keeps
 the globe's turn, its failure markers and the selection, and draws the project's notes at

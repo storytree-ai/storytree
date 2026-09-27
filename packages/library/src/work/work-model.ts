@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model (stories/library.md): each project's plan of work. Stories belong to
+ * Capability 4 · Work model (the library story): each project's plan of work. Stories belong to
  * the project; a capability points at its story, a contract at its capability, and an arc may list
  * the stories it grows. The library refuses broken structure.
  *

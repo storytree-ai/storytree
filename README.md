@@ -11,20 +11,26 @@ plain-language view of how each story works and whether it is healthy. Health sh
 This repo is new. Its first story is the **library**: the project-scoped store every later story
 reads and writes. It holds the plan of work (arcs, stories, capabilities, contracts), each item's
 health, and what the project has learned. It runs on a local Postgres, with one database per
-project and an optional Google Cloud connection. Its capabilities are listed in
-[`stories/library.md`](stories/library.md).
+project and an optional Google Cloud connection. Its capabilities, like every story of 0.3's own,
+are in 0.3's own library (below).
 
 ## This repo's own library
 
-Storytree 0.3 keeps its own plan in the kind of library it gives every project. `pnpm seed:library`
-loads this repo's stories ([`stories/`](stories)) and the decisions made for them
-([`decisions/`](decisions)) into the desktop app's library, as the project `storytree`. Each
-decision becomes a front cover of the one story or capability it decided; a decision about the
-whole project sits on no shelf, and is found by search. The seed then runs each story's own tests
-and records what they showed as its verified health. The app need not be quit: while it runs, the
-seed writes into its database; otherwise the seed starts the app's own Postgres itself. A seed
-waits its turn behind another, and the app never restarts into an update while one is writing.
-Running it again updates everything in place and never adds anything twice.
+Storytree 0.3 keeps its own plan in the kind of library it gives every project, and the library is
+its only copy (ADR-0641): the desktop app's library holds the project `storytree`, with 0.3's own
+stories, their capabilities and contracts, the notes filed behind their front covers, and the
+decisions made for them. Sessions plan and edit them through the storytree tools, as a user's agent
+does, and an edit is live when it is written. There are no story or decision files to edit.
+
+- `pnpm library:export` prints the project as read-only story and decision files into
+  `library-export/` (which git ignores), for reading the plan outside the app.
+- `pnpm check:own-health` runs each story's own tests and records what they showed as its verified
+  health.
+- The app keeps a snapshot of every project, taken at start and once a day, in
+  `~/.storytree/0.3/backups/`. `pnpm library:restore <snapshot>` puts one back, only into an empty
+  project, so it never overwrites live edits.
+
+Each of these starts the app's own Postgres, so quit the app first.
 
 ## How changes land
 

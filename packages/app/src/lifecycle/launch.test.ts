@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Lifecycle, contract 1.6 in stories/app.md: with storytree closed, an agent's
+ * Capability 1 · Lifecycle, contract 1.6 in the app story: with storytree closed, an agent's
  * session start opens it, from the record the app leaves of how it was started (app.json). Which
  * build writes that record decides which build opens, so a development copy of the app must not
  * take it from the app that follows merged main (seen 2026-09-27: the record named a stale dev

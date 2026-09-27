@@ -18,12 +18,8 @@ test("this repo keeps every story in its own package, behind a thin frame and fr
   assert.deepEqual(boundaryProblems(root), []);
 });
 
-// Two stories, their packages, the frame, the front door and one shared engine, all within bounds.
+// Four stories (declared: the stories live in the library, which CI cannot read), their packages, the frame, the front door and one shared engine, all within bounds.
 const KEPT = {
-  "stories/app.md": "",
-  "stories/cli.md": "",
-  "stories/forest.md": "",
-  "stories/library.md": "",
   "packages/app/package.json": pkg("app"),
   "packages/app/src/lifecycle/start.ts": 'import { connect } from "@storytree/library";\n',
   "apps/desktop/package.json": pkg("desktop"),
@@ -37,14 +33,17 @@ const KEPT = {
   "packages/forest-world/package.json": pkg("forest-world"),
   "packages/forest-world/src/coast.ts": "",
 };
-const DECLARED = { sharedEngines: ["forest-world"], notYetMoved: [] };
+const DECLARED = { stories: ["app", "cli", "forest", "library"], sharedEngines: ["forest-world"], notYetMoved: [] };
 
 test("the planted trees start from one that keeps the rules", (t) => {
   assert.deepEqual(boundaryProblems(plant(t, {}), DECLARED), []);
 });
 
 test("a story with no package is refused, and so is a package that is neither a story's nor declared", (t) => {
-  const problems = boundaryProblems(plant(t, { "stories/knowledge-core.md": "", "packages/helpers/package.json": pkg("helpers") }), DECLARED);
+  const problems = boundaryProblems(plant(t, { "packages/helpers/package.json": pkg("helpers") }), {
+    ...DECLARED,
+    stories: [...DECLARED.stories, "knowledge-core"],
+  });
   assert.equal(problems.length, 2, problems.join("\n"));
   assert.match(problems.join("\n"), /knowledge-core.*no package/);
   assert.match(problems.join("\n"), /packages\/helpers.*neither/);

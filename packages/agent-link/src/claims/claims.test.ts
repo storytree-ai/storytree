@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Claims: one test per contract 5.1-5.6 in stories/agent-link.md, against the real
+ * Capability 5 · Claims: one test per contract 5.1-5.6 in the agent link story, against the real
  * Postgres `pnpm test` provides. Each test plans a story with two capabilities in a fresh project's
  * library (named with uniqueProjectName(), dropped afterwards), and claims them through the agent
  * activity log, as sessions A (Claude Code) and B (Codex) would.

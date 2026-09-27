@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Surfaces: the page's reads, contracts 3.1 and 3.2 in stories/app.md, against the
+ * Capability 3 · Surfaces: the page's reads, contracts 3.1 and 3.2 in the app story, against the
  * real Postgres `pnpm test` provides. Each test works in projects named t- and 8 hex digits, so
  * tests sharing the server never read each other's, and drops their libraries afterwards.
  */

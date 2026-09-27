@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Library API: one test per contract 7.1-7.3 in stories/library.md, run through the
+ * Capability 7 · Library API: one test per contract 7.1-7.3 in the library story, run through the
  * package's public entry the way every later story will reach the library: `@storytree/library`,
  * the package importing itself by name. They run against the real Postgres `pnpm test` provides.
  * There is no backend choice here: the public API is the library on Postgres.

@@ -1,23 +1,24 @@
-// The export's rules, which scripts/export-library.mjs runs: how a project in a library prints back
-// as the repo's story files (stories/*.md) and decision files (decisions/*.md), and how the
-// round-trip check compares that printout with the committed files (ADR-0641 D2 step 1). The
-// export only reads the library, through its public API; the check is pure.
+// The export's rules, which scripts/export-library.mjs runs: how a project in a library prints as
+// story files (stories/*.md) and decision files (decisions/*.md), in the layout the repo's files had
+// before the library became the one copy of 0.3's own stories and decisions (ADR-0641 D2 step 4,
+// choice F1). The printout is a read-only copy; nothing is ever read back from it. The export only
+// reads the library, through its public API.
 //
-// A story prints in the layout its file has today:
+// A story prints in this layout:
 // - `# Story: <title>`, then `**What it is.** <description>`;
 // - its opening artifacts, then `---`;
 // - each capability in the tree's order: `## N · Name`, its description, its `- **Depends on:**`
 //   line, its shelf (`- **Its shelf,** founding book first:` with one item per front cover, the
 //   founding book first), its artifacts, then `**Contracts:**` and each contract, numbered;
 // - its closing artifacts, after a `---`.
-// A capability's founding book, which the seed files from the story, prints as its shelf's
-// `**Founding book (label):**` item. A decision with a full record prints as a decision file of its
-// own, named after the record (decisions/adr-0621.md), and as a pointer on its node's shelf.
+// A capability's founding book (a decision whose text ends `Founding book of stories/<name>.md,
+// capability N.`) prints as its shelf's `**Founding book (label):**` item. A decision with a full
+// record prints as a decision file of its own, named after the record (decisions/adr-0621.md), and
+// as a pointer on its node's shelf.
 //
-// Where an artifact prints (so that the story text moved into the library, ADR-0641 D2 step 2, prints
-// back in its place): a definition whose term starts `Story text: ` prints in a story when
-// its first link that names a front cover names one of that story's covers, or of its
-// capabilities'. Other definitions are not story blocks. Its meaning is the block as the file
+// Where an artifact prints (the story text moved into the library by ADR-0641 D2 step 2): a
+// definition whose term starts `Story text: ` prints in a story when its first link that names a
+// front cover names one of that story's covers, or of its capabilities'. Other definitions are not story blocks. Its meaning is the block as the file
 // writes it, list marker, bold label, line breaks and indentation included, and it prints verbatim.
 // - Behind a capability's cover, it prints in that capability's section, after the shelf and
 //   before the contracts, in the order the artifacts were written. So an indented item (`  - …`)
@@ -27,15 +28,6 @@
 // - Behind the story's cover, an artifact starting with a `## ` heading is a closing section, heading
 //   and all, printed after the last capability; any other is an opening block, printed after the
 //   description.
-//
-// The round trip splits each file into blocks (a heading, a paragraph, a list item, a nested list
-// item, a fenced block; `---` is layout and is skipped), each under the heading it follows, with
-// its whitespace collapsed. For each committed file it lists the blocks the printout lacks in the
-// same section ("missing": the text only the file holds) and those the printout adds ("extra").
-// The order of blocks within a section is not compared. A decision file is paired with its
-// printout by its full record, and a story file by its title line, since the library does not keep
-// file names (stories/cli.md holds "the command line"); a printed story path is then read as the
-// committed one wherever a printout names it, as a decision's cover line does.
 
 // --- the export ------------------------------------------------------------------------------
 
@@ -168,122 +160,4 @@ function numberOf(title) {
 /** "1", "1 and 2", "1, 2 and 5". */
 function listed(items) {
   return items.length === 1 ? items[0] : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
-}
-
-// --- the round trip ---------------------------------------------------------------------------
-
-/**
- * @typedef {{ section: string, text: string, raw: string, words: number }} Block
- * @typedef {{ file: string, printedAs?: string, missing: Block[], extra: Block[] }} FileDiff
- */
-
-/**
- * Compare the committed files with the printout, section by section. Each committed file comes
- * back, in the order given, with the blocks only it holds and those only its printout holds; a
- * printed file no committed file pairs with comes back after them, all of it extra.
- * @param {Map<string, string>} committed repo path -> markdown
- * @param {Map<string, string>} printed repo path -> markdown, as exportLibrary gives it
- * @returns {FileDiff[]}
- */
-export function roundTrip(committed, printed) {
-  const recordOfFile = (text) => /^- \*\*Full record:\*\* (ADR-\d+)\b/m.exec(text)?.[1];
-  /** @type {Map<string, string>} record -> printed path */
-  const printedByRecord = new Map();
-  for (const [file, text] of printed) {
-    const record = file.startsWith("decisions/") ? recordOfFile(text) : undefined;
-    if (record !== undefined) printedByRecord.set(record, file);
-  }
-  const titleOf = (text) => /^# Story: (.*)$/m.exec(text)?.[1].trim().toLowerCase();
-  /** @type {Map<string, string>} story title -> printed path, since the library does not keep file names either */
-  const printedByTitle = new Map();
-  for (const [file, text] of printed) {
-    const title = file.startsWith("stories/") ? titleOf(text) : undefined;
-    if (title !== undefined) printedByTitle.set(title, file);
-  }
-  const printedAsOf = (file, text) => {
-    const record = file.startsWith("decisions/") ? recordOfFile(text) : undefined;
-    const title = file.startsWith("stories/") ? titleOf(text) : undefined;
-    return record !== undefined ? printedByRecord.get(record) : (title !== undefined && printedByTitle.get(title)) || (printed.has(file) ? file : undefined);
-  };
-  /** @type {[string, string][]} printed story path -> the committed one it pairs with, where they differ */
-  const renamed = [...committed]
-    .filter(([file]) => file.startsWith("stories/"))
-    .map(([file, text]) => [printedAsOf(file, text), file])
-    .filter(([printedAs, file]) => printedAs !== undefined && printedAs !== file);
-  /** A printout with each renamed story's printed path read as its committed one, as a decision's cover line names it. */
-  const underCommittedNames = (text) => renamed.reduce((out, [printedAs, file]) => out.split(printedAs).join(file), text);
-  const paired = new Set();
-  /** @type {FileDiff[]} */
-  const diffs = [];
-  for (const [file, text] of committed) {
-    const printedAs = printedAsOf(file, text);
-    if (printedAs !== undefined) paired.add(printedAs);
-    const [missing, extra] = compare(blocksOf(text), blocksOf(printedAs === undefined ? "" : underCommittedNames(printed.get(printedAs))));
-    diffs.push({ file, ...(printedAs === undefined ? {} : { printedAs }), missing, extra });
-  }
-  for (const [file, text] of printed) {
-    if (!paired.has(file)) diffs.push({ file, printedAs: file, missing: [], extra: blocksOf(text) });
-  }
-  return diffs;
-}
-
-/** The blocks of `a` that `b` lacks in the same section, and those of `b` that `a` lacks, each in its own order. */
-function compare(a, b) {
-  const key = ({ section, text }) => `${section}\n${text}`;
-  const without = (blocks, others) => {
-    const counts = new Map();
-    for (const block of others) counts.set(key(block), (counts.get(key(block)) ?? 0) + 1);
-    return blocks.filter((block) => {
-      const left = counts.get(key(block)) ?? 0;
-      if (left > 0) counts.set(key(block), left - 1);
-      return left === 0;
-    });
-  };
-  return [without(a, b), without(b, a)];
-}
-
-/**
- * The blocks of a markdown file, each under the last heading before it.
- * @param {string} markdown
- * @returns {Block[]}
- */
-export function blocksOf(markdown) {
-  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
-  /** @type {Block[]} */
-  const blocks = [];
-  let section = "";
-  const item = /^(\s*)(?:[-*]|\d+\.)\s/;
-  const push = (rawLines, verbatim = false) => {
-    const raw = rawLines.join("\n");
-    const nested = item.exec(rawLines[0])?.[1].length > 0;
-    const text = verbatim ? rawLines.map((line) => line.trimEnd()).join("\n") : `${nested ? "  " : ""}${raw.replace(/\s+/g, " ").trim()}`;
-    blocks.push({ section, text, raw, words: raw.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0 });
-  };
-  for (let index = 0; index < lines.length; ) {
-    const line = lines[index];
-    if (line.trim() === "" || /^---+\s*$/.test(line)) {
-      index++;
-    } else if (/^```/.test(line)) {
-      let end = index + 1;
-      while (end < lines.length && !/^```/.test(lines[end])) end++;
-      push(lines.slice(index, end + 1), true);
-      index = end + 1;
-    } else if (/^#{1,6} /.test(line)) {
-      section = line.trim();
-      push([line]);
-      index++;
-    } else if (item.test(line)) {
-      const indent = item.exec(line)[1].length;
-      let end = index + 1;
-      while (end < lines.length && lines[end].trim() !== "" && !item.test(lines[end]) && /^\s/.test(lines[end]) && lines[end].search(/\S/) > indent) end++;
-      push(lines.slice(index, end));
-      index = end;
-    } else {
-      let end = index + 1;
-      while (end < lines.length && lines[end].trim() !== "" && !/^(#{1,6} |```|---+\s*$)/.test(lines[end]) && !item.test(lines[end])) end++;
-      push(lines.slice(index, end));
-      index = end;
-    }
-  }
-  return blocks;
 }

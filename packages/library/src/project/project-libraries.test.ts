@@ -106,6 +106,51 @@ test("1.2 opening the same project again succeeds and changes nothing", async ()
   });
 });
 
+test("1.2 reopening while a record write is in flight does not deadlock (PR 75 macOS CLI incident)", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([databaseOf(name)], async (storytree) => {
+    const project = await storytree.openProject(name);
+    const later = await connect({ url: testServerUrl() });
+    try {
+      await withTestClient(async (writer) => {
+        // Pause the real SQL write after its history append, before it saves the current record.
+        // This is the lock order of PgTransactions.save, made deterministic rather than raced.
+        await writer.query("BEGIN");
+        await writer.query("SET LOCAL statement_timeout = '5s'");
+        await writer.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+        const pid = (await writer.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]!.pid;
+        await writer.query("SELECT id FROM record WHERE id = 'during-open' FOR UPDATE");
+        await writer.query("INSERT INTO record_event (record_id, type, action, record) VALUES ('during-open', 'decision', 'created', '{}'::jsonb)");
+        const opening = later.openProject(name).then(() => undefined, (error: unknown) => error);
+        try {
+          const deadline = Date.now() + 5000;
+          for (;;) {
+            const { rows } = await project.pool.query(
+              "SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND $1 = ANY(pg_blocking_pids(pid))",
+              [pid],
+            );
+            if (rows.length > 0) break;
+            assert.ok(Date.now() < deadline, "the second open reaches the in-flight write");
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+          const saved = await writer.query("INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ('during-open', 'decision', 1, '{}'::jsonb, now(), now())")
+            .then(() => writer.query("COMMIT"))
+            .then(() => undefined, async (error: unknown) => { await writer.query("ROLLBACK"); return error; });
+          const opened = await opening;
+          assert.equal(saved, undefined, "the in-flight write completes");
+          assert.equal(opened, undefined, "the concurrent open completes");
+          assert.equal((await project.transactions.get("during-open"))?.id, "during-open");
+        } finally {
+          await writer.query("ROLLBACK");
+          await opening;
+        }
+      }, databaseOf(name));
+    } finally {
+      await later.close();
+    }
+  });
+});
+
 test("1.3 listProjects returns exactly the storytree projects, sorted, and no other database", async () => {
   const run = uniqueProjectName();
   const site = `${run}-site`;

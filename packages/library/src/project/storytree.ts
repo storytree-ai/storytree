@@ -13,7 +13,7 @@ import type { Pool, PoolClient } from "pg";
 import { HealthRecord } from "../health/health-record.js";
 import { Knowledge } from "../knowledge/knowledge.js";
 import { SchemaRecords } from "../schema/records.js";
-import { PgTransactions } from "../transactions/pg.js";
+import { PgTransactions, WRITE_LOCK } from "../transactions/pg.js";
 import type { Transactions } from "../transactions/types.js";
 import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
@@ -233,6 +233,10 @@ async function applySchema(pool: Pool, name: string): Promise<void> {
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.project-schema'))");
+    // Even CREATE INDEX IF NOT EXISTS locks its table. Take the writer's lock before any DDL:
+    // schema visits record then record_event, while a save appends its event before its record.
+    // Otherwise reopening beside a live write can deadlock (PR 75's concurrent CLI decisions).
+    await client.query(WRITE_LOCK);
     for (const statement of PROJECT_SCHEMA) await client.query(statement);
     await client.query(
       "INSERT INTO library_meta (key, value) VALUES ('project', $1) ON CONFLICT (key) DO NOTHING",

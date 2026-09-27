@@ -21,7 +21,7 @@ const RECORD_COLUMNS = "id, type, version, fields, created_at, updated_at";
  * The project's write lock, held until the transaction ends. Advisory locks belong to one
  * database, so this is per project: writes to one project take turns, writes to two do not.
  */
-const WRITE_LOCK = "SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))";
+export const WRITE_LOCK = "SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))";
 
 interface RecordRow {
   id: string;

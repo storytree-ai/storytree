@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Queues: one test per contract 5.1-5.3 in stories/librarian.md, each in a fresh
+ * Capability 5 · Queues: one test per contract 5.1-5.3 in the librarian story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";

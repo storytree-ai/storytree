@@ -4,7 +4,7 @@
 // that holds no record and no history, so this can never overwrite live edits: to put a project
 // back, restore it under a new name, or into a library where it does not exist yet.
 //
-// Like `pnpm seed:library`, it writes into the running app's database, or starts the app's Postgres
+// Like `pnpm check:own-health`, it writes into the running app's database, or starts the app's Postgres
 // itself when the app is not running, and never writes at the same time as another library script
 // (scripts/library-server.mjs).
 

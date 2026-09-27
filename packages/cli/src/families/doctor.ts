@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Doctor (stories/cli.md): run storytree's setup check from a terminal, the same one
+ * Capability 8 · Doctor (the command line story): run storytree's setup check from a terminal, the same one
  * every agent session start runs: is storytree running, are the hooks registered and last seen
  * firing, is this folder a project, is `storytree` on the path, is `gh` signed in. It fixes what the
  * check fixes by itself and names the fix for the rest, and it sets a folder up as a project only

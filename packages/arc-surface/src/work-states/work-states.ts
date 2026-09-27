@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Work states (stories/arc-surface.md), at part grain: every part shows exactly one
+ * Capability 1 · Work states (the arc surface story), at part grain: every part shows exactly one
  * state, worked out by one rule from the records, so no two views can disagree. The forest reads
  * the same rule (ADR-0632 D3), so it and the overlay always agree on "landed".
  *

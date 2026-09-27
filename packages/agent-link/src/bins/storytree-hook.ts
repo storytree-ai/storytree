@@ -2,7 +2,7 @@
  * `storytree-hook <harness>`: the command Claude Code (`claude-code`) and Codex (`codex`) run by
  * themselves at session start, at each prompt, before and after each shell command, after each file
  * edit and subagent start, before each call to storytree's own tools, at the end of each turn, and
- * at session end, with the hook's input on stdin (capability 3 · Hooks, stories/agent-link.md).
+ * at session end, with the hook's input on stdin (capability 3 · Hooks, the agent link story).
  *
  * It always exits 0, and prints only what the prompt hook adds for the agent (the project's
  * definitions for the prompt's terms): whatever happens, the agent it runs beside is untouched. It

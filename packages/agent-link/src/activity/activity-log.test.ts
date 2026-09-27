@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Agent activity log: one test per contract 2.1-2.4 in stories/agent-link.md, against
+ * Capability 2 · Agent activity log: one test per contract 2.1-2.4 in the agent link story, against
  * the real Postgres `pnpm test` provides. Each test writes under projects named with
  * uniqueProjectName(), so tests sharing the server never read each other's lines.
  */

@@ -1,4 +1,4 @@
-/** Capability 2 · Earlier decisions beside their replacements (stories/knowledge-core.md). */
+/** Capability 2 · Earlier decisions beside their replacements (the knowledge core story). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

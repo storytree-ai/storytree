@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Story nodes (stories/forest.md): one story node for every story in the project,
+ * Capability 1 · Story nodes (the forest story): one story node for every story in the project,
  * each at its place, with its title and its health as the agent reports it. The library's tree and
  * history are written out here as the library hands them to the forest, so no database is needed.
  */

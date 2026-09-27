@@ -1,5 +1,5 @@
 /**
- * Capabilities 4 · Drill-down and 7 · Library entrypoints (stories/forest.md): what the panel a
+ * Capabilities 4 · Drill-down and 7 · Library entrypoints (the forest story): what the panel a
  * click opens says about a story, and the shelves of front covers inside it.
  * The library's tree and history, and the agent log's lines, are written out here as the app hands
  * them to the page, so no database is needed.

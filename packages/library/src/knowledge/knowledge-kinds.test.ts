@@ -1,6 +1,6 @@
 /**
  * Capability 6 · Knowledge and memory, grown by ADR-0640: contracts 6.6 and 6.7 in
- * stories/library.md, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
+ * the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
  * - postgres: the `knowledge` of a fresh project on the server `pnpm test` provides, dropped

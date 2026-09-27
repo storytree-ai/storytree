@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Catalogue: one test per contract 3.1-3.2 in stories/librarian.md, each in a fresh
+ * Capability 3 · Catalogue: one test per contract 3.1-3.2 in the librarian story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";

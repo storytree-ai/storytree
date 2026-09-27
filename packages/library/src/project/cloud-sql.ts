@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Cloud connection (GCP) (stories/library.md): instead of a local Postgres,
+ * Capability 8 · Cloud connection (GCP) (the library story): instead of a local Postgres,
  * storytree can reach a Cloud SQL for PostgreSQL instance, signing in as the user's own Google
  * account: IAM database authentication through Application Default Credentials, with no stored
  * password. Everything else works the same: one database per project, storytree_<name>, now on

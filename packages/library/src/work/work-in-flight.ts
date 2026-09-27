@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Work in flight (stories/library.md, ADR-0640): each arc whole, with its
+ * Capability 10 · Work in flight (the library story, ADR-0640): each arc whole, with its
  * increments. An increment moves proposal → ready → active → closed, only ever forward; closed, it
  * stays as the arc's log entry, with the day it closed, its pull request, its note and whether it
  * landed, failed or was withdrawn. An arc's state is worked out from its increments on every read:

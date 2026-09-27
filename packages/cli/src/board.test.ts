@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Board, read only: one test per contract 7.1-7.3 in stories/cli.md, each running the
+ * Capability 7 · Board, read only: one test per contract 7.1-7.3 in the command line story, each running the
  * real, built `storytree` command. Claims are made the way the agent tool makes them, through the
  * agent link's own `claim`, into its activity log on the test Postgres.
  */

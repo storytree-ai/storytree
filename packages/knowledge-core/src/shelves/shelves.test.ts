@@ -1,4 +1,4 @@
-/** Capability 1 · Knowledge under its shelves (stories/knowledge-core.md). */
+/** Capability 1 · Knowledge under its shelves (the knowledge core story). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

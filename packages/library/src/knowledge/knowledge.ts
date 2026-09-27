@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge artifacts (stories/library.md): alongside the plan, the library keeps
+ * Capability 6 · Knowledge artifacts (the library story): alongside the plan, the library keeps
  * what the project has learned: decisions, definitions and the other proper artifact kinds. An
  * artifact links to the other artifacts it relates to, and is found again by searching its words.
  *

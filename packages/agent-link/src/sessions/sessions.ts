@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Sessions (stories/agent-link.md): the agent activity log read as a list of agent
+ * Capability 4 · Sessions (the agent link story): the agent activity log read as a list of agent
  * sessions, one per Claude Code or Codex window. Nothing asks an agent whether it is still there:
  * a session's state is worked out from its lines.
  *

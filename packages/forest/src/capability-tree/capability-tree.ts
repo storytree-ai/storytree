@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Capability tree (stories/forest.md): each story node carries its capability tree:
+ * Capability 2 · Capability tree (the forest story): each story node carries its capability tree:
  * the story's capabilities, which ones build on which, and where each one stands, and it grows as
  * they land. Where a capability stands comes from two records kept side by side: the arc surface's
  * work state (the one rule for planned, in progress or landed, ADR-0632 D3), and the health the

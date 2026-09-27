@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Arcs and increments (stories/cli.md): see one arc whole, its intent, end state,
+ * Capability 4 · Arcs and increments (the command line story): see one arc whole, its intent, end state,
  * increments and their states, the questions waiting on the owner, and what each waiting item
  * waits for. Create, edit, park or unpark an arc; park an increment, record a landing that was never
  * parked, close one with its outcome, and make an arc or increment wait on another with a reason, or

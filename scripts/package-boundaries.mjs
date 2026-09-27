@@ -1,7 +1,7 @@
 // Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
 // decision log). scripts/package-boundaries.test.mjs runs it over the repo in `pnpm test` and CI.
 //
-// - Every story (`stories/<id>.md`) has its own package, `packages/<id>`. Every other package is a
+// - Every story has its own package, `packages/<id>`. Every other package is a
 //   shared engine that belongs to no story, declared below, or the frame's `apps/desktop`.
 // - The frame (the app story's `packages/app` and `apps/desktop`: startup, lifecycle, updates and
 //   mounting each story's surface) holds no other story's code, and neither does the front door
@@ -13,11 +13,14 @@
 //   by a subpath of `@storytree/<story>` that its package.json does not export. A shared engine's
 //   files are no story's, so they are not covered.
 //
-// The story list is still read from stories/*.md: the library flip (ADR-0641) has not taken those
-// files away yet, and CI has no library to read it from.
+// The stories live only in the library (ADR-0641), which CI cannot read, so their ids are declared
+// here: a story added to the library is added to STORIES with its package, in the same change.
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+
+/** 0.3's own stories, each by the id its package has (packages/<id>). */
+export const STORIES = ["agent-link", "app", "arc-surface", "cli", "forest", "knowledge-core", "librarian", "library"];
 
 /** Packages that belong to no story and hold no story's code (ADR-0649 D1). */
 export const SHARED_ENGINES = ["forest-world", "local-postgres"];
@@ -35,11 +38,8 @@ const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 const SKIP = new Set(["node_modules", "dist", ".turbo"]);
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
-export function boundaryProblems(root, { sharedEngines = SHARED_ENGINES, notYetMoved = NOT_YET_MOVED } = {}) {
+export function boundaryProblems(root, { stories = STORIES, sharedEngines = SHARED_ENGINES, notYetMoved = NOT_YET_MOVED } = {}) {
   const problems = [];
-  const stories = readdirSync(path.join(root, "stories"))
-    .filter((name) => name.endsWith(".md"))
-    .map((name) => name.slice(0, -".md".length));
   const packages = [...packageDirs(root, "packages"), ...packageDirs(root, "apps")];
 
   for (const story of stories) {

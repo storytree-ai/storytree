@@ -301,7 +301,7 @@ main {
   }
 }
 
-/* The forest (stories/forest.md, capability 3): it fills the window under the app bar. */
+/* The forest (the forest story, capability 3): it fills the window under the app bar. */
 
 body[data-surface="forest"] {
   height: 100vh;
@@ -396,7 +396,7 @@ body[data-surface="forest"] main {
   transform: translateY(-32px);
 }
 
-/* The knowledge core (stories/knowledge-core.md, capability 4): its panel sits under the view
+/* The knowledge core (the knowledge core story, capability 4): its panel sits under the view
    buttons, on the left, so the drill-down keeps the right side. */
 .core-panel {
   position: absolute;
@@ -546,7 +546,7 @@ body[data-surface="forest"] main {
   transform: translateY(-18px);
 }
 
-/* The drill-down (stories/forest.md, capability 4): a panel over the forest's right side. */
+/* The drill-down (the forest story, capability 4): a panel over the forest's right side. */
 
 .story-panel {
   position: absolute;
@@ -697,7 +697,7 @@ body[data-surface="forest"] main {
   fill: var(--muted);
 }
 
-/* Library entrypoints (stories/forest.md, capability 7): each shelf of front covers, as spines. */
+/* Library entrypoints (the forest story, capability 7): each shelf of front covers, as spines. */
 
 .panel-shelf h4 {
   margin: 0.6rem 0 0.3rem;
@@ -765,7 +765,7 @@ body[data-surface="forest"] main {
   padding-left: 1rem;
 }
 
-/* Agent capability claims (stories/forest.md, capability 5): who holds a tree, over it. */
+/* Agent capability claims (the forest story, capability 5): who holds a tree, over it. */
 
 .forest-claim {
   padding: 0.05rem 0.5rem;
@@ -800,7 +800,7 @@ body[data-surface="forest"] main {
   color: #a61b1b;
 }
 
-/* Unclaimed work (stories/forest.md, capability 6): beside the forest, its count always in view. */
+/* Unclaimed work (the forest story, capability 6): beside the forest, its count always in view. */
 
 .unclaimed {
   position: absolute;

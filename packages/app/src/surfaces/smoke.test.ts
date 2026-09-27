@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Surfaces: the smoke check's judgement, contract 3.3 in stories/app.md. It is a
+ * Capability 3 · Surfaces: the smoke check's judgement, contract 3.3 in the app story. It is a
  * plain function of the project's tree and what the surface on show says it drew, so it is tested
  * without Electron; `pnpm desktop:smoke` runs it in the real app.
  */

@@ -1,6 +1,6 @@
 /**
  * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3 in
- * stories/agent-link.md. The card names each tool in backticks, and uses backticks for nothing
+ * the agent link story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is capability 8's live check.
  */

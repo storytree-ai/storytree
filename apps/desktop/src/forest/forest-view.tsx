@@ -12,24 +12,22 @@
  * The look is 0.2's, ported as it stands (ADR-0632 D2, ADR-0633 D2), and judged by the owner's eye.
  * Only the export of the bought pine kit ships (dressing-kit.glb, sha256 9479bc81…), never the kit.
  */
-import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { DoubleSide, Plane, Raycaster, Vector2, Vector3 } from "three";
+import { Plane, Raycaster, Vector2, Vector3 } from "three";
 
-import { changedIslands, type ForestScene, type Island, type Marker } from "@storytree/forest";
-import { forestDescriptors, GROUND_PER_WORLD_UNIT, islandAt, islandReach, parcelSpots, type Descriptor3D } from "@storytree/forest-world";
+import { changedIslands, type ForestScene, type Marker } from "@storytree/forest";
+import { forestDescriptors, islandAt, type Descriptor3D } from "@storytree/forest-world";
 import { ForestWorldCanvas, preloadKit } from "@storytree/forest-world/canvas";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 
-/** How high over the ground a story's name floats, and a claim marker over its tree, in 0.2 ground units (a full pine stands 18). */
-const NAME_HEIGHT = 30;
-const MARKER_HEIGHT = 24;
+import { Names, Claims, SelectionRing } from "./island-overlays.js";
+import { PlanetView } from "./planet-view.js";
 
 export interface ForestView {
   /** Draw `scene`, recomputing only the islands that changed since the last one. */
-  show(scene: ForestScene): void;
+  show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
   /** Show which agent holds which capability, each marker over its tree (capability 5). */
   showMarkers(markers: readonly Marker[]): void;
   /** Mark `story` selected (undefined for none), as a click would. */
@@ -40,6 +38,8 @@ export interface ForestView {
 
 /** What the page draws, as one value handed to React on every change. */
 interface Drawn {
+  places: ReadonlyMap<string, number>;
+  mode: "globe" | "forest";
   scene: ForestScene;
   descriptors: Descriptor3D[];
   markers: readonly Marker[];
@@ -53,12 +53,23 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
   const root = createRoot(container);
   /** Each island's descriptors, kept until its island changes. */
   const cache = new Map<string, { key: string; descriptors: Descriptor3D[] }>();
-  let drawn: Drawn = { scene: { islands: [] }, descriptors: [], markers: [], selected: undefined, viewport: undefined };
+  let drawn: Drawn = { places: new Map(), mode: "globe", scene: { islands: [] }, descriptors: [], markers: [], selected: undefined, viewport: undefined };
 
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
     if (drawn.viewport === undefined) return;
-    root.render(<Forest drawn={drawn} onPick={pick} />);
+    container.dataset.view = drawn.mode;
+    root.render(<>
+      <nav className="forest-views" aria-label="Forest view">
+        {(["globe", "forest"] as const).map(mode => <button key={mode} type="button" data-view={mode}
+          aria-pressed={drawn.mode === mode} onClick={() => render({ mode })}>
+          {mode === "globe" ? "Globe" : "Forest"}
+        </button>)}
+      </nav>
+      {drawn.mode === "globe"
+        ? <PlanetView scene={drawn.scene} places={drawn.places} markers={drawn.markers} selected={drawn.selected} onPick={pick} />
+        : <Forest drawn={drawn} onPick={pick} />}
+    </>);
   };
   const pick = (story: string | undefined): void => {
     render({ selected: story });
@@ -72,12 +83,15 @@ export async function openForestView(container: HTMLElement, onSelect: (story: s
   observer.observe(container);
 
   return {
-    show(scene) {
+    show(scene, places) {
       for (const story of changedIslands(drawn.scene, scene)) cache.delete(story);
       for (const island of scene.islands) {
         if (!cache.has(island.story)) cache.set(island.story, { key: island.key, descriptors: forestDescriptors({ islands: [island] }) });
       }
-      render({ scene, descriptors: scene.islands.flatMap(({ story }) => cache.get(story)?.descriptors ?? []) });
+      // Preserve unchanged islands for the globe's memoized plates, as for the flat descriptor cache.
+      const previous = new Map(drawn.scene.islands.map(island => [island.story, island]));
+      scene = { islands: scene.islands.map(island => previous.get(island.story)?.key === island.key ? previous.get(island.story)! : island) };
+      render({ scene, places, descriptors: scene.islands.flatMap(({ story }) => cache.get(story)?.descriptors ?? []) });
     },
     showMarkers(markers) {
       render({ markers });
@@ -103,56 +117,6 @@ function Forest({ drawn, onPick }: { drawn: Drawn; onPick: (story: string | unde
       <SelectionRing island={drawn.scene.islands.find(({ story }) => story === drawn.selected)} descriptors={drawn.descriptors} />
       <ClickToSelect descriptors={drawn.descriptors} onPick={onPick} />
     </ForestWorldCanvas>
-  );
-}
-
-/** Where an island's middle is, in 0.2 ground units. */
-const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
-
-/** Each story's name over its island, facing the viewer as the camera pans and zooms (3.4). */
-function Names({ islands, selected }: { islands: readonly Island[]; selected: string | undefined }) {
-  return islands.map((island) => {
-    const { x, z } = centreOf(island);
-    return (
-      <Html key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div className={`forest-label${island.story === selected ? " selected" : ""}`} data-story-id={island.story}>
-          {island.title}
-        </div>
-      </Html>
-    );
-  });
-}
-
-/** Which agent holds which capability, over that capability's tree (capability 5). */
-function Claims({ markers, descriptors }: { markers: readonly Marker[]; descriptors: readonly Descriptor3D[] }) {
-  const spots = parcelSpots(descriptors);
-  return markers.map((marker) => {
-    const spot = spots.get(marker.capability);
-    if (spot === undefined) return null;
-    return (
-      <Html key={`${marker.capability}:${marker.text}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
-        <div
-          className={`forest-claim${marker.faded ? " faded" : ""}${marker.hooksNotRunning ? " no-hooks" : ""}`}
-          data-capability-id={marker.capability}
-          title={marker.faded ? "quiet past the quiet time: it still holds this capability" : ""}
-        >
-          {marker.hooksNotRunning ? `${marker.text} · hooks not running` : marker.text}
-        </div>
-      </Html>
-    );
-  });
-}
-
-/** A ring on the water round the selected island (3.3). */
-function SelectionRing({ island, descriptors }: { island: Island | undefined; descriptors: readonly Descriptor3D[] }) {
-  if (island === undefined) return null;
-  const centre = centreOf(island);
-  const reach = islandReach(descriptors, new Map([[island.story, centre]])).get(island.story) ?? 20;
-  return (
-    <mesh position={[centre.x, 0.4, centre.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
-      <ringGeometry args={[reach + 3, reach + 5, 96]} />
-      <meshBasicMaterial color="#ffd75e" side={DoubleSide} depthTest={false} transparent opacity={0.9} />
-    </mesh>
   );
 }
 

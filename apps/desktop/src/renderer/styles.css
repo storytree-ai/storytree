@@ -331,6 +331,48 @@ body[data-surface="forest"] main {
   display: block;
 }
 
+.forest-views {
+  position: absolute;
+  z-index: 50;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #485159;
+  border-radius: 8px;
+  background: #101418;
+}
+
+.forest-views button {
+  border: 0;
+  border-radius: 5px;
+  padding: 0.4rem 0.8rem;
+  background: transparent;
+  color: #eee;
+  font: inherit;
+  cursor: pointer;
+}
+
+.forest-views button[aria-pressed="true"] {
+  background: #eadcae;
+  color: #101418;
+}
+
+.planet-edge-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #ffa89a;
+  border-radius: 50%;
+  background: #622e27;
+  color: white;
+  font: bold 18px/1 system-ui;
+  cursor: pointer;
+}
+
 .forest-label {
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
@@ -346,6 +388,12 @@ body[data-surface="forest"] main {
   background: #ffd75e;
   color: #1d1f23;
   text-shadow: none;
+}
+
+/* A plate facing the eye projects its height toward us. Lift its name in screen space too,
+   so a claim over the middle tree cannot cover the story's name. */
+.planet-label {
+  transform: translateY(-32px);
 }
 
 /* The drill-down (stories/forest.md, capability 4): a panel over the forest's right side. */

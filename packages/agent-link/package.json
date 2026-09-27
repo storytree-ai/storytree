@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./readings": "./src/readings.ts"
+    "./readings": "./src/readings.ts",
+    "./bins": "./src/bins/build.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

@@ -59,6 +59,8 @@ await build({
   loader: { ".glb": "binary" },
 });
 
+cpSync(fileURLToPath(import.meta.resolve("@storytree/arc-surface/view/styles.css")), path.join(dist, "renderer", "arc-surface.css"));
+
 for (const file of ["index.html", "styles.css"]) {
   cpSync(path.join(src, "renderer", file), path.join(dist, "renderer", file));
 }

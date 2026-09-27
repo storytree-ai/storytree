@@ -7,6 +7,10 @@ import { contextBridge, ipcRenderer } from "electron";
 import { CHANNELS, type StorytreeBridge } from "../bridge.js";
 
 const bridge: StorytreeBridge = {
+  arcView: (name, id) => ipcRenderer.invoke(CHANNELS.arcView, name, id) as ReturnType<StorytreeBridge["arcView"]>,
+  waitHolds: (name, id) => ipcRenderer.invoke(CHANNELS.waitHolds, name, id) as ReturnType<StorytreeBridge["waitHolds"]>,
+  heldOnQuestion: (name, id) => ipcRenderer.invoke(CHANNELS.heldOnQuestion, name, id) as ReturnType<StorytreeBridge["heldOnQuestion"]>,
+
   listProjects: () => ipcRenderer.invoke(CHANNELS.listProjects) as Promise<string[]>,
   projectTree: (name) => ipcRenderer.invoke(CHANNELS.projectTree, name) as ReturnType<StorytreeBridge["projectTree"]>,
   changesSince: (name, cursor) => ipcRenderer.invoke(CHANNELS.changesSince, name, cursor) as ReturnType<StorytreeBridge["changesSince"]>,

@@ -38,6 +38,7 @@ import {
   electronIn,
   launchToRecord,
   pageReads,
+  seedWriting,
   slotOf,
   slotSha,
   smokeProblems,
@@ -157,12 +158,20 @@ async function followMain(): Promise<void> {
   const running: RunningBuild = { slot, dir, sha: await slotSha(dir) };
   console.log(`updates: following merged main from slot ${slot} (${running.sha.slice(0, 7)})`);
   let checking = false;
+  /** A new build waiting to be restarted into, while a seed writes the library. */
+  let ready: RunningBuild | undefined;
   const check = async (): Promise<void> => {
     if (checking) return;
     checking = true;
     try {
-      const next = await updateToMain({ runtimeDir: home.runtime, running, build: buildApp });
+      const next = ready ?? (await updateToMain({ runtimeDir: home.runtime, running, build: buildApp }));
       if (next === undefined) return;
+      // Restarting stops the database, so it waits while a seed is writing into it.
+      if (postgres !== undefined && (await seedWriting(postgres.url))) {
+        if (ready === undefined) console.log(`updates: main ${next.sha.slice(0, 7)} is built in slot ${next.slot}; restarting once the seed writing the library has finished`);
+        ready = next;
+        return;
+      }
       console.log(`updates: main moved to ${next.sha.slice(0, 7)}; restarting into slot ${next.slot}`);
       const showing = BrowserWindow.getAllWindows().some((window) => window.isVisible());
       void lifecycle.restart({ execPath: electronIn(next.dir), args: [appDirIn(next.dir)] }, showing);

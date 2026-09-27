@@ -6,9 +6,10 @@
 // a decision on no shelf. Then each story's tests are run, and each contract's VERIFIED health is recorded from
 // what they showed.
 //
-// The app's Postgres is started here, on the app's own data directory, and stopped again at the
-// end. While the app is running it holds that directory, so the seed says so and exits non-zero:
-// quit the app first. A second run updates everything in place and never duplicates it.
+// The app need not be quit: while it runs, the seed writes into the app's own database and leaves
+// it running. Otherwise the seed starts Postgres on the app's data directory itself and stops it
+// again at the end, waiting its turn if another seed holds it; and two seeds never write at once
+// (scripts/library-server.mjs). A second run updates everything in place and never duplicates it.
 //
 // A story's tests are its own package's: stories/<name>.md is proven by the tests in
 // packages/<name>/src, and nobody else's, since every story numbers its contracts from 1.1. A
@@ -24,8 +25,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { locateStorytree } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
-import { DataDirInUseError, start } from "@storytree/local-postgres";
+import { start } from "@storytree/local-postgres";
 
 import { APP_OWNER, appHome } from "../apps/desktop/src/home.ts";
 import {
@@ -40,6 +42,7 @@ import {
   syncStories,
   VERIFIED_BY,
 } from "./library-seed.mjs";
+import { holdSeedLock, libraryServer } from "./library-server.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const PROJECT = "storytree";
@@ -77,22 +80,20 @@ async function main() {
   console.log(`${DECISIONS}/: ${decisions.length} decision${decisions.length === 1 ? "" : "s"}`);
   console.log(`the app's library: ${home.pgdata}`);
 
-  try {
-    server = await start({ dataDir: home.pgdata, owner: SEED, log: (message) => console.log(`Postgres: ${message}`) });
-  } catch (error) {
-    if (!(error instanceof DataDirInUseError)) throw error;
-    console.error(
-      error.owner === APP_OWNER
-        ? `\nThe storytree 0.3 app is running (pid ${error.pid}) and holds its library in ${home.pgdata}.\n` +
-            `Quit the app, then run \`${SEED}\` again.`
-        : `\nThe app's library in ${home.pgdata} is in use by process ${error.pid}` +
-            `${error.owner === undefined ? "" : ` (${error.owner})`}. When it has finished, run \`${SEED}\` again.`,
-    );
-    return 1;
-  }
+  server = await libraryServer({
+    dataDir: home.pgdata,
+    owner: SEED,
+    appOwner: APP_OWNER,
+    start: (options) => start({ ...options, log: (message) => console.log(`Postgres: ${message}`) }),
+    locate: locateStorytree,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    log: (line) => console.log(line),
+  });
 
   let storytree;
+  let lock;
   try {
+    lock = await holdSeedLock(server.url, { log: (line) => console.log(line) });
     storytree = await connect({ url: server.url });
     const existed = (await storytree.listProjects()).includes(PROJECT);
     const library = await storytree.openProject(PROJECT);
@@ -141,6 +142,7 @@ async function main() {
     return code;
   } finally {
     await storytree?.close();
+    await lock?.release();
     await server.stop();
   }
 }

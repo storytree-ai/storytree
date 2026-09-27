@@ -106,12 +106,14 @@ node and a retired story's node goes, with nothing arranged by hand.
     in the order stories were created, fixed for good, and a retired story leaves open sea. So
     nothing ever moves a node, and the planet (ADR-0629) will be a new placement book, not a
     rewrite.
-  - **Places on a globe (W2, ADR-0646):** the same permanent place number also names a fixed spot
-    on a sphere. There are 128 spots spread over the whole globe, dealt from the largest empty
-    patch so a young project's islands already surround it. Retired stories keep their places.
-    This is a new book on this shelf (H1), alongside the flat spiral. The bounded proof is the
-    first 100 historical places with islands of up to 19 capabilities; a later book decides what
-    happens after the last spot. See [the first-slice decision](../decisions/planet-first-slice.md).
+  - **Packed places on a globe (ADR-0648, succeeding W2):** the same permanent place number
+    names a fixed spot on a spiral from the front pole. There are 36 frozen places on a sphere
+    of radius 160 ground units; retired stories keep their places. A young project's islands
+    cluster on part of the ball, with neighbouring coasts a few ground units apart. This book
+    replaces ADR-0646's even 128-place spread; it does not inherit its 19-capability size bound.
+    The clearance proof uses the look's seed, a fresh seven-story seed and its 36-story sample
+    at their real sizes (4–13 capabilities). Arbitrary growth can crowd neighbours. Places past 36 are
+    refused until a later book decides them. See [the packed-globe decision](../decisions/planet-packed-see-through.md).
 - **Leaves out (vs 0.2), by the owner's pick P1** over P2, a layout that packs stories by how they
   relate: 0.2's layout engine, which ranked stories by their dependencies, packed them onto a hex
   grid and nudged neighbours apart as islands grew, so one story's change could move another's island.
@@ -121,12 +123,14 @@ node and a retired story's node goes, with nothing arranged by hand.
   and where that place is, in place-widths from the centre. The spiral's turns are one place-width
   apart and its places one width apart along it, so no two places are closer than 0.97 of a width,
   and a hundred stories sit within 5.7 widths of the centre.
-- **Globe book, as built:** `placeOnGlobe(node.place)` in `packages/forest` returns `{ x, y, z }`
-  in the drawing engine's ground units, on a sphere of fixed radius `PLANET_RADIUS = 390`.
-  Dividing by the radius gives the island's outward normal. The fixed Fibonacci sphere has
-  `PLANET_CAPACITY = 128` spots; invalid or exhausted place numbers raise `RangeError`, never
-  reuse a retired spot. The radius is measured against the engine's real shores, including the
-  beach, in [the placement measurements](../packages/forest/src/planet-places/measurements.md).
+- **Globe book, as built:** `placeOnPackedGlobe(node.place)` in `packages/forest/src/planet-places`
+  returns `{ x, y, z }` in ground units, on `PLANET_RADIUS = 160`. Dividing by the radius gives
+  the island's outward normal. The 36 directions use the look's spiral, corrected before landing
+  for a fresh seed and frozen, never fitted to the live stories or their sizes. The page uses this successor directly. The old W2 algorithm
+  is retired; `placeOnGlobe` remains a compatibility alias to the packed rule for existing barrel
+  readers. Invalid and exhausted places raise `RangeError`; a retired place is never reused.
+  The actual clipped coasts, including beaches, are checked in
+  [the placement measurements](../packages/forest/src/planet-places/measurements.md).
 
 **Contracts** (each one a test):
 1. Three stories give three story nodes, each with its title and its overall health as the agent
@@ -135,11 +139,11 @@ node and a retired story's node goes, with nothing arranged by hand.
 3. The same stories always get the same places: the first story sits at the centre and each later
    one takes the next place on a spiral. Adding or retiring a story never moves another node, and a
    retired story's place is never given to another.
-4. On the globe, the same stories always get the same spots on a fixed sphere, spread around it
-   even when the project is young.
+4. On the globe, the same stories always get the same packed spots, on a fixed sphere starting
+   at its front pole; a place past the 36-place capacity is refused.
 5. Adding or retiring a story never moves another globe island, and a retired spot is never reused.
-6. The first 100 historical globe places, with islands of up to 19 capabilities at their real
-   sizes including the beach, never overlap.
+6. The packed globe's original and fresh seven-story shores and all 36 measured sample shores,
+   at their real sizes including beaches, never overlap. This is a bounded proof, not a promise for arbitrary growth.
 
 ## 2 · Capability tree
 
@@ -201,6 +205,11 @@ place of today's plain list.
     calculate this without drawing: absolute north-up turns and unit-circle marker positions.
     Pure tests prove opening toward failure, a hidden island's marker bringing it to the front,
     and no marker for a failure already in front. The globe page adds the drawing in its own lane.
+  - **Packed land on a see-through grey ball (ADR-0648):** the globe has a light grey transparent
+    shell, with no sea, bridges or filled continent. The far side shows through empty areas;
+    names, claims and clicks keep their near-side rule. The islands and kit pines keep their
+    existing drawing, and L1 keeps the light over the viewer's shoulder. The knowledge core's
+    interior drawing is still unbuilt. See [the decision](../decisions/planet-packed-see-through.md).
   - Only meshes exported from the bought pine kit ship, never the kit itself. Its licence allows
     derived output and forbids repackaging, as 0.2 applied it (ADR-0418).
   - The look is judged by the owner's eye, with a screenshot at each landing that changes it.
@@ -226,6 +235,14 @@ place of today's plain list.
   the selected island, and the claim markers. The arc surface's live reading keeps it current: the
   tree is read again only when the library changed, and only changed islands are recomputed.
 
+- **Packed globe, as built:** the page's `planetLayout` selects the frozen packed spots, and
+  `PlanetWorldCanvas` mounts each unchanged island as a tangent plate above a radius-160 shell.
+  The shell is light grey (`#bfbfbf`), double-sided, at 0.18 opacity, with depth writing off, so
+  far land and a future core can show through it. Its ray hits still hide back-side labels and
+  claims and stop clicks selecting a hidden island. Opening turns, edge markers, story selection
+  and the flat Forest button keep working. [Headless Chromium evidence](../apps/desktop/src/forest/evidence/packed/README.md)
+  shows the actual seeded page, with the renderer named.
+
 **Contracts:**
 1. The app's smoke check opens a seeded project and finds one story node per story, each drawn with
    its capability tree.
@@ -233,6 +250,8 @@ place of today's plain list.
 3. Clicking a story node selects it.
 4. Each story node shows its story's name, readable as the camera pans and zooms (ADR-0636
    D4: in 0.2 the names lived on the 2D map the owner cut, so the 3D forest carries them).
+5. The globe's surface is a light grey transparent shell, admitting the far side and the future
+   core through it, with no opaque sea.
 
 ## 4 · Drill-down
 

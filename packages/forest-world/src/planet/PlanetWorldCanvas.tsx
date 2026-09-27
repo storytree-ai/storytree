@@ -11,7 +11,7 @@ import { createGrowthTexture } from '../ForestWorldCanvas.growth-material.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { calibrateLights, intensitiesFor } from '../light-calibration.js';
 import { SHIPPED_ELEVATION_DEG, orthographicZoomFor } from '../camera-framing.js';
-import { lightForCamera, plateTransform, type PlanetSpot } from './planet.js';
+import { createPlanetSurface, lightForCamera, plateTransform, type PlanetSpot } from './planet.js';
 import type { KitPlacement } from '../kit-vocabulary.js';
 
 export type { PlanetSpot } from './planet.js';
@@ -81,6 +81,12 @@ function Lights() {
   return <><ambientLight intensity={lit.ambient} /><directionalLight ref={key} intensity={lit.directional} /></>;
 }
 
+function Surface({ radius }: { radius: number }) {
+  const surface = useMemo(() => createPlanetSurface(radius), [radius]);
+  useEffect(() => () => { surface.geometry.dispose(); surface.material.dispose(); }, [surface]);
+  return <primitive object={surface} />;
+}
+
 function Framing({ radius }: { radius: number }) {
   const { camera, size, invalidate } = useThree();
   useLayoutEffect(() => {
@@ -108,10 +114,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <Lights />
     <Framing radius={radius} />
     <group quaternion={rotation}>
-      {surface && <mesh name="planet:sea">
-        <sphereGeometry args={[radius, 96, 64]} />
-        <meshStandardMaterial color="#101418" roughness={1} />
-      </mesh>}
+      {surface && <Surface radius={radius} />}
       {surface && scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);

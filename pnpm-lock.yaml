@@ -48,6 +48,9 @@ importers:
       '@storytree/forest-world':
         specifier: workspace:*
         version: link:../../packages/forest-world
+      '@storytree/knowledge-core':
+        specifier: workspace:*
+        version: link:../../packages/knowledge-core
       '@storytree/library':
         specifier: workspace:*
         version: link:../../packages/library

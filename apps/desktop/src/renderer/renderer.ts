@@ -165,6 +165,7 @@ async function showForest(name: string): Promise<void> {
         const scene = forestScene(tree, history, workStates(lines));
         view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
         view.showMarkers(claimMarkers(lines, new Date()));
+        view.showKnowledge(history, news.lines);
         const work = unclaimedWork(lines);
         unclaimed.innerHTML = renderUnclaimed(work, unclaimed.querySelector("details")?.open === true);
         sayWhatWasDrawn({ ...forestDrawn(scene), unclaimed: work.count });

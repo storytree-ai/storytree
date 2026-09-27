@@ -222,6 +222,27 @@ links, replay the selected session, and size notes by visits or incoming links w
   see-through sea, a flying dive and a cutaway; proposed-decision ghosts; the full stale-links
   colouring; recording exact source notes for future walks; changes to default note filing; a
   dedicated indexed read query; side-by-side sessions, a general note browser and graph editing.
+- **As built:** the pure view is in `packages/knowledge-core/src/look-inside`.
+  - `coreScene` places each shelf's entrance on its island: a story's own at its spot, and its
+    capabilities' in a ring around it. Notes hang below their home shelf, further in the deeper
+    they are. Notes with no depth orbit outside at 1.3 radii, and a ghost sits beside the decision
+    that replaced it (1.45 radii when not placed). Size is 1 + √count, by visits or links in, and
+    never moves a note.
+  - `noteCard` gives a note's card. A note is named by its title, its term, or the first line of
+    its words, since a memory has no title field.
+  - `pinnedLinks` gives the pinned note's stored links, out and then in.
+  - `replayFrame` steps one session's visible agents in line order.
+  - `legend` names and colours each agent: the orchestrator blue, then each subagent in
+    Okabe-Ito order, then unknown in pale grey.
+  - `lookInside`, `returnToGlobe`, `toForest` and `shown` are the view rules.
+  - The desktop app draws it all. The globe canvas gained `surface` and `inside` props
+    (`packages/forest-world`). The page has a third view button, "Look inside". The drawing
+    (`apps/desktop/src/forest/core-view.tsx`) has balls for notes, named entrances, white arrows
+    for the pinned note's links, dashed bowed arcs for jumps, and a red cage and label for a
+    loop. The panel has counts, the session picker, the size toggle, play, pause and restart,
+    the per-agent checkboxes, and the card.
+  - It reads only `changesSince` and `linesSince`, which the page already reads.
+  - Pictures are in `apps/desktop/src/forest/evidence/core`.
 
 **Contracts:**
 1. From the globe, the owner can open the core, find a shelf's entrance and pin a note; its card

@@ -6,6 +6,7 @@ import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from '@storytree/fores
 import { workStates } from '@storytree/arc-surface';
 import { clipToCoast, rimLoops, SHIPPED_COAST } from '../coast-clip.js';
 import { trailFillWidth } from '../core/routing.js';
+import type { InstanceDescriptor } from '../world-to-3d.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import { plateTransform } from './planet.js';
 import { buildPlanetPathways } from './pathways.js';
@@ -57,7 +58,7 @@ test('3.7 cross-story chains land at both actual clipped shores and continue int
     assert.deepEqual(docks.map(d => d.story).sort(), [owner.get(edge.from), owner.get(edge.to)].sort());
     for (const dock of docks) {
       const plate = plan.plates.get(dock.story)!;
-      const cells = clipToCoast(plate.descriptors.filter(d => d.kind === 'cell-ground'), SHIPPED_COAST);
+      const cells = clipToCoast(plate.descriptors.filter((d): d is InstanceDescriptor => d.kind === 'cell-ground'), SHIPPED_COAST);
       const rings = rimLoops(cells.map(c => c.points!));
       let distance = Infinity;
       for (const ring of rings) for (let i = 0; i < ring.length; i++) {
@@ -75,4 +76,16 @@ test('3.7 cross-story chains land at both actual clipped shores and continue int
       assert.ok((plate.paths.get(dock.story)?.length ?? 0) > 0, 'the worn trail continues onto the island');
     }
   }
+});
+
+// Routing errors must never take a failing island off the page (ADR-0646 D4).
+test('3.6 routing failure is visible while every island and its failing trees still draw', async () => {
+  const { planetPathwayDrawing } = await import('./pathways.js');
+  const broken = { ...scene, links: [{ from: 'a1', to: 'missing-capability' }],
+    islands: scene.islands.map(island => ({ ...island, trees: island.trees.map(t => ({ ...t, form: 'dead' as const })) })) };
+  const drawing = planetPathwayDrawing(broken, spots, PLANET_RADIUS);
+  assert.match(drawing.issue ?? '', /missing-capability/);
+  assert.deepEqual([...drawing.plan.plates.keys()], tree.stories.map(s => s.id));
+  assert.ok([...drawing.plan.plates.values()].every(plate => plate.descriptors.some(d => d.kind === 'cell-ground')));
+  assert.equal(drawing.plan.edges.length, 0, 'the failure must not invent a completed trail');
 });

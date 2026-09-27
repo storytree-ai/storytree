@@ -1,0 +1,15 @@
+--- old/library/Merge ceremony/process/process_0967b1a1d3cb/trigger
++++ new/library/Merge ceremony/process/process_0967b1a1d3cb/trigger
+@@ -1 +1 @@
+-A unit of work is done and `pnpm typecheck` and `pnpm test` pass over the exact tree you are about to commit, with nothing red or WIP in the diff. Run it without being asked: sitting on green work is the failure this exists to stop. Second entry: the session is blocked mid-unit on an owner decision, or its claim on the unit is refused - that is a landing too, not a pause (see step 7).
++A unit of work is done and `pnpm gate` passes over the exact tree you are about to commit, with nothing red or WIP in the diff. Run it without being asked: sitting on green work is the failure this exists to stop. Second entry: the session is blocked mid-unit on an owner decision, or its claim on the unit is refused - that is a landing too, not a pause (see step 7).
+
+--- old/library/Merge ceremony/process/process_0967b1a1d3cb/steps
++++ new/library/Merge ceremony/process/process_0967b1a1d3cb/steps
+@@ -1,4 +1,4 @@
+-1. Verify over the FINAL tree: `pnpm typecheck`, `pnpm test` (plus `pnpm check:guidance` if you edited guidance notes). Any edit after a green - a librarian fix, a memory, a doc tweak - stales it; re-run before committing.
++1. Verify over the FINAL tree: `pnpm gate`. It runs typecheck, scoped tests and the guidance check when generated role files changed. Use `pnpm gate -- --guidance` when agent roles or the notes they stand on changed only in the library, where git cannot detect them. Otherwise the table marks guidance NOT RUN with its reason. Any edit after a green - a librarian fix, a memory, a doc tweak - stales it; re-run before committing.
+ 2. Finish the pre-merge librarian pass BEFORE opening the PR (a green PR automerges within minutes, so the PR is the last moment you control).
+ 3. Commit on the session branch (never on main), push, `gh pr create` as a non-draft PR. Then stop. Never `gh pr merge` yourself: the automerge job merges exactly the commit verify passed; a hand merge was how 0.2 landed unverified work.
+ 4. To hold a PR, mark it draft or add the `hold` label. A hold is temporary: flip it back the moment the unit is green. PRs merge as true merge commits, never squashed.
+

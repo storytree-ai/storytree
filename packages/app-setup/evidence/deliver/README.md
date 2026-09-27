@@ -12,6 +12,7 @@ adds implementation and evidence paragraphs without manufacturing post-snapshot 
 
 - `red.txt`: after red commit `e70d469` was pushed, the delivery exports and bootstrap were
   absent and both test units failed. `runtime-red.txt` records the later runtime acquisition red.
+  `pathext-red.txt` records the command-conflict regression for Windows script/custom extensions.
 - `green.txt`: required `pnpm test`, under `/tmp/storytree-heavy.lock`, with its scope decision
   and package result table. A packaging manifest change makes this a full run.
 - `typecheck.txt`: required workspace `pnpm typecheck`, under the same lock.

@@ -11,16 +11,18 @@ export interface CommandResult {
   conflict?: string;
 }
 
-export function installCommand(options: { home: string; tools: InstalledTools; searchPath: string; platform?: NodeJS.Platform }): CommandResult {
+export function installCommand(options: { home: string; tools: InstalledTools; searchPath: string; platform?: NodeJS.Platform; pathExt?: string }): CommandResult {
   const windows = (options.platform ?? process.platform) === "win32";
   const pathEntry = path.join(options.home, "bin");
   const file = path.join(pathEntry, windows ? "storytree.cmd" : "storytree");
   const folders = [...new Set([...options.searchPath.split(windows ? ";" : ":").filter(Boolean).map((dir) => dir.replace(/^"|"$/g, "")), pathEntry])];
   const ours: string[] = [];
+  const extensions = new Set(["", ".ps1", ".exe", ".com", ".bat", ".cmd", ...(options.pathExt ?? process.env.PATHEXT ?? ".VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC").toLowerCase().split(";")]);
   for (const folder of folders) {
     if (!existsSync(folder) || !statSync(folder).isDirectory()) continue;
     for (const name of readdirSync(folder)) {
-      if (!(windows ? /^storytree(?:\.(?:exe|cmd|bat|com|ps1))?$/i : /^storytree$/).test(name)) continue;
+      const lower = name.toLowerCase();
+      if (windows ? !lower.startsWith("storytree") || !extensions.has(lower.slice("storytree".length)) : name !== "storytree") continue;
       const candidate = path.join(folder, name);
       let owned = false;
       try { owned = readFileSync(candidate, "utf8").includes(marker); } catch { /* An unreadable command is not ours. */ }

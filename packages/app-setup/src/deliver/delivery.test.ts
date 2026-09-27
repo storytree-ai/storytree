@@ -84,10 +84,10 @@ test("1.6: command conflicts of every Windows executable kind are named and left
   const external = path.join(f.dir, "Other tools");
   mkdirSync(external);
   try {
-    for (const ext of ["exe", "cmd", "bat", "com", "ps1", ""]) {
+    for (const ext of ["exe", "cmd", "bat", "com", "ps1", "vbs", "js", "custom", ""]) {
       const file = path.join(external, `storytree${ext ? `.${ext}` : ""}`);
       writeFileSync(file, "another installation");
-      const result = installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: external });
+      const result = installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: external, pathExt: ".EXE;.CMD;.BAT;.COM;.VBS;.JS;.CUSTOM" });
       assert.equal(result.status, "conflict");
       assert.equal(result.conflict, file);
       assert.equal(readFileSync(file, "utf8"), "another installation");

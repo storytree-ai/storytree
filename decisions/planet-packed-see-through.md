@@ -16,13 +16,13 @@ turn. A read best, but needed the ball's silhouette. B's coarse fill and its hid
 
 **D1 — Packing.** Stories sit close together on a spiral from the front pole, with neighbouring
 coasts a few ground units apart. Each spot comes from its permanent place number alone and
-never moves when a story arrives or retires (P1). The radius is fixed. The approved look measured
-radius 160 for 36 places. Places past capacity are refused until a later book decides them.
+never moves when a story arrives or retires (P1). The radius is fixed. The original packed look measured
+radius 160 for 36 places; ADR-0655 D3 subsequently widens it to 218 without changing directions. Places past capacity are refused until a later book decides them.
 This replaces ADR-0646 D1's even spread, on the Story nodes shelf.
 
 **Spacing narrowed, 2026-09-27 (ADR-0655 D3).** The owner found these islands cramped and
-asked for room for pathways. The next spacing follows the trail's width while preserving P1.
-That look and build are separate increments; the globe-only page change keeps the current table.
+asked for room for pathways. The approved V2 spacing follows the trail's width while preserving all 36 directions: radius 218, with the bounded sample's
+coasts at least 19.2855 ground units apart. See [the pathway book](planet-pathways.md).
 
 **D2 — No sea.** The surface is a light, see-through grey shell. It shows the ball's shape and
 how little of it is covered by land, while admitting the far side and the future knowledge
@@ -30,8 +30,8 @@ core through areas without land. This replaces ADR-0646 D4's dark water and brin
 transparent surface forward into this slice, on the Story node render shelf.
 
 **D3 — No bridges or filled continent in the MVP.** The islands and kit trees retain 0.2's
-look unchanged. Land between them is not filled. ADR-0655 D3 calls for a picture review of how
-trails cross the gaps before they are built; no land or bridges are added unless the owner picks them.
+look unchanged. Land between them is not filled. ADR-0655 D3's picture review selected V2: raised, faintly lit ribbons over the glass;
+no land or bridges are added.
 
 ADR-0646's H1 (books on the forest's shelves), L1 (the light follows the eye) and the failing
 island rule stand. The globe opens toward a failing island; edge markers bring a hidden failure

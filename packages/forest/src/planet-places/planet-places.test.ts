@@ -22,15 +22,15 @@ test("1.4 the same places always give the same globe spots, packed from the fron
   const spots = Array.from({ length: PLANET_CAPACITY }, (_, i) => placeOnGlobe(i + 1));
   for (let i = spots.length - 1; i >= 0; i--) {
     assert.deepEqual(placeOnGlobe(i + 1), spots[i], "reading in another order changes nothing");
-    assert.ok(Math.abs(Math.hypot(spots[i]!.x, spots[i]!.y, spots[i]!.z) - 160) < 1e-9);
+    assert.ok(Math.abs(Math.hypot(spots[i]!.x, spots[i]!.y, spots[i]!.z) - 218) < 1e-9);
   }
-  // These places must remain fixed across releases, not just across calls in one process.
+  // Every previously frozen direction survives the radius increase; future reads stay fixed.
   const anchors: [number, PlanetPoint][] = [
     [1, { x: 0, y: 0, z: 160 }],
     [2, { x: 68.77474840531116, y: -4.489463666016254, z: 144.3948707460818 }],
     [36, { x: 18.934663105978217, y: 150.03550374065165, z: -52.25730714791963 }],
   ];
-  for (const [place, point] of anchors) assert.ok(distance(placeOnGlobe(place), point) < 1e-9, `place ${place} stays fixed`);
+  for (const [place, point] of anchors) assert.ok(distance(placeOnGlobe(place), { x: point.x * 218 / 160, y: point.y * 218 / 160, z: point.z * 218 / 160 }) < 1e-9, `place ${place} stays fixed`);
   assert.equal(PLANET_CAPACITY, 36);
   // The occupied patch grows outward; seven stories still share the front of the ball.
   for (let i = 1; i < spots.length; i++) assert.ok(spots[i]!.z < spots[i - 1]!.z);

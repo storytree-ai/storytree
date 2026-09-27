@@ -20,13 +20,13 @@ returns when it is ready for review.
 **D3 — Pathways come to the globe, with room for them.** They follow ADR-0169: a pathway is
 a “builds on” link between capabilities, including across stories, drawn as a routed trail.
 Islands must leave enough space for a trail between neighbours to read clearly, measured by
-the trail's own width. A story never moves once placed (P1). Pictures go to the owner before
-building how trails cross the gaps over the see-through shell; no land or bridges are added
-unless he picks them. This narrows ADR-0648 D1's coasts only a few ground units apart.
+the trail's own width. A story never moves once placed (P1). The owner picked **V2** on 2026-09-27 from `spike/globe-pathways`: slightly raised,
+faintly lit ribbons over the glass, docking at the shores. No land or bridges are added.
+The [pathway book](planet-pathways.md) records the implementation and its evidence. This narrows ADR-0648 D1's coasts only a few ground units apart.
 
-The globe-only increment changes the page and preserves its `forestDrawn` smoke readout.
-It does not widen placement or draw pathways. Those belong to `0-3-planet-pathways-look`
-and the build it gates, `0-3-planet-pathways`; the current packing table remains in use here.
+The globe-only increment preserved its `forestDrawn` smoke readout. The subsequent
+`0-3-planet-pathways` build widens the radius to 218, keeps every frozen direction and
+the 36-place capacity, and draws the links the library records.
 
 References: [the first globe](planet-first-slice.md), [the packed shell](planet-packed-see-through.md),
 [the knowledge core](knowledge-core-capability-tree.md); ADR-0169 (0.2's pathway rule).

@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -24,7 +24,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
+import { machineState, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -503,5 +503,57 @@ test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS);
     assert.equal(existsSync(home.codexHooks), false);
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
+  });
+});
+
+/**
+ * A command named `name` in `bin` that answers each argument line in `answers` with its output and
+ * exit code, and waits without end for any other: a shell script on macOS and Linux, a batch file on
+ * Windows, run by name as the check runs the user's own tools.
+ */
+function fakeTool(bin: string, name: string, answers: Record<string, { out?: string; code: number }>): void {
+  if (process.platform === "win32") {
+    const cases = Object.entries(answers).map(([args, { out, code }]) => `if "%*"=="${args}" (${out === undefined ? "" : `echo ${out}& `}exit /b ${code})`);
+    writeFileSync(path.join(bin, `${name}.cmd`), `@echo off\r\n${cases.join("\r\n")}\r\n"%SystemRoot%\\System32\\PING.EXE" -n 60 127.0.0.1 >nul\r\n`);
+  } else {
+    const cases = Object.entries(answers).map(([args, { out, code }]) => `if [ "$*" = "${args}" ]; then ${out === undefined ? "" : `echo ${out}; `}exit ${code}; fi`);
+    writeFileSync(path.join(bin, name), `#!/bin/sh\n${cases.join("\n")}\nexec /bin/sleep 60\n`);
+    chmodSync(path.join(bin, name), 0o755);
+  }
+}
+
+test("8.11 the check says whether Claude Code or Codex is installed and signed in, and whether git and a Node of at least 24 are present, naming each fix; a tool that does not answer is never waited on", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    // Claude Code is installed and signed out, Codex never answers, Node is too old, and git is not there.
+    fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 1 } });
+    fakeTool(bin, "codex", {});
+    fakeTool(bin, "node", { "--version": { out: "v20.11.0", code: 0 } });
+    const check = () => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs: 2_000 }) });
+
+    const started = Date.now();
+    const report = await check();
+    assert.ok(Date.now() - started < 15_000, `a tool that never answers is not waited on: ${Date.now() - started}ms`);
+    const line = (name: string) => report.lines.find((each) => each.check === name);
+    assert.equal(line("agent-cli")?.state, "needs-attention");
+    assert.match(line("agent-cli")?.message ?? "", /Claude Code is installed and not signed in/);
+    assert.match(line("agent-cli")?.message ?? "", /Codex did not answer/);
+    assert.match(line("agent-cli")?.fix ?? "", /claude auth login/);
+    assert.equal(line("git")?.state, "needs-attention");
+    assert.match(line("git")?.fix ?? "", /git-scm\.com/);
+    assert.equal(line("node")?.state, "needs-attention");
+    assert.match(line("node")?.message ?? "", /v20\.11\.0/);
+    assert.match(line("node")?.fix ?? "", /Node 24/);
+
+    // Claude Code signed in, git and Node 24 there: nothing to fix, and Codex is not needed as well.
+    fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 0 } });
+    fakeTool(bin, "git", { "--version": { out: "git version 2.50.0", code: 0 } });
+    fakeTool(bin, "node", { "--version": { out: "v24.1.0", code: 0 } });
+    const ready = await check();
+    for (const name of ["agent-cli", "git", "node"]) {
+      assert.equal(ready.lines.find((each) => each.check === name)?.state, "ok", `${name}: ${JSON.stringify(ready.lines)}`);
+    }
   });
 });

@@ -22,6 +22,10 @@ for (const variant of ['baseline', 'k1', 'k2']) {
     outfile: path.join(out, 'renderer.js'), bundle: true, logLevel: 'warning',
     sourcemap: true, platform: 'browser', format: 'iife', target: 'es2023', loader: { '.glb': 'binary' },
     plugins: [{ name: 'knowledge-look', setup(builder) {
+      builder.onLoad({ filter: /globe-knowledge\/knowledge\.tsx$/ }, args => ({
+        contents: readFileSync(args.path, 'utf8'), loader: 'tsx',
+        resolveDir: path.join(root, 'packages/knowledge-core'),
+      }));
       builder.onLoad({ filter: /PlanetWorldCanvas\.tsx$/ }, args => ({
         contents: replace(readFileSync(args.path, 'utf8'), '<Lights />', '<Lights /><CaptureProbe />')
           + '\nfunction CaptureProbe() { const state = useThree(); globalThis.__globe = state; return null; }\n',

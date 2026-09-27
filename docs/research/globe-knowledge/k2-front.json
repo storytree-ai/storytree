@@ -1,0 +1,3074 @@
+{
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "zoom": 1.7696266132794276,
+  "camera": [
+    0,
+    667.9907543997489,
+    560.5107956466624
+  ],
+  "rotation": [
+    -0.4226182617406994,
+    0,
+    0,
+    0.90630778703665
+  ],
+  "canvas": {
+    "width": 1440,
+    "height": 910.4375,
+    "top": 49.5625,
+    "left": 0
+  },
+  "plates": [
+    {
+      "story": "story_ff3f8702deca",
+      "facing": 1,
+      "screen": [
+        0,
+        -2.2097426084904369e-16,
+        -0.40161668668105555
+      ],
+      "position": [
+        0,
+        0,
+        219.69210764801653
+      ],
+      "meshes": 6,
+      "vertices": 77334,
+      "triangles": 89732
+    },
+    {
+      "story": "story_9d71dfb0ffbd",
+      "facing": 0.9024679421630114,
+      "screen": [
+        0.23209865703783217,
+        -0.023963510121780968,
+        -0.38195796531818915
+      ],
+      "position": [
+        94.43293393828044,
+        -6.164373343726886,
+        198.26508429856025
+      ],
+      "meshes": 6,
+      "vertices": 31698,
+      "triangles": 32924
+    },
+    {
+      "story": "story_dc8fe76c47bf",
+      "facing": 0.8721475028369807,
+      "screen": [
+        0.17339207244050273,
+        0.31523225882311673,
+        -0.3758465278941334
+      ],
+      "position": [
+        70.54725060096567,
+        81.09034625965862,
+        191.60392307821078
+      ],
+      "meshes": 6,
+      "vertices": 39506,
+      "triangles": 42638
+    },
+    {
+      "story": "story_06b4edcac99f",
+      "facing": 0.8366324701778857,
+      "screen": [
+        -0.0703111454346465,
+        0.45440005014580503,
+        -0.3686880597276444
+      ],
+      "position": [
+        -28.60717867433645,
+        116.88986889950692,
+        183.80155070014604
+      ],
+      "meshes": 6,
+      "vertices": 83382,
+      "triangles": 89996
+    },
+    {
+      "story": "story_7eef8209a5a6",
+      "facing": 0.8010717470577161,
+      "screen": [
+        -0.28891928722121646,
+        0.2291316693815252,
+        -0.36152038211696724
+      ],
+      "position": [
+        -117.55128750791948,
+        58.941830631703596,
+        175.98914048838844
+      ],
+      "meshes": 6,
+      "vertices": 56030,
+      "triangles": 62808
+    },
+    {
+      "story": "story_706577def517",
+      "facing": 0.7728945230172037,
+      "screen": [
+        -0.3374973072835776,
+        -0.09340288277608266,
+        -0.3558409346770567
+      ],
+      "position": [
+        -137.31600746773236,
+        -24.02695756531948,
+        169.79882675125788
+      ],
+      "meshes": 6,
+      "vertices": 33185,
+      "triangles": 35730
+    },
+    {
+      "story": "story_2a479ccc74eb",
+      "facing": 0.737905656249381,
+      "screen": [
+        -0.22100016007062762,
+        -0.4583065431075789,
+        -0.3487885213696219
+      ],
+      "position": [
+        -89.91733852599248,
+        -117.89477514899355,
+        162.11204886681935
+      ],
+      "meshes": 6,
+      "vertices": 42445,
+      "triangles": 45340
+    },
+    {
+      "story": "story_162d5270f424",
+      "facing": 0.7005042732161494,
+      "screen": [
+        0.0386333576468186,
+        -0.606410122390126,
+        -0.3412498373313436
+      ],
+      "position": [
+        15.71858000833376,
+        -155.99293988363604,
+        153.89526019929792
+      ],
+      "meshes": 6,
+      "vertices": 110291,
+      "triangles": 127126
+    }
+  ],
+  "pathways": [
+    {
+      "name": "pathways:cross-island",
+      "children": 11,
+      "data": {
+        "links": [
+          {
+            "from": "capability_b479fb1a735a",
+            "to": "capability_0499df7a6879"
+          },
+          {
+            "from": "capability_66fe0fb06541",
+            "to": "capability_0499df7a6879"
+          },
+          {
+            "from": "capability_66fe0fb06541",
+            "to": "capability_b479fb1a735a"
+          },
+          {
+            "from": "capability_51ef66cb319a",
+            "to": "capability_b479fb1a735a"
+          },
+          {
+            "from": "capability_2a2cd5b6f948",
+            "to": "capability_51ef66cb319a"
+          },
+          {
+            "from": "capability_a441c067cc34",
+            "to": "capability_0499df7a6879"
+          },
+          {
+            "from": "capability_a441c067cc34",
+            "to": "capability_b479fb1a735a"
+          },
+          {
+            "from": "capability_a441c067cc34",
+            "to": "capability_2a2cd5b6f948"
+          },
+          {
+            "from": "capability_a441c067cc34",
+            "to": "capability_721355100f82"
+          },
+          {
+            "from": "capability_be6e71cf8633",
+            "to": "capability_a441c067cc34"
+          },
+          {
+            "from": "capability_252fb7d2901b",
+            "to": "capability_0499df7a6879"
+          },
+          {
+            "from": "capability_252fb7d2901b",
+            "to": "capability_66fe0fb06541"
+          },
+          {
+            "from": "capability_252fb7d2901b",
+            "to": "capability_a441c067cc34"
+          },
+          {
+            "from": "capability_252fb7d2901b",
+            "to": "capability_be6e71cf8633"
+          },
+          {
+            "from": "capability_e6dfce753ba2",
+            "to": "capability_03c14d0bbbb8"
+          },
+          {
+            "from": "capability_13feb598d3ee",
+            "to": "capability_e6dfce753ba2"
+          },
+          {
+            "from": "capability_13feb598d3ee",
+            "to": "capability_03c14d0bbbb8"
+          },
+          {
+            "from": "capability_13feb598d3ee",
+            "to": "capability_b479fb1a735a"
+          },
+          {
+            "from": "capability_3b4c062e5087",
+            "to": "capability_03c14d0bbbb8"
+          },
+          {
+            "from": "capability_96dd5172fd5f",
+            "to": "capability_b479fb1a735a"
+          },
+          {
+            "from": "capability_96dd5172fd5f",
+            "to": "capability_2a2cd5b6f948"
+          },
+          {
+            "from": "capability_87d2b7efa778",
+            "to": "capability_96dd5172fd5f"
+          },
+          {
+            "from": "capability_87d2b7efa778",
+            "to": "capability_51ef66cb319a"
+          },
+          {
+            "from": "capability_87d2b7efa778",
+            "to": "capability_2a2cd5b6f948"
+          },
+          {
+            "from": "capability_22b4003ec5fd",
+            "to": "capability_96dd5172fd5f"
+          },
+          {
+            "from": "capability_22b4003ec5fd",
+            "to": "capability_87d2b7efa778"
+          },
+          {
+            "from": "capability_536e36362645",
+            "to": "capability_96dd5172fd5f"
+          },
+          {
+            "from": "capability_536e36362645",
+            "to": "capability_22b4003ec5fd"
+          },
+          {
+            "from": "capability_82bb28d0797b",
+            "to": "capability_22b4003ec5fd"
+          },
+          {
+            "from": "capability_312fdeec8e2f",
+            "to": "capability_721355100f82"
+          },
+          {
+            "from": "capability_312fdeec8e2f",
+            "to": "capability_0499df7a6879"
+          },
+          {
+            "from": "capability_51575a03e065",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_51575a03e065",
+            "to": "capability_51ef66cb319a"
+          },
+          {
+            "from": "capability_401304f3abed",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_401304f3abed",
+            "to": "capability_51575a03e065"
+          },
+          {
+            "from": "capability_401304f3abed",
+            "to": "capability_499a16410312"
+          },
+          {
+            "from": "capability_401304f3abed",
+            "to": "capability_bd595aa22fd6"
+          },
+          {
+            "from": "capability_401304f3abed",
+            "to": "capability_f0142925414b"
+          },
+          {
+            "from": "capability_401304f3abed",
+            "to": "capability_721355100f82"
+          },
+          {
+            "from": "capability_401304f3abed",
+            "to": "capability_476fdee19fd8"
+          },
+          {
+            "from": "capability_3071fac26775",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_3071fac26775",
+            "to": "capability_51575a03e065"
+          },
+          {
+            "from": "capability_3071fac26775",
+            "to": "capability_ea4d43a635c0"
+          },
+          {
+            "from": "capability_3071fac26775",
+            "to": "capability_ef2b1034bb4a"
+          },
+          {
+            "from": "capability_3071fac26775",
+            "to": "capability_f9a76556e9e5"
+          },
+          {
+            "from": "capability_17d0b5ef8954",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_17d0b5ef8954",
+            "to": "capability_51575a03e065"
+          },
+          {
+            "from": "capability_17d0b5ef8954",
+            "to": "capability_f9a76556e9e5"
+          },
+          {
+            "from": "capability_7df6d3edb5a1",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_7df6d3edb5a1",
+            "to": "capability_51575a03e065"
+          },
+          {
+            "from": "capability_7df6d3edb5a1",
+            "to": "capability_09d05c0bcaf5"
+          },
+          {
+            "from": "capability_97098aef22c1",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_97098aef22c1",
+            "to": "capability_c8b08d02d397"
+          },
+          {
+            "from": "capability_97098aef22c1",
+            "to": "capability_24e333c1be05"
+          },
+          {
+            "from": "capability_97098aef22c1",
+            "to": "capability_721355100f82"
+          },
+          {
+            "from": "capability_e7c98eea759a",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_e7c98eea759a",
+            "to": "capability_2a2cd5b6f948"
+          },
+          {
+            "from": "capability_16090db32e41",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_16090db32e41",
+            "to": "capability_252fb7d2901b"
+          },
+          {
+            "from": "capability_343b7e6da5c7",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_343b7e6da5c7",
+            "to": "capability_51575a03e065"
+          },
+          {
+            "from": "capability_343b7e6da5c7",
+            "to": "capability_a441c067cc34"
+          },
+          {
+            "from": "capability_b36093903aa5",
+            "to": "capability_312fdeec8e2f"
+          },
+          {
+            "from": "capability_b36093903aa5",
+            "to": "capability_2a2cd5b6f948"
+          },
+          {
+            "from": "capability_ae50c4095ab7",
+            "to": "capability_0e687b3b07a2"
+          },
+          {
+            "from": "capability_f5a5f6195b94",
+            "to": "capability_0e687b3b07a2"
+          },
+          {
+            "from": "capability_f5a5f6195b94",
+            "to": "capability_ae50c4095ab7"
+          },
+          {
+            "from": "capability_6b6b0ea16a81",
+            "to": "capability_ae50c4095ab7"
+          },
+          {
+            "from": "capability_6b6b0ea16a81",
+            "to": "capability_f5a5f6195b94"
+          },
+          {
+            "from": "capability_302b04d0ff49",
+            "to": "capability_f5a5f6195b94"
+          },
+          {
+            "from": "capability_511fb3e087e2",
+            "to": "capability_f5a5f6195b94"
+          },
+          {
+            "from": "capability_11f046ccdde1",
+            "to": "capability_6b6b0ea16a81"
+          },
+          {
+            "from": "capability_7d9bb1b4b35f",
+            "to": "capability_09d05c0bcaf5"
+          },
+          {
+            "from": "capability_57fa0a230376",
+            "to": "capability_7d9bb1b4b35f"
+          },
+          {
+            "from": "capability_698d2a515a86",
+            "to": "capability_57fa0a230376"
+          },
+          {
+            "from": "capability_698d2a515a86",
+            "to": "capability_7d9bb1b4b35f"
+          },
+          {
+            "from": "capability_856e593f295f",
+            "to": "capability_57fa0a230376"
+          },
+          {
+            "from": "capability_856e593f295f",
+            "to": "capability_7d9bb1b4b35f"
+          },
+          {
+            "from": "capability_856e593f295f",
+            "to": "capability_698d2a515a86"
+          },
+          {
+            "from": "capability_856e593f295f",
+            "to": "capability_f5a5f6195b94"
+          },
+          {
+            "from": "capability_516961bc4b9a",
+            "to": "capability_7ec3f011e70a"
+          },
+          {
+            "from": "capability_3163a857490b",
+            "to": "capability_bb9e2a8ebd4c"
+          },
+          {
+            "from": "capability_09ec5eb13890",
+            "to": "capability_7ec3f011e70a"
+          },
+          {
+            "from": "capability_09ec5eb13890",
+            "to": "capability_516961bc4b9a"
+          },
+          {
+            "from": "capability_09ec5eb13890",
+            "to": "capability_bb9e2a8ebd4c"
+          },
+          {
+            "from": "capability_09ec5eb13890",
+            "to": "capability_3163a857490b"
+          },
+          {
+            "from": "capability_09ec5eb13890",
+            "to": "capability_213b81f7bf71"
+          },
+          {
+            "from": "capability_499a16410312",
+            "to": "capability_7c9fa4f4681a"
+          },
+          {
+            "from": "capability_bd595aa22fd6",
+            "to": "capability_499a16410312"
+          },
+          {
+            "from": "capability_c8b08d02d397",
+            "to": "capability_bd595aa22fd6"
+          },
+          {
+            "from": "capability_f0142925414b",
+            "to": "capability_bd595aa22fd6"
+          },
+          {
+            "from": "capability_24e333c1be05",
+            "to": "capability_c8b08d02d397"
+          },
+          {
+            "from": "capability_721355100f82",
+            "to": "capability_7c9fa4f4681a"
+          },
+          {
+            "from": "capability_721355100f82",
+            "to": "capability_c8b08d02d397"
+          },
+          {
+            "from": "capability_721355100f82",
+            "to": "capability_24e333c1be05"
+          },
+          {
+            "from": "capability_721355100f82",
+            "to": "capability_f0142925414b"
+          },
+          {
+            "from": "capability_f7a7d2675406",
+            "to": "capability_7c9fa4f4681a"
+          },
+          {
+            "from": "capability_476fdee19fd8",
+            "to": "capability_c8b08d02d397"
+          },
+          {
+            "from": "capability_476fdee19fd8",
+            "to": "capability_f0142925414b"
+          },
+          {
+            "from": "capability_ea4d43a635c0",
+            "to": "capability_c8b08d02d397"
+          },
+          {
+            "from": "capability_ef2b1034bb4a",
+            "to": "capability_ea4d43a635c0"
+          },
+          {
+            "from": "capability_f9a76556e9e5",
+            "to": "capability_ea4d43a635c0"
+          },
+          {
+            "from": "capability_09d05c0bcaf5",
+            "to": "capability_f0142925414b"
+          }
+        ],
+        "segmentCount": 303,
+        "localSegmentCount": 292
+      },
+      "vertices": 0
+    },
+    {
+      "name": "pathway:cross:tbbdcja",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_16090db32e41->capability_252fb7d2901b",
+          "capability_17d0b5ef8954->capability_f9a76556e9e5",
+          "capability_3071fac26775->capability_ea4d43a635c0",
+          "capability_3071fac26775->capability_ef2b1034bb4a",
+          "capability_3071fac26775->capability_f9a76556e9e5",
+          "capability_312fdeec8e2f->capability_0499df7a6879",
+          "capability_312fdeec8e2f->capability_721355100f82",
+          "capability_343b7e6da5c7->capability_a441c067cc34",
+          "capability_401304f3abed->capability_476fdee19fd8",
+          "capability_401304f3abed->capability_499a16410312",
+          "capability_401304f3abed->capability_721355100f82",
+          "capability_401304f3abed->capability_bd595aa22fd6",
+          "capability_401304f3abed->capability_f0142925414b",
+          "capability_51575a03e065->capability_51ef66cb319a",
+          "capability_7df6d3edb5a1->capability_09d05c0bcaf5",
+          "capability_97098aef22c1->capability_24e333c1be05",
+          "capability_97098aef22c1->capability_721355100f82",
+          "capability_97098aef22c1->capability_c8b08d02d397",
+          "capability_b36093903aa5->capability_2a2cd5b6f948",
+          "capability_e7c98eea759a->capability_2a2cd5b6f948"
+        ],
+        "widthGround": 4.624922359499622
+      },
+      "vertices": 44
+    },
+    {
+      "name": "pathway-halo:cross:tbbdcja",
+      "children": 0,
+      "data": {},
+      "vertices": 44
+    },
+    {
+      "name": "pathway:cross:t15p2lw7",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_17d0b5ef8954->capability_f9a76556e9e5",
+          "capability_3071fac26775->capability_ea4d43a635c0",
+          "capability_3071fac26775->capability_ef2b1034bb4a",
+          "capability_3071fac26775->capability_f9a76556e9e5",
+          "capability_312fdeec8e2f->capability_721355100f82",
+          "capability_401304f3abed->capability_476fdee19fd8",
+          "capability_401304f3abed->capability_499a16410312",
+          "capability_401304f3abed->capability_721355100f82",
+          "capability_401304f3abed->capability_bd595aa22fd6",
+          "capability_401304f3abed->capability_f0142925414b",
+          "capability_7df6d3edb5a1->capability_09d05c0bcaf5",
+          "capability_97098aef22c1->capability_24e333c1be05",
+          "capability_97098aef22c1->capability_721355100f82",
+          "capability_97098aef22c1->capability_c8b08d02d397"
+        ],
+        "widthGround": 3.9674916480965474
+      },
+      "vertices": 338
+    },
+    {
+      "name": "pathway-halo:cross:t15p2lw7",
+      "children": 0,
+      "data": {},
+      "vertices": 338
+    },
+    {
+      "name": "pathway:cross:t15nev7h",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_17d0b5ef8954->capability_f9a76556e9e5",
+          "capability_3071fac26775->capability_ea4d43a635c0",
+          "capability_3071fac26775->capability_ef2b1034bb4a",
+          "capability_3071fac26775->capability_f9a76556e9e5",
+          "capability_312fdeec8e2f->capability_721355100f82",
+          "capability_401304f3abed->capability_476fdee19fd8",
+          "capability_401304f3abed->capability_499a16410312",
+          "capability_401304f3abed->capability_721355100f82",
+          "capability_401304f3abed->capability_bd595aa22fd6",
+          "capability_401304f3abed->capability_f0142925414b",
+          "capability_7d9bb1b4b35f->capability_09d05c0bcaf5",
+          "capability_7df6d3edb5a1->capability_09d05c0bcaf5",
+          "capability_97098aef22c1->capability_24e333c1be05",
+          "capability_97098aef22c1->capability_721355100f82",
+          "capability_97098aef22c1->capability_c8b08d02d397"
+        ],
+        "widthGround": 4.085685011586675
+      },
+      "vertices": 90
+    },
+    {
+      "name": "pathway-halo:cross:t15nev7h",
+      "children": 0,
+      "data": {},
+      "vertices": 90
+    },
+    {
+      "name": "pathway:cross:t1rvf4cw",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_17d0b5ef8954->capability_f9a76556e9e5",
+          "capability_3071fac26775->capability_ea4d43a635c0",
+          "capability_3071fac26775->capability_ef2b1034bb4a",
+          "capability_3071fac26775->capability_f9a76556e9e5",
+          "capability_312fdeec8e2f->capability_721355100f82",
+          "capability_401304f3abed->capability_476fdee19fd8",
+          "capability_401304f3abed->capability_499a16410312",
+          "capability_401304f3abed->capability_721355100f82",
+          "capability_401304f3abed->capability_bd595aa22fd6",
+          "capability_401304f3abed->capability_f0142925414b",
+          "capability_7d9bb1b4b35f->capability_09d05c0bcaf5",
+          "capability_7df6d3edb5a1->capability_09d05c0bcaf5",
+          "capability_97098aef22c1->capability_24e333c1be05",
+          "capability_97098aef22c1->capability_721355100f82",
+          "capability_97098aef22c1->capability_c8b08d02d397",
+          "capability_a441c067cc34->capability_721355100f82"
+        ],
+        "widthGround": 4.2
+      },
+      "vertices": 164
+    },
+    {
+      "name": "pathway-halo:cross:t1rvf4cw",
+      "children": 0,
+      "data": {},
+      "vertices": 164
+    },
+    {
+      "name": "pathway:cross:t1dnmvwn",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_7d9bb1b4b35f->capability_09d05c0bcaf5"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 224
+    },
+    {
+      "name": "pathway-halo:cross:t1dnmvwn",
+      "children": 0,
+      "data": {},
+      "vertices": 224
+    },
+    {
+      "name": "pathway:cross:t150vbwi",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_a441c067cc34->capability_721355100f82"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 106
+    },
+    {
+      "name": "pathway-halo:cross:t150vbwi",
+      "children": 0,
+      "data": {},
+      "vertices": 106
+    },
+    {
+      "name": "pathway:cross:tairio3",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_16090db32e41->capability_252fb7d2901b",
+          "capability_312fdeec8e2f->capability_0499df7a6879",
+          "capability_343b7e6da5c7->capability_a441c067cc34",
+          "capability_51575a03e065->capability_51ef66cb319a",
+          "capability_b36093903aa5->capability_2a2cd5b6f948",
+          "capability_e7c98eea759a->capability_2a2cd5b6f948"
+        ],
+        "widthGround": 2.8045407685048604
+      },
+      "vertices": 64
+    },
+    {
+      "name": "pathway-halo:cross:tairio3",
+      "children": 0,
+      "data": {},
+      "vertices": 64
+    },
+    {
+      "name": "pathway:cross:ta7xn2k",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_87d2b7efa778->capability_2a2cd5b6f948",
+          "capability_87d2b7efa778->capability_51ef66cb319a",
+          "capability_96dd5172fd5f->capability_2a2cd5b6f948",
+          "capability_96dd5172fd5f->capability_b479fb1a735a"
+        ],
+        "widthGround": 2.4
+      },
+      "vertices": 130
+    },
+    {
+      "name": "pathway-halo:cross:ta7xn2k",
+      "children": 0,
+      "data": {},
+      "vertices": 130
+    },
+    {
+      "name": "pathway:cross:t1rj5gcq",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_13feb598d3ee->capability_b479fb1a735a",
+          "capability_87d2b7efa778->capability_2a2cd5b6f948",
+          "capability_87d2b7efa778->capability_51ef66cb319a",
+          "capability_96dd5172fd5f->capability_2a2cd5b6f948",
+          "capability_96dd5172fd5f->capability_b479fb1a735a"
+        ],
+        "widthGround": 2.612461179749811
+      },
+      "vertices": 34
+    },
+    {
+      "name": "pathway-halo:cross:t1rj5gcq",
+      "children": 0,
+      "data": {},
+      "vertices": 34
+    },
+    {
+      "name": "pathway:cross:tplv2pb",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_13feb598d3ee->capability_b479fb1a735a"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 78
+    },
+    {
+      "name": "pathway-halo:cross:tplv2pb",
+      "children": 0,
+      "data": {},
+      "vertices": 78
+    },
+    {
+      "name": "pathway:cross:t1wxxr3t",
+      "children": 0,
+      "data": {
+        "links": [
+          "capability_856e593f295f->capability_f5a5f6195b94"
+        ],
+        "widthGround": 1.5
+      },
+      "vertices": 100
+    },
+    {
+      "name": "pathway-halo:cross:t1wxxr3t",
+      "children": 0,
+      "data": {},
+      "vertices": 100
+    }
+  ],
+  "points": [
+    {
+      "id": "decision_020b66433e9c",
+      "title": "1 · Links: founding book (proposed, approved with ADR-0644)",
+      "depth": 1,
+      "home": "capability_7ec3f011e70a",
+      "at": [
+        -51.86958134207544,
+        -97.3073892395859,
+        146.19765022316034
+      ],
+      "world": [
+        -51.86958134207544,
+        49.44591341635287,
+        168.51582293013422
+      ],
+      "screen": [
+        -0.1274858216147205,
+        -0.3782747210371091,
+        -0.33418748586922375
+      ]
+    },
+    {
+      "id": "decision_05825bb91a68",
+      "title": "3 · Surfaces: founding book (ADR-0632 D1 row 3; ADR-0633 D3 item 14)",
+      "depth": 1,
+      "home": "capability_13feb598d3ee",
+      "at": [
+        54.87260543795509,
+        -5.087919083929652,
+        174.63116746974436
+      ],
+      "world": [
+        54.87260543795509,
+        130.50478408933964,
+        116.14832285593005
+      ],
+      "screen": [
+        0.13486669850414829,
+        -0.019778879971737252,
+        -0.360274478159314
+      ]
+    },
+    {
+      "id": "decision_0aeff752942b",
+      "title": "2 · Storytree projects: founding book (ADR-0632 D4 and D3)",
+      "depth": 1,
+      "home": "capability_e6dfce753ba2",
+      "at": [
+        78.25089209198697,
+        20.45515489571504,
+        164.29034945790488
+      ],
+      "world": [
+        78.25089209198697,
+        139.00202938148763,
+        89.93424328161248
+      ],
+      "screen": [
+        0.19232619605394008,
+        0.07951778454250887,
+        -0.35078705395468135
+      ]
+    },
+    {
+      "id": "decision_0b118c564cda",
+      "title": "8 · Setup check: founding book (ADR-0626 D5)",
+      "depth": 1,
+      "home": "capability_252fb7d2901b",
+      "at": [
+        18.068795147724096,
+        -18.068795147724103,
+        181.32835322645815
+      ],
+      "world": [
+        18.068795147724096,
+        127.29117972612215,
+        130.39711885560075
+      ],
+      "screen": [
+        0.044409751060148266,
+        -0.07024100119625308,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_0f823b0c2215",
+      "title": "3 · Data schema: founding book (ADR-0621 D1; ADR-0636 a1)",
+      "depth": 1,
+      "home": "capability_bd595aa22fd6",
+      "at": [
+        28.931689641951714,
+        -113.94453959296398,
+        140.40133058988172
+      ],
+      "world": [
+        28.931689641951714,
+        34.3115208630949,
+        177.53481706562013
+      ],
+      "screen": [
+        0.07110873327435904,
+        -0.4429503171861453,
+        -0.3288695174915195
+      ]
+    },
+    {
+      "id": "decision_12d6cfbd3d65",
+      "title": "The planet begins with islands spread around a globe",
+      "depth": 1,
+      "home": "capability_0e687b3b07a2",
+      "at": [
+        -75.77494705760704,
+        48.64910805864404,
+        159.45016802598616
+      ],
+      "world": [
+        -75.77494705760704,
+        153.416959053092,
+        65.22521347852177
+      ],
+      "screen": [
+        -0.1862407818513626,
+        0.18911953062760062,
+        -0.3463463168273647
+      ]
+    },
+    {
+      "id": "decision_1833083bba30",
+      "title": "3 · Catalogue: founding book (proposed, approved; 0.2's `edit-first-curation`)",
+      "depth": 1,
+      "home": "capability_bb9e2a8ebd4c",
+      "at": [
+        -91.14867960933206,
+        -78.63407743735155,
+        137.99106663495263
+      ],
+      "world": [
+        -91.14867960933206,
+        55.162279119904625,
+        148.93614594104776
+      ],
+      "screen": [
+        -0.22402656833604714,
+        -0.3056837095216591,
+        -0.3266581647185216
+      ]
+    },
+    {
+      "id": "decision_19227b0ccba0",
+      "title": "2 · Agent activity log: founding book (ADR-0626 D2, B1)",
+      "depth": 1,
+      "home": "capability_b479fb1a735a",
+      "at": [
+        18.068795147724103,
+        18.0687951477241,
+        181.32835322645815
+      ],
+      "world": [
+        18.068795147724103,
+        150.5199750119648,
+        102.71411862206234
+      ],
+      "screen": [
+        0.04440975106014828,
+        0.0702410011962527,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_235ead396d7d",
+      "title": "The forest keeps 0.2's fixed view and full-size seedlings",
+      "depth": 1,
+      "home": "capability_f5a5f6195b94",
+      "at": [
+        -98.03976826203333,
+        72.64821675777159,
+        136.5407442525587
+      ],
+      "world": [
+        -98.03976826203333,
+        151.29365199171974,
+        32.11493587312937
+      ],
+      "screen": [
+        -0.24096358760589165,
+        0.2824141531556971,
+        -0.32532753268733317
+      ]
+    },
+    {
+      "id": "decision_24d744b4f342",
+      "title": "The command line is a front door onto the library and the agent link: ten capabilities, writes recorded by writer, friction and plan verbs, no anchors yet",
+      "depth": 1,
+      "home": "story_06b4edcac99f",
+      "at": [
+        -23.844946525059143,
+        97.4312323826029,
+        153.20413793897444
+      ],
+      "world": [
+        -23.844946525059143,
+        179.98876750301184,
+        23.841067466953476
+      ],
+      "screen": [
+        -0.05860646105967982,
+        0.3787561513862651,
+        -0.34061575112525755
+      ]
+    },
+    {
+      "id": "decision_259c0c42685f",
+      "title": "The app updates itself",
+      "depth": 1,
+      "home": "capability_3b4c062e5087",
+      "at": [
+        77.63425630675107,
+        -30.630993063574355,
+        162.99570212627364
+      ],
+      "world": [
+        77.63425630675107,
+        105.17272905244818,
+        128.23631978249372
+      ],
+      "screen": [
+        0.19081061953136522,
+        -0.11907554448598348,
+        -0.34959924962271083
+      ]
+    },
+    {
+      "id": "decision_260179f05d60",
+      "title": "5 · Questions: founding book (ADR-0645 D1 item 5 and D5)",
+      "depth": 1,
+      "home": "capability_17d0b5ef8954",
+      "at": [
+        -38.56611722456895,
+        112.82934298679073,
+        138.97887740009253
+      ],
+      "world": [
+        -38.56611722456895,
+        178.98930042423655,
+        2.9016091851278247
+      ],
+      "screen": [
+        -0.09478837140479354,
+        0.4386150792520241,
+        -0.32756445469984175
+      ]
+    },
+    {
+      "id": "decision_26104dbf67ee",
+      "title": "11 · Workspace: founding book (ADR-0653 D1, K1 with owner A2/B1)",
+      "depth": 1,
+      "home": "capability_b36093903aa5",
+      "at": [
+        -3.5011466073350324,
+        84.78067415929787,
+        162.27419283893826
+      ],
+      "world": [
+        -3.5011466073350324,
+        178.80521057635457,
+        39.36207620514281
+      ],
+      "screen": [
+        -0.00860516974074035,
+        0.32957811444292423,
+        -0.3489372841313255
+      ]
+    },
+    {
+      "id": "decision_27f7b1ef77b1",
+      "title": "6 · Unclaimed work: founding book",
+      "depth": 1,
+      "home": "capability_511fb3e087e2",
+      "at": [
+        -105.46466427041398,
+        24.649999359516514,
+        147.65675237490737
+      ],
+      "world": [
+        -105.46466427041398,
+        128.95634881287108,
+        76.02893588089997
+      ],
+      "screen": [
+        -0.25921260646320077,
+        0.09582490809950424,
+        -0.33552617310418587
+      ]
+    },
+    {
+      "id": "decision_37282c52577e",
+      "title": "Every knowledge read is recorded, and a new artifact has a default place",
+      "depth": 1,
+      "home": "capability_a441c067cc34",
+      "at": [
+        -18.068795147724103,
+        -18.0687951477241,
+        181.32835322645815
+      ],
+      "world": [
+        -18.068795147724103,
+        127.29117972612215,
+        130.39711885560075
+      ],
+      "screen": [
+        -0.04440975106014828,
+        -0.07024100119625308,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_39bce1c2c25a",
+      "title": "The globe packs its islands together on a see-through grey ball, with no sea",
+      "depth": 1,
+      "home": "capability_0e687b3b07a2",
+      "at": [
+        -80.54989428929412,
+        53.9643308695382,
+        155.3463869029034
+      ],
+      "world": [
+        -80.54989428929412,
+        153.68983969354392,
+        58.51565692151395
+      ],
+      "screen": [
+        -0.19797671754330481,
+        0.20978203572359716,
+        -0.34258120730575115
+      ]
+    },
+    {
+      "id": "decision_39cf80477825",
+      "title": "4 · Work model: founding book (ADR-0621 D2)",
+      "depth": 1,
+      "home": "capability_c8b08d02d397",
+      "at": [
+        17.868038600084112,
+        -110.89064242478969,
+        144.62687516227177
+      ],
+      "world": [
+        17.868038600084112,
+        39.511483062885105,
+        177.91152380539395
+      ],
+      "screen": [
+        0.043916328658073524,
+        -0.43107853531639606,
+        -0.3327463417241816
+      ]
+    },
+    {
+      "id": "decision_3a81629ca8bb",
+      "title": "The knowledge inside the planet: four capabilities, a graph that refuses loops, built alongside the MVP",
+      "depth": 1,
+      "home": "story_706577def517",
+      "at": [
+        -114.4570351511131,
+        -20.02719404199328,
+        141.53244505491034
+      ],
+      "world": [
+        -114.4570351511131,
+        95.54691086837478,
+        106.31702275707175
+      ],
+      "screen": [
+        -0.2813141881673176,
+        -0.07785412082877204,
+        -0.32990728478821074
+      ]
+    },
+    {
+      "id": "decision_3ac21d698008",
+      "title": "The library's capability tree",
+      "depth": 1,
+      "home": "story_162d5270f424",
+      "at": [
+        13.10191067827404,
+        -130.0248218168038,
+        128.2763425113413
+      ],
+      "world": [
+        13.10191067827404,
+        14.687034948898216,
+        182.05923580249473
+      ],
+      "screen": [
+        0.03220206919594953,
+        -0.5054611328596014,
+        -0.3177451649262272
+      ]
+    },
+    {
+      "id": "decision_3bd99ce1edfc",
+      "title": "Five pieces of 0.2's forest are left out",
+      "depth": 1,
+      "home": "story_7eef8209a5a6",
+      "at": [
+        -97.98254474820939,
+        49.129794150686735,
+        146.69225832120898
+      ],
+      "world": [
+        -97.98254474820939,
+        143.95281228204746,
+        56.656360285097456
+      ],
+      "screen": [
+        -0.24082294281010247,
+        0.19098815950352466,
+        -0.33464127558255785
+      ]
+    },
+    {
+      "id": "decision_3bf060195e77",
+      "title": "2 · Earlier decisions beside their replacements: founding book (G2, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_7d9bb1b4b35f",
+      "at": [
+        -93.46812416572163,
+        -19.831247899636168,
+        156.21576671925413
+      ],
+      "world": [
+        -93.46812416572163,
+        106.92093958834687,
+        115.60517653845062
+      ],
+      "screen": [
+        -0.22972733335689863,
+        -0.07709239581572154,
+        -0.343378840056199
+      ]
+    },
+    {
+      "id": "decision_3ec95fce1efa",
+      "title": "7 · Instructions (the habits card): founding book (ADR-0626 D1 row 7 and D7)",
+      "depth": 1,
+      "home": "capability_be6e71cf8633",
+      "at": [
+        -4.6940347761150535e-15,
+        -25.553135153652594,
+        181.32835322645815
+      ],
+      "world": [
+        -4.6940347761150535e-15,
+        122.48033870363004,
+        136.13045592755532
+      ],
+      "screen": [
+        -1.1537067865933804e-17,
+        -0.09933577652640581,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_42a662d91b45",
+      "title": "3 · Hooks: founding book (ADR-0626 D1 row 3 and D4, E1)",
+      "depth": 1,
+      "home": "capability_66fe0fb06541",
+      "at": [
+        1.564678258705018e-15,
+        25.553135153652594,
+        181.32835322645815
+      ],
+      "world": [
+        1.564678258705018e-15,
+        155.33081603445692,
+        96.98078155010776
+      ],
+      "screen": [
+        3.8456892886446014e-18,
+        0.09933577652640548,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_46414ccdafdd",
+      "title": "Routed pathways on the glass globe",
+      "depth": 1,
+      "home": "capability_f5a5f6195b94",
+      "at": [
+        -101.58697964167607,
+        77.68247436723534,
+        131.06659812273122
+      ],
+      "world": [
+        -101.58697964167607,
+        150.3361711834776,
+        24.739757500303604
+      ],
+      "screen": [
+        -0.24968197602303527,
+        0.30198442842184453,
+        -0.3203051498901154
+      ]
+    },
+    {
+      "id": "decision_4c81c75c41da",
+      "title": "ADR-0650: 0.3's library has no memory type, and its knowledge records are called artifacts",
+      "depth": 1,
+      "home": "capability_f0142925414b",
+      "at": [
+        5.683158501423308,
+        -111.92871787141686,
+        144.81919149445793
+      ],
+      "world": [
+        5.683158501423308,
+        38.99154388546556,
+        178.83035428829058
+      ],
+      "screen": [
+        0.013968150738338772,
+        -0.43511397088873,
+        -0.332922786819999
+      ]
+    },
+    {
+      "id": "decision_4ef551dcd99d",
+      "title": "The librarian is a story of its own: six capabilities, on for 0.3's own library first",
+      "depth": 1,
+      "home": "story_2a479ccc74eb",
+      "at": [
+        -74.94881453484204,
+        -98.26885206032394,
+        135.1252837723867
+      ],
+      "world": [
+        -74.94881453484204,
+        40.345972236216056,
+        162.13516621675987
+      ],
+      "screen": [
+        -0.18421030115916734,
+        -0.38201233113172123,
+        -0.3240288855198741
+      ]
+    },
+    {
+      "id": "decision_4fef2ab865e3",
+      "title": "5 · Briefing: founding book (0.2's ADR-0314 D3)",
+      "depth": 1,
+      "home": "capability_82bb28d0797b",
+      "at": [
+        68.73734569698027,
+        44.34355423301749,
+        163.83455345108757
+      ],
+      "world": [
+        68.73734569698027,
+        154.00803649253157,
+        71.34168768853809
+      ],
+      "screen": [
+        0.16894366148828396,
+        0.1723820332491737,
+        -0.3503688732979381
+      ]
+    },
+    {
+      "id": "decision_533116de4395",
+      "title": "The globe is the only view, and islands get room for pathways between them",
+      "depth": 1,
+      "home": "capability_f5a5f6195b94",
+      "at": [
+        -99.69866759371617,
+        61.851948313865456,
+        140.5967516332316
+      ],
+      "world": [
+        -99.69866759371617,
+        147.46102632034112,
+        42.992508610098135
+      ],
+      "screen": [
+        -0.24504085483658247,
+        0.24044451995749258,
+        -0.32904881107686734
+      ]
+    },
+    {
+      "id": "decision_56cb2a8a8701",
+      "title": "6 · Rounds: founding book (proposed, approved; 0.2's `pre-merge-librarian-pass`)",
+      "depth": 1,
+      "home": "capability_09ec5eb13890",
+      "at": [
+        -57.2823504898175,
+        -115.9807010418203,
+        129.61536833342572
+      ],
+      "world": [
+        -57.2823504898175,
+        24.740175062199512,
+        172.16152433181298
+      ],
+      "screen": [
+        -0.1407894054138624,
+        -0.4508657325525592,
+        -0.3189736853373326
+      ]
+    },
+    {
+      "id": "decision_56f49db78d69",
+      "title": "Decisions about the whole project sit on no shelf",
+      "depth": 1,
+      "home": "capability_476fdee19fd8",
+      "at": [
+        -7.276621159401783,
+        -140.68436157720555,
+        116.99528021299255
+      ],
+      "world": [
+        -7.276621159401783,
+        -0.8065802201781196,
+        182.97358993267574
+      ],
+      "screen": [
+        -0.01788458674781889,
+        -0.5468992441968806,
+        -0.3073950917133744
+      ]
+    },
+    {
+      "id": "decision_5e4f80534121",
+      "title": "4 · Graduation: founding book (proposed, approved; 0.2's ADR-0095)",
+      "depth": 1,
+      "home": "capability_3163a857490b",
+      "at": [
+        -96.56144875707412,
+        -97.30738923958593,
+        121.40878474521797
+      ],
+      "world": [
+        -96.56144875707412,
+        30.45654076575125,
+        152.5818473427265
+      ],
+      "screen": [
+        -0.23733015213518902,
+        -0.37827472103710913,
+        -0.3114443641866306
+      ]
+    },
+    {
+      "id": "decision_62581e658b6d",
+      "title": "The library's revised tree: eight more knowledge kinds, work in flight, waits, owner questions and the decision log",
+      "depth": 1,
+      "home": "story_162d5270f424",
+      "at": [
+        7.447384187150205,
+        -125.97500652033922,
+        132.69426740055303
+      ],
+      "world": [
+        7.447384187150205,
+        20.674532854482337,
+        181.79668467829086
+      ],
+      "screen": [
+        0.0183042906345797,
+        -0.4897177986329469,
+        -0.32179849295889995
+      ]
+    },
+    {
+      "id": "decision_632481985065",
+      "title": "12 · Owner questions: founding book (12-a)",
+      "depth": 1,
+      "home": "capability_f9a76556e9e5",
+      "at": [
+        25.89716637157403,
+        -143.56077734243013,
+        110.69134737078696
+      ],
+      "world": [
+        25.89716637157403,
+        -7.484597357938341,
+        181.12496232246005
+      ],
+      "screen": [
+        0.06365043724953116,
+        -0.5580810812565314,
+        -0.3016114017806202
+      ]
+    },
+    {
+      "id": "decision_6352231b641a",
+      "title": "3 · Library: founding book (ADR-0645 D1 item 3)",
+      "depth": 1,
+      "home": "capability_401304f3abed",
+      "at": [
+        -11.220817442231018,
+        116.15873904856143,
+        141.11759280322326
+      ],
+      "world": [
+        -11.220817442231018,
+        182.76774601046316,
+        1.7258835948443618
+      ],
+      "screen": [
+        -0.02757869051183612,
+        0.45155784111553937,
+        -0.32952666893272464
+      ]
+    },
+    {
+      "id": "decision_63aa371094a9",
+      "title": "13 · Decision log: founding book (13-a)",
+      "depth": 1,
+      "home": "capability_09d05c0bcaf5",
+      "at": [
+        34.62602553487029,
+        -137.1145185972325,
+        116.33392259142514
+      ],
+      "world": [
+        34.62602553487029,
+        0.9814412849589189,
+        179.81381907034478
+      ],
+      "screen": [
+        0.08510435597027707,
+        -0.5330217641005773,
+        -0.3067883137679941
+      ]
+    },
+    {
+      "id": "decision_686d12afff25",
+      "title": "5 · Claims: founding book (ADR-0626 D3, C1; ADR-0643 D1)",
+      "depth": 1,
+      "home": "capability_2a2cd5b6f948",
+      "at": [
+        -25.553135153652594,
+        3.129356517410036e-15,
+        181.32835322645815
+      ],
+      "world": [
+        -25.553135153652594,
+        138.90557736904347,
+        116.55561873883154
+      ],
+      "screen": [
+        -0.06280487225087462,
+        -2.2097426084904369e-16,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_78179e556c21",
+      "title": "10 · Work in flight: founding book (10-b)",
+      "depth": 1,
+      "home": "capability_ea4d43a635c0",
+      "at": [
+        2.2355471153495325,
+        -145.5765990639772,
+        111.06480330897405
+      ],
+      "world": [
+        2.2355471153495325,
+        -8.494258737687773,
+        182.90922420040022
+      ],
+      "screen": [
+        0.005494560653559149,
+        -0.5659174275539465,
+        -0.3019540376246379
+      ]
+    },
+    {
+      "id": "decision_7b23fa3c5ef8",
+      "title": "2 · Library transactions: founding book (ADR-0621 D1)",
+      "depth": 1,
+      "home": "capability_499a16410312",
+      "at": [
+        36.339562504783075,
+        -120.39079833816153,
+        133.11057911548988
+      ],
+      "world": [
+        36.339562504783075,
+        24.582905959729047,
+        177.78653304324288
+      ],
+      "screen": [
+        0.08931591239360466,
+        -0.4680096343420991,
+        -0.3221804478329189
+      ]
+    },
+    {
+      "id": "decision_7c25cbdf1a0d",
+      "title": "The app's capability tree",
+      "depth": 1,
+      "home": "story_9d71dfb0ffbd",
+      "at": [
+        78.71269954987862,
+        -5.138191165755603,
+        165.25992956889064
+      ],
+      "world": [
+        78.71269954987862,
+        123.29368509893382,
+        110.16311789476319
+      ],
+      "screen": [
+        0.19346123323129563,
+        -0.01997430868354705,
+        -0.3516766177979639
+      ]
+    },
+    {
+      "id": "decision_7cfbca8c709a",
+      "title": "7 · Library entrypoints: founding book",
+      "depth": 1,
+      "home": "capability_11f046ccdde1",
+      "at": [
+        -86.75254034631918,
+        29.403317167131508,
+        158.56347651029012
+      ],
+      "world": [
+        -86.75254034631918,
+        140.36675802105,
+        79.39839032449119
+      ],
+      "screen": [
+        -0.21322167245339407,
+        0.11430305227465194,
+        -0.34553280105536044
+      ]
+    },
+    {
+      "id": "decision_8438fe0dab01",
+      "title": "4 · Sessions: founding book (ADR-0626 D1 row 4 and D9)",
+      "depth": 1,
+      "home": "capability_51ef66cb319a",
+      "at": [
+        -18.0687951477241,
+        18.068795147724103,
+        181.32835322645815
+      ],
+      "world": [
+        -18.0687951477241,
+        150.5199750119648,
+        102.71411862206234
+      ],
+      "screen": [
+        -0.04440975106014827,
+        0.0702410011962527,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_89f27b41ea3e",
+      "title": "1 · Work states: founding book (ADR-0632 D3)",
+      "depth": 1,
+      "home": "capability_96dd5172fd5f",
+      "at": [
+        82.20731134182475,
+        66.92993711629099,
+        149.31602686770643
+      ],
+      "world": [
+        82.20731134182475,
+        157.40444694606163,
+        44.70718559194678
+      ],
+      "screen": [
+        0.20205034160644558,
+        0.2601847967512476,
+        -0.3370485131131763
+      ]
+    },
+    {
+      "id": "decision_8be3a089c728",
+      "title": "5 · Health record: founding book (ADR-0621 D1 and D5)",
+      "depth": 1,
+      "home": "capability_24e333c1be05",
+      "at": [
+        -4.831541467151287,
+        -116.82095535818851,
+        140.93422223239938
+      ],
+      "world": [
+        -4.831541467151287,
+        32.87081513043674,
+        180.08081552378604
+      ],
+      "screen": [
+        -0.011875033838102848,
+        -0.4541321542457959,
+        -0.32935843133391374
+      ]
+    },
+    {
+      "id": "decision_92e60fe52559",
+      "title": "Every story and capability has a shelf of front covers",
+      "depth": 1,
+      "home": "capability_476fdee19fd8",
+      "at": [
+        -13.597075647174591,
+        -136.97996037203725,
+        120.76648703311741
+      ],
+      "world": [
+        -13.597075647174591,
+        4.463475004220982,
+        182.55993899191498
+      ],
+      "screen": [
+        -0.03341909295557466,
+        -0.5324986797233607,
+        -0.3108550731988783
+      ]
+    },
+    {
+      "id": "decision_99dfa0fac7fc",
+      "title": "4 · Arcs and increments: founding book (ADR-0645 D1 item 4)",
+      "depth": 1,
+      "home": "capability_3071fac26775",
+      "at": [
+        -25.13534967404817,
+        117.89371582969856,
+        137.84854139463943
+      ],
+      "world": [
+        -25.13534967404817,
+        181.37872892265602,
+        -1.704491468152213
+      ],
+      "screen": [
+        -0.061778032940666715,
+        0.45830242508823854,
+        -0.3265274016190095
+      ]
+    },
+    {
+      "id": "decision_9c3a13d374c7",
+      "title": "9 · Friction and re-steers: founding book (ADR-0645 D1 item 9, F1)",
+      "depth": 1,
+      "home": "capability_343b7e6da5c7",
+      "at": [
+        -15.024731056536197,
+        76.79719062336672,
+        165.5577946489897
+      ],
+      "world": [
+        -15.024731056536197,
+        176.18891119732683,
+        47.58843796322009
+      ],
+      "screen": [
+        -0.03692800546529498,
+        0.29854295841769024,
+        -0.35194990104958
+      ]
+    },
+    {
+      "id": "decision_9e095997a873",
+      "title": "1 · Lifecycle: founding book (ADR-0621 D4 and D5, ADR-0626 D8)",
+      "depth": 1,
+      "home": "capability_03c14d0bbbb8",
+      "at": [
+        101.01254296078301,
+        -5.0879190839296555,
+        152.65488411443428
+      ],
+      "world": [
+        101.01254296078301,
+        113.66997434459626,
+        102.02224020817621
+      ],
+      "screen": [
+        0.24827011708115715,
+        -0.019778879971737308,
+        -0.34011182541807816
+      ]
+    },
+    {
+      "id": "decision_a1d15744387f",
+      "title": "1 · Knowledge under its shelves: founding book (D1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_57fa0a230376",
+      "at": [
+        -115.09449632980487,
+        5.56860659289997,
+        142.32070100727464
+      ],
+      "world": [
+        -115.09449632980487,
+        112.60341346855515,
+        87.21618307297202
+      ],
+      "screen": [
+        -0.28288094964890853,
+        0.021647514355854165,
+        -0.33063048856119515
+      ]
+    },
+    {
+      "id": "decision_a329eafa885a",
+      "title": "4 · Look inside and inspect an artifact: founding book (E1 and V1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_856e593f295f",
+      "at": [
+        -111.57987784160372,
+        -45.2311023921723,
+        137.97468114564217
+      ],
+      "world": [
+        -111.57987784160372,
+        76.62074559258045,
+        123.33745013453887
+      ],
+      "screen": [
+        -0.27424266852079093,
+        -0.17583230598729724,
+        -0.32664313146992263
+      ]
+    },
+    {
+      "id": "decision_a365f226d72b",
+      "title": "The forest's capability tree",
+      "depth": 1,
+      "home": "story_7eef8209a5a6",
+      "at": [
+        -102.10516913020211,
+        54.44048381057129,
+        141.92851214383862
+      ],
+      "world": [
+        -102.10516913020211,
+        143.7172165067078,
+        49.52605896350819
+      ],
+      "screen": [
+        -0.2509555897863927,
+        0.21163304233622773,
+        -0.3302706657588317
+      ]
+    },
+    {
+      "id": "decision_aa3d1c2d41ac",
+      "title": "The agent link's revised tree: increment claims, the wait refusal, release on merge, and planning tools",
+      "depth": 1,
+      "home": "story_ff3f8702deca",
+      "at": [
+        0,
+        0,
+        183.12
+      ],
+      "world": [
+        0,
+        140.27805842394724,
+        117.70726708579912
+      ],
+      "screen": [
+        0,
+        -2.2097426084904369e-16,
+        -0.3680627551722556
+      ]
+    },
+    {
+      "id": "decision_aca8c1027639",
+      "title": "2 · Who wrote it: founding book (ADR-0645 D2, W1 and A1)",
+      "depth": 1,
+      "home": "capability_51575a03e065",
+      "at": [
+        -1.24028619733274,
+        108.17525551263029,
+        147.7481309016323
+      ],
+      "world": [
+        -1.24028619733274,
+        182.71534857660504,
+        12.103614529488127
+      ],
+      "screen": [
+        -0.0030483936984488287,
+        0.42052268509030566,
+        -0.33561001046069294
+      ]
+    },
+    {
+      "id": "decision_b4e534b5521d",
+      "title": "8 · Cloud connection (GCP): founding book (ADR-0621 D4)",
+      "depth": 1,
+      "home": "capability_f7a7d2675406",
+      "at": [
+        -12.149679966047673,
+        -133.05871470065577,
+        125.2225942828694
+      ],
+      "world": [
+        -12.149679966047673,
+        10.397579332936672,
+        182.42042106282378
+      ],
+      "screen": [
+        -0.0298616625149248,
+        -0.5172551496682313,
+        -0.31494343252706036
+      ]
+    },
+    {
+      "id": "decision_b5064385a012",
+      "title": "1 · Project libraries: founding book (ADR-0621 D3)",
+      "depth": 1,
+      "home": "capability_7c9fa4f4681a",
+      "at": [
+        38.3946027902493,
+        -128.75265846769702,
+        124.42484403879938
+      ],
+      "world": [
+        38.3946027902493,
+        12.554346784629416,
+        178.60900664129525
+      ],
+      "screen": [
+        0.09436682069988575,
+        -0.5005156992213382,
+        -0.3142115179951368
+      ]
+    },
+    {
+      "id": "decision_b885f7730ebb",
+      "title": "10 · Plan view: founding book (ADR-0645 D1 item 10, P1)",
+      "depth": 1,
+      "home": "capability_97098aef22c1",
+      "at": [
+        -48.42710000212329,
+        90.38240655761557,
+        151.71938231563644
+      ],
+      "world": [
+        -48.42710000212329,
+        174.32048080522375,
+        28.286398802604495
+      ],
+      "screen": [
+        -0.1190248402329189,
+        0.35135440272747437,
+        -0.33925352751560744
+      ]
+    },
+    {
+      "id": "decision_ca264ce0baee",
+      "title": "8 · Doctor: founding book (ADR-0645 D1 item 8)",
+      "depth": 1,
+      "home": "capability_16090db32e41",
+      "at": [
+        -29.274600797283586,
+        75.06221384222961,
+        164.44329174904973
+      ],
+      "world": [
+        -29.274600797283586,
+        174.21993086597908,
+        48.20111863030949
+      ],
+      "screen": [
+        -0.07195154536667249,
+        0.29179837444499124,
+        -0.35092737441997324
+      ]
+    },
+    {
+      "id": "decision_d1599adb7ffb",
+      "title": "The agent link's capability tree",
+      "depth": 1,
+      "home": "story_ff3f8702deca",
+      "at": [
+        -6.074163988147483,
+        5.564431781335217,
+        182.93462228565693
+      ],
+      "world": [
+        -6.074163988147483,
+        143.7127986599849,
+        113.3255065427009
+      ],
+      "screen": [
+        -0.014929169787290685,
+        0.021631285108595702,
+        -0.36789267607289966
+      ]
+    },
+    {
+      "id": "decision_d1634bce6863",
+      "title": "1 · Front door: founding book (ADR-0645 D1)",
+      "depth": 1,
+      "home": "capability_312fdeec8e2f",
+      "at": [
+        1.6374959094554302,
+        96.47796483596409,
+        155.635006692765
+      ],
+      "world": [
+        1.6374959094554302,
+        181.23817243610893,
+        26.13384508957253
+      ],
+      "screen": [
+        0.0040246615840396245,
+        0.37505039976661486,
+        -0.3428460082506215
+      ]
+    },
+    {
+      "id": "decision_d37b508da345",
+      "title": "5 · Agent capability claims: founding book",
+      "depth": 1,
+      "home": "capability_302b04d0ff49",
+      "at": [
+        -117.82070785728169,
+        37.96849989494611,
+        134.94298135040805
+      ],
+      "world": [
+        -117.82070785728169,
+        127.77800229224401,
+        57.654118068117086
+      ],
+      "screen": [
+        -0.28958147252731425,
+        0.14759951755149306,
+        -0.32386162791908635
+      ]
+    },
+    {
+      "id": "decision_d62143beb0bd",
+      "title": "11 · Waits: founding book (11-b)",
+      "depth": 1,
+      "home": "capability_ef2b1034bb4a",
+      "at": [
+        14.207701740515352,
+        -146.61467451060437,
+        108.78976435953015
+      ],
+      "world": [
+        14.207701740515352,
+        -10.904301717800266,
+        182.24206927957042
+      ],
+      "screen": [
+        0.034919898768822795,
+        -0.5699528631262805,
+        -0.2998667501807699
+      ]
+    },
+    {
+      "id": "decision_d7c37dbc52c5",
+      "title": "1 · Project routing: founding book (ADR-0626 D5)",
+      "depth": 1,
+      "home": "capability_0499df7a6879",
+      "at": [
+        25.553135153652594,
+        0,
+        181.32835322645815
+      ],
+      "world": [
+        25.553135153652594,
+        138.90557736904347,
+        116.55561873883154
+      ],
+      "screen": [
+        0.06280487225087462,
+        -2.2097426084904369e-16,
+        -0.3664189671328576
+      ]
+    },
+    {
+      "id": "decision_db1f99b330f9",
+      "title": "2 · Decision log: founding book (proposed, approved)",
+      "depth": 1,
+      "home": "capability_516961bc4b9a",
+      "at": [
+        -68.80274590183272,
+        -78.63407743735154,
+        150.3854993739238
+      ],
+      "world": [
+        -68.80274590183272,
+        64.65696544520543,
+        156.90313373475163
+      ],
+      "screen": [
+        -0.16910440307581287,
+        -0.3056837095216591,
+        -0.33802972555981825
+      ]
+    },
+    {
+      "id": "decision_db88a8ba4745",
+      "title": "7 · Library API: founding book (ADR-0621 D1 and D5)",
+      "depth": 1,
+      "home": "capability_721355100f82",
+      "at": [
+        -11.267270258710438,
+        -124.44660223473826,
+        133.86196701507868
+      ],
+      "world": [
+        -11.267270258710438,
+        22.551481992797974,
+        181.37644191251985
+      ],
+      "screen": [
+        -0.027692862928924686,
+        -0.4837762487744453,
+        -0.32286982615264803
+      ]
+    },
+    {
+      "id": "decision_e19ce0b1dc6d",
+      "title": "3 · Reads by session and agent: founding book (R1 and T1, approved with ADR-0647)",
+      "depth": 1,
+      "home": "capability_698d2a515a86",
+      "at": [
+        -133.2062500056869,
+        -19.831247899636168,
+        124.07961543366262
+      ],
+      "world": [
+        -133.2062500056869,
+        82.3032194727887,
+        94.94845666906025
+      ],
+      "screen": [
+        -0.3273962848128007,
+        -0.0770923958157216,
+        -0.31389477997491866
+      ]
+    },
+    {
+      "id": "decision_e4b38486bab9",
+      "title": "6 · Decisions: founding book (ADR-0645 D1 item 6 and D4, V1)",
+      "depth": 1,
+      "home": "capability_7df6d3edb5a1",
+      "at": [
+        -47.248946293771766,
+        102.57352311431264,
+        144.14972712442386
+      ],
+      "world": [
+        -47.248946293771766,
+        176.35808718055793,
+        14.081781142420084
+      ],
+      "screen": [
+        -0.11612915668176237,
+        0.3987463968057556,
+        -0.33230857114952417
+      ]
+    },
+    {
+      "id": "decision_e660e3c29f24",
+      "title": "4 · Waits: founding book (ADR-0633 D3 item 3; ADR-0628 D6)",
+      "depth": 1,
+      "home": "capability_536e36362645",
+      "at": [
+        40.743725455568885,
+        52.97078481150913,
+        170.49040791919657
+      ],
+      "world": [
+        40.743725455568885,
+        164.65219374379834,
+        69.01114642835569
+      ],
+      "screen": [
+        0.10014052901434052,
+        0.2059197046007972,
+        -0.3564754419186169
+      ]
+    },
+    {
+      "id": "decision_e87a6873d806",
+      "title": "7 · Board, read only: founding book (ADR-0645 D1 item 7)",
+      "depth": 1,
+      "home": "capability_e7c98eea759a",
+      "at": [
+        -41.72652287165822,
+        80.12658668513744,
+        159.2845309351481
+      ],
+      "world": [
+        -41.72652287165822,
+        173.52340692536393,
+        41.00559642360488
+      ],
+      "screen": [
+        -0.10255606299069323,
+        0.31148572028120575,
+        -0.3461943492225773
+      ]
+    },
+    {
+      "id": "decision_edef8e5d28d3",
+      "title": "2 · Capability tree: founding book (T1)",
+      "depth": 1,
+      "home": "capability_ae50c4095ab7",
+      "at": [
+        -80.79823605277203,
+        67.89489895015657,
+        149.64913012546563
+      ],
+      "world": [
+        -80.79823605277203,
+        158.27988435628208,
+        44.18209658812599
+      ],
+      "screen": [
+        -0.19858709559030377,
+        0.26393600898054936,
+        -0.3373541264511818
+      ]
+    },
+    {
+      "id": "decision_f14df45bd3f0",
+      "title": "2 · Agents on the board: founding book (ADR-0626 D3 and D4)",
+      "depth": 1,
+      "home": "capability_87d2b7efa778",
+      "at": [
+        62.53858769622063,
+        89.51631999956447,
+        146.99893844071698
+      ],
+      "world": [
+        62.53858769622063,
+        170.14770129735538,
+        25.91561676264064
+      ],
+      "screen": [
+        0.1537082627001964,
+        0.3479875602533214,
+        -0.33492264639728153
+      ]
+    },
+    {
+      "id": "decision_f1e0da90a285",
+      "title": "The arc surface's capability tree",
+      "depth": 1,
+      "home": "story_dc8fe76c47bf",
+      "at": [
+        58.80326183927648,
+        67.59125016388703,
+        159.70765071950788
+      ],
+      "world": [
+        58.80326183927648,
+        165.78997648583552,
+        50.88019746313484
+      ],
+      "screen": [
+        0.1445275237478087,
+        0.26275559852234087,
+        -0.3465825503183704
+      ]
+    },
+    {
+      "id": "decision_f21e651216b6",
+      "title": "3 · Arc surface: founding book (ADR-0633 D3 item 14)",
+      "depth": 1,
+      "home": "capability_22b4003ec5fd",
+      "at": [
+        36.91268232306409,
+        80.88908942107285,
+        160.08542562127957
+      ],
+      "world": [
+        36.91268232306409,
+        174.62705516020986,
+        40.936290620787624
+      ],
+      "screen": [
+        0.09072453473114347,
+        0.31444988890169806,
+        -0.3469291486960683
+      ]
+    },
+    {
+      "id": "decision_f23977abfe53",
+      "title": "5 · Queues: founding book (proposed, approved; 0.2's ADR-0168 D4)",
+      "depth": 1,
+      "home": "capability_213b81f7bf71",
+      "at": [
+        -79.62828419731684,
+        -115.9807010418203,
+        117.2209355944545
+      ],
+      "world": [
+        -79.62828419731684,
+        15.245488736898679,
+        164.1945365381091
+      ],
+      "screen": [
+        -0.19571157067409664,
+        -0.4508657325525592,
+        -0.3076021244960361
+      ]
+    },
+    {
+      "id": "decision_f2f211bbfa6d",
+      "title": "4 · Drill-down: founding book",
+      "depth": 1,
+      "home": "capability_6b6b0ea16a81",
+      "at": [
+        -114.51631826865491,
+        59.32971622234198,
+        129.99589233190602
+      ],
+      "world": [
+        -114.51631826865491,
+        137.71903742308947,
+        38.110549477143664
+      ],
+      "screen": [
+        -0.28145989508748454,
+        0.23063954370370826,
+        -0.3193228059378008
+      ]
+    },
+    {
+      "id": "decision_02546948a679",
+      "title": "The 0.3 MVP one-page spec",
+      "depth": null,
+      "home": null,
+      "at": [
+        170.04,
+        226.72000000000003,
+        0
+      ],
+      "world": [
+        170.04,
+        145.73280686813226,
+        -173.67759614393472
+      ],
+      "screen": [
+        0.41792681850282487,
+        0.8813559322033897,
+        -0.2000550483967155
+      ]
+    },
+    {
+      "id": "decision_2036f8b433e6",
+      "title": "The forest becomes a planet, and each read names its agent",
+      "depth": null,
+      "home": null,
+      "at": [
+        -191.52448025357063,
+        113.36000000000001,
+        175.45211273620976
+      ],
+      "world": [
+        -191.52448025357063,
+        207.27051942912408,
+        25.939646088194152
+      ],
+      "screen": [
+        -0.4707316907655956,
+        0.4406779661016948,
+        -0.3610276735044816
+      ]
+    },
+    {
+      "id": "decision_2dd15a35e126",
+      "title": "Verified health is dropped from the MVP",
+      "depth": null,
+      "home": null,
+      "at": [
+        24.776450384786433,
+        0,
+        -282.3148729810922
+      ],
+      "world": [
+        24.776450384786433,
+        -216.26573965700578,
+        -181.46850238247526
+      ],
+      "screen": [
+        0.06089592497710471,
+        -2.2097426084904369e-16,
+        0.058961303712181445
+      ]
+    },
+    {
+      "id": "decision_8d19d2c4009e",
+      "title": "Minimal viable TDD",
+      "depth": null,
+      "home": null,
+      "at": [
+        158.03614727915576,
+        -113.35999999999999,
+        206.13016895437946
+      ],
+      "world": [
+        158.03614727915576,
+        85.03846705261235,
+        219.33671665843542
+      ],
+      "screen": [
+        0.38842357234075175,
+        -0.4406779661016949,
+        -0.38917397032375745
+      ]
+    },
+    {
+      "id": "decision_d4e690d9130f",
+      "title": "The license: PolyForm Shield",
+      "depth": null,
+      "home": null,
+      "at": [
+        -167.44068104303548,
+        -226.72000000000003,
+        -29.61789884249815
+      ],
+      "world": [
+        -167.44068104303548,
+        -168.42143369328798,
+        154.63957774302762
+      ],
+      "screen": [
+        -0.4115381740547052,
+        -0.8813559322033901,
+        -0.17288141764071918
+      ]
+    }
+  ],
+  "threads": [
+    "knowledge-thread:decision_020b66433e9c",
+    "knowledge-thread:decision_05825bb91a68",
+    "knowledge-thread:decision_0aeff752942b",
+    "knowledge-thread:decision_0b118c564cda",
+    "knowledge-thread:decision_0f823b0c2215",
+    "knowledge-thread:decision_12d6cfbd3d65",
+    "knowledge-thread:decision_1833083bba30",
+    "knowledge-thread:decision_19227b0ccba0",
+    "knowledge-thread:decision_235ead396d7d",
+    "knowledge-thread:decision_24d744b4f342",
+    "knowledge-thread:decision_259c0c42685f",
+    "knowledge-thread:decision_260179f05d60",
+    "knowledge-thread:decision_26104dbf67ee",
+    "knowledge-thread:decision_27f7b1ef77b1",
+    "knowledge-thread:decision_37282c52577e",
+    "knowledge-thread:decision_39bce1c2c25a",
+    "knowledge-thread:decision_39cf80477825",
+    "knowledge-thread:decision_3a81629ca8bb",
+    "knowledge-thread:decision_3ac21d698008",
+    "knowledge-thread:decision_3bd99ce1edfc",
+    "knowledge-thread:decision_3bf060195e77",
+    "knowledge-thread:decision_3ec95fce1efa",
+    "knowledge-thread:decision_42a662d91b45",
+    "knowledge-thread:decision_46414ccdafdd",
+    "knowledge-thread:decision_4c81c75c41da",
+    "knowledge-thread:decision_4ef551dcd99d",
+    "knowledge-thread:decision_4fef2ab865e3",
+    "knowledge-thread:decision_533116de4395",
+    "knowledge-thread:decision_56cb2a8a8701",
+    "knowledge-thread:decision_56f49db78d69",
+    "knowledge-thread:decision_5e4f80534121",
+    "knowledge-thread:decision_62581e658b6d",
+    "knowledge-thread:decision_632481985065",
+    "knowledge-thread:decision_6352231b641a",
+    "knowledge-thread:decision_63aa371094a9",
+    "knowledge-thread:decision_686d12afff25",
+    "knowledge-thread:decision_78179e556c21",
+    "knowledge-thread:decision_7b23fa3c5ef8",
+    "knowledge-thread:decision_7c25cbdf1a0d",
+    "knowledge-thread:decision_7cfbca8c709a",
+    "knowledge-thread:decision_8438fe0dab01",
+    "knowledge-thread:decision_89f27b41ea3e",
+    "knowledge-thread:decision_8be3a089c728",
+    "knowledge-thread:decision_92e60fe52559",
+    "knowledge-thread:decision_99dfa0fac7fc",
+    "knowledge-thread:decision_9c3a13d374c7",
+    "knowledge-thread:decision_9e095997a873",
+    "knowledge-thread:decision_a1d15744387f",
+    "knowledge-thread:decision_a329eafa885a",
+    "knowledge-thread:decision_a365f226d72b",
+    "knowledge-thread:decision_aa3d1c2d41ac",
+    "knowledge-thread:decision_aca8c1027639",
+    "knowledge-thread:decision_b4e534b5521d",
+    "knowledge-thread:decision_b5064385a012",
+    "knowledge-thread:decision_b885f7730ebb",
+    "knowledge-thread:decision_ca264ce0baee",
+    "knowledge-thread:decision_d1599adb7ffb",
+    "knowledge-thread:decision_d1634bce6863",
+    "knowledge-thread:decision_d37b508da345",
+    "knowledge-thread:decision_d62143beb0bd",
+    "knowledge-thread:decision_d7c37dbc52c5",
+    "knowledge-thread:decision_db1f99b330f9",
+    "knowledge-thread:decision_db88a8ba4745",
+    "knowledge-thread:decision_e19ce0b1dc6d",
+    "knowledge-thread:decision_e4b38486bab9",
+    "knowledge-thread:decision_e660e3c29f24",
+    "knowledge-thread:decision_e87a6873d806",
+    "knowledge-thread:decision_edef8e5d28d3",
+    "knowledge-thread:decision_f14df45bd3f0",
+    "knowledge-thread:decision_f1e0da90a285",
+    "knowledge-thread:decision_f21e651216b6",
+    "knowledge-thread:decision_f23977abfe53",
+    "knowledge-thread:decision_f2f211bbfa6d"
+  ],
+  "render": {
+    "frame": 16,
+    "calls": 234,
+    "triangles": 568078,
+    "points": 0,
+    "lines": 0
+  },
+  "memory": {
+    "geometries": 222,
+    "textures": 43
+  },
+  "shellPresent": true,
+  "seaPresent": false,
+  "corePresent": false,
+  "labels": [
+    {
+      "story": "story_ff3f8702deca",
+      "text": "The agent link",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 664.3125,
+        "y": 461.34375,
+        "width": 111.375,
+        "height": 22.875,
+        "top": 461.34375,
+        "right": 775.6875,
+        "bottom": 484.21875,
+        "left": 664.3125
+      }
+    },
+    {
+      "story": "story_9d71dfb0ffbd",
+      "text": "The app",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 875.1964721679688,
+        "y": 473.74200439453125,
+        "width": 69.46875,
+        "height": 22.875,
+        "top": 473.74200439453125,
+        "right": 944.6652221679688,
+        "bottom": 496.61700439453125,
+        "left": 875.1964721679688
+      }
+    },
+    {
+      "story": "story_dc8fe76c47bf",
+      "text": "The arc surface",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 803.2572631835938,
+        "y": 298.2485656738281,
+        "width": 117.265625,
+        "height": 22.875,
+        "top": 298.2485656738281,
+        "right": 920.5228881835938,
+        "bottom": 321.1235656738281,
+        "left": 803.2572631835938
+      }
+    },
+    {
+      "story": "story_06b4edcac99f",
+      "text": "The command line",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 593.3848876953125,
+        "y": 226.24578857421875,
+        "width": 138.15625,
+        "height": 22.875,
+        "top": 226.24578857421875,
+        "right": 731.5411376953125,
+        "bottom": 249.12078857421875,
+        "left": 593.3848876953125
+      }
+    },
+    {
+      "story": "story_7eef8209a5a6",
+      "text": "The forest",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 441.6733093261719,
+        "y": 342.7953796386719,
+        "width": 83.79690551757812,
+        "height": 22.875,
+        "top": 342.7953796386719,
+        "right": 525.47021484375,
+        "bottom": 365.6703796386719,
+        "left": 441.6733093261719
+      }
+    },
+    {
+      "story": "story_706577def517",
+      "text": "The knowledge core",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 369.53814697265625,
+        "y": 509.66864013671875,
+        "width": 148.5625,
+        "height": 22.875,
+        "top": 509.66864013671875,
+        "right": 518.1006469726562,
+        "bottom": 532.5436401367188,
+        "left": 369.53814697265625
+      }
+    },
+    {
+      "story": "story_2a479ccc74eb",
+      "text": "The librarian",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 488.47943115234375,
+        "y": 698.462890625,
+        "width": 101.34375,
+        "height": 22.875,
+        "top": 698.462890625,
+        "right": 589.8231811523438,
+        "bottom": 721.337890625,
+        "left": 488.47943115234375
+      }
+    },
+    {
+      "story": "story_162d5270f424",
+      "text": "The library",
+      "visible": true,
+      "opacity": 1,
+      "bounds": {
+        "x": 707.4738159179688,
+        "y": 775.0888671875,
+        "width": 88.28125,
+        "height": 22.875,
+        "top": 775.0888671875,
+        "right": 795.7550659179688,
+        "bottom": 797.9638671875,
+        "left": 707.4738159179688
+      }
+    }
+  ],
+  "markers": [],
+  "drew": {
+    "surface": "forest",
+    "stories": [
+      "story_ff3f8702deca",
+      "story_9d71dfb0ffbd",
+      "story_dc8fe76c47bf",
+      "story_06b4edcac99f",
+      "story_7eef8209a5a6",
+      "story_706577def517",
+      "story_2a479ccc74eb",
+      "story_162d5270f424"
+    ],
+    "capabilities": [
+      "capability_0499df7a6879",
+      "capability_b479fb1a735a",
+      "capability_66fe0fb06541",
+      "capability_51ef66cb319a",
+      "capability_2a2cd5b6f948",
+      "capability_a441c067cc34",
+      "capability_be6e71cf8633",
+      "capability_252fb7d2901b",
+      "capability_03c14d0bbbb8",
+      "capability_e6dfce753ba2",
+      "capability_13feb598d3ee",
+      "capability_3b4c062e5087",
+      "capability_96dd5172fd5f",
+      "capability_87d2b7efa778",
+      "capability_22b4003ec5fd",
+      "capability_536e36362645",
+      "capability_82bb28d0797b",
+      "capability_312fdeec8e2f",
+      "capability_51575a03e065",
+      "capability_401304f3abed",
+      "capability_3071fac26775",
+      "capability_17d0b5ef8954",
+      "capability_7df6d3edb5a1",
+      "capability_97098aef22c1",
+      "capability_e7c98eea759a",
+      "capability_16090db32e41",
+      "capability_343b7e6da5c7",
+      "capability_b36093903aa5",
+      "capability_0e687b3b07a2",
+      "capability_ae50c4095ab7",
+      "capability_f5a5f6195b94",
+      "capability_6b6b0ea16a81",
+      "capability_302b04d0ff49",
+      "capability_511fb3e087e2",
+      "capability_11f046ccdde1",
+      "capability_7d9bb1b4b35f",
+      "capability_57fa0a230376",
+      "capability_698d2a515a86",
+      "capability_856e593f295f",
+      "capability_7ec3f011e70a",
+      "capability_516961bc4b9a",
+      "capability_bb9e2a8ebd4c",
+      "capability_3163a857490b",
+      "capability_213b81f7bf71",
+      "capability_09ec5eb13890",
+      "capability_7c9fa4f4681a",
+      "capability_499a16410312",
+      "capability_bd595aa22fd6",
+      "capability_c8b08d02d397",
+      "capability_f0142925414b",
+      "capability_24e333c1be05",
+      "capability_721355100f82",
+      "capability_f7a7d2675406",
+      "capability_476fdee19fd8",
+      "capability_ea4d43a635c0",
+      "capability_ef2b1034bb4a",
+      "capability_f9a76556e9e5",
+      "capability_09d05c0bcaf5"
+    ],
+    "labels": [
+      "The agent link",
+      "The app",
+      "The arc surface",
+      "The command line",
+      "The forest",
+      "The knowledge core",
+      "The librarian",
+      "The library"
+    ],
+    "trees": [
+      {
+        "capability": "capability_0499df7a6879",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b479fb1a735a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_66fe0fb06541",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_51ef66cb319a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_2a2cd5b6f948",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_a441c067cc34",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_be6e71cf8633",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_252fb7d2901b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_03c14d0bbbb8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e6dfce753ba2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_13feb598d3ee",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3b4c062e5087",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_96dd5172fd5f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_87d2b7efa778",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_22b4003ec5fd",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_536e36362645",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_82bb28d0797b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_312fdeec8e2f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_51575a03e065",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_401304f3abed",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3071fac26775",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_17d0b5ef8954",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7df6d3edb5a1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_97098aef22c1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_e7c98eea759a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_16090db32e41",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_343b7e6da5c7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_b36093903aa5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_0e687b3b07a2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ae50c4095ab7",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f5a5f6195b94",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_6b6b0ea16a81",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_302b04d0ff49",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_511fb3e087e2",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_11f046ccdde1",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7d9bb1b4b35f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_57fa0a230376",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_698d2a515a86",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_856e593f295f",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7ec3f011e70a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_516961bc4b9a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_bb9e2a8ebd4c",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_3163a857490b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_213b81f7bf71",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_09ec5eb13890",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_7c9fa4f4681a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_499a16410312",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_bd595aa22fd6",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_c8b08d02d397",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f0142925414b",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_24e333c1be05",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_721355100f82",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f7a7d2675406",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_476fdee19fd8",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ea4d43a635c0",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_ef2b1034bb4a",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_f9a76556e9e5",
+        "form": "seedling"
+      },
+      {
+        "capability": "capability_09d05c0bcaf5",
+        "form": "seedling"
+      }
+    ],
+    "unclaimed": 0
+  },
+  "view": "globe",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "Attempted to synchronously unmount a root while React was already rendering. React cannot finish unmounting the root until the current render has completed, which may lead to a race condition."
+  ],
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  },
+  "variant": "k2",
+  "turnDegrees": 0,
+  "pathwayPlan": {
+    "links": 103,
+    "segments": 303,
+    "localSegments": 292,
+    "crossSegments": 11
+  },
+  "crossLinksDrawn": [
+    "capability_13feb598d3ee->capability_b479fb1a735a",
+    "capability_16090db32e41->capability_252fb7d2901b",
+    "capability_17d0b5ef8954->capability_f9a76556e9e5",
+    "capability_3071fac26775->capability_ea4d43a635c0",
+    "capability_3071fac26775->capability_ef2b1034bb4a",
+    "capability_3071fac26775->capability_f9a76556e9e5",
+    "capability_312fdeec8e2f->capability_0499df7a6879",
+    "capability_312fdeec8e2f->capability_721355100f82",
+    "capability_343b7e6da5c7->capability_a441c067cc34",
+    "capability_401304f3abed->capability_476fdee19fd8",
+    "capability_401304f3abed->capability_499a16410312",
+    "capability_401304f3abed->capability_721355100f82",
+    "capability_401304f3abed->capability_bd595aa22fd6",
+    "capability_401304f3abed->capability_f0142925414b",
+    "capability_51575a03e065->capability_51ef66cb319a",
+    "capability_7d9bb1b4b35f->capability_09d05c0bcaf5",
+    "capability_7df6d3edb5a1->capability_09d05c0bcaf5",
+    "capability_856e593f295f->capability_f5a5f6195b94",
+    "capability_87d2b7efa778->capability_2a2cd5b6f948",
+    "capability_87d2b7efa778->capability_51ef66cb319a",
+    "capability_96dd5172fd5f->capability_2a2cd5b6f948",
+    "capability_96dd5172fd5f->capability_b479fb1a735a",
+    "capability_97098aef22c1->capability_24e333c1be05",
+    "capability_97098aef22c1->capability_721355100f82",
+    "capability_97098aef22c1->capability_c8b08d02d397",
+    "capability_a441c067cc34->capability_721355100f82",
+    "capability_b36093903aa5->capability_2a2cd5b6f948",
+    "capability_e7c98eea759a->capability_2a2cd5b6f948"
+  ]
+}

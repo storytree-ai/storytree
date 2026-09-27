@@ -2,9 +2,9 @@
  * Capability 1 · Links (stories/librarian.md): a note links to another only where it rests on it.
  * A link means "rests on" and nothing weaker; a definition rests only on the decision that created
  * its term; friction and re-steers carry no links. Neighbours nobody linked are found with the
- * library's plain search (ADR-0644 D3, R), so this capability adds no search of its own.
+ * library's related-but-unlinked search (ADR-0654), alongside plain search when the agent needs it.
  */
-import type { Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, Note, Related, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { allNotes, LibrarianRefusal, noteOf } from "../notes.js";
 
@@ -45,4 +45,16 @@ export async function unrestedDecisions(library: Library): Promise<SchemaRecord<
     if ((await library.decision(note.id))?.status === "accepted") unrested.push(note);
   }
   return unrested;
+}
+
+/** Related but unlinked neighbours for each live note written since `cursor`, including edits. */
+export async function relatedUnlinked(library: Library, cursor: number): Promise<Related[]> {
+  const written = new Set((await library.changesSince(cursor)).changes.map((change) => change.recordId));
+  const related: Related[] = [];
+  for (const note of await allNotes(library)) {
+    if (!written.has(note.id)) continue;
+    const result = await library.related(note.id, { unlinked: true });
+    if (result !== null) related.push(result);
+  }
+  return related;
 }

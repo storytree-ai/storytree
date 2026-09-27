@@ -25,10 +25,13 @@ first. Its front cover is `decisions/librarian-capability-tree.md`.
 - **S:** 0.2's separate `graduation-synthesist` role is not brought over: it did not last in 0.2
   (zero spawns in about 145 recorded sessions, August to September 2026). Friction routing did last,
   done in librarian passes, so that judgement is Queues' (5).
-- **R:** ranked `library related --unlinked` is not brought over: 12 uses, all on 2026-08-23 and 29
-  while it was being built, none in September (ADR-0643 D4). Links uses plain search, which lasted.
-- **The 7-day question lease** is not brought over: it did not last (ADR-0643 D4; ADR-0640 book 12-a
-  withdrawn). Queues looks at every open question on each pass instead.
+
+**Restored by the owner (ADR-0654), after re-measurement.**
+- **R:** Links uses ranked
+  `library related --unlinked` alongside plain search. Re-measurement found 92 runs on 23 days,
+  54 by the librarian, with 7 followed by a link to a candidate within three hours.
+- **The 7-day question review lease** is restored in the library. Queues' adoption is still to be
+  built; until then its worklist lists every open question.
 
 **Boundaries** (ADR-0644 D4). The library stores and refuses: status, supersedes and rests-on edges,
 the load-bearing mark, numbers, kinds, questions settled with their answers, history; it refuses a
@@ -72,9 +75,9 @@ Build order: 1 → 2 → 3 → 4 → 5 → 6. Links comes first, because ADR-063
 
 ## 1 · Links
 
-The librarian links one artifact to another only where the first really rests on the second, and finds
-the artifacts nobody has linked yet by plain search. This is how the whole-project decisions come to sit
-behind the covers that rest on them.
+The librarian links one artifact to another only where the first really rests on the second. It finds
+neighbours no edge reaches with related-but-unlinked search, alongside plain search (ADR-0654).
+This is how the whole-project decisions come to sit behind the covers that rest on them.
 
 - **Depends on:** nothing.
 - **Its shelf,** founding book first:
@@ -87,9 +90,12 @@ behind the covers that rest on them.
     another definition.
   - **Proposed, approved:** friction and re-steers carry no links, as in 0.2 (open questions are not
     artifacts in 0.3, so carry none either).
-  - **R (settled, ADR-0644 D3):** neighbours nobody linked are found with the library's plain
-    `search`.
-- **As built:** `link` and `unrestedDecisions` in `packages/librarian/src/links`. The library itself
+  - **R (restored, ADR-0654 D1):** use the library's related-but-unlinked search to find neighbours
+    no edge reaches; plain search remains available for a subject the agent names.
+- **As built:** `link`, `unrestedDecisions` and `relatedUnlinked` in `packages/librarian/src/links`.
+  The worklist's `related` lists the library's ranked, unlinked neighbours for every live artifact
+  written since the session's cursor, including edits, with scores and matching terms. Discovery
+  writes nothing; the agent judges whether a candidate is a real dependency. The library itself
   lets friction and re-steers carry links, so these rules are the librarian's, kept at its own
   write. A superseded or proposed decision on no shelf is not on the worklist.
 - **ADR-0631 D2's links, drawn 2026-09-27** in 0.3's own library, each from the cover's own
@@ -241,8 +247,8 @@ nothing is closed without a reason.
   - **Proposed, approved:** an answered question is settled with its answer and never retired,
     because retiring it would destroy the answer.
   - **S (settled, ADR-0644 D3):** the routing judgement is the librarian's own, on this pass.
-  - **The lease (settled, ADR-0644 D3):** no 7-day lease; every open question is looked at on each
-    pass.
+  - **The lease (restored, ADR-0654 D1):** Queues must drain questions whose review date has lapsed;
+    the library stores a 7-day lease unless given another. This adoption remains to be built.
 - **As built:** `openQuestions`, `frictionDrain` and `route` in `packages/librarian/src/queues`. A
   friction report with no provenance counts as another session's, as in 0.2, so the queue cannot
   drain by going anonymous. A report is drained once it carries a route and its reason; what it is

@@ -5,6 +5,11 @@
 
 The knowledge core is a story of its own with four capabilities, built in this order: earlier decisions beside their replacements, knowledge under its shelves, reads by session and agent, and a deliberate "Look inside" view.
 
+**Narrowed in place, 2026-09-27 (ADR-0655 D2).** The owner said there is no need for
+"Look inside" yet. Its implementation has already landed, but the page entry is now removed;
+capabilities 1 to 3 remain as calculations. How the core is seen returns for a later review.
+See [the globe-only decision](globe-only-and-room-for-pathways.md).
+
 The owner approved the tree on 2026-09-27 with the question's recommendations: A1, D1, G2, R1, T1,
 V1, S1 and E1. Depth is the longest chain of stored references down from the shelves, and an artifact
 no shelf reaches orbits outside. Ghosts come from the decision log's supersession, plus an

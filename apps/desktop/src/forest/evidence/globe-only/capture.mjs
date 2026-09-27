@@ -79,7 +79,7 @@ try {
     const { scene, camera, gl } = window.__globe;
     const V = camera.position.constructor;
     const box = gl.domElement.getBoundingClientRect();
-    const id = JSON.parse(document.body.dataset.drew).stories[0].id;
+    const id = JSON.parse(document.body.dataset.drew).stories[0];
     const plate = scene.getObjectByName(`planet:${id}`);
     const at = plate.getWorldPosition(new V()).project(camera);
     return { id, x: box.left + (at.x + 1) * box.width / 2, y: box.top + (1 - at.y) * box.height / 2 };

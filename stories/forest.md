@@ -110,7 +110,9 @@ node and a retired story's node goes, with nothing arranged by hand.
   - **Packed places on a globe (ADR-0648, succeeding W2):** the same permanent place number
     names a fixed spot on a spiral from the front pole. There are 36 frozen places on a sphere
     of radius 160 ground units; retired stories keep their places. A young project's islands
-    cluster on part of the ball, with neighbouring coasts a few ground units apart. This book
+    cluster on part of the ball, with neighbouring coasts a few ground units apart. ADR-0655 D3
+    calls for wider spacing measured by pathway width, in the separate pathway look and build;
+    this page change retains the current placement table. This book
     replaces ADR-0646's even 128-place spread; it does not inherit its 19-capability size bound.
     The clearance proof uses the look's seed, a fresh seven-story seed and its 36-story sample
     at their real sizes (4–13 capabilities). Arbitrary growth can crowd neighbours. Places past 36 are
@@ -185,11 +187,9 @@ own.
 
 ## 3 · Story node render
 
-Draws every story node with its capability tree, so the whole project shows as one 3D forest that
-you can pan and zoom, and clicking a story node selects it. It does not turn: 0.2's forest never
-did, because its land is shaded against one fixed light, and the owner kept that on seeing it
-(2026-09-27). It is the view the app opens on, in
-place of today's plain list.
+Draws every story node and its capability trees on the globe. You can turn and zoom the globe,
+and clicking a story node selects it. The globe is the only view on the page (ADR-0655); the
+flat forest canvas remains in the engine, where its island drawing is reused.
 
 - **Depends on:** 1 and 2. It is kept current by the arc surface's live reading, and sits in the 0.3
   app's frame (the 0.3 app's story, ADR-0632 D4); until that story is built it uses today's project
@@ -205,15 +205,19 @@ place of today's plain list.
     front. `openingTurn`, `edgeMarkers` and `turnToIsland` in `packages/forest/src/never-hidden`
     calculate this without drawing: absolute north-up turns and unit-circle marker positions.
     Pure tests prove opening toward failure, a hidden island's marker bringing it to the front,
-    and no marker for a failure already in front. The globe page adds the drawing in its own lane.
+    and no marker for a failure already in front. The globe page draws those markers.
   - **Packed land on a see-through grey ball (ADR-0648):** the globe has a light grey transparent
     shell with a clear middle, a bright rim and one soft highlight under L1 (the owner’s
     glass-ball tuning after #93), with no sea, bridges or filled continent. The far side shows
     through empty areas;
     names, claims and clicks keep their near-side rule. The islands and kit pines keep their
     existing drawing, and L1 keeps the light over the viewer's shoulder. The knowledge core
-    appears only in its separate “Look inside” view (ADR-0647 E1, the owner’s K1 choice).
+    is not mounted on the globe; ADR-0655 D2 defers its page entry.
     See [the decision](../decisions/planet-packed-see-through.md).
+  - **The globe alone (ADR-0655 D1/D2):** the page opens on the globe, without a Forest or
+    “Look inside” choice. The flat canvas remains in the engine, and knowledge-core calculations
+    remain available in their own package. Pathway spacing is a separate look and build.
+    See [the globe-only decision](../decisions/globe-only-and-room-for-pathways.md).
   - Only meshes exported from the bought pine kit ship, never the kit itself. Its licence allows
     derived output and forbids repackaging, as 0.2 applied it (ADR-0418).
   - The look is judged by the owner's eye, with a screenshot at each landing that changes it.
@@ -226,18 +230,14 @@ place of today's plain list.
   middle like a sunflower's seeds in build order, and its name. `forestDrawn` says what was drawn as
   the smoke check reads it (`surface: "forest"`, with each tree's form and the names added),
   `changedIslands` names the islands a change touched, and `storyAt` is the island under a point on
-  the ground. The page (`apps/desktop/src/forest/forest-view.tsx`) draws the plan with 0.2's own
-  forest canvas, ported whole with its engine in `packages/forest-world` (React and
-  react-three-fiber, as 0.2 used them). The one join, `forestDescriptors`, gives each island 0.2's
-  ground at its spiral place, 110 ground units per place-width: one hex tile per capability relaxed
-  into 0.2's mesh, a smoothed coast, and one parcel per capability wearing its tree's form (seedling,
-  pale, green and dead drawn as 0.2's building, mapped, healthy and unhealthy), with ground cover
-  grown from its contract count as 0.2 grew it from test counts. 0.2's kit pines stand on the parcels
-  (only the export `dressing-kit.glb` ships, never the kit), under 0.2's calibrated light. It opens on
-  0.2's resting view and pans and zooms as 0.2's did. Over the picture, in the same scene: the names,
-  a click that selects the island whose land is under it (`islandAt`, `data-selected`), a ring round
-  the selected island, and the claim markers. The arc surface's live reading keeps it current: the
-  tree is read again only when the library changed, and only changed islands are recomputed.
+  the flat ground. The engine retains 0.2's forest canvas and `forestDescriptors`: one hex tile
+  per capability relaxed into its ground mesh, a smoothed coast, and one parcel per capability
+  wearing its tree's form, with ground cover grown from contract count. The globe reuses that
+  island drawing and 0.2's kit pines (only `dressing-kit.glb` ships, never the kit).
+  The page (`apps/desktop/src/forest/forest-view.tsx`) mounts the globe alone. Its story names,
+  island clicks, selection rings and claim markers live in the same scene. The arc surface's
+  live reading keeps it current: the tree is read again only when the library changed, and
+  unchanged islands retain their objects so only changed islands are recomputed.
 
 - **Packed globe, as built:** the page's `planetLayout` selects the frozen packed spots, and
   `PlanetWorldCanvas` mounts each unchanged island as a tangent plate above a radius-160 shell.
@@ -246,16 +246,19 @@ place of today's plain list.
   The centre's base opacity is 0.012; the highlight stays faint enough to retain at least 80%
   of the far-side contribution through the middle. Depth writing stays off. Its ray hits still
   hide back-side labels and claims and stop clicks selecting a hidden island. Opening turns,
-  edge markers, story selection and the flat Forest button keep working.
+  edge markers and story selection keep working. The page has no view switch; `forestDrawn`
+  continues to report its seeded stories and capability trees to the smoke check.
   [Headless Chromium comparisons](../apps/desktop/src/forest/evidence/glass/README.md) show the
-  seeded page before (#93) and after this tuning, with the renderer named.
+  seeded page before (#93) and after this tuning, with the renderer named. The
+  [globe-only page capture](../apps/desktop/src/forest/evidence/globe-only/README.md) records
+  the later removal of the page choices and the surviving selection and smoke journey.
 
 **Contracts:**
-1. The app's smoke check opens a seeded project and finds one story node per story, each drawn with
-   its capability tree.
+1. The app opens a seeded project on the globe alone; its smoke check finds one story node per
+   story, each drawn with its capability tree.
 2. A capability landing redraws just its story node, without a reload.
 3. Clicking a story node selects it.
-4. Each story node shows its story's name, readable as the camera pans and zooms (ADR-0636
+4. Each near-side story node shows its story's name, readable as the globe turns and zooms (ADR-0636
    D4: in 0.2 the names lived on the 2D map the owner cut, so the 3D forest carries them).
 5. The globe’s glass shell has a nearly clear middle, admitting at least 80% of the far-side
    contribution through both faces, with a bright rim and one soft highlight; there is no opaque sea.
@@ -290,7 +293,7 @@ including any in other stories, named with their story and marked if not yet lan
   another story is named with that story and marked until it lands. The page
   (`apps/desktop/src/forest/story-panel.ts`) draws it as a panel over the forest's right side, with
   the contracts folded until asked for and the diagram as boxes in columns by build depth, a box
-  dashed until it lands. Clicking a story node opens it, the × or the open sea closes it, and the
+  dashed until it lands. Clicking a story node opens it, the × or empty space closes it, and the
   live reading keeps it current.
 
 **Contracts:**
@@ -424,8 +427,8 @@ text and the titles of the artifacts it links to and from.
   them. Whichever surface reaches a shared piece first builds it under the other tree's name, and
   whichever lands first retires today's plain list.
 - **The planet** (ADR-0629): islands on a sphere, with the project's knowledge inside as a core. It
-  builds on this forest once it is built, on its own arc, and arrives as new books on the shelves of
-  Story nodes and Story node render, not as a new tree.
+  arrived as books on Story nodes and Story node render (ADR-0646). The knowledge core remains
+  a separate story; ADR-0655 defers its page entry.
 - **Storytree's own check of the tests** is out of the MVP (ADR-0630): the forest shows what the
   agent reports, labelled as the agent's.
 - **Left out by the owner's own decisions** (ADR-0632 D6, as ADR-0633 annotated it): health from

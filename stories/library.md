@@ -282,9 +282,19 @@ artifact never links straight to the work: capability 9 is how the work reaches 
   `stepRefs`, and a process's `branchEdges`, must name live artifacts, as links do. `search` reads every
   piece of text in an artifact except the fields that name other artifacts. A re-steer's "a defect needs a
   mode" is a rule across two fields, so its refusal names `mode` in the rule's own words.
-- **Leaves out (vs 0.2):** the ~1,200-artifact corpus (0.3 starts nearly empty), the graduation
-  lease, and ranked "related" search. Open questions are capability 12, and decision status and
-  supersession capability 13.
+- **Leaves out (vs 0.2):** the ~1,200-artifact corpus (0.3 starts nearly empty) and the graduation
+  lease. Open questions are capability 12, and decision status and supersession capability 13.
+- **Grown** on 2026-09-27 by ADR-0654 (the owner's L1: "if 0.2 librarian used them then they should
+  be brought to 0.3") with ranked "related" search, which 0.3 had first left out. It adds `related`
+  to 7's list of functions; the librarian's Links round is its first reader.
+- **As built (6.10):** `related(noteId, { unlinked, kind, limit })` is 0.2's `relatedArtifacts`
+  ported whole (`packages/library/src/knowledge/similarity.ts`): the same tokeniser and removal-only
+  stemmer, BM25, and the source's twelve most distinguishing words (tf·idf, leaving out any no other
+  artifact holds) as the query. A title (a definition's term) weighs six times a body word, a
+  description three. A link is any the loop check follows, plus `supersedes`, read in either
+  direction. Linked and unlinked come from one ranking: `linkedCount` counts all of it, and
+  `scanned` is the denominator. Every artifact kind is ranked (0.2 held out increments and friction;
+  0.3's increments are not artifacts). Null for an id that is not a live artifact.
 
 **Contracts:**
 1. An artifact is found by `search` on any word it contains (case-insensitive).
@@ -301,6 +311,9 @@ artifact never links straight to the work: capability 9 is how the work reaches 
    is written.
 9. Opening an older project converts an explicitly classified memory once, keeping its id, links
    and history, and reports an unclassified memory while preserving its original record.
+10. `related(noteId)` ranks the other live artifacts by likeness to one, saying of each whether a
+    link joins them in either direction; with `unlinked`, only those no link reaches. An artifact
+    sharing no word with it is never listed.
 
 ## 7 · Library API
 
@@ -349,8 +362,8 @@ what just changed without re-reading everything.
    `addCapability`, `editCapability`, `addContract`, `editContract`, `projectTree`, `arcsFor`,
    `addIncrement`, `advanceIncrement`, `closeIncrement`, `editIncrement`, `parkArc`, `unparkArc`,
    `arcView`, `addWait`, `removeWait`, `waitHolds`, `raiseQuestion`, `settleQuestion`, `questions`,
-   `heldOnQuestion`, `reportHealth`, `recordVerified`, `health`, `healthHistory`,
-   `recordDecision`, `writeKnowledge`, `defineTerm`, `editNote`, `search`, `relatedNotes`,
+   `heldOnQuestion`, `checkQuestion`, `renewQuestion`, `lapsedQuestions`, `reportHealth`, `recordVerified`, `health`, `healthHistory`,
+   `recordDecision`, `writeKnowledge`, `defineTerm`, `editNote`, `search`, `relatedNotes`, `related`,
    `definitions`, `frontCovers`, `decision`, `composeStatement`, `retire`, `changesSince` and `close`.
 4. `editStory`, `editContract` and `editArc` change only the fields they name, merged onto what is
    stored now, and check a new reference as adding does (a contract's capability, an arc's
@@ -521,9 +534,11 @@ on him (`heldOnQuestion`), and the library alone answers that.
 - **Depends on:** 10.
 - **Its shelf,** founding book first:
   - **Founding book (12-a):** a question's review-lease fields are stored; the lease drain belongs
-    to the librarian's lane.
+    to the librarian's lane. Restored on 2026-09-27 by ADR-0654 (the owner's L1), with the check
+    0.2's `question check` made and a renewal that refuses a settled question.
 - It adds `raiseQuestion`, `settleQuestion`, `questions` and `heldOnQuestion` to 7's list of
-  functions, and an increment's `heldOn` list.
+  functions, and an increment's `heldOn` list; ADR-0654 adds `checkQuestion`, `renewQuestion` and
+  `lapsedQuestions`.
 - **As built:** a `question` record names its `arc` and carries 0.2's fields: `stakes`,
   `statement`, `context`, `options`, and optionally `analogy`, `diagram` and `recommendation`; its
   `lifecycle`, open or settled; once settled, `answer`, `settledAt` and `settledBy` (the decision
@@ -535,6 +550,13 @@ on him (`heldOnQuestion`), and the library alone answers that.
   is held on (`RetireRefusedError`), as 0.2's retire wall did. An arc whose work is all closed
   still reads active while one of its questions is open (0.2's ADR-0526), which proves 10.3's
   other half.
+- **As built (12.5, 12.6):** `raiseQuestion` stores `leaseDays`, 7 unless given. The lease runs out
+  `leaseDays` whole days after `verifiedAt`, to the millisecond. `checkQuestion(id, at?)` reads it
+  fresh, lapsed (also when never stamped) or settled, with `lapsesAt`, and writes nothing.
+  `renewQuestion` re-stamps `verifiedAt` now, keeping the lease length, and refuses a settled
+  question with a RangeError, as `settleQuestion` refuses settling twice: re-stamping an answered
+  question was 0.2's weakness (date-only renewals of answered questions). `lapsedQuestions(at?)` is
+  the Queues drain's list: open questions whose lease has run out, longest lapsed first.
 
 **Contracts:**
 1. A question is raised with its required fields, and is open.
@@ -543,6 +565,11 @@ on him (`heldOnQuestion`), and the library alone answers that.
 3. An open increment held on an open question reads as waiting on the owner. Settling the question
    releases it, with no write to the increment. A question that does not exist holds nothing.
 4. A question an increment is held on cannot be retired.
+5. An open question carries a review date and a lease, 7 days unless given. It checks fresh until
+   the lease runs out and lapsed after, it is listed as lapsed until renewed, and renewing
+   re-stamps it.
+6. Renewing a settled question is refused and nothing is written. A settled question checks
+   settled and is never listed as lapsed.
 
 ## 13 · Decision log
 

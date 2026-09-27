@@ -27,6 +27,7 @@ export type {
   Disposition,
   Hold,
   NewQuestion,
+  QuestionLease,
   Settlement,
   IncrementEdit,
   IncrementStatus,
@@ -49,4 +50,4 @@ export type {
   HealthState,
   NodeHealth,
 } from "./health/index.js";
-export type { DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType } from "./knowledge/index.js";
+export type { DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";

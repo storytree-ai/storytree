@@ -9,7 +9,7 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit } from "../knowledge/index.js";
+import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Related, RelatedOptions } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
@@ -23,6 +23,7 @@ import type {
   ContractEdit,
   Hold,
   NewQuestion,
+  QuestionLease,
   Settlement,
   IncrementEdit,
   NewArc,
@@ -160,6 +161,18 @@ export interface Library {
   questions(arcId: string): Promise<SchemaRecord<"question">[]>;
   /** The open questions an open increment is held on: the one answer to whether it waits on the owner. */
   heldOnQuestion(incrementId: string): Promise<string[]>;
+  /**
+   * A question's review lease at `at` (now, unless given): fresh while it runs, lapsed once it has
+   * run out, settled once answered. Null if `id` is not a live question. It writes nothing.
+   */
+  checkQuestion(id: string, at?: Date): Promise<QuestionLease | null>;
+  /**
+   * Stamp an open question as checked to still hold, now, starting its lease again. Renewing a
+   * settled question is refused (RangeError). Null if `id` is not a live question.
+   */
+  renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null>;
+  /** The open questions whose lease has lapsed at `at` (now, unless given), longest lapsed first. */
+  lapsedQuestions(at?: Date): Promise<SchemaRecord<"question">[]>;
 
   /** Write what the agent reported about a contract. Health is written on contracts only: anything else is refused. */
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry>;
@@ -191,6 +204,12 @@ export interface Library {
   search(query: string): Promise<Note[]>;
   /** The live artifacts linking to artifact `noteId`, in creation order. */
   relatedNotes(noteId: string): Promise<Note[]>;
+  /**
+   * The other live artifacts ranked by likeness to artifact `noteId`, each saying whether a link
+   * joins them either way; with `unlinked`, only those no link reaches. Null if `noteId` is not a
+   * live artifact.
+   */
+  related(noteId: string, options?: RelatedOptions): Promise<Related | null>;
   /** Every live definition, in creation order. */
   definitions(): Promise<SchemaRecord<"definition">[]>;
   /**
@@ -405,6 +424,18 @@ class LibraryHandle implements Library {
     return this.#project.flight.heldOnQuestion(incrementId);
   }
 
+  checkQuestion(id: string, at?: Date): Promise<QuestionLease | null> {
+    return this.#project.flight.checkQuestion(id, at);
+  }
+
+  renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#project.flight.renewQuestion(id, options);
+  }
+
+  lapsedQuestions(at?: Date): Promise<SchemaRecord<"question">[]> {
+    return this.#project.flight.lapsedQuestions(at);
+  }
+
   reportHealth(contractId: string, state: HealthState, options?: HealthOptions): Promise<HealthEntry> {
     return this.#project.health.reportHealth(contractId, state, options);
   }
@@ -444,6 +475,10 @@ class LibraryHandle implements Library {
 
   relatedNotes(noteId: string): Promise<Note[]> {
     return this.#project.knowledge.relatedNotes(noteId);
+  }
+
+  related(noteId: string, options?: RelatedOptions): Promise<Related | null> {
+    return this.#project.knowledge.related(noteId, options);
   }
 
   definitions(): Promise<SchemaRecord<"definition">[]> {

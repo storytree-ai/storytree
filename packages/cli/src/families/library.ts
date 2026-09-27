@@ -99,6 +99,35 @@ const links: Verb = {
   },
 };
 
+const related: Verb = {
+  name: "related",
+  usage: "library related <artifact> [--unlinked] [--kind <kind>] [--limit <n>]",
+  summary: "the artifacts most like one, and whether a link joins them; --unlinked for those none does",
+  switches: ["unlinked"],
+  async act(args, context) {
+    const id = args.word(0, "the artifact's id", this.usage);
+    const limit = args.text("limit");
+    if (limit !== undefined && !/^[1-9]\d*$/.test(limit)) throw new Refusal(`--limit is how many to show, a whole number above 0; got "${limit}"`, { code: 2 });
+    const kind = args.text("kind");
+    const unlinked = args.has("unlinked");
+    const answer = await (await context.library()).related(id, {
+      unlinked,
+      ...(kind === undefined ? {} : { kind }),
+      ...(limit === undefined ? {} : { limit: Number(limit) }),
+    });
+    if (answer === null) throw new Refusal(`no artifact "${id}" in this project`);
+    const counts = `${answer.scanned} ranked, ${answer.linkedCount} already linked`;
+    if (answer.hits.length === 0) {
+      return { text: `No ${unlinked ? "unlinked " : ""}artifact is like ${id} (${counts}).` };
+    }
+    const lines = answer.hits.map((hit) => `  ${hit.id}  [${hit.type}]  ${hit.title}  (${hit.linked ? `linked via ${hit.linkVia.join(", ")}` : "unlinked"}; ${hit.matched.join(", ")})`);
+    return {
+      text: [`Like ${id}, on ${answer.terms.join(", ")} (${counts}):`, ...lines].join("\n"),
+      next: [{ command: `storytree library edit <artifact> --links '[...]'`, why: "link one that belongs" }],
+    };
+  },
+};
+
 const create: Verb = {
   name: "new",
   usage: "library new <kind> --<field> <value|@file> …",
@@ -201,6 +230,7 @@ export const library: Family = {
   verbs: [
     search,
     links,
+    related,
     create,
     read,
     edit,

@@ -8,7 +8,9 @@
  * retired. Holding an increment is the library's `editIncrement` of its `heldOn`, read from the
  * arc's own view, so only increments on the question's arc are held when it is raised; another is
  * held with `storytree arc increment edit <increment> --held-on <question>`. Listing the open
- * questions uses list(kind); `--arc` reads one arc's questions.
+ * questions uses list(kind); `--arc` reads one arc's questions. `check` reads a question's review
+ * lease through the library's checkQuestion, and `renew` re-stamps it through renewQuestion, which
+ * refuses a settled question (ADR-0654).
  */
 import { labelOf, Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -89,8 +91,44 @@ const list: Verb = {
   },
 };
 
+const check: Verb = {
+  name: "check",
+  usage: "question check <question>",
+  summary: "whether a question's review is still fresh, or its lease has lapsed",
+  async act(args, context) {
+    const id = args.word(0, "the question's id", this.usage);
+    const lease = await (await context.library()).checkQuestion(id);
+    if (lease === null) throw new Refusal(`no question "${id}" in this project`);
+    const checked = lease.verifiedAt === undefined ? "never checked" : `last checked ${lease.verifiedAt}`;
+    if (lease.state === "settled") return { text: `${id} is settled: its answer stands, and its lease no longer applies.` };
+    const runs = lease.lapsesAt === undefined ? "" : `, ${lease.state === "fresh" ? "runs out" : "ran out"} ${lease.lapsesAt}`;
+    const line = `${id} is ${lease.state}: ${checked}, ${lease.leaseDays}-day lease${runs}.`;
+    if (lease.state === "fresh") return { text: line };
+    return {
+      text: line,
+      next: [
+        { command: `storytree library read ${id}`, why: "re-read it: does it still hold?" },
+        { command: `storytree question renew ${id}`, why: "if it still holds, as asked" },
+        { command: `storytree question retire ${id} --reason <why>`, why: "if it no longer does" },
+      ],
+    };
+  },
+};
+
+const renew: Verb = {
+  name: "renew",
+  usage: "question renew <question>",
+  summary: "stamp an open question as checked to still hold, starting its lease again",
+  async act(args, context) {
+    const id = args.word(0, "the question's id", this.usage);
+    const renewed = await (await context.library()).renewQuestion(id, context.writer());
+    if (renewed === null) throw new Refusal(`no question "${id}" in this project`);
+    return { text: `Renewed ${id}: checked ${renewed.fields.verifiedAt ?? "now"}, for ${renewed.fields.leaseDays ?? 7} days.` };
+  },
+};
+
 export const questions: Family = {
   name: "question",
-  summary: "the owner's questions: raise, settle, retire, list",
-  verbs: [raise, settle, retire, list],
+  summary: "the owner's questions: raise, settle, retire, list, check, renew",
+  verbs: [raise, settle, retire, list, check, renew],
 };

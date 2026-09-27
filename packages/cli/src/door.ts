@@ -52,6 +52,8 @@ export interface Family {
   readonly name: string;
   readonly summary: string;
   readonly verbs: readonly Verb[];
+  /** Families within it: `storytree arc increment <verb>`. */
+  readonly families?: readonly Family[];
   /** What runs for `storytree <name> …` when the next word names none of its verbs. */
   readonly bare?: Verb;
   /** Why the family has no verbs yet: the function its owning story has still to give. */
@@ -79,21 +81,29 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
 }
 
 async function dispatch(argv: readonly string[], context: Context): Promise<Answer> {
-  const [first, second, ...rest] = argv;
+  const [first, ...rest] = argv;
   if (first === undefined || first === "--help" || first === "-h" || first === "help") return families();
   const family = FAMILIES.find((candidate) => candidate.name === first);
   if (family === undefined) {
     throw new Refusal(`storytree has no "${first}"`, { code: 2, next: [{ command: "storytree", why: "the families it has" }] });
   }
-  if (family.waitsOn !== undefined) throw new Refusal(`storytree ${family.name} is not built yet: ${family.waitsOn}`);
+  return dispatchIn(family, family.name, rest, context);
+}
+
+/** Run `words` in `family`, which `storytree <path>` names. */
+async function dispatchIn(family: Family, path: string, words: readonly string[], context: Context): Promise<Answer> {
+  if (family.waitsOn !== undefined) throw new Refusal(`storytree ${path} is not built yet: ${family.waitsOn}`);
+  const [second, ...rest] = words;
+  const inner = family.families?.find((candidate) => candidate.name === second);
+  if (inner !== undefined) return dispatchIn(inner, `${path} ${inner.name}`, rest, context);
   const verb = family.verbs.find((candidate) => candidate.name === second);
   if (verb !== undefined) return verb.act(parseArgs(rest, verb.switches ?? [], context.cwd), context);
-  if (family.bare !== undefined && second !== "--help" && second !== "-h") {
-    const words = second === undefined ? [] : [second, ...rest];
+  const help = second === undefined || second === "--help" || second === "-h";
+  if (family.bare !== undefined && !(help && second !== undefined)) {
     return family.bare.act(parseArgs(words, family.bare.switches ?? [], context.cwd), context);
   }
-  if (second === undefined || second === "--help" || second === "-h") return verbsOf(family);
-  throw new Refusal(`storytree ${family.name} has no "${second}"`, { code: 2, next: [{ command: `storytree ${family.name}`, why: "its verbs" }] });
+  if (help) return verbsOf(family, path);
+  throw new Refusal(`storytree ${path} has no "${second}"`, { code: 2, next: [{ command: `storytree ${path}`, why: "its verbs" }] });
 }
 
 /** `storytree` alone: the families. */
@@ -106,9 +116,9 @@ function families(): Answer {
   };
 }
 
-/** `storytree <family>`: its verbs. */
-function verbsOf(family: Family): Answer {
-  const verbs = [...(family.bare === undefined ? [] : [family.bare]), ...family.verbs];
+/** `storytree <family>`: its verbs, and those of the families within it. */
+function verbsOf(family: Family, path: string): Answer {
+  const verbs = [...(family.bare === undefined ? [] : [family.bare]), ...family.verbs, ...(family.families ?? []).flatMap((inner) => inner.verbs)];
   const width = Math.max(...verbs.map((verb) => verb.usage.length));
   const lines = verbs.map((verb) => `  storytree ${verb.usage.padEnd(width)}   ${verb.summary}`);
   return { text: [`storytree ${family.name}: ${family.summary}.`, "", ...lines].join("\n") };

@@ -157,6 +157,10 @@ increment wait on another with a reason, or clear the wait.
 - **Depends on:** 1, 2, and the library's 10 and 11 (and 12, for the questions shown on an arc).
 - **Not here:** `increment start` (starting is claiming, the agent tools'), `increment ready`
   (ADR-0645 D5), and a hand close or re-open of an arc (R1).
+- **As built:** `storytree arc show | new | edit | park | unpark | wait | unwait` and `storytree arc
+  increment new | add | close | edit | wait | unwait`, each the library's own function. `arc show`
+  is `arcView`, with `waitHolds` and `heldOnQuestion` for each open increment. `arc list` waits on the
+  library's `list(kind)`.
 
 **Contracts:**
 1. An arc with no intent is refused.

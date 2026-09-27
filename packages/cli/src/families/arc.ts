@@ -1,0 +1,247 @@
+/**
+ * Capability 4 · Arcs and increments (stories/cli.md): see one arc whole, its intent, end state,
+ * increments and their states, the questions waiting on the owner, and what each waiting item
+ * waits for. Create, edit, park or unpark an arc; park an increment, record a landing that was never
+ * parked, close one with its outcome, and make an arc or increment wait on another with a reason, or
+ * clear the wait.
+ *
+ * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
+ * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
+ * owner (`heldOnQuestion`), and an arc's state, which `arcView` works out. There is no `increment
+ * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5), and no hand
+ * close or re-open of an arc (the owner's R1). `arc list` waits on the library's list(kind).
+ */
+import type { Library } from "@storytree/library";
+
+import { labelOf, Refusal, type Answer } from "../answer.js";
+import type { Args } from "../args.js";
+import type { Family, Verb } from "../door.js";
+import { valueOf } from "./library.js";
+
+/** The given flags among `names`, each as the library field it names (`--end-state` is `endState`). */
+function given(args: Args, names: readonly string[]): Record<string, unknown> {
+  const fields: Record<string, unknown> = {};
+  for (const name of names) {
+    const value = args.text(name);
+    if (value !== undefined) fields[name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())] = valueOf(value);
+  }
+  return fields;
+}
+
+/** A list flag: `--touches a,b` or `--touches '["a","b"]'`, or undefined when not given. */
+function listOf(args: Args, name: string): string[] | undefined {
+  const value = args.text(name);
+  if (value === undefined) return undefined;
+  const parsed = valueOf(value);
+  return Array.isArray(parsed) ? (parsed as string[]) : value.split(",").map((one) => one.trim()).filter((one) => one !== "");
+}
+
+const ARC_FIELDS = ["title", "intent", "end-state", "description"] as const;
+const INCREMENT_FIELDS = ["title", "objective", "body"] as const;
+
+/** An increment's close, as given: its outcome. */
+function closeOf(args: Args): { disposition: never; pr?: string; note?: string; date?: string } {
+  return given(args, ["disposition", "pr", "note", "date"]) as never;
+}
+
+/** Why an open increment cannot start yet: the blockers holding it, and the owner's questions it is held on. */
+async function holdsOn(library: Library, id: string): Promise<string[]> {
+  const lines: string[] = [];
+  for (const hold of await library.waitHolds(id)) {
+    lines.push(`waits on ${hold.on}: ${hold.reason}${hold.forGood ? " (never releases: the blocker did not land, or is gone)" : ""}`);
+  }
+  for (const question of await library.heldOnQuestion(id)) lines.push(`waiting on you: question ${question}`);
+  return lines;
+}
+
+const show: Verb = {
+  name: "show",
+  usage: "arc show <arc>",
+  summary: "one arc whole: intent, end state, increments, what each waits for, and your questions",
+  async act(args, context) {
+    const id = args.word(0, "the arc's id", this.usage);
+    const library = await context.library();
+    const view = await library.arcView(id);
+    if (view === null) throw new Refusal(`no arc "${id}" in this project`);
+    const { arc, state, increments, questions } = view;
+    const lines = [`${arc.fields.title}  [${arc.id}]  ${state}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
+    for (const line of await holdsOn(library, arc.id)) lines.push(`This arc ${line}`);
+    const open = increments.filter((increment) => increment.fields.status !== "closed");
+    const closed = increments.filter((increment) => increment.fields.status === "closed");
+    lines.push("", `Work (${open.length} open)`);
+    if (open.length === 0) lines.push("  (none)");
+    for (const increment of open) {
+      lines.push(`  - ${increment.id}  [${increment.fields.status}]  ${increment.fields.title}`);
+      for (const line of await holdsOn(library, increment.id)) lines.push(`      ${line}`);
+    }
+    const waiting = questions.filter((question) => question.fields.lifecycle === "open");
+    lines.push("", `Questions waiting on you (${waiting.length})`);
+    for (const question of waiting) lines.push(`  - ${question.id}  ${labelOf(question.fields)}`);
+    const settled = questions.filter((question) => question.fields.lifecycle === "settled");
+    if (settled.length > 0) {
+      lines.push("", `Settled questions (${settled.length})`);
+      for (const question of settled) lines.push(`  - ${question.id}  ${labelOf(question.fields)}: ${question.fields.answer ?? ""}`);
+    }
+    lines.push("", `Increment log (${closed.length} closed)`);
+    for (const increment of closed) {
+      const outcome = increment.fields.outcome;
+      const how = [outcome?.date, outcome?.disposition, outcome?.pr].filter((part) => part !== undefined).join("  ");
+      lines.push(`  - ${how}  ${increment.id}  ${increment.fields.title}`);
+      if (outcome?.note !== undefined) lines.push(`      ${outcome.note}`);
+    }
+    return {
+      text: lines.join("\n"),
+      next: [
+        { command: `storytree arc increment new --arc ${arc.id} --title <t> --objective <o> --body <text|@file>`, why: "park work on it" },
+        { command: `storytree question new --arc ${arc.id} …`, why: "ask the owner something" },
+      ],
+    };
+  },
+};
+
+const create: Verb = {
+  name: "new",
+  usage: "arc new --title <t> --intent <text|@file> --end-state <text|@file> [--stories a,b]",
+  summary: "a new arc, whole: its intent and end state",
+  async act(args, context) {
+    const stories = listOf(args, "stories");
+    const arc = await (await context.library()).createArc({ ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }) } as never);
+    return { text: `Created arc ${arc.id}.`, next: [{ command: `storytree arc show ${arc.id}`, why: "see it whole" }] };
+  },
+};
+
+const edit: Verb = {
+  name: "edit",
+  usage: "arc edit <arc> [--title …] [--intent …] [--end-state …] [--stories a,b]",
+  summary: "change only the named fields",
+  async act(args, context) {
+    const id = args.word(0, "the arc's id", this.usage);
+    const stories = listOf(args, "stories");
+    const edited = await (await context.library()).editArc(id, { ...given(args, ARC_FIELDS), ...(stories === undefined ? {} : { stories }) } as never);
+    if (edited === null) throw new Refusal(`no arc "${id}" in this project`);
+    return { text: `Edited arc ${id}.`, next: [{ command: `storytree arc show ${id}`, why: "see it whole" }] };
+  },
+};
+
+function parking(name: "park" | "unpark"): Verb {
+  return {
+    name,
+    usage: `arc ${name} <arc>`,
+    summary: name === "park" ? "hold an arc: it reads parked until unparked" : "take an arc off hold",
+    async act(args, context) {
+      const id = args.word(0, "the arc's id", this.usage);
+      const library = await context.library();
+      const done = name === "park" ? await library.parkArc(id) : await library.unparkArc(id);
+      if (done === null) throw new Refusal(`no arc "${id}" in this project`);
+      return { text: `${name === "park" ? "Parked" : "Unparked"} arc ${id}.` };
+    },
+  };
+}
+
+/** Make an arc or increment wait on another, or clear the wait: the library's addWait and removeWait, which take either. */
+function waiting(family: string, what: string): Verb[] {
+  return [
+    {
+      name: "wait",
+      usage: `${family} wait <${what}> --on <${what}> --reason <why>`,
+      summary: `make an ${what} wait on another, with a reason`,
+      async act(args, context) {
+        const id = args.word(0, `the ${what}'s id`, this.usage);
+        const on = args.need("on", this.usage);
+        const done = await (await context.library()).addWait(id, on, args.need("reason", this.usage));
+        if (done === null) throw new Refusal(`no ${what} "${id}" in this project`);
+        return { text: `${id} now waits on ${on}.` };
+      },
+    },
+    {
+      name: "unwait",
+      usage: `${family} unwait <${what}> --on <${what}>`,
+      summary: "clear a wait",
+      async act(args, context) {
+        const id = args.word(0, `the ${what}'s id`, this.usage);
+        const on = args.need("on", this.usage);
+        const done = await (await context.library()).removeWait(id, on);
+        if (done === null) throw new Refusal(`no ${what} "${id}" in this project`);
+        return { text: `${id} no longer waits on ${on}.` };
+      },
+    },
+  ];
+}
+
+/** A new increment's fields, as given. */
+function incrementOf(args: Args): Record<string, unknown> {
+  const fields: Record<string, unknown> = given(args, ["arc", ...INCREMENT_FIELDS]);
+  for (const [flag, field] of [["touches", "touches"], ["remedies", "remedies"], ["held-on", "heldOn"]] as const) {
+    const list = listOf(args, flag);
+    if (list !== undefined) fields[field] = list;
+  }
+  return fields;
+}
+
+const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--touches a,b] [--remedies a,b] [--held-on q]";
+
+const incrementNew: Verb = {
+  name: "new",
+  usage: `arc increment new ${INCREMENT_USAGE}`,
+  summary: "park an increment on an arc, as a proposal",
+  async act(args, context) {
+    const increment = await (await context.library()).addIncrement(incrementOf(args) as never);
+    return { text: `Parked increment ${increment.id} on ${increment.fields.arc}.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see the arc whole" }] };
+  },
+};
+
+const incrementAdd: Verb = {
+  name: "add",
+  usage: `arc increment add ${INCREMENT_USAGE} --disposition <landed|failed|withdrawn> [--pr <ref>] [--note <why>]`,
+  summary: "record a landing that was never parked: an increment born closed",
+  async act(args, context) {
+    const increment = await (await context.library()).addIncrement({ ...incrementOf(args), outcome: closeOf(args) } as never);
+    return { text: `Recorded increment ${increment.id} on ${increment.fields.arc}, closed.`, next: [{ command: `storytree arc show ${increment.fields.arc}`, why: "see its log" }] };
+  },
+};
+
+const incrementClose: Verb = {
+  name: "close",
+  usage: "arc increment close <increment> --disposition <landed|failed|withdrawn> [--pr <ref>] [--note <why>]",
+  summary: "close an increment with its outcome",
+  async act(args, context) {
+    const id = args.word(0, "the increment's id", this.usage);
+    const closed = await (await context.library()).closeIncrement(id, closeOf(args));
+    if (closed === null) throw new Refusal(`no increment "${id}" in this project`);
+    return { text: `Closed increment ${id}: ${closed.fields.outcome?.disposition ?? ""}.`, next: [{ command: `storytree arc show ${closed.fields.arc}`, why: "see the arc" }] };
+  },
+};
+
+const incrementEdit: Verb = {
+  name: "edit",
+  usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--touches a,b] [--held-on q]",
+  summary: "change only the named fields",
+  async act(args, context): Promise<Answer> {
+    const id = args.word(0, "the increment's id", this.usage);
+    const edited = await (await context.library()).editIncrement(id, incrementOf(args) as never);
+    if (edited === null) throw new Refusal(`no increment "${id}" in this project`);
+    return { text: `Edited increment ${id}.` };
+  },
+};
+
+const increment: Family = {
+  name: "increment",
+  summary: "the increments of an arc's work",
+  verbs: [incrementNew, incrementAdd, incrementClose, incrementEdit, ...waiting("arc increment", "increment")],
+};
+
+const list: Verb = {
+  name: "list",
+  usage: "arc list",
+  summary: "every arc (not yet)",
+  act() {
+    throw new Refusal("storytree arc list is not built yet: it waits on the library's list(kind) on its public API (0-3-library-writer-and-public-reads)");
+  },
+};
+
+export const arcs: Family = {
+  name: "arc",
+  summary: "arcs, and the increments of their work",
+  verbs: [show, list, create, edit, parking("park"), parking("unpark"), ...waiting("arc", "arc")],
+  families: [increment],
+};

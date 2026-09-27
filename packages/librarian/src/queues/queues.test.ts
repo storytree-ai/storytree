@@ -48,7 +48,7 @@ test("5.1 the worklist drains only lapsed open questions across arcs, longest la
   });
 });
 
-test("5.2 the friction drain holds at most the three oldest unrouted reports another session filed", async () => {
+test("5.2 the friction drain takes three unrouted reports from other branches, most recurrences first and oldest first on ties", async () => {
   await withLibrary(async (library) => {
     const own = await friction(library, "Own report", "claude/me");
     const routed = await friction(library, "Routed report", "claude/other");
@@ -56,11 +56,19 @@ test("5.2 the friction drain holds at most the three oldest unrouted reports ano
     const a = await friction(library, "Report A", "claude/other");
     const b = await friction(library, "Report B");
     const c = await friction(library, "Report C", "codex/third");
-    await friction(library, "Report D", "claude/other");
+    const d = await friction(library, "Report D", "claude/other");
+    await friction(library, "Report E", "claude/other");
+    for (const [report, count] of [[own, 5], [routed, 6], [b, 1], [c, 2], [d, 1]] as const) {
+      await library.editNote(report.id, { reinforcedBy: Array.from({ length: count }, (_, index) => ({
+        branch: `repeat/${index}`, date: "2026-09-28", evidence: `#${index + 1}: happened again`,
+      })) });
+    }
 
     const drain = await frictionDrain(library, { branch: "claude/me" });
-    assert.deepEqual(drain.map((one) => one.id), [a.id, b.id, c.id]);
+    assert.deepEqual(drain.map((one) => one.id), [c.id, b.id, d.id]);
     assert.ok(!drain.some((one) => one.id === own.id));
+    await route(library, c.id, "nothing", "Resolved upstream");
+    assert.deepEqual((await frictionDrain(library, { branch: "claude/me" })).map((one) => one.id), [b.id, d.id, a.id]);
   });
 });
 

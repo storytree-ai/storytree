@@ -220,6 +220,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["show_plan", {}],
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],
+        ["make_workspace", { increment: "increment_000000000000", reason: "building it" }],
         ["report", { contract: "contract_000000000000", result: "red" }],
         ["land", { capability: "capability_000000000000" }],
         ["search_notes", { query: "mailgun" }],

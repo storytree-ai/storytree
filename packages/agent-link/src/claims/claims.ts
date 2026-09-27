@@ -106,11 +106,8 @@ const CLAIM_KINDS = ["claimed", "released", "landed", "closed", "merged", "sessi
  * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing.
  */
 export async function claim(context: ClaimContext, id: string, reason: string): Promise<ClaimAnswer> {
-  const found = await partNamed(context.library, id);
-  if (found === undefined) return { ok: false, refused: "unknown-capability", capability: id };
-  if (found.status === "closed") return { ok: false, refused: "closed", increment: id };
-  const waits = await waitingOn(context.library, found);
-  if (waits.length > 0) return { ok: false, refused: "waiting", waits };
+  const found = await claimable(context.library, id);
+  if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
     if (current?.session === context.session) return { ok: true, claim: current };
@@ -128,6 +125,27 @@ export async function claim(context: ClaimContext, id: string, reason: string): 
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
     return current === undefined ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });
+}
+
+/**
+ * Why a claim on `id` would be refused right now, or undefined when it would not: the refusals
+ * `claim` gives, read without taking the lock or writing a line, for a caller that must know before
+ * it does something slow (makeWorkspace fetches). `claim` itself checks again under the lock.
+ */
+export async function claimRefusal(context: ClaimContext, id: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
+  const found = await claimable(context.library, id);
+  if (!("part" in found)) return found;
+  const current = await readClaim(context.log, context.project, id, context.quietMs === undefined ? {} : { quietMs: context.quietMs });
+  return current !== undefined && current.session !== context.session && current.holder === "live" ? { ok: false, refused: "held", holder: current } : undefined;
+}
+
+/** The live capability or increment `id`, when the library would let it be claimed; otherwise why not. */
+async function claimable(library: Library, id: string): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
+  const found = await partNamed(library, id);
+  if (found === undefined) return { ok: false, refused: "unknown-capability", capability: id };
+  if (found.status === "closed") return { ok: false, refused: "closed", increment: id };
+  const waits = await waitingOn(library, found);
+  return waits.length > 0 ? { ok: false, refused: "waiting", waits } : found;
 }
 
 /** Release `id`, a capability or an increment, if the context's session holds it. */

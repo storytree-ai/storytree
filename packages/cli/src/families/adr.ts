@@ -92,13 +92,14 @@ function parseFile(text: string, file: string): { title: string; text: string; f
 const create: Verb = {
   name: "new",
   usage:
-    "adr new --title <t> --text <text|@file> --status <proposed|accepted> [--decided YYYY-MM-DD] [--basis <owner-directed|owner-ratified|agent-derived|agent-flipped> --owner-said <his words|@file>] [--supersedes a,b] [--links a,b] [--front-cover-of <node>] [--load-bearing]",
-  summary: "record a decision with the next number, its status, who decided it, and what it supersedes",
+    "adr new --title <t> --text <text|@file> --status <proposed|accepted> [--number <n>] [--decided YYYY-MM-DD] [--basis <owner-directed|owner-ratified|agent-derived|agent-flipped> --owner-said <his words|@file>] [--supersedes a,b] [--links a,b] [--front-cover-of <node>] [--load-bearing]",
+  summary: "record a decision with a supplied or next number, its status, who decided it, and what it supersedes",
   switches: ["load-bearing"],
   async act(args, context) {
     const basis = args.text("basis");
     const ownerSaid = args.text("owner-said");
     const optional: Record<string, unknown> = {
+      number: args.has("number") ? decisionNumber(args.need("number", this.usage)) : undefined,
       decided: args.text("decided"),
       supersedes: listFrom(args, "supersedes"),
       links: listFrom(args, "links"),
@@ -112,6 +113,41 @@ const create: Verb = {
       text: `Recorded ${adr(decision.fields.number)} (${decision.id}), ${decision.fields.status}.`,
       next: [{ command: `storytree adr pull ${decision.id} --out ${decision.id}.md`, why: "read or edit it as a file" }],
     };
+  },
+};
+
+/** Reject typos instead of silently auto-numbering or rounding a supplied label. */
+function decisionNumber(value: string): number {
+  const number = Number(value);
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number < 1) {
+    throw new Refusal(`decision number must be a positive safe integer, not ${JSON.stringify(value)}`);
+  }
+  return number;
+}
+
+const number: Verb = {
+  name: "number",
+  usage: "adr number <decision> <n> | adr number --dry-run",
+  summary: "repair an imported storytree decision's number once, or preview every Full record proposal",
+  switches: ["dry-run"],
+  async act(args, context) {
+    const library = await context.library();
+    if (args.has("dry-run")) {
+      if (args.words.length > 0) throw new Refusal(`usage: storytree ${this.usage}`, { code: 2 });
+      const plan = await library.decisionNumberPlan();
+      const refused = plan.filter((row) => row.refusal !== undefined).length;
+      const text = [
+        "Dry run: nothing changed. The write rechecks these conditions; this does not reserve numbers.",
+        ...plan.map((row) => `${row.id}  ${adr(row.oldNumber)} → ${adr(row.number)}${row.refusal === undefined ? "" : `  REFUSED: ${row.refusal}`}`),
+        `${plan.length - refused} ready; ${refused} refused. Decisions without a Full record line are untouched.`,
+      ].join("\n");
+      if (refused > 0) throw new Refusal(text);
+      return { text };
+    }
+    if (args.words.length !== 2) throw new Refusal(`usage: storytree ${this.usage}`, { code: 2 });
+    const view = await viewOf(library, args.word(0, "the decision", this.usage));
+    const updated = await library.numberDecision(view.record.id, decisionNumber(args.word(1, "the number", this.usage)), context.writer());
+    return { text: `${updated.id}: ${adr(view.record.fields.number)} → ${adr(updated.fields.number)}.` };
   },
 };
 
@@ -193,6 +229,6 @@ const list: Verb = {
 
 export const decisions: Family = {
   name: "adr",
-  summary: "the decision log: new, pull, push, compose, list",
-  verbs: [list, create, pull, push, compose],
+  summary: "the decision log: new, number, pull, push, compose, list",
+  verbs: [list, create, number, pull, push, compose],
 };

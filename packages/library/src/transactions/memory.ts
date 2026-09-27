@@ -50,6 +50,9 @@ export class MemoryTransactions implements Transactions {
     const current = this.#records.get(input.id);
     if (current === undefined) return null;
     const record = editedRecord(current, input.fields, now(), input.upgrade);
+    if (input.sequence !== undefined) {
+      record.fields = (this.#numbered({ ...record, sequence: input.sequence })).fields;
+    }
     check(record, input.validate);
     this.#append("updated", record, record.updatedAt, input.actor);
     this.#records.set(record.id, record);

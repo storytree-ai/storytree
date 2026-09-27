@@ -112,6 +112,75 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(knowledge.editNote(first.id, { number: 900 } as never), RangeError, "a number never changes");
   });
 
+  contract("13.5", "storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs", async ({ records, transactions, knowledge }) => {
+    const own = new Knowledge(records, "storytree");
+    const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Summary.\nFull record: ADR-0621 in 0.2." });
+    const unnumbered = await transactions.save({ id: "legacy-decision", type: "decision", version: 1, fields: { title: "Legacy import", text: "Full record: ADR-0169 in 0.2." } });
+    const founding = await records.create("decision", { ...DECIDE, number: 2 });
+    const retired = await records.create("decision", { ...DECIDE, number: 3, text: "Full record: ADR-0623" });
+    await records.retire(retired.id, "retired");
+    const taken = await records.create("decision", { ...DECIDE, number: 640 });
+    await records.retire(taken.id, "still reserves its number");
+    const collision = await records.create("decision", { ...DECIDE, number: 4, text: "Full record: ADR-0640" });
+    const malformed = [];
+    for (const text of ["Mention Full record: ADR-0621", "Full record: ADR-0621x", "Full record: ADR-0621\nFull record: ADR-0622", "Full record: ADR-0000"]) {
+      malformed.push(await records.create("decision", { ...DECIDE, text }));
+    }
+    const before = await transactions.history();
+    const plan = await own.decisionNumberPlan();
+    assert.deepEqual(plan.find((row) => row.id === imported.id), { id: imported.id, oldNumber: 1, number: 621 });
+    assert.match(plan.find((row) => row.id === collision.id)?.refusal ?? "", /taken/);
+    assert.ok(!plan.some((row) => row.id === founding.id || row.id === retired.id));
+    for (const record of malformed) await assert.rejects(own.numberDecision(record.id, 621), /Full record/);
+    await assert.rejects(own.numberDecision(imported.id, 622), /Full record/);
+    await assert.rejects(own.numberDecision(founding.id, 622), /Full record/);
+    await assert.rejects(own.numberDecision(retired.id, 623), /live decision/);
+    await assert.rejects(own.numberDecision("missing", 623), /live decision/);
+    await assert.rejects(own.numberDecision(collision.id, 640), NumberTakenError);
+    await assert.rejects(knowledge.numberDecision(imported.id, 621), /storytree project/);
+    await assert.rejects(own.editNote(imported.id, { number: 621 }), /editNote does not change/);
+    assert.deepEqual(await transactions.history(), before, "dry run and refusals write nothing");
+
+    const repaired = await own.numberDecision(imported.id, 621, { actor: "supervisor" });
+    assert.deepEqual(repaired.fields, { ...imported.fields, number: 621 });
+    const upgraded = await own.numberDecision(unnumbered.id, 169);
+    assert.equal(upgraded.fields.number, 169);
+    assert.equal(upgraded.fields.status, "accepted", "normal legacy schema upgrade is preserved");
+    assert.deepEqual(await records.get(founding.id), founding, "founding book is untouched");
+    const history = await records.history({ id: imported.id });
+    assert.deepEqual(history.map((entry) => entry.record.fields.number), [1, 621]);
+    assert.equal(history.at(-1)?.actor, "supervisor");
+    await assert.rejects(own.recordDecision({ ...DECIDE, number: 1 }), NumberTakenError, "old number remains reserved");
+    await assert.rejects(own.numberDecision(imported.id, 621), /already/);
+    await own.editNote(imported.id, { text: "Full record: ADR-0622" });
+    await assert.rejects(own.numberDecision(imported.id, 622), /already/);
+  });
+
+  contract("13.5", "simultaneous repairs cannot share a number or repair the same decision twice", async ({ records }) => {
+    const own = new Knowledge(records, "storytree");
+    const a = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
+    const b = await records.create("decision", { ...DECIDE, number: 2, text: "Full record: ADR-0621" });
+    const plan = await own.decisionNumberPlan();
+    assert.ok(plan.every((row) => row.refusal?.includes("same Full record")), "dry run identifies duplicate targets");
+    const raced = await Promise.allSettled([own.numberDecision(a.id, 621), own.numberDecision(b.id, 621)]);
+    assert.equal(raced.filter((result) => result.status === "fulfilled").length, 1);
+    const loser = raced.find((result) => result.status === "rejected");
+    assert.ok(loser?.status === "rejected" && loser.reason instanceof NumberTakenError);
+    const c = await records.create("decision", { ...DECIDE, text: "Full record: ADR-0623" });
+    const same = await Promise.allSettled([own.numberDecision(c.id, 623), own.numberDecision(c.id, 623)]);
+    assert.equal(same.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal((await records.history({ id: c.id })).length, 2);
+  });
+
+  contract("13.6", "only storytree requires an explicit decision number from 0.2", async ({ records, knowledge, transactions }) => {
+    const own = new Knowledge(records, "storytree");
+    const history = await transactions.history();
+    await assert.rejects(own.recordDecision(DECIDE), /0\.2.*adr new.*until cutover.*explicit/i);
+    assert.deepEqual(await transactions.history(), history);
+    assert.equal((await knowledge.recordDecision(DECIDE)).fields.number, 1);
+    assert.equal((await own.recordDecision({ ...DECIDE, number: 660 })).fields.number, 660);
+  });
+
   contract("13.2", "a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
     const old = await knowledge.recordDecision({ ...DECIDE, frontCoverOf: story.id });

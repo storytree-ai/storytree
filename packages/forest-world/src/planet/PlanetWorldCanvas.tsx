@@ -125,7 +125,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     </group>
     <OrbitControls makeDefault enablePan={false} minZoom={0.1} maxZoom={30} />
     {children}
-    {drawing.issue && <Html fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
+    {surface && drawing.issue && <Html fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
       <div role="alert" title={drawing.issue} style={{ position: 'absolute', right: 16, bottom: 16,
         maxWidth: 320, padding: '10px 14px', borderRadius: 6, background: '#352b20', color: '#ffe1ac' }}>
         Pathways could not be drawn. Island health and selection are still available.

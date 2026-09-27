@@ -1,0 +1,77 @@
+--- old/forest-capability-3
++++ new/forest-capability-3
+@@ -1,3 +1,6 @@
+-Draws every story node and its capability trees on the globe. You can turn and zoom the globe,
+-and clicking a story node selects it. The globe is the only view on the page (ADR-0655); the
+-flat forest canvas remains in the engine, where its island drawing is reused.
++The page opens in Forest mode, drawing every story node and its capability trees on the globe
++with the library core beneath them. Forest / Library switches this one globe (ADR-0660 D4):
++Library hides the story nodes and shows only the faint core points and the centre cluster.
++You can turn and zoom in either mode; Forest lets you select a story node. Switching preserves
++the scene, camera, rotation and zoom. Each launch defaults to Forest, with no saved mode.
++The flat forest and separate Look-inside view remain unavailable (ADR-0655).
+@@ -19 +22,4 @@
+-    and no marker for a failure already in front. The globe page draws those markers.
++    and no marker for a failure already in front. Forest mode draws those markers.
++    **Narrowed by ADR-0660 D4:** the never-hidden rule binds Forest mode. Library is the
++    viewer's explicit choice to hide all story nodes, including failing islands and their
++    markers. Returning to Forest restores its failure attention without resetting the view.
+@@ -29,2 +35,2 @@
+-  - **The globe alone (ADR-0655 D1/D2):** the page opens on the globe, without a Forest or
+-    “Look inside” choice. The flat canvas remains in the engine, and knowledge-core calculations
++  - **The globe alone (ADR-0655 D1/D2):** the page opens on the globe in Forest mode, with a
++    Forest / Library toggle (ADR-0660 D4), and no flat-forest or “Look inside” choice. The flat canvas remains in the engine, and knowledge-core calculations
+@@ -69 +75 @@
+-  edge markers and story selection keep working. The page has no view switch; `forestDrawn`
++  edge markers and story selection keep working. The page has a Forest / Library mode switch (ADR-0660 D4); `forestDrawn`
+@@ -78 +84 @@
+-  existing turning inside slot while its surface stays visible. Capability 1 still owns all
++  existing turning inside slot. The surface stays visible in Forest mode; Library hides it. Capability 1 still owns all
+@@ -80 +86 @@
+-  claims, failure markers and V2 pathways retain their existing drawing. The
++  claims, failure markers and V2 pathways retain their existing drawing in Forest mode. The
+@@ -82,0 +89,11 @@
++
++- **Forest / Library, as built (ADR-0660 D4):** two labelled buttons use the page's existing
++  control styling. `openForestView` owns the mode for this mount, initially Forest.
++  `PlanetView` uses the existing `PlanetWorldCanvas.surface` seam: Library hides the shell,
++  islands, trees, names, claim markers, selection rings, pathways and island overlays.
++  Navigation stays mounted, suppresses failure markers and island picking in Library, and
++  keeps its opening turn and rotation. Choosing Library clears the selected story and closes
++  its drill-down. The canvas, core subscription, point positions, camera and orbit controls
++  stay mounted; turning and zooming work in either mode. There is no persistence, new flat
++  view or Look-inside mount. Renderer-submission counts, both angles and the failure journey
++  are in `packages/forest/src/view/evidence/forest-library-toggle/README.md`.
+@@ -96 +113 @@
+-1. The app opens a seeded project on the globe alone; its smoke check finds one story node per
++1. The app opens a seeded project on the globe in Forest mode; its smoke check finds one story node per
+@@ -108,0 +126,9 @@
++9. Choosing Library hides every story node, including trees, names, claims, failure markers,
++   selection rings, pathways and island overlays; only the core points at their computed
++   depths and the no-shelf centre cluster are drawn. Choosing Forest restores the surface.
++10. Switching either way preserves the canvas, scene, core, camera, rotation and zoom. Library
++    remains orbitable; choosing it clears story selection and its panel, and hidden islands
++    cannot be picked. A new launch defaults to Forest.
++11. In Forest mode a failing island is never hidden: opening faces a failure; a far-side failure
++    has an edge marker whose click reveals it, including after returning from Library.
++    Library is the viewer's explicit choice to hide story nodes (ADR-0660 D4).
+--- old/knowledge-core-capability-1
++++ new/knowledge-core-capability-1
+@@ -5 +5,2 @@
+-(ADR-0658); the separate Look-inside view stays unmounted.
++(ADR-0658). Forest shows this core beneath the story nodes; Library shows it alone on the
++same globe (ADR-0660 D4). The separate Look-inside view stays unmounted.
+@@ -23 +24,2 @@
+-    ghosts or reads are drawn, and the forest's surface and failure attention stay available.
++    ghosts or reads are drawn. Forest keeps its surface and failure attention; Library is the
++    viewer's explicit choice to hide the story nodes and see this core alone (ADR-0660 D4).
+@@ -40,0 +43,5 @@
++  **Forest / Library (ADR-0660 D4), as built:** the forest's toggle leaves this point layer
++  mounted in both modes with the same live subscription, positions and depths. Library shows
++  only these faint shelf points and the no-shelf centre cluster. It adds no threads, ghosts,
++  read colours or inspection controls. Evidence is in
++  `packages/forest/src/view/evidence/forest-library-toggle/README.md`.
+@@ -59,0 +67,3 @@
++7. Forest and Library submit the same complete set of artifact points at the same positions
++   and computed depths, with the same no-shelf centre cluster; hiding story nodes leaves the
++   live core mounted.

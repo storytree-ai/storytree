@@ -8,9 +8,10 @@ import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { Claims, Names, Overlay, SelectionRing } from "./island-overlays.js";
-import { focusRotation, hiddenMarkers, pickIsland, planetLayout } from "./planet-navigation.js";
+import { focusRotation, hiddenMarkers, pickIsland, planetLayout, type ForestMode } from "./planet-navigation.js";
 
-export function PlanetView({ core, scene, places, markers, selected, onPick }: {
+export function PlanetView({ core, scene, places, markers, selected, onPick, mode = "forest" }: {
+  mode?: ForestMode;
   core: KnowledgeCore;
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
@@ -31,16 +32,18 @@ export function PlanetView({ core, scene, places, markers, selected, onPick }: {
     </>;
   }, [markers, selected]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
+    surface={mode === "forest"}
     inside={<KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} />}
     rotation={rotation.toArray()} kitBytes={kitBytes} plateChildren={overlays}>
     <Navigation islands={layout.islands} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
-      rotation={rotation} onRotate={setRotation} onPick={onPick} />
+      rotation={rotation} onRotate={setRotation} onPick={onPick} mode={mode} />
   </PlanetWorldCanvas>;
 }
 
 type ScreenMarker = EdgeMarker & { left: number; top: number };
 
-function Navigation({ islands, titles, rotation, onRotate, onPick }: {
+function Navigation({ islands, titles, rotation, onRotate, onPick, mode }: {
+  mode: ForestMode;
   islands: readonly FacingIsland[];
   titles: ReadonlyMap<string, string>;
   rotation: Quaternion;
@@ -61,7 +64,7 @@ function Navigation({ islands, titles, rotation, onRotate, onPick }: {
   useFrame(() => {
     const centre = new Vector3().project(camera);
     const rim = PLANET_RADIUS * camera.zoom + 16;
-    const next = hiddenMarkers(islands, rotation, camera.quaternion).map(marker => ({
+    const next = hiddenMarkers(islands, rotation, camera.quaternion, mode).map(marker => ({
       ...marker,
       left: Math.round(Math.max(20, Math.min(size.width - 20, (centre.x + 1) * size.width / 2 + marker.at.x * rim))),
       top: Math.round(Math.max(20, Math.min(size.height - 20, (1 - centre.y) * size.height / 2 - marker.at.y * rim))),
@@ -74,6 +77,7 @@ function Navigation({ islands, titles, rotation, onRotate, onPick }: {
   });
 
   useEffect(() => {
+    if (mode === "library") return;
     const element = gl.domElement;
     let down: { x: number; y: number; id: number } | undefined;
     const onDown = (event: PointerEvent): void => {
@@ -98,8 +102,9 @@ function Navigation({ islands, titles, rotation, onRotate, onPick }: {
       element.removeEventListener("pointerup", onUp);
       element.removeEventListener("pointercancel", onCancel);
     };
-  }, [camera, gl, scene, onPick]);
+  }, [camera, gl, scene, onPick, mode]);
 
+  if (mode === "library") return null;
   return <Overlay fullscreen zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
     {markers.map(marker => <button key={marker.story} type="button" className="planet-edge-marker"
       data-failing-story={marker.story}

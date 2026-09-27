@@ -1,0 +1,92 @@
+✖ smoke can capture either globe mode, while ordinary launches keep the Forest default (1.933402ms)
+✔ the globe opens every story with its grove at its permanent place, readable by the smoke check (2.442547ms)
+✔ a click picks the rotated island mesh, while the see-through shell keeps far-side islands unselectable (5.548689ms)
+✔ a hidden failure has a marker in the camera's frame, and its click turns it to the eye after orbiting (0.580019ms)
+✖ Forest never hides a failing island; only an explicit Library choice suppresses its marker (2.193264ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 589.765132
+
+✖ failing tests:
+
+test at apps/desktop/src/main/args.test.ts:1:101
+✖ smoke can capture either globe mode, while ordinary launches keep the Forest default (1.933402ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 'library'
+
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-t/apps/desktop/src/main/args.test.ts:7:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'library',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/forest/src/view/planet-view.test.ts:1:3890
+✖ Forest never hides a failing island; only an explicit Library choice suppresses its marker (2.193264ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   {
+  +     at: {
+  +       x: 0,
+  +       y: 1
+  +     },
+  +     story: 'failure',
+  +     turn: {
+  +       pitch: 0,
+  +       yaw: -3.141592653589793
+  +     }
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/planet-lane-t/packages/forest/src/view/planet-view.test.ts:88:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { story: 'failure', at: [Object], turn: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ undefined
+- 'forest'
+
+    at checkMode (file:///home/mickh/code/storytree03-wt/planet-lane-t/packages/forest/src/view/evidence/forest-library-toggle/capture.mjs:163:10)
+    at file:///home/mickh/code/storytree03-wt/planet-lane-t/packages/forest/src/view/evidence/forest-library-toggle/capture.mjs:309:5 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: 'forest',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

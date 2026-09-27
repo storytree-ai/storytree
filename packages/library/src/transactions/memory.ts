@@ -26,6 +26,7 @@ export class MemoryTransactions implements Transactions {
   #lastSeq = 0;
 
   async save(input: SaveInput): Promise<RecordEnvelope> {
+    input.signal?.throwIfAborted();
     const current = this.#records.get(input.id);
     const record = savedRecord(this.#numbered(input), current, now());
     check(record, input.validate);
@@ -47,6 +48,7 @@ export class MemoryTransactions implements Transactions {
   }
 
   async edit(input: EditInput): Promise<RecordEnvelope | null> {
+    input.signal?.throwIfAborted();
     const current = this.#records.get(input.id);
     if (current === undefined) return null;
     const record = editedRecord(current, input.fields, now(), input.upgrade);
@@ -60,6 +62,7 @@ export class MemoryTransactions implements Transactions {
   }
 
   async retire(input: RetireInput): Promise<void> {
+    input.signal?.throwIfAborted();
     const current = this.#records.get(input.id);
     if (current === undefined) return;
     this.#append("retired", current, now(), input.actor, input.reason);

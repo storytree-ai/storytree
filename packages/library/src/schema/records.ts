@@ -31,11 +31,9 @@ export type FieldEdit = {
   [K in RecordType]: { [F in keyof FieldsOf<K>]?: FieldsOf<K>[F] | undefined };
 }[RecordType];
 
-export interface CreateOptions {
+export interface CreateOptions extends WriteOptions {
   /** The new record's id. When omitted, one is generated: `<type>_<12 lowercase hex digits>`. */
   readonly id?: string;
-  /** Who is writing, kept in the history. */
-  readonly actor?: string;
   /** A field the record is numbered in, within its type: capability 2's save `sequence`. */
   readonly sequence?: string;
 }
@@ -43,6 +41,8 @@ export interface CreateOptions {
 export interface WriteOptions {
   /** Who is writing, kept in the history. */
   readonly actor?: string;
+  /** Abort a write still waiting to start; once it has the write lock, it completes normally. */
+  readonly signal?: AbortSignal;
 }
 
 export class SchemaRecords {
@@ -69,7 +69,7 @@ export class SchemaRecords {
       fields,
       version: this.#version(type),
       validate: this.#check,
-      ...actorOf(options),
+      ...writeOptionsOf(options),
       ...(options.sequence === undefined ? {} : { sequence: options.sequence }),
     });
     return record as SchemaRecord<T>;
@@ -110,14 +110,14 @@ export class SchemaRecords {
       ...(options.sequence === undefined ? {} : { sequence: options.sequence }),
       ...(options.sequenceNeverHeld === undefined ? {} : { sequenceNeverHeld: options.sequenceNeverHeld }),
       validate: this.#check,
-      ...actorOf(options),
+      ...writeOptionsOf(options),
     });
     return record as SchemaRecord | null;
   }
 
   /** Retire the record, keeping the reason in its history: capability 2's retire, unchanged. */
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
-    await this.#transactions.retire({ id, reason, ...actorOf(options) });
+    await this.#transactions.retire({ id, reason, ...writeOptionsOf(options) });
   }
 
   /** The history, oldest first: capability 2's history, unchanged, each record as it was written. */
@@ -180,9 +180,12 @@ function newId(type: RecordType): string {
   return `${type}_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
 }
 
-/** `{ actor }` when the writer named one, and nothing otherwise, as capability 2's inputs take it. */
-function actorOf(options: WriteOptions): { actor?: string } {
-  return options.actor === undefined ? {} : { actor: options.actor };
+/** Carry attribution and cancellation to capability 2 without passing other caller options. */
+function writeOptionsOf(options: WriteOptions): WriteOptions {
+  return {
+    ...(options.actor === undefined ? {} : { actor: options.actor }),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+  };
 }
 
 function describeIssue(issue: z.core.$ZodIssue, fields: unknown): FieldProblem[] {

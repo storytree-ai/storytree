@@ -1,0 +1,34 @@
+--- old/The agent link/6 · Agent tools (the MCP server)/definition_6d3723ad9283/meaning
++++ new/The agent link/6 · Agent tools (the MCP server)/definition_6d3723ad9283/meaning
+@@ -8,3 +8,8 @@
+   title is a peek, an opened artifact is read whole, and how it was found is where the session last saw
+   it shown (search, shelf or link), else by its id. The artifact tools were built after the library's
+   knowledge entrances landed (its capability 9), on ADR-0627 D4 from their first version.
++  Each call carries the MCP request abort signal in its writer options alongside the resolved
++  session actor. Library writes cancelled before admission to the project write lock leave no
++  record change or history entry; writes already admitted finish and retain their attribution.
++  The Postgres-backed MCP test observes an edit queued on the advisory lock, sends the actual
++  cancellation notice, then proves the unchanged record and history after the queue drains.
+
+--- old/The library/2 · Library transactions/definition_7f920b7c1f47/meaning
++++ new/The library/2 · Library transactions/definition_7f920b7c1f47/meaning
+@@ -3,3 +3,9 @@
+   argument (`{ actor: "person:<user name>" }`, or an agent session). No writer is inferred when
+   omitted. Health retains its reporter, `by`, as the actor unless an explicit `actor` is supplied.
+   This uses the existing history column on Postgres and its in-memory twin; no migration is needed.
++  WriteOptions also carries an optional AbortSignal through create, edit, retire and health
++  writes. Postgres checks it before connecting and immediately after acquiring the project
++  write lock, before record work; an aborted queued write rolls back without history. The
++  in-memory twin checks at write entry. Neither checks again after admission, so cancellation
++  does not undo an in-progress write or its attributed history. A cancelled SQL lock wait
++  drains when the lock becomes available; this does not interrupt the database query itself.
+
+--- old/The agent link/6 · Agent tools (the MCP server)/ADD contract under capability_11fe600afeda/title
++++ new/The agent link/6 · Agent tools (the MCP server)/ADD contract under capability_11fe600afeda/title
+@@ -0,0 +1 @@
++6.20 · A write tool call cancelled by MCP while its library write is still queued for the project write lock leaves that write uncommitted, with no record change or history entry. A write already admitted completes normally and remains attributed to the calling session.
+
+--- old/The library/2 · Library transactions/ADD contract under capability_5a80222c88c4/title
++++ new/The library/2 · Library transactions/ADD contract under capability_5a80222c88c4/title
+@@ -0,0 +1 @@
++2.11 · Save, edit and retire accept an optional abort signal. If aborted before write admission, including while waiting for the project write lock, they reject without changing records or history. After admission, cancellation does not interrupt the write or undo its history. The in-memory twin applies the same boundary at write entry.

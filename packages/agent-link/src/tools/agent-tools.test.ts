@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server): one test per contract 6.1-6.19 in
+ * Capability 6 · Agent tools (the MCP server): contracts 6.1-6.20 in
  * the agent link story. A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
  * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
@@ -146,7 +146,7 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
 
       const accepted = await client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Wanted edit" } });
       assert.notEqual(accepted.isError, true);
-      assert.equal((await library.get(story.id))?.fields.title, "Wanted edit");
+      assert.deepEqual((await library.get(story.id))?.fields, { title: "Wanted edit" });
       assert.equal((await library.history({ id: story.id })).at(-1)?.actor, "session:cancelled-writer");
     } finally {
       await blocker.query("ROLLBACK");

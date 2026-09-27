@@ -1,0 +1,18 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/cancel-write
+> node --import tsx scripts/test.mjs "--test-name-pattern=6.20|2.11" "packages/agent-link/src/tools/agent-tools.test.ts" "packages/library/src/transactions/memory.test.ts" "packages/library/src/transactions/pg.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:34361 (started in 0.1 s)
+✔ 6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged (200.044849ms)
+✔ 2.11 [memory] cancellation before a write leaves no change; cancellation after it starts preserves the write and its history (3.009955ms)
+✔ 2.11 [postgres] cancellation before a write leaves no change; cancellation after it starts preserves the write and its history (134.812843ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 636.024921
+test Postgres: stopped (0.1 s)

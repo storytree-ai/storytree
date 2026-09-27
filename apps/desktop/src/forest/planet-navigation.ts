@@ -2,7 +2,7 @@
 import { Euler, Quaternion, Vector3, type Object3D, type Raycaster } from "three";
 import { edgeMarkers, PLANET_RADIUS, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
 
-import { placeOnPackedGlobe } from "../../../../packages/forest/src/planet-places/planet-places.js";
+import { placeOnPackedGlobe } from "@storytree/forest";
 
 export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
   const islands: FacingIsland[] = scene.islands.map(island => {

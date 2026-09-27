@@ -221,15 +221,36 @@ function byNumber(a, b) {
 
 // --- the story, from the library ------------------------------------------------------------
 
-/** Not built yet. */
-export function contractsOf(_story) {
-  throw new Error("contractsOf is not built yet");
+/**
+ * A story's contracts as the library holds them: their numbers, in the tree's order, and each
+ * number's contract id. A contract's number is the one its title starts with (`1.4 · …`).
+ * @param {import("@storytree/library").AnnotatedStory} story a story of `projectTree()`
+ * @returns {{ numbers: string[], contractIds: Map<string, string> }}
+ */
+export function contractsOf(story) {
+  const contractIds = new Map();
+  for (const capability of story.capabilities) {
+    for (const contract of capability.contracts) {
+      const number = /^(\d+\.\d+) · /.exec(contract.title)?.[1];
+      if (number !== undefined) contractIds.set(number, contract.id);
+    }
+  }
+  return { numbers: [...contractIds.keys()], contractIds };
 }
 
-/** Not built yet. */
-export function packageOf(_title) {
-  throw new Error("packageOf is not built yet");
+/**
+ * The package whose tests prove a story: the one named after its title ("The agent link" ->
+ * `agent-link`), but for the stories whose package was named otherwise. Its tests are in
+ * packages/<name>/src, and a story with no such package has none yet.
+ * @param {string} title
+ */
+export function packageOf(title) {
+  const name = title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return PACKAGE_NAMED_OTHERWISE[name] ?? name;
 }
+
+/** Stories whose package is not named after their title. */
+const PACKAGE_NAMED_OTHERWISE = { "command-line": "cli" };
 
 // --- writing to the library -------------------------------------------------------------------
 

@@ -1,0 +1,13 @@
+--- old/What did I leave running?/capability 1/capability_a3e608293417/description
++++ new/What did I leave running?/capability 1/capability_a3e608293417/description
+@@ -1 +1,3 @@
+ Every tracked run names the session that started it and the computer where it runs. Background shells and detached servers keep that owner after the request or launcher that started them has gone away.
++
++As built (foundation): @storytree/own supplies one launchOwned boundary for resolved Claude Code/Codex callers and explicitly session-bound manual callers, with ownerFromCall accepting the agent link's public caller and agent context. Each launch durably records its owner, machine, optional project, executable/arguments, folder, launch time, PID and native lifetime observation before reporting tracked. Explicit parentRun/parentSession/subagent links survive the launcher; no PID adoption or folder/time/command inference assigns ownership. Failed launches or registration return a named gap, including a surviving PID when known. CLI/MCP installation and generic offline tool routing are later integration work; existing command hooks alone do not register runs.
+
+--- old/What did I leave running?/capability 2/capability_77a22d55c99e/description
++++ new/What did I leave running?/capability 2/capability_77a22d55c99e/description
+@@ -1 +1,3 @@
+ A request ending or timing out does not mean its work has stopped. Each run stays visible until the computer confirms it has ended, with anything it cannot establish shown as uncertain.
++
++As built (foundation): readLedger and observeRuns retain records independently of requests, turns, sessions, claims and age, without a library connection. Request outcomes stay unknown unless the caller records evidence; explicit timeout evidence never implies process death. Native probes distinguish live/gone/unknown and compare Linux boot/start ticks, macOS boot/native microsecond start time or Windows exact creation FILETIME before attributing the current PID to a recorded lifetime. Failed or partial reads stay visible alongside readable records. Only registered runs and explicit child links are covered; unregistered launch paths and descendants remain untracked. Stopping and closing consume these observations in later capabilities and must revalidate identity before any signal.

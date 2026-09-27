@@ -1,0 +1,19 @@
+✔ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (70.316406ms)
+✔ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (177.389461ms)
+✔ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (51.69994ms)
+✔ 1.5: absent owner and failed registration report an untracked launch instead of guessing (30.746578ms)
+✔ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (10.673052ms)
+✔ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (64.042575ms)
+✔ 2.3/2.4 native observation identifies one live process lifetime consistently (6.996982ms)
+✔ 2.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE (25.281741ms)
+✔ 2.3 invalid process identifiers remain uncertain (0.227667ms)
+✔ 2.3 Linux distinguishes absent processes from unreadable or malformed evidence (0.367784ms)
+✔ 2.3/2.4 Linux uses exact boot and start ticks even with spaces and parentheses in command (0.367704ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 597.739844

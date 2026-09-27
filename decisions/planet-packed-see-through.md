@@ -20,19 +20,25 @@ never moves when a story arrives or retires (P1). The radius is fixed. The appro
 radius 160 for 36 places. Places past capacity are refused until a later book decides them.
 This replaces ADR-0646 D1's even spread, on the Story nodes shelf.
 
+**Spacing narrowed, 2026-09-27 (ADR-0655 D3).** The owner found these islands cramped and
+asked for room for pathways. The next spacing follows the trail's width while preserving P1.
+That look and build are separate increments; the globe-only page change keeps the current table.
+
 **D2 — No sea.** The surface is a light, see-through grey shell. It shows the ball's shape and
 how little of it is covered by land, while admitting the far side and the future knowledge
 core through areas without land. This replaces ADR-0646 D4's dark water and brings ADR-0629's
 transparent surface forward into this slice, on the Story node render shelf.
 
 **D3 — No bridges or filled continent in the MVP.** The islands and kit trees retain 0.2's
-look unchanged. Land between them is not filled. A later pathways decision will decide joins.
+look unchanged. Land between them is not filled. ADR-0655 D3 calls for a picture review of how
+trails cross the gaps before they are built; no land or bridges are added unless the owner picks them.
 
 ADR-0646's H1 (books on the forest's shelves), L1 (the light follows the eye) and the failing
 island rule stand. The globe opens toward a failing island; edge markers bring a hidden failure
 to the front. Names and claim markers keep their current rule and hide when behind. The flat
-forest remains unchanged. The knowledge core is now built behind its separate “Look inside”
-view (ADR-0647 E1). The owner’s K1 choice on 2026-09-27
+canvas remains in the engine. **Page choice narrowed, 2026-09-27 (ADR-0655 D1/D2):**
+the page offers the globe alone, with no Forest or “Look inside” entry point. The knowledge
+core implementation already landed, but its page entry is deferred. The owner’s K1 choice on 2026-09-27
 (`oq-0-3-knowledge-core-through-the-shell`) keeps it out of the ordinary Globe view;
 D2’s readiness for a future visible core does not add that overlay.
 
@@ -68,7 +74,8 @@ light, labels, claims and picking retain their existing code. The earlier 80% te
 with a 95% clear-centre base target added red then green; the rim and highlight are judged in
 the [matched seeded captures](../apps/desktop/src/forest/evidence/glass/README.md), with an
 actual shader pixel readback checking the composited transparency. These are shell changes
-only; the knowledge core's separate “Look inside” view is unchanged.
+only; that landing left the knowledge core's separate “Look inside” view unchanged. ADR-0655
+subsequently removes its page entry, as noted above.
 
 The clearance proof is bounded to the look's seed, a fresh seven-story seed, and all 36 sample shores at
 their real sizes, including beaches (4–13 capabilities, original ids). It does not inherit W2's

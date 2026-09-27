@@ -37,7 +37,7 @@ async function main() {
   const args = process.argv.slice(2);
   const at = args.indexOf("--project");
   const project = at === -1 ? undefined : args[at + 1];
-  const file = args.find((arg, index) => !arg.startsWith("--") && index !== at + 1);
+  const file = args.find((arg, index) => !arg.startsWith("--") && (at === -1 || index !== at + 1));
   if (file === undefined || (at !== -1 && project === undefined)) {
     console.error(`usage: ${COMMAND} <snapshot.json> [--project <name>]`);
     return 1;

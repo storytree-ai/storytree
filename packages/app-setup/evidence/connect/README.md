@@ -49,4 +49,6 @@ No project library, claim, decision, question or closure record was read or writ
 
 The [library patch and checklist](library-update/README.md) are for the supervisor.
 No decision-log curation, owner re-steer or memory graduation was needed. Review found
-and corrected absent-Codex cleanup and dangling-symlink preservation before landing.
+and corrected absent-Codex cleanup and dangling-symlink preservation before landing. The first macOS CI run also exposed
+a temporary-directory alias in the folder-inheritance test; [ci-macos-red.txt](ci-macos-red.txt)
+records the failure. The assertion now compares the real path of the same directory.

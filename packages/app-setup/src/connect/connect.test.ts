@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -104,7 +104,7 @@ test("2.2/2.6: the registered launch keeps the session folder and reaches its ex
   const server = JSON.parse(readFileSync(f.claudeFile, "utf8")).mcpServers.storytree;
   for (const folder of folders) {
     const env = { ...process.env }; delete env.CLAUDE_PROJECT_DIR;
-    assert.equal(execFileSync(server.command, server.args, { cwd: folder, env, encoding: "utf8" }).trim(), folder);
+    assert.equal(execFileSync(server.command, server.args, { cwd: folder, env, encoding: "utf8" }).trim(), realpathSync(folder));
     const report = await runSetupCheck({ folder, storytreeHome: path.join(f.home, "no running app"), openWaitMs: 0, gh: async () => "missing", machine: async () => ({ claude: "missing", codex: "missing", git: "missing", node: { state: "missing" }, waitMs: 0 }) });
     assert.equal(report.project.status, "ask");
     assert.ok(!existsSync(path.join(folder, ".storytree.json")));

@@ -330,6 +330,9 @@ into the knowledge is through a front cover.
 - **Added** on 2026-09-26 by ADR-0627, the owner's "rabbit-hole" model. The two sentences above are
   the ones he approved.
 - **Depends on:** 4 and 6. It adds `frontCovers` to 7's list of functions.
+- **Its shelf,** founding book first:
+  - Every story and capability has a shelf of front covers (ADR-0627, decisions/adr-0627.md).
+  - Decisions about the whole project sit on no shelf (ADR-0631, decisions/adr-0631.md).
 - **As built:** a decision's optional `frontCoverOf` field names the one story or capability it is
   a front cover of. One field names one node, so no decision can be the cover of two, and nothing
   has to check for it. A node's shelf is every live decision naming it, founding (oldest) first.

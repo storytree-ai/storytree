@@ -415,6 +415,8 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
 - **Depends on:** 1, 2 and 5; the library API, plus three edit functions it gains for this story
   (edit a story, a contract and an arc: `stories/library.md`, capability 7). The note tools also
   need the library's knowledge entrances (ADR-0627 D8), which land first.
+- **Its shelf,** founding book first:
+  - Every knowledge read is recorded, and a new note has a default place (ADR-0624, decisions/adr-0624.md).
 - **Leaves out (vs 0.2):** the whole storytree command line (dozens of commands for the library,
   arcs, decisions, questions, the gate and the notice board), the build workers, the prove-it spine,
   signed verdicts and paid `--real` builds. The MVP toolbox has about a dozen tools.

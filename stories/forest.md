@@ -101,6 +101,7 @@ node and a retired story's node goes, with nothing arranged by hand.
 - **Depends on:** nothing in this story. It reads the library's `projectTree`, and its change
   history (`changesSince`) for the stories since retired.
 - **Its shelf,** founding book first:
+  - The planet begins with islands spread around a globe (ADR-0646, decisions/adr-0646.md).
   - **Founding book (P1):** a node's place comes from its story alone: the next place on a spiral,
     in the order stories were created, fixed for good, and a retired story leaves open sea. So
     nothing ever moves a node, and the planet (ADR-0629) will be a new placement book, not a
@@ -191,6 +192,7 @@ place of today's plain list.
 - **Its shelf,** founding book first:
   - **Founding book:** the land look endorsed for 0.2 is ported as it stands, with no art research
     (ADR-0625 D4, ADR-0508).
+  - The forest keeps 0.2's fixed view and full-size seedlings (ADR-0642, decisions/adr-0642.md).
   - **Planet book: a failing island is never hidden** (ADR-0646, H1). The globe opens facing a
     failing island: any dead tree makes its island failing, as in the ground's worst-form rule.
     If several fail it faces the first in story order; if none fail it faces the first story.

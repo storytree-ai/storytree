@@ -1,8 +1,6 @@
 /**
  * Capability 6 · Decisions: one test per contract in stories/cli.md, each running the real, built
- * `storytree` command. Contract 6.3 (a superseded decision drops out of `adr list --current`) waits
- * on the library's list(kind) on its public API (0-3-library-writer-and-public-reads), and is
- * written when that lands.
+ * `storytree` command.
  */
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -15,6 +13,44 @@ const command = new BuiltCommand();
 
 before(() => command.build());
 after(() => command.remove());
+
+test("6.3 a superseded decision drops out of `--current`; filters use the library's status", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const old = await library.recordDecision({ title: "Mailgun", text: "Simple API", status: "accepted", loadBearing: true });
+    const replacement = await library.recordDecision({ title: "SES", text: "Lower cost", status: "accepted", supersedes: [old.id], loadBearing: true });
+    const proposal = await library.recordDecision({ title: "SMTP", text: "Run our own", status: "proposed" });
+    const ordinary = await library.recordDecision({ title: "TLS", text: "Encrypt mail", status: "accepted" });
+    for (const [flags, included, excluded] of [
+      [[], [old.id, replacement.id, proposal.id, ordinary.id], []],
+      [["--current"], [replacement.id, ordinary.id], [old.id, proposal.id]],
+      [["--status", "superseded"], [old.id], [replacement.id, proposal.id, ordinary.id]],
+      [["--status", "proposed"], [proposal.id], [old.id, replacement.id, ordinary.id]],
+      [["--current", "--load-bearing"], [replacement.id], [old.id, proposal.id, ordinary.id]],
+    ] as const) {
+      const ran = await world.run(["adr", "list", ...flags]);
+      assert.equal(ran.code, 0, ran.stderr);
+      for (const id of included) assert.ok(ran.stdout.includes(id), ran.stdout);
+      for (const id of excluded) assert.ok(!ran.stdout.includes(id), ran.stdout);
+    }
+  });
+});
+
+test("6.5 `adr pull` names a decision by id, number, or ADR number", async () => {
+  await inWorld(command, async (world) => {
+    const decision = await (await world.library()).recordDecision({ title: "Mailer", text: "Mailgun", status: "accepted" });
+    const byId = await world.run(["adr", "pull", decision.id]);
+    assert.equal(byId.code, 0, byId.stderr);
+    for (const name of [String(decision.fields.number), `ADR-${String(decision.fields.number).padStart(4, "0")}`]) {
+      const ran = await world.run(["adr", "pull", name]);
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.equal(ran.stdout, byId.stdout);
+    }
+    const missing = await world.run(["adr", "pull", "9999"]);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /no decision/);
+  });
+});
 
 /** The number `adr new` answered with: "ADR-<n>". */
 function numberIn(text: string): number {

@@ -247,7 +247,7 @@ links, replay the selected session, and size artifacts by visits or incoming lin
     `surface={false}` hides ADR-0648's see-through shell, which replaced the sea, and every
     island.
   - It reads only `changesSince` and `linesSince`, which the page already reads.
-  - Pictures are in `apps/desktop/src/forest/evidence/core`.
+  - Pictures are in `packages/forest/src/view/evidence/core`.
 
 **Contracts:**
 1. From the globe, the owner can open the core, find a shelf's entrance and pin an artifact; its card

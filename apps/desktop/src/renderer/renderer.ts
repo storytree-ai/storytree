@@ -13,9 +13,7 @@ import type { AnnotatedTree, Change, SchemaRecord } from "@storytree/library";
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { openForestView, type ForestView } from "../forest/forest-view.js";
-import { renderStoryPanel } from "../forest/story-panel.js";
-import { renderUnclaimed } from "../forest/unclaimed-list.js";
+import { openForestView, renderStoryPanel, renderUnclaimed, type ForestView } from "@storytree/forest/view";
 import { renderNoProjects, renderSwitcher } from "../view/view.js";
 
 declare global {

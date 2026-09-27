@@ -22,10 +22,11 @@
  * with `--screenshot <file>`, prints the page's text to stdout, and quits: exit 0 only if the
  * surface on show says it drew every story of the project and every one of its capabilities.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { format } from "node:util";
 import path from "node:path";
 
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, shell, Tray } from "electron";
 
 import {
   appDirIn,
@@ -33,13 +34,16 @@ import {
   background,
   backUp,
   buildApp,
+  buildLabel,
   electronIn,
+  launchToRecord,
   pageReads,
   slotOf,
   slotSha,
   smokeProblems,
   TRAY_MENU,
   updateToMain,
+  type Launch,
   type PageReads,
   type RunningBuild,
 } from "@storytree/app";
@@ -69,12 +73,22 @@ let shutDown: Promise<void> | undefined;
 let windowQuery: { project?: string; problem?: string } = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
 let tray: Tray | undefined;
-const lifecycle = background({ stopDatabase: shutdown, exit: (code) => app.exit(code) });
+/** Which build this is (`main 80bcc63`, or the development checkout), shown in the title and the tray. */
+let build = "";
+/** The runtime slot this app runs from, when it is the app that follows merged main. */
+const slot = slotOf(home.runtime, app.getAppPath());
+const lifecycle = background({ stopDatabase: shutdown, exit: (code) => app.exit(code), relaunch });
+// The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
+if (slot !== undefined && !args.smoke) logTo(path.join(home.dir, "app.log"));
 
 if (!args.smoke && !app.requestSingleInstanceLock()) {
   app.quit(); // the app is already open: that one is focused instead
 } else {
-  app.on("second-instance", () => showWindow());
+  // A second start shows the window; one that arrives while the app is quitting or restarting opens
+  // it again once it has stopped, instead of being lost.
+  app.on("second-instance", () => {
+    if (lifecycle.secondStart() === "show") showWindow();
+  });
   app.on("activate", () => showWindow());
   // Closing the last window leaves the app, and its database, running in the background.
   app.on("window-all-closed", () => lifecycle.windowClosed());
@@ -106,7 +120,7 @@ async function run(): Promise<void> {
     postgres = await start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) });
     storytree = await connect({ url: postgres.url });
     reads = pageReads({ storytree, serverUrl: postgres.url });
-    recordLaunch();
+    if (!args.smoke) recordLaunch();
   } catch (error) {
     problem =
       error instanceof DataDirInUseError
@@ -115,6 +129,8 @@ async function run(): Promise<void> {
         : `The app's library could not be opened: ${messageOf(error)}`;
     console.error(problem);
   }
+  build = await whichBuild();
+  console.log(`storytree 0.3: ${build}`);
   const projects = storytree === undefined ? [] : await storytree.listProjects();
   const project = chooseProject(projects, args.project);
   windowQuery = { ...(project === undefined ? {} : { project }), ...(problem === undefined ? {} : { problem }) };
@@ -122,6 +138,7 @@ async function run(): Promise<void> {
   else {
     if (!args.background) openWindow(windowQuery);
     showTray();
+    addStartMenuShortcut();
     void keepBackups();
     void followMain();
   }
@@ -135,7 +152,6 @@ async function run(): Promise<void> {
  * never updates itself.
  */
 async function followMain(): Promise<void> {
-  const slot = slotOf(home.runtime, app.getAppPath());
   if (slot === undefined) return;
   const dir = path.join(home.runtime, slot);
   const running: RunningBuild = { slot, dir, sha: await slotSha(dir) };
@@ -149,8 +165,7 @@ async function followMain(): Promise<void> {
       if (next === undefined) return;
       console.log(`updates: main moved to ${next.sha.slice(0, 7)}; restarting into slot ${next.slot}`);
       const showing = BrowserWindow.getAllWindows().some((window) => window.isVisible());
-      app.relaunch({ execPath: electronIn(next.dir), args: [appDirIn(next.dir), ...(showing ? [] : ["--background"])] });
-      app.quit();
+      void lifecycle.restart({ execPath: electronIn(next.dir), args: [appDirIn(next.dir)] }, showing);
     } catch (error) {
       console.error(`updates: ${messageOf(error)}`);
     } finally {
@@ -183,7 +198,7 @@ async function keepBackups(): Promise<void> {
 /** The tray icon, whose menu brings the window back or quits the app. */
 function showTray(): void {
   tray = new Tray(nativeImage.createFromDataURL(TRAY_ICON_PNG));
-  tray.setToolTip("storytree 0.3");
+  tray.setToolTip(`storytree 0.3 · ${build}`);
   const actions = { show: showWindow, quit: () => app.quit() };
   tray.setContextMenu(Menu.buildFromTemplate(TRAY_MENU.map((item) => ({ label: item.label, click: actions[item.id] }))));
   tray.on("click", showWindow);
@@ -204,12 +219,73 @@ function showWindow(): void {
  * the portable file itself is what is recorded; in development, Electron and the app's folder.
  */
 function recordLaunch(): void {
-  const command = app.isPackaged ? (process.env.PORTABLE_EXECUTABLE_FILE ?? process.execPath) : process.execPath;
-  const args = app.isPackaged ? [] : [app.getAppPath()];
+  const portableFile = process.env.PORTABLE_EXECUTABLE_FILE;
+  const record = launchToRecord({
+    runtimeDir: home.runtime,
+    appPath: app.getAppPath(),
+    execPath: process.execPath,
+    ...(app.isPackaged ? { packaged: portableFile === undefined ? {} : { portableFile } } : {}),
+    followsMainSetUp: (["a", "b"] as const).some((name) => existsSync(path.join(appDirIn(path.join(home.runtime, name)), "node_modules", "electron", "path.txt"))),
+  });
+  if (record === undefined) {
+    console.log(`not recording how to open the app: ${home.launchRecord} stays with the app that follows merged main`);
+    return;
+  }
   try {
-    writeFileSync(home.launchRecord, `${JSON.stringify({ command, args }, null, 2)}\n`);
+    writeFileSync(home.launchRecord, `${JSON.stringify(record, null, 2)}\n`);
   } catch (error) {
     console.error(`recording how to open the app: ${messageOf(error)}`);
+  }
+}
+
+/** Which build this is, for the title and the tray: main's commit, a version, or the checkout. */
+async function whichBuild(): Promise<string> {
+  if (app.isPackaged) return buildLabel({ runtimeDir: home.runtime, appPath: app.getAppPath(), packaged: { version: app.getVersion() } });
+  const sha = await slotSha(app.getAppPath()).catch(() => undefined);
+  return buildLabel({ runtimeDir: home.runtime, appPath: app.getAppPath(), ...(sha === undefined ? {} : { sha }) });
+}
+
+/**
+ * On Windows, the app that follows merged main keeps a Start menu entry, "storytree 0.3", pointing
+ * at the build now running, so opening it never means reading app.json by hand. Only for the real
+ * home: an app pointed at a throwaway one (STORYTREE_HOME) leaves the Start menu alone.
+ */
+function addStartMenuShortcut(): void {
+  if (process.platform !== "win32" || slot === undefined || (process.env.STORYTREE_HOME ?? "") !== "") return;
+  const link = path.join(app.getPath("appData"), "Microsoft", "Windows", "Start Menu", "Programs", "storytree 0.3.lnk");
+  const written = shell.writeShortcutLink(link, existsSync(link) ? "replace" : "create", {
+    target: process.execPath,
+    args: `"${app.getAppPath()}"`,
+    cwd: path.dirname(process.execPath),
+    description: `storytree 0.3 (${build})`,
+  });
+  if (!written) console.error(`could not write the Start menu entry ${link}`);
+}
+
+/**
+ * Start the app again once this one has stopped (a restart into a newer build, or a start that
+ * arrived while it was quitting): `target`, or this same build.
+ */
+function relaunch(target: Launch | undefined, inBackground: boolean): void {
+  const own = process.argv.slice(1).filter((arg) => arg !== "--background");
+  app.relaunch({
+    ...(target === undefined ? {} : { execPath: target.execPath }),
+    args: [...(target === undefined ? own : target.args), ...(inBackground ? ["--background"] : [])],
+  });
+}
+
+/** Also append everything the app says to `file`, stamped with the time. */
+function logTo(file: string): void {
+  for (const level of ["log", "error"] as const) {
+    const write = console[level].bind(console);
+    console[level] = (...parts: unknown[]) => {
+      write(...parts);
+      try {
+        appendFileSync(file, `${new Date().toISOString()} ${format(...parts)}\n`);
+      } catch {
+        // a log that cannot be written must never stop the app
+      }
+    };
   }
 }
 
@@ -247,6 +323,12 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   if (!args.smoke) window.once("ready-to-show", () => window.show());
+  // The page names the project; the title adds which build this is.
+  window.setTitle(`storytree 0.3 · ${build}`);
+  window.on("page-title-updated", (event, title) => {
+    event.preventDefault();
+    window.setTitle(build === "" ? title : `${title} · ${build}`);
+  });
   void window.loadFile(path.join(__dirname, "renderer", "index.html"), { query });
   return window;
 }

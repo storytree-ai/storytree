@@ -30,7 +30,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useThree, type RootState } from '@react-three/fiber';
 import { Line, MapControls } from '@react-three/drei';
-import { BufferAttribute, Color, OrthographicCamera, type BufferGeometry, type Mesh, type Texture } from 'three';
+import { BufferAttribute, Color, OrthographicCamera, type BufferGeometry, type Mesh, type Texture, type Vector3 } from 'three';
 import type { InstanceDescriptor, Descriptor3D } from './world-to-3d.js';
 import type { ForestRegrowPresentation } from './ForestWorldCanvas.regrow.js';
 import { islandGrowthProgress, regrowTrailPoints } from './ForestWorldCanvas.causal.js';
@@ -672,8 +672,11 @@ export function buildGroundMaterial(
    *  material as it drew until 2026-09-08, the unhealthy islands flat, which is what the blight
    *  ladder's control arm needs. The canvas never passes it. */
   blight: GroundBlightLayer | null = SHIPPED_BLIGHT,
+  /** The globe's light, already expressed in this plate's coordinates (L1, ADR-0646). */
+  plateLight?: Vector3,
 ) {
   const opts: BandedGroundMaterialOptions = { tokens: GROUND_TOKENS, grain: 'normal' };
+  if (plateLight !== undefined) opts.localSpace = true;
   const shadow = field === null ? null : groundAtlasTexture(field);
   if (shadow !== null) opts.shadowAtlas = shadow;
   // By statement, and only where there is a field to read: a depth without an occlusion field is
@@ -710,7 +713,9 @@ export function buildGroundMaterial(
   if (extras.detail !== undefined) {
     opts.detail = { map: shippedDetailTexture(), strength: extras.detail.strength, tile: DETAIL_TILE_UNITS };
   }
-  return { material: createBandedGroundMaterial(opts), shadow, shoreTex, wearTex };
+  const material = createBandedGroundMaterial(opts);
+  if (plateLight !== undefined) material.uniforms.uLightDir!.value = plateLight;
+  return { material, shadow, shoreTex, wearTex };
 }
 
 /**
@@ -1011,7 +1016,7 @@ function anchorsForGround(
   return anchors;
 }
 
-function CellGround({ ground, growth }: { ground: GroundInput; growth: GrowthTexture }) {
+function CellGround({ ground, growth, plateLight }: { ground: GroundInput; growth: GrowthTexture; plateLight?: Vector3 }) {
   // ⚠ ONE DEPENDENCY, NOT THREE. The parcels, the casters and the strips are derived together by
   // `createGroundInputCache` and handed over as one object, so this memo cannot be re-entered for a
   // ground that did not change — and, just as important, cannot be SKIPPED for one that did. Three
@@ -1044,10 +1049,10 @@ function CellGround({ ground, growth }: { ground: GroundInput; growth: GrowthTex
     const wearField = wear();
     const extras: GroundLayerExtras = { rock: SHIPPED_LAYERS.rock, detail: SHIPPED_LAYERS.detail };
     if (wearField !== null) extras.wear = { field: wearField, mix: SHIPPED_LAYERS.wearMix };
-    const material = buildGroundMaterial(field, SHIPPED_GRASS, shore(), SHIPPED_SAND_MIX, extras);
+    const material = buildGroundMaterial(field, SHIPPED_GRASS, shore(), SHIPPED_SAND_MIX, extras, SHIPPED_SHADOW_DEPTH, SHIPPED_WHEAT, SHIPPED_BLIGHT, plateLight);
     installGroundGrowth(material.material, growth);
     return { geo, anchors: anchorsForGround(geo.islandSlots, ground.growthLayout), ...material };
-  }, [ground, growth]);
+  }, [ground, growth, plateLight]);
   // ⚠ THE MATERIAL AND ITS TEXTURE ARE DISPOSED, WHICH THE MODULE-SCOPE SINGLETON NEVER NEEDED
   // TO BE. The occlusion field is about 107 KB of GPU memory for one island, and a canvas that
   // re-mounts on every navigation would strand one copy per visit — a leak that grows with use
@@ -1626,6 +1631,10 @@ function GrowthTextureUpload({ growth, values }: { growth: GrowthTexture; values
 
 const NO_HIDDEN_STATUSES: ReadonlySet<string> = new Set();
 const NO_TARGETS: readonly NativePropHitEnvelope[] = Object.freeze([]);
+
+// Both mounts share the shipped ground and kit. Each globe plate owns its cache, textures and
+// material clones; the parsed kit remains the existing singleton. The flat mount is unchanged.
+export { CellGround, KitProps, SHIPPED_GROUND_INPUT };
 
 /**
  * The minimal R3F canvas of the spike: descriptors → placeholder meshes under drei

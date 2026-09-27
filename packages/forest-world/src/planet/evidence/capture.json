@@ -1,0 +1,285 @@
+{
+  "ready": true,
+  "stories": [
+    {
+      "id": "agent-link",
+      "title": "The agent link",
+      "trees": 8
+    },
+    {
+      "id": "app",
+      "title": "The app",
+      "trees": 4
+    },
+    {
+      "id": "arc-surface",
+      "title": "The arc surface",
+      "trees": 5
+    },
+    {
+      "id": "forest",
+      "title": "The forest",
+      "trees": 7
+    },
+    {
+      "id": "librarian",
+      "title": "The librarian",
+      "trees": 6
+    },
+    {
+      "id": "library",
+      "title": "The library",
+      "trees": 13
+    }
+  ],
+  "spots": {
+    "agent-link": {
+      "x": 0.12475562048961962,
+      "y": 0.9921875,
+      "z": 0
+    },
+    "app": {
+      "x": -0.12452477881973632,
+      "y": -0.9921875,
+      "z": -0.0075857961774455475
+    },
+    "arc-surface": {
+      "x": 0.24997907207822007,
+      "y": -0.0390625,
+      "z": 0.9674629629172696
+    },
+    "forest": {
+      "x": 0.46941444188059966,
+      "y": -0.023437500000000007,
+      "z": -0.8826668484471791
+    },
+    "librarian": {
+      "x": -0.972122432157336,
+      "y": 0.0703125,
+      "z": -0.22368310003273773
+    },
+    "library": {
+      "x": 0.9898481225884014,
+      "y": 0.1328125,
+      "z": 0.05061159997438413
+    }
+  },
+  "radius": 390,
+  "before": {
+    "plates": [
+      {
+        "story": "planet:agent-link",
+        "meshes": 6,
+        "localLight": [
+          -0.5494987971688985,
+          0.7584403349316683,
+          0.35045588917675885
+        ]
+      },
+      {
+        "story": "planet:app",
+        "meshes": 6,
+        "localLight": [
+          0.5036163113725525,
+          -0.7612028359338774,
+          0.4085839613662369
+        ]
+      },
+      {
+        "story": "planet:arc-surface",
+        "meshes": 6,
+        "localLight": [
+          -0.7147360219594682,
+          0.1943430149389469,
+          -0.671850587153122
+        ]
+      },
+      {
+        "story": "planet:forest",
+        "meshes": 6,
+        "localLight": [
+          -0.585646210337893,
+          -0.5400912213618911,
+          0.6044170653817487
+        ]
+      },
+      {
+        "story": "planet:librarian",
+        "meshes": 6,
+        "localLight": [
+          0.6742337229626977,
+          0.41736518733568484,
+          0.6092743119647414
+        ]
+      },
+      {
+        "story": "planet:library",
+        "meshes": 6,
+        "localLight": [
+          -0.8890936987426885,
+          -0.3192266098642963,
+          0.32803470305837046
+        ]
+      }
+    ],
+    "camera": [
+      0,
+      1195.0293312656056,
+      1002.7486711110016
+    ],
+    "zoom": 0.9235115167318557,
+    "light": [
+      -450.5861432272612,
+      821.0680832141202,
+      350.45588917675883
+    ],
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "dragged": {
+    "plates": [
+      {
+        "story": "planet:agent-link",
+        "meshes": 6,
+        "localLight": [
+          -0.21402028546796545,
+          0.8719070631835399,
+          -0.44042410308572494
+        ]
+      },
+      {
+        "story": "planet:app",
+        "meshes": 6,
+        "localLight": [
+          0.26630379190770914,
+          -0.8685900046575478,
+          -0.4178919647762768
+        ]
+      },
+      {
+        "story": "planet:arc-surface",
+        "meshes": 6,
+        "localLight": [
+          -0.20892339280853378,
+          -0.4868208390806923,
+          -0.8481488587353887
+        ]
+      },
+      {
+        "story": "planet:forest",
+        "meshes": 6,
+        "localLight": [
+          -0.6856880398288265,
+          0.31922766116899237,
+          0.6541602344840878
+        ]
+      },
+      {
+        "story": "planet:librarian",
+        "meshes": 6,
+        "localLight": [
+          0.9442878732282628,
+          0.2619053849030808,
+          -0.1993137773281463
+        ]
+      },
+      {
+        "story": "planet:library",
+        "meshes": 6,
+        "localLight": [
+          -0.8772546754789983,
+          -0.006370461124492322,
+          -0.4799829700888342
+        ]
+      }
+    ],
+    "camera": [
+      -515.9094819037394,
+      1470.4140776320767,
+      72.93727979038894
+    ],
+    "zoom": 0.9235115167318557,
+    "light": [
+      -103.57294531100241,
+      891.7955227633402,
+      -440.42410308572494
+    ],
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "zoomed": {
+    "plates": [
+      {
+        "story": "planet:agent-link",
+        "meshes": 6,
+        "localLight": [
+          -0.12254678659202954,
+          0.884295609196682,
+          -0.4505591644295308
+        ]
+      },
+      {
+        "story": "planet:app",
+        "meshes": 6,
+        "localLight": [
+          0.17673541727964026,
+          -0.8808803604585841,
+          -0.4391063457038016
+        ]
+      },
+      {
+        "story": "planet:arc-surface",
+        "meshes": 6,
+        "localLight": [
+          -0.12029072874444068,
+          -0.4735863387328892,
+          -0.8724941950200638
+        ]
+      },
+      {
+        "story": "planet:forest",
+        "meshes": 6,
+        "localLight": [
+          -0.6189242079496103,
+          0.3714819403015166,
+          0.6920505710161421
+        ]
+      },
+      {
+        "story": "planet:librarian",
+        "meshes": 6,
+        "localLight": [
+          0.9580074618986971,
+          0.17450311608139002,
+          -0.22753102079563048
+        ]
+      },
+      {
+        "story": "planet:library",
+        "meshes": 6,
+        "localLight": [
+          -0.8652095556098959,
+          0.08460079248901724,
+          -0.49422174253219275
+        ]
+      }
+    ],
+    "camera": [
+      -470.037231399858,
+      1487.5024694664182,
+      1.1850861824624475
+    ],
+    "zoom": 0.9721173860335324,
+    "light": [
+      -11.268542400201031,
+      892.6754501501306,
+      -450.5591644295308
+    ],
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "checks": {
+    "drag": true,
+    "zoom": true,
+    "lightFollowsCamera": true,
+    "geometryRetained": true,
+    "errors": []
+  }
+}

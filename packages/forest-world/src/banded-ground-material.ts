@@ -406,6 +406,9 @@ export interface GroundDetailLayer {
 }
 
 export interface BandedGroundMaterialOptions {
+  /** A tangent plate keeps paint, slope and baked shadows in its own coordinates.
+   * Its caller supplies uLightDir in that same frame. Absent preserves the flat shader. */
+  localSpace?: boolean;
   /** The authored `#rrggbb` ground token for each ramp ROW, in row order. Row `i` is what a
    *  vertex carrying `statusIndex === i` wears. The caller owns the ordering and must use the
    *  same one for `cellGroundGeometry`'s `index` resolver — `ForestWorldCanvas` derives both
@@ -1021,7 +1024,7 @@ export function createBandedGroundMaterial(opts: BandedGroundMaterialOptions): S
     : '\n        // The occlusion field is authored in GROUND coordinates, so it is sampled in them.';
   const worldVarying = needsWorld ? '\n      varying vec3 vWorld;' : '';
   const worldAssign = needsWorld
-    ? worldReason + '\n        vWorld = (modelMatrix * vec4(position, 1.0)).xyz;'
+    ? worldReason + (opts.localSpace ? '\n        vWorld = position;' : '\n        vWorld = (modelMatrix * vec4(position, 1.0)).xyz;')
     : '';
 
   // ⚠ THE GRAIN UNIFORMS ARE ADDED BY STATEMENT — the same shape `harness/banded-material.ts`
@@ -1478,7 +1481,7 @@ ${paintStage}${
         // The normal reaches the fragment stage in WORLD space: the light is an authored world
         // direction, so shading in view space would swing the lighting whenever the camera
         // moved — which on a banded material means visible rungs sliding across static ground.
-        vNormal = normalize(mat3(modelMatrix) * normal);${worldAssign}${atlasAssign}
+        vNormal = normalize(${opts.localSpace ? 'normal' : 'mat3(modelMatrix) * normal'});${worldAssign}${atlasAssign}
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,

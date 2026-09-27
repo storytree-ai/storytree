@@ -32,6 +32,14 @@ export class History {
     return this.create(id, "decision", { title: id, text: `${id}'s text`, status: "accepted", ...fields });
   }
 
+  story(id: string): this {
+    return this.create(id, "story", { title: id });
+  }
+
+  capability(id: string, story: string): this {
+    return this.create(id, "capability", { title: id, story });
+  }
+
   memory(id: string, fields: Record<string, unknown> = {}): this {
     return this.create(id, "memory", { title: id, text: `${id}'s text`, ...fields });
   }

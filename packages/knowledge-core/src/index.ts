@@ -3,3 +3,5 @@
 // through its activity log's lines.
 export { knowledge } from "./ghosts/ghosts.js";
 export type { Ghost, GhostEvidence, Knowledge } from "./ghosts/ghosts.js";
+export { EMPTY_SHELF, LOOP_LABEL, underShelves } from "./shelves/shelves.js";
+export type { Core, Loop, Placement, Shelf } from "./shelves/shelves.js";

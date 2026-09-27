@@ -453,3 +453,36 @@ test("8.9 in a throwaway home, the first start puts a storytree command on the p
     assert.equal(readFileSync(file, "utf8"), "a storytree of the user's own\n", "theirs, untouched");
   });
 });
+
+test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83)", {
+  skip: process.platform !== "win32" && "Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it",
+}, async () => {
+  await withTempDir(async (dir) => {
+    const profile = path.join(dir, "user home");
+    const home = throwawayHome(profile);
+    const bin = path.join(profile, "bin");
+    mkdirSync(bin);
+    const env = {
+      ...process.env,
+      USERPROFILE: profile,
+      CLAUDE_CONFIG_DIR: home.homes.claude,
+      CODEX_HOME: home.homes.codex,
+      STORYTREE_HOME: home.storytreeHome,
+      PATH: bin,
+      Path: bin,
+    };
+    const installed = spawnSync(process.execPath, [path.join(bins, "storytree.mjs"), "setup", "install"], { env, encoding: "utf8" });
+    assert.equal(installed.status, 0, `${installed.stdout}${installed.stderr}`);
+    const wrapper = path.join(bin, "storytree.cmd");
+    assert.ok(existsSync(wrapper), "the real .cmd wrapper is installed on the path");
+
+    const invalid = spawnSync("storytree setup invalid", { shell: true, env, cwd: profile, encoding: "utf8" });
+    assert.equal(invalid.status, 2, "the wrapper preserves a failing command's exit code");
+    const removed = spawnSync("storytree setup remove", { shell: true, env, cwd: profile, encoding: "utf8" });
+    assert.equal(removed.status, 0, `${removed.stdout}${removed.stderr}`);
+    assert.equal(existsSync(wrapper), false, "the wrapper is gone when the command returns");
+    assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS);
+    assert.equal(existsSync(home.codexHooks), false);
+    assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
+  });
+});

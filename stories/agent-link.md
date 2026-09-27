@@ -704,7 +704,9 @@ set one up.
 8. With `gh` missing, or signed out, the check says so and names the fix; signed in, it says
    nothing about it.
 9. In a throwaway home, the first start puts a `storytree` command on the path, a second changes
-   nothing, and removing storytree takes it out.
+   nothing, and removing storytree takes it out. On Windows, `storytree setup remove` through
+   that `.cmd` wrapper exits 0 with the wrapper gone and the user's own settings kept (regression:
+   storytree-ai/storytree#83; proven on Windows CI, skipped with a named reason on other systems).
 10. A terminal runs the shared check without an agent session and gets diagnostic lines and
     fixes, including when the app is stopped. Checking creates no project; an explicit setup
     request creates it, and the next check reports it ready.

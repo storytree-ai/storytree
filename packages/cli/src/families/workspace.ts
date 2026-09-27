@@ -1,5 +1,5 @@
-/** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace. */
-import { attachWorkspace, makeWorkspace, type WorkspaceAnswer } from "@storytree/agent-link";
+/** Capability 11 · Workspace: a terminal front door onto the agent link's claimed workspace and release. */
+import { attachWorkspace, makeWorkspace, release, type WorkspaceAnswer } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -42,6 +42,23 @@ const attach: Verb = {
   },
 };
 
+const releaseClaim: Verb = {
+  name: "release",
+  usage: "workspace release <increment|capability>",
+  summary: "release a claim this agent session holds, without closing or landing the work",
+  async act(args, context) {
+    const id = args.word(0, "the work's id", this.usage);
+    const answer = await release(await context.claimContext(), id);
+    if (!answer.ok) {
+      const holder = answer.holder;
+      throw new Refusal(holder === undefined
+        ? `You don't hold ${id}, and nobody else does.`
+        : `You don't hold ${id}: ${holder.label} session ${holder.session} (${holder.reason}) does.`);
+    }
+    return { text: `You released ${id}.` };
+  },
+};
+
 /** Present the owning story's refusal without making another claiming rule here. */
 function refusal(id: string, answer: Exclude<WorkspaceAnswer, { ok: true }>): string {
   switch (answer.refused) {
@@ -62,7 +79,7 @@ function refusal(id: string, answer: Exclude<WorkspaceAnswer, { ok: true }>): st
 
 export const workspace: Family = {
   name: "workspace",
-  summary: "prepare or attach a workspace for this agent session",
-  verbs: [attach],
+  summary: "prepare or attach a workspace, or release this agent session's claim",
+  verbs: [attach, releaseClaim],
   bare: make,
 };

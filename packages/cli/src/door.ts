@@ -19,7 +19,7 @@ import type { Library, Storytree, WriteOptions } from "@storytree/library";
 import { Refusal, render, type Answer } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
 import { FAMILIES } from "./families/index.js";
-import { commandSession, commandWriter } from "./writer.js";
+import { commandSession, commandWriter, person } from "./writer.js";
 
 /** Where a command runs, and where its answer goes. */
 export interface Io {
@@ -41,6 +41,8 @@ export interface Context {
   writer(): WriteOptions;
   /** Who holds what in the project right now: the agent link's reading of its activity log. */
   claims(): Promise<Claim[]>;
+  /** The caller and activity log, including a person closing an increment from their terminal. */
+  activityContext(): Promise<ClaimContext & { readonly folder: string }>;
   /** The calling agent and the resources its claims use; refuses a shell with no agent session. */
   claimContext(): Promise<ClaimContext & { readonly folder: string }>;
 }
@@ -79,6 +81,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
       ...(io.script === undefined ? {} : { script: io.script }),
       library: () => opened.library(),
       claims: () => opened.claims(),
+      activityContext: () => opened.activityContext(),
       claimContext: () => opened.claimContext(),
       writer: () => (writer ??= commandWriter()),
     });
@@ -171,6 +174,11 @@ class Opened {
   async claimContext(): Promise<ClaimContext & { readonly folder: string }> {
     const caller = commandSession();
     if (caller === undefined) throw new Refusal("Run workspace from the agent's shell: a claim belongs to the agent session that will work there.");
+    return this.activityContext();
+  }
+
+  async activityContext(): Promise<ClaimContext & { readonly folder: string }> {
+    const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
     const log = await (this.#log ??= openActivityLog(where.url));

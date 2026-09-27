@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Workspace (the command line story): one test per contract 11.1-11.3, each running the real,
+ * Capability 11 · Workspace (the command line story): each test runs the real,
  * built `storytree` command in a project folder that is a git clone with an origin beside it. The
  * agent's session reaches the command as its shell does, in CLAUDE_CODE_SESSION_ID or
  * CODEX_THREAD_ID.
@@ -125,6 +125,63 @@ test("11.4 Codex prepares app creation then attaches its returned folder; an inv
       const [held] = await readClaims(log, world.project);
       assert.equal(held?.session, "codex-app");
       assert.equal(held?.branch, `codex/${name}`);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+test("11.5 `workspace release` ends the calling session's increment or capability claim without closing or landing the work", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
+    const story = await library.addStory({ title: "Sign-up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      for (const [id, env, session, harness] of [
+        [increment.id, { CLAUDE_CODE_SESSION_ID: "claude-release" }, "claude-release", "claude-code"],
+        [capability.id, { CODEX_THREAD_ID: "codex-release" }, "codex-release", "codex"],
+      ] as const) {
+        assert.equal((await claim({ log, library, project: world.project, session, harness }, id, "building the form")).ok, true);
+        const history = await library.history({ id });
+        const ran = await world.run(["workspace", "release", id], env);
+        assert.equal(ran.code, 0, ran.stderr);
+        assert.ok(ran.stdout.includes(id), ran.stdout);
+        assert.deepEqual(await readClaims(log, world.project), []);
+        assert.deepEqual(await library.history({ id }), history, "releasing changes no library record");
+        const line = (await log.since(world.project, 0)).lines.at(-1);
+        assert.equal(line?.kind, "released");
+        if (line?.kind === "released") assert.deepEqual([line.increment ?? line.capability, line.session], [id, session]);
+      }
+      assert.equal((await library.arcView(arc.id))?.increments[0]?.fields.status, "active");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+test("11.6 `workspace release` refuses another session's claim, an unheld target, and a shell without an agent session", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Sign-up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email form" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.equal((await claim({ log, library, project: world.project, session: "holder", harness: "codex" }, capability.id, "building the form")).ok, true);
+      const before = await log.since(world.project, 0);
+      const other = await world.run(["workspace", "release", capability.id], { CLAUDE_CODE_SESSION_ID: "other" });
+      assert.equal(other.code, 1);
+      assert.match(other.stderr, /holder/);
+      const unheld = await world.run(["workspace", "release", "capability_000000000000"], { CODEX_THREAD_ID: "holder" });
+      assert.equal(unheld.code, 1);
+      assert.match(unheld.stderr, /nobody/);
+      const person = await world.run(["workspace", "release", capability.id]);
+      assert.equal(person.code, 1);
+      assert.match(person.stderr, /agent/);
+      assert.deepEqual(await log.since(world.project, 0), before, "refusals append no claim events");
+      assert.equal((await readClaims(log, world.project))[0]?.session, "holder");
     } finally {
       await log.close();
     }

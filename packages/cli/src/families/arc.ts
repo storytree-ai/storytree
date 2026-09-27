@@ -3,7 +3,7 @@
  * increments and their states, the questions waiting on the owner, and what each waiting item
  * waits for. Create, edit, park or unpark an arc; park an increment, record a landing that was never
  * parked, close one with its outcome, and make an arc or increment wait on another with a reason, or
- * clear the wait.
+ * clear the wait. Closing an increment ends its claims through the agent link's `closed`.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
@@ -11,6 +11,7 @@
  * start` (starting is claiming, the agent tools'), no `increment ready` (ADR-0645 D5), and no hand
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
+import { closed } from "@storytree/agent-link";
 import type { Library } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
@@ -203,12 +204,15 @@ const incrementAdd: Verb = {
 const incrementClose: Verb = {
   name: "close",
   usage: "arc increment close <increment> --disposition <landed|failed|withdrawn> [--pr <ref>] [--note <why>]",
-  summary: "close an increment with its outcome",
+  summary: "close an increment with its outcome and end any claim on it",
   async act(args, context) {
     const id = args.word(0, "the increment's id", this.usage);
-    const closed = await (await context.library()).closeIncrement(id, closeOf(args), context.writer());
-    if (closed === null) throw new Refusal(`no increment "${id}" in this project`);
-    return { text: `Closed increment ${id}: ${closed.fields.outcome?.disposition ?? ""}.`, next: [{ command: `storytree arc show ${closed.fields.arc}`, why: "see the arc" }] };
+    const caller = await context.activityContext();
+    const outcome = closeOf(args);
+    const done = await caller.library.closeIncrement(id, outcome, context.writer());
+    if (done === null) throw new Refusal(`no increment "${id}" in this project`);
+    await closed(caller, id, outcome.disposition);
+    return { text: `Closed increment ${id}: ${done.fields.outcome?.disposition ?? ""}. Any claim on it has ended.`, next: [{ command: `storytree arc show ${done.fields.arc}`, why: "see the arc" }] };
   },
 };
 

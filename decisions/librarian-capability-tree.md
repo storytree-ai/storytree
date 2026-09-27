@@ -13,8 +13,8 @@ link's one tool server (the owner's H1).
 The six capabilities, built in this order: Links (an artifact links only to what it rests on, starting
 with the links ADR-0631 left for it), Decision log (every accepted decision stays true in full),
 Catalogue (each artifact is new or an edit to the one that covers it), Graduation (durable lessons move
-from the agent's memory into principles, processes and definitions), Queues (open questions and
-friction are looked at and closed with a reason) and Rounds (when the pass runs, and how an agent is
+from the agent's memory into principles, processes and definitions), Queues (lapsed open questions
+and friction are looked at and closed with a reason) and Rounds (when the pass runs, and how an agent is
 told to run it).
 
 It is built to work on any project and switched on for 0.3's own library first; users' projects get
@@ -26,4 +26,7 @@ graduation-synthesist role, whose friction routing folds into Queues.
 
 ADR-0654 restores ranked related-but-unlinked search after re-measurement showed the librarian
 used it: Links uses it to find neighbours no edge reaches, alongside plain search.
-The same decision restores the 7-day question review lease; Queues' adoption remains to be built.
+The same decision restores the question review lease, seven days unless given another: Queues
+uses the library's lapsed-question drain, longest lapsed first, leaving fresh and settled questions
+out. A review may renew a still-valid open question; an answered one is settled with its answer,
+and the library refuses to renew a settled question.

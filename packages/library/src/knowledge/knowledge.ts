@@ -312,8 +312,8 @@ export class Knowledge {
 
 /**
  * The text an artifact is searched by: every piece of text in its fields, inside lists and objects
- * included, except the ones that name other artifacts. So a memory artifact is searched by its text, a
- * decision by its title and text, a definition by its term and meaning, and a friction by its
+ * included, except the ones that name other artifacts. A decision is searched by its title and text,
+ * a definition by its term and meaning, and friction by its
  * statement, evidence and impact among the rest.
  */
 function textsOf(note: Note): string[] {
@@ -397,7 +397,7 @@ export class LinkLoopError extends Error {
   constructor(path: readonly string[]) {
     const [from, ...rest] = path;
     const chain = rest.length > 1 ? `the existing chain ${rest.join(" → ")}` : "a link to itself";
-    super(`link loop between notes: ${path.join(" → ")} (the link from ${from} would close ${chain}; notes form a tree under their covers, so a note may not rest on itself, directly or through others)`);
+    super(`link loop between artifacts: ${path.join(" → ")} (the link from ${from} would close ${chain}; artifacts form a DAG under their covers, so an artifact may not rest on itself, directly or through others)`);
     this.name = "LinkLoopError";
     this.path = [...path];
   }

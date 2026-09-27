@@ -1,5 +1,9 @@
 # Arc surface over the forest
 
+The #112 captures below are historical. The shared capture harness now exercises the
+[ADR-0660 top drawer](drawer-shape/README.md), including remembered state and the restored forest.
+Its current output is written under `drawer-shape/`.
+
 Capability 3 of the arc surface story, 2026-09-27. This captures the actual desktop renderer,
 HTML and CSS with the app's `pageReads` backed by a fresh, isolated Postgres. The fixture has one
 story and five arcs: waiting on an owner question, claimed work with a landing, a queued release,

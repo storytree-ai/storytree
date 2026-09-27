@@ -31,7 +31,7 @@ test("9.4 friction capture caps each branch and day at three, including routed r
       assert.equal(accepted.code, 0, accepted.stderr);
     }
     const reports = await library.list("friction");
-    const latest = reports.at(-1)!;
+    const latest = reports.find((report) => report.fields.provenance?.branch === "fix/mail" && report.fields.provenance.date === date)!;
     await library.editNote(latest.id, { route: "nothing", routeReason: "Outage passed" });
     const history = await library.history();
     const refused = await world.run([...friction, "--evidence", fields.evidence]);

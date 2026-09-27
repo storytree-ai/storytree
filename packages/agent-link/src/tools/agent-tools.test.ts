@@ -731,7 +731,8 @@ test("6.12 friction capture uses the calling folder's branch for the shared dail
       assert.match(fourth.text, /friction reinforce/);
       assert.deepEqual(await library.history(), history);
       const saved = await library.get(third);
-      assert.deepEqual(saved?.fields.provenance, { branch: "fix/mail", date, source: "retro" });
+      assert.ok(saved?.type === "friction");
+      assert.deepEqual(saved.fields.provenance, { branch: "fix/mail", date, source: "retro" });
     });
   });
 });

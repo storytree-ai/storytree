@@ -1,0 +1,8 @@
+$ node --import tsx packages/cli/src/bins/storytree.ts adr new --title Throwaway numbering proof --text Only in the isolated snapshot copy. --status accepted
+Recorded ADR-0716 (decision_fcac007b4185), accepted.
+Writer: person:mickh
+
+next:
+  - storytree adr pull decision_fcac007b4185 --out decision_fcac007b4185.md   (read or edit it as a file)
+
+exit: 0

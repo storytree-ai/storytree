@@ -73,6 +73,8 @@ const LIBRARY_API = [
   "recordDecision",
   "numberDecision",
   "numberDecisionsFromFullRecord",
+  "numberFoundingDecisions",
+  "setDecisionNumberFloor",
   "decisionNumberPlan",
   "defineTerm",
   "writeKnowledge",

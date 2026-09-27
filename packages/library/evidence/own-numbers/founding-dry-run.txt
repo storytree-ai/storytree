@@ -1,0 +1,58 @@
+$ node --import tsx packages/cli/src/bins/storytree.ts adr renumber --founding-books --dry-run
+Dry run: nothing changed. Review this output, then use --apply. Numbers are not reserved by this preview.
+decision_026dc42f1fa9  ADR-0001 → ADR-0663  RENUMBER
+decision_7f839e27f1d8  ADR-0002 → ADR-0664  RENUMBER
+decision_d04020c2b4c1  ADR-0003 → ADR-0665  RENUMBER
+decision_3054205bc3cb  ADR-0004 → ADR-0666  RENUMBER
+decision_95280f2cfbbe  ADR-0005 → ADR-0667  RENUMBER
+decision_54a5cc32d370  ADR-0006 → ADR-0668  RENUMBER
+decision_b77bc6d23919  ADR-0007 → ADR-0669  RENUMBER
+decision_2ec8215ae769  ADR-0008 → ADR-0670  RENUMBER
+decision_aeed8aeee659  ADR-0009 → ADR-0671  RENUMBER
+decision_4fa45187cbe1  ADR-0010 → ADR-0672  RENUMBER
+decision_7ff487c18ba8  ADR-0011 → ADR-0673  RENUMBER
+decision_57a1e3f80bf9  ADR-0012 → ADR-0674  RENUMBER
+decision_519f8d2b30c5  ADR-0013 → ADR-0675  RENUMBER
+decision_b940ed415ec9  ADR-0014 → ADR-0676  RENUMBER
+decision_201187b6b53c  ADR-0015 → ADR-0677  RENUMBER
+decision_37781df2ef78  ADR-0016 → ADR-0678  RENUMBER
+decision_fee3ecbf6de5  ADR-0017 → ADR-0679  RENUMBER
+decision_11c04f68a90a  ADR-0018 → ADR-0680  RENUMBER
+decision_a8ca582fe22d  ADR-0019 → ADR-0681  RENUMBER
+decision_32b9bddc1975  ADR-0020 → ADR-0682  RENUMBER
+decision_101478dc54ed  ADR-0021 → ADR-0683  RENUMBER
+decision_e9a82de47352  ADR-0022 → ADR-0684  RENUMBER
+decision_cc981dbccd5f  ADR-0023 → ADR-0685  RENUMBER
+decision_70ff04f90448  ADR-0024 → ADR-0686  RENUMBER
+decision_91348293f1ee  ADR-0025 → ADR-0687  RENUMBER
+decision_03b7fe15e4e8  ADR-0026 → ADR-0688  RENUMBER
+decision_6fb213bb979d  ADR-0027 → ADR-0689  RENUMBER
+decision_4de11a09692e  ADR-0028 → ADR-0690  RENUMBER
+decision_ac738439f3a0  ADR-0029 → ADR-0691  RENUMBER
+decision_e3661ebef646  ADR-0030 → ADR-0692  RENUMBER
+decision_0c5d8fd4535c  ADR-0031 → ADR-0693  RENUMBER
+decision_394cc68a71c6  ADR-0032 → ADR-0694  RENUMBER
+decision_da37f3db9903  ADR-0033 → ADR-0695  RENUMBER
+decision_229b50334c5b  ADR-0034 → ADR-0696  RENUMBER
+decision_13c403f3a480  ADR-0035 → ADR-0697  RENUMBER
+decision_fae3dd7b8ffa  ADR-0036 → ADR-0698  RENUMBER
+decision_a821017e746d  ADR-0037 → ADR-0699  RENUMBER
+decision_59bc36372634  ADR-0038 → ADR-0700  RENUMBER
+decision_5b9ef03b8a42  ADR-0039 → ADR-0701  RENUMBER
+decision_e360a095c406  ADR-0040 → ADR-0702  RENUMBER
+decision_086ba2fa35d6  ADR-0041 → ADR-0703  RENUMBER
+decision_26d8e2e52df5  ADR-0042 → ADR-0704  RENUMBER
+decision_d23dbdb96a2b  ADR-0043 → ADR-0705  RENUMBER
+decision_b211a3cf352a  ADR-0044 → ADR-0706  RENUMBER
+decision_5f30662977ae  ADR-0045 → ADR-0707  RENUMBER
+decision_4731de1d51ef  ADR-0046 → ADR-0708  RENUMBER
+decision_861e6fa952db  ADR-0047 → ADR-0709  RENUMBER
+decision_9d11b2ad1587  ADR-0048 → ADR-0710  RENUMBER
+decision_ca11ceae8dba  ADR-0057 → ADR-0711  RENUMBER
+decision_9c33ec3787a9  ADR-0058 → ADR-0712  RENUMBER
+decision_11abba9f5405  ADR-0059 → ADR-0713  RENUMBER
+decision_1f685a9fd9b0  ADR-0060 → ADR-0714  RENUMBER
+decision_2ffb006ea686  ADR-0063 → ADR-0715  RENUMBER
+53 ready; 0 refused. Decisions with a Full record line, created after switch-on, or already moved by this command are untouched.
+
+exit: 0

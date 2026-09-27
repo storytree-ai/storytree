@@ -1,0 +1,4 @@
+$ node --import tsx packages/cli/src/bins/storytree.ts adr renumber --founding-books
+decision number floor is unset; preview and apply adr set-floor --number <0.2 final number> first
+
+exit: 1

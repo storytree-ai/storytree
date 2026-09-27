@@ -235,7 +235,7 @@ for (const backend of [memory, postgres]) {
       assert.deepEqual((await records.get(row.id))?.fields, { ...first.fields, number: row.number });
       await assert.rejects(own.recordDecision({ ...DECIDE, number: row.oldNumber }), NumberTakenError);
     }
-    assert.equal((await records.get(imported.id))?.fields.number, 621);
+    assert.equal((await own.decision(imported.id))?.record.fields.number, 621);
     await assert.rejects(own.editNote(first.id, { number: 800 }), /editNote does not change/);
     assert.equal((await own.recordDecision(DECIDE)).fields.number, 673);
     const completed = await transactions.history();

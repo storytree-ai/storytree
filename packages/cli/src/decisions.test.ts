@@ -148,7 +148,7 @@ test("6.7 `adr number` and its dry run refuse projects other than storytree", as
   });
 });
 
-test("6.7 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations", async () => {
+test("6.8 `adr renumber` exposes the one-time N1 move and refuses unsafe argument combinations", async () => {
   await inWorld(command, async (world) => {
     const help = await world.run(["adr", "renumber", "--help"]);
     assert.equal(help.code, 0, help.stderr);
@@ -179,7 +179,7 @@ test("6.7 `adr renumber` exposes the one-time N1 move and refuses unsafe argumen
   });
 });
 
-test("6.8 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects", async () => {
+test("6.9 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe arguments or other projects", async () => {
   await inWorld(command, async (world) => {
     const help = await world.run(["adr", "set-floor", "--help"]);
     assert.equal(help.code, 0, help.stderr);
@@ -213,7 +213,7 @@ test("6.8 `adr set-floor` previews the one-time ADR-0662 move and refuses unsafe
   });
 });
 
-test("6.9 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects", async () => {
+test("6.10 `adr renumber --founding-books` exposes ADR-0662 and refuses mixed modes or other projects", async () => {
   await inWorld(command, async (world) => {
     const help = await world.run(["adr", "renumber", "--help"]);
     assert.equal(help.code, 0, help.stderr);

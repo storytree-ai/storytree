@@ -98,7 +98,7 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
 
 /** A decision's fields that change only through their own verbs, never editNote. */
 const OWN_VERBS: Readonly<Record<string, string>> = {
-  number: "use numberDecision only for the one-time storytree Full record repair",
+  number: "use the one-time storytree Full record or founding-books move",
   composed: "a composed statement is written with composeStatement",
 };
 
@@ -120,6 +120,10 @@ export interface DecisionNumberPlan {
   readonly refusal?: string;
 }
 
+const NUMBER_FLOOR_ID = "project-decision-number-floor";
+
+type NumberingMove = "full-record" | "founding-books";
+
 export class Knowledge {
   readonly #records: SchemaRecords;
   readonly #project: string | undefined;
@@ -135,16 +139,40 @@ export class Knowledge {
    * It is numbered inside the write: one past the highest number any decision has ever held, so
    * writers at the same time never share one and a retired decision's is never reused. A decision
    * brought in with its own number keeps it, unless another has held it (NumberTakenError).
-   * The storytree project requires an explicit number allocated by 0.2 until cutover.
+   * Storytree auto-numbers only after its one-time floor is set (ADR-0662).
    */
   async recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
-    if (this.#project === "storytree" && decision.number === undefined) {
-      throw new RangeError("In the storytree project, numbers come from 0.2's adr new until cutover; pass the number explicitly.");
-    }
+    const own = this.#project === "storytree";
+    const floor = own && decision.number === undefined ? this.#numberFloor(await this.#records.history({ id: NUMBER_FLOOR_ID })).floor : undefined;
     await this.#checkLinks(decision.links);
     await this.#checkFrontCover(decision.frontCoverOf);
     await checkReferences(this.#records, "supersedes", decision.supersedes, "decision");
-    return this.#records.create("decision", decision, { ...options, sequence: "number" });
+    return this.#records.create("decision", decision, {
+      ...options, sequence: "number",
+      ...(floor === undefined ? {} : { sequenceFloor: floor }),
+      ...(own ? { sequenceNeverHeld: true } : {}),
+    });
+  }
+
+  /** Preview the explicit ADR-0662 switch; only apply stores it, once, under the project lock. */
+  async setDecisionNumberFloor(floor: number, options: WriteOptions & { readonly apply?: boolean } = {}): Promise<number> {
+    this.#requireStorytree();
+    if (!Number.isSafeInteger(floor) || floor < 1) throw new RangeError("decision number floor must be a positive safe integer");
+    const history = await this.#records.history({ id: NUMBER_FLOOR_ID });
+    if (history.length > 0) throw new RangeError(`decision number floor is already set to ${this.#numberFloor(history).floor}; it cannot be lowered or set twice`);
+    if (options.apply === true) {
+      await this.#records.create("decisionNumbering", { floor }, { ...options, id: NUMBER_FLOOR_ID, onlyIfNew: true });
+    }
+    return floor;
+  }
+
+  #numberFloor(history: HistoryEntry[]): { floor: number; seq: number } {
+    const entry = history.find((entry) => entry.recordId === NUMBER_FLOOR_ID);
+    const floor = entry?.record.fields.floor;
+    if (entry === undefined || typeof floor !== "number" || !Number.isSafeInteger(floor) || floor < 1) {
+      throw new RangeError("decision number floor is unset; preview and apply adr set-floor --number <0.2 final number> first");
+    }
+    return { floor, seq: entry.seq };
   }
 
   /**
@@ -152,10 +180,14 @@ export class Knowledge {
    * fields and old number in history. The sequence check runs under the same lock as new decisions.
    */
   async numberDecision(id: string, number: number, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
+    return this.#numberDecision(id, number, "full-record", options);
+  }
+
+  async #numberDecision(id: string, number: number, move: NumberingMove, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     this.#requireStorytree();
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) throw new RangeError(`${id} is not a live decision`);
-    this.#checkNumber(record, number, await this.#records.history());
+    this.#checkNumber(record, number, await this.#records.history(), move);
     const updated = await this.#records.edit(id, { number }, {
       ...options,
       sequence: "number",
@@ -199,7 +231,10 @@ export class Knowledge {
    * No Full record line, or a number already matching it, means no proposal and no write.
    */
   async numberDecisionsFromFullRecord(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
-    const plan = await this.decisionNumberPlan();
+    return this.#applyNumberPlan(await this.decisionNumberPlan(), "full-record", options);
+  }
+
+  async #applyNumberPlan(plan: DecisionNumberPlan[], move: NumberingMove, options: WriteOptions & { readonly apply?: boolean }): Promise<DecisionNumberPlan[]> {
     if (options.apply !== true) return plan;
     const result: DecisionNumberPlan[] = [];
     for (const row of plan) {
@@ -208,7 +243,7 @@ export class Knowledge {
         continue;
       }
       try {
-        await this.numberDecision(row.id, row.number, options);
+        await this.#numberDecision(row.id, row.number, move, options);
         result.push(row);
       } catch (error) {
         if (!(error instanceof RangeError || error instanceof NumberTakenError)) throw error;
@@ -218,19 +253,65 @@ export class Knowledge {
     return result;
   }
 
-  #requireStorytree(): void {
-    if (this.#project !== "storytree") throw new RangeError("numberDecision is only available in the storytree project");
+  /**
+   * ADR-0662's one-time move: live decisions present at switch-on, with no Full record line.
+   * Creation history orders them even when timestamps tie. Decisions created after switch-on
+   * already use the new sequence; completed moves are omitted so retries can finish a partial run.
+   */
+  async numberFoundingDecisions(options: WriteOptions & { readonly apply?: boolean } = {}): Promise<DecisionNumberPlan[]> {
+    this.#requireStorytree();
+    const records = await this.#records.list("decision");
+    const history = await this.#records.history();
+    const { floor, seq } = this.#numberFloor(history);
+    const originals = new Map<string, HistoryEntry>();
+    for (const entry of history) {
+      if (entry.type === "decision" && entry.seq < seq && !originals.has(entry.recordId)) originals.set(entry.recordId, entry);
+    }
+    let highest = history.reduce((max, entry) => typeof entry.record.fields.number === "number" ? Math.max(max, entry.record.fields.number) : max, floor);
+    const plan = records.filter((record) => originals.has(record.id) && fullRecordLines(record.fields.text).length === 0 && !this.#foundingMoved(record.id, history, seq))
+      .sort((a, b) => originals.get(a.id)!.seq - originals.get(b.id)!.seq)
+      .map((record): DecisionNumberPlan => {
+        const number = ++highest;
+        try {
+          this.#checkNumber(record, number, history, "founding-books");
+          return { id: record.id, oldNumber: record.fields.number, number };
+        } catch (error) {
+          if (!(error instanceof RangeError || error instanceof NumberTakenError)) throw error;
+          return { id: record.id, oldNumber: record.fields.number, number, refusal: error.message };
+        }
+      });
+    return this.#applyNumberPlan(plan, "founding-books", options);
   }
 
-  #checkNumber(record: SchemaRecord<"decision">, number: number | undefined, history: HistoryEntry[]): void {
-    if (number === undefined || !Number.isSafeInteger(number) || number < 1 || fullRecordNumber(record.fields.text) !== number) {
-      throw new RangeError(`${record.id}: number must match its own single Full record: ADR-NNNN line`);
-    }
-    if (record.fields.number === number || history.some((entry) => entry.recordId === record.id && entry.record.fields.number !== record.fields.number)) {
-      throw new RangeError(`${record.id} has already been numbered; the Full record repair is one-time`);
+  #foundingMoved(id: string, history: HistoryEntry[], floorSeq: number): boolean {
+    const entries = history.filter((entry) => entry.recordId === id);
+    return entries.some((entry, index) => entry.seq > floorSeq && index > 0 && entry.record.fields.number !== entries[index - 1]!.record.fields.number);
+  }
+
+  #requireStorytree(): void {
+    if (this.#project !== "storytree") throw new RangeError("decision numbering moves are only available in the storytree project");
+  }
+
+  #checkNumber(record: SchemaRecord<"decision">, number: number | undefined, history: HistoryEntry[], move: NumberingMove = "full-record"): void {
+    if (move === "full-record") {
+      if (number === undefined || !Number.isSafeInteger(number) || number < 1 || fullRecordNumber(record.fields.text) !== number) {
+        throw new RangeError(`${record.id}: number must match its own single Full record: ADR-NNNN line`);
+      }
+      if (record.fields.number === number || history.some((entry) => entry.recordId === record.id && entry.record.fields.number !== record.fields.number)) {
+        throw new RangeError(`${record.id} has already been numbered; the Full record repair is one-time`);
+      }
+    } else {
+      const { floor, seq } = this.#numberFloor(history);
+      if (fullRecordLines(record.fields.text).length > 0 || !history.some((entry) => entry.recordId === record.id && entry.seq < seq)) {
+        throw new RangeError(`${record.id}: founding-books move requires a decision present at switch-on with no Full record line`);
+      }
+      if (this.#foundingMoved(record.id, history, seq)) throw new RangeError(`${record.id} has already been numbered; the founding-books move is one-time`);
+      if (number === undefined || !Number.isSafeInteger(number) || number <= floor) {
+        throw new RangeError(`${record.id}: founding-books number must be a safe integer above the floor ${floor}`);
+      }
     }
     if (history.some((entry) => entry.record.fields.number === number)) {
-      throw new NumberTakenError("decision", "number", number);
+      throw new NumberTakenError("decision", "number", number!);
     }
   }
 

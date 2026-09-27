@@ -191,13 +191,13 @@ for (const scenario of [
       const branches = git(folder, "for-each-ref", "refs/heads");
       const url = new URL(testServerUrl());
       url.pathname = `/${projectDatabase(project)}`;
-      const pool = new pg.Pool({ connectionString: url.href });
-      let openConnections = 0;
-      pool.on("connect", (connection) => {
-        openConnections++;
-        connection.once("end", () => openConnections--);
-      });
-      const blocker = await pool.connect();
+      const blocker = new pg.Client({ connectionString: url.href });
+      const observer = new pg.Client({ connectionString: url.href });
+      const openConnections = new Set<pg.Client>();
+      for (const connection of [blocker, observer]) {
+        connection.once("connect", () => openConnections.add(connection));
+        connection.once("end", () => openConnections.delete(connection));
+      }
       const session = "cancelled-claimant";
       const isCodex = tool === "attach_workspace";
       const meta = isCodex ? { sessionId: session, threadId: session } : {};
@@ -205,6 +205,8 @@ for (const scenario of [
       const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
       const client = new Client({ name: isCodex ? "codex-mcp-client" : "claude-code", version: "test" });
       try {
+        await blocker.connect();
+        await observer.connect();
         await tools.server.connect(serverSide);
         let cancellationReceived = false;
         const receive = serverSide.onmessage!;
@@ -233,7 +235,7 @@ for (const scenario of [
         const cancelled = assert.rejects(pending, /cancel/i);
         const deadline = Date.now() + 10_000;
         while (true) {
-          const waiting = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = $1", [boundary === "admitted" ? "transactionid" : "advisory"]);
+          const waiting = await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = $1", [boundary === "admitted" ? "transactionid" : "advisory"]);
           if (waiting.rowCount) break;
           assert.ok(Date.now() < deadline, `${tool} reached the ${boundary} lock`);
           await delay(10);
@@ -274,12 +276,12 @@ for (const scenario of [
           }
         }
       } finally {
-        await blocker.query("ROLLBACK");
-        blocker.release();
+        // Client.end waits for the socket to close (and releases any held lock). Pool.end
+        // returns before idle sockets close, so DROP DATABASE ... FORCE could overtake them.
+        await Promise.all([blocker.end(), observer.end()]);
         await client.close();
         await tools.close();
-        await pool.end();
-        assert.equal(openConnections, 0, "test connections have ended before the project is force-dropped");
+        assert.equal(openConnections.size, 0, "test connections have ended before the project is force-dropped");
       }
     });
   });

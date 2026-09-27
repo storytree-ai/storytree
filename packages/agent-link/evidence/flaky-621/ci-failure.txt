@@ -1,0 +1,15 @@
+Original CI attempt 1: https://github.com/storytree-ai/storytree/actions/runs/36354713054/job/108720016375
+
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1987923Z 
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1988183Z test at packages/agent-link/src/tools/agent-tools.test.ts:2:3147
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1988794Z ✖ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (275.897785ms)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1989310Z   error: terminating connection due to administrator command
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1990354Z       at parseErrorMessage (/home/runner/work/storytree/storytree/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/src/parser.ts:395:9)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1991281Z       at Parser.handlePacket (/home/runner/work/storytree/storytree/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/src/parser.ts:212:19)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1992349Z       at Parser.parse (/home/runner/work/storytree/storytree/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/src/parser.ts:105:30)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1993322Z       at Socket.<anonymous> (/home/runner/work/storytree/storytree/node_modules/.pnpm/pg-protocol@1.16.0/node_modules/pg-protocol/src/index.ts:7:48)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1993943Z       at Socket.emit (node:events:514:28)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1994236Z       at addChunk (node:internal/streams/readable:568:12)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1994503Z       at readableAddChunkPushByteMode (node:internal/streams/readable:519:3)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1994782Z       at Readable.push (node:internal/streams/readable:399:5)
+verify on Linux	Run pnpm test	2026-09-27T22:17:19.1995022Z       at TCP.onStreamRead (node:internal/stream_base_commons:189:23)

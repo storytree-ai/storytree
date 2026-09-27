@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Library transactions: ONE behaviour suite, covering contracts 2.1-2.9 and 2.11 in
+ * Capability 2 · Library transactions: ONE behaviour suite, one test per contract 2.1-2.9 in
  * the library story. Each backend registers it (memory.test.ts, pg.test.ts) and it must pass
  * unchanged on every one. Parity is the point: later stories test against the in-memory twin, so
  * the twin has to behave exactly as Postgres does.
@@ -472,35 +472,6 @@ export function transactionsBehaviourSuite(label: string, makeStore: () => Promi
     const history = await store.history();
     assert.deepEqual(history.slice(0, -1), before.history);
     assert.deepEqual(changesOf(history.slice(-1)), [{ recordId: "v-1", type: "note", action: "updated", record: after }]);
-  });
-
-  contract("2.11", "cancellation before a write leaves no change; cancellation after it starts preserves the write and its history", async (store) => {
-    const original = await store.save({ id: "kept", type: "note", fields: { title: "Before cancellation" } });
-    const before = await store.history();
-    const cancelled = new AbortController();
-    cancelled.abort(new Error("cancel queued write"));
-    const options = { signal: cancelled.signal, actor: "cancelled-writer" };
-    await assert.rejects(store.save({ id: "new", type: "note", fields: {}, ...options }), /cancel queued write/);
-    await assert.rejects(store.edit({ id: "kept", fields: { title: "Unwanted edit" }, ...options }), /cancel queued write/);
-    await assert.rejects(store.retire({ id: "kept", reason: "Unwanted retirement", ...options }), /cancel queued write/);
-    assert.equal(await store.get("new"), null);
-    assert.deepEqual(await store.get("kept"), original);
-    assert.deepEqual(await store.history(), before);
-
-    // Validation runs inside the write, after Postgres takes the lock. Cancelling here is too late.
-    for (const verb of ["save", "edit"] as const) {
-      const late = new AbortController();
-      const written = await store[verb]({
-        id: "kept", type: "note", fields: { title: verb }, actor: "started-writer", signal: late.signal,
-        validate: () => late.abort(new Error("cancel after start")),
-      });
-      assert.equal(late.signal.aborted, true);
-      assert.equal(written?.fields.title, verb);
-      assert.deepEqual(await store.get("kept"), written);
-      const history = await store.history({ id: "kept" });
-      assert.deepEqual(history.at(-1)?.record, written);
-      assert.equal(history.at(-1)?.actor, "started-writer");
-    }
   });
 }
 

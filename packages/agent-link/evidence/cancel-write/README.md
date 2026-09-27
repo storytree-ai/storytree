@@ -6,7 +6,11 @@ Increment `increment_19775abeb4b1`, arc `arc_cfc7db517fae`; chaos drill B2.
   waiting on PostgreSQL's advisory lock, sends `notifications/cancelled`, releases the lock,
   waits for a subsequent write to finish, and finds the unwanted title committed.
 - [red-transactions.txt](red-transactions.txt): commit `94256ab` shows both transaction
-  backends accepting an already-cancelled write.
+  backends accepting an already-cancelled write. The final assertions live in
+  `packages/library/src/transactions/cancellation.test.ts`: `scripts/own-health.test.mjs:168`
+  pins the original shared suite's exact contract list, so adding 2.11 there failed that
+  scripts assertion despite all package tests passing. A dedicated test keeps both backend
+  proofs within this lane's file fence without changing the health checker or its test.
 - [green.txt](green.txt): the same tests pass with the signal threaded through writer options.
   The transaction test also cancels from validation, after admission, and proves that the
   write and its attributed history still commit. Save, edit and retire reject before admission.
@@ -15,7 +19,7 @@ Increment `increment_19775abeb4b1`, arc `arc_cfc7db517fae`; chaos drill B2.
 Reproduce the focused proof with the existing database runner:
 
 ```sh
-flock /tmp/storytree-heavy.lock pnpm test -- --test-name-pattern='6.20|2.11' packages/agent-link/src/tools/agent-tools.test.ts packages/library/src/transactions/memory.test.ts packages/library/src/transactions/pg.test.ts
+flock /tmp/storytree-heavy.lock pnpm test -- --test-name-pattern='6.20|2.11' packages/agent-link/src/tools/agent-tools.test.ts packages/library/src/transactions/cancellation.test.ts
 ```
 
 The production change stays in the MCP handler and library write path. SchemaRecords and

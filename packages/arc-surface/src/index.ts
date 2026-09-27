@@ -7,3 +7,7 @@ export { ASK_EVERY_MS, CLOCK_EVERY_MS, liveReading } from "./live-reading/live-r
 export type { LiveReading, LiveReadingOptions, LiveReads, News, Timers } from "./live-reading/live-reading.js";
 export { arcState, incrementState } from "./work-states/board-states.js";
 export type { ArcFacts, ArcState, IncrementFacts, IncrementReading, IncrementState } from "./work-states/board-states.js";
+export { agentsOnBoard } from "./agents/agents.js";
+export type { ArcWork, BoardAgent, BoardAgents } from "./agents/agents.js";
+export { arcQueues, queueRun, waitsOnBoard } from "./waits/waits.js";
+export type { ArcQueue, BoardWaits, NamedWait, QueueArc, QueueChip, QueueRun, WorkName } from "./waits/waits.js";

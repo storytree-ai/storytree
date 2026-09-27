@@ -1,7 +1,7 @@
 # Routed pathways on the glass globe
 
 - **Front cover of:** stories/forest.md, capability 3
-- **Full record:** ADR-0655 D3 and ADR-0169 in storytree 0.2's decision log
+- **Full record:** ADR-0169 in storytree 0.2's decision log, storytree-ai/storytree02 (`pnpm storytree library artifact adr-0169`); the owner's V2 pick is ADR-0655 D3, filed as decisions/globe-only-and-room-for-pathways.md
 
 The owner picked **V2** on 2026-09-27 from `spike/globe-pathways`: a slightly raised,
 faintly lit ribbon over the glass, docking at both islands' shores. This builds that pick;

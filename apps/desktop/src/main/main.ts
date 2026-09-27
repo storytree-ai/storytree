@@ -27,7 +27,7 @@ import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
 
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, shell, Tray } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, shell, Tray } from "electron";
 
 import {
   appDirIn,
@@ -51,6 +51,7 @@ import {
   type PageReads,
   type RunningBuild,
 } from "@storytree/app";
+import { setupHelpActions } from "@storytree/app-setup";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
 import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
 
@@ -116,6 +117,21 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
 }
 
 async function run(): Promise<void> {
+  const help = setupHelpActions({
+    licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
+    storytreeHome: home.dir,
+    chooseFolder: async () => {
+      const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
+      return result.canceled ? undefined : result.filePaths[0];
+    },
+    openExternal: (url) => shell.openExternal(url),
+    copyText: async (text) => { clipboard.writeText(text); },
+  });
+  ipcMain.handle(CHANNELS.readSetupLicense, () => help.readSetupLicense());
+  ipcMain.handle(CHANNELS.checkSetupFolder, () => help.checkSetupFolder());
+  ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));
+  ipcMain.handle(CHANNELS.copyHelpText, (_event, text: string) => help.copyHelpText(text));
+
   ipcMain.handle(CHANNELS.arcView, (_event, name: unknown, id: unknown) => open().arcView(name, id));
   ipcMain.handle(CHANNELS.waitHolds, (_event, name: unknown, id: unknown) => open().waitHolds(name, id));
   ipcMain.handle(CHANNELS.heldOnQuestion, (_event, name: unknown, id: unknown) => open().heldOnQuestion(name, id));

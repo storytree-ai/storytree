@@ -4,9 +4,10 @@
  */
 import type { LinesSince } from "@storytree/agent-link";
 import type { ProjectSelection } from "@storytree/app";
+import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { AnnotatedTree, ArcView, Hold, Changes, Note, SchemaRecord } from "@storytree/library";
 
-export interface StorytreeBridge {
+export interface StorytreeBridge extends SetupHelpBridge {
   /** The names of the projects in the app's library, sorted. */
   listProjects(): Promise<string[]>;
   /** The current project list and the last chosen project, including newly set-up projects. */
@@ -35,6 +36,10 @@ export interface StorytreeBridge {
 
 /** The IPC channels the functions travel on. */
 export const CHANNELS = {
+  readSetupLicense: "storytree:read-setup-license",
+  checkSetupFolder: "storytree:check-setup-folder",
+  openFeedbackDraft: "storytree:open-feedback-draft",
+  copyHelpText: "storytree:copy-help-text",
   listProjects: "storytree:list-projects",
   projectSelection: "storytree:project-selection",
   chooseProject: "storytree:choose-project",

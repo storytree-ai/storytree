@@ -7,6 +7,7 @@
  */
 import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
+import { mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { claimMarkers, drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, unclaimedWork, type ForestDrawn } from "@storytree/forest";
@@ -27,6 +28,8 @@ declare global {
 const content = element("content");
 const switcher = element("switcher");
 const params = new URLSearchParams(location.search);
+const help = mountSetupHelp(element("help"), window.storytree);
+window.addEventListener("beforeunload", () => help.stop());
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; card: (() => void) | undefined } | undefined;

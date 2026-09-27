@@ -15,6 +15,7 @@
   "devDependencies": {
     "@storytree/agent-link": "workspace:*",
     "@storytree/app": "workspace:*",
+    "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:^",
     "@storytree/forest": "workspace:^",
     "@storytree/knowledge-core": "workspace:*",
@@ -37,11 +38,16 @@
     },
     "files": [
       "dist/**/*",
+      "!dist/LICENSE",
       "!dist/**/*.map",
       "package.json",
       "!node_modules/**/*"
     ],
     "extraResources": [
+      {
+        "from": "dist/LICENSE",
+        "to": "LICENSE"
+      },
       {
         "from": "node_modules/@embedded-postgres/windows-x64/native",
         "to": "postgres"

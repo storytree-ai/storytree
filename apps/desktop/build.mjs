@@ -60,6 +60,8 @@ await build({
 });
 
 cpSync(fileURLToPath(import.meta.resolve("@storytree/arc-surface/view/styles.css")), path.join(dist, "renderer", "arc-surface.css"));
+cpSync(fileURLToPath(import.meta.resolve("@storytree/app-setup/view/styles.css")), path.join(dist, "renderer", "app-setup.css"));
+cpSync(path.join(here, "..", "..", "LICENSE"), path.join(dist, "LICENSE"));
 
 for (const file of ["index.html", "styles.css"]) {
   cpSync(path.join(src, "renderer", file), path.join(dist, "renderer", file));

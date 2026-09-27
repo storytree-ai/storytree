@@ -1,0 +1,71 @@
+Local checks; workspace links installed with --lockfile=false because the root lockfile is outside the file fence. Frozen install remains blocked: see frozen-install.txt and workspace-lock.patch.
+
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/setup-help
+> pnpm -r typecheck
+
+Scope: 12 of 13 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app-setup typecheck: Done
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/arc-surface typecheck: Done
+packages/cli typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+scope: full — everything — README.md changed outside the workspace packages
+
+App-setup behavior tests:
+✔ 5.1/5.2 opens only the reviewed title and body as a GitHub issue draft (1.334204ms)
+✔ 5.3 a failed handoff keeps the prepared text available and accepts an edited retry (0.319126ms)
+✔ 5.2 invalid or empty drafts never reach the external opener (0.396032ms)
+✔ 4.1/4.2 reads the shipped resource without a checkout and reads a replacement after update (11.148507ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 89.853951
+
+
+Repository results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/app-setup
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+Existing live Cloud SQL proof: skipped, requires owner credentials; no NOT RUN units.
+
+Test-ratio all row:
+  all                       39,814           30,831    1.29
+
+Browser acceptance: capture/result.json (actual renderer, isolated Postgres, fake browser/clipboard; all checks passed, no page errors).

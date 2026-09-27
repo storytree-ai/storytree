@@ -6,6 +6,9 @@ forest that grows as stories land, an arc surface for what is planned, in progre
 plain-language view of how each story works and whether it is healthy. Health shows what the agent
 *reported* separately from what storytree *verified* for itself.
 
+Open **Help → First-run guide** in the app for setup, connection checks, the offline license and
+feedback. Help is available before you have a project and while viewing any forest.
+
 ## Where this stands
 
 This repo is new. Its first story is the **library**: the project-scoped store every later story

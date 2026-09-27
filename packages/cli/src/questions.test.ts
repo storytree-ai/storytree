@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Questions: one test per contract 5.1-5.4 in stories/cli.md, each running the real,
+ * Capability 5 · Questions: one test per contract in stories/cli.md, each running the real,
  * built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -11,6 +11,29 @@ const command = new BuiltCommand();
 
 before(() => command.build());
 after(() => command.remove());
+
+test("5.5 `question list` lists open questions across arcs, or on one arc", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const first = await arcWithWork(world);
+    const second = await arcWithWork(world);
+    const fields = { title: "Mailer?", stakes: "Reach readers", statement: "Which?", context: "Email", options: "Mailgun or SES" };
+    const a = await library.raiseQuestion({ ...fields, arc: first.arc });
+    const b = await library.raiseQuestion({ ...fields, arc: second.arc });
+    const settled = await library.raiseQuestion({ ...fields, arc: first.arc });
+    await library.settleQuestion(settled.id, { answer: "Mailgun" });
+    const retired = await library.raiseQuestion({ ...fields, arc: second.arc });
+    await library.retire(retired.id, "Duplicate");
+    const all = await world.run(["question", "list"]);
+    assert.equal(all.code, 0, all.stderr);
+    for (const id of [a.id, b.id]) assert.ok(all.stdout.includes(id), all.stdout);
+    for (const id of [settled.id, retired.id]) assert.ok(!all.stdout.includes(id), all.stdout);
+    const one = await world.run(["question", "list", "--arc", first.arc]);
+    assert.equal(one.code, 0, one.stderr);
+    assert.ok(one.stdout.includes(a.id), one.stdout);
+    assert.ok(!one.stdout.includes(b.id), one.stdout);
+  });
+});
 
 /** A question's fields as flags, all but those in `leaving`. */
 function questionFlags(arc: string, leaving: readonly string[] = []): string[] {

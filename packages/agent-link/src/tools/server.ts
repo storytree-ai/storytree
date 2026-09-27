@@ -26,7 +26,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import type { Library } from "@storytree/library";
+import type { Library, WriteOptions } from "@storytree/library";
 import type { z } from "zod";
 
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
@@ -60,6 +60,8 @@ export interface AgentToolOptions {
   readonly merges?: MergeWatch;
   /** What the setup check (capability 8) works with: by default, the user's own homes and no hook command. */
   readonly setup?: Omit<SetupOptions, "folder">;
+  /** Other stories' tools, served through the same routing, session attribution and refusals. */
+  readonly extensions?: readonly ToolExtension[];
 }
 
 /** A tool server, and how to close it with every connection it opened. */
@@ -83,6 +85,8 @@ export interface Call {
   readonly log: ActivityLog;
   readonly project: string;
   readonly caller: Caller;
+  /** Library history names the session resolved for this call, including a hook's /clear change. */
+  readonly writer: WriteOptions;
   /** The folder the agent works in. */
   readonly folder: string;
   readonly quietMs: number;
@@ -93,8 +97,19 @@ export interface Call {
 /** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
 export type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: Call) => Promise<Answer>) => void;
 
+/** Another story's contribution to the one tool server (ADR-0643 D6). */
+export interface ToolExtension {
+  readonly registerTools?: (define: Define) => void;
+  /** A short addition to the habits card, naming the added tools in backticks. */
+  readonly instructions?: string;
+  /** Suggest the next step after a successful landing; undefined means nothing is due. */
+  readonly landNext?: (capability: string, call: Call) => Promise<string | undefined> | string | undefined;
+}
+
 export function createAgentTools(options: AgentToolOptions): AgentTools {
-  const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions: habitsCard() });
+  const extensions = options.extensions ?? [];
+  const instructions = [habitsCard(), ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");
+  const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions });
   const connections = new Connections();
   const env = options.env ?? process.env;
   const quietMs = options.quietMs ?? QUIET_MS;
@@ -117,7 +132,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name });
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder: options.folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
-        return result(await act(args as never, { library, log, project: where.project, caller, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
+        return result(await act(args as never, { library, log, project: where.project, caller, writer: { actor: `session:${caller.session}` }, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -140,9 +155,10 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     callerOf,
   });
   registerPlanTools(define);
-  registerClaimTools(define);
+  registerClaimTools(define, extensions);
   registerWorkTools(define);
   registerNoteTools(define);
+  for (const extension of extensions) extension.registerTools?.(define);
 
   return {
     server,

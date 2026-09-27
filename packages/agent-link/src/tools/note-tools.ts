@@ -17,7 +17,7 @@
  *   an empty shelf nothing is added, and the agent is told. A session holding no claim gets no
  *   default, and a place the agent names always wins.
  */
-import type { Library, Note, NoteEdit, SchemaRecord } from "@storytree/library";
+import type { Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
 import { z } from "zod";
 
 import type { Line, NewLine } from "../activity/index.js";
@@ -75,10 +75,10 @@ export function registerNoteTools(define: Define): void {
       term: z.string().min(1).optional().describe("A definition's term"),
       meaning: z.string().min(1).optional().describe("A definition's meaning"),
     }),
-    async ({ id, ...wording }, { library }) => {
+    async ({ id, ...wording }, { library, writer }) => {
       const fields = Object.fromEntries(Object.entries(wording).filter(([, value]) => value !== undefined));
       if (Object.keys(fields).length === 0) return { text: "Give the words to change: text, title, term or meaning.", refused: true };
-      const note = await library.editNote(id, fields as NoteEdit);
+      const note = await library.editNote(id, fields as NoteEdit, writer);
       if (note === null) return { text: `There is no note ${id} in this project.`, refused: true };
       return { text: `Corrected ${quoted(spineOf(note))} (${id}).`, data: { id } };
     },
@@ -172,25 +172,25 @@ async function writeNote(args: NoteArgs, call: Call): Promise<Answer> {
       }
     }
   }
-  const note = await write(call.library, args, place);
+  const note = await write(call.library, args, place, call.writer);
   return { text: `Wrote a ${args.kind} (${note.id}) ${placed}.`, data: { id: note.id, ...(emptyShelf === undefined ? {} : { shelf: "empty" }) } };
 }
 
-function write(library: Library, args: NoteArgs, place: { links?: string[]; frontCoverOf?: string }): Promise<Note> {
+function write(library: Library, args: NoteArgs, place: { links?: string[]; frontCoverOf?: string }, writer: WriteOptions): Promise<Note> {
   switch (args.kind) {
     case "memory":
-      return library.writeMemory({ text: args.text!, ...(place.links === undefined ? {} : { links: place.links }) });
+      return library.writeMemory({ text: args.text!, ...(place.links === undefined ? {} : { links: place.links }) }, writer);
     case "decision":
-      return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place });
+      return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place }, writer);
     case "definition":
-      return library.defineTerm({ term: args.term!, meaning: args.meaning!, ...(place.links === undefined ? {} : { links: place.links }) });
+      return library.defineTerm({ term: args.term!, meaning: args.meaning!, ...(place.links === undefined ? {} : { links: place.links }) }, writer);
   }
 }
 
 /** The capability the calling session claimed most recently of those it still holds. */
 async function latestClaim(call: Call): Promise<string | undefined> {
   const { lines } = await call.log.since(call.project, 0);
-  const mine = claimsFrom(lines, { quietMs: call.quietMs }).filter((held) => held.session === call.caller.session);
+  const mine = claimsFrom(lines, { quietMs: call.quietMs }).filter((held) => held.session === call.caller.session && held.capability !== undefined);
   return mine.sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0)).at(-1)?.capability;
 }
 

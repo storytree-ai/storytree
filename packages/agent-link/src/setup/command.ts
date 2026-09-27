@@ -73,7 +73,11 @@ export function ghState(): Promise<GhState> {
 
 /** The launcher's text: run `target` with `node`, passing every argument on. */
 function launcherFor(node: string, target: string): string {
-  return process.platform === "win32" ? `@echo off\r\nrem ${MARKER}\r\n"${node}" "${target}" %*\r\n` : `#!/bin/sh\n# ${MARKER}\nexec "${node}" "${target}" "$@"\n`;
+  // A missing GOTO label ends the batch before Node runs: setup remove can delete this file.
+  // The same parsed line hands off to Node and keeps its exit code (npm/cmd-shim's handoff).
+  return process.platform === "win32"
+    ? `@echo off\r\nrem ${MARKER}\r\ngoto #_storytree_handoff_# 2>nul || "${node}" "${target}" %*\r\n`
+    : `#!/bin/sh\n# ${MARKER}\nexec "${node}" "${target}" "$@"\n`;
 }
 
 function writeLauncher(file: string, launcher: string): void {

@@ -3,7 +3,8 @@
  * Postgres cluster in pgdata/ (with the server's logs and owner record beside it), Electron's own
  * files in electron/, and app.json, which records how the app was started so that an agent's
  * session start can open it again (the agent link's setup check), and runtime/, where the app that
- * follows merged main is built and run from (@storytree/app's follow-main). Nothing else in ~/.storytree/ is
+ * follows merged main is built and run from (@storytree/app's follow-main), and backups/, each
+ * project's snapshots. Nothing else in ~/.storytree/ is
  * ever read or written: storytree 0.2 keeps its files there (secrets.json among them), and 0.3
  * leaves them alone.
  *
@@ -27,13 +28,15 @@ export interface AppHome {
   readonly launchRecord: string;
   /** The app that follows merged main, a clone and two build slots: ~/.storytree/0.3/runtime */
   readonly runtime: string;
+  /** Each project's snapshots, newest 14 (@storytree/app's backUp): ~/.storytree/0.3/backups */
+  readonly backups: string;
 }
 
 /** The app's home under `home` (by default, STORYTREE_HOME if set, else the user's home directory's). */
 export function appHome(home?: string): AppHome {
   const fromEnv = process.env.STORYTREE_HOME;
   const dir = home === undefined && fromEnv !== undefined && fromEnv !== "" ? path.resolve(fromEnv) : path.join(home ?? homedir(), ".storytree", "0.3");
-  return { dir, pgdata: path.join(dir, "pgdata"), electron: path.join(dir, "electron"), launchRecord: path.join(dir, "app.json"), runtime: path.join(dir, "runtime") };
+  return { dir, pgdata: path.join(dir, "pgdata"), electron: path.join(dir, "electron"), launchRecord: path.join(dir, "app.json"), runtime: path.join(dir, "runtime"), backups: path.join(dir, "backups") };
 }
 
 /** How the app names itself as the owner of its Postgres data, so a start refused by it can say so. */

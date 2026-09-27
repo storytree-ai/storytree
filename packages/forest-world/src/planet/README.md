@@ -25,7 +25,11 @@ flat forest's viewing angle relative to a plate, its local light is the
 original `LIGHT_DIRECTION`. Paint, terrain slope and atlases stay in plate
 coordinates. The baked shadows and skirt colours stay as approved; they do
 not become a moving-sun simulation. Clearance of 1.692108 ground units keeps
-negative relief above the opaque sea.
+negative relief above the shell. ADR-0648 replaces the opaque sea with a light grey
+(`#bfbfbf`), double-sided shell at 0.18 opacity with depth writing off. The far
+side remains visible through it. It still answers rays, so the page keeps its
+near-side names, claims and picking rule. The surface owns and disposes its
+geometry and material. The islands and L1 light are unchanged.
 
 The flat canvas keeps its camera, controls and material defaults. Existing
 tests were left unchanged. A comparison against the red commit's shipped
@@ -35,7 +39,7 @@ Centring a globe island changes the phase of coordinate-sampled terrain and
 cover compared with its offset flat counterpart, as the look spike reported;
 the geometry and paint recipes are reused unchanged.
 
-## Capture
+## Historical first-slice capture
 
 The seed at green commit `0967c43` produces six stories and 43 capability trees: the
 agent link, app, arc surface, forest, librarian and library. The fresh seed
@@ -69,3 +73,6 @@ camera and lamp moved and zoom increased, and checked that every plate kept
 its ground and kit geometry. All six groves loaded without browser or shader
 errors. A separate cold mount checked that the globe loads its kit without
 preloading it or mounting the flat canvas first.
+
+The current packed placement and transparent shell are shown in the
+[ADR-0648 page capture](../../../../apps/desktop/src/forest/evidence/packed/README.md).

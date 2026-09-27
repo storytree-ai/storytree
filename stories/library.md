@@ -68,8 +68,16 @@ time the project is opened, with its tables set up automatically. Storytree can 
 the server, and nothing written in one project can ever show up in another.
 
 - **Depends on:** nothing.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D3):** one database per project, so projects are walled apart by
+    construction and a forgotten filter can never leak one into another. The accepted cost: every
+    project database gets its own tables, and a schema change reaches each one.
 - **Leaves out (vs 0.2):** Cloud SQL and Google sign-in (that is capability 8), credential
   hydration, the remote store door, 0.2's single shared database with no idea of a project.
+- **Snapshots** (ADR-0641 D2 step 4, choice B1): once a project's library is the only copy of its
+  plan, a snapshot of the whole project, records and history, is its backup. A snapshot restores
+  only into an empty project, so it can never overwrite live edits. The app takes them (the app
+  story's Lifecycle, contract 8).
 
 **Contracts** (each one a test):
 1. `openProject("site")` on a server with no storytree databases creates the project's database and
@@ -82,6 +90,13 @@ the server, and nothing written in one project can ever show up in another.
 5. A project name that is not lower-case letters, digits and single hyphens (1–40 characters,
    starting with a letter or digit) is refused before anything touches the server, and the error
    names the rule.
+6. `snapshot("site")` returns every record of the project and its whole history, as they stood at
+   one moment, while writes go on.
+7. `restore("copy", snapshot)` into a project with no records and no history gives back the same
+   records and the same history, sequence numbers, actors and times included, and the next write
+   continues after them.
+8. Restoring into a project that holds any record or any history is refused, naming the project, and
+   writes nothing.
 
 ## 2 · Library transactions
 
@@ -90,10 +105,19 @@ change only named fields, or retire a record with a reason. Every change is all-
 written first to a permanent, append-only history, so nothing is ever truly erased.
 
 - **Depends on:** 1.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1):** a small fixed set of data actions, each written first to an
+    append-only history, and an edit changes only the fields it names, merged onto what is stored
+    now. 0.2 once lost 7,058 characters of guidance to a whole-record save.
 - **Leaves out (vs 0.2):** the HTTP transport, the separate drift/change store, and the
   whole-document "replace" edit that caused 0.2's lost-update bug. **Kept on purpose:** an
   in-memory twin that runs the SAME test suite as Postgres, so later stories can test without a
   database.
+- **Writer book (ADR-0645 D2):** every save, edit and retire accepts an optional `actor`, kept on
+  that change's history entry. The public write methods carry it as their final `WriteOptions`
+  argument (`{ actor: "person:<user name>" }`, or an agent session). No writer is inferred when
+  omitted. Health retains its reporter, `by`, as the actor unless an explicit `actor` is supplied.
+  This uses the existing history column on Postgres and its in-memory twin; no migration is needed.
 
 **Contracts** (one shared behaviour suite, run against BOTH the in-memory twin and Postgres):
 1. `save` creates a record. Saving the same id again replaces it, and each save appends one history
@@ -112,6 +136,9 @@ written first to a permanent, append-only history, so nothing is ever truly eras
    after that sequence number.
 9. A `validate` check passed to `save`/`edit` sees the merged result. If it throws, nothing is
    written (no record change and no history entry).
+10. A write naming an `actor` keeps it in history. A write without one is accepted and its history
+    entry has no actor; an edit or retirement never inherits an earlier write's actor. Refused
+    writes and harmless no-ops add no history entry.
 
 ## 3 · Data schema
 
@@ -122,6 +149,10 @@ older record is upgraded automatically, step by step, and stored upgraded the ne
 written, because every user's library is their own database and nobody else can repair it.
 
 - **Depends on:** 2.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1; ADR-0636 a1):** every record has a declared type and carries the
+    schema version it was written on. A record newer than the code is refused; an older one is
+    upgraded, because every user holds their own database.
 - **Types:** `arc`, `story`, `capability`, `contract`, `health`, `memory`, `decision` and
   `definition`; capability 6's `principle`, `guardrail`, `pattern`, `process`, `agent`, `friction`,
   `resteer` and `techstack`; capability 10's `increment`; and capability 12's `question`. A
@@ -163,6 +194,10 @@ Capabilities and contracts point at their parent. Stories belong to the project 
 structure.
 
 - **Depends on:** 3.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D2):** stories belong to the project, and an arc may list the
+    stories it grows but need not; a research arc may touch none. An agent's search starts from
+    the story, so `arcsFor` answers which arcs touched it.
 - **Leaves out (vs 0.2):** story files mirrored from the repo (the library is the only copy), UAT
   walkthroughs, proof modes and code anchors. Arc increments, left out here at first, came back as
   capability 10.
@@ -189,6 +224,10 @@ as `passing`.
   roll-up in contract 4 below), so a story or capability never carries a second, conflicting source of
   health; writing health straight onto one is refused with a message saying it rolls up.
 - **Depends on:** 4.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1 and D5):** two separate columns, what the agent reported and what
+    storytree verified, and a missing entry reads "not checked", never "passing". The library
+    stores health; running a story's tests belongs elsewhere.
 - **Leaves out (vs 0.2):** signed verdicts, the prove-it spine, anchors, drift and attestations.
   Also left out is **running the tests**: the library only *stores* the verified result, and a later
   story decides when to run a story's tests and writes it.
@@ -251,6 +290,10 @@ The agent link, arc surface, forest and desktop app all call these, and `changes
 what just changed without re-reading everything.
 
 - **Depends on:** 1, 4, 5 and 6.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D1 and D5):** one small fixed list of functions is the only way in
+    or out, so it is the contract every later story is written to, and widening it is a deliberate
+    act. The MCP server is a thin wrapper over it.
 - **Leaves out (vs 0.2):** the Library CLI, the browse UI, the HTTP door, and raw SQL. The MCP server
   belongs to the agent-link story, as a thin wrapper over this API.
 - **Extended** on 2026-09-26 by ADR-0626 with three edit functions, `editStory`, `editContract` and
@@ -258,6 +301,16 @@ what just changed without re-reading everything.
   re-adding it. They edit the way `editCapability` and `editNote` already do.
 - **Extended** on 2026-09-27 by ADR-0640 with the functions of 6's eight kinds and of 10 to 13,
   each listed under its capability. The change feed carries all of their records.
+- **Writer book (ADR-0645 D2):** every public write takes optional `WriteOptions` as its final
+  argument, with `actor` passed through to capability 2's history. `reportHealth` and
+  `recordVerified` take it within their existing `HealthOptions`, alongside `by` and `note`.
+- **Public reads book (ADR-0645 D6):** `get(id)` returns the whole live `SchemaRecord`, or `null`
+  when missing or retired. `list(kind)` returns that kind's live records in id order, with the
+  fields typed for the kind; an unknown kind raises `UnknownTypeError`. Both apply capability 3's
+  schema upgrades and refuse records they cannot interpret. `history({ id, since })` returns
+  `HistoryEntry` data, oldest first, with either filter optional: `since` is exclusive and both
+  filters combine. History includes retirement reasons and optional actors, and preserves each
+  record on the schema version it was written on. These reads make no writes.
 
 **Contracts:**
 1. An end-to-end "agent's day" against a real local Postgres: open a project, create an arc, add a
@@ -266,11 +319,28 @@ what just changed without re-reading everything.
    `changesSince(0)`. Every step is visible where the next step expects it.
 2. `changesSince(n)` returns only changes after `n`, in order, each carrying the new cursor to pass
    next time.
-3. The package's public entry exports exactly the API (listed below) and nothing else, and its
-   internals cannot be imported through the package.
+3. The package's public entry exports exactly this API and nothing else, and its internals cannot
+   be imported through the package. At runtime it exports `connect`, `ConnectionError`,
+   `DependencyLoopError`, `LifecycleError`, `LinkLoopError`, `MissingReferenceError`, `MissingUpgradeError`,
+   `NewerSchemaError`, `NumberTakenError`, `ProjectNameError`, `RetireRefusedError`, `SchemaError`,
+   `SupersessionLoopError`, `UnknownTypeError` and `WaitLoopError`. Everything else exported is a
+   data type, including `WriteOptions`, `HistoryEntry` and `HistoryFilter`.
+   The connection offers exactly `openProject`, `listProjects` and `close`. A project library
+   offers exactly `name`, `get`, `list`, `history`, `addStory`, `editStory`, `createArc`, `editArc`,
+   `addCapability`, `editCapability`, `addContract`, `editContract`, `projectTree`, `arcsFor`,
+   `addIncrement`, `advanceIncrement`, `closeIncrement`, `editIncrement`, `parkArc`, `unparkArc`,
+   `arcView`, `addWait`, `removeWait`, `waitHolds`, `raiseQuestion`, `settleQuestion`, `questions`,
+   `heldOnQuestion`, `reportHealth`, `recordVerified`, `health`, `healthHistory`, `writeMemory`,
+   `recordDecision`, `writeKnowledge`, `defineTerm`, `editNote`, `search`, `relatedNotes`,
+   `definitions`, `frontCovers`, `decision`, `composeStatement`, `retire`, `changesSince` and `close`.
 4. `editStory`, `editContract` and `editArc` change only the fields they name, merged onto what is
    stored now, and check a new reference as adding does (a contract's capability, an arc's
    stories). Each gives `null`, writing nothing, for an id that is not a live record of its type.
+5. `get`, `list` and `history` return whole records through the public API, agreeing with the
+   in-memory twin. Live reads upgrade old records; history preserves original writes, including
+   actors and retirement reasons, and can filter by id and sequence. Reads write nothing.
+6. Every public write carries its optional actor to history, as in 2.10. Health can name a writer
+   separately from its reporter; omitting the writer preserves its existing `by` attribution.
 
 ## 8 · Cloud connection (GCP)
 
@@ -279,6 +349,9 @@ Instead of the local Postgres, a user can point storytree at a Postgres database
 works the same, and each project still gets its own database, now on the cloud server.
 
 - **Depends on:** 1. It is built after 1–7 work on the local path, and no test of 1–7 depends on it.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0621 D4):** a local Postgres is the default, and a cloud database is a
+    user's option, Google Cloud only to start. It is proven by capability 2's suite, unchanged.
 - **Leaves out:** every cloud except Google, and sharing one cloud library between several people.
 - **Live proof status:** PROVEN LIVE on 2026-09-26. Contract 8.1's suite passed against storytree 0.2's Cloud SQL
   instance (Postgres 16), signed in as the owner's Google account.
@@ -302,13 +375,24 @@ into the knowledge is through a front cover.
 
 - **Added** on 2026-09-26 by ADR-0627, the owner's "rabbit-hole" model. The two sentences above are
   the ones he approved.
+- **Grown** on 2026-09-27 by ADR-0647 D2, the owner's "I dont think we allow loops": the knowledge
+  is a DAG under its covers, so a link that would close a loop between notes is refused (9.4). A
+  loop that seems needed is a discussion with the owner before it happens, and no machinery for
+  one is built until then.
 - **Depends on:** 4 and 6. It adds `frontCovers` to 7's list of functions.
+- **Its shelf,** founding book first:
+  - Every story and capability has a shelf of front covers (ADR-0627, decisions/adr-0627.md).
+  - Decisions about the whole project sit on no shelf (ADR-0631, decisions/adr-0631.md).
 - **As built:** a decision's optional `frontCoverOf` field names the one story or capability it is
   a front cover of. One field names one node, so no decision can be the cover of two, and nothing
   has to check for it. A node's shelf is every live decision naming it, founding (oldest) first.
   Replacing a cover takes ordinary writes: the new decision becomes a cover of the same node and
   links to the old one, then the old one's `frontCoverOf` is removed. It leaves the shelf and is
-  still reached from the cover that replaced it.
+  still reached from the cover that replaced it. `editNote` refuses a link that would close a loop
+  with a `LinkLoopError` naming the loop from the edited note back round to it, `A → B → A`, and
+  the existing chain it would close. It follows every field that links a note to notes: `links`,
+  an agent role's `context`, `rules`, `antiPatterns` and `stepRefs`, and a process's
+  `branchEdges`. A new note cannot close a loop, since nothing yet links to it.
 - **Leaves out:** where an agent's new note goes by default, a founding decision for each new story
   and capability, and reading a shelf title by title. Those are the agent link's tools (ADR-0627
   D4, D5, D7). Showing each part's shelf is the forest's drill-down.
@@ -320,6 +404,9 @@ into the knowledge is through a front cover.
    written. Only a decision can be a front cover.
 3. A note that links to a story, capability, contract, arc or health entry is refused, and nothing
    is written. Notes link only to other notes.
+4. A link that would close a loop between notes, a note linking to itself included, is refused
+   with the chain it would close named, and nothing is written. The knowledge is a DAG under its
+   covers (ADR-0647 D2).
 
 ## 10 · Work in flight
 
@@ -493,8 +580,10 @@ A sketch, not a promise of exact signatures. The shape is fixed by the contracts
 const storytree = await connect({ url: "postgres://localhost:5432/postgres" }); // 1 (or a cloud config, 8)
 await storytree.listProjects();                        // ["my-website"]
 const lib = await storytree.openProject("my-website"); // 1: created the first time
+const kept = await storytree.snapshot("my-website");      // 1: records and history, to keep as a file
+await storytree.restore("my-website-copy", kept);        // 1: only into an empty project
 
-const story = await lib.addStory({ title: "Visitor can sign up" });                  // 4
+const story = await lib.addStory({ title: "Visitor can sign up" }, { actor: "person:Sam" }); // 4, 7
 const arc   = await lib.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] }); // 4, 10
 const cap   = await lib.addCapability({ title: "Email form", story: story.id });      // 4
 const k     = await lib.addContract({ title: "Rejects a bad email", capability: cap.id });
@@ -515,6 +604,9 @@ await lib.closeIncrement(inc.id, { pr: "#12", disposition: "landed" }); // 10
 await lib.arcView(arc.id);                                     // 10: closed, with its log
 await lib.waitHolds(inc.id);                                   // 11: the blockers still holding
 await lib.decision(cover.id);                                  // 13: status, supersession, composed statement
+await lib.get(story.id);          // 7: the whole live record, on its current schema
+await lib.list("story");         // 7: all live stories, in id order
+await lib.history({ id: story.id }); // 7: every original write, including its actor when supplied
 await lib.projectTree();          // 4 + 5: what the forest reads
 await lib.changesSince(cursor);   // 7: what just changed
 await storytree.close();

@@ -321,7 +321,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.get(definition.id), definition);
 
     // Control: links to live notes of every kind are accepted, by every kind of note and by an
-    // edit (which may link a note to itself).
+    // edit. (A link closing a loop is refused: that is capability 9's contract 9.4.)
     const notes = [memory, decision, definition].map((record) => record.id);
     const linked = await knowledge.writeMemory({ text: "Links to every kind", links: notes });
     await assertCreated(transactions, linked, "memory", { text: "Links to every kind", links: notes });
@@ -329,8 +329,8 @@ for (const backend of [memory, postgres]) {
     await assertCreated(transactions, decided, "decision", { title: "Keep it all", text: "Linked", links: notes });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
-    const relinked = await knowledge.editNote(memory.id, { links: [linked.id, ...notes] });
-    assert.deepEqual(relinked?.fields, { text: "Mailgun needs a verified domain", links: [linked.id, ...notes] });
+    const relinked = await knowledge.editNote(memory.id, { links: [decision.id, definition.id] });
+    assert.deepEqual(relinked?.fields, { text: "Mailgun needs a verified domain", links: [decision.id, definition.id] });
   });
 
   contract("6.5", "definitions() returns every live definition, and nothing else, in creation order", async ({ knowledge, records }) => {

@@ -124,7 +124,7 @@ export async function claim(context: ClaimContext, id: string, reason: string): 
       ...(context.branch === undefined ? {} : { branch: context.branch }),
     });
     // Started only by the claim that won, under the lock; one already active is left as it is.
-    if (found.status === "proposal" || found.status === "ready") await context.library.advanceIncrement(id, "active");
+    if (found.status === "proposal" || found.status === "ready") await context.library.advanceIncrement(id, "active", { actor: `session:${context.session}` });
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
     return current === undefined ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });
@@ -174,6 +174,16 @@ export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}):
 /** Who holds what in `project`'s log. */
 export async function readClaims(log: ActivityLog, project: string, options: ClaimsOptions = {}): Promise<Claim[]> {
   return claimsFrom((await log.since(project, 0)).lines, options);
+}
+
+/** The current holder of one capability or increment, or undefined when nobody holds it. */
+export function claimFrom(lines: readonly Line[], id: string, options: ClaimsOptions = {}): Claim | undefined {
+  return claimsFrom(lines, options).find((claim) => idOf(claim) === id);
+}
+
+/** Who holds one capability or increment in `project`, using the same reading as the board. */
+export async function readClaim(log: ActivityLog, project: string, id: string, options: ClaimsOptions = {}): Promise<Claim | undefined> {
+  return claimFrom((await log.since(project, 0)).lines, id, options);
 }
 
 /**

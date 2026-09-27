@@ -15,6 +15,9 @@
  * follows merged main (ADR-0637 D2): every few minutes it fetches main, and when main has moved it
  * builds main's new commit beside itself and restarts into it (@storytree/app's follow-main).
  *
+ * While it runs, it keeps a snapshot of every project, taken at start and once a day (ADR-0641 B1),
+ * in ~/.storytree/0.3/backups: @storytree/app's backUp.
+ *
  * `--smoke` renders the project without showing a window, saves a screenshot to the file given
  * with `--screenshot <file>`, prints the page's text to stdout, and quits: exit 0 only if the
  * surface on show says it drew every story of the project and every one of its capabilities.
@@ -26,7 +29,9 @@ import { app, BrowserWindow, ipcMain, Menu, nativeImage, nativeTheme, Tray } fro
 
 import {
   appDirIn,
+  BACKUP_EVERY_MS,
   background,
+  backUp,
   buildApp,
   electronIn,
   pageReads,
@@ -117,6 +122,7 @@ async function run(): Promise<void> {
   else {
     if (!args.background) openWindow(windowQuery);
     showTray();
+    void keepBackups();
     void followMain();
   }
 }
@@ -153,6 +159,25 @@ async function followMain(): Promise<void> {
   };
   setInterval(() => void check(), UPDATE_EVERY_MS).unref();
   void check();
+}
+
+/**
+ * Keep snapshots of every project (ADR-0641 B1): one now, then one a day while the app runs, each
+ * project's newest 14 in ~/.storytree/0.3/backups/<project>/. A failed snapshot is logged and taken
+ * again at the next one; the app is untouched.
+ */
+async function keepBackups(): Promise<void> {
+  const take = async (): Promise<void> => {
+    if (storytree === undefined) return;
+    try {
+      const written = await backUp({ storytree, projects: await storytree.listProjects(), dir: home.backups });
+      console.log(`backups: ${written.length} project snapshot${written.length === 1 ? "" : "s"} in ${home.backups}`);
+    } catch (error) {
+      console.error(`backups: ${messageOf(error)}`);
+    }
+  };
+  setInterval(() => void take(), BACKUP_EVERY_MS).unref();
+  await take();
 }
 
 /** The tray icon, whose menu brings the window back or quits the app. */

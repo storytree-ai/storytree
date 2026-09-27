@@ -7,7 +7,7 @@
  */
 import type { Line } from "@storytree/agent-link";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
-import { claimMarkers, drillDown, forestDrawn, forestScene, openBook, shelved, unclaimedWork, type Book, type ForestDrawn } from "@storytree/forest";
+import { claimMarkers, drillDown, forestDrawn, forestScene, openBook, shelved, storyNodes, unclaimedWork, type Book, type ForestDrawn } from "@storytree/forest";
 import type { AnnotatedTree, Change, SchemaRecord } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -163,7 +163,7 @@ async function showForest(name: string): Promise<void> {
         if (tree === undefined || news.changes.length > 0) tree = await window.storytree.projectTree(name);
         if (showing !== mine) return;
         const scene = forestScene(tree, history, workStates(lines));
-        view.show(scene);
+        view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
         view.showMarkers(claimMarkers(lines, new Date()));
         const work = unclaimedWork(lines);
         unclaimed.innerHTML = renderUnclaimed(work, unclaimed.querySelector("details")?.open === true);

@@ -24,8 +24,15 @@ import { createHash } from "node:crypto";
 
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
-import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
+
+/**
+ * The fields that link a note to other notes (6-a), which the loop check follows: its links,
+ * and an agent role's required reading, rules, anti-patterns and step reading, and a process's
+ * branch edges.
+ */
+const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges"] as const;
 
 /** The kinds of note: memory notes, decisions, definitions, and the eight kinds of ADR-0640. */
 export type NoteType = "memory" | "decision" | "definition" | KnowledgeKind;
@@ -117,9 +124,9 @@ export class Knowledge {
    * Write a memory note. Every link must name a live note: otherwise a MissingReferenceError names
    * the first that does not, and nothing is written.
    */
-  async writeMemory(memory: NewMemory): Promise<SchemaRecord<"memory">> {
+  async writeMemory(memory: NewMemory, options?: WriteOptions): Promise<SchemaRecord<"memory">> {
     await this.#checkLinks(memory.links);
-    return this.#records.create("memory", memory);
+    return this.#records.create("memory", memory, options);
   }
 
   /**
@@ -129,11 +136,11 @@ export class Knowledge {
    * writers at the same time never share one and a retired decision's is never reused. A decision
    * brought in with its own number keeps it, unless another has held it (NumberTakenError).
    */
-  async recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">> {
+  async recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     await this.#checkLinks(decision.links);
     await this.#checkFrontCover(decision.frontCoverOf);
     await checkReferences(this.#records, "supersedes", decision.supersedes, "decision");
-    return this.#records.create("decision", decision, { sequence: "number" });
+    return this.#records.create("decision", decision, { ...options, sequence: "number" });
   }
 
   /**
@@ -171,11 +178,11 @@ export class Knowledge {
    * place, replacing any statement before it. It remembers the text it was composed against. Null,
    * with nothing written, if `id` is not a live decision.
    */
-  async composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null> {
+  async composeStatement(id: string, statement: string, options?: WriteOptions): Promise<SchemaRecord<"decision"> | null> {
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) return null;
     const composed = { statement, composedAt: new Date().toISOString(), fingerprint: fingerprintOf(record.fields.text) };
-    return (await this.#records.edit(id, { composed })) as SchemaRecord<"decision"> | null;
+    return (await this.#records.edit(id, { composed }, options)) as SchemaRecord<"decision"> | null;
   }
 
   /**
@@ -183,18 +190,18 @@ export class Knowledge {
    * other references, must each name a live note, as writeMemory checks links; its fields are then
    * checked against its kind inside the write. A kind that is not one of the eight is refused.
    */
-  async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>): Promise<SchemaRecord<K>> {
+  async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>> {
     if (!KNOWLEDGE_KINDS.includes(kind)) {
       throw new RangeError(`writeKnowledge writes ${KNOWLEDGE_KINDS.join(", ")}, not ${JSON.stringify(kind)}`);
     }
     await this.#checkNoteReferences(fields);
-    return this.#records.create(kind, fields);
+    return this.#records.create(kind, fields, options);
   }
 
   /** Define a term. Its links are checked as writeMemory checks them. */
-  async defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">> {
+  async defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">> {
     await this.#checkLinks(definition.links);
-    return this.#records.create("definition", definition);
+    return this.#records.create("definition", definition, options);
   }
 
   /**
@@ -203,18 +210,19 @@ export class Knowledge {
    * undefined takes a decision off its node's shelf. The note's earlier wording stays in its
    * history. Returns null, and writes nothing, if `id` is not a live note.
    */
-  async editNote(id: string, fields: NoteEdit): Promise<Note | null> {
+  async editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null> {
     const own = Object.keys(fields).find((field) => Object.hasOwn(OWN_VERBS, field));
     if (own !== undefined) throw new RangeError(`editNote does not change ${JSON.stringify(own)}: ${OWN_VERBS[own]}`);
     const note = await liveRecord(this.#records, id, NOTE_TYPES);
     if (note === null) return null;
     await this.#checkNoteReferences(fields);
+    if (LINK_FIELDS.some((field) => field in fields)) await this.#refuseLinkLoop(id, { ...note.fields, ...fields });
     if ("frontCoverOf" in fields) await this.#checkFrontCover(fields.frontCoverOf);
     if ("supersedes" in fields) {
       await checkReferences(this.#records, "supersedes", fields.supersedes, "decision");
       if (Array.isArray(fields.supersedes)) await this.#refuseSupersessionLoop(id, fields.supersedes);
     }
-    return (await this.#records.edit(id, fields)) as Note | null;
+    return (await this.#records.edit(id, fields, options)) as Note | null;
   }
 
   /**
@@ -267,21 +275,21 @@ export class Knowledge {
     const graph = new Map<string, readonly unknown[]>();
     for (const decision of await this.#records.list("decision")) graph.set(decision.id, decision.fields.supersedes ?? []);
     graph.set(id, supersedes);
-    const path = [id];
-    const walk = (at: string, seen: Set<string>): boolean => {
-      for (const next of graph.get(at) ?? []) {
-        if (typeof next !== "string") continue;
-        path.push(next);
-        if (next === id) return true;
-        if (!seen.has(next)) {
-          seen.add(next);
-          if (walk(next, seen)) return true;
-        }
-        path.pop();
-      }
-      return false;
-    };
-    if (walk(id, new Set([id]))) throw new SupersessionLoopError(path);
+    const path = loopThrough(graph, id);
+    if (path !== null) throw new SupersessionLoopError(path);
+  }
+
+  /**
+   * Throw a LinkLoopError if note `id`, holding `fields`, would close a loop through the notes it
+   * links to (ADR-0647 D2): the knowledge is a DAG under its covers, so a note may not rest on
+   * itself, directly or through others.
+   */
+  async #refuseLinkLoop(id: string, fields: object): Promise<void> {
+    const graph = new Map<string, readonly unknown[]>();
+    for (const note of await this.#notes()) graph.set(note.id, linksOf(note.fields));
+    graph.set(id, linksOf(fields));
+    const path = loopThrough(graph, id);
+    if (path !== null) throw new LinkLoopError(path);
   }
 
   /** Every live note, of all three kinds, in creation order. */
@@ -333,6 +341,39 @@ function textsIn(value: unknown): string[] {
   return [];
 }
 
+/** Every note id a note's fields link it to, through each of LINK_FIELDS. */
+function linksOf(fields: object): unknown[] {
+  const at = fields as Record<string, unknown>;
+  return [
+    ...["links", "context", "rules", "antiPatterns"].flatMap((field) => listOf(at[field])),
+    ...listOf(at["stepRefs"]).flatMap((step) => listOf(fieldOf(step, "refs"))),
+    ...listOf(at["branchEdges"]).map((edge) => fieldOf(edge, "to")),
+  ];
+}
+
+/**
+ * The first loop in `graph` from `id` back round to it, as the ids along it (`[id, …, id]`), or
+ * null if there is none. Only ids that are strings are followed.
+ */
+function loopThrough(graph: ReadonlyMap<string, readonly unknown[]>, id: string): string[] | null {
+  const path = [id];
+  const seen = new Set([id]);
+  const walk = (at: string): boolean => {
+    for (const next of graph.get(at) ?? []) {
+      if (typeof next !== "string") continue;
+      path.push(next);
+      if (next === id) return true;
+      if (!seen.has(next)) {
+        seen.add(next);
+        if (walk(next)) return true;
+      }
+      path.pop();
+    }
+    return false;
+  };
+  return walk(id) ? path : null;
+}
+
 /** `value` when it is a list, and an empty one otherwise (the schema check refuses it inside the write). */
 function listOf(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
@@ -353,6 +394,23 @@ export class SupersessionLoopError extends Error {
   constructor(path: readonly string[]) {
     super(`supersession loop: ${path.join(" → ")} (a decision may not supersede itself, directly or through others)`);
     this.name = "SupersessionLoopError";
+    this.path = [...path];
+  }
+}
+
+/**
+ * A note would rest on itself, directly or through others (ADR-0647 D2). The message names the loop
+ * from the note being written back round to it, `A → B → A`, so the chain it would close,
+ * `B → A`, is plain. A loop that seems needed is a discussion with the owner first.
+ */
+export class LinkLoopError extends Error {
+  readonly path: readonly string[];
+
+  constructor(path: readonly string[]) {
+    const [from, ...rest] = path;
+    const chain = rest.length > 1 ? `the existing chain ${rest.join(" → ")}` : "a link to itself";
+    super(`link loop between notes: ${path.join(" → ")} (the link from ${from} would close ${chain}; notes form a tree under their covers, so a note may not rest on itself, directly or through others)`);
+    this.name = "LinkLoopError";
     this.path = [...path];
   }
 }

@@ -109,6 +109,9 @@ importers:
       '@modelcontextprotocol/client':
         specifier: ^2.1.0
         version: 2.1.0
+      '@storytree/librarian':
+        specifier: workspace:^
+        version: link:../librarian
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -264,6 +267,25 @@ importers:
       '@types/three':
         specifier: ^0.185.0
         version: 0.185.4
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/knowledge-core:
+    dependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

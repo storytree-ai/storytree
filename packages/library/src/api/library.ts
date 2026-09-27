@@ -10,11 +10,11 @@
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
 import type { DecisionView, NewDecision, NewDefinition, NewKnowledge, NewMemory, Note, NoteEdit } from "../knowledge/index.js";
-import { connect as connectServer, type ConnectOptions, type Project, type Storytree as Server } from "../project/index.js";
+import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
-import type { SchemaRecord } from "../schema/index.js";
+import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { KnowledgeKind } from "../schema/types.js";
-import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
+import type { HistoryEntry, HistoryFilter, RecordEnvelope } from "../transactions/index.js";
 import type {
   ArcEdit,
   ArcView,
@@ -44,46 +44,71 @@ export interface Storytree {
   openProject(name: string): Promise<Library>;
   /** The names of the storytree projects on the server, sorted. No other database is listed. */
   listProjects(): Promise<string[]>;
+  /**
+   * A snapshot of the project called `name`: every record and its whole history, as they stood at
+   * one moment, read while writes go on. It is plain data, to be kept as a file (ADR-0641 B1).
+   */
+  snapshot(name: string): Promise<ProjectSnapshot>;
+  /**
+   * Restore `snapshot` into the project called `name`, creating it if it is missing. A project that
+   * holds any record or any history is refused (RestoreRefusedError) and nothing is written, so a
+   * restore can never overwrite live edits.
+   */
+  restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
   /** Close this connection and every library opened through it. */
   close(): Promise<void>;
 }
 
-/** One project's library, as everything outside the library reaches it. */
+/**
+ * One project's library, as everything outside the library reaches it. Every write accepts
+ * optional { actor } metadata, kept on its history entry rather than in the record's fields.
+ */
 export interface Library {
   /** The project's name. */
   readonly name: string;
 
+  /** The live record whole, upgraded to its current schema, or null if missing or retired. */
+  get(id: string): Promise<SchemaRecord | null>;
+  /** Every live record of this kind, upgraded, in id order. An unknown kind is refused. */
+  list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
+  /**
+   * Every original write, oldest first, including retired records, its optional actor and retirement
+   * reason. Filter by record id and/or entries after a sequence number. Records stay as written,
+   * on their original schema versions; reading history never upgrades or rewrites them.
+   */
+  history(filter?: HistoryFilter): Promise<HistoryEntry[]>;
+
   /** Add a story to the project, under an id the library makes. */
-  addStory(story: NewStory): Promise<SchemaRecord<"story">>;
+  addStory(story: NewStory, options?: WriteOptions): Promise<SchemaRecord<"story">>;
   /**
    * Change only the named fields of a story, merged onto what is stored now. Null, with nothing
    * written, if `id` is not a live story.
    */
-  editStory(id: string, fields: StoryEdit): Promise<SchemaRecord<"story"> | null>;
+  editStory(id: string, fields: StoryEdit, options?: WriteOptions): Promise<SchemaRecord<"story"> | null>;
   /**
    * Create an arc, with its intent and end state. Every story it lists must be a live story
    * (MissingReferenceError otherwise); it may list none.
    */
-  createArc(arc: NewArc): Promise<SchemaRecord<"arc">>;
+  createArc(arc: NewArc, options?: WriteOptions): Promise<SchemaRecord<"arc">>;
   /**
    * Change only the named fields of an arc. Every story a new `stories` lists must be a live story
    * (MissingReferenceError otherwise). Null, with nothing written, if `id` is not a live arc.
    */
-  editArc(id: string, fields: ArcEdit): Promise<SchemaRecord<"arc"> | null>;
+  editArc(id: string, fields: ArcEdit, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null>;
   /** Add a capability to a story. The story, and every capability it depends on, must be live. */
-  addCapability(capability: NewCapability): Promise<SchemaRecord<"capability">>;
+  addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">>;
   /**
    * Change only the named fields of a capability. A dependency that would close a loop is refused
    * (DependencyLoopError). Null, with nothing written, if `id` is not a live capability.
    */
-  editCapability(id: string, fields: CapabilityEdit): Promise<SchemaRecord<"capability"> | null>;
+  editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null>;
   /** Add a contract to a capability, which must be a live capability. */
-  addContract(contract: NewContract): Promise<SchemaRecord<"contract">>;
+  addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">>;
   /**
    * Change only the named fields of a contract. A new `capability` must be a live capability
    * (MissingReferenceError otherwise). Null, with nothing written, if `id` is not a live contract.
    */
-  editContract(id: string, fields: ContractEdit): Promise<SchemaRecord<"contract"> | null>;
+  editContract(id: string, fields: ContractEdit, options?: WriteOptions): Promise<SchemaRecord<"contract"> | null>;
   /** The plan as it is now, story › capability › contract with every node's health, and the arcs: what the forest reads. */
   projectTree(): Promise<AnnotatedTree>;
   /** The live arcs listing story `storyId`, in creation order. */
@@ -93,20 +118,20 @@ export interface Library {
    * Add an increment to a live arc: a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed. Everything it touches or remedies must be live.
    */
-  addIncrement(increment: NewIncrement): Promise<SchemaRecord<"increment">>;
+  addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">>;
   /** Move an increment on, to ready or active, only forward (LifecycleError otherwise). Null if `id` is not a live increment. */
-  advanceIncrement(id: string, to: "ready" | "active"): Promise<SchemaRecord<"increment"> | null>;
+  advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /**
    * Close an increment with its pull request, note and what the close meant; a close with no pull
    * request needs a note. Null if `id` is not a live increment.
    */
-  closeIncrement(id: string, close: CloseInput): Promise<SchemaRecord<"increment"> | null>;
+  closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /** Change an increment's title, objective, body, or what it touches and remedies. Null if `id` is not a live increment. */
-  editIncrement(id: string, fields: IncrementEdit): Promise<SchemaRecord<"increment"> | null>;
+  editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /** Park an arc: it reads parked until unparked. Null if `id` is not a live arc. */
-  parkArc(id: string): Promise<SchemaRecord<"arc"> | null>;
+  parkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null>;
   /** Unpark an arc. Null if `id` is not a live arc. */
-  unparkArc(id: string): Promise<SchemaRecord<"arc"> | null>;
+  unparkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null>;
   /** An arc whole: its state (worked out on every read, or parked) and its increments, oldest first. Null if `id` is not a live arc. */
   arcView(id: string): Promise<ArcView | null>;
 
@@ -115,9 +140,9 @@ export interface Library {
    * that would close a loop across arcs and increments is refused (WaitLoopError). Null if `waiter`
    * is not a live arc or increment.
    */
-  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null>;
+  addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null>;
   /** Stop `waiter` waiting on `blocker`. Null if `waiter` is not a live arc or increment. */
-  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null>;
+  removeWait(waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null>;
   /**
    * The blockers still holding `id`, an arc or an increment, each with its reason and whether it can
    * never release: the one answer to whether a wait holds.
@@ -125,12 +150,12 @@ export interface Library {
   waitHolds(id: string): Promise<Hold[]>;
 
   /** Raise a question for the owner on a live arc: it is open. */
-  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">>;
+  raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">>;
   /**
    * Settle a question with the owner's answer, and the live decision that carried it, if one did.
    * Null if `id` is not a live question.
    */
-  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null>;
+  settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null>;
   /** The questions on arc `arcId`, open and settled, oldest first. */
   questions(arcId: string): Promise<SchemaRecord<"question">[]>;
   /** The open questions an open increment is held on: the one answer to whether it waits on the owner. */
@@ -146,24 +171,24 @@ export interface Library {
   healthHistory(contractId: string): Promise<HealthEntry[]>;
 
   /** Write a memory note. Every link must name a live note: notes link only to notes. */
-  writeMemory(memory: NewMemory): Promise<SchemaRecord<"memory">>;
+  writeMemory(memory: NewMemory, options?: WriteOptions): Promise<SchemaRecord<"memory">>;
   /**
    * Record a decision, with its status. Every link must name a live note, `frontCoverOf`, if given,
    * the one live story or capability the decision is a front cover of, and each decision it
    * supersedes a live decision. It is numbered one past the highest number any decision has held,
    * unless it is brought in under its own, which no other may have held (NumberTakenError).
    */
-  recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">>;
+  recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">>;
   /**
    * Write a principle, guardrail, pattern, process, agent role, friction, re-steer or tech stack,
    * with its kind's fields. Every link, and an agent role's or process's other references, must name
    * a live note.
    */
-  writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>): Promise<SchemaRecord<K>>;
+  writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>>;
   /** Define a term. Every link must name a live note. */
-  defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">>;
+  defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">>;
   /** Change only the named fields of a note, keeping its old wording in history. Null if `id` is not a live note. */
-  editNote(id: string, fields: NoteEdit): Promise<Note | null>;
+  editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null>;
   /** The live notes holding every word of `query`, ignoring case, in creation order. */
   search(query: string): Promise<Note[]>;
   /** The live notes linking to note `noteId`, in creation order. */
@@ -185,14 +210,14 @@ export interface Library {
    * Compose a decision's one statement: a maintained paragraph beside its text, never in its place,
    * replacing any before it. Null if `id` is not a live decision.
    */
-  composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null>;
+  composeStatement(id: string, statement: string, options?: WriteOptions): Promise<SchemaRecord<"decision"> | null>;
 
   /**
    * Retire a record: it is gone from every read, and its history keeps it and `reason`. Retiring
    * a missing or already retired record is a harmless no-op. A question an increment is held on is
    * refused (RetireRefusedError): take it off the increment's heldOn first, or settle it instead.
    */
-  retire(id: string, reason: string): Promise<void>;
+  retire(id: string, reason: string, options?: WriteOptions): Promise<void>;
   /**
    * The changes after `cursor`, oldest first, and the cursor to pass next time. Start from 0; pass
    * back each cursor handed out and no change is ever missed or seen twice.
@@ -247,6 +272,14 @@ class ServerHandle implements Storytree {
     return this.#server.listProjects();
   }
 
+  snapshot(name: string): Promise<ProjectSnapshot> {
+    return this.#server.snapshot(name);
+  }
+
+  restore(name: string, snapshot: ProjectSnapshot): Promise<void> {
+    return this.#server.restore(name, snapshot);
+  }
+
   close(): Promise<void> {
     return this.#server.close();
   }
@@ -265,36 +298,48 @@ class LibraryHandle implements Library {
     this.#project = project;
   }
 
-  addStory(story: NewStory): Promise<SchemaRecord<"story">> {
-    return this.#project.work.addStory(story);
+  get(id: string): Promise<SchemaRecord | null> {
+    return this.#project.records.get(id);
   }
 
-  editStory(id: string, fields: StoryEdit): Promise<SchemaRecord<"story"> | null> {
-    return this.#project.work.editStory(id, fields);
+  list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]> {
+    return this.#project.records.list(kind);
   }
 
-  createArc(arc: NewArc): Promise<SchemaRecord<"arc">> {
-    return this.#project.work.createArc(arc);
+  history(filter?: HistoryFilter): Promise<HistoryEntry[]> {
+    return this.#project.records.history(filter);
   }
 
-  editArc(id: string, fields: ArcEdit): Promise<SchemaRecord<"arc"> | null> {
-    return this.#project.work.editArc(id, fields);
+  addStory(story: NewStory, options?: WriteOptions): Promise<SchemaRecord<"story">> {
+    return this.#project.work.addStory(story, options);
   }
 
-  addCapability(capability: NewCapability): Promise<SchemaRecord<"capability">> {
-    return this.#project.work.addCapability(capability);
+  editStory(id: string, fields: StoryEdit, options?: WriteOptions): Promise<SchemaRecord<"story"> | null> {
+    return this.#project.work.editStory(id, fields, options);
   }
 
-  editCapability(id: string, fields: CapabilityEdit): Promise<SchemaRecord<"capability"> | null> {
-    return this.#project.work.editCapability(id, fields);
+  createArc(arc: NewArc, options?: WriteOptions): Promise<SchemaRecord<"arc">> {
+    return this.#project.work.createArc(arc, options);
   }
 
-  addContract(contract: NewContract): Promise<SchemaRecord<"contract">> {
-    return this.#project.work.addContract(contract);
+  editArc(id: string, fields: ArcEdit, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+    return this.#project.work.editArc(id, fields, options);
   }
 
-  editContract(id: string, fields: ContractEdit): Promise<SchemaRecord<"contract"> | null> {
-    return this.#project.work.editContract(id, fields);
+  addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
+    return this.#project.work.addCapability(capability, options);
+  }
+
+  editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {
+    return this.#project.work.editCapability(id, fields, options);
+  }
+
+  addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">> {
+    return this.#project.work.addContract(contract, options);
+  }
+
+  editContract(id: string, fields: ContractEdit, options?: WriteOptions): Promise<SchemaRecord<"contract"> | null> {
+    return this.#project.work.editContract(id, fields, options);
   }
 
   /** The work model's tree, annotated with health (capability 5 reads the plan through capability 4). */
@@ -306,52 +351,52 @@ class LibraryHandle implements Library {
     return this.#project.work.arcsFor(storyId);
   }
 
-  addIncrement(increment: NewIncrement): Promise<SchemaRecord<"increment">> {
-    return this.#project.flight.addIncrement(increment);
+  addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">> {
+    return this.#project.flight.addIncrement(increment, options);
   }
 
-  advanceIncrement(id: string, to: "ready" | "active"): Promise<SchemaRecord<"increment"> | null> {
-    return this.#project.flight.advanceIncrement(id, to);
+  advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.advanceIncrement(id, to, options);
   }
 
-  closeIncrement(id: string, close: CloseInput): Promise<SchemaRecord<"increment"> | null> {
-    return this.#project.flight.closeIncrement(id, close);
+  closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.closeIncrement(id, close, options);
   }
 
-  editIncrement(id: string, fields: IncrementEdit): Promise<SchemaRecord<"increment"> | null> {
-    return this.#project.flight.editIncrement(id, fields);
+  editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#project.flight.editIncrement(id, fields, options);
   }
 
-  parkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
-    return this.#project.flight.parkArc(id);
+  parkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+    return this.#project.flight.parkArc(id, options);
   }
 
-  unparkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
-    return this.#project.flight.unparkArc(id);
+  unparkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+    return this.#project.flight.unparkArc(id, options);
   }
 
   arcView(id: string): Promise<ArcView | null> {
     return this.#project.flight.arcView(id);
   }
 
-  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
-    return this.#project.flight.addWait(waiter, blocker, reason);
+  addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#project.flight.addWait(waiter, blocker, reason, options);
   }
 
-  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
-    return this.#project.flight.removeWait(waiter, blocker);
+  removeWait(waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
+    return this.#project.flight.removeWait(waiter, blocker, options);
   }
 
   waitHolds(id: string): Promise<Hold[]> {
     return this.#project.flight.waitHolds(id);
   }
 
-  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">> {
-    return this.#project.flight.raiseQuestion(question);
+  raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">> {
+    return this.#project.flight.raiseQuestion(question, options);
   }
 
-  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null> {
-    return this.#project.flight.settleQuestion(id, settlement);
+  settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#project.flight.settleQuestion(id, settlement, options);
   }
 
   questions(arcId: string): Promise<SchemaRecord<"question">[]> {
@@ -378,24 +423,24 @@ class LibraryHandle implements Library {
     return this.#project.health.healthHistory(contractId);
   }
 
-  writeMemory(memory: NewMemory): Promise<SchemaRecord<"memory">> {
-    return this.#project.knowledge.writeMemory(memory);
+  writeMemory(memory: NewMemory, options?: WriteOptions): Promise<SchemaRecord<"memory">> {
+    return this.#project.knowledge.writeMemory(memory, options);
   }
 
-  recordDecision(decision: NewDecision): Promise<SchemaRecord<"decision">> {
-    return this.#project.knowledge.recordDecision(decision);
+  recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
+    return this.#project.knowledge.recordDecision(decision, options);
   }
 
-  writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>): Promise<SchemaRecord<K>> {
-    return this.#project.knowledge.writeKnowledge(kind, fields);
+  writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>> {
+    return this.#project.knowledge.writeKnowledge(kind, fields, options);
   }
 
-  defineTerm(definition: NewDefinition): Promise<SchemaRecord<"definition">> {
-    return this.#project.knowledge.defineTerm(definition);
+  defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">> {
+    return this.#project.knowledge.defineTerm(definition, options);
   }
 
-  editNote(id: string, fields: NoteEdit): Promise<Note | null> {
-    return this.#project.knowledge.editNote(id, fields);
+  editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null> {
+    return this.#project.knowledge.editNote(id, fields, options);
   }
 
   search(query: string): Promise<Note[]> {
@@ -418,8 +463,8 @@ class LibraryHandle implements Library {
     return this.#project.knowledge.decision(id);
   }
 
-  composeStatement(id: string, statement: string): Promise<SchemaRecord<"decision"> | null> {
-    return this.#project.knowledge.composeStatement(id, statement);
+  composeStatement(id: string, statement: string, options?: WriteOptions): Promise<SchemaRecord<"decision"> | null> {
+    return this.#project.knowledge.composeStatement(id, statement, options);
   }
 
   /**
@@ -427,9 +472,9 @@ class LibraryHandle implements Library {
    * retiring it is the same harmless no-op as retiring a missing one; it is never looked up, since
    * Postgres cannot even be asked for one.
    */
-  async retire(id: string, reason: string): Promise<void> {
+  async retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
     if (!couldBeId(id)) return;
-    await this.#project.flight.retire(id, reason);
+    await this.#project.flight.retire(id, reason, options);
   }
 
   /**

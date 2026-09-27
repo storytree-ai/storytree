@@ -22,7 +22,7 @@
  */
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, recordNamed, type Expected } from "../references.js";
-import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
 
 /** Where an increment is in its lifecycle. */
@@ -179,7 +179,7 @@ export class WorkInFlight {
    * remedies that is not live). It is a proposal, stamped with when it was parked, or, given an
    * `outcome`, born closed.
    */
-  addIncrement(increment: NewIncrement): Promise<SchemaRecord<"increment">> {
+  addIncrement(increment: NewIncrement, options?: WriteOptions): Promise<SchemaRecord<"increment">> {
     return this.#serially(async () => {
       const { outcome, ...fields } = increment;
       await checkReference(this.#records, "arc", fields.arc, "arc");
@@ -187,7 +187,7 @@ export class WorkInFlight {
       const lifecycle = outcome === undefined
         ? { status: "proposal" as const, parked: new Date().toISOString() }
         : { status: "closed" as const, outcome: outcomeOf(outcome) };
-      return this.#records.create("increment", { ...fields, ...lifecycle });
+      return this.#records.create("increment", { ...fields, ...lifecycle }, options);
     });
   }
 
@@ -195,13 +195,13 @@ export class WorkInFlight {
    * Move an increment on to `to`, `ready` or `active`, and only forward (LifecycleError otherwise).
    * Null, with nothing written, if `id` is not a live increment.
    */
-  advanceIncrement(id: string, to: "ready" | "active"): Promise<SchemaRecord<"increment"> | null> {
+  advanceIncrement(id: string, to: "ready" | "active", options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
       if (increment === null) return null;
       const from = increment.fields.status;
       if (!(to === "ready" || to === "active") || rank(to) <= rank(from)) throw new LifecycleError(id, from, to);
-      return (await this.#records.edit(id, { status: to })) as SchemaRecord<"increment"> | null;
+      return (await this.#records.edit(id, { status: to }, options)) as SchemaRecord<"increment"> | null;
     });
   }
 
@@ -210,12 +210,12 @@ export class WorkInFlight {
    * close with no pull request needs a note (SchemaError); closing a closed one is refused
    * (LifecycleError). Null, with nothing written, if `id` is not a live increment.
    */
-  closeIncrement(id: string, close: CloseInput): Promise<SchemaRecord<"increment"> | null> {
+  closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const increment = await liveRecord(this.#records, id, ["increment"]);
       if (increment === null) return null;
       if (increment.fields.status === "closed") throw new LifecycleError(id, "closed", "closed");
-      return (await this.#records.edit(id, { status: "closed", outcome: outcomeOf(close) })) as SchemaRecord<"increment"> | null;
+      return (await this.#records.edit(id, { status: "closed", outcome: outcomeOf(close) }, options)) as SchemaRecord<"increment"> | null;
     });
   }
 
@@ -223,7 +223,7 @@ export class WorkInFlight {
    * Change what an increment is: its title, objective, body, or what it touches and remedies, each
    * checked as addIncrement checks it. Null, with nothing written, if `id` is not a live increment.
    */
-  editIncrement(id: string, fields: IncrementEdit): Promise<SchemaRecord<"increment"> | null> {
+  editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
       const other = Object.keys(fields).find((key) => !EDITABLE.has(key));
       if (other !== undefined) {
@@ -231,7 +231,7 @@ export class WorkInFlight {
       }
       if ((await liveRecord(this.#records, id, ["increment"])) === null) return null;
       await this.#checkNames(fields);
-      return (await this.#records.edit(id, fields)) as SchemaRecord<"increment"> | null;
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"increment"> | null;
     });
   }
 
@@ -241,7 +241,7 @@ export class WorkInFlight {
    * replaces the reason. A wait that would close a loop across arcs and increments is refused with
    * a WaitLoopError naming it. Null, with nothing written, if `waiter` is not a live arc or increment.
    */
-  addWait(waiter: string, blocker: string, reason: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+  addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
     return this.#serially(async () => {
       const record = await liveRecord(this.#records, waiter, ["arc", "increment"]);
       if (record === null) return null;
@@ -251,17 +251,17 @@ export class WorkInFlight {
         ? stored.map((wait) => (wait.on === blocker ? { on: blocker, reason } : wait))
         : [...stored, { on: blocker, reason }];
       await this.#refuseLoop(waiter, waits);
-      return (await this.#records.edit(waiter, { waits })) as SchemaRecord<"arc" | "increment"> | null;
+      return (await this.#records.edit(waiter, { waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
     });
   }
 
   /** Stop `waiter` waiting on `blocker`. Null, with nothing written, if `waiter` is not a live arc or increment. */
-  removeWait(waiter: string, blocker: string): Promise<SchemaRecord<"arc" | "increment"> | null> {
+  removeWait(waiter: string, blocker: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {
     return this.#serially(async () => {
       const record = await liveRecord(this.#records, waiter, ["arc", "increment"]);
       if (record === null) return null;
       const waits = (record.fields.waits ?? []).filter((wait) => wait.on !== blocker);
-      return (await this.#records.edit(waiter, { waits: waits.length === 0 ? undefined : waits })) as SchemaRecord<"arc" | "increment"> | null;
+      return (await this.#records.edit(waiter, { waits: waits.length === 0 ? undefined : waits }, options)) as SchemaRecord<"arc" | "increment"> | null;
     });
   }
 
@@ -288,10 +288,10 @@ export class WorkInFlight {
    * Raise a question for the owner on a live arc (MissingReferenceError otherwise). It is open, and
    * stamped as verified now: the start of its review lease (12-a).
    */
-  raiseQuestion(question: NewQuestion): Promise<SchemaRecord<"question">> {
+  raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "arc", question.arc, "arc");
-      return this.#records.create("question", { ...question, lifecycle: "open", verifiedAt: new Date().toISOString() });
+      return this.#records.create("question", { ...question, lifecycle: "open", verifiedAt: new Date().toISOString() }, options);
     });
   }
 
@@ -300,7 +300,7 @@ export class WorkInFlight {
    * it, which must be a live decision. A settlement with no answer is refused (SchemaError), and so
    * is settling a settled question. Null, with nothing written, if `id` is not a live question.
    */
-  settleQuestion(id: string, settlement: Settlement): Promise<SchemaRecord<"question"> | null> {
+  settleQuestion(id: string, settlement: Settlement, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#serially(async () => {
       const question = await liveRecord(this.#records, id, ["question"]);
       if (question === null) return null;
@@ -311,7 +311,7 @@ export class WorkInFlight {
         answer: settlement.answer,
         settledAt: new Date().toISOString(),
         settledBy: settlement.decision,
-      })) as SchemaRecord<"question"> | null;
+      }, options)) as SchemaRecord<"question"> | null;
     });
   }
 
@@ -338,24 +338,24 @@ export class WorkInFlight {
    * Retire a record, as capability 2's retire does, except a question an increment is held on,
    * which is refused (RetireRefusedError) with nothing written.
    */
-  retire(id: string, reason: string): Promise<void> {
+  retire(id: string, reason: string, options?: WriteOptions): Promise<void> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["question"])) !== null) {
         const heldBy = (await this.#records.list("increment")).filter((increment) => increment.fields.heldOn?.includes(id) === true);
         if (heldBy.length > 0) throw new RetireRefusedError(id, heldBy.sort(byCreation).map((increment) => increment.id));
       }
-      await this.#records.retire(id, reason);
+      await this.#records.retire(id, reason, options);
     });
   }
 
   /** Park an arc: it reads parked, whatever its work, until unparked. Null if `id` is not a live arc. */
-  parkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
-    return this.#setParked(id, true);
+  parkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+    return this.#setParked(id, true, options);
   }
 
   /** Unpark an arc: its state is worked out from its increments again. Null if `id` is not a live arc. */
-  unparkArc(id: string): Promise<SchemaRecord<"arc"> | null> {
-    return this.#setParked(id, undefined);
+  unparkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+    return this.#setParked(id, undefined, options);
   }
 
   /** The arc whole, with its state, its increments and its questions, oldest first; null if `id` is not a live arc. */
@@ -402,10 +402,10 @@ export class WorkInFlight {
     }
   }
 
-  #setParked(id: string, parked: true | undefined): Promise<SchemaRecord<"arc"> | null> {
+  #setParked(id: string, parked: true | undefined, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["arc"])) === null) return null;
-      return (await this.#records.edit(id, { parked })) as SchemaRecord<"arc"> | null;
+      return (await this.#records.edit(id, { parked }, options)) as SchemaRecord<"arc"> | null;
     });
   }
 

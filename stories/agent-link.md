@@ -19,6 +19,10 @@ re-steer tools; the habits card (7) and the setup check (8) grow with them. Its 
 `decisions/agent-link-revised-tree.md`. The command line is not this story's: it is a story of its
 own (H), parked as `0-3-cli-story-tree`.
 
+**Extended by ADR-0645 D2 and D6** (2026-09-27): the command line and the agent tools share
+public claims readings, setup diagnostics and friction recurrence capture. Every library write
+from an agent tool names its calling session in the library's history.
+
 **Rule for building it: port behaviour, not code.** Storytree 0.2's hooks and harness settings
 (`.claude/settings.json`, `.codex/`), its claim board (`packages/notice-board`,
 `stories/notice-board`) and the MCP servers it runs for its own build workers are the behavioural
@@ -83,6 +87,10 @@ running it says so at once, so everything built on it quietly does nothing.
 
 - **Depends on:** nothing in this story. It uses the library API's `connect` and `openProject`, and
   the note the running 0.3 app keeps of where its database is listening.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D5):** project routing sends what an agent does in a folder to one
+    storytree project. It never picks a project by itself: storytree asks, and the user's yes is
+    the choice.
 - **Leaves out (vs 0.2):** 0.2's four rules for working out who a session is from its worktree
   folder, the shared "lobby" checkout that could claim nothing, and repairing worktrees or
   installing packages at session start. 0.2 had one shared database and no idea of a project.
@@ -115,6 +123,10 @@ added, never changed, and can be read back in order as "everything since line N"
 that other processes wrote.
 
 - **Depends on:** 1.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D2, B1):** the link keeps its own log of what agents do, beside the
+    library and not inside it. Sessions, activity, claims and note reads live there, not as library
+    record types.
 - **Leaves out (vs 0.2):** 0.2's claim-event, work-event and trace tables, its retired presence
   rows, and the machine-wide register of running jobs (`storytree own`). Lines can't be edited or
   deleted.
@@ -150,6 +162,10 @@ always exit cleanly, so they can never slow down or break the agent, and when st
 running they do nothing.
 
 - **Depends on:** 1 and 2.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D1 row 3 and D4, E1):** hooks are the passive layer, so an agent that
+    never calls storytree still shows up. Codex gets the same hooks as Claude Code, registered at
+    user level.
 - **Leaves out (vs 0.2):** 0.2's six session-start hooks (installing packages, repairing and pruning
   worktrees, remote setup, a claim reminder).
   0.2 never recorded edits or commands at all.
@@ -265,6 +281,10 @@ otherwise.
 
 - **Depends on:** 2, the agent activity log. Its lines come from the hooks (3) and the agent
   tools (6).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D1 row 4 and D9):** sessions are read from the activity log, one per
+    agent window, and never declared by the agent. A session is live only while its lines arrive,
+    never by default.
 - **Leaves out (vs 0.2):** self-declared presence, which 0.2 retired as "not useful … advisory
   rather than deterministic" (ADR-0200); identity by worktree folder; and 0.2's
   three staleness bands and two-hour reclaim clock.
@@ -304,6 +324,10 @@ releases it, when its session ends, or when another agent takes it over after th
 idle.
 
 - **Depends on:** 4, sessions, and the library API (to check that the capability exists).
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D3, C1; ADR-0643 D1):** claims show who is on which capability or
+    increment. One holder each and no queue: a second agent is refused with the holder's name and
+    picks other work.
 - **Leaves out (vs 0.2):** the three claim grades (exploring, waiting, work), the waiting queue with
   automatic promotion, typed roles, and rules about stories versus capabilities. 0.2's claim board
   is six capabilities and about 3,800 lines of code, reworked across ten decisions. *(Claims on arc
@@ -356,6 +380,13 @@ idle.
   toward the one it claimed most recently of those it still holds. Landing a capability another
   session holds is refused, naming the holder. A holder whose command is still running
   (capability 4) is live, so its claim cannot be taken mid-run (ADR-0636 D2).
+- **Public readings (ADR-0645 D6, 5.11):** `readClaims(log, project, options?)` returns the current
+  capability and increment claims, each with its harness, session (the window), label, reason,
+  time claimed, branch when known, and live or idle holder. `readClaim(log, project, id, options?)`
+  returns the holder of one unit, or `undefined` when nobody holds it. Both are exported from
+  `@storytree/agent-link`. The board's browser-safe `@storytree/agent-link/readings` exports the
+  same readings over lines, `claimsFrom(lines, options?)` and `claimFrom(lines, id, options?)`.
+  Options can name the clock (`now`) and quiet time (`quietMs`); none of these reads writes a line.
 
 **Contracts:**
 1. Session A claims "email form", and the claim shows A and the reason.
@@ -381,6 +412,9 @@ idle.
 10. A claim taken on branch `feature/signup` ends with a "merged" line once GitHub shows a pull
     request from that branch merged after the claim was taken, found at the next tool call or hook
     line; a pull request merged before the claim, or still open, ends nothing.
+11. The public readings list current capability and increment claims and find the holder of one
+    unit, with the same live or idle result on the terminal and the board. Released work and a
+    unit in another project have no holder.
 
 ## 6 · Agent tools (the MCP server)
 
@@ -395,11 +429,13 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
 - **Depends on:** 1, 2 and 5; the library API, plus three edit functions it gains for this story
   (edit a story, a contract and an arc: `stories/library.md`, capability 7). The note tools also
   need the library's knowledge entrances (ADR-0627 D8), which land first.
+- **Its shelf,** founding book first:
+  - Every knowledge read is recorded, and a new note has a default place (ADR-0624, decisions/adr-0624.md).
 - **Leaves out (vs 0.2):** the whole storytree command line (dozens of commands for the library,
   arcs, decisions, questions, the gate and the notice board), the build workers, the prove-it spine,
-  signed verdicts and paid `--real` builds. The MVP toolbox has about a dozen tools.
+  signed verdicts and paid `--real` builds.
 - **As built:** one command, `storytree-mcp`, a plain Node script a harness starts for each
-  session and talks to on stdio. Its thirteen tools: `plan_arc`, `plan_story`, `plan_capability`,
+  session and talks to on stdio. Its founding tools: `plan_arc`, `plan_story`, `plan_capability`,
   `plan_contract`, `edit_plan`, `show_plan`, `claim`, `release`, `report` (red or green), `land`,
   `search_notes`, `open` (a story's or capability's shelf as spines, or a note whole) and
   `write_note`. Each call is routed from the session's folder afresh and recorded as a
@@ -408,6 +444,10 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
   title is a peek, an opened note is read whole, and how it was found is where the session last saw
   it shown (search, shelf or link), else by its id. The note tools were built after the library's
   knowledge entrances landed (its capability 9), on ADR-0627 D4 from their first version.
+- **Increment claims in the tools (6.2, 6.5):** `show_plan` includes each arc's increments with
+  their title, id, status and holder, and keeps the full capability or increment claim in its data.
+  A note's default shelf comes from the latest held capability even when the session claimed an
+  increment more recently; an increment alone gives no capability shelf.
 - **Corrected after approval (ADR-0627).** A note no longer links to a capability. A new note with
   no place named goes onto the claimed capability's shelf: a decision becomes a front cover; a
   memory or definition links to the cover the session last opened, else to the shelf's first book;
@@ -482,25 +522,51 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     closes instead. The repo wiring ADR-0641 E1 also names (ADR-0636 b5) is not in this landing: the
     tool server registers its hooks in the user's own homes and opens the app, so it stays with
     `0-3-own-development-setup`.
-  - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
-    this one server, beside these, and can fill a "next" line that `land`'s answer ends with. *Not
-    built yet:* no other story has tools or a "next" line to give, so the way in is made when the
-    first one does, rather than as an unused hook now (ADR-0623 D4).
+  - **Friction recurrence (ADR-0645 D6, 6.15):** `reinforce` takes a friction id and concrete
+    evidence of what happened this time. It calls the public
+    `reinforceFriction(library, id, { branch, evidence }, options?)`, which appends a `reinforcedBy`
+    entry dated in UTC (`YYYY-MM-DD`) through `library.editNote`. It keeps the original item,
+    evidence, route and route reason, including a route of `nothing`; it never creates a twin.
+    The tool uses the session folder's git branch, or `(no branch)` when none is known. Missing,
+    retired or non-friction ids and vague evidence are refused. `recordFriction`, `recordResteer`
+    and `reinforceFriction` are all exported from `@storytree/agent-link` and take optional
+    `{ actor }` as their final argument, so the person's command line can name its writer too.
+  - **The session as writer (ADR-0645 D2, 6.16):** every library write from a tool passes
+    `{ actor: "session:<id>" }`. This includes founding decisions, holds on questions, health,
+    retirements and the increment start a claim performs. The id is resolved for each call:
+    Claude Code's hook can name its new session after `/clear`, and Codex names its session on
+    the call even when a subagent makes it. The health report's `by` stays separate from the
+    history's actor. A refused write adds no library history. `raise_question` checks every
+    requested increment hold before writing the question or any hold, so a missing increment or
+    another kind of record cannot leave a partial question behind.
+  - **Other stories' tools and `land`'s "next" line (D6), as built (6.17, 6.18):**
+    `createAgentTools({ extensions })` accepts public `ToolExtension` entries. Their
+    `registerTools(define)` uses the same routing, resolved session, writer, activity log and
+    readable refusals as this story's tools; `instructions` adds the story's short teaching line
+    at session start. The public types are `DefineTool`, `ToolCall` and `ToolAnswer`.
+    `landNext(capability, call)` supplies a conditional final `Next:` line after a successful
+    landing, or returns `undefined` when none is due. Refused landings never ask for a next step;
+    a follow-up failure says the next step is unavailable while keeping the successful landing
+    explicit. The test serves the librarian's real `worklist` and uses its `roundDue` for the
+    next line. The librarian's own tool catalogue and role definition remain that story's work
+    (6.3–6.5); its previously missing registration point is now available.
 
 **Contracts:**
 1. A test client talks to the server inside the test itself, with no real agent and no network. It
    lists the tools, then plans an arc, a story, a capability and a contract, which then appear in
    the library's tree, the story and the capability each with its founding decision as the first
    book on its shelf, and it can correct each of them.
-2. It claims the capability, sees the plan and who is on what, reports the contract red and then
+2. It claims the capability and the increment it drives, sees both named with their holders in
+   the plan and its data, reports the contract red and then
    green (the library shows the agent's report going from failing to passing, while the verified
    column stays "not checked"), and reports the capability landed, which ends the claim.
 3. Every call is recorded against the session that made it, using the session id the harness
    passes, and the machine it ran on.
 4. A bad call, such as an unknown capability, gets a readable refusal rather than a crash, and with
    storytree stopped every tool answers "storytree isn't running, carry on without it".
-5. A note written with no place named while holding a claim goes onto that capability's shelf as
-   ADR-0627 D4 says, and one written with no claim gets no default place.
+5. A note written with no place named while holding a capability claim goes onto that capability's
+   shelf as ADR-0627 D4 says, even with a newer increment claim; one with no capability claim gets
+   no default place.
 6. Searching and opening a note leaves a log line saying which session read it, how it was found (a
    search result, a link from another note, by id, or from a shelf) and whether it took a peek or
    the whole note.
@@ -530,6 +596,16 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
 14. It retires a contract and then a capability with a reason, and each is gone from the plan, its
     history keeping it. An id that is not a capability or a contract gets a readable refusal, and
     nothing is retired.
+15. Reinforcing friction through the tool or public capture function appends dated concrete
+    evidence to the same item and preserves its route. Invalid recurrences write nothing.
+16. Every library write made by the tools names the calling session in history, including every
+    record a compound call writes, increment starts, Claude Code's session after `/clear`, and
+   Codex calls made by a subagent. A refused write leaves history unchanged, including a question
+   whose requested holds include a missing increment or another record kind.
+17. Another story registers tools on this server beside its own, sharing project routing and the
+    session log, and its short instruction line reaches the agent with the habits card.
+18. Another story supplies `land`'s final next line when needed, with none when it is not. A refused
+    landing asks for none, and a failed follow-up keeps the successful landing explicit.
 
 ## 7 · Instructions (the habits card)
 
@@ -541,14 +617,20 @@ and Codex both read it from there), and the setup check can also add it as a sho
 project's CLAUDE.md or AGENTS.md, where people can read it too.
 
 - **Depends on:** 6.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D1 row 7 and D7):** the habits card teaches the agent storytree's
+    habits. It is one short text, under 60 lines, that the tool server hands to the agent at every
+    session start.
 - **Leaves out (vs 0.2):** 0.2's generated instructions (CLAUDE.md alone is 918 lines and 128 KB,
   and it outgrew its own declared size budget within five weeks), the per-harness agent role files,
   the generators that rebuild them, and the gate checks that compare them with the database.
 - **Added after approval (ADR-0627 D7):** the card also teaches three reading lines: start at the
   shelf, open what matches your task, stop when you can act. They join the card with the note tools.
-- **As built:** the card is 19 lines, handed to every session as the tool server's MCP
+- **As built:** the base card is 26 lines, handed to every session as the tool server's MCP
   `instructions`. It names each tool in backticks and uses backticks for nothing else, which is how
-  its test knows the tools it teaches. Adding it to a project's CLAUDE.md or AGENTS.md is not built.
+  its test knows the tools it teaches. An extension can add a short line for its tools; the
+  registration proof checks that every served tool is taught and the combined text stays under
+  60 lines. Adding it to a project's CLAUDE.md or AGENTS.md is not built.
 - **Extended by ADR-0643 D1 (7):** the card also teaches claiming the increment you drive, closing it
   with its outcome, and raising a question on the arc instead of only asking in chat. It stays
   under 60 lines, and contract 1 holds it to the grown toolbox.
@@ -570,6 +652,9 @@ and in a folder that isn't a storytree project yet it asks the user, through the
 set one up.
 
 - **Depends on:** 1, 3, 6 and 7.
+- **Its shelf,** founding book first:
+  - **Founding book (ADR-0626 D5):** onboarding is the setup check. The user installs only the tool
+    server, and every session start checks the setup and fixes it on the spot.
 - **Leaves out (vs 0.2):** 0.2 never plugged into anyone's own agent. Its hooks were committed into
   its own repo's settings, nothing could undo them, and nothing checked that they fired: its Codex
   hooks silently never ran.
@@ -610,8 +695,23 @@ set one up.
   home and can be written (such as `~/.local/bin`), so no setting of theirs is changed; with none,
   the check says so. A marker line inside it makes it storytree's: a `storytree` of the user's own
   anywhere on the path is kept, never replaced or shadowed. `storytree-setup remove` takes it out.
-  Until the command line's story fills it, `storytree.mjs` answers only `storytree setup install |
-  remove`.
+  The command line's story has filled `storytree.mjs` with its full front door, including
+  `storytree setup install | remove` (storytree-ai/storytree#83).
+- **Windows removal (regression from storytree-ai/storytree#83):** the `.cmd` launcher ends its
+  batch context before launching Node on the same parsed line, using npm's command-shim handoff:
+  a jump to a deliberately absent label, with its diagnostic suppressed, followed by the Node
+  command. Node can then remove the wrapper without cmd.exe trying to read it again, and its
+  exit code reaches the caller. The Windows CI test installs in a throwaway home, runs
+  `storytree setup remove` through the real wrapper, and checks exit 0, the wrapper gone and the
+  user's own settings kept; an invalid command still exits 2.
+- **Outside a session (ADR-0645 D6, 8.10):** the public `runSetupCheck({ folder, ...options })`
+  runs the same check for a terminal. Its report adds `lines`, each with `check`, `state`
+  (`ok`, `fixed`, `needs-attention` or `skipped`), `message` and an optional `fix`. These cover
+  the app, hooks, status line, command, GitHub and project, and the `check_setup` tool uses the
+  same diagnostics. One problem does not hide another's fix. Hook registration is reported
+  separately from proving a particular session's hooks fire; that proof still needs a session.
+  Checking never creates a project: the terminal calls the existing public
+  `setUpProject({ folder, project, storytree })` only on the person's explicit request.
 
 **Contracts:**
 1. In a throwaway home with only the tool server installed, the first session start registers the
@@ -633,7 +733,12 @@ set one up.
 8. With `gh` missing, or signed out, the check says so and names the fix; signed in, it says
    nothing about it.
 9. In a throwaway home, the first start puts a `storytree` command on the path, a second changes
-   nothing, and removing storytree takes it out.
+   nothing, and removing storytree takes it out. On Windows, `storytree setup remove` through
+   that `.cmd` wrapper exits 0 with the wrapper gone and the user's own settings kept (regression:
+   storytree-ai/storytree#83; proven on Windows CI, skipped with a named reason on other systems).
+10. A terminal runs the shared check without an agent session and gets diagnostic lines and
+    fixes, including when the app is stopped. Checking creates no project; an explicit setup
+    request creates it, and the next check reports it ready.
 
 ---
 
@@ -643,16 +748,15 @@ set one up.
   the notice board is a story of its own, as in 0.2 (the owner's H, ADR-0643 D5), parked as
   `0-3-cli-story-tree`. It sends each verb to the function its owning story already has, as the
   agent tools do, and records a person's writes as the person.
-- **Not brought over: did not last in 0.2** (ADR-0643 D4, measured under ADR-0639):
-  - increment plans, `increment check` and the planner hand-off (ADR-0639 D4);
-  - a question's park lease (`--lease-days`, `question check`): all 128 open questions carried one,
-    auto-stamped, sampled `verifiedAt` histories were never updated after creation, and `question
-    check` ran twice, both on its first day (2026-08-18);
-  - workspaces made by claiming (`worktree create --node`, `branch next`): 16 uses of the first,
-    2026-08-18 to 09-06, none in the 20 days before the freeze; the second never used in any of 145
-    transcripts;
-  - similarity search (`library related --unlinked`): 12 uses, all 2026-08-23/29 while it was being
-    built, none in September. Plain search lasted, and is the library's.
+- **Not brought over: did not last in 0.2** (ADR-0643 D4, corrected after remeasurement under
+  ADR-0645 D3): increment plans, `increment check` and the planner hand-off (ADR-0639 D4), and
+  `branch next`, which was never used.
+- **Awaiting the owner's choices, neither ported nor cut** (ADR-0643 D4, corrected 2026-09-27):
+  the question lease and `question check` (148 runs), `worktree create --node` (78 runs), and
+  `library related --unlinked` (92 runs). The first counts above missed subagent transcripts.
+  The questions are `oq-0-3-question-review-date-and-unlinked-search` and
+  `oq-0-3-workspace-born-claimed`; their answers decide what returns. Plain search is already the
+  library's.
 
 - **Knowledge entrances** (each story's and capability's own shelf of front-cover decisions, none
   shared between nodes) are the library's ninth capability (ADR-0627 D1), with the forest showing

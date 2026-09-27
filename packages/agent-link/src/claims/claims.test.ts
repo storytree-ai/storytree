@@ -13,12 +13,14 @@ import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
+import { readClaim, readClaims } from "../index.js";
+import { claimFrom, claimsFrom } from "../readings.js";
 import { runHook } from "../hooks/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { claim, land, readAttribution, readClaims, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, land, readAttribution, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 
 interface World {
   log: ActivityLog;
@@ -241,6 +243,32 @@ async function arcOf(library: Library, title = "Launch sign-up") {
 async function statusOf(library: Library, arc: string, id: string): Promise<string | undefined> {
   return (await library.arcView(arc))?.increments.find((increment) => increment.id === id)?.fields.status;
 }
+
+test("5.11 the public readings list current capability and increment claims and find the holder of one unit", async () => {
+  await withWorld(async ({ log, project, library, emailForm, as }) => {
+    const { park } = await arcOf(library);
+    const increment = await park("email form", [emailForm]);
+    await claim(as("A"), emailForm, "building the form");
+    await claim(as("B"), increment, "driving the increment");
+    const { lines } = await log.since(project, 0);
+    const options = { now: new Date(Date.parse(lines.at(-1)!.at) + 31 * 60_000) };
+    const claims = await readClaims(log, project, options);
+    assert.deepEqual(claims, claimsFrom(lines, options), "terminal and board share the reading");
+    assert.deepEqual(claims.map(({ capability, increment, session, harness, label, reason, holder }) =>
+      [capability ?? increment, session, harness, label, reason, holder]), [
+      [emailForm, "A", "claude-code", "Claude Code", "building the form", "idle"],
+      [increment, "B", "codex", "Codex", "driving the increment", "idle"],
+    ]);
+    for (const id of [emailForm, increment]) {
+      assert.deepEqual(await readClaim(log, project, id, options), claims.find((held) => (held.capability ?? held.increment) === id));
+      assert.deepEqual(claimFrom(lines, id, options), await readClaim(log, project, id, options));
+    }
+    assert.equal((await readClaim(log, project, increment))?.holder, "live");
+    await release(as("B"), increment);
+    assert.equal(await readClaim(log, project, increment), undefined, "released work has no holder");
+    assert.equal(await readClaim(log, `${project}-other`, emailForm), undefined, "another project has no holder");
+  });
+});
 
 test("5.7 session A claims a proposed increment, which the claim shows while the library shows it active, and B's claim on it is refused naming A; a ready one starts the same way, an active one is not started again, and a closed one is refused", async () => {
   await withWorld(async ({ log, project, library, as }) => {

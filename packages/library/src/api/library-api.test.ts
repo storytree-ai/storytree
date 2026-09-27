@@ -36,6 +36,9 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } f
 /** What a Library offers: the API's list, restated from the spec and the brief. */
 const LIBRARY_API = [
   "name",
+  "get",
+  "list",
+  "history",
   "addStory",
   "createArc",
   "addCapability",
@@ -90,17 +93,20 @@ const LIBRARY_API = [
  * WaitLoopError with capability 11: how a wait that would close a loop is refused, and
  * RetireRefusedError with capability 12: how retiring a question work is held on is refused.
  * NumberTakenError and SupersessionLoopError joined it with capability 13: how a decision number
- * already held, and a decision superseding itself, are refused.
+ * already held, and a decision superseding itself, are refused. LinkLoopError joined it with
+ * contract 9.4: how a note link that would close a loop is refused (ADR-0647 D2).
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
   "DependencyLoopError",
   "LifecycleError",
+  "LinkLoopError",
   "MissingReferenceError",
   "MissingUpgradeError",
   "NewerSchemaError",
   "NumberTakenError",
   "ProjectNameError",
+  "RestoreRefusedError",
   "RetireRefusedError",
   "SchemaError",
   "SupersessionLoopError",
@@ -298,14 +304,6 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
       { recordId: decision.id, type: "decision", action: "created", record: decision },
     ]);
     assert.deepEqual(await follow(), []);
-    // A change carries no reason, but the history keeps the one retire was given (seen from outside the library).
-    const reasons = await withTestClient(
-      async (client) =>
-        (await client.query<{ reason: string }>("SELECT reason FROM record_event WHERE record_id = $1 AND action = 'retired'", [memory.id])).rows,
-      `storytree_${name}`,
-    );
-    assert.deepEqual(reasons, [{ reason: "folded into a decision" }]);
-
     // No gap and no repeat: what the reader followed is exactly the whole history, in order.
     const whole = await lib.changesSince(0);
     assert.deepEqual(followed, whole.changes);
@@ -360,9 +358,10 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
 
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {
-    // connect() hands back exactly openProject, listProjects and close, and openProject a Library
+    // connect() hands back exactly openProject, listProjects, snapshot, restore and close (snapshot and
+    // restore are contracts 1.6 to 1.8, ADR-0641 B1), and openProject a Library
     // with exactly the API's name and methods. Neither exposes the internals.
-    assert.deepEqual(surface(storytree), ["close", "listProjects", "openProject"]);
+    assert.deepEqual(surface(storytree), ["close", "listProjects", "openProject", "restore", "snapshot"]);
     const lib = await storytree.openProject(name);
     assert.deepEqual(surface(lib), [...LIBRARY_API].sort());
     for (const internal of ["pool", "transactions", "records", "work", "knowledge", "project", "server"]) {

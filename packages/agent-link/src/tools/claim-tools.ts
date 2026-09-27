@@ -7,7 +7,8 @@ import type { Library } from "@storytree/library";
 import { z } from "zod";
 
 import { claim, currentBranch, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "../claims/index.js";
-import { lineOf, type Call, type Define } from "./server.js";
+import { refusalOf } from "./answers.js";
+import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
 import { quoted } from "./text.js";
 
 const capabilityId = z.string().min(1).describe("The id of the capability, as the plan shows it");
@@ -18,7 +19,7 @@ const part = {
 };
 const ONE_PART = "Name a capability or an increment to claim, exactly one.";
 
-export function registerClaimTools(define: Define): void {
+export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = []): void {
   define(
     "claim",
     "Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
@@ -59,6 +60,7 @@ export function registerClaimTools(define: Define): void {
     }),
     async ({ contract, result, note }, call) => {
       await call.library.reportHealth(contract, result === "red" ? "failing" : "passing", {
+        ...call.writer,
         by: `${call.caller.harness ?? "agent"} ${call.caller.session}`,
         ...(note === undefined ? {} : { note }),
       });
@@ -74,7 +76,22 @@ export function registerClaimTools(define: Define): void {
     z.object({ capability: capabilityId }),
     async ({ capability }, call) => {
       const answer = await land(claimContext(call), capability);
-      if (answer.ok) return { text: `Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, data: { landed: true } };
+      if (answer.ok) {
+        const next: string[] = [];
+        for (const extension of extensions) {
+          try {
+            const line = await extension.landNext?.(capability, call);
+            if (line?.trim()) next.push(line.trim());
+          } catch (error) {
+            // The landing is already recorded: a failed follow-up must not report it refused.
+            next.push(`The next step is unavailable: ${refusalOf(error)}`);
+          }
+        }
+        return {
+          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...next.map((line) => `Next: ${line}`)].join("\n"),
+          data: { landed: true, ...(next.length === 0 ? {} : { next }) },
+        };
+      }
       return answer.refused === "held"
         ? { text: `${await titleOf(call.library, capability)} is held by ${holderOf(answer.holder)}; only its holder lands it.`, refused: true }
         : { text: `There is no capability ${capability} in this project's plan.`, refused: true };
@@ -119,5 +136,3 @@ async function titleOf(library: Library, id: string): Promise<string> {
   const increment = (await increments(library)).find((one) => one.id === id);
   return increment === undefined ? id : `${quoted(increment.fields.title)} (${id})`;
 }
-
-

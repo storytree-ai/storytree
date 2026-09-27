@@ -10,11 +10,10 @@
  *   blank line, and the text. `push` hands the library's `editNote` only what differs from the
  *   stored decision, so a push with no edit writes nothing. The lines below `# read only` (its id,
  *   number, how it reads, its authority and composed statement) are shown, never pushed.
- * - A decision is named by its id. `adr list` (current, by status, load-bearing) and naming one by
- *   its number wait on the library's list(kind) (0-3-library-writer-and-public-reads).
+ * - A decision is named by its id or number. Listing uses list(kind), then decision(id) so the
+ *   library owns supersession and the status shown or filtered.
  */
 import { writeFileSync } from "node:fs";
-import { userInfo } from "node:os";
 import path from "node:path";
 
 import type { DecisionView, Library } from "@storytree/library";
@@ -22,6 +21,7 @@ import type { DecisionView, Library } from "@storytree/library";
 import { Refusal } from "../answer.js";
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
+import { person } from "../writer.js";
 
 /** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;
@@ -37,18 +37,12 @@ function listFrom(args: Args, name: string): string[] | undefined {
   return value === undefined ? undefined : value.split(",").map((one) => one.trim()).filter((one) => one !== "");
 }
 
-/** The person running the command, by their computer user name. */
-function person(): string {
-  try {
-    return userInfo().username;
-  } catch {
-    return process.env.USER ?? process.env.USERNAME ?? "unknown";
-  }
-}
-
-async function viewOf(library: Library, id: string): Promise<DecisionView> {
+async function viewOf(library: Library, name: string): Promise<DecisionView> {
+  const number = /^(?:adr-)?(\d+)$/i.exec(name)?.[1];
+  const id = number === undefined ? name : (await library.list("decision")).find((record) => record.fields.number === Number(number))?.id;
+  if (id === undefined) throw new Refusal(`no decision "${name}" in this project`);
   const view = await library.decision(id);
-  if (view === null) throw new Refusal(`no decision "${id}" in this project`);
+  if (view === null) throw new Refusal(`no decision "${name}" in this project`);
   return view;
 }
 
@@ -113,7 +107,7 @@ const create: Verb = {
       authority: basis === undefined ? undefined : { basis, scribedBy: person(), at: new Date().toISOString(), ...(ownerSaid === undefined ? {} : { ownerSaid }) },
     };
     const fields = { title: args.text("title"), text: args.text("text"), status: args.text("status"), ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value !== undefined)) };
-    const decision = await (await context.library()).recordDecision(fields as never);
+    const decision = await (await context.library()).recordDecision(fields as never, context.writer());
     return {
       text: `Recorded ${adr(decision.fields.number)} (${decision.id}), ${decision.fields.status}.`,
       next: [{ command: `storytree adr pull ${decision.id} --out ${decision.id}.md`, why: "read or edit it as a file" }],
@@ -140,11 +134,13 @@ const push: Verb = {
   usage: "adr push <decision> --file <file>",
   summary: "write back what you changed in a pulled file, and nothing else",
   async act(args, context) {
-    const id = args.word(0, "the decision's id", this.usage);
+    const name = args.word(0, "the decision's id or number", this.usage);
     const file = args.need("file", this.usage);
     const pushed = parseFile(args.read(`@${file}`), file);
     const library = await context.library();
-    const stored = (await viewOf(library, id)).record.fields as Record<string, unknown>;
+    const record = (await viewOf(library, name)).record;
+    const id = record.id;
+    const stored = record.fields as Record<string, unknown>;
     const changes: Record<string, unknown> = {};
     if (pushed.title !== stored.title) changes.title = pushed.title;
     if (pushed.text !== String(stored.text).replace(/\s+$/, "")) changes.text = pushed.text;
@@ -153,7 +149,7 @@ const push: Verb = {
     }
     const names = Object.keys(changes);
     if (names.length === 0) return { text: `No change: ${file} says what ${id} already says.` };
-    await library.editNote(id, changes as never);
+    await library.editNote(id, changes as never, context.writer());
     return { text: `Pushed ${id}: ${names.join(", ")}.`, next: [{ command: `storytree adr pull ${id}`, why: "read it back" }] };
   },
 };
@@ -163,8 +159,10 @@ const compose: Verb = {
   usage: "adr compose <decision> --statement <text|@file>",
   summary: "write a decision's one composed statement, beside its text",
   async act(args, context) {
-    const id = args.word(0, "the decision's id", this.usage);
-    const composed = await (await context.library()).composeStatement(id, args.text("statement") as string);
+    const name = args.word(0, "the decision's id or number", this.usage);
+    const library = await context.library();
+    const id = (await viewOf(library, name)).record.id;
+    const composed = await library.composeStatement(id, args.text("statement") as string, context.writer());
     if (composed === null) throw new Refusal(`no decision "${id}" in this project`);
     return { text: `Composed ${id}'s statement.` };
   },
@@ -173,10 +171,23 @@ const compose: Verb = {
 const list: Verb = {
   name: "list",
   usage: "adr list [--current] [--status <s>] [--load-bearing]",
-  summary: "the decisions: current, by status, load-bearing (not yet)",
+  summary: "the decisions: current (accepted), by status, load-bearing",
   switches: ["current", "load-bearing"],
-  act() {
-    throw new Refusal("storytree adr list is not built yet: it waits on the library's list(kind) on its public API (0-3-library-writer-and-public-reads)");
+  async act(args, context) {
+    const library = await context.library();
+    const lines: string[] = [];
+    for (const record of await library.list("decision")) {
+      const view = await library.decision(record.id);
+      if (view === null || (args.has("current") && view.status !== "accepted")) continue;
+      if (args.has("status") && view.status !== args.text("status")) continue;
+      if (args.has("load-bearing") && !view.record.fields.loadBearing) continue;
+      const fields = view.record.fields;
+      lines.push(`  ${adr(fields.number)}  ${record.id}  [${view.status}]${fields.loadBearing ? "  load-bearing" : ""}  ${fields.title}`);
+    }
+    return {
+      text: lines.length === 0 ? "No decisions match." : [`${lines.length} decisions:`, ...lines].join("\n"),
+      next: [{ command: "storytree adr pull <id|number>", why: "read one whole" }],
+    };
   },
 };
 

@@ -96,9 +96,9 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "fingerprint",
 ]);
 
-/** A decision's fields that change only through their own verbs, never editNote. */
+/** Decision fields that editNote cannot change. */
 const OWN_VERBS: Readonly<Record<string, string>> = {
-  number: "use the one-time storytree Full record or founding-books move",
+  number: "a decision keeps its assigned number",
   composed: "a composed statement is written with composeStatement",
 };
 
@@ -170,7 +170,7 @@ export class Knowledge {
     const entry = history.find((entry) => entry.recordId === NUMBER_FLOOR_ID);
     const floor = entry?.record.fields.floor;
     if (entry === undefined || typeof floor !== "number" || !Number.isSafeInteger(floor) || floor < 1) {
-      throw new RangeError("decision number floor is unset; preview and apply adr set-floor --number <0.2 final number> first");
+      throw new RangeError("decision number floor is unset; storytree requires its persisted numbering floor before automatic numbering");
     }
     return { floor, seq: entry.seq };
   }

@@ -1,0 +1,95 @@
+--- old/story_754e87e7d531/capability_78d6e026f902/capability_78d6e026f902/description
++++ new/story_754e87e7d531/capability_78d6e026f902/capability_78d6e026f902/description
+@@ -1 +1 @@
+-Decision numbers do not collide, even across concurrent writers, and history reserves every number a decision has held. Other projects start at 1 and may allocate the next number automatically. In the project named exactly `storytree`, ADR-0662 switches automatic numbering on by storing 0.2's actual final number as the project's floor, once. Before the floor is set, an explicit number is required; afterwards, automatic numbers exceed both the floor and every number any record has ever held. An explicit free number remains accepted. A narrow one-time repair gives an existing live decision the number in its own single `Full record: ADR-NNNN` line, provided no record of any type has ever held it. A separate founding-books move numbers live decisions that existed at switch-on and have no Full record line, in creation-history order, above the floor and every held number. Both moves preserve identity, other fields, and the old number in history; `editNote` still refuses number changes. Their dry runs write and reserve nothing, report every proposed old → new number and any refusal, and apply rechecks each write. Completed founding moves and decisions created after switch-on are omitted. A decision's status is proposed or accepted, and it can be superseded: the superseded decision is kept, and reads as superseded. A decision carries the load-bearing mark, who decided it, in their own words, and one composed statement.
++Decision numbers do not collide, even across concurrent writers, and history reserves every number a decision has held. Other projects start at 1. In the project named exactly `storytree`, automatic numbers exceed the persisted floor and every number any record has ever held; automatic numbering is refused if that setting is absent. An explicit free number remains accepted. The N1 move is complete: the 29 Full record decisions retain their 0.2 numbers, the floor is 662, and the 53 founding books are ADR-0663..0715. Ordinary edits cannot change or remove a decision's number. A decision's status is proposed or accepted, and it can be superseded: the superseded decision is kept, and reads as superseded. A decision carries the load-bearing mark, who decided it, in their own words, and one composed statement.
+
+--- old/story_754e87e7d531/capability_78d6e026f902/definition_15f873f38fda/meaning
++++ new/story_754e87e7d531/capability_78d6e026f902/definition_15f873f38fda/meaning
+@@ -10,2 +10 @@
+-  0.3's decisions without their numbers; the separate Full record repair retains its narrow N1
+-  rules. `editNote` never changes a number. `decision(id)` reads a decision as
++  0.3's decisions without their numbers; their one-time N1 move is complete. `editNote` never changes a number. `decision(id)` reads a decision as
+@@ -17,7 +16,6 @@
+-- **As built, one-time N1 repair:** `numberDecision` repairs an already-loaded decision only in
+-  `storytree`, to the number in its own single `Full record: ADR-NNNN` line, provided no record
+-  has ever held the target number. Existing history reserves the old number; the transaction
+-  rechecks collisions under the write lock. `editNote` still refuses number changes.
+-  `numberDecisionsFromFullRecord` previews by default and applies only with `apply: true`,
+-  returning every refusal. Already-correct numbers are omitted; this repair leaves founding books untouched.
+-  The CLI is `storytree adr renumber --from-full-record --dry-run`, then `--apply` after review.
++- **As built after the N1 move:** the 29 Full record decisions keep their 0.2 numbers (#130/#133).
++  The stored `decisionNumbering` record `project-decision-number-floor` keeps floor 662, and the
++  53 founding books hold ADR-0663..0715 (#135). Recording decisions still reads that persisted
++  floor; no floor is hard-coded or reset by this retirement. `editNote` refuses number changes
++  and removals without writing. The command line no longer exposes `adr number`, `adr renumber`
++  (either mode), or `adr set-floor`, and refusal messages no longer recommend those commands.
+@@ -25,12 +23,6 @@
+-- **As built, ADR-0662 switch and founding books:** `setDecisionNumberFloor` previews 0.2's actual
+-  final number and stores it only with `apply: true`, in the `decisionNumbering` project setting
+-  `project-decision-number-floor`. Its history survives snapshots; its first write is the switch-on
+-  boundary. The write lock admits only one setting, and any attempt to set it again, including to
+-  a lower number, is refused. No final number is hard-coded. `numberFoundingDecisions` requires
+-  that setting and the exact project `storytree`; it selects live decisions present at switch-on
+-  without a Full record line, ordered by their first history entry rather than timestamps. Targets
+-  start above the maximum of the floor and every number any record has ever held. It previews by
+-  default and applies only with `apply: true`, sharing the existing number write and refusal
+-  machinery. Every write rechecks eligibility and collisions; identities, other fields and old
+-  numbers in history survive. Completed moves are omitted, so a partial run can resume; decisions
+-  created after switch-on are untouched. The Full record repair and its contracts remain separate.
++- **Remaining library surface:** `numberDecision`, `decisionNumberPlan`,
++  `numberDecisionsFromFullRecord`, `setDecisionNumberFloor`, and `numberFoundingDecisions` remain
++  callable through the public library API, with their existing one-time restrictions and tests.
++  Removing them also requires removing public wrappers and exports outside this lane's file fence;
++  this landing retires the command-line entry points. Contracts 13.5, 13.7, 13.8 and the
++  floor-setting part of 13.6 remain accurate until that library surface is removed.
+
+--- old/story_754e87e7d531/capability_78d6e026f902/contract_104cac07c8a3/title
++++ new/story_754e87e7d531/capability_78d6e026f902/contract_104cac07c8a3/title
+@@ -1 +1 @@
+-13.1 · In projects with automatic numbering, decisions recorded at once from separate connections get distinct numbers, each higher than any before. A number held by another decision is never reused, including retired decisions and old numbers kept in history.
++13.1 · In projects with automatic numbering, decisions recorded at once from separate connections get distinct numbers, each higher than any before. A number held by another decision is never reused, including retired decisions and old numbers kept in history. Ordinary edits cannot change or remove a decision's number and a refused edit writes nothing.
+
+--- old/story_f9fb5136c28f/capability_562b2527ebca/capability_562b2527ebca/description
++++ new/story_f9fb5136c28f/capability_562b2527ebca/capability_562b2527ebca/description
+@@ -1 +1 @@
+-List decisions (current, by status, load-bearing) and record a new one with an explicit `--number <n>` or the next number, its status, who decided it in their own words, and what it supersedes. In storytree, `adr set-floor --number <n>` previews the one-time ADR-0662 switch to 0.2's actual final number; `--apply` stores the floor once. Before that switch an explicit number is required; afterwards, automatic numbers exceed the floor and every number any record has ever held. `adr renumber --founding-books` previews the separate ADR-0662 move of live decisions present at switch-on with no Full record line, in creation-history order; `--apply` writes after review. It lists old → new numbers, changed or refused rows and totals, and exits nonzero on any refusal. Completed moves and later decisions are untouched. `storytree adr number <decision> <n>` still calls the one-time Full record repair; `adr number --dry-run` and `adr renumber --from-full-record` preview only that repair, while the latter applies only with `--apply`. Those modes leave decisions without a Full record line or already matching it untouched. All numbering rules belong to the library; the CLI parses and reports them. Pull a decision out as a markdown file, edit it, push it back, and write its composed statement (the owner's C2).
++List decisions (current, by status, load-bearing) and record a new one with an explicit `--number <n>` or the next number, its status, who decided it in their own words, and what it supersedes. In storytree, automatic numbers exceed the persisted floor and every number any record has ever held; omitting a number is refused if the floor is absent. Other projects start at 1. All numbering rules belong to the library; the CLI parses and reports them. Pull a decision out as a markdown file, edit it, push it back, and write its composed statement (the owner's C2). The one-time number, renumber (both modes), and set-floor commands have been retired after the completed N1 move.
+
+--- old/story_f9fb5136c28f/capability_562b2527ebca/contract_693fdb277bb9/title
++++ new/story_f9fb5136c28f/capability_562b2527ebca/contract_693fdb277bb9/title
+@@ -1 +1 @@
+-6.6 · `adr new --number <n>` preserves an explicit unused number and refuses a reused or invalid number. In storytree, omitting the number is refused while the decision number floor is unset, with the instruction to preview and apply `adr set-floor`; once set, omitting the number allocates above that floor and every number any record has ever held. Other projects continue to auto-number from 1.
++6.6 · `adr new --number <n>` preserves an explicit unused number and refuses a reused or invalid number. In storytree, omitting the number is refused while the persisted decision number floor is absent; when present, omitting the number allocates above that floor and every number any record has ever held. Other projects continue to auto-number from 1.
+
+--- old/story_f9fb5136c28f/capability_562b2527ebca/definition_79d3c7b09427/meaning
++++ new/story_f9fb5136c28f/capability_562b2527ebca/definition_79d3c7b09427/meaning
+@@ -10,11 +10,7 @@
+-- **As built, ADR-0662:** `adr set-floor --number <n> [--dry-run | --apply]` calls
+-  `setDecisionNumberFloor`; its default preview changes nothing, and `--apply` stores the floor
+-  once. Use 0.2's actual final number, not an assumed constant. `adr new` then delegates automatic
+-  numbering above the floor and every held number to the library; an explicit free number still
+-  works. `adr renumber --founding-books [--dry-run | --apply]` calls `numberFoundingDecisions`,
+-  defaulting to preview. The library selects live decisions present at switch-on with no Full
+-  record line and orders them by creation history. Rows show old → new numbers and RENUMBER or
+-  RENUMBERED, or REFUSED with the reason, followed by ready or renumbered and refused totals. Any
+-  refusal exits nonzero; invalid flags and mixed modes are refused before writing. Help names
+-  both commands as one-time ADR-0662 moves. The existing `adr number` and
+-  `adr renumber --from-full-record` remain separate Full record-only repairs.
++- **As built after the N1 move:** `adr new --number <n>` preserves an explicit unused number;
++  omitting it delegates automatic numbering to the library. In storytree, the library reads the
++  existing persisted floor and allocates above it and every held number; other projects start at 1.
++  The decision log exposes `new`, `pull`, `push`, `compose`, and `list`. The one-time `number`,
++  `renumber` (Full record and founding-books modes), and `set-floor` commands and their tests have
++  been removed. This changes no stored numbers or floor. `pull`/`push` continue to treat the
++  decision's assigned number as read-only.
+
+--- old/story_f9fb5136c28f/capability_562b2527ebca/contract_976174fd2ce5/title
++++ new/story_f9fb5136c28f/capability_562b2527ebca/contract_976174fd2ce5/title
+@@ -1 +0,0 @@
+-6.7 · `adr number <decision> <n>` delegates the one-time Full record repair to the library. `adr number --dry-run` reports old → new proposals and clear refusals, writes nothing, and exits nonzero if any proposal is refused. Both forms refuse projects other than storytree.
+
+--- old/story_f9fb5136c28f/capability_562b2527ebca/contract_ec99e8313114/title
++++ new/story_f9fb5136c28f/capability_562b2527ebca/contract_ec99e8313114/title
+@@ -1 +0,0 @@
+-6.8 · `adr renumber --from-full-record` previews every one-time Full record repair by default and writes nothing; `--apply` applies the eligible ones through the library, lists RENUMBERED and REFUSED with totals, and exits nonzero on any refusal. A repeat apply writes nothing once every eligible repair is done. Conflicting modes and unknown flags are refused before writing.

@@ -1,0 +1,127 @@
+// Capability 3.1 and 3.4–3.6 acceptance on the actual desktop renderer and app reads.
+// Run under the heavy lock, after apps/desktop/build.mjs. No live project is opened or changed.
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { connect } from '@storytree/library';
+import { openActivityLog, claim } from '@storytree/agent-link';
+import { pageReads } from '@storytree/app';
+import { start } from '@storytree/local-postgres';
+import { smokeArcSurface } from '../src/index.ts';
+
+const { chromium } = await import(process.env.ARC_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const dist = path.resolve(here, '../../../apps/desktop/dist/renderer');
+const temporary = mkdtempSync(path.join(tmpdir(), 'storytree-arc-capture-'));
+let postgres, store, log, reads, browser, server;
+try {
+  postgres = await start({ dataDir: path.join(temporary, 'pgdata'), owner: 'arc surface capture' });
+  store = await connect({ url: postgres.url }); log = await openActivityLog(postgres.url);
+  const project = 'arc-surface-proof';
+  const library = await store.openProject(project);
+  const story = await library.addStory({ title: 'Understand the work' });
+  const part = await library.addCapability({ story: story.id, title: 'Read the board' });
+  await library.addContract({ capability: part.id, title: 'See the agent holding an increment' });
+  const makeArc = (title, intent) => library.createArc({ title, intent, endState: 'The work is complete.', stories: [story.id] });
+  const build = await makeArc('Arc surface', 'See what has landed, what agents are building, and what is waiting.');
+  const landed = await library.addIncrement({ arc: build.id, title: 'Work states', objective: 'Read work states', body: 'Work states', outcome: { disposition: 'landed', pr: '101' } });
+  const held = await library.addIncrement({ arc: build.id, title: 'Draw the overlay', objective: 'Draw', body: 'Draw', touches: [part.id] });
+  const decision = await makeArc('Choose the release approach', 'Keep the first release small enough to review and use.');
+  const question = await library.raiseQuestion({ arc: decision.id, title: 'Which release should go first?', statement: 'Should the first release cover one project or several?', stakes: 'This determines how much work comes before the first useful release.', context: 'A single project is easier to review. Several projects exercise the switcher before release.', options: 'A. One project first. FOR: a smaller first release. AGAINST: switching waits.\n\nB. Several projects. FOR: switching is exercised. AGAINST: a larger first release.', diagram: 'One project → feedback → more projects', analogy: 'Like opening one room of a house before the whole house. Software is easier to revise than a room.', recommendation: 'One project first, with switching next.' });
+  const waiting = await library.addIncrement({ arc: decision.id, title: 'Prepare the release', objective: 'Release', body: 'Release', heldOn: [question.id] });
+  await library.advanceIncrement(waiting.id, 'ready');
+  const queued = await makeArc('Desktop release', 'Package the working board for the owner.');
+  await library.addIncrement({ arc: queued.id, title: 'Package the app', objective: 'Package', body: 'Package' });
+  await library.addWait(queued.id, build.id, 'The board must land before packaging.');
+  const parked = await makeArc('Later improvements', 'Keep useful ideas available without putting them on the active board.');
+  await library.addIncrement({ arc: parked.id, title: 'Explore refinements', objective: 'Explore', body: 'Explore' }); await library.parkArc(parked.id);
+  const closed = await makeArc('Earlier experiment', 'Keep the outcome, including experiments that did not land.');
+  await library.addIncrement({ arc: closed.id, title: 'Alternative layout', objective: 'Explore', body: 'Explore', outcome: { disposition: 'withdrawn', note: 'Kept the smaller layout.' } });
+  reads = pageReads({ storytree: store, serverUrl: postgres.url });
+  let failRead = false;
+  const bridge = { ...reads, arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); } };
+  const allowed = ['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'];
+  server = createServer((req, res) => {
+    const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
+    if (!['index.html', 'renderer.js', 'arc-surface.css', 'styles.css'].includes(name)) { res.writeHead(404).end(); return; }
+    res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
+    res.end(readFileSync(path.join(dist, name)));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  browser = await chromium.launch({ executablePath: process.env.ARC_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell', headless: true,
+    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, colorScheme: 'dark', deviceScaleFactor: 1 });
+  const errors = []; page.on('pageerror', error => errors.push(String(error)));
+  await page.exposeFunction('arcRead', (method, args) => { assert.ok(allowed.includes(method)); return bridge[method](...args); });
+  await page.addInitScript(methods => {
+    window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.arcRead(method, args)]));
+    const realNow = Date.now, realEvery = window.setInterval, realClear = window.clearInterval;
+    let offset = 0; const clocks = new Map();
+    Date.now = () => realNow() + offset;
+    window.setInterval = (run, ms, ...args) => { const id = realEvery(run, ms, ...args); if (ms === 60000) clocks.set(id, run); return id; };
+    window.clearInterval = id => { clocks.delete(id); return realClear(id); };
+    window.advanceArcClock = ms => { offset += ms; for (const run of clocks.values()) run(); };
+  }, allowed);
+  await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
+  await page.waitForSelector('canvas', { timeout: 120000 });
+  const forestBefore = await page.getAttribute('body', 'data-drew');
+  failRead = true;
+  await page.locator('[data-open-arcs]').click();
+  await page.waitForSelector('.arc-overlay[data-arc-state=error]');
+  assert.match(await page.locator('.arc-status').innerText(), /temporary read failure/);
+  failRead = false;
+  await page.waitForSelector('.arc-overlay[data-arc-state=ready]');
+  const started = Date.now();
+  await log.append(project, { kind: 'session-started', source: 'hook', harness: 'codex', session: 'capture-agent' });
+  assert.equal((await claim({ library, log, project, session: 'capture-agent', harness: 'codex' }, held.id, 'Draw the board and check it over the forest.')).ok, true);
+  await page.waitForSelector('[data-agent-label=Codex]');
+  const claimVisibleMs = Date.now() - started;
+  assert.ok(claimVisibleMs < 4000, `claim appeared after ${claimVisibleMs} ms`);
+  await page.locator('.arc-question > summary').first().click();
+  await page.waitForSelector('.arc-question[open]');
+  const scrollBefore = await page.locator('.arc-briefing').evaluate(node => { node.scrollTop = node.scrollHeight; return node.scrollTop; });
+  assert.ok(scrollBefore > 0, 'the open question has enough content to exercise scrolling');
+  // A refresh must preserve the question and reading position.
+  await log.append(project, { kind: 'file-edited', source: 'hook', session: 'capture-agent', files: ['view.ts'] });
+  await page.waitForTimeout(2300);
+  assert.equal(await page.locator('.arc-question[open]').count(), 1);
+  assert.equal(await page.locator('.arc-briefing').evaluate(node => node.scrollTop), scrollBefore, 'a live refresh preserves the reading position');
+  const problems = await smokeArcSurface({ executeJavaScript: code => page.evaluate(code) }, project, reads);
+  assert.deepEqual(problems, []);
+  await page.locator('.arc-question > summary').first().click();
+  await page.screenshot({ path: path.join(here, 'arc-surface.png') });
+  await page.locator('.arc-question').first().evaluate(node => { if (!node.open) node.querySelector('summary').click(); });
+  await page.screenshot({ path: path.join(here, 'arc-briefing.png') });
+  const history = await library.history();
+  await page.evaluate(() => window.advanceArcClock(42 * 60000));
+  await page.waitForFunction(() => [...document.querySelectorAll('.arc-chip')].some(node => node.textContent.startsWith('idle ·')));
+  const idleChip = await page.locator('.arc-state-idle').innerText();
+  await page.locator(`[data-arc-select="${queued.id}"]`).first().click();
+  assert.match(await page.locator('.arc-briefing').innerText(), /Package the working board/);
+  assert.deepEqual(await library.history(), history, 'all UI actions were read-only');
+  await library.settleQuestion(question.id, { answer: 'One project first.' });
+  await page.locator(`[data-arc-select="${decision.id}"]`).first().click();
+  await page.waitForFunction(() => document.querySelector('.arc-briefing')?.textContent.includes('One project first.'));
+  await page.locator('[data-close-arcs]').click();
+  assert.equal(await page.locator('.arc-overlay').isVisible(), false);
+  assert.equal(await page.locator('canvas').count(), 1);
+  assert.equal(await page.getAttribute('body', 'data-drew'), forestBefore);
+  await page.locator('[data-open-arcs]').click();
+  await page.waitForSelector('.arc-overlay[data-arc-state=ready]');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.arc-overlay').isVisible(), false);
+  assert.deepEqual(errors, []);
+  const renderer = await page.evaluate(() => { const gl = document.querySelector('canvas')?.getContext('webgl2'); const debug = gl?.getExtension('WEBGL_debug_renderer_info'); return debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable'; });
+  const result = { browser: await browser.version(), renderer, claimVisibleMs, idleChip, smokeProblems: problems, checks: ['read error and retry', 'live claim', 'question fold and scroll survive refresh', 'all scopes smoke', 'idle without a new line', 'queued briefing', 'read-only UI', 'live settlement', 'close and Escape preserve the forest'], errors };
+  writeFileSync(path.join(here, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
+  console.log(JSON.stringify(result));
+} finally {
+  await browser?.close();
+  if (server) await new Promise(resolve => server.close(resolve));
+  await reads?.close(); await log?.close(); await store?.close(); await postgres?.stop();
+  rmSync(temporary, { recursive: true, force: true });
+}

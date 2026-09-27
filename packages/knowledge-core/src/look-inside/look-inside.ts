@@ -257,14 +257,23 @@ function titlesOf(changes: readonly Change[]): Map<string, string> {
   return titles;
 }
 
-/** A note's name. */
-export function noteTitle(_record: RecordEnvelope): string {
-  return "";
+/**
+ * A note's name: its title, a definition's term, or else the first line of its words (a memory has
+ * no title field), shortened; its id only when it has none of these.
+ */
+export function noteTitle(record: RecordEnvelope): string {
+  const { title, term, text, statement, meaning } = record.fields;
+  if (typeof title === "string") return title;
+  if (typeof term === "string") return term;
+  const words = [text, statement, meaning].find((field): field is string => typeof field === "string" && field.trim() !== "");
+  const line = words?.trim().split("\n")[0]!.trim();
+  if (line === undefined) return record.id;
+  return line.length <= 80 ? line : `${line.slice(0, 79).trimEnd()}…`;
 }
 
 function titleOf(knowledge: Knowledge, id: string): string {
-  const title = knowledge.notes.get(id)?.fields.title;
-  return typeof title === "string" ? title : id;
+  const note = knowledge.notes.get(id);
+  return note === undefined ? id : noteTitle(note);
 }
 
 /** `direction` turned `angle` away from itself, toward `azimuth` around it. */

@@ -5,12 +5,12 @@
  * kind, and when there is no start to read from, since the trigger fires when unsure (0.2's
  * `pre-merge-librarian-pass`). The worklist gathers each capability's list into one report.
  */
-import type { Library, SchemaRecord } from "@storytree/library";
+import type { Library, Related, SchemaRecord } from "@storytree/library";
 
 import { newNotes, type NewNote } from "../catalogue/index.js";
 import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
-import { unrestedDecisions } from "../links/index.js";
+import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
 import { frictionDrain, openQuestions } from "../queues/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
@@ -43,6 +43,8 @@ export interface Worklist {
   readonly rest?: {
     /** Links (1): accepted decisions on no shelf that nothing rests on. */
     readonly links: SchemaRecord<"decision">[];
+    /** Links (1): related but unlinked neighbours for notes written since the session started. */
+    readonly related: Related[];
     /** Decision log (2), the health report: edges to records no longer live. */
     readonly health: BrokenEdge[];
     /** Catalogue (3): notes written new since the session started, with what might already cover them. */
@@ -71,6 +73,7 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
     graduation,
     rest: {
       links: await unrestedDecisions(library),
+      related: await relatedUnlinked(library, options.since ?? 0),
       health: await brokenEdges(library),
       catalogue: await newNotes(library, options.since ?? 0),
       ...(options.tools === undefined ? {} : { processes: await processGaps(library, options.tools) }),

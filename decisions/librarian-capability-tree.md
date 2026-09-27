@@ -21,7 +21,9 @@ It is built to work on any project and switched on for 0.3's own library first; 
 it before first users (the owner's U1). The decision health check is a report in the librarian's
 worklist, not a CI check, because each user's library is local (the owner's G1).
 
-Left out, because they did not last in 0.2 (measured under ADR-0639): the separate
-graduation-synthesist role, whose friction routing folds into Queues; ranked "related" search, so
-Links uses plain search; and the 7-day question lease, so Queues looks at every open question on
-each pass.
+Left out, because it did not last in 0.2 (measured under ADR-0639): the separate
+graduation-synthesist role, whose friction routing folds into Queues.
+
+ADR-0654 restores ranked related-but-unlinked search after re-measurement showed the librarian
+used it: Links uses it to find neighbours no edge reaches, alongside plain search.
+The same decision restores the 7-day question review lease; Queues' adoption remains to be built.

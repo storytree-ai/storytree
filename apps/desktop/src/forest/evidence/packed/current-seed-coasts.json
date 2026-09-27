@@ -1,0 +1,56 @@
+{
+  "source": "466892f869744a0b40fa19a14047b9ac8933ccbc",
+  "main": "0a995f6",
+  "method": "Same complete coast-edge and containment check as packed-coasts.test.ts, applied to the updated seed; beaches and tangent mounting included. Existing seven historical places retained, new knowledge-core story at place 8.",
+  "result": "passed",
+  "inputs": [
+    {
+      "place": 1,
+      "story": "story_a9a21c44a1e7",
+      "title": "The agent link",
+      "capabilities": 8
+    },
+    {
+      "place": 2,
+      "story": "story_a1c7adb510b4",
+      "title": "The app",
+      "capabilities": 4
+    },
+    {
+      "place": 3,
+      "story": "story_730a208989d1",
+      "title": "The arc surface",
+      "capabilities": 5
+    },
+    {
+      "place": 4,
+      "story": "story_c9107adf051c",
+      "title": "The command line",
+      "capabilities": 10
+    },
+    {
+      "place": 5,
+      "story": "story_4280df77bc0e",
+      "title": "The forest",
+      "capabilities": 7
+    },
+    {
+      "place": 6,
+      "story": "story_3c99aeeade44",
+      "title": "The librarian",
+      "capabilities": 6
+    },
+    {
+      "place": 7,
+      "story": "story_1e9d6400be09",
+      "title": "The library",
+      "capabilities": 13
+    },
+    {
+      "place": 8,
+      "story": "story_9f597bb9a758",
+      "title": "The knowledge core",
+      "capabilities": 4
+    }
+  ]
+}

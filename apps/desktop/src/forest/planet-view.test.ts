@@ -23,6 +23,7 @@ test("the globe opens every story with its grove at its permanent place, readabl
   const scene = forestScene(tree, history, workStates([]));
   const places = new Map(storyNodes(tree, history).map(node => [node.id, node.place]));
   const layout = planetLayout(scene, places);
+  assert.ok(layout.islands.every(i => i.spot.z > 0.75), "the page uses the packed front patch");
   assert.deepEqual([...layout.spots.keys()], ["new", "kept"]);
   for (const [id, place] of [["new", 3], ["kept", 2]] as const) {
     const position = placeOnGlobe(place);
@@ -32,13 +33,13 @@ test("the globe opens every story with its grove at its permanent place, readabl
   assert.deepEqual(smokeProblems("ready", tree, JSON.stringify(forestDrawn(layout.scene))), []);
 });
 
-test("a click picks the rotated island mesh, while the opaque sea blocks islands behind it", () => {
+test("a click picks the rotated island mesh, while the see-through shell keeps far-side islands unselectable", () => {
   const world = new Group();
   const globe = new Group();
   globe.rotation.y = Math.PI / 2;
   world.add(globe);
-  const sea = new Mesh(new SphereGeometry(10, 32, 16), new MeshBasicMaterial());
-  sea.name = "planet:sea";
+  const sea = new Mesh(new SphereGeometry(10, 32, 16), new MeshBasicMaterial({ transparent: true, opacity: 0.18, depthWrite: false }));
+  sea.name = "planet:shell";
   globe.add(sea);
   const plate = new Group();
   plate.name = "planet:story";
@@ -55,7 +56,7 @@ test("a click picks the rotated island mesh, while the opaque sea blocks islands
   assert.equal(pickIsland(ray, world), "story");
   globe.rotation.y = -Math.PI / 2;
   world.updateMatrixWorld(true);
-  assert.equal(pickIsland(ray, world), undefined, "clicking the sea cannot pick the back plate");
+  assert.equal(pickIsland(ray, world), undefined, "clicking the shell cannot pick the back plate");
   ray.setFromCamera(new Vector2(0.95, 0.95), camera);
   assert.equal(pickIsland(ray, world), undefined, "empty space clears selection too");
 });

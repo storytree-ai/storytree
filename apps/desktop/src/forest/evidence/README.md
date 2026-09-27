@@ -1,3 +1,6 @@
+Current globe evidence: [ADR-0648 packed islands and see-through grey shell](packed/README.md).
+The first-slice captures below preserve the earlier W2/dark-sea view.
+
 # The globe on the forest page
 
 Lane D, `0-3-planet-on-the-page`, following the owner's A1/W2/H1/L1 approval.

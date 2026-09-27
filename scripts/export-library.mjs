@@ -9,18 +9,17 @@
 // the worklist for moving the story text into the library (ADR-0641 D2 step 2). A difference is a
 // report, not a failure: the command exits 0 whenever it could read the library.
 //
-// Like `pnpm seed:library`, it starts the app's Postgres on the app's own data directory and stops
-// it again, so while the app is running and holds that directory it says so and exits non-zero:
-// quit the app first. The rules for printing and comparing live in scripts/library-export.mjs.
+// Like `pnpm seed:library`, it reads the running app's database, or starts the app's Postgres
+// itself when the app is not running (scripts/library-server.mjs). The rules for printing and comparing live in scripts/library-export.mjs.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
-import { DataDirInUseError, start } from "@storytree/local-postgres";
 
-import { APP_OWNER, appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../apps/desktop/src/home.ts";
+import { appLibraryServer } from "./library-server.mjs";
 import { blocksOf, exportLibrary, roundTrip } from "./library-export.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -47,19 +46,7 @@ main().then(
 async function main() {
   const home = appHome();
   console.log(`the app's library: ${home.pgdata}`);
-  try {
-    server = await start({ dataDir: home.pgdata, owner: COMMAND, log: (message) => console.log(`Postgres: ${message}`) });
-  } catch (error) {
-    if (!(error instanceof DataDirInUseError)) throw error;
-    console.error(
-      error.owner === APP_OWNER
-        ? `\nThe storytree 0.3 app is running (pid ${error.pid}) and holds its library in ${home.pgdata}.\n` +
-            `Quit the app, then run \`${COMMAND}\` again.`
-        : `\nThe app's library in ${home.pgdata} is in use by process ${error.pid}` +
-            `${error.owner === undefined ? "" : ` (${error.owner})`}. When it has finished, run \`${COMMAND}\` again.`,
-    );
-    return 1;
-  }
+  server = await appLibraryServer(COMMAND, { writes: false });
 
   let printed;
   let storytree;

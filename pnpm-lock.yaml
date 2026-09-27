@@ -112,6 +112,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
@@ -119,9 +122,6 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

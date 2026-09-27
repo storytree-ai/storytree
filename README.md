@@ -21,8 +21,10 @@ loads this repo's stories ([`stories/`](stories)) and the decisions made for the
 ([`decisions/`](decisions)) into the desktop app's library, as the project `storytree`. Each
 decision becomes a front cover of the one story or capability it decided; a decision about the
 whole project sits on no shelf, and is found by search. The seed then runs each story's own tests
-and records what they showed as its verified health. Quit the app first: the seed starts the app's
-own Postgres. Running it again updates everything in place and never adds anything twice.
+and records what they showed as its verified health. The app need not be quit: while it runs, the
+seed writes into its database; otherwise the seed starts the app's own Postgres itself. A seed
+waits its turn behind another, and the app never restarts into an update while one is writing.
+Running it again updates everything in place and never adds anything twice.
 
 ## How changes land
 

@@ -119,6 +119,21 @@ database is and how to open the app, which is how an agent's session finds it or
   stopped. Opening the app again, clicking the icon or choosing Open brings the window back, opened
   again on the project it first showed if it was closed. The policy is `background` and `TRAY_MENU`
   in `packages/app` (`src/lifecycle/`); `apps/desktop` wires them to Electron.
+- **As built** (`0-3-app-update-is-smooth`, fixes to the behaviour above after the owner's app took
+  several rounds to get current on 2026-09-27):
+  - The app names its build in its window's title and its tray icon: `main 80bcc63` when it follows
+    merged main, else `development build … from <checkout> (does not update itself)`.
+  - A start that arrives while the app is quitting or restarting is held, not lost: once the
+    database has stopped, the app opens again with its window (`background().secondStart`).
+  - `app.json` stays with the app that follows merged main: a development copy (`pnpm desktop` in
+    a checkout) never replaces it, and the smoke check never writes it (`launchToRecord`).
+  - On Windows, the app that follows merged main keeps a Start menu entry, "storytree 0.3", on the
+    build now running, so opening it never means reading `app.json` by hand. An app pointed at a
+    throwaway home (`STORYTREE_HOME`) leaves the Start menu alone.
+  - `pnpm seed:library`, `library:move`, `library:export` and `library:restore` no longer need the
+    app quit: they use the running app's database
+    (`scripts/library-server.mjs`), wait their turn behind one another instead of refusing, and two
+    never write at once.
 - **Proved by** existing tests: contracts 1 to 3 by `local-postgres`'s own
   (`packages/local-postgres/src/local-postgres.test.ts`), and 4 to 6 by the agent link's 1.4, 1.5
   and 8.3. Those tests carry their own packages' numbering, so `pnpm seed:library` leaves these
@@ -271,6 +286,10 @@ installed app does the same from published releases.
   app records each start in `app.json`, so an agent's session start opens the current slot. The app
   run from anywhere else, such as `pnpm desktop` in a checkout, never updates itself. The logic is
   `packages/app`'s `src/updates/follow-main.ts`.
+- **As built** (`0-3-app-update-is-smooth`): the restart into a new build waits while a seed is
+  writing the app's library (a connection named `storytree-seed`, `seedWriting`), and goes ahead at
+  the first check after it has finished. The app that follows merged main writes what it says to
+  `~/.storytree/0.3/app.log`, so a restart is never silent.
 - **Proved by** `packages/app/src/updates/follow-main.test.ts`, red→green, against real git with a
   throwaway origin and a stand-in build.
 

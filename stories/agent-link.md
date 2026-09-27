@@ -19,6 +19,10 @@ re-steer tools; the habits card (7) and the setup check (8) grow with them. Its 
 `decisions/agent-link-revised-tree.md`. The command line is not this story's: it is a story of its
 own (H), parked as `0-3-cli-story-tree`.
 
+**Extended by ADR-0645 D2 and D6** (2026-09-27): the command line and the agent tools share
+public claims readings, setup diagnostics and friction recurrence capture. Every library write
+from an agent tool names its calling session in the library's history.
+
 **Rule for building it: port behaviour, not code.** Storytree 0.2's hooks and harness settings
 (`.claude/settings.json`, `.codex/`), its claim board (`packages/notice-board`,
 `stories/notice-board`) and the MCP servers it runs for its own build workers are the behavioural
@@ -376,6 +380,13 @@ idle.
   toward the one it claimed most recently of those it still holds. Landing a capability another
   session holds is refused, naming the holder. A holder whose command is still running
   (capability 4) is live, so its claim cannot be taken mid-run (ADR-0636 D2).
+- **Public readings (ADR-0645 D6, 5.11):** `readClaims(log, project, options?)` returns the current
+  capability and increment claims, each with its harness, session (the window), label, reason,
+  time claimed, branch when known, and live or idle holder. `readClaim(log, project, id, options?)`
+  returns the holder of one unit, or `undefined` when nobody holds it. Both are exported from
+  `@storytree/agent-link`. The board's browser-safe `@storytree/agent-link/readings` exports the
+  same readings over lines, `claimsFrom(lines, options?)` and `claimFrom(lines, id, options?)`.
+  Options can name the clock (`now`) and quiet time (`quietMs`); none of these reads writes a line.
 
 **Contracts:**
 1. Session A claims "email form", and the claim shows A and the reason.
@@ -401,6 +412,9 @@ idle.
 10. A claim taken on branch `feature/signup` ends with a "merged" line once GitHub shows a pull
     request from that branch merged after the claim was taken, found at the next tool call or hook
     line; a pull request merged before the claim, or still open, ends nothing.
+11. The public readings list current capability and increment claims and find the holder of one
+    unit, with the same live or idle result on the terminal and the board. Released work and a
+    unit in another project have no holder.
 
 ## 6 · Agent tools (the MCP server)
 
@@ -504,6 +518,21 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     closes instead. The repo wiring ADR-0641 E1 also names (ADR-0636 b5) is not in this landing: the
     tool server registers its hooks in the user's own homes and opens the app, so it stays with
     `0-3-own-development-setup`.
+  - **Friction recurrence (ADR-0645 D6, 6.15):** `reinforce` takes a friction id and concrete
+    evidence of what happened this time. It calls the public
+    `reinforceFriction(library, id, { branch, evidence }, options?)`, which appends a `reinforcedBy`
+    entry dated in UTC (`YYYY-MM-DD`) through `library.editNote`. It keeps the original item,
+    evidence, route and route reason, including a route of `nothing`; it never creates a twin.
+    The tool uses the session folder's git branch, or `(no branch)` when none is known. Missing,
+    retired or non-friction ids and vague evidence are refused. `recordFriction`, `recordResteer`
+    and `reinforceFriction` are all exported from `@storytree/agent-link` and take optional
+    `{ actor }` as their final argument, so the person's command line can name its writer too.
+  - **The session as writer (ADR-0645 D2, 6.16):** every library write from a tool passes
+    `{ actor: "session:<id>" }`. This includes founding decisions, holds on questions, health,
+    retirements and the increment start a claim performs. The id is resolved for each call:
+    Claude Code's hook can name its new session after `/clear`, and Codex names its session on
+    the call even when a subagent makes it. The health report's `by` stays separate from the
+    history's actor. A refused write adds no library history.
   - **Other stories' tools and `land`'s "next" line (D6):** another story registers its tools on
     this one server, beside these, and can fill a "next" line that `land`'s answer ends with. *Not
     built yet:* no other story has tools or a "next" line to give, so the way in is made when the
@@ -552,6 +581,11 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
 14. It retires a contract and then a capability with a reason, and each is gone from the plan, its
     history keeping it. An id that is not a capability or a contract gets a readable refusal, and
     nothing is retired.
+15. Reinforcing friction through the tool or public capture function appends dated concrete
+    evidence to the same item and preserves its route. Invalid recurrences write nothing.
+16. Every library write made by the tools names the calling session in history, including every
+    record a compound call writes, increment starts, Claude Code's session after `/clear`, and
+    Codex calls made by a subagent. A refused write leaves history unchanged.
 
 ## 7 · Instructions (the habits card)
 
@@ -641,6 +675,14 @@ set one up.
   anywhere on the path is kept, never replaced or shadowed. `storytree-setup remove` takes it out.
   Until the command line's story fills it, `storytree.mjs` answers only `storytree setup install |
   remove`.
+- **Outside a session (ADR-0645 D6, 8.10):** the public `runSetupCheck({ folder, ...options })`
+  runs the same check for a terminal. Its report adds `lines`, each with `check`, `state`
+  (`ok`, `fixed`, `needs-attention` or `skipped`), `message` and an optional `fix`. These cover
+  the app, hooks, status line, command, GitHub and project, and the `check_setup` tool uses the
+  same diagnostics. One problem does not hide another's fix. Hook registration is reported
+  separately from proving a particular session's hooks fire; that proof still needs a session.
+  Checking never creates a project: the terminal calls the existing public
+  `setUpProject({ folder, project, storytree })` only on the person's explicit request.
 
 **Contracts:**
 1. In a throwaway home with only the tool server installed, the first session start registers the
@@ -663,6 +705,9 @@ set one up.
    nothing about it.
 9. In a throwaway home, the first start puts a `storytree` command on the path, a second changes
    nothing, and removing storytree takes it out.
+10. A terminal runs the shared check without an agent session and gets diagnostic lines and
+    fixes, including when the app is stopped. Checking creates no project; an explicit setup
+    request creates it, and the next check reports it ready.
 
 ---
 

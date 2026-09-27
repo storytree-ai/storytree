@@ -27,6 +27,9 @@ export class MemoryTransactions implements Transactions {
 
   async save(input: SaveInput): Promise<RecordEnvelope> {
     input.signal?.throwIfAborted();
+    if (input.onlyIfNew && this.#history.some((entry) => entry.recordId === input.id)) {
+      throw new RangeError(`${input.id} already exists in history; this setting can only be written once`);
+    }
     const current = this.#records.get(input.id);
     const record = savedRecord(this.#numbered(input), current, now());
     check(record, input.validate);

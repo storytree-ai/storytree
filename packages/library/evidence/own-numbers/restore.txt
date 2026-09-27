@@ -1,0 +1,9 @@
+$ node --import tsx scripts/restore-library.mjs /home/mickh/storytree-lanes/snapshots/2026-09-27T14-03-38-576Z.json --project storytree
+restoring the snapshot of "storytree" taken 2026-09-27T14:03:38.710Z into "storytree" in /tmp/storytree-own-numbers-DRr7OM/pgdata
+Postgres: creating the cluster in /tmp/storytree-own-numbers-DRr7OM/pgdata (first run only; it can take minutes under x64 emulation)
+Postgres: cluster created in 0.5 s
+Postgres: listening on 127.0.0.1:42563 (started in 0.1 s)
+Postgres: stopped (0.1 s)
+restored: 1400 records and 7149 history entries into "storytree"
+
+exit: 0

@@ -172,13 +172,84 @@ for (const backend of [memory, postgres]) {
     assert.equal((await records.history({ id: c.id })).length, 2);
   });
 
-  contract("13.6", "only storytree requires an explicit decision number from 0.2", async ({ records, knowledge, transactions }) => {
+  contract("13.6", "storytree switches once to a stored floor; concurrent decisions exceed it and every held number", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
-    const history = await transactions.history();
-    await assert.rejects(own.recordDecision(DECIDE), /0\.2.*adr new.*until cutover.*explicit/i);
-    assert.deepEqual(await transactions.history(), history);
-    assert.equal((await knowledge.recordDecision(DECIDE)).fields.number, 1);
+    const other = new Knowledge(new SchemaRecords(transactions), "storytree");
+    const before = await transactions.history();
+    await assert.rejects(own.recordDecision(DECIDE), /floor.*unset/i);
+    await assert.rejects(knowledge.setDecisionNumberFloor(662, { apply: true }), /storytree project/);
+    for (const invalid of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      await assert.rejects(own.setDecisionNumberFloor(invalid, { apply: true }), /positive safe integer/);
+    }
+    assert.equal(await own.setDecisionNumberFloor(662), 662);
+    assert.deepEqual(await transactions.history(), before, "preview and refusals write nothing");
+    assert.equal((await knowledge.recordDecision(DECIDE)).fields.number, 1, "other projects still start at 1");
     assert.equal((await own.recordDecision({ ...DECIDE, number: 660 })).fields.number, 660);
+
+    const switched = await Promise.allSettled([
+      own.setDecisionNumberFloor(662, { apply: true, actor: "supervisor" }),
+      other.setDecisionNumberFloor(662, { apply: true }),
+    ]);
+    assert.equal(switched.filter((result) => result.status === "fulfilled").length, 1, "only one connection can switch on numbering");
+    assert.equal((await other.recordDecision(DECIDE)).fields.number, 663, "fresh layer reads the stored floor");
+    const after = await transactions.history();
+    for (const floor of [661, 662, 700]) await assert.rejects(own.setDecisionNumberFloor(floor, { apply: true }), /already.*floor|floor.*already/i);
+    assert.deepEqual(await transactions.history(), after, "floor is immutable");
+
+    await transactions.save({ id: "foreign", type: "legacy", fields: { number: 710 } });
+    await transactions.retire({ id: "foreign", reason: "number remains reserved" });
+    const raced = await Promise.all([own.recordDecision(DECIDE), other.recordDecision(DECIDE)]);
+    assert.deepEqual(raced.map((record) => record.fields.number).sort(), [711, 712]);
+    await assert.rejects(own.recordDecision({ ...DECIDE, number: 710 }), NumberTakenError);
+    assert.equal((await own.recordDecision({ ...DECIDE, number: 659 })).fields.number, 659, "explicit free numbers still work");
+  });
+
+  contract("13.8", "founding books preview in creation order, preserve history, skip Full record decisions and finish once", async ({ records, transactions, knowledge }) => {
+    const own = new Knowledge(records, "storytree");
+    // Reverse lexical IDs: creation order, not list's ID order, determines their fresh numbers.
+    const first = await records.create("decision", { ...DECIDE, number: 1 }, { id: "founding-z" });
+    const second = await records.create("decision", { ...DECIDE, number: 2 }, { id: "founding-a" });
+    const imported = await records.create("decision", { ...DECIDE, number: 3, text: "Full record: ADR-0621" });
+    const retired = await records.create("decision", { ...DECIDE, number: 4 });
+    await records.retire(retired.id, "not a live book");
+    await own.numberDecision(imported.id, 621);
+    await transactions.save({ id: "reserved", type: "legacy", fields: { number: 670 } });
+    await transactions.retire({ id: "reserved", reason: "still reserved" });
+    const before = await transactions.history();
+    await assert.rejects(own.numberFoundingDecisions(), /floor.*unset/i);
+    await assert.rejects(knowledge.numberFoundingDecisions({ apply: true }), /storytree project/);
+    assert.deepEqual(await transactions.history(), before);
+    await own.setDecisionNumberFloor(662, { apply: true });
+    const switched = await transactions.history();
+    const plan = await own.numberFoundingDecisions();
+    assert.deepEqual(plan, [
+      { id: first.id, oldNumber: 1, number: 671 },
+      { id: second.id, oldNumber: 2, number: 672 },
+    ]);
+    assert.deepEqual(await transactions.history(), switched, "dry run reserves nothing");
+    assert.deepEqual(await own.numberFoundingDecisions({ apply: true, actor: "supervisor" }), plan);
+    for (const row of plan) {
+      const history = await records.history({ id: row.id });
+      assert.deepEqual(history.map((entry) => entry.record.fields.number), [row.oldNumber, row.number]);
+      assert.equal(history.at(-1)?.actor, "supervisor");
+      assert.deepEqual((await records.get(row.id))?.fields, { ...first.fields, number: row.number });
+      await assert.rejects(own.recordDecision({ ...DECIDE, number: row.oldNumber }), NumberTakenError);
+    }
+    assert.equal((await own.decision(imported.id))?.record.fields.number, 621);
+    await assert.rejects(own.editNote(first.id, { number: 800 }), /editNote does not change/);
+    assert.equal((await own.recordDecision(DECIDE)).fields.number, 673);
+    const completed = await transactions.history();
+    assert.deepEqual(await own.numberFoundingDecisions({ apply: true }), [], "repeat excludes completed moves and decisions created after switch-on");
+    assert.deepEqual(await transactions.history(), completed);
+  });
+
+  contract("13.8", "concurrent founding moves cannot share numbers or move a book twice", async ({ records, transactions }) => {
+    const own = new Knowledge(records, "storytree");
+    const other = new Knowledge(new SchemaRecords(transactions), "storytree");
+    const book = await records.create("decision", { ...DECIDE, number: 1 });
+    await own.setDecisionNumberFloor(662, { apply: true });
+    await Promise.all([own.numberFoundingDecisions({ apply: true }), other.numberFoundingDecisions({ apply: true })]);
+    assert.deepEqual((await records.history({ id: book.id })).map((entry) => entry.record.fields.number), [1, 663]);
   });
 
   contract("13.7", "Full record bulk repair previews by default, reports refusals, and skips completed repairs", async ({ records, transactions, knowledge }) => {

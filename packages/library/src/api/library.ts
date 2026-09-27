@@ -188,7 +188,7 @@ export interface Library {
    * the one live story or capability the decision is a front cover of, and each decision it
    * supersedes a live decision. It is numbered one past the highest number any decision has held,
    * unless it is brought in under its own, which no other may have held (NumberTakenError).
-   * The storytree project requires an explicit number from 0.2 until cutover.
+   * The storytree project auto-numbers above its stored floor once the ADR-0662 switch is applied.
    */
   recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">>;
   /** One-time storytree repair from its own Full record line; keeps old numbers reserved in history. */
@@ -197,6 +197,10 @@ export interface Library {
   decisionNumberPlan(): Promise<DecisionNumberPlan[]>;
   /** One-time N1 bulk move; previews by default, applies only with apply: true, reports each refusal. */
   numberDecisionsFromFullRecord(options?: WriteOptions & { readonly apply?: boolean }): Promise<DecisionNumberPlan[]>;
+  /** ADR-0662: preview the project floor, or store it once with apply: true. */
+  setDecisionNumberFloor(floor: number, options?: WriteOptions & { readonly apply?: boolean }): Promise<number>;
+  /** ADR-0662: preview founding-book numbers above the floor; apply: true writes them once. */
+  numberFoundingDecisions(options?: WriteOptions & { readonly apply?: boolean }): Promise<DecisionNumberPlan[]>;
   /**
    * Write a principle, guardrail, pattern, process, agent role, friction, re-steer or tech stack,
    * with its kind's fields. Every link, and an agent role's or process's other references, must name
@@ -470,6 +474,14 @@ class LibraryHandle implements Library {
 
   numberDecisionsFromFullRecord(options?: WriteOptions & { readonly apply?: boolean }): Promise<DecisionNumberPlan[]> {
     return this.#project.knowledge.numberDecisionsFromFullRecord(options);
+  }
+
+  setDecisionNumberFloor(floor: number, options?: WriteOptions & { readonly apply?: boolean }): Promise<number> {
+    return this.#project.knowledge.setDecisionNumberFloor(floor, options);
+  }
+
+  numberFoundingDecisions(options?: WriteOptions & { readonly apply?: boolean }): Promise<DecisionNumberPlan[]> {
+    return this.#project.knowledge.numberFoundingDecisions(options);
   }
 
   recordDecision(decision: NewDecision, options?: WriteOptions): Promise<SchemaRecord<"decision">> {

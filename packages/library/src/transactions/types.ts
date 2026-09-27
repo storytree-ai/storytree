@@ -59,6 +59,10 @@ export interface SaveInput {
    * same time, on any connection, never get the same number.
    */
   readonly sequence?: string;
+  /** Minimum for automatic allocation; explicit numbers are still checked only for collisions. */
+  readonly sequenceFloor?: number;
+  /** Refuse an id ever written, including retired records, under the project write lock. */
+  readonly onlyIfNew?: boolean;
   /** N1 repair: the supplied sequence number must be unused in ALL record history, including this record's. */
   readonly sequenceNeverHeld?: boolean;
 }

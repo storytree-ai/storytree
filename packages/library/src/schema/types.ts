@@ -23,6 +23,7 @@ export type RecordType =
   | "contract"
   | "health"
   | "decision"
+  | "decisionNumbering"
   | "definition"
   | KnowledgeKind
   | "increment"
@@ -101,6 +102,8 @@ const RESTEER_MODES = [
  * Every object is `.strict()`, so a field it does not declare is refused rather than stored.
  */
 export const RECORD_SCHEMAS = {
+  // ADR-0662: a project setting kept in history and snapshots, not a knowledge artifact.
+  decisionNumbering: z.object({ floor: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER) }).strict(),
   /**
    * An arc, whole (capability 10): its intent and end state, required from version 2 (an older arc
    * is upgraded, ./upgrades.ts). Whether it is active or closed is worked out from its increments on
@@ -395,6 +398,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   contract: 1,
   health: 1,
   decision: 2,
+  decisionNumbering: 1,
   definition: 1,
   principle: 1,
   guardrail: 1,

@@ -1,0 +1,4 @@
+$ node --import tsx packages/cli/src/bins/storytree.ts adr set-floor --number 661 --apply
+decision number floor is already set to 662; it cannot be lowered or set twice
+
+exit: 1

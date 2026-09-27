@@ -103,7 +103,7 @@ export function numbered(input: SaveInput, highest: number, taken: (number: numb
   const field = input.sequence;
   if (field === undefined) return input;
   const given = input.fields[field];
-  if (given === undefined) return { ...input, fields: { ...input.fields, [field]: highest + 1 } };
+  if (given === undefined) return { ...input, fields: { ...input.fields, [field]: Math.max(highest, input.sequenceFloor ?? 0) + 1 } };
   if (typeof given === "number" && taken(given)) throw new NumberTakenError(input.type, field, given);
   return input;
 }

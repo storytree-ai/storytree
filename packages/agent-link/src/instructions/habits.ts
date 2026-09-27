@@ -19,6 +19,7 @@ Plan first.
 
 Claim, and open the knowledge you need.
 - \`claim\` the increment you drive: that starts it. \`claim\` a capability, with a one-line reason, before you touch it. If another session holds it, or it waits on other work, pick other work: nobody queues.
+- To start an increment in a workspace of its own, \`make_workspace\`: it cuts a fresh branch from main, makes the worktree and claims the increment in one step, and tells you how to enter it.
 - \`open\` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. \`search_notes\` finds artifacts by their words.
 
 Red, then green, then landed.

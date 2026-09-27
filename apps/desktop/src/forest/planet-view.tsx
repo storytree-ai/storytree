@@ -1,7 +1,7 @@
 /** The forest's globe book: lane B's plates at lane A's places, with lane C's failure turns. */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Quaternion, Raycaster, Vector2, Vector3 } from "three";
 import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type Marker } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
@@ -10,12 +10,17 @@ import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { Claims, Names, SelectionRing } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickIsland, planetLayout } from "./planet-navigation.js";
 
-export function PlanetView({ scene, places, markers, selected, onPick }: {
+export function PlanetView({ scene, places, markers, selected, onPick, surface = true, inside }: {
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
   markers: readonly Marker[];
   selected: string | undefined;
-  onPick: (story: string | undefined) => void;
+  /** Hears a click on an island; none while looking inside, where a click pins a note instead. */
+  onPick: ((story: string | undefined) => void) | undefined;
+  /** False while looking inside (the knowledge core, E1): no sea, no islands, the same turn. */
+  surface?: boolean;
+  /** The knowledge core, drawn in the globe's own coordinates from each story's unit spot. */
+  inside?: ((spots: ReadonlyMap<string, { x: number; y: number; z: number }>) => ReactNode) | undefined;
 }) {
   const layout = useMemo(() => planetLayout(scene, places), [scene, places]);
   const [rotation, setRotation] = useState(() => new Quaternion());
@@ -29,7 +34,8 @@ export function PlanetView({ scene, places, markers, selected, onPick }: {
     </>;
   }, [markers, selected]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
-    rotation={rotation.toArray()} kitBytes={kitBytes} plateChildren={overlays}>
+    rotation={rotation.toArray()} kitBytes={kitBytes} plateChildren={overlays}
+    surface={surface} inside={inside?.(layout.spots)}>
     <Navigation islands={layout.islands} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPick={onPick} />
   </PlanetWorldCanvas>;
@@ -42,7 +48,7 @@ function Navigation({ islands, titles, rotation, onRotate, onPick }: {
   titles: ReadonlyMap<string, string>;
   rotation: Quaternion;
   onRotate: (rotation: Quaternion) => void;
-  onPick: (story: string | undefined) => void;
+  onPick: ((story: string | undefined) => void) | undefined;
 }) {
   const { camera, gl, scene, size } = useThree();
   const opened = useRef(false);
@@ -71,6 +77,7 @@ function Navigation({ islands, titles, rotation, onRotate, onPick }: {
   });
 
   useEffect(() => {
+    if (onPick === undefined) return;
     const element = gl.domElement;
     let down: { x: number; y: number; id: number } | undefined;
     const onDown = (event: PointerEvent): void => {

@@ -222,6 +222,32 @@ links, replay the selected session, and size artifacts by visits or incoming lin
   see-through sea, a flying dive and a cutaway; proposed-decision ghosts; the full stale-links
   colouring; recording exact source artifacts for future walks; changes to default artifact filing; a
   dedicated indexed read query; side-by-side sessions, a general artifact browser and graph editing.
+- **As built:** the pure view is in `packages/knowledge-core/src/look-inside`.
+  - `coreScene` places each shelf's entrance on its island: a story's own at its spot, and its
+    capabilities' in a ring around it. Artifacts hang below their home shelf, further in the deeper
+    they are. Artifacts with no depth orbit outside at 1.3 radii, and a ghost sits beside the decision
+    that replaced it (1.45 radii when not placed). Size is 1 + √count, by visits or links in, and
+    never moves an artifact.
+  - `noteCard` gives an artifact's card. An artifact is named by its title, its term, or the first
+    line of its words, since not every artifact has a title.
+  - `pinnedLinks` gives the pinned artifact's stored links, out and then in.
+  - `replayFrame` steps one session's visible agents in line order.
+  - `legend` names and colours each agent: the orchestrator blue, then each subagent in
+    Okabe-Ito order, then unknown in pale grey.
+  - `lookInside`, `returnToGlobe`, `toForest` and `shown` are the view rules.
+  - The surface is this story's own, in `@storytree/knowledge-core/view` (ADR-0649 D1, D2).
+    `createKnowledgeCore(project)` keeps the reads, session, size, replay and pin, and is fed with
+    `take(history, lines)`. `KnowledgeCoreInside` draws in the turning globe: balls for artifacts,
+    named entrances, white arrows for the pinned artifact's links, dashed bowed arcs for jumps, and
+    a red cage and label for a loop. `KnowledgeCorePanel` has the counts, the session picker, the
+    size toggle, play, pause and restart, the per-agent checkboxes, and the card.
+  - The app only mounts it. The renderer makes one core per project it shows and feeds it. The
+    forest view adds a third view button, "Look inside", and mounts the two pieces. The globe
+    canvas gained `surface` and `inside` props (`packages/forest-world`, the shared engine);
+    `surface={false}` hides ADR-0648's see-through shell, which replaced the sea, and every
+    island.
+  - It reads only `changesSince` and `linesSince`, which the page already reads.
+  - Pictures are in `apps/desktop/src/forest/evidence/core`.
 
 **Contracts:**
 1. From the globe, the owner can open the core, find a shelf's entrance and pin an artifact; its card

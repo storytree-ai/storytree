@@ -380,6 +380,21 @@ idle.
   toward the one it claimed most recently of those it still holds. Landing a capability another
   session holds is refused, naming the holder. A holder whose command is still running
   (capability 4) is live, so its claim cannot be taken mid-run (ADR-0636 D2).
+- **As built: a workspace already claimed (ADR-0653, the owner's K1, 5.12-5.14).**
+  `makeWorkspace` in `packages/agent-link/src/claims/workspace.ts`, also exposed as the
+  `make_workspace` agent tool. "Make a workspace for this
+  work" is one step: fetch the project's main from `origin`, cut a fresh branch from it into a new git
+  worktree, and claim the increment (or capability) for the calling session, the claim naming the new
+  branch so its merge ends it. It is refused as a claim is (held, waiting, closed, unknown), and also
+  for work the session already holds, naming the branch it holds it on; a refusal makes no folder, no
+  branch and no line. It wraps the harness's own worktree feature rather than replacing it: the
+  folder is where that harness keeps its worktrees, so the harness can enter it. For Claude Code that
+  is `.claude/worktrees/<name>` in the main checkout, on a `claude/<name>` branch, entered with its
+  `EnterWorktree` tool; for Codex, `<CODEX_HOME>/worktrees/<name>/<repository>`, on `codex/<name>`.
+  The name is the work's id, cut short, and six random hex digits. Installing the new folder's
+  packages is left to the project's own session start. If main cannot be fetched, nothing is
+  claimed; if git then fails to make the worktree, the claim is released (an increment the claim
+  started stays active).
 - **Public readings (ADR-0645 D6, 5.11):** `readClaims(log, project, options?)` returns the current
   capability and increment claims, each with its harness, session (the window), label, reason,
   time claimed, branch when known, and live or idle holder. `readClaim(log, project, id, options?)`
@@ -415,6 +430,15 @@ idle.
 11. The public readings list current capability and increment claims and find the holder of one
     unit, with the same live or idle result on the terminal and the board. Released work and a
     unit in another project have no holder.
+12. Session A makes a workspace for a proposed increment: a new folder where its harness keeps
+    worktrees, on a fresh branch cut from `origin`'s main as just fetched (a commit pushed after the
+    clone is in it), and A holds the increment there, the claim naming that branch, and the
+    increment is active. Codex's goes where Codex keeps its own, on a `codex/` branch.
+13. Making a workspace for work another live session holds, or for waiting work, is refused naming
+    the holder or the blocker, and no folder, branch or line is made; for work the session already
+    holds it is refused naming the branch it holds it on.
+14. When main cannot be fetched fresh, as from a folder with no `origin`, it is refused saying why,
+    and nothing is claimed or started.
 
 ## 6 · Agent tools (the MCP server)
 
@@ -611,6 +635,10 @@ capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's def
     session log, and its short instruction line reaches the agent with the habits card.
 18. Another story supplies `land`'s final next line when needed, with none when it is not. A refused
     landing asks for none, and a failed follow-up keeps the successful landing explicit.
+19. It makes a workspace for an increment (`make_workspace`, 5.12): a worktree on a fresh branch
+    from `origin`'s main, where Claude Code keeps its own, with the claim held by the calling
+    session and the way into it named (`EnterWorktree` with its path); for work another session
+    holds it gets a readable refusal naming the holder.
 
 19. The writing tool saves a proper artifact kind with its required fields and default filing.
     A request to save a memory is refused, explains that memories belong to the harness, and

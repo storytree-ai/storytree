@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server): one test per contract 6.1-6.8 in
+ * Capability 6 · Agent tools (the MCP server): one test per contract 6.1-6.19 in
  * stories/agent-link.md. A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
  * Code's session id reaches the server in its environment, Codex's on each call's `_meta`, and each
@@ -24,7 +24,7 @@ import { recordFriction, reinforceFriction, type ToolExtension } from "../index.
 import { readClaims } from "../claims/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
-import { withTempDir } from "../testing/folders.js";
+import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 
@@ -37,6 +37,7 @@ const TOOLS = [
   "correct_note",
   "edit_plan",
   "land",
+  "make_workspace",
   "open",
   "park_arc",
   "park_increment",
@@ -219,6 +220,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["show_plan", {}],
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],
+        ["make_workspace", { increment: "increment_000000000000", reason: "building it" }],
         ["report", { contract: "contract_000000000000", result: "red" }],
         ["land", { capability: "capability_000000000000" }],
         ["search_notes", { query: "mailgun" }],
@@ -778,6 +780,41 @@ test("6.16 every library write from a tool names the calling session, including 
         const id = idOf(await agent.call("write_note", { kind: "definition", term: "Delivery", meaning: session }, { sessionId: session, threadId: "subagent-thread" }));
         assert.equal((await library.history({ id }))[0]?.actor, `session:${session}`, "the session owns the write, including its subagent's");
       }
+    });
+  });
+});
+
+test("6.19 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const origin = path.join(path.dirname(folder), "origin.git");
+    git(path.dirname(folder), "init", "--bare", "-b", "main", origin);
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "first");
+    git(folder, "remote", "add", "origin", origin);
+    git(folder, "push", "origin", "main");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const park = async (title: string) => idOf(await agent.call("park_increment", { arc, title, objective: `Build ${title}`, body: `${title}, red then green` }));
+      const form = await park("Email form");
+
+      const made = await agent.call("make_workspace", { increment: form, reason: "building the email form" });
+
+      assert.equal(made.isError, false, made.text);
+      const { folder: workspace, branch } = made.data as { folder: string; branch: string };
+      assert.equal(path.dirname(workspace), path.join(folder, ".claude", "worktrees"));
+      assert.equal(git(workspace, "rev-parse", "--abbrev-ref", "HEAD").trim(), branch);
+      assert.ok(made.text.includes(workspace) && made.text.includes("EnterWorktree"), made.text);
+      assert.deepEqual(
+        (await readClaims(log, project)).map(({ increment, session, branch }) => ({ increment, session, branch })),
+        [{ increment: form, session: "claude-1", branch }],
+      );
+    });
+    await withAgent(folder, codex("codex-1"), async (agent) => {
+      const [held] = (await readClaims(log, project)).map((claim) => claim.increment!);
+      const refused = await agent.call("make_workspace", { increment: held, reason: "me too" });
+      assert.equal(refused.isError, true);
+      assert.ok(refused.text.includes("claude-1"), refused.text);
     });
   });
 });

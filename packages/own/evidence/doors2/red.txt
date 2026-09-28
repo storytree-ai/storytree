@@ -1,0 +1,118 @@
+✖ 7.1 the card names every tool the server has, and no tool the server lacks (53.34754ms)
+✔ 7.3 the tool server hands the card to the agent at the start of every session (16.019009ms)
+✖ own 3.4/3.6/4.1/5.1: source MCP reads and clears the offline ledger and stops only its caller scope (113.016959ms)
+✖ own 3.4/3.6/4.1/5.1: installed MCP reads and clears the offline ledger and stops only its caller scope (267.911115ms)
+✖ own 3.6: offline Claude MCP refuses self authority from a stale server environment (10.508538ms)
+✖ own 3.4/3.6/4.1/5.1: standalone CLI inventories, stops and clears offline (254.646365ms)
+✖ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (252.301204ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 1
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 986.877182
+
+✖ failing tests:
+
+test at packages/agent-link/src/instructions/habits-card.test.ts:1:971
+✖ 7.1 the card names every tool the server has, and no tool the server lacks (53.34754ms)
+  AssertionError [ERR_ASSERTION]: list_own_runs
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors2/packages/agent-link/src/instructions/habits-card.test.ts:44:101)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/tools/own-tools.test.ts:1:825
+✖ own 3.4/3.6/4.1/5.1: source MCP reads and clears the offline ledger and stops only its caller scope (113.016959ms)
+  Error [ProtocolError]: Tool list_all_runs not found
+      at ProtocolError.fromError (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/types/errors.ts:105:16)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:1215:41)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/client/dist/index.mjs:4102:9)
+      at InMemoryTransport._transport.onmessage (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:806:22)
+      at InMemoryTransport.send (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+server@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/util/inMemory.ts:68:34)
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+server@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:1153:46) {
+    code: -32602,
+    data: undefined
+  }
+
+test at packages/agent-link/src/tools/own-tools.test.ts:1:825
+✖ own 3.4/3.6/4.1/5.1: installed MCP reads and clears the offline ledger and stops only its caller scope (267.911115ms)
+  Error [ProtocolError]: Tool list_all_runs not found
+      at ProtocolError.fromError (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/types/errors.ts:105:16)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:1215:41)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/client/dist/index.mjs:4102:9)
+      at StdioClientTransport._transport.onmessage (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:806:22)
+      at StdioClientTransport.processReadBuffer (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/client/src/client/stdio.ts:218:22)
+      at Socket.<anonymous> (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/client/src/client/stdio.ts:169:26)
+      at Socket.emit (node:events:509:28)
+      at addChunk (node:internal/streams/readable:563:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)
+      at Readable.push (node:internal/streams/readable:394:5) {
+    code: -32602,
+    data: undefined
+  }
+
+test at packages/agent-link/src/tools/own-tools.test.ts:1:4725
+✖ own 3.6: offline Claude MCP refuses self authority from a stale server environment (10.508538ms)
+  Error [ProtocolError]: Tool list_all_runs not found
+      at ProtocolError.fromError (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/types/errors.ts:105:16)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:1215:41)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/client/dist/index.mjs:4102:9)
+      at InMemoryTransport._transport.onmessage (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:806:22)
+      at InMemoryTransport.send (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+server@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/util/inMemory.ts:68:34)
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-doors2/node_modules/.pnpm/@modelcontextprotocol+server@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:1153:46) {
+    code: -32602,
+    data: undefined
+  }
+
+test at packages/cli/src/own.test.ts:1:457
+✖ own 3.4/3.6/4.1/5.1: standalone CLI inventories, stops and clears offline (254.646365ms)
+  AssertionError [ERR_ASSERTION]: storytree has no "own"
+
+  next:
+    - storytree   (the families it has)
+
+
+  2 !== 0
+
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/own.test.ts:28:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/own.test.ts:1:457
+✖ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (252.301204ms)
+  AssertionError [ERR_ASSERTION]: storytree has no "own"
+
+  next:
+    - storytree   (the families it has)
+
+
+  2 !== 0
+
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/own.test.ts:28:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

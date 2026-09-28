@@ -3,11 +3,12 @@ import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { setTimeout as pause } from 'node:timers/promises';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { buildBins } from '../bins/build.js';
 import { InMemoryTransport } from '@modelcontextprotocol/server';
-import { launchOwned } from '@storytree/own';
+import { launchOwned, readProcess } from '@storytree/own';
 import { listRuns } from '@storytree/own/listing';
 import { createAgentTools } from './server.js';
 import { openActivityLog } from '../activity/index.js';
@@ -15,9 +16,15 @@ import { testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects }
 
 for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));
-  t.after(() => rm(home, { recursive: true, force: true }));
   const client = new Client({ name: 'codex-mcp-client', version: 'test' });
-  t.after(() => client.close());
+  const children: number[] = [];
+  let tools: ReturnType<typeof createAgentTools> | undefined;
+  t.after(async () => {
+    await client.close();
+    await tools?.close();
+    await Promise.all(children.map(stopChild));
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  });
   if (installed) {
     const bins = await buildBins(path.join(home, 'bin'));
     const transport = new StdioClientTransport({ command: process.execPath, args: [bins['storytree-mcp']!], cwd: home,
@@ -25,9 +32,8 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
         HOME: home, USERPROFILE: home, CODEX_HOME: path.join(home, 'codex'), CLAUDE_CONFIG_DIR: path.join(home, 'claude') }, stderr: 'pipe' });
     await client.connect(transport);
   } else {
-    const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: {} });
+    tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: {} });
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
-    t.after(() => tools.close());
     await tools.server.connect(serverSide);
     await client.connect(clientSide);
   }
@@ -36,7 +42,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
     const launched = await launchOwned({ home: path.join(home, 'own'),
       owner: { session: 'caller', harness: 'codex', agent: { subagent } },
       command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
-    if (launched.pid) t.after(() => { try { process.kill(launched.pid!, 'SIGKILL'); } catch {} });
+    if (launched.pid) children.push(launched.pid);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
     runs.push(launched.run);
@@ -70,18 +76,25 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   }
   const retained = await call('clear_own_runs', {}, meta);
   assert.equal(retained.isError, undefined, JSON.stringify(retained));
-  const before = retained.structuredContent!.clear as { retained: { run: string }[]; removed: string[] };
+  const before = (retained.structuredContent as Record<string, unknown>).clear as { retained: { run: string }[]; removed: string[] };
   assert.deepEqual(before.removed, []);
   assert.deepEqual(before.retained.map(row => row.run), [runs[0]!.id]);
   const stopped = await call('stop_own_run', { runs: runs.map(run => run.id) }, meta);
   assert.equal(stopped.isError, true, JSON.stringify(stopped));
   const result = (stopped.structuredContent as Record<string, unknown>).result as { targets: { status: string }[] };
   assert.deepEqual(result.targets.map(target => target.status), ['stopped', 'refused']);
+  const corrupt = path.join(home, 'own', 'runs', 'unreadable.json');
+  await writeFile(corrupt, '{');
+  const incomplete = await call('clear_own_runs', {}, meta);
+  assert.equal(incomplete.isError, true, JSON.stringify(incomplete));
+  assert.ok(((incomplete.structuredContent as Record<string, unknown>).clear as { gaps: unknown[] }).gaps.length > 0);
+  assert.equal(((incomplete.structuredContent as Record<string, unknown>).closing as { status: string }).status, 'incomplete');
+  await rm(corrupt);
   const cleared = await call('clear_own_runs', {}, meta);
   assert.equal(cleared.isError, undefined, JSON.stringify(cleared));
-  const after = cleared.structuredContent!.clear as { removed: string[]; retained: unknown[]; failed: unknown[]; gaps: unknown[] };
+  const after = (cleared.structuredContent as Record<string, unknown>).clear as { removed: string[]; retained: unknown[]; failed: unknown[]; gaps: unknown[] };
   assert.deepEqual(after, { ...after, removed: [runs[0]!.id], retained: [], failed: [], gaps: [] });
-  const closing = cleared.structuredContent!.closing as { status: string; inventory: typeof inventory };
+  const closing = (cleared.structuredContent as Record<string, unknown>).closing as { status: string; inventory: typeof inventory };
   assert.equal(closing.status, 'incomplete');
   assert.deepEqual(closing.inventory.rows.map(row => row.run.id), [runs[1]!.id]);
 });
@@ -89,17 +102,17 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
 // A Claude MCP server is shared with subagents; its startup environment cannot identify a call.
 test('own 3.6: offline Claude MCP refuses self authority from a stale server environment', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-claude-'));
-  t.after(() => rm(home, { recursive: true, force: true }));
   const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: { CLAUDE_CODE_SESSION_ID: 'stale' } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'claude-code', version: 'test' });
-  t.after(async () => { await client.close(); await tools.close(); });
+  t.after(async () => { await client.close(); await tools.close(); await rm(home, { recursive: true, force: true }); });
   await tools.server.connect(serverSide);
   await client.connect(clientSide);
   const all = await client.callTool({ name: 'list_all_runs', arguments: {} });
   assert.equal(all.isError, undefined, JSON.stringify(all));
   for (const name of ['list_own_runs', 'stop_own_run', 'clear_own_runs']) {
-    const answer = await client.callTool({ name, arguments: name === 'stop_own_run' ? { runs: ['unowned'] } : {} });
+    const answer = await client.callTool({ name, arguments: name === 'stop_own_run' ? { runs: ['unowned'] } : {},
+      _meta: { sessionId: 'stale', threadId: 'stale' } });
     assert.equal(answer.isError, true, JSON.stringify(answer));
     assert.match(JSON.stringify(answer), /list_all_runs/);
   }
@@ -108,11 +121,21 @@ test('own 3.6: offline Claude MCP refuses self authority from a stale server env
 test('own online 3.6/4.1: Claude hook identity selects only its named subagent, after a session reset', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-hook-'));
   const project = uniqueProjectName();
-  t.after(async () => { await dropTestProjects([project]); await rm(home, { recursive: true, force: true }); });
+  const children: number[] = [];
+  let log: Awaited<ReturnType<typeof openActivityLog>> | undefined;
+  let tools: ReturnType<typeof createAgentTools> | undefined;
+  const client = new Client({ name: 'claude-code', version: 'test' });
+  t.after(async () => {
+    await client.close();
+    await tools?.close();
+    await Promise.all(children.map(stopChild));
+    await log?.close();
+    await dropTestProjects([project]);
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  });
   await writeFile(path.join(home, '.storytree.json'), JSON.stringify({ project }));
   await copyFile(`${testServerDataDir()}.owner.json`, path.join(home, 'pgdata.owner.json'));
-  const log = await openActivityLog(testServerUrl());
-  t.after(() => log.close());
+  log = await openActivityLog(testServerUrl());
   await log.append(project, { session: 'reset-session', harness: 'claude-code', source: 'hook', folder: home,
     kind: 'tool-requested', tool: 'list_own_runs', call: 'hook-call', agent: { subagent: 'builder' } });
   const runs = [];
@@ -120,20 +143,19 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
     const launched = await launchOwned({ home: path.join(home, 'own'),
       owner: { session: 'reset-session', harness: 'claude-code', agent: { subagent } },
       command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
-    if (launched.pid) t.after(() => { try { process.kill(launched.pid!, 'SIGKILL'); } catch {} });
+    if (launched.pid) children.push(launched.pid);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
     runs.push(launched.run);
   }
-  const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: { CLAUDE_CODE_SESSION_ID: 'stale-session' } });
+  tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: { CLAUDE_CODE_SESSION_ID: 'stale-session' } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'claude-code', version: 'test' });
-  t.after(async () => { await client.close(); await tools.close(); });
+
   await tools.server.connect(serverSide);
   await client.connect(clientSide);
   const self = await client.callTool({ name: 'list_own_runs', arguments: {}, _meta: { 'claudecode/toolUseId': 'hook-call' } });
   assert.equal(self.isError, undefined, JSON.stringify(self));
-  const inventory = self.structuredContent!.inventory as Awaited<ReturnType<typeof listRuns>>;
+  const inventory = (self.structuredContent as Record<string, unknown>).inventory as Awaited<ReturnType<typeof listRuns>>;
   assert.deepEqual(inventory.rows.map(row => row.run.id), [runs[0]!.id]);
   assert.equal(inventory.owner!.session, 'reset-session');
   await log.append(project, { session: 'reset-session', harness: 'claude-code', source: 'hook', folder: home,
@@ -141,8 +163,17 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
   const stopped = await client.callTool({ name: 'stop_own_run', arguments: { runs: runs.map(run => run.id) },
     _meta: { 'claudecode/toolUseId': 'stop-call' } });
   assert.equal(stopped.isError, true, JSON.stringify(stopped));
-  assert.deepEqual((stopped.structuredContent!.result as { targets: { status: string }[] }).targets.map(row => row.status), ['stopped', 'refused']);
+  assert.deepEqual(((stopped.structuredContent as Record<string, unknown>).result as { targets: { status: string }[] }).targets.map(row => row.status), ['stopped', 'refused']);
   const unresolved = await client.callTool({ name: 'list_own_runs', arguments: {}, _meta: { 'claudecode/toolUseId': 'not-recorded' } });
   assert.equal(unresolved.isError, true);
   assert.match(JSON.stringify(unresolved), /list_all_runs/);
 });
+
+async function stopChild(pid: number): Promise<void> {
+  try { process.kill(pid, 'SIGKILL'); } catch { return; }
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if ((await readProcess(pid)).state === 'gone') return;
+    await pause(20);
+  }
+  assert.fail(`test child ${pid} did not exit`);
+}

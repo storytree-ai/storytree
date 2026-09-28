@@ -1,22 +1,28 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { setTimeout as pause } from 'node:timers/promises';
 import { buildBins } from '@storytree/agent-link/bins';
-import { launchOwned } from '@storytree/own';
+import { launchOwned, readProcess } from '@storytree/own';
 import { BuiltCommand, storytree } from './testing/cli.js';
 
 for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-door-'));
   const command = new BuiltCommand();
-  t.after(async () => { command.remove(); await rm(home, { recursive: true, force: true }); });
+  const children: number[] = [];
+  t.after(async () => {
+    await Promise.all(children.map(stopChild));
+    command.remove();
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  });
   await command.build(installed ? async dir => (await buildBins(dir)).storytree! : undefined);
   const runs = [];
   for (const session of ['caller', 'other']) {
     const launched = await launchOwned({ home: path.join(home, 'own'), owner: { session, harness: 'codex' },
       command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
-    if (launched.pid) t.after(() => { try { process.kill(launched.pid!, 'SIGKILL'); } catch {} });
+    if (launched.pid) children.push(launched.pid);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
     runs.push(launched.run);
@@ -59,6 +65,14 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   const gone = await invoke(['stop', runs[0]!.id]);
   assert.equal(gone.code, 0, gone.stderr);
   assert.equal(JSON.parse(gone.stdout).targets[0].status, 'already-gone');
+  const corrupt = path.join(home, 'own', 'runs', 'unreadable.json');
+  await writeFile(corrupt, '{');
+  const incomplete = await invoke(['clear']);
+  assert.equal(incomplete.code, 1, incomplete.stdout);
+  const partial = JSON.parse(incomplete.stderr);
+  assert.ok(partial.clear.gaps.length > 0);
+  assert.equal(partial.closing.status, 'incomplete');
+  await rm(corrupt);
   const cleared = await invoke(['clear']);
   assert.equal(cleared.code, 0, cleared.stderr);
   const after = JSON.parse(cleared.stdout);
@@ -75,3 +89,12 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
     assert.equal((await invoke(args)).code, 2, `invalid arguments: ${args.join(' ')}`);
   }
 });
+
+async function stopChild(pid: number): Promise<void> {
+  try { process.kill(pid, 'SIGKILL'); } catch { return; }
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if ((await readProcess(pid)).state === 'gone') return;
+    await pause(20);
+  }
+  assert.fail(`test child ${pid} did not exit`);
+}

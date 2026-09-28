@@ -7,11 +7,9 @@ import { readProcess } from '../process/index.js';
 import type { ProcessIdentity } from '../process/index.js';
 import { owns, refusal } from '../stopping/stop.js';
 
-export interface StopAction {
-  readonly command: string;
-  readonly tool: string;
-  readonly arguments: Record<string, unknown>;
-}
+export type StopAction =
+  | { readonly command: string; readonly tool?: string; readonly arguments?: Record<string, unknown> }
+  | { readonly command?: never; readonly tool: string; readonly arguments: Record<string, unknown> };
 export type StopOffer =
   | ({ readonly available: true; readonly reason?: never } & StopAction)
   | { readonly available: false; readonly reason: string };
@@ -119,7 +117,7 @@ export function renderInventory(inventory: Inventory): string {
     if (run.parentRun) lines.push(`  Parent run: ${run.parentRun}`);
     if (run.birth.state === 'live') lines.push(`  Lifetime: ${quoted(run.birth.identity.platform)} / ${quoted(run.birth.identity.boot)} / ${quoted(run.birth.identity.started)}`);
     if (row.process.state === 'unknown') lines.push(`  Could not observe: ${quoted(row.process.reason)}`);
-    lines.push(row.stop.available ? `  Stop: ${row.stop.command}` : `  No stop action: ${quoted(row.stop.reason)}`);
+    lines.push(row.stop.available ? `  Stop: ${row.stop.command ?? `${row.stop.tool} ${JSON.stringify(row.stop.arguments)}`}` : `  No stop action: ${quoted(row.stop.reason)}`);
   }
   for (const row of inventory.shared) lines.push('', `Shared — ${quoted(row.name)}: ${row.state}. ${row.reason}`);
   for (const gap of inventory.gaps) lines.push(`Gap (${gap.kind})${gap.path ? ` ${quoted(gap.path)}` : ''}: ${quoted(gap.reason)}`);

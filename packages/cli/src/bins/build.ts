@@ -1,12 +1,13 @@
 /**
  * The `storytree` command, built into one plain Node script: what a person's shell runs, with no
- * tsx and no node_modules beside it. esbuild bundles it with everything it imports (the library,
+ * tsx and only its staged native dependencies beside it. esbuild bundles it with everything it imports (the library,
  * the agent link, pg and zod included).
  *
  * `pnpm --filter @storytree/cli build` writes it to packages/cli/dist/; tests build it into a
  * directory of their own with buildCommand().
  */
 import path from "node:path";
+import { stageNativeProbes } from "@storytree/agent-link/bins";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
@@ -30,8 +31,9 @@ export async function buildCommand(outdir: string): Promise<string> {
     logLevel: "warning",
     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
-    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
+    external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
   });
+  await stageNativeProbes(outdir);
   return path.join(outdir, "storytree.mjs");
 }
 

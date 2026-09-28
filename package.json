@@ -32,11 +32,13 @@
   "pnpm": {
     "supportedArchitectures": {
       "os": [
-        "current"
+        "current",
+        "win32"
       ],
       "cpu": [
         "current",
-        "x64"
+        "x64",
+        "arm64"
       ]
     }
   }

@@ -1,0 +1,5 @@
+staged x64: Node 24.21.0 (SHA-256 verified), Node license, complete buildBins output, target Koffi probes and delivery helper
+staged arm64: Node 24.21.0 (SHA-256 verified), Node license, complete buildBins output, target Koffi probes and delivery helper
+x64: CLI, MCP, Koffi loader and native module match payload SHA-256 manifest; PE Machine = 0x8664.
+arm64: CLI, MCP, Koffi loader and native module match payload SHA-256 manifest; PE Machine = 0xaa64.
+Assembly verified on Linux. Native Windows x64/arm64 execution is not claimed by this check.

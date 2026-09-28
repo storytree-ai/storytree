@@ -1,12 +1,14 @@
 /**
  * The agent link's commands, built into plain Node scripts: what a harness runs, with no tsx and
- * no node_modules beside it. Each is one ES module that esbuild bundles with everything it
+ * only its staged native dependencies beside it. Each is one ES module that esbuild bundles with everything it
  * imports (the library, pg and zod included).
  *
  * `pnpm --filter @storytree/agent-link build` writes them to packages/agent-link/dist/; tests build
  * them into a directory of their own with buildBins().
  */
 import path from "node:path";
+import { cp, mkdir, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
@@ -41,6 +43,8 @@ export async function buildBins(outdir: string): Promise<Record<string, string>>
     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: [
+      // Native probes load physical libraries relative to Koffi’s package.
+      "koffi",
       // Optional parts of pg the commands never use: its native client and its Cloudflare sockets.
       "pg-native",
       "pg-cloudflare",
@@ -49,7 +53,24 @@ export async function buildBins(outdir: string): Promise<Record<string, string>>
       "@google-cloud/cloud-sql-connector",
     ],
   });
+  await stageNativeProbes(outdir);
   return Object.fromEntries(Object.keys(ENTRY_POINTS).map((name) => [name, path.join(outdir, `${name}.mjs`)]));
+}
+
+/** Stage the exact native target beside CLI and MCP; packaging calls this again for each payload. */
+export async function stageNativeProbes(outdir: string, platform = process.platform, arch = process.arch): Promise<void> {
+  const require = createRequire(import.meta.url);
+  const ownRequire = createRequire(require.resolve('@storytree/own/process'));
+  const koffi = ownRequire.resolve('koffi');
+  const nativeName = `@koromix/koffi-${platform}-${arch}`;
+  // pnpm installs both Windows targets as well as the host (root supportedArchitectures).
+  // Resolution fails the build if a required binary is missing; never ship a host-only payload.
+  const native = createRequire(koffi).resolve(nativeName);
+  const modules = path.join(outdir, 'node_modules');
+  await mkdir(modules, { recursive: true });
+  await rm(path.join(modules, '@koromix'), { recursive: true, force: true });
+  await cp(path.dirname(koffi), path.join(modules, 'koffi'), { recursive: true, dereference: true });
+  await cp(path.dirname(native), path.join(modules, nativeName), { recursive: true, dereference: true });
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -15,7 +15,7 @@ export const settingsStyles = `
 .settings-row { display: grid; grid-template-columns: minmax(0, 1fr) 205px; gap: 12px 28px; padding: 22px 0 18px; border-top: 1px solid #485159; }
 .settings-description > label { font-size: 15px; font-weight: 600; }
 .settings-description p { margin: 6px 0 0; color: #a9b0ba; overflow-wrap: anywhere; }
-.settings-panel code { font: inherit; }
+.settings-panel code { font: inherit; color: inherit; background: transparent; border: 0; padding: 0; }
 .settings-value { min-width: 0; text-align: right; }
 .settings-value select, .settings-number { width: 100%; }
 .settings-number { display: flex; align-items: center; gap: 8px; }

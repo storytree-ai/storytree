@@ -21,3 +21,17 @@
 +++ new/library/The agent link/capability 10/ADD contract under capability_2902dfd80083/title
 @@ -0,0 +1 @@
 +10.9 · The Settings panel keeps keyboard focus inside it; Close or Escape returns focus to the gear. It fits a narrow window without horizontal scrolling. A failed read shows its reason and Retry, never fabricated defaults; a transport failure leaves Save available for retry.
+
+--- old/library/The app/capability 2/capability_3c5ed8b3ca70/description
++++ new/library/The app/capability 2/capability_3c5ed8b3ca70/description
+@@ -1 +1 @@
+-The app lists the storytree projects in its database and shows one at a time. A gear in the top-right corner opens a menu whose Project list moves the whole app to another project in place, alongside Help and reserved places for Check for updates and Settings. The forest fills the window with no app bar. This capability also decides which project is on show when the app opens.
++The app lists the storytree projects in its database and shows one at a time. A gear in the top-right corner opens a menu whose Project list moves the whole app to another project in place, alongside Help, Settings and a reserved place for Check for updates. Settings opens the agent link’s per-user settings panel. The forest fills the window with no app bar. This capability also decides which project is on show when the app opens.
+
+--- old/library/The app/capability 2/definition_b7178be85573/meaning
++++ new/library/The app/capability 2/definition_b7178be85573/meaning
+@@ -16,2 +16,3 @@
+-  Check for updates and Settings are disabled reserved entries. No app bar occupies the forest's
++  Settings mounts the agent link’s settings panel and returns focus to the gear when closed.
++  Check for updates remains reserved until its lane lands. No app bar occupies the forest's
+   top strip; menu dismissal passes outside pointer input through and preserves the smoke census.

@@ -9,7 +9,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
-import { claim, claimRefusal, readClaim, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
+import { claim, claimRefusal, reasonRefusal, readClaim, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
 
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
@@ -48,7 +48,7 @@ const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string): Promise<WorkspaceAnswer> {
-  const refused = await workspaceRefusal(context, id);
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id);
   if (refused !== undefined) return refused;
   const repository = repositoryOf(context.folder);
   if (typeof repository !== "string") return repository;
@@ -75,7 +75,7 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
 
 /** Attach an app-created Codex worktree to this session's work, leaving its lifetime to the app. */
 export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment): Promise<ClaimedWorkspace | WorkspaceRefusal> {
-  const refused = await workspaceRefusal(context, id);
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id);
   if (refused !== undefined) return refused;
   if (context.harness !== "codex") return { ok: false, refused: "no-workspace", why: "only a Codex agent attaches an app-created worktree; Claude Code uses make_workspace" };
 

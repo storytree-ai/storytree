@@ -10,12 +10,8 @@
 .session-row:focus-visible,.sessions-list button:focus-visible { outline:1px solid #d9dedb; outline-offset:2px; }
 .session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:60px; }
 .sessions-list button { font:inherit; cursor:pointer; background:none; color:inherit; border:0; border-radius:3px; padding:1px 3px; white-space:nowrap; }
-.session-children-toggle,.session-off-plan { font-size:11px !important; color:#b3bdb9 !important; }
+.session-children-toggle { font-size:11px !important; color:#b3bdb9 !important; }
 .session-needs-you { font-size:11px; color:#f2cb83; white-space:nowrap; }
 .session-context-slot { width:65px; height:5px; flex-shrink:0; border:1px solid #65716d; border-radius:2px; box-sizing:border-box; margin-left:8px; }
 .session-total { font-variant-numeric:tabular-nums; font-size:11px; width:38px; text-align:right; color:#abb4b1; flex-shrink:0; }
-.session-evidence { padding:5px 8px 9px; max-width:560px; }
-.session-evidence ol { padding-left:18px; margin:5px 0; }
-.session-evidence time { display:block; color:#abb4b1; font-size:11px; }
-.session-evidence code { display:block; white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; }
 @media(max-width:600px) { .sessions-list { left:8px; bottom:8px; width:calc(100% - 16px); padding:7px; } .session-row { gap:4px; } .session-context-slot { width:32px; margin-left:0; } }

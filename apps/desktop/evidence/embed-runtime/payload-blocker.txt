@@ -1,0 +1,15 @@
+Checking the actual staged Windows x64 payload with its unchanged delivery verifier.
+/home/mickh/code/storytree03-wt/embed-runtime/packages/app-setup/src/deliver/payload.ts:62
+    if (!/^[\w./-]+$/.test(file) || file.split("/").some((part) => part === ".." || part === "") || path.isAbsolute(file)) throw new Error(`Unsafe payload path: ${file}`);
+                                                                                                                                 ^
+
+Error: Unsafe payload path: node_modules/@huggingface/transformers/LICENSE
+    at verifyPayload (/home/mickh/code/storytree03-wt/embed-runtime/packages/app-setup/src/deliver/payload.ts:62:130)
+    at file:///home/mickh/code/storytree03-wt/embed-runtime/[eval1]:11:2
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async node:internal/modules/esm/loader:224:26
+    at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:221:20)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0

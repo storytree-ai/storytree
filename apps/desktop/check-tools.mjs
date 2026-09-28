@@ -10,12 +10,19 @@ export function checkEmbeddingRuntime(node, dir, home, env) {
   const probe = path.join(dir, ".embedding-proof.mjs");
   writeFileSync(probe, `
     import assert from 'node:assert/strict';
-    import { env, pipeline } from '@huggingface/transformers';
+    import { pipeline } from '@huggingface/transformers';
     import * as ort from 'onnxruntime-node';
     assert.equal(typeof pipeline, 'function');
     assert.equal(typeof ort.InferenceSession.create, 'function');
     assert.ok(ort.listSupportedBackends().some(backend => backend.name === 'cpu' && backend.bundled));
-    console.log('embedding runtime PASS: transformers resolved; native ONNX CPU backend loaded');
+    // A 75-byte Identity graph with no weights: exercise native CPU execution offline.
+    const graph = Buffer.from('CAg6QwoQCgF4EgF5IghJZGVudGl0eRINcnVudGltZS1jaGVja1oPCgF4EgoKCAgBEgQKAggBYg8KAXkSCgoICAESBAoCCAFCAhAN', 'base64');
+    const session = await ort.InferenceSession.create(graph, { executionProviders: ['cpu'] });
+    try {
+      const result = await session.run({ x: new ort.Tensor('float32', Float32Array.of(42), [1]) });
+      assert.equal(result.y.data[0], 42);
+    } finally { await session.release(); }
+    console.log('embedding runtime PASS: transformers resolved; native ONNX CPU inference returned 42; no model download');
   `);
   try {
     const result = spawnSync(node, [probe], { cwd: home, env, encoding: "utf8", timeout: 30_000 });
@@ -44,7 +51,7 @@ export async function checkTools(node, dir, home) {
     ...process.env, HOME: home, USERPROFILE: home,
     STORYTREE_HOME: path.join(home, ".storytree", "0.3"),
     CLAUDE_CONFIG_DIR: path.join(home, ".claude"), CODEX_HOME: path.join(home, ".codex"),
-    CLAUDE_PROJECT_DIR: home, NODE_PATH: "", PATH: "", Path: "",
+    CLAUDE_PROJECT_DIR: home, NODE_PATH: "", NODE_OPTIONS: "", PATH: "", Path: "",
   };
   checkEmbeddingRuntime(node, dir, home, env);
   const run = (name, args = [], input = "") => spawnSync(node, [path.join(dir, `${name}.mjs`), ...args], { cwd: home, env, input, encoding: "utf8", timeout: 30_000 });

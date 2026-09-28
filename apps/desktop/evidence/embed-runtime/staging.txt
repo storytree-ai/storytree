@@ -1,0 +1,7 @@
+embedding runtime x64 PASS: ONNX binding and runtime PE architecture inspected
+x64: 211 embedding runtime files, 53373626 bytes (50.90 MiB) added to the uncompressed payload
+x64: no model weight files in the staged runtime
+embedding runtime arm64 PASS: ONNX binding and runtime PE architecture inspected
+arm64: 211 embedding runtime files, 51767506 bytes (49.37 MiB) added to the uncompressed payload
+arm64: no model weight files in the staged runtime
+Both targets inspected on Linux. Windows x64 execution awaits CI; ARM64 execution requires a native acceptance run.

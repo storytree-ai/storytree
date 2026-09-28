@@ -1,0 +1,123 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Delivered embedding runtime failed to load:
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@huggingface/transformers' imported from /tmp/storytree delivered tools LpqCSs/installed app/resources/agent-tools/.embedding-proof.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+
+
+1 !== 0
+
+    at checkEmbeddingRuntime (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:22:12)
+    at checkTools (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:49:3)
+    at file:///home/mickh/code/storytree03-wt/embed-runtime/[eval1]:8:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
+✖ app setup 1.1: the desktop's complete tool bundle runs outside a checkout, including MCP and imported chunks (742.731763ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 903.198507
+
+✖ failing tests:
+
+test at apps/desktop/src/main/delivery.test.ts:1:245
+✖ app setup 1.1: the desktop's complete tool bundle runs outside a checkout, including MCP and imported chunks (742.731763ms)
+  Error: Command failed: /home/mickh/.nvm/versions/node/v24.19.0/bin/node --import tsx --input-type=module -e
+        import { buildToolBundle } from './apps/desktop/tools.mjs';
+        import { checkTools } from './apps/desktop/check-tools.mjs';
+        import path from 'node:path';
+        const temp = process.env.STORYTREE_DELIVERY_TEST_DIR;
+        const dir = path.join(temp, 'installed app', 'resources', 'agent-tools');
+        await buildToolBundle(dir);
+        await checkTools(process.execPath, dir, path.join(temp, 'fresh user'));
+        console.log('standalone tools PASS');
+
+  node:internal/modules/run_main:107
+      triggerUncaughtException(
+      ^
+
+  AssertionError [ERR_ASSERTION]: Delivered embedding runtime failed to load:
+  node:internal/modules/package_json_reader:301
+    throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+          ^
+
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@huggingface/transformers' imported from /tmp/storytree delivered tools LpqCSs/installed app/resources/agent-tools/.embedding-proof.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+  Node.js v24.19.0
+
+
+  1 !== 0
+
+      at checkEmbeddingRuntime (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:22:12)
+      at checkTools (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:49:3)
+      at file:///home/mickh/code/storytree03-wt/embed-runtime/[eval1]:8:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+  Node.js v24.19.0
+
+      at genericNodeError (node:internal/errors:985:15)
+      at wrappedFn (node:internal/errors:539:14)
+      at checkExecSyncError (node:child_process:942:11)
+      at execFileSync (node:child_process:978:15)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/src/main/delivery.test.ts:13:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    status: 1,
+    signal: null,
+    output: [ null, '', "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: Delivered embedding runtime failed to load:\nnode:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package '@huggingface/transformers' imported from /tmp/storytree delivered tools LpqCSs/installed app/resources/agent-tools/.embedding-proof.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)\n    at #resolve (node:internal/modules/esm/loader:683:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.19.0\n\n\n1 !== 0\n\n    at checkEmbeddingRuntime (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:22:12)\n    at checkTools (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:49:3)\n    at file:///home/mickh/code/storytree03-wt/embed-runtime/[eval1]:8:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 0,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n" ],
+    pid: 792926,
+    stdout: '',
+    stderr: "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: Delivered embedding runtime failed to load:\nnode:internal/modules/package_json_reader:301\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package '@huggingface/transformers' imported from /tmp/storytree delivered tools LpqCSs/installed app/resources/agent-tools/.embedding-proof.mjs\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)\n    at packageResolve (node:internal/modules/esm/resolve:768:81)\n    at moduleResolve (node:internal/modules/esm/resolve:859:18)\n    at defaultResolve (node:internal/modules/esm/resolve:992:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)\n    at #resolve (node:internal/modules/esm/loader:683:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.19.0\n\n\n1 !== 0\n\n    at checkEmbeddingRuntime (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:22:12)\n    at checkTools (file:///home/mickh/code/storytree03-wt/embed-runtime/apps/desktop/check-tools.mjs:49:3)\n    at file:///home/mickh/code/storytree03-wt/embed-runtime/[eval1]:8:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 0,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  }

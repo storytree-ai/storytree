@@ -1,0 +1,42 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/embed-runtime
+> node --import tsx scripts/test.mjs
+
+scope: affected — apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core — changed: apps/desktop; their dependents: packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core, scripts/package-boundaries.test.mjs
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/embed-runtime/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:44975 (started in 0.1 s)
+
+=== apps/desktop ===
+✔ smoke can capture either globe mode, while ordinary launches keep the Forest default (1.093163ms)
+embedding runtime linux/x64: 69864406 bytes (66.63 MiB); no model weights
+embedding runtime PASS: transformers resolved; native ONNX CPU inference returned 42; no model download
+standalone tools PASS
+✔ app setup 1.1 / library 14.5: delivered tools run outside a checkout, including native embedding inference without a model download (1153.246236ms)
+✔ capabilities are shown in build order: each after every capability it depends on, and otherwise in the order they were added (2.605641ms)
+✔ each capability shows its health in two columns side by side, Agent reported then Storytree verified, each state a badge (0.770781ms)
+✔ a capability expands to show its contracts, each with its own two columns and what its entries say: who, when and the note (0.500479ms)
+✔ the story heads the page with its title, description and rolled-up health, all text escaped, and `code` shown as code (0.365323ms)
+✔ a project with no stories says so (0.144044ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1276.055084
+
+
+results:
+  PASS    apps/desktop — 1.3 s
+  PASS    packages/agent-link — 12.3 s
+  PASS    packages/app — 2.7 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.7 s
+  PASS    packages/cli — 8.2 s
+  PASS    packages/forest — 1.6 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    scripts/package-boundaries.test.mjs — 0.2 s
+test Postgres: stopped (0.1 s)

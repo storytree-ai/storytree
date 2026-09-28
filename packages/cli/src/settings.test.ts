@@ -21,7 +21,8 @@ test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid 
 
   const defaults = await invoke(["settings", "show"]);
   assert.equal(defaults.code, 0, defaults.stderr);
-  assert.match(defaults.stdout, /context-guidance.*700000.*default/);
+  assert.match(defaults.stdout, /context-guidance.*600000.*default/);
+  assert.match(defaults.stdout, /idle-after.*30m.*default/);
 
   const set = await invoke(["settings", "set", "context-guidance", "400000"]);
   assert.equal(set.code, 0, set.stderr);
@@ -36,7 +37,7 @@ test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid 
   assert.match(show.stdout, /context-guidance.*400000.*set/);
   assert.match(show.stdout, /positive whole number/);
   assert.match(show.stdout, /tokens/);
-  assert.match(show.stdout, /default.*700000/);
+  assert.match(show.stdout, /default.*600000/);
   assert.match(show.stdout, /soft/i);
 
   const help = await invoke([]);
@@ -84,4 +85,16 @@ test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid 
   const local = await invoke(["settings", "set", "library", "local"]);
   assert.equal(local.code, 0, local.stderr);
   assert.match(local.stdout, /library: local \(set\)/);
+  const idle = await invoke(["settings", "set", "idle-after", "10m"]);
+  assert.equal(idle.code, 0, idle.stderr);
+  assert.match(idle.stdout, /idle-after.*10m.*set/);
+  assert.equal(readSettings(home)["idle-after"].value, "10m");
+  assert.match((await invoke(["settings", "show"])).stdout, /idle-after.*10m.*set/);
+  const idleSaved = readFileSync(file, "utf8");
+  for (const value of ["soon", "0m", "-5m"]) {
+    const refused = await invoke(["settings", "set", "idle-after", value]);
+    assert.equal(refused.code, 1, refused.stderr);
+    assert.match(refused.stderr, /idle-after.*positive duration/i);
+    assert.equal(readFileSync(file, "utf8"), idleSaved);
+  }
 });

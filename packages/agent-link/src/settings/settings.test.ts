@@ -7,14 +7,14 @@ import { test } from "node:test";
 import * as agentLink from "../index.js";
 import { withTempDir } from "../testing/folders.js";
 
-test("10.1 without a settings file, context guidance reads as 700,000 tokens with its type and meaning", async () => {
+test("10.1 without a settings file, context guidance reads as 600,000 tokens with its type and meaning", async () => {
   await withTempDir((dir) => {
     const home = path.join(dir, "home");
     assert.equal(typeof agentLink.readSettings, "function", "settings need a public reader");
     const reading = agentLink.readSettings(home)["context-guidance"];
     assert.equal(reading.name, "context-guidance");
-    assert.equal(reading.value, 700_000);
-    assert.equal(reading.default, 700_000);
+    assert.equal(reading.value, 600_000);
+    assert.equal(reading.default, 600_000);
     assert.equal(reading.source, "default");
     assert.equal(reading.type, "positive whole number");
     assert.equal(reading.unit, "tokens");
@@ -46,8 +46,8 @@ test("10.4 invalid settings are reported on read and set, and their bytes are pr
     }
     writeFileSync(file, "{}");
     assert.equal(agentLink.readSettings(home)["context-guidance"].source, "default");
-    assert.equal(agentLink.readSettings(home)["context-guidance"].value, 700_000);
-    agentLink.setSetting("context-guidance", "700000", home);
+    assert.equal(agentLink.readSettings(home)["context-guidance"].value, 600_000);
+    agentLink.setSetting("context-guidance", "600000", home);
     assert.equal(agentLink.readSettings(home)["context-guidance"].source, "set");
   });
 });
@@ -91,6 +91,43 @@ test("10.3 unknown names and values that are not positive whole numbers are refu
 });
 
 const INSTANCE = "my-project:australia-southeast1:my-instance";
+
+test("10.10 idle-after defaults to 30 minutes and accepts positive durations without losing other settings", async () => {
+  await withTempDir((home) => {
+    const initial = agentLink.readSettings(home)["idle-after"];
+    assert.equal(initial.value, "30m");
+    assert.equal(initial.default, "30m");
+    assert.equal(initial.type, "duration");
+    assert.equal(initial.source, "default");
+    agentLink.setSetting("context-guidance", "400000", home);
+    for (const value of ["10m", "45s", "2h", "1d"]) {
+      assert.equal(agentLink.setSetting("idle-after", value, home).value, value);
+      assert.equal(agentLink.readSettings(home)["idle-after"].source, "set");
+      assert.equal(agentLink.readSettings(home)["context-guidance"].value, 400_000);
+    }
+    agentLink.setLibrary(["local"], home);
+    assert.equal(agentLink.readSettings(home)["idle-after"].value, "1d");
+  });
+});
+
+test("10.10 invalid idle durations are refused with a reason and leave the file byte for byte", async () => {
+  await withTempDir((home) => {
+    agentLink.setSetting("context-guidance", "400000", home);
+    const file = path.join(home, "settings.json");
+    const before = readFileSync(file, "utf8");
+    for (const value of ["soon", "0m", "-5m", "10", "", "1.5m", "Infinityh", "9007199254740991d"]) {
+      assert.throws(() => agentLink.setSetting("idle-after", value, home), /idle-after.*positive duration/i, value);
+      assert.equal(readFileSync(file, "utf8"), before);
+    }
+    for (const value of [null, 600_000, "soon", "0m", "-5m"]) {
+      const invalid = JSON.stringify({ "idle-after": value });
+      writeFileSync(file, invalid);
+      assert.throws(() => agentLink.readSettings(home), /Invalid settings file.*idle-after.*positive duration/);
+      assert.throws(() => agentLink.setSetting("context-guidance", "500000", home), /Invalid settings file/);
+      assert.equal(readFileSync(file, "utf8"), invalid);
+    }
+  });
+});
 
 test("10.5 the library is local by default, set to a Cloud SQL instance, and set back to local", async () => {
   await withTempDir((home) => {

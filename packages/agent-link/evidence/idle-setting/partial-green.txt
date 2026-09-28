@@ -1,0 +1,77 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/idle-setting
+> node --import tsx scripts/test.mjs "packages/agent-link/src/settings/settings.test.ts" "packages/agent-link/src/settings/panel.test.ts" "packages/agent-link/src/view/settings.test.ts" "packages/agent-link/src/context/context.test.ts" "packages/agent-link/src/tools/agent-tools.test.ts" "packages/agent-link/src/hooks/hooks.test.ts" "packages/cli/src/settings.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:36711 (started in 0.1 s)
+✔ 9.1 a Claude Code transcript reads the session's own latest request: input + cache-read + cache-creation, one count per requestId, and a later subagent or synthetic line does not change it (1.601615ms)
+✔ 9.2 a transcript that is empty, unreadable, or holds only subagent or synthetic requests reads as an absence naming which, never as 0 tokens (0.282037ms)
+✔ 9.3 a Codex rollout reads its last token count's input tokens as tokens used (0.191635ms)
+✔ 9.5 a session's reading is worked out when asked, from the transcript last recorded for it, read at that moment; another session's transcript is never read, and one with no transcript recorded is an absence (47.267496ms)
+✔ 9.6 `storytree context` prints this session's tokens used, worked out at that moment, and --json the record; it exits 0 whatever the figure, and with no reading it says so and prints no number (117.608192ms)
+✔ 9.7 a reading states fresh default or set guidance, including under, at and past it; unusable settings keep the tokens and explain the missing guidance (23.993798ms)
+✔ 9.7 the context command states guidance and its source, exits 0 under and past it, and includes it in JSON (69.786201ms)
+✔ 3.1 recorded Claude Code hook inputs (a start, a file edit, a shell command, an end) make four lines on that session, carrying the file path, the command and the machine's name (686.567974ms)
+✔ 3.2 recorded Codex hook inputs make the same four lines, with the edited files read out of its patch text (593.079699ms)
+✔ 3.3 with storytree stopped, with garbage input, or outside a storytree project, the command exits cleanly in under half a second and writes nothing (834.93204ms)
+✔ 3.4 it runs on Windows without a Unix shell, and it never prints anything the agent would see, even when storytree cannot be reached (4195.463303ms)
+✔ 3.5 recorded inputs for starting a subagent, for a storytree tool call inside it and for one by the orchestrator make three lines: the subagent's id, type and task, and who asked for each call, by the call's id, for Claude Code and Codex alike (559.869677ms)
+✔ 3.6 recorded inputs from before a shell command, after one that failed, and at the end of a turn make three lines: the command started, and finished, under the call's id, and the turn ended; for Codex, which waits for its hooks, the hook hands its line to one in the background (585.840524ms)
+✔ 3.7 at each prompt, the project's definitions for the terms it names are added for the agent: whole words in any case or plural, at most five, longest first, each once a session; a harness's own notice gets none, and with storytree stopped nothing is printed (531.153981ms)
+✔ 3.8 the status line shows what this session holds, how many other agents are working, and a warning when another is editing a file it edited; with storytree stopped it says so, and outside a project it shows nothing (493.665207ms)
+✔ 3.12 recorded Claude Code and Codex hook inputs record on their session the transcript the harness named, the latest one recorded being the session's: a `claude -p` run's transcript under an unrelated project directory, and a session moved into worktree B whose transcript is under folder A's, are read from exactly that path, with no folder searched (479.289323ms)
+✔ 10.7 the panel reads every setting and writes through the CLI's writers (5.040844ms)
+✔ 10.8 refusal crosses IPC as the exact writer reason and preserves saved bytes (2.754798ms)
+✔ 10.1 without a settings file, context guidance reads as 600,000 tokens with its type and meaning (1.879303ms)
+✔ 10.4 invalid settings are reported on read and set, and their bytes are preserved (4.786872ms)
+✔ 10.4 an unreadable settings path is reported and a set does not replace it (0.73078ms)
+✔ 10.3 unknown names and values that are not positive whole numbers are refused without changing the file (0.902926ms)
+✔ 10.10 idle-after defaults to 30 minutes and accepts positive durations without losing other settings (1.743435ms)
+✔ 10.10 invalid idle durations are refused with a reason and leave the file byte for byte (1.99374ms)
+✔ 10.5 the library is local by default, set to a Cloud SQL instance, and set back to local (1.680816ms)
+✔ 10.6 a library setting that is not local or a well-written Cloud SQL instance and account is refused, the file untouched (1.133756ms)
+✔ 6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged (233.509138ms)
+✔ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (212.136262ms)
+✔ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (234.042592ms)
+✔ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (246.024322ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (187.86133ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (230.571552ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (239.500198ms)
+✔ 6.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them (154.601736ms)
+✔ 6.2 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim (197.367012ms)
+✔ 6.3 every call is recorded against the session that made it, using the session id the harness passes, and the machine it ran on (122.152692ms)
+✔ 6.4 a bad call gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn't running, carry on without it" (126.023592ms)
+✔ 6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers (3196.996085ms)
+ℹ show_plan answered after 3003 ms: storytree refused that: storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.
+✔ 6.5 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place (204.86104ms)
+✔ the sentence travels with the data: a harness that shows the agent a tool's data instead of its text, as Claude Code 2.1.212 did, still shows the sentence (regression: the agent link's live check, 2026-09-26) (106.016823ms)
+✔ 6.6 searching and opening a note leaves a log line saying which session read it, how it was found (search, link, id or shelf) and whether it took a peek or the whole note (138.144206ms)
+✔ 6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing (145.615741ms)
+✔ 6.8 after Claude Code's /clear, which gives the window a new session id the tool server never sees, each call is recorded on the new session its hook named; a call no hook saw keeps the id the server was started with (471.296568ms)
+✔ 6.22 a test client calls read_context as session S and gets S's reading, worked out at the time of the call, including after S's transcript has grown with no turn ended; after a /clear whose hook named session T, the same call returns T's (127.419715ms)
+✔ 6.9 it parks an increment, readies it, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc (170.29391ms)
+✔ 6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer (167.876574ms)
+✔ 6.12 friction capture uses the calling folder's branch for the shared daily cap (114.677329ms)
+✔ 6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written (137.672589ms)
+✔ 6.13 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal (200.473889ms)
+✔ 6.14 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired (137.373039ms)
+✔ 6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment, and retiring a question an increment is held on is refused (177.406352ms)
+✔ 6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences (176.81082ms)
+✔ 6.17 another story registers its tools on this server, sharing routing, the session log and its instructions (135.216689ms)
+✔ 6.18 another story supplies land's next line only when needed; a refused landing asks for none (147.150589ms)
+✔ 6.16 every library write from a tool names the calling session, including compound writes, claims, and a session changed by the harness (354.898346ms)
+✔ 6.19 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder (234.580934ms)
+✔ ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing (124.300314ms)
+✔ 6.19 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals (276.312768ms)
+✔ 6.22 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words (104.717112ms)
+✔ 10.7 the panel renders every reading with its value, source, meaning and labelled control (1.768914ms)
+✔ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (3005.844324ms)
+ℹ tests 61
+ℹ suites 0
+ℹ pass 61
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9862.022275
+test Postgres: stopped (0.1 s)

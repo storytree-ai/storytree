@@ -14,7 +14,7 @@ export const settings: Family = {
     async act(args) {
       if (args.words.length || args.names.length) throw new Refusal("usage: storytree settings show", { code: 2 });
       const read = readSettings();
-      return { text: [settingSaid(read["context-guidance"]), librarySaid(read.library)].join("\n\n") };
+      return { text: Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n") };
     },
   }, {
     name: "set",
@@ -33,8 +33,9 @@ export const settings: Family = {
 };
 
 function settingSaid(reading: SettingReading): string {
-  return `${reading.name}: ${reading.value} ${reading.unit} (${reading.source})\n`
-    + `  Type: ${reading.type}; default: ${reading.default} ${reading.unit}.\n  ${reading.meaning}`;
+  const unit = reading.unit === "" ? "" : ` ${reading.unit}`;
+  return `${reading.name}: ${reading.value}${unit} (${reading.source})\n`
+    + `  Type: ${reading.type}; default: ${reading.default}${unit}.\n  ${reading.meaning}`;
 }
 
 function librarySaid(reading: LibraryReading): string {

@@ -1,0 +1,1 @@
+PASS: actual gear/settings components show 600000 and 30m; save 10m; reject soon, 0m, -5m inline without changing saved bytes; no browser errors. Component preview only; session and claim liveness are verified separately in green.txt.

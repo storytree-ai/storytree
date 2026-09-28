@@ -9,7 +9,9 @@ test("10.7 the panel renders every reading with its value, source, meaning and l
     const readings = readSettings(home);
     const html = renderSettings(readings);
     assert.match(html, /Context guidance/);
-    assert.match(html, /value="700000"/);
+    assert.match(html, /value="600000"/);
+    assert.match(html, /Time before a session is considered idle/);
+    assert.match(html, /input[^>]+inputmode="text"[^>]+value="30m"/);
     assert.match(html, /default/);
     assert.ok(html.includes(readings["context-guidance"].meaning));
     assert.match(html, /Library/);

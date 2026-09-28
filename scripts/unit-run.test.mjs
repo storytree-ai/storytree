@@ -18,10 +18,13 @@ function fixture(t, files) {
 
 /** Run quietly, keeping what the unit printed. */
 function captured() {
-  const out = { text: "" };
-  return { out, options: { stdio: ["ignore", "pipe", "pipe"], onSpawn: (child) => {
+  const out = { text: "", stderr: "" };
+  let finish;
+  const closed = new Promise((resolve) => { finish = resolve; });
+  return { out, closed, options: { stdio: ["ignore", "pipe", "pipe"], onSpawn: (child) => {
     child.stdout.on("data", (chunk) => (out.text += chunk));
-    child.stderr.on("data", (chunk) => (out.text += chunk));
+    child.stderr.on("data", (chunk) => { out.text += chunk; out.stderr += chunk; });
+    child.once("close", finish);
   } } };
 }
 
@@ -38,11 +41,13 @@ console.error("a different file's stderr"); test("healthy neighbor", () => {});`
   // Windows does not preserve a Unix termination signal in a self-killed process's status.
   if (process.platform !== "win32") files["signal.test.mjs"] = `process.kill(process.pid, "SIGTERM");`;
   const root = fixture(t, files);
-  const { out, options } = captured();
+  const { out, closed, options } = captured();
   const result = await runUnit({ root, files: Object.keys(files), env: process.env, args: ["--test-concurrency=4"], ...options });
+  await closed; // runUnit's bounded exit is earlier than the last bytes on its output pipes
   assert.notEqual(result.code, 0);
   assert.equal(result.timedOut, false);
-  const diagnostics = out.text.slice(out.text.indexOf("test harness: file failures"));
+  const diagnostics = out.stderr;
+  assert.match(diagnostics, /test harness: file failures/);
   assert.match(diagnostics, /exit\.test\.mjs\n  exit code: 7; signal: none\n  stderr:\n  loader stopped before tests/);
   assert.match(diagnostics, /load\.test\.mjs\n  exit code: 1; signal: none\n  stderr:[\s\S]*cannot load relief fixture/);
   assert.match(diagnostics, /rejection\.test\.mjs\n  exit code: 1; signal: none\n  stderr:[\s\S]*unhandled fixture rejection/);
@@ -55,8 +60,9 @@ test("a test that fails leaving a handle open ends its unit with that failure, n
     "leak.test.mjs": `import { test } from "node:test"; import assert from "node:assert"; import net from "node:net";
 test("fails holding a server", () => { net.createServer().listen(0); assert.equal(1, 2); });`,
   });
-  const { out, options } = captured();
+  const { out, closed, options } = captured();
   const result = await runUnit({ root, files: ["leak.test.mjs"], env: process.env, unitLimitMs: 30_000, ...options });
+  await closed;
   assert.notEqual(result.code, 0);
   assert.equal(result.timedOut, false, "it ended by itself, well before the unit's deadline");
   assert.match(out.text, /✖ fails holding a server/, "with the test's own failure");
@@ -67,8 +73,9 @@ test("a test that never ends fails at the per-test limit, and the unit goes on t
     "stuck.test.mjs": `import { test } from "node:test";
 test("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
   });
-  const { out, options } = captured();
+  const { out, closed, options } = captured();
   const result = await runUnit({ root, files: ["stuck.test.mjs"], env: process.env, testLimitMs: 1_000, unitLimitMs: 30_000, ...options });
+  await closed;
   assert.notEqual(result.code, 0);
   assert.equal(result.timedOut, false);
   assert.match(out.text, /✖ never ends[\s\S]*timed out after 1000ms/, "node names the test and its limit");

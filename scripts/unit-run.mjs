@@ -28,7 +28,8 @@ export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_
   const guard = ["--test-force-exit"];
   if (!args.some((arg) => arg.startsWith("--test-timeout"))) guard.push(`--test-timeout=${testLimitMs}`);
   if (!args.some((arg) => arg.startsWith("--test-reporter"))) {
-    guard.push("--test-reporter=spec", "--test-reporter-destination=stdout", `--test-reporter=${pathToFileURL(reporter).href}`, "--test-reporter-destination=stdout");
+    // Separate destinations: spec ending stdout can discard another reporter's final output.
+    guard.push("--test-reporter=spec", "--test-reporter-destination=stdout", `--test-reporter=${pathToFileURL(reporter).href}`, "--test-reporter-destination=stderr");
   }
   // A unit is a run of its own even when a test runs it: under node:test, NODE_TEST_CONTEXT would
   // make it report into the outer run instead.

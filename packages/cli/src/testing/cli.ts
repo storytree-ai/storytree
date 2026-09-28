@@ -100,7 +100,7 @@ export interface Ran {
 
 /** Assert the command's exit status, retaining its output when it fails. */
 export function assertExitCode(ran: Pick<Ran, "code" | "stdout" | "stderr">, expected: number, context = "built command"): void {
-  assert.equal(ran.code, expected, context);
+  assert.equal(ran.code, expected, `${context}\nstderr:\n${ran.stderr}\nstdout:\n${ran.stdout}`);
 }
 
 export interface RunOptions {
@@ -132,7 +132,7 @@ export function storytree(script: string, args: readonly string[], options: RunO
     child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
     child.on("error", reject);
-    child.on("exit", (code) => resolve({ code, stdout, stderr, ms: performance.now() - started }));
+    child.on("close", (code) => resolve({ code, stdout, stderr, ms: performance.now() - started }));
   });
 }
 

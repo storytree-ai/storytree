@@ -46,7 +46,7 @@ export function verifyHooks(lines: readonly Line[], session: string, harness: st
 /** What each fix says to do. */
 export const FIX_SENTENCES: Readonly<Record<Fix, string>> = {
   "new-session":
-    "Hooks registered during a session work from the next one, so once this session's work is done, start a new session and call check_setup again. The hook before storytree's own tools fires only when its tool server is registered under the name storytree.",
+    "A session's start reaches storytree only when the session starts in a storytree project with storytree's hooks already registered, so a session that set up its project or its hooks cannot show it. Once this session's work is done, start a new session here and call check_setup again. The hook before storytree's own tools fires only when its tool server is registered under the name storytree.",
   "codex-approval":
     "Codex runs storytree's hooks only once the user approves them: ask the user to run `codex` in a terminal and trust the storytree hooks when it asks (or use /hooks there), then start a new session.",
   "edit-check-file": `To fire the edit hook, write any text to the file ${CHECK_FILE} in this folder.`,

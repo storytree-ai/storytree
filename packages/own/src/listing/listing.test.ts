@@ -77,9 +77,12 @@ test('3.5/4.1: every offered stop uses stopping authority, including named sibli
       assert.equal(row.stop.available, stopped.targets.find(target => target.target === row.run.id)?.status !== 'refused',
         `${JSON.stringify(caller)} offered ${row.run.id} outside stopping authority`);
     }
+    if (caller.agent === 'unknown') {
+      await assert.rejects(listing.listRuns({ home, owner: caller }), /identity.*--all/s);
+      continue;
+    }
     const self = await listing.listRuns({ home, owner: caller });
     if (typeof caller.agent === 'object') assert.deepEqual(self.rows.map(row => row.run.id), [own.id]);
-    if (caller.agent === 'unknown') assert.equal(self.rows.length, 0);
   }
 });
 

@@ -16,7 +16,7 @@ export const BGE_SMALL = "Xenova/bge-small-en-v1.5";
 
 /** Where models are kept: STORYTREE_MODELS, else `<storytree home>/models`. */
 export function modelsFolder(env: NodeJS.ProcessEnv = process.env): string {
-  return env.STORYTREE_MODELS ?? path.join(env.STORYTREE_HOME ?? path.join(homedir(), ".storytree", "0.3"), "models");
+  return env.STORYTREE_MODELS ?? path.join(env.STORYTREE_HOME ?? path.join(homedir(), ".storytree/0.3"), "models");
 }
 
 /**

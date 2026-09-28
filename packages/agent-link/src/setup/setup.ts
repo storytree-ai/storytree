@@ -41,6 +41,11 @@ export interface SetupOptions {
   readonly hook?: HookCommand;
   /** Where the harnesses keep their settings. By default, CLAUDE_CONFIG_DIR or ~/.claude, and CODEX_HOME or ~/.codex. */
   readonly homes?: Homes;
+  /**
+   * The harness whose session runs this check, when one does: its tool server is running there, so it
+   * is connected, even if the user disconnected it before.
+   */
+  readonly harness?: "claude-code" | "codex";
   /** The storytree home, where the app keeps its Postgres and how to open it. By default, storytreeHome(). */
   readonly storytreeHome?: string;
   /** How long to wait for storytree to come up after opening it. */

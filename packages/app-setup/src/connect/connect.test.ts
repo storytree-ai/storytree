@@ -144,6 +144,31 @@ test("2.5: disconnect one keeps the other and command; disconnect all removes on
   assert.equal(readFileSync(library, "utf8"), "project data");
 });
 
+test("2.5: a disconnected harness stays disconnected: the other harness's next setup check does not register its hooks again, and connecting it again does", async (t) => {
+  const f = fixture(t);
+  await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });
+  const hook = { node: process.execPath, script: path.join(f.tools, "storytree-hook.mjs") };
+  registerHooks({ claude: f.claude, codex: f.codex }, hook);
+  const codexHooks = path.join(f.codex, "hooks.json");
+  const result = await disconnectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.equal(result.harnesses[0]!.tools, "disconnected");
+  assert.doesNotMatch(result.next, /register hooks/, "no warning that they come back");
+  assert.equal(existsSync(codexHooks), false);
+
+  // The next Claude Code session's setup check, as its tool server runs it.
+  const check = () => runSetupCheck({
+    folder: f.home, hook, homes: { claude: f.claude, codex: f.codex }, storytreeHome: path.join(f.home, ".storytree", "0.3"), openWaitMs: 0, harness: "claude-code",
+    gh: async () => "missing", machine: async () => ({ claude: "missing", codex: "missing", git: "missing", node: { state: "missing" }, waitMs: 0 }),
+  });
+  const report = await check();
+  assert.equal(existsSync(codexHooks), false, "Codex's hooks are still absent");
+  assert.equal(report.hooks?.["claude-code"], "already registered", "Claude Code's are kept");
+
+  await connectAgents({ ...f.options, harnesses: ["codex"] });
+  await check();
+  assert.equal(existsSync(codexHooks), true, "connected again, Codex gets its hooks at the next check");
+});
+
 test("2.3: incompatible Codex command and disabled tools are explained without overwriting", async (t) => {
   const f = fixture(t);
   const original = `${legacy}\n[mcp_servers.storytree]\ncommand = "storytree-02"\nargs = []\n`;

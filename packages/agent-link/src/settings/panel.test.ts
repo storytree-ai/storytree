@@ -15,6 +15,8 @@ test("10.7 the panel reads every setting and writes through the CLI's writers", 
     assert.equal(saved.ok, true);
     assert.equal(readSettings(home)["context-guidance"].value, 420000);
     assert.equal(readSettings(home)["context-guidance"].source, "set");
+    assert.equal((await panel.saveSetting("idle-after", ["10m"])).ok, true);
+    assert.equal(readSettings(home)["idle-after"].value, "10m");
     assert.equal((await panel.saveSetting("library", ["cloudsql", "my-project:australia-southeast1:my-instance", "you@example.com"])).ok, true);
     assert.equal(readSettings(home).library.location, "cloudsql");
     assert.equal((await panel.saveSetting("library", ["local"])).ok, true);
@@ -34,6 +36,11 @@ test("10.8 refusal crosses IPC as the exact writer reason and preserves saved by
     assert.equal((await panel.saveSetting("library", ["cloudsql", "broken", "you@example.com"])).ok, false);
     assert.equal((await panel.saveSetting("context-guidance", ["1", "ignored"])).ok, false);
     assert.equal((await panel.saveSetting(null, ["1"])).ok, false);
+    for (const value of ["soon", "0m", "-5m"]) {
+      const result = await panel.saveSetting("idle-after", [value]);
+      assert.ok(!result.ok);
+      assert.match(result.error, /idle-after.*positive duration/i);
+    }
     assert.equal(readFileSync(file, "utf8"), before);
   });
 });

@@ -95,7 +95,7 @@ test("9.5 a session's reading is worked out when asked, from the transcript last
     assert.deepEqual(first, { session: "S", harness: "claude-code", tokens: 1_100,
       // No record before its one request: all 1,100 tokens are the system prompt and tool list (9.8).
       composition: { injected: 1_100, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 },
-      guidance: { value: 700_000, source: "default", position: "under" },
+      guidance: { value: 600_000, source: "default", position: "under" },
       at: "2026-09-28T02:00:00.000Z", source: mine });
 
     // The transcript grew with no turn ended and no hook fired: the next ask sees it.
@@ -127,7 +127,7 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
     const json = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "S" }, json: true, locate });
     assert.equal(json.code, 0);
     assert.deepEqual({ ...JSON.parse(json.text), at: "-" }, { session: "S", harness: "claude-code", tokens: 494_345,
-      guidance: { value: 700_000, source: "default", position: "under" },
+      guidance: { value: 600_000, source: "default", position: "under" },
       composition: { injected: 494_345, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, at: "-", source: transcript });
 
     const nothing = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "nobody" }, locate });
@@ -152,7 +152,7 @@ test("9.7 a reading states fresh default or set guidance, including under, at an
       assert.equal(reading.tokens, tokens);
       return reading;
     };
-    assert.deepEqual((await read(317_000)).guidance, { value: 700_000, source: "default", position: "under" });
+    assert.deepEqual((await read(317_000)).guidance, { value: 600_000, source: "default", position: "under" });
     setSetting("context-guidance", "400000", home);
     for (const [tokens, position] of [[317_000, "under"], [400_000, "at"], [450_000, "past"]] as const) {
       assert.deepEqual((await read(tokens)).guidance, { value: 400_000, source: "set", position });
@@ -187,7 +187,7 @@ test("9.7 the context command states guidance and its source, exits 0 under and 
     writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 317_000, read: 0, created: 0 })));
     const defaults = await contextCommand(options);
     assert.equal(defaults.code, 0);
-    assert.match(defaults.text, /under.*700,000.*default/i);
+    assert.match(defaults.text, /under.*600,000.*default/i);
     setSetting("context-guidance", "400000", home);
     for (const [tokens, position] of [[317_000, "under"], [450_000, "past"]] as const) {
       writeFileSync(transcript, jsonl(claudeLine("req_2", { input: tokens, read: 0, created: 0 })));

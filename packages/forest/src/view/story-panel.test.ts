@@ -11,13 +11,14 @@ import type { CapabilityLine, StoryPanel } from "@storytree/forest";
 
 import { renderStoryPanel } from "./story-panel.js";
 
-function line(id: string, state: CapabilityLine["state"], reported: CapabilityLine["reported"]): CapabilityLine {
+function line(id: string, state: CapabilityLine["state"], reported: CapabilityLine["reported"], status: CapabilityLine["status"] = "proposed"): CapabilityLine {
   return {
     id,
     title: `The ${id}`,
     description: `What ${id} does.`,
     reported,
     state,
+    status,
     contracts: [{ id: `${id}-k`, title: `${id} keeps its promise`, reported, trail: "green only" }],
   };
 }
@@ -26,10 +27,10 @@ const panel: StoryPanel = {
   story: "s",
   title: "Story s",
   description: "What s is. Why.",
-  capabilities: [line("base", "landed", "passing"), line("next", "in-progress", "failing")],
+  capabilities: [line("base", "landed", "passing", "healthy"), line("next", "in-progress", "failing")],
   arrows: [
-    { from: "next", to: "base", toTitle: "The base", landed: true },
-    { from: "base", to: "away", toTitle: "The away", toStory: "Story t", landed: false },
+    { from: "next", to: "base", toTitle: "The base", landed: true, toStatus: "healthy" },
+    { from: "base", to: "away", toTitle: "The away", toStory: "Story t", landed: false, toStatus: "untested" },
   ],
 };
 
@@ -49,7 +50,8 @@ test("4.6 the panel is the story's sentences, its diagram, and below it only the
   const below = html.slice(detail);
   assert.match(below, /The next/);
   assert.match(below, /What next does\./);
-  assert.match(below, /in progress/);
+  assert.match(below, /<span class="panel-state status-proposed">proposed<\/span>/, "its word, not its work state");
+  assert.doesNotMatch(below, /in progress/);
   assert.match(below, /the agent reports: failing/);
   assert.match(below, /<details><summary>1 contract<\/summary>[\s\S]*next keeps its promise/, "its contracts, folded until asked for");
   assert.doesNotMatch(html, /What base does\./, "no other capability's sentences");
@@ -58,7 +60,7 @@ test("4.6 the panel is the story's sentences, its diagram, and below it only the
   assert.doesNotMatch(html, /Front covers|panel-shelf|data-book-id/, "no front covers (ADR-0659 D4)");
 });
 
-test("4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its health; another story's is not", () => {
+test("4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its word; another story's is not", () => {
   const html = renderStoryPanel(panel, "next");
   const next = box(html, "The next");
   assert.match(next, /data-capability-id="next"/);
@@ -66,32 +68,41 @@ test("4.8 each of the story's capabilities is a box you can click, marked when s
   assert.match(next, /tabindex="0"/);
   assert.match(next, /aria-pressed="true"/);
   assert.match(next, /\bselected\b/);
-  assert.match(next, /\bhealth-failing\b/);
-  assert.match(next, /\bpending\b/, "not landed yet: dashed");
+  assert.match(next, /\bstatus-proposed\b/);
+  assert.doesNotMatch(next, /\bhealth-/, "the agent's report never tints a card");
   const base = box(html, "The base");
   assert.match(base, /aria-pressed="false"/);
-  assert.match(base, /\bhealth-passing\b/);
-  assert.doesNotMatch(base, /\bpending\b|\bselected\b/);
+  assert.match(base, /\bstatus-healthy\b/);
+  assert.doesNotMatch(base, /\bselected\b/);
   const away = box(html, "Story t · The away");
   assert.match(away, /\belsewhere\b/);
   assert.doesNotMatch(away, /data-capability-id|role=|tabindex|aria-pressed/, "another story's capability is context, not a surface (ADR-0659 D3)");
 });
 
-test("4.10 each card has a strip naming its work state in words, and the agent's report and storytree's as labelled marks", () => {
-  const html = renderStoryPanel({ ...panel, capabilities: [{ ...line("base", "landed", "passing"), verified: "failing" }, line("next", "in-progress", "failing")] }, "next");
+test("4.10 each card has a strip saying proposed, healthy, unhealthy or untested, coloured by it, and the agent's report and storytree's as labelled marks", () => {
+  const capabilities = [
+    { ...line("base", "landed", "passing", "unhealthy"), verified: "failing" as const },
+    line("next", "in-progress", "failing", "proposed"),
+    line("done", "landed", "failing", "healthy"),
+    line("bare", "planned", "passing", "untested"),
+  ];
+  const html = renderStoryPanel({ ...panel, capabilities }, "next");
   const base = box(html, "The base");
   assert.match(base, /class="card-strip"/);
-  assert.match(base, /<text class="card-status"[^>]*>landed<\/text>/);
-  assert.match(base, /\bstate-landed\b/, "the strip is coloured by the work state");
+  assert.match(base, /<text class="card-status"[^>]*>unhealthy<\/text>/);
+  assert.match(base, /\bstatus-unhealthy\b/, "the strip is coloured by the word");
   assert.match(base, /the agent reports: passing/);
   assert.match(base, /storytree saw: failing/);
   const next = box(html, "The next");
-  assert.match(next, /<text class="card-status"[^>]*>in progress<\/text>/);
-  assert.match(next, /\bstate-in-progress\b/);
+  assert.match(next, /<text class="card-status"[^>]*>proposed<\/text>/);
+  assert.match(next, /\bstatus-proposed\b/);
   assert.match(next, /the agent reports: failing/);
   assert.doesNotMatch(next, /storytree saw/, "storytree's mark only where something wrote it");
+  assert.match(box(html, "The done"), /<text class="card-status"[^>]*>healthy<\/text>/);
+  assert.match(box(html, "The bare"), /<text class="card-status"[^>]*>untested<\/text>/);
   const away = box(html, "Story t · The away");
-  assert.match(away, /<text class="card-status"[^>]*>not landed yet<\/text>/);
+  assert.match(away, /<text class="card-status"[^>]*>untested<\/text>/, "another story's card says its word too");
+  assert.doesNotMatch(html, /card-status"[^>]*>(planned|in progress|landed|not landed yet)</, "the work state has left the card");
 });
 
 test("4.11 the tree has its own space in the panel, at full size, with a pop-out icon beside it and no text button", () => {

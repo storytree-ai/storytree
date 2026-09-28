@@ -457,6 +457,26 @@ for (const backend of [memory, postgres]) {
     }
     assert.equal((await transactions.history()).length, raceStart.length + 1, "one edit was written, and only one");
   });
+
+  contract("4.6", "a capability is born proposed; the agent switches the flag off, and back on, with its writer in history; one written before the flag reads proposed", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const capability = await work.addCapability({ title: "Email form", story: story.id });
+    const contract = await work.addContract({ title: "Rejects a bad email", capability: capability.id });
+    assert.equal(capability.fields.proposed, true, "born proposed");
+
+    assert.equal((await work.setProposed(capability.id, false, { actor: "agent-a" }))?.fields.proposed, false);
+    assert.equal((await records.get(capability.id))?.fields.proposed, false, "stored");
+    assert.equal((await transactions.history({ id: capability.id })).at(-1)?.actor, "agent-a", "with its writer");
+    assert.equal((await work.setProposed(capability.id, true))?.fields.proposed, true, "and back on");
+
+    const before = await transactions.history();
+    assert.equal(await work.setProposed(contract.id, false), null, "only a capability has the flag");
+    assert.equal(await work.setProposed("capability_000000000000", false), null);
+    assert.deepEqual(await transactions.history(), before, "nothing written");
+
+    await transactions.save({ id: "capability-old", type: "capability", version: 1, fields: { title: "Old one", story: story.id } });
+    assert.equal((await records.get("capability-old"))?.fields.proposed, true, "a capability written before the flag reads proposed");
+  });
 }
 
 /**

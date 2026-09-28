@@ -1,0 +1,33 @@
+# red(cardwords): the new tests, run before the build (node --test, no database: forest files, and the library's memory-backend and pure tests)
+✔ 4.1 a story whose third capability builds on the first two opens in build order, with the agent's health, and a diagram of exactly two arrows (2.044645ms)
+✖ 4.2 a capability that builds on one in another story points at it, named with that story, and marked until it lands (2.360243ms)
+✔ 4.3 a capability with no description says so instead of leaving a blank (0.15829ms)
+✔ 4.4 a contract reported red, then green, says so; one reported only green says that (0.351686ms)
+✔ 4.5 storytree's own column shows beside the agent's only where something wrote it (0.291372ms)
+✔ 4.7 the panel shows one capability below its diagram: the one chosen, else the first in build order not yet landed (0.560572ms)
+✖ 4.10 each capability, and each other story's capability it points at, carries the library's word for it (0.3748ms)
+SyntaxError: The requested module './pan-zoom.js' does not provide an export named 'fitted'
+✖ packages/forest/src/view/pan-zoom.test.ts (114.387399ms)
+✖ 4.6 the panel is the story's sentences, its diagram, and below it only the capability selected (9.289034ms)
+✖ 4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its word; another story's is not (1.580214ms)
+✖ 4.10 each card has a strip saying proposed, healthy, unhealthy or untested, coloured by it, and the agent's report and storytree's as labelled marks (2.037591ms)
+✔ 4.11 the tree has its own space in the panel, at full size, with a pop-out icon beside it and no text button (1.281568ms)
+✔ 4.8 a story with no capabilities shows its sentences and nothing below (0.174681ms)
+ℹ pass 7
+ℹ fail 6
+✖ failing tests:
+✖ 4.2 a capability that builds on one in another story points at it, named with that story, and marked until it lands (2.360243ms)
+✖ 4.10 each capability, and each other story's capability it points at, carries the library's word for it (0.3748ms)
+✖ packages/forest/src/view/pan-zoom.test.ts (114.387399ms)
+✖ 4.6 the panel is the story's sentences, its diagram, and below it only the capability selected (9.289034ms)
+✖ 4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its word; another story's is not (1.580214ms)
+✖ 4.10 each card has a strip saying proposed, healthy, unhealthy or untested, coloured by it, and the agent's report and storytree's as labelled marks (2.037591ms)
+SyntaxError: The requested module './index.js' does not provide an export named 'capabilityStatus'
+✖ packages/library/src/health/health-record.test.ts (203.445337ms)
+✖ 4.6 [memory] a capability is born proposed; the agent switches the flag off, and back on, with its writer in history; one written before the flag reads proposed (6.784367ms)
+ℹ pass 0
+ℹ fail 2
+✖ failing tests:
+✖ packages/library/src/health/health-record.test.ts (203.445337ms)
+✖ 4.6 [memory] a capability is born proposed; the agent switches the flag off, and back on, with its writer in history; one written before the flag reads proposed (6.784367ms)
+# CLI 10.3 and agent-link 6.23 need the built command and Postgres; they run red in CI on this commit's push.

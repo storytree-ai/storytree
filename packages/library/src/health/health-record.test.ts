@@ -22,7 +22,7 @@ import { NewerSchemaError, SchemaError, SchemaRecords, type RecordType, type Sch
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { WorkModel, type ProjectTree } from "../work/index.js";
-import { HealthRecord, type AnnotatedTree, type HealthEntry, type NodeHealth } from "./index.js";
+import { capabilityStatus, HealthRecord, type AnnotatedTree, type HealthEntry, type NodeHealth } from "./index.js";
 
 /** A fresh, empty library: the health record under test, and the layers it runs over. */
 interface Library {
@@ -443,6 +443,35 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(health.health(sibling.id), NewerSchemaError);
     await assert.rejects(health.healthHistory(sibling.id), NewerSchemaError);
   });
+
+  contract("5.6", "a capability's word is proposed while its flag is on, and once the agent switches it off comes from the verified column alone: healthy, unhealthy or untested", async ({ health, work }) => {
+    const { capability, contract, sibling } = await smallPlan(work);
+    const wordOf = async (): Promise<string | undefined> =>
+      (await health.annotate()).stories.flatMap((story) => story.capabilities).find(({ id }) => id === capability.id)?.status;
+
+    await health.recordVerified(contract.id, "passing");
+    await health.recordVerified(sibling.id, "passing");
+    assert.equal(await wordOf(), "proposed", "while proposed, even every contract verified passing reads proposed");
+
+    await work.setProposed(capability.id, false);
+    assert.equal(await wordOf(), "healthy", "every contract verified passing");
+
+    await health.recordVerified(sibling.id, "failing");
+    assert.equal(await wordOf(), "unhealthy", "any contract verified failing");
+    await health.recordVerified(sibling.id, "not-checked");
+    assert.equal(await wordOf(), "untested", "a contract with no verified result");
+
+    // The agent's reported column never turns a card healthy.
+    const fresh = await work.addCapability({ title: "Password rules", story: capability.fields.story });
+    const reported = await work.addContract({ title: "Refuses a short password", capability: fresh.id });
+    await work.setProposed(fresh.id, false);
+    await health.reportHealth(reported.id, "passing");
+    const freshWord = (await health.annotate()).stories.flatMap((story) => story.capabilities).find(({ id }) => id === fresh.id)?.status;
+    assert.equal(freshWord, "untested", "reported passing, nothing verified");
+
+    await work.setProposed(capability.id, true);
+    assert.equal(await wordOf(), "proposed", "switched back on, it reads proposed again");
+  });
 }
 
 /** One story › one capability › two contracts: the plan most of these tests write health on. */
@@ -585,3 +614,11 @@ function schemaError(type: RecordType, fields: readonly string[]): (error: unkno
     return true;
   };
 }
+
+test("5.6 the word of a capability, from its flag and its contracts' verified states", () => {
+  assert.equal(capabilityStatus(true, ["passing"]), "proposed");
+  assert.equal(capabilityStatus(false, ["passing", "passing"]), "healthy");
+  assert.equal(capabilityStatus(false, ["passing", "failing", "not-checked"]), "unhealthy");
+  assert.equal(capabilityStatus(false, ["passing", "not-checked"]), "untested");
+  assert.equal(capabilityStatus(false, []), "untested", "no contracts, nothing verified");
+});

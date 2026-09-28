@@ -1,0 +1,16 @@
+✔ own 3.4/3.6/4.1: MCP reads the offline ledger and stops only the named caller scope (92.860224ms)
+✔ own 3.4/3.6/4.1: the built CLI inventories and stops offline, with each outcome and no cross-session authority (1312.582016ms)
+✔ 3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime (27.29298ms)
+✔ 3.5/4.1: every offered stop uses stopping authority, including named siblings and conflicting registrations (62.461002ms)
+✔ 3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline (11.713733ms)
+✔ 3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal (5.59585ms)
+✔ 3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle (16.92277ms)
+✔ 3.1: the inventory observes a real owned process live and then gone through the native probe (26.303931ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1561.146875

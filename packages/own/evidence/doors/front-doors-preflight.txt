@@ -1,0 +1,129 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/own-doors
+> node --import tsx scripts/test.mjs
+
+scope: full — everything — packages/agent-link/package.json changed: package manifests are the dependency graph this scope is read from
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, packages/own, scripts
+
+[Passing test detail omitted; failures and final table follow.]
+
+✖ failing tests:
+
+test at packages/agent-link/src/instructions/habits-card.test.ts:1:893
+✖ 7.1 the card names every tool the server has, and no tool the server lacks (86.041806ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      'attach_workspace',
+      'check_setup',
+      'claim',
+      'clear_wait',
+  ...
+      'land',
+  -   'list_all_runs',
+  -   'list_own_runs',
+      'make_workspace',
+      'open',
+      'park_arc',
+      'park_increment',
+      'plan_arc',
+  ...
+      'show_plan',
+  -   'stop_own_run',
+      'write_note'
+    ]
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors/packages/agent-link/src/instructions/habits-card.test.ts:41:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [
+      'attach_workspace', 'check_setup',
+      'claim',            'clear_wait',
+      'close_increment',  'correct_note',
+      'edit_plan',        'land',
+      'make_workspace',   'open',
+      'park_arc',         'park_increment',
+      'plan_arc',         'plan_capability',
+      'plan_contract',    'plan_story',
+      'raise_question',   'ready_increment',
+      'record_friction',  'record_resteer',
+      'reinforce',        'release',
+      'report',           'retire_from_plan',
+      'retire_question',  'search_notes',
+      'set_up_project',   'set_wait',
+      'settle_question',  'show_plan',
+      'write_note'
+    ],
+    expected: [
+      'attach_workspace', 'check_setup',
+      'claim',            'clear_wait',
+      'close_increment',  'correct_note',
+      'edit_plan',        'land',
+      'list_all_runs',    'list_own_runs',
+      'make_workspace',   'open',
+      'park_arc',         'park_increment',
+      'plan_arc',         'plan_capability',
+      'plan_contract',    'plan_story',
+      'raise_question',   'ready_increment',
+      'record_friction',  'record_resteer',
+      'reinforce',        'release',
+      'report',           'retire_from_plan',
+      'retire_question',  'search_notes',
+      'set_up_project',   'set_wait',
+      'settle_question',  'show_plan',
+      'stop_own_run',     'write_note'
+    ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/instructions/habits-card.test.ts:1:1430
+✖ 7.3 the tool server hands the card to the agent at the start of every session (14.000466ms)
+  AssertionError [ERR_ASSERTION]: session 1
+  + actual - expected
+  ... Skipped lines
+  
+    'storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.\n' +
+      '\n' +
+      "Start every session with `check_setup`, and do what it says. If this folder isn't a storytree project yet, it asks you to ask the user; call `set_up_project` only after they say yes.\n" +
+      '\n' +
+      'Plan first.\n' +
+  ...
+      '\n' +
+  +   "If storytree says it isn't running, carry on without it.\n" +
+  +   'Use `list_own_runs` for this caller’s recorded work, `list_all_runs` for every recorded session on this computer, and `stop_own_run` for named runs you own. These tools work with the app offline; uncertain caller identity grants no stop authority.'
+  -   "If storytree says it isn't running, carry on without it."
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors/packages/agent-link/src/instructions/habits-card.test.ts:56:14)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: "storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.\n\nStart every session with `check_setup`, and do what it says. If this folder isn't a storytree project yet, it asks you to ask the user; call `set_up_project` only after they say yes.\n\nPlan first.\n- `show_plan` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about.\n- Plan a story (something a user can do) with `plan_story`, the parts that make it work with `plan_capability`, and each testable promise with `plan_contract`. A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with `plan_arc`. Correct any of them with `edit_plan`, and `retire_from_plan` a capability or contract no longer wanted, with the reason.\n- Break an arc's work into increments with `park_increment` (the breakdown goes in its body), and `ready_increment` one once it can start. `park_arc` parks or unparks an arc.\n- When one piece of work must wait for another, `set_wait` with the reason; `clear_wait` when it no longer must.\n- When only the owner can decide, `raise_question` on the arc instead of only asking in chat, holding the increments that need the answer. `settle_question` with the answer, in the owner's own words; `retire_question` one that was wrong to ask.\n\nClaim, and open the knowledge you need.\n- `claim` the increment you drive: that starts it. `claim` a capability, with a one-line reason, before you touch it. If another session holds it, or it waits on other work, pick other work: nobody queues.\n- To start work in its own workspace, call `make_workspace` before claiming it. Claude Code gets a claimed worktree and instructions to enter it. For Codex, it checks availability and returns ref and name: call the desktop app’s create_worktree with those exact arguments, then `attach_workspace` with the returned folder, ref, name and your reason. Use that directory explicitly; creation does not change your cwd. If the app returns a folder with a registration error, attach it; do not create another. The app owns the folder, including after a refusal.\n- `open` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. `search_notes` finds artifacts by their words.\n\nRed, then green, then landed.\n- Write a contract's test first, run it, see it fail, and `report` it red.\n- Make it pass, and `report` it green.\n- When its contracts pass, `land` the capability: your claim on it ends. If you stop before then, `release` it.\n- When the increment is done, `close_increment` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with `park_increment` and its outcome.\n\nRecord what you learned.\n- `write_note` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. `correct_note` fixes an artifact's wording in place.\n- `record_friction` when something got in your way, with concrete evidence; `reinforce` the existing item when it happens again, with its own evidence. `record_resteer` when the owner redirects you, quoting their own words.\n\nIf storytree says it isn't running, carry on without it.\nUse `list_own_runs` for this caller’s recorded work, `list_all_runs` for every recorded session on this computer, and `stop_own_run` for named runs you own. These tools work with the app offline; uncertain caller identity grants no stop authority.",
+    expected: "storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.\n\nStart every session with `check_setup`, and do what it says. If this folder isn't a storytree project yet, it asks you to ask the user; call `set_up_project` only after they say yes.\n\nPlan first.\n- `show_plan` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about.\n- Plan a story (something a user can do) with `plan_story`, the parts that make it work with `plan_capability`, and each testable promise with `plan_contract`. A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with `plan_arc`. Correct any of them with `edit_plan`, and `retire_from_plan` a capability or contract no longer wanted, with the reason.\n- Break an arc's work into increments with `park_increment` (the breakdown goes in its body), and `ready_increment` one once it can start. `park_arc` parks or unparks an arc.\n- When one piece of work must wait for another, `set_wait` with the reason; `clear_wait` when it no longer must.\n- When only the owner can decide, `raise_question` on the arc instead of only asking in chat, holding the increments that need the answer. `settle_question` with the answer, in the owner's own words; `retire_question` one that was wrong to ask.\n\nClaim, and open the knowledge you need.\n- `claim` the increment you drive: that starts it. `claim` a capability, with a one-line reason, before you touch it. If another session holds it, or it waits on other work, pick other work: nobody queues.\n- To start work in its own workspace, call `make_workspace` before claiming it. Claude Code gets a claimed worktree and instructions to enter it. For Codex, it checks availability and returns ref and name: call the desktop app’s create_worktree with those exact arguments, then `attach_workspace` with the returned folder, ref, name and your reason. Use that directory explicitly; creation does not change your cwd. If the app returns a folder with a registration error, attach it; do not create another. The app owns the folder, including after a refusal.\n- `open` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. `search_notes` finds artifacts by their words.\n\nRed, then green, then landed.\n- Write a contract's test first, run it, see it fail, and `report` it red.\n- Make it pass, and `report` it green.\n- When its contracts pass, `land` the capability: your claim on it ends. If you stop before then, `release` it.\n- When the increment is done, `close_increment` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with `park_increment` and its outcome.\n\nRecord what you learned.\n- `write_note` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. `correct_note` fixes an artifact's wording in place.\n- `record_friction` when something got in your way, with concrete evidence; `reinforce` the existing item when it happens again, with its own evidence. `record_resteer` when the owner redirects you, quoting their own words.\n\nIf storytree says it isn't running, carry on without it.",
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+results:
+  PASS    apps/desktop
+  FAIL    packages/agent-link
+  PASS    packages/app
+  PASS    packages/app-setup
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    packages/own
+  PASS    scripts
+rerun only these: pnpm test -- --rerun-failed
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

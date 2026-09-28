@@ -1,0 +1,339 @@
+--- a/packages/cli/src/bins/build.ts
++++ b/packages/cli/src/bins/build.ts
+@@ -7,6 +7,8 @@
+  * directory of their own with buildCommand().
+  */
+ import path from "node:path";
++import { cp, mkdir } from 'node:fs/promises';
++import { createRequire } from 'node:module';
+ import { fileURLToPath, pathToFileURL } from "node:url";
+ 
+ import { build } from "esbuild";
+@@ -30,9 +32,23 @@
+     logLevel: "warning",
+     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
+     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
+-    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
++    external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
+   });
++  await stageNativeProbes(outdir);
+   return path.join(outdir, "storytree.mjs");
++}
++
++/** Koffi loads physical native files; preserve its package layout beside the standalone scripts. */
++async function stageNativeProbes(outdir: string): Promise<void> {
++  const require = createRequire(import.meta.url);
++  const ownRequire = createRequire(require.resolve('@storytree/own/process'));
++  const koffi = ownRequire.resolve('koffi');
++  const nativeName = `@koromix/koffi-${process.platform}-${process.arch}`;
++  const native = createRequire(koffi).resolve(nativeName);
++  const modules = path.join(outdir, 'node_modules');
++  await mkdir(path.join(modules, '@koromix'), { recursive: true });
++  await cp(path.dirname(koffi), path.join(modules, 'koffi'), { recursive: true, dereference: true });
++  await cp(path.dirname(native), path.join(modules, nativeName), { recursive: true, dereference: true });
+ }
+ 
+ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+--- a/packages/cli/src/families/index.ts
++++ b/packages/cli/src/families/index.ts
+@@ -13,6 +13,7 @@
+ import { noticeboard } from "./noticeboard.js";
+ import { plan } from "./tree.js";
+ import { workspace } from "./workspace.js";
++import { own } from "./own.js";
+ 
+ export const FAMILIES: readonly Family[] = [
+   library,
+@@ -27,4 +28,5 @@
+   plan,
+   setupFamily,
+   workspace,
++  own,
+ ];
+--- /dev/null
++++ b/packages/cli/src/families/own.ts
+@@ -0,0 +1,38 @@
++import { Refusal } from '../answer.js';
++import type { Family } from '../door.js';
++import { commandSession } from '../writer.js';
++
++export const own: Family = {
++  name: 'own', summary: 'see recorded work on this computer and stop your own runs',
++  bare: {
++    name: '', usage: 'own [--all]', summary: 'list this session’s work, or every recorded session with --all', switches: ['all'],
++    async act(args) {
++      if (args.words.length || args.names.some(name => name !== 'all')) {
++        throw new Refusal('usage: storytree own [--all]', { code: 2 });
++      }
++      const owner = commandSession();
++      const { listRuns, renderInventory } = await import('@storytree/own/listing');
++      const lifecycle = locateStorytree();
++      const inventory = await listRuns({ scope: args.has('all') ? 'all' : 'self', ...(owner ? { owner } : {}),
++        stopAction: run => ({ command: `storytree own stop ${run}` }),
++        shared: [{ name: 'storytree app and database', state: 'unknown',
++          reason: `The app lifecycle reports the database ${lifecycle.running ? 'running' : 'not running'}; it supplies no native lifetime or separate app identity. This shared work is managed by the app; use storytree app status or storytree app quit.` }],
++      });
++      return { text: renderInventory(inventory) };
++    },
++  },
++  verbs: [{
++    name: 'stop', usage: 'own stop <run…>', summary: 'stop named registered runs within this caller’s authority',
++    async act(args) {
++      if (!args.words.length || args.names.length) throw new Refusal('usage: storytree own stop <run…>', { code: 2 });
++      const owner = commandSession();
++      if (!owner) throw new Refusal('storytree own stop needs a session identity from the calling harness; use storytree own --all to inspect work.');
++      const { stopOwned } = await import('@storytree/own/stopping');
++      const stopped = await stopOwned({ owner, targets: args.words });
++      const text = JSON.stringify(stopped, null, 2);
++      if (!stopped.ok) throw new Refusal(text);
++      return { text };
++    },
++  }],
++};
++import { locateStorytree } from '@storytree/agent-link';
+--- /dev/null
++++ b/packages/cli/src/own.test.ts
+@@ -0,0 +1,49 @@
++import assert from 'node:assert/strict';
++import { mkdtemp, rm } from 'node:fs/promises';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import test from 'node:test';
++import { launchOwned } from '@storytree/own';
++import { BuiltCommand, storytree } from './testing/cli.js';
++
++test('own 3.4/3.6/4.1: the built CLI inventories and stops offline, with each outcome and no cross-session authority', async t => {
++  const home = await mkdtemp(path.join(tmpdir(), 'own-door-'));
++  const command = new BuiltCommand();
++  t.after(async () => { command.remove(); await rm(home, { recursive: true, force: true }); });
++  await command.build();
++  const runs = [];
++  for (const session of ['caller', 'other']) {
++    const launched = await launchOwned({ home: path.join(home, 'own'), owner: { session, harness: 'codex' },
++      command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
++    if (launched.pid) t.after(() => { try { process.kill(launched.pid!, 'SIGKILL'); } catch {} });
++    assert.equal(launched.status, 'tracked');
++    if (launched.status !== 'tracked') throw new Error('untracked test child');
++    runs.push(launched.run);
++  }
++  const invoke = (args: string[], identified = true) => storytree(command.script, ['own', ...args], {
++    cwd: home, home, env: { CODEX_THREAD_ID: identified ? 'caller' : '' },
++  });
++  const all = await invoke(['--all'], false);
++  assert.equal(all.code, 0, all.stderr);
++  for (const run of runs) assert.ok(all.stdout.includes(run.id), all.stdout);
++  assert.match(all.stdout, /LIVE/);
++  assert.match(all.stdout, /no.*stop authority/i);
++  assert.match(all.stdout, /untracked/);
++  const missing = await invoke([], false);
++  assert.equal(missing.code, 1);
++  assert.match(missing.stderr, /session identity.*--all/s);
++  const self = await invoke([]);
++  assert.equal(self.code, 0, self.stderr);
++  assert.ok(self.stdout.includes(`storytree own stop ${runs[0]!.id}`));
++  assert.ok(!self.stdout.includes(runs[1]!.id));
++  const stopped = await invoke(['stop', ...runs.map(run => run.id)]);
++  assert.equal(stopped.code, 1, stopped.stdout + stopped.stderr);
++  const result = JSON.parse(stopped.stderr);
++  assert.deepEqual(result.targets.map((target: { status: string }) => target.status), ['stopped', 'refused']);
++  const gone = await invoke(['stop', runs[0]!.id]);
++  assert.equal(gone.code, 0, gone.stderr);
++  assert.equal(JSON.parse(gone.stdout).targets[0].status, 'already-gone');
++  for (const args of [['clear'], ['stop'], ['--bogus'], ['stop', '--all']]) {
++    assert.equal((await invoke(args)).code, 2, `invalid arguments: ${args.join(' ')}`);
++  }
++});
+--- a/packages/agent-link/src/tools/server.ts
++++ b/packages/agent-link/src/tools/server.ts
+@@ -43,6 +43,7 @@
+ import { registerPlanTools } from "./plan-tools.js";
+ import { registerSetupTools } from "./setup-tools.js";
+ import { registerWorkTools } from "./work-tools.js";
++import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
+ 
+ export { NOT_RUNNING_ANSWER };
+ export type { Answer };
+@@ -110,7 +111,7 @@
+ export function createAgentTools(options: AgentToolOptions): AgentTools {
+   // ADR-0644 U1: enable the librarian for storytree's own library first. Its behaviour stays in
+   // its package; this is the shared registration point for other stories (ADR-0643 D6).
+-  const servedTools = ["check_setup", "set_up_project"];
++  const servedTools = ["check_setup", "set_up_project", ...OWN_TOOLS];
+   const extensions = [
+     ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools })] : []),
+     ...options.extensions ?? [],
+@@ -163,6 +164,18 @@
+     callerOf,
+   });
+   registerPlanTools(define);
++  registerOwnTools({
++    server,
++    ...(options.dataDir === undefined ? {} : { home: path.join(path.dirname(options.dataDir), 'own') }),
++    owner(context) {
++      const caller = callerOf(context);
++      const agent = agentOf([], metaOf(context));
++      // Claude's hook-corrected session and agent live in the database. A stale environment
++      // or an unknown agent cannot authorize another agent's runs while it is offline.
++      if (caller.session === ownSession || caller.harness !== 'codex' || agent === 'unknown') return undefined;
++      return { ...caller, agent };
++    },
++  });
+   registerClaimTools(define, extensions);
+   registerWorkTools(define);
+   registerNoteTools(define);
+--- a/packages/agent-link/src/tools/agent-tools.test.ts
++++ b/packages/agent-link/src/tools/agent-tools.test.ts
+@@ -43,6 +43,8 @@
+   "correct_note",
+   "edit_plan",
+   "land",
++  "list_all_runs",
++  "list_own_runs",
+   "make_workspace",
+   "open",
+   "park_arc",
+@@ -65,6 +67,7 @@
+   "set_wait",
+   "settle_question",
+   "show_plan",
++  "stop_own_run",
+   "write_note",
+ ];
+ 
+@@ -435,9 +438,9 @@
+         ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],
+         ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
+       ];
+-      // Every tool but the setup check's two, which open storytree when it is closed (capability 8).
+-      const setupTools = ["check_setup", "set_up_project"];
+-      assert.deepEqual(calls.map(([tool]) => tool).sort(), TOOLS.filter((tool) => !setupTools.includes(tool)), "every tool is tried");
++      // Own's offline tools and the setup check's two do not depend on the library.
++      const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run"];
++      assert.deepEqual(calls.map(([tool]) => tool).sort(), TOOLS.filter((tool) => !offlineTools.includes(tool)), "every library tool is tried");
+       for (const [tool, args] of calls) {
+         const answer = await agent.call(tool, args);
+         assert.deepEqual({ text: answer.text, isError: answer.isError }, { text: NOT_RUNNING_ANSWER, isError: false }, tool);
+--- /dev/null
++++ b/packages/agent-link/src/tools/own-tools.ts
+@@ -0,0 +1,39 @@
++/** Offline doors: no project routing, activity-log connection or synthetic session authority. */
++import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
++import { listRuns, renderInventory } from '@storytree/own/listing';
++import { stopOwned } from '@storytree/own/stopping';
++import type { RunOwner } from '@storytree/own';
++import { z } from 'zod';
++import { refusalOf, result, type Answer } from './answers.js';
++
++export const OWN_TOOLS = ['list_own_runs', 'list_all_runs', 'stop_own_run'];
++
++export function registerOwnTools(options: {
++  server: McpServer;
++  home?: string;
++  owner(context: ServerContext): RunOwner | undefined;
++}): void {
++  const ledger = options.home === undefined ? {} : { home: options.home };
++  const define = <S extends z.ZodObject>(name: string, description: string, inputSchema: S,
++    act: (args: z.output<S>, owner: RunOwner | undefined) => Promise<Answer>) => {
++    options.server.registerTool(name, { description, inputSchema }, (async (args: z.output<S>, context: ServerContext) => {
++      try { return result(await act(args, options.owner(context))); }
++      catch (error) { return result({ text: refusalOf(error), refused: true }); }
++    }) as never);
++  };
++  for (const [name, scope] of [['list_own_runs', 'self'], ['list_all_runs', 'all']] as const) {
++    define(name, scope === 'self' ? 'List this caller’s recorded work, offline.' : 'List all recorded sessions on this computer, offline; grants no additional stop authority.',
++      z.object({}).strict(), async (_args, owner) => {
++        const inventory = await listRuns({ ...ledger, scope, ...(owner ? { owner } : {}),
++          stopAction: run => ({ tool: 'stop_own_run', arguments: { runs: [run] } }),
++        });
++        return { text: renderInventory(inventory), data: { inventory } };
++      });
++  }
++  define('stop_own_run', 'Stop named registered run UUIDs within this caller’s ownership; report every outcome and retain records.',
++    z.object({ runs: z.array(z.string()).min(1) }).strict(), async ({ runs }, owner) => {
++      if (!owner) throw new Error('stop needs a resolved session and agent identity; use list_all_runs for attribution. Claude Code’s offline hook identity is unavailable.');
++      const stopped = await stopOwned({ ...ledger, owner, targets: runs });
++      return { text: JSON.stringify(stopped, null, 2), data: { result: stopped }, refused: !stopped.ok };
++    });
++}
+--- /dev/null
++++ b/packages/agent-link/src/tools/own-tools.test.ts
+@@ -0,0 +1,53 @@
++import assert from 'node:assert/strict';
++import { mkdtemp, rm } from 'node:fs/promises';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import test from 'node:test';
++import { Client } from '@modelcontextprotocol/client';
++import { InMemoryTransport } from '@modelcontextprotocol/server';
++import { launchOwned } from '@storytree/own';
++import { listRuns } from '@storytree/own/listing';
++import { createAgentTools } from './server.js';
++
++test('own 3.4/3.6/4.1: MCP reads the offline ledger and stops only the named caller scope', async t => {
++  const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));
++  t.after(() => rm(home, { recursive: true, force: true }));
++  const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: {} });
++  const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
++  const client = new Client({ name: 'codex-mcp-client', version: 'test' });
++  t.after(async () => { await client.close(); await tools.close(); });
++  await tools.server.connect(serverSide);
++  await client.connect(clientSide);
++  const runs = [];
++  for (const subagent of ['builder', 'sibling']) {
++    const launched = await launchOwned({ home: path.join(home, 'own'),
++      owner: { session: 'caller', harness: 'codex', agent: { subagent } },
++      command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
++    if (launched.pid) t.after(() => { try { process.kill(launched.pid!, 'SIGKILL'); } catch {} });
++    assert.equal(launched.status, 'tracked');
++    if (launched.status !== 'tracked') throw new Error('untracked test child');
++    runs.push(launched.run);
++  }
++  const call = (name: string, args = {}, meta?: Record<string, unknown>) => client.callTool({ name, arguments: args,
++    ...(meta ? { _meta: meta } : {}) });
++  const all = await call('list_all_runs');
++  assert.equal(all.isError, undefined, JSON.stringify(all));
++  const inventory = (all.structuredContent as Record<string, unknown>).inventory as Awaited<ReturnType<typeof listRuns>>;
++  const direct = await listRuns({ home: path.join(home, 'own'), scope: 'all' });
++  assert.deepEqual(inventory.rows.map(row => [row.run.id, row.process.state, row.request.state, row.stop]),
++    direct.rows.map(row => [row.run.id, row.process.state, row.request.state, row.stop]));
++  const missing = await call('list_own_runs');
++  assert.equal(missing.isError, true, JSON.stringify(missing));
++  assert.match(JSON.stringify(missing), /session identity/);
++  const meta = { sessionId: 'caller', threadId: 'builder' };
++  const self = await call('list_own_runs', {}, meta);
++  assert.equal(self.isError, undefined, JSON.stringify(self));
++  const rows = ((self.structuredContent as Record<string, unknown>).inventory as typeof inventory).rows;
++  assert.deepEqual(rows.map(row => row.run.id), [runs[0]!.id]);
++  assert.equal(rows[0]!.stop.available, true);
++  assert.equal(rows[0]!.stop.available && rows[0]!.stop.tool, 'stop_own_run');
++  const stopped = await call('stop_own_run', { runs: runs.map(run => run.id) }, meta);
++  assert.equal(stopped.isError, true, JSON.stringify(stopped));
++  const result = (stopped.structuredContent as Record<string, unknown>).result as { targets: { status: string }[] };
++  assert.deepEqual(result.targets.map(target => target.status), ['stopped', 'refused']);
++});
+--- a/packages/own/src/listing/index.ts
++++ b/packages/own/src/listing/index.ts
+@@ -7,11 +7,9 @@
+ import type { ProcessIdentity } from '../process/index.js';
+ import { owns, refusal } from '../stopping/stop.js';
+ 
+-export interface StopAction {
+-  readonly command: string;
+-  readonly tool: string;
+-  readonly arguments: Record<string, unknown>;
+-}
++export type StopAction =
++  | { readonly command: string; readonly tool?: string; readonly arguments?: Record<string, unknown> }
++  | { readonly command?: never; readonly tool: string; readonly arguments: Record<string, unknown> };
+ export type StopOffer =
+   | ({ readonly available: true; readonly reason?: never } & StopAction)
+   | { readonly available: false; readonly reason: string };
+@@ -116,7 +114,7 @@
+     if (run.parentRun) lines.push(`  Parent run: ${run.parentRun}`);
+     if (run.birth.state === 'live') lines.push(`  Lifetime: ${quoted(run.birth.identity.platform)} / ${quoted(run.birth.identity.boot)} / ${quoted(run.birth.identity.started)}`);
+     if (row.process.state === 'unknown') lines.push(`  Could not observe: ${quoted(row.process.reason)}`);
+-    lines.push(row.stop.available ? `  Stop: ${row.stop.command}` : `  No stop action: ${quoted(row.stop.reason)}`);
++    lines.push(row.stop.available ? `  Stop: ${row.stop.command ?? `${row.stop.tool} ${JSON.stringify(row.stop.arguments)}`}` : `  No stop action: ${quoted(row.stop.reason)}`);
+   }
+   for (const row of inventory.shared) lines.push('', `Shared — ${quoted(row.name)}: ${row.state}. ${row.reason}`);
+   for (const gap of inventory.gaps) lines.push(`Gap (${gap.kind})${gap.path ? ` ${quoted(gap.path)}` : ''}: ${quoted(gap.reason)}`);

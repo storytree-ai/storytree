@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { coreScene, legend, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { coreScene, legend, lighting, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -178,6 +178,26 @@ test("4.8 drilling into a listed session wears its colour: the orchestrator the 
   for (const shade of shades) assert.match(shade, /^hsl\(200, 80%, \d+%\)$/);
   assert.equal(new Set([key.get("orchestrator"), ...shades]).size, 3, "each agent still told apart");
   assert.equal(key.get("unknown"), legend(agents).find(({ agent }) => agent === "unknown")!.colour, "unknown stays pale");
+});
+
+test("4.9 the globe's dots light as the core does: every listed session with none selected, one session in its shades when selected", () => {
+  const history = project();
+  const roster = [
+    { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a"] },
+    { session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] },
+  ];
+  const lines = [read("a", "deep", "whole", "orchestrator"), read("b", "cover", "whole", "orchestrator"),
+    read("b", "deep", "whole", { subagent: "h1" }), read("z", "loose", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const present = new Set(known.notes.keys());
+  const all = lighting(reads, roster, undefined, present);
+  assert.deepEqual([...all].sort(), [["cover", { colour: "hsl(300, 80%, 68%)", shared: false }], ["deep", { colour: "hsl(300, 80%, 68%)", shared: true }]]);
+  const one = lighting(reads, roster, "b", present);
+  assert.equal(one.get("cover")!.colour, "hsl(300, 80%, 68%)", "b's orchestrator wears b's colour");
+  assert.match(one.get("deep")!.colour, /^hsl\(300, 80%, \d+%\)$/);
+  assert.notEqual(one.get("deep")!.colour, "hsl(300, 80%, 68%)", "its subagent a shade");
+  assert.equal(one.size, 2, "another session's reads stay faint");
+  assert.equal(lighting(reads, [], undefined, present).size, 0, "no running sessions light nothing");
 });
 
 test("4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection", () => {

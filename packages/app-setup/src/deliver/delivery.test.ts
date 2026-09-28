@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
 
 import { finishDelivery, installCommand, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
+import { waitForApp } from "./delivery.js";
 
 function fixture() {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree delivery "));
@@ -149,4 +150,19 @@ test("1.6 / 2.5: disconnect recognises the delivered launcher and removes it onc
     assert.equal(report.command, "removed");
     assert.equal(existsSync(launcher.file), false);
   } finally { f.close(); }
+});
+
+test("delivery on a Cloud SQL library waits for the app itself, not for a local database it never starts (app lifecycle 1.11)", async () => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-delivery-cloud-"));
+  const app = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+  try {
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "cloudsql", instance: "my-project:australia-southeast1:my-instance", user: "you@example.com" } }));
+    writeFileSync(path.join(home, "app.json"), JSON.stringify({ command: "app.exe", args: [], pid: app.pid }));
+    const started = Date.now();
+    await waitForApp(home, 5_000);
+    assert.ok(Date.now() - started < 5_000);
+  } finally {
+    app.kill();
+    rmSync(home, { recursive: true, force: true });
+  }
 });

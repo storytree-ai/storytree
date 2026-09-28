@@ -136,6 +136,22 @@ export function locateLibrary(options: LocateOptions = {}): { found: true; conne
   return local.running ? { found: true, connect: { url: local.url } } : { found: false, message: local.message };
 }
 
+/**
+ * Whether the storytree app is running on this machine, whatever its library: its local database's
+ * owner record names a live process, or its launch record (app.json, which the app writes at each
+ * start with its own process id) does. On a Cloud SQL library the app starts no local database, so
+ * the launch record is the only sign of it (app lifecycle 1.11).
+ */
+export function locateApp(home: string = storytreeHome()): { running: boolean } {
+  if (locateStorytree({ dataDir: path.join(home, "pgdata") }).running) return { running: true };
+  try {
+    const { pid } = JSON.parse(readFileSync(path.join(home, "app.json"), "utf8")) as { pid?: unknown };
+    return { running: typeof pid === "number" && Number.isInteger(pid) && pid > 0 && isAlive(pid) };
+  } catch {
+    return { running: false };
+  }
+}
+
 /** `library` with a deadline on each new local handshake; a Cloud SQL instance keeps its own bound. */
 export function withConnectTimeout(library: ConnectOptions, connectTimeoutMs: number): ConnectOptions {
   return library.url === undefined ? library : { ...library, connectTimeoutMs };

@@ -156,7 +156,7 @@ test("2.5: a disconnected harness stays disconnected: the other harness's next s
 
   // The next Claude Code session's setup check, as its tool server runs it.
   const check = () => runSetupCheck({
-    folder: f.home, hook, homes: { claude: f.claude, codex: f.codex }, storytreeHome: path.join(f.home, ".storytree", "0.3"), openWaitMs: 0, harness: "claude-code",
+    folder: f.home, hook, homes: { claude: f.claude, codex: f.codex }, storytreeHome: path.join(f.home, ".storytree", "0.3"), openWaitMs: 0,
     gh: async () => "missing", machine: async () => ({ claude: "missing", codex: "missing", git: "missing", node: { state: "missing" }, waitMs: 0 }),
   });
   const report = await check();

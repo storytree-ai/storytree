@@ -13,8 +13,8 @@
  */
 import path from "node:path";
 
-import { findProject, suggestedName } from "../routing/index.js";
-import { defaultHomes, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
+import { findProject, storytreeHome, suggestedName } from "../routing/index.js";
+import { defaultHomes, disconnectedHarnesses, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
@@ -29,8 +29,8 @@ export type { AgentCliState, MachineOptions, MachineState, ToolState } from "./m
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";
 export type { CommandInstall, CommandPath, GhState } from "./command.js";
 
-export { defaultHomes, registerHooks, removeHooks } from "./hooks-config.js";
-export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport } from "./hooks-config.js";
+export { defaultHomes, disconnectedHarnesses, markDisconnected, registerHooks, removeHooks } from "./hooks-config.js";
+export type { Harness, HookCommand, HookRegistration, Homes, HooksReport, RemovalReport } from "./hooks-config.js";
 export { openStorytree } from "./open-storytree.js";
 export type { StorytreeOpened } from "./open-storytree.js";
 
@@ -41,11 +41,6 @@ export interface SetupOptions {
   readonly hook?: HookCommand;
   /** Where the harnesses keep their settings. By default, CLAUDE_CONFIG_DIR or ~/.claude, and CODEX_HOME or ~/.codex. */
   readonly homes?: Homes;
-  /**
-   * The harness whose session runs this check, when one does: its tool server is running there, so it
-   * is connected, even if the user disconnected it before.
-   */
-  readonly harness?: "claude-code" | "codex";
   /** The storytree home, where the app keeps its Postgres and how to open it. By default, storytreeHome(). */
   readonly storytreeHome?: string;
   /** How long to wait for storytree to come up after opening it. */
@@ -80,7 +75,9 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
     ...(options.storytreeHome === undefined ? {} : { home: options.storytreeHome }),
     ...(options.openWaitMs === undefined ? {} : { waitMs: options.openWaitMs }),
   });
-  const hooks = options.hook === undefined ? undefined : registerHooks(options.homes ?? defaultHomes(), options.hook);
+  // A harness the user disconnected gets no hooks back until they connect it again (app-setup's connect).
+  const disconnected = disconnectedHarnesses(options.storytreeHome ?? storytreeHome());
+  const hooks = options.hook === undefined ? undefined : registerHooks(options.homes ?? defaultHomes(), options.hook, disconnected);
   const found = findProject(options.folder);
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).

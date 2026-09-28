@@ -1,0 +1,9 @@
+--- old/The app setup/capability 2/capability_01dc27eec57f/description (the "As built: disconnect" paragraph, as the connect lane's pending patch wrote it)
++++ new/The app setup/capability 2/capability_01dc27eec57f/description
+@@ -1 +1 @@
+-As built: disconnect removes the selected registration and only hooks matching this installation, preserving other commands in mixed groups and any other installation's hooks. It keeps the shared command until no connection remains and removes only the matching launcher. Existing setup behavior is unchanged: subsequent setup checks still register hooks for detected harness homes. Installation results distinguish tools registration from hooks not verified; the existing setup check owns project consent and received-event verification.
++As built: disconnect removes the selected registration and only hooks matching this installation, preserving other commands in mixed groups and any other installation's hooks. It keeps the shared command until no connection remains and removes only the matching launcher. A disconnected harness stays disconnected: disconnect records it in the storytree home (disconnected-harnesses.json), and the setup check, run from the other harness's sessions, registers no hooks for it until Connect connects it again. Installation results distinguish tools registration from hooks not verified; the existing setup check owns project consent and received-event verification.
+--- old/agent link/capability 8/capability_199d7af33d32/description (append)
++++ new/agent link/capability 8/capability_199d7af33d32/description
+@@ +1 @@
++It registers hooks for each harness home it finds except a harness the user disconnected from storytree (the app setup's contract 2.5), which gets its hooks back only when it is connected again.

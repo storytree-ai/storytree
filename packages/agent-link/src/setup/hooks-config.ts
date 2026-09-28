@@ -17,7 +17,7 @@
  *   each turn pass `--background`: the hook hands its writing to a copy of itself and exits (hooks.ts).
  *   Codex runs a newly added hook only after the user approves it once (ADR-0626 D4).
  */
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -36,8 +36,14 @@ export interface Homes {
   readonly codex?: string;
 }
 
-/** What registering found: storytree's hooks added now, already there, or no such harness on this machine. */
-export type HookRegistration = "registered" | "already registered" | "not here";
+/**
+ * What registering found: storytree's hooks added now, already there, no such harness on this
+ * machine, or a harness the user disconnected from storytree, whose hooks stay out.
+ */
+export type HookRegistration = "registered" | "already registered" | "not here" | "disconnected";
+
+/** A harness storytree connects to. */
+export type Harness = "claude-code" | "codex";
 
 /**
  * What installing Claude Code's status line found (ADR-0636 D1, b3): storytree's installed now or
@@ -80,16 +86,46 @@ export function defaultHomes(env: Readonly<Record<string, string | undefined>> =
  * Register storytree's hooks for each harness whose home is here, replacing any older registration
  * of them, and install storytree's status line in Claude Code where the user has none of their own.
  */
-export function registerHooks(homes: Homes, hook: HookCommand): HooksReport {
+export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set()): HooksReport {
   return {
-    "claude-code": register(homes.claude, "settings.json", claudeEntries(hook)),
-    codex: register(homes.codex, "hooks.json", codexEntries(hook)),
-    statusLine: installStatusLine(homes.claude, hook),
+    "claude-code": disconnected.has("claude-code") ? "disconnected" : register(homes.claude, "settings.json", claudeEntries(hook)),
+    codex: disconnected.has("codex") ? "disconnected" : register(homes.codex, "hooks.json", codexEntries(hook)),
+    statusLine: disconnected.has("claude-code") ? "not here" : installStatusLine(homes.claude, hook),
   };
 }
 
+/**
+ * The file in the storytree home naming the harnesses the user disconnected: the setup check, run
+ * from another harness's session, registers no hooks for them until they are connected again.
+ */
+const DISCONNECTED_FILE = "disconnected-harnesses.json";
+
+/** The harnesses the user disconnected from storytree, as the storytree home at `storytreeHome` records them. */
+export function disconnectedHarnesses(storytreeHome: string): Set<Harness> {
+  try {
+    const named: unknown = JSON.parse(readFileSync(path.join(storytreeHome, DISCONNECTED_FILE), "utf8"));
+    return new Set((Array.isArray(named) ? named : []).filter((harness): harness is Harness => harness === "claude-code" || harness === "codex"));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Record in the storytree home that `harness` is disconnected from storytree, or connected again. */
+export function markDisconnected(storytreeHome: string, harness: Harness, disconnected: boolean): void {
+  const named = disconnectedHarnesses(storytreeHome);
+  if (named.has(harness) === disconnected) return;
+  if (disconnected) named.add(harness);
+  else named.delete(harness);
+  const file = path.join(storytreeHome, DISCONNECTED_FILE);
+  if (named.size === 0) rmSync(file, { force: true });
+  else {
+    mkdirSync(storytreeHome, { recursive: true });
+    writeFileSync(file, `${JSON.stringify([...named])}\n`);
+  }
+}
+
 /** Take storytree's hooks, and its status line, out of each harness's settings, leaving everything else as it was. */
-export function removeHooks(homes: Homes, scope?: { readonly harness: "claude-code" | "codex"; readonly hook: HookCommand }): RemovalReport {
+export function removeHooks(homes: Homes, scope?: { readonly harness: Harness; readonly hook: HookCommand }): RemovalReport {
   if (scope !== undefined) return removeHarnessHooks(homes, scope.harness, scope.hook);
   const statusLine = removeStatusLine(homes.claude);
   return {
@@ -248,7 +284,7 @@ function shQuoted(text: string): string {
 }
 
 /** Remove one installation's hooks from one harness, preserving other commands in mixed groups. */
-function removeHarnessHooks(homes: Homes, harness: "claude-code" | "codex", hook: HookCommand): RemovalReport {
+function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): RemovalReport {
   const report: RemovalReport = { "claude-code": "none", codex: "none", statusLine: "none" };
   const home = harness === "claude-code" ? homes.claude : homes.codex;
   if (home === undefined) return report;

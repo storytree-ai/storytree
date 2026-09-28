@@ -1,0 +1,77 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { buildBins } from '@storytree/agent-link/bins';
+import { launchOwned } from '@storytree/own';
+import { BuiltCommand, storytree } from './testing/cli.js';
+
+for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
+  const home = await mkdtemp(path.join(tmpdir(), 'own-door-'));
+  const command = new BuiltCommand();
+  t.after(async () => { command.remove(); await rm(home, { recursive: true, force: true }); });
+  await command.build(installed ? async dir => (await buildBins(dir)).storytree! : undefined);
+  const runs = [];
+  for (const session of ['caller', 'other']) {
+    const launched = await launchOwned({ home: path.join(home, 'own'), owner: { session, harness: 'codex' },
+      command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
+    if (launched.pid) t.after(() => { try { process.kill(launched.pid!, 'SIGKILL'); } catch {} });
+    assert.equal(launched.status, 'tracked');
+    if (launched.status !== 'tracked') throw new Error('untracked test child');
+    runs.push(launched.run);
+  }
+  const invoke = (args: string[], identified = true, extra: Record<string, string> = {}) => storytree(command.script, ['own', ...args], {
+    cwd: home, home, env: { CODEX_THREAD_ID: identified ? 'caller' : '', ...extra },
+  });
+  const all = await invoke(['--all'], false);
+  assert.equal(all.code, 0, all.stderr);
+  for (const run of runs) assert.ok(all.stdout.includes(run.id), all.stdout);
+  assert.match(all.stdout, /LIVE/);
+  assert.match(all.stdout, /no.*stop authority/i);
+  assert.match(all.stdout, /untracked/);
+  const missing = await invoke([], false);
+  assert.equal(missing.code, 1);
+  assert.match(missing.stderr, /session identity.*--all/s);
+  const self = await invoke([]);
+  assert.equal(self.code, 0, self.stderr);
+  assert.ok(self.stdout.includes(`storytree own stop ${runs[0]!.id}`));
+  assert.ok(!self.stdout.includes(runs[1]!.id));
+  const uncertain = await invoke([], true, { CLAUDE_CODE_SESSION_ID: 'another-session' });
+  assert.equal(uncertain.code, 1, uncertain.stdout + uncertain.stderr);
+  assert.match(uncertain.stderr, /identity.*--all/s);
+  for (const args of [['stop', runs[0]!.id], ['clear']]) {
+    const missing = await invoke(args, false);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /identity.*--all/s);
+  }
+  const retained = await invoke(['clear']);
+  assert.equal(retained.code, 0, retained.stderr);
+  const before = JSON.parse(retained.stdout);
+  assert.deepEqual(before.clear.removed, []);
+  assert.deepEqual(before.clear.retained.map((row: { run: string }) => row.run), [runs[0]!.id]);
+  assert.deepEqual(before.clear.failed, []);
+  assert.deepEqual(before.clear.gaps, []);
+  const stopped = await invoke(['stop', ...runs.map(run => run.id)]);
+  assert.equal(stopped.code, 1, stopped.stdout + stopped.stderr);
+  const result = JSON.parse(stopped.stderr);
+  assert.deepEqual(result.targets.map((target: { status: string }) => target.status), ['stopped', 'refused']);
+  const gone = await invoke(['stop', runs[0]!.id]);
+  assert.equal(gone.code, 0, gone.stderr);
+  assert.equal(JSON.parse(gone.stdout).targets[0].status, 'already-gone');
+  const cleared = await invoke(['clear']);
+  assert.equal(cleared.code, 0, cleared.stderr);
+  const after = JSON.parse(cleared.stdout);
+  assert.deepEqual(after.clear.removed, [runs[0]!.id]);
+  assert.deepEqual(after.clear.retained, []);
+  assert.deepEqual(after.clear.failed, []);
+  assert.deepEqual(after.clear.gaps, []);
+  assert.deepEqual(after.closing.inventory.rows.map((row: { run: { id: string } }) => row.run.id), [runs[1]!.id]);
+  assert.equal(after.closing.status, 'incomplete'); // Shared app lifetime is explicitly unknown.
+  const claude = await invoke([], false, { CLAUDE_CODE_SESSION_ID: 'caller' });
+  assert.equal(claude.code, 0, claude.stderr);
+  assert.match(claude.stdout, /No recorded runs/); // Different harness is not Codex's owner.
+  for (const args of [['clear', 'extra'], ['clear', '--all'], ['stop'], ['--bogus'], ['stop', '--all']]) {
+    assert.equal((await invoke(args)).code, 2, `invalid arguments: ${args.join(' ')}`);
+  }
+});

@@ -315,6 +315,19 @@ test("3.6 recorded inputs from before a shell command, after one that failed, an
       { ...claude, kind: "turn-ended" },
     ]);
 
+    // On Windows without Git, Claude Code has no Bash tool and runs the command with its PowerShell tool.
+    const powerShell = { ...claude, session: "5d0c1f7e-6a2b-4c55-9f0e-0c9d3b1e7a42" } as const;
+    for (const name of ["pre-tool-use-bash", "post-tool-use-failure-bash", "post-tool-use-bash"]) {
+      const input = { ...JSON.parse(recorded("claude-code", name, folder)), session_id: powerShell.session, tool_name: "PowerShell" };
+      const ran = await runHook("claude-code", JSON.stringify(input), home);
+      assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, `PowerShell ${name}`);
+    }
+    assert.deepEqual((await linesOf(project)).filter((line) => line.session === powerShell.session).map(written), [
+      { ...powerShell, kind: "command-started", command, call: "toolu_01Kjexd4yP2myMhXEATFdm25" },
+      { ...powerShell, kind: "command-run", command, call: "toolu_01Kjexd4yP2myMhXEATFdm25" },
+      { ...powerShell, kind: "command-run", command: "echo probe-command", call: "toolu_0198fGg1AbRnVBG34suBFFTy" },
+    ]);
+
     const codex = { project, session: "01a0de40-cd2f-73e1-92c7-8ee8ff58135b", harness: "codex", source: "hook", folder, machine: MACHINE } as const;
     for (const name of ["pre-tool-use-bash", "stop"]) {
       const ran = await runHook("codex", recorded("codex", name, folder), home, ["--background"]);

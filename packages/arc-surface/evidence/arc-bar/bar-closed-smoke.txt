@@ -1,0 +1,36 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/arc-bar
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/arc-bar/packages/arc-surface/evidence/arc-bar/bar-closed.png"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/arc-bar/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/arc-bar/packages/arc-surface/evidence/arc-bar/bar-closed.png"
+
+built dist
+
+DevTools listening on ws://127.0.0.1:37739/devtools/browser/d175db96-dc03-4ed4-8cef-7cc1f76b5fdc
+Postgres: listening on 127.0.0.1:32999 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:32999/postgres
+storytree 0.3: development build 9696a5a from /home/mickh/code/storytree03-wt/arc-bar (does not update itself)
+[586363:0928/183157.162175:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x1c4c00190400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+smoke: screenshot /home/mickh/code/storytree03-wt/arc-bar/packages/arc-surface/evidence/arc-bar/bar-closed.png (1120x860)
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+What did I leave running?
+Forest
+Library
+Arcs
+storytree
+▾
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

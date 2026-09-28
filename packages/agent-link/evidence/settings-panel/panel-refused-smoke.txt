@@ -8,11 +8,11 @@
 
 built dist
 
-DevTools listening on ws://127.0.0.1:34465/devtools/browser/c5b6d9b2-d23d-4ecb-9796-83780a185e59
-Postgres: listening on 127.0.0.1:34237 (started in 0.1 s)
-library: postgres://postgres@127.0.0.1:34237/postgres
-storytree 0.3: development build bdd1549 from /home/mickh/code/storytree03-wt/settings-panel (does not update itself)
-[664215:0928/185324.331193:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x169c00192200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+DevTools listening on ws://127.0.0.1:41101/devtools/browser/08fdcc00-efe4-45ef-836e-a04c1c6d5d03
+Postgres: listening on 127.0.0.1:38433 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:38433/postgres
+storytree 0.3: development build 6cbd6db from /home/mickh/code/storytree03-wt/settings-panel (does not update itself)
+[678103:0928/185651.253040:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x3f4400190400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
 smoke: screenshot /home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/panel-refused.png (1120x860)
 The library
 The agent link

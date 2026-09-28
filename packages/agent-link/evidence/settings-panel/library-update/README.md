@@ -3,8 +3,10 @@
 The laptop supervisor applies [changes.patch](changes.patch) after merge to **The agent
 link**, capability **10 · Settings** (`capability_2902dfd80083`). Record IDs and original
 text come from the read-only `2026-09-28T07-26-00-491Z.json` snapshot. Paths identify
-library fields, not repository files. App amendments use #179’s pending gear patch as their
-base, because its new wording postdates the snapshot. Read current records first, preserving intervening
+library fields, not repository files. App amendments use #179’s gear patch plus #181’s
+updates patch as their base, because that wording postdates the snapshot. Apply those first
+if still pending. `contract 2.7 (resolve existing ID)` is a title selector, not an invented ID.
+Read current records first, preserving intervening
 edits, IDs, other fields and shelf links. No live store was accessed by this lane.
 
 - [ ] Append the Settings panel “As built” paragraph to the capability description. Preserve

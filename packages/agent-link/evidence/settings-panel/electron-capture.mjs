@@ -78,6 +78,7 @@ for (const mode of (process.env.SETTINGS_CAPTURE_MODE ? [process.env.SETTINGS_CA
       state: document.body.dataset.state, drew: JSON.parse(document.body.dataset.drew),
       menuOpen: document.querySelector('#app-menu').matches(':popover-open'),
       settingsEnabled: !document.querySelector('[data-app-settings] button').disabled,
+      updatesEnabled: !document.querySelector('[data-app-updates]').disabled,
       panelOpen: document.querySelector('#settings-panel').open,
       value: document.querySelector('[data-setting="context-guidance"] input')?.value,
       source: document.querySelector('[data-setting="context-guidance"] .settings-source')?.textContent,
@@ -86,6 +87,7 @@ for (const mode of (process.env.SETTINGS_CAPTURE_MODE ? [process.env.SETTINGS_CA
     }));
     assert.equal(state.menuOpen, mode === 'menu-open');
     assert.equal(state.settingsEnabled, true);
+    assert.equal(state.updatesEnabled, true);
     assert.equal(state.panelOpen, mode !== 'menu-open');
     if (mode === 'panel-default') { assert.equal(state.value, '700000'); assert.equal(state.source, 'default'); }
     if (mode === 'panel-set') { assert.equal(state.value, '420000'); assert.equal(state.source, 'set by you'); }

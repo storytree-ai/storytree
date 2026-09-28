@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Line, NewLine } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import { sessionRows } from "./sessions-list.js";
+import { sessionRoster, sessionRows } from "./sessions-list.js";
+import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
 const health = { reported: { state: "not-checked" }, verified: { state: "not-checked" } } as const;
@@ -69,4 +70,16 @@ test("supplied supervision and totals use a view seam without parsing transcript
   details.set("parent", { parentSession: "child", totalTokens: 80_000 });
   const walk = (rows: ReturnType<typeof sessionRows>): string[] => rows.flatMap(row => [row.id, ...walk(row.children)]);
   assert.deepEqual(walk(sessionRows(tree, lines, [], now, details)).sort(), ["child", "parent"]);
+});
+
+test("the knowledge core's roster is exactly the listed rows, each with its children, in the row's own colour (ADR-0738)", () => {
+  const lines = log(claimed("cap-one", "Build signup"),
+    { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },
+    { ...off, kind: "claimed", increment: "tidy", reason: "Tidy" },
+    { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });
+  const roster = sessionRoster(sessionRows(tree, lines, [], now));
+  assert.deepEqual(roster, [
+    { session: "parent", label: "Build signup", colour: sessionColour("parent"), members: ["parent", "child"] },
+    { session: "off", label: "Tidy", colour: sessionColour("off"), members: ["off"] },
+  ]);
 });

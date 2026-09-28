@@ -1,6 +1,8 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
 import { claimsFrom, sessionsFrom, type Line, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
+import type { RosterEntry } from "@storytree/knowledge-core";
+import { sessionColour } from "../agent-claims/agent-claims.js";
 
 /** Estimated tokens in each of a context's four groups (agent link 9.8): read as shares, not a second total. */
 export interface ContextGroups {
@@ -87,6 +89,12 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   for (const row of roots) includeChildren(row);
   const earnsRow = (row: SessionRow): boolean => listed.has(row.id) || row.children.some(earnsRow);
   return roots.filter(earnsRow);
+}
+
+/** The knowledge core's roster (ADR-0738 D2): each listed row, in its own colour, with every child session under it. */
+export function sessionRoster(rows: readonly SessionRow[]): RosterEntry[] {
+  const members = (row: SessionRow): string[] => [row.id, ...row.children.flatMap(members)];
+  return rows.map(row => ({ session: row.id, label: row.label, colour: sessionColour(row.id), members: members(row) }));
 }
 
 function contextTotal(detail: SessionDetails | undefined): number | undefined {

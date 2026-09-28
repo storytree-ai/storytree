@@ -33,10 +33,26 @@ export interface MachineOptions {
   readonly waitMs?: number;
 }
 
-type Answer = { readonly answered: false } | { readonly answered: true; readonly code: number; readonly out: string };
+export type Answer = { readonly answered: false } | { readonly answered: true; readonly code: number; readonly out: string };
 
-/** Run `command args` found on the path in `env`, giving up after `waitMs`; never rejects. */
-function ask(command: string, args: readonly string[], env: NodeJS.ProcessEnv, waitMs: number): Promise<Answer> {
+/** How long a tool's output may trail its exit: something it started can hold the pipe for good. */
+const TRAIL_MS = 250;
+
+/** This process's environment with `path` as its PATH, or unchanged without one. */
+export function pathEnv(path: string | undefined): NodeJS.ProcessEnv {
+  if (path === undefined) return process.env;
+  // Windows spells it Path and matches without case: leave one spelling, the given one.
+  const env: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH"));
+  env.PATH = path;
+  return env;
+}
+
+/**
+ * Run `command args` found on the path in `env`, giving up after `waitMs`; never rejects. It answers
+ * when the tool exits, not when its output closes, which a process it started (gh's tzutil, a
+ * console host) may never let happen.
+ */
+export function ask(command: string, args: readonly string[], env: NodeJS.ProcessEnv, waitMs: number): Promise<Answer> {
   return new Promise((resolve) => {
     // On Windows a user's tool is often a .cmd shim, which only a shell runs. The words are fixed.
     const child = process.platform === "win32"
@@ -62,6 +78,9 @@ function ask(command: string, args: readonly string[], env: NodeJS.ProcessEnv, w
     }
     child.on("error", () => done({ answered: true, code: -1, out: "" }));
     child.on("close", (code) => done({ answered: true, code: code ?? -1, out }));
+    child.on("exit", (code) => {
+      setTimeout(() => done({ answered: true, code: code ?? -1, out }), TRAIL_MS).unref();
+    });
   });
 }
 
@@ -91,12 +110,7 @@ async function node(env: NodeJS.ProcessEnv, waitMs: number): Promise<MachineStat
 /** Ask the machine for each tool at once. */
 export async function machineState(options: MachineOptions = {}): Promise<MachineState> {
   const waitMs = options.waitMs ?? 5_000;
-  let env: NodeJS.ProcessEnv = process.env;
-  if (options.path !== undefined) {
-    // Windows spells it Path and matches without case: leave one spelling, the given one.
-    env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH"));
-    env.PATH = options.path;
-  }
+  const env = pathEnv(options.path);
   const [claude, codex, gitState, nodeState] = await Promise.all([
     agentCli("claude", ["auth", "status"], env, waitMs),
     agentCli("codex", ["login", "status"], env, waitMs),

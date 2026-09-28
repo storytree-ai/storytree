@@ -12,9 +12,10 @@
  * - It is recognised as storytree's by a marker line inside it. A `storytree` anywhere on the path
  *   that is not storytree's is the user's own, and is kept: storytree neither replaces nor shadows it.
  */
-import { execFile } from "node:child_process";
 import { accessSync, chmodSync, constants, existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
+
+import { ask, pathEnv, type MachineOptions } from "./machine.js";
 
 /** Where the `storytree` command may go: the PATH to look along, and the user's home, which the folder must be inside. */
 export interface CommandPath {
@@ -27,7 +28,7 @@ export interface CommandPath {
 export type CommandInstall = "installed" | "already installed" | "another storytree kept" | "no folder of the user's on the path";
 
 /** Whether GitHub's `gh` is there and signed in. */
-export type GhState = "signed in" | "signed out" | "missing";
+export type GhState = "signed in" | "signed out" | "missing" | "not answering";
 
 /** The line that marks a launcher as storytree's own. */
 const MARKER = "storytree 0.3's command (put here by its setup check)";
@@ -62,13 +63,16 @@ export function removeCommand(where: CommandPath): "removed" | "none" {
 }
 
 /** Whether `gh` is installed and signed in, as `gh auth status` says. */
-export function ghState(): Promise<GhState> {
-  return new Promise((resolve) => {
-    execFile("gh", ["auth", "status"], { timeout: 5_000, windowsHide: true }, (error) => {
-      if (error === null) return resolve("signed in");
-      resolve((error as NodeJS.ErrnoException).code === "ENOENT" ? "missing" : "signed out");
-    });
-  });
+export async function ghState(options: MachineOptions = {}): Promise<GhState> {
+  // `gh auth status` asks GitHub, which takes seconds (about ten on a Windows arm64 machine, 2026-09-28).
+  const env = pathEnv(options.path);
+  const waitMs = options.waitMs ?? 15_000;
+  const version = await ask("gh", ["--version"], env, waitMs);
+  if (!version.answered) return "not answering";
+  if (version.code !== 0) return "missing";
+  const status = await ask("gh", ["auth", "status"], env, waitMs);
+  if (!status.answered) return "not answering";
+  return status.code === 0 ? "signed in" : "signed out";
 }
 
 /** The launcher's text: run `target` with `node`, passing every argument on. */

@@ -17,7 +17,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, type ForestView } from "@storytree/forest/view";
+import { openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type TreeSpace } from "@storytree/forest/view";
 import { renderNoProjects } from "../view/view.js";
 
 declare global {
@@ -42,7 +42,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
 window.addEventListener("beforeunload", () => appMenu.stop());
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined } | undefined;
+let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined } | undefined;
 let current: string | undefined;
 let following: ReturnType<typeof followProjects> | undefined;
 
@@ -103,7 +103,7 @@ async function showForest(name: string): Promise<void> {
   panel.hidden = true;
   content.replaceChildren(holder, panel);
   document.body.dataset.surface = "forest";
-  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined };
+  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined, tree: undefined };
   showing = mine;
   mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
   const history: Change[] = [];
@@ -118,6 +118,7 @@ async function showForest(name: string): Promise<void> {
   /** The drill-down for the selected story node, or none (capability 4), with one capability shown below its diagram. */
   const showPanel = (): void => {
     if (document.body.dataset.note !== undefined) {
+      mine.tree?.close();
       panel.hidden = false;
       mine.card ??= mountArtifactCard(panel, core, () => mine.view?.select(undefined));
       return;
@@ -127,7 +128,10 @@ async function showForest(name: string): Promise<void> {
     const story = document.body.dataset.selected;
     const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, workStates(lines), history);
     panel.hidden = drilled === undefined;
-    if (story === undefined || drilled === undefined) return panel.replaceChildren();
+    if (story === undefined || drilled === undefined) {
+      mine.tree?.close();
+      return panel.replaceChildren();
+    }
     const selected = selectedCapability(drilled, chosen);
     chosen = selected;
     const open = new Set([...panel.querySelectorAll<HTMLElement>("details[open]")].map((node) => node.closest<HTMLElement>("[data-capability-id]")?.dataset.capabilityId));
@@ -148,10 +152,24 @@ async function showForest(name: string): Promise<void> {
         choose();
       });
     }
+    // The tree's own space (ADR-0743): opened from the panel, redrawn with it while open.
+    const openTree = (): void => mine.tree?.show(drilled, selected);
+    panel.querySelector("[data-open-tree]")?.addEventListener("click", openTree);
+    panel.querySelector(".panel-diagram")?.addEventListener("click", (event) => {
+      if ((event.target as Element).closest("[data-capability-id]") === null) openTree();
+    });
+    if (mine.tree?.open === true) openTree();
     panel.querySelector(".panel-close")?.addEventListener("click", () => {
       mine.view?.select(undefined);
     });
   };
+  mine.tree = mountTreeSpace(content, {
+    choose: (id) => {
+      chosen = id;
+      showPanel();
+    },
+    closed: () => panel.querySelector<HTMLButtonElement>("[data-open-tree]")?.focus(),
+  });
   const core = createKnowledgeCore(name);
   const view = await openForestView(holder, (selection) => {
     delete document.body.dataset.selected;
@@ -199,6 +217,7 @@ async function showForest(name: string): Promise<void> {
 
 function stopShowing(): void {
   showing?.card?.();
+  showing?.tree?.stop();
   showing?.arcs?.stop();
   showing?.reading?.stop();
   showing?.sessions?.stop();

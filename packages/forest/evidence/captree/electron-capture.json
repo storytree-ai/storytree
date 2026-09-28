@@ -1,0 +1,84 @@
+[
+  {
+    "shot": "panel",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_7b7421be1a1b",
+    "treeOpen": false,
+    "cardOnScreen": null,
+    "statuses": [
+      "planned",
+      "not landed yet"
+    ],
+    "cards": 0
+  },
+  {
+    "shot": "tree",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_ab59a8461dd7",
+    "treeOpen": true,
+    "view": "{\"x\":-1350,\"y\":198,\"scale\":1}",
+    "cardOnScreen": {
+      "width": 208,
+      "height": 94
+    },
+    "statuses": [
+      "planned",
+      "not landed yet"
+    ],
+    "cards": 27
+  },
+  {
+    "shot": "panned",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_ab59a8461dd7",
+    "treeOpen": true,
+    "view": "{\"x\":-1230,\"y\":389,\"scale\":0.741}",
+    "cardOnScreen": {
+      "width": 154,
+      "height": 70
+    },
+    "statuses": [
+      "planned",
+      "not landed yet"
+    ],
+    "cards": 27
+  },
+  {
+    "shot": "mixed",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_ab59a8461dd7",
+    "treeOpen": true,
+    "view": "{\"x\":-1350,\"y\":198,\"scale\":1}",
+    "cardOnScreen": {
+      "width": 208,
+      "height": 94
+    },
+    "statuses": [
+      "landed",
+      "in progress",
+      "planned",
+      "not landed yet"
+    ],
+    "cards": 27
+  }
+]

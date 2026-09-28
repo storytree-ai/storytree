@@ -1,0 +1,22 @@
+
+> storytree@ test-ratio /home/mickh/code/storytree03-wt/captree
+> node scripts/test-ratio.mjs
+
+Test code per line of implementation, in code lines (comments and blanks left out):
+
+                              test   implementation   ratio
+  apps/desktop                 191            1,376    0.14
+  packages/agent-link        4,325            4,894    0.88
+  packages/app-setup           454              953    0.48
+  packages/app               1,039            1,837    0.57
+  packages/arc-surface         508            1,092    0.47
+  packages/cli               1,681            1,627    1.03
+  packages/forest-world     25,238           13,320    1.89
+  packages/forest            1,178            4,322    0.27
+  packages/knowledge-core      697            1,559    0.45
+  packages/librarian           482              509    0.95
+  packages/library           5,540            3,932    1.41
+  packages/local-postgres      218              325    0.67
+  packages/processes           801              908    0.88
+  scripts                    1,453            1,675    0.87
+  all                       43,805           38,329    1.14

@@ -9,6 +9,8 @@ export { changedIslands, forestDrawn, forestScene, PLACE_WIDTH, storyAt } from "
 export type { ForestDrawn, ForestScene, Island, PlacedTree } from "./render/forest-scene.js";
 export { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down/drill-down.js";
 export type { Arrow, CapabilityLine, ContractLine, StoryPanel } from "./drill-down/drill-down.js";
+export { CARD, layoutTree, OUTSIDE_CARD } from "./drill-down/tree-layout.js";
+export type { Card, Link, TreeLayout } from "./drill-down/tree-layout.js";
 export { sessionColour, sessionWisps } from "./agent-claims/agent-claims.js";
 export type { SessionWisp } from "./agent-claims/agent-claims.js";
 export { edgeMarkers, openingTurn, turnToIsland, type EdgeMarker, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";

@@ -1,0 +1,20 @@
+
+> storytree@ test <worktree>
+> node --import tsx scripts/test.mjs "packages/forest/src/drill-down/tree-layout.test.ts" "packages/forest/src/view/story-panel.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:36285 (started in 0.1 s)
+✔ 4.9 the tree is a graph of fixed-size cards: each capability above what it builds on, another story's beside what builds on it (8.586093ms)
+✔ 4.6 the panel is the story's sentences, its diagram, and below it only the capability selected (8.01018ms)
+✔ 4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its health; another story's is not (1.398596ms)
+✔ 4.10 each card has a strip naming its work state in words, and the agent's report and storytree's as labelled marks (1.278718ms)
+✔ 4.8 a story with no capabilities shows its sentences and nothing below (0.157019ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 116.12263
+test Postgres: stopped (0.1 s)

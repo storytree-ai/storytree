@@ -1,11 +1,11 @@
 /**
  * The drill-down's panel (the forest story, capability 4): @storytree/forest's drillDown, as HTML.
- * It explains the story in plain words and draws a small diagram of which capability builds on
- * which. Each of the story's own capabilities is a box you can click; the one selected shows below
- * the diagram, with its health as the agent reports it and its contracts on request (ADR-0659).
+ * It explains the story in plain words and draws its capability tree, which opens in its own space
+ * (ADR-0743). Each of the story's own capabilities is a card you can click; the one selected shows
+ * below the tree, with its health as the agent reports it and its contracts on request (ADR-0659).
  * Every word from the library is written as text, never as HTML.
  */
-import type { Arrow, CapabilityLine, StoryPanel } from "@storytree/forest";
+import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type StoryPanel } from "@storytree/forest";
 import type { HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
@@ -57,65 +57,88 @@ function badge(who: string, state: HealthState): string {
 }
 
 /**
- * The diagram: one box per capability, in rows by how deep it builds (a capability sits one row
- * below the deepest one it builds on in the story), with any capability of another story it builds
- * on in a row of its own at the top, named with its story and dashed until it lands. Rows, not
- * columns, so a deep story stays readable in the narrow panel.
- * The story's own boxes are buttons, tinted by the agent's reported health, and `selected` is marked;
- * another story's box is muted and is not a button (ADR-0659 D3, D5).
+ * The diagram: the capability tree as 0.2 drew it (ADR-0743), laid out by `layoutTree`: one card
+ * per capability, what it builds on below it, each card with a strip across its top naming its work
+ * state in words and coloured to match the arc surface, and the agent's report and storytree's as
+ * labelled marks (ADR-0630). In the panel it is a preview scaled to the panel's width, with a button
+ * that opens it in its own space, where it pans and zooms at a readable size (`mountTreeSpace`).
+ * The story's own cards are buttons, and `selected` is marked; another story's card is muted, names
+ * its story, and is not a button (ADR-0659 D3, D5).
  */
 function diagram(panel: StoryPanel, selected: string | undefined): string {
-  const own = new Map(panel.capabilities.map((line) => [line.id, line]));
-  const outside = new Map<string, Arrow>();
-  for (const arrow of panel.arrows) if (!own.has(arrow.to)) outside.set(arrow.to, arrow);
-
-  const depth = new Map<string, number>();
-  for (const line of panel.capabilities) {
-    const on = panel.arrows.filter(({ from, to }) => from === line.id && own.has(to)).map(({ to }) => depth.get(to) ?? 0);
-    depth.set(line.id, on.length === 0 ? 0 : Math.max(...on) + 1);
-  }
-  const shift = outside.size === 0 ? 0 : 1;
-  const rows = new Map<number, string[]>();
-  const place = (id: string, row: number): void => {
-    rows.set(row, [...(rows.get(row) ?? []), id]);
-  };
-  for (const id of outside.keys()) place(id, 0);
-  for (const line of panel.capabilities) place(line.id, (depth.get(line.id) ?? 0) + shift);
-
-  const W = 132;
-  const H = 32;
-  const GAP_X = 12;
-  const GAP_Y = 30;
-  const at = new Map<string, { x: number; y: number }>();
-  for (const [row, ids] of rows) ids.forEach((id, column) => at.set(id, { x: column * (W + GAP_X), y: row * (H + GAP_Y) }));
-  const width = Math.max(...[...at.values()].map(({ x }) => x)) + W;
-  const height = Math.max(...[...at.values()].map(({ y }) => y)) + H;
-
-  const boxes = [...at].map(([id, { x, y }]) => {
-    const line = own.get(id);
-    const arrow = outside.get(id);
-    const title = line?.title ?? `${arrow?.toStory ?? ""} · ${arrow?.toTitle ?? id}`;
-    const pending = line === undefined ? arrow?.landed !== true : line.state !== "landed";
-    const classes = ["box", ...(pending ? ["pending"] : []), ...(line === undefined ? ["elsewhere"] : [`health-${line.reported}`]), ...(id === selected ? ["selected"] : [])];
-    const pressable = line === undefined ? "" : ` data-capability-id="${attribute(id)}" role="button" tabindex="0" aria-pressed="${id === selected}"`;
-    return `<g class="${classes.join(" ")}"${pressable}>
-      <rect x="${x}" y="${y}" width="${W}" height="${H}" rx="6" />
-      <text x="${x + W / 2}" y="${y + H / 2 + 4}">${text(shorten(title, 21))}</text>
-      <title>${text(title)}${pending ? " (not landed yet)" : ""}</title>
-    </g>`;
-  });
-  const arrows = panel.arrows.map(({ from, to }) => {
-    const a = at.get(from);
-    const b = at.get(to);
-    if (a === undefined || b === undefined) return "";
-    return `<path class="arrow" d="M ${a.x + W / 2} ${a.y} C ${a.x + W / 2} ${a.y - GAP_Y / 2}, ${b.x + W / 2} ${b.y + H + GAP_Y / 2}, ${b.x + W / 2} ${b.y + H + 4}" marker-end="url(#head)" />`;
-  });
   return `
-    <svg class="panel-diagram" viewBox="-6 -6 ${width + 12} ${height + 12}" width="${width + 12}" height="${height + 12}" role="img" aria-label="How the capabilities connect">
-      <defs><marker id="head" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" /></marker></defs>
-      ${arrows.join("")}
-      ${boxes.join("")}
+    <div class="panel-tree">
+      <button type="button" class="panel-open-tree" data-open-tree>Open the capability tree</button>
+      ${renderTree(panel, selected, "panel-diagram")}
+    </div>`;
+}
+
+/** The capability tree of `panel` as an SVG of class `kind`, at its natural size: 1 unit is 1 pixel. */
+export function renderTree(panel: StoryPanel, selected: string | undefined, kind: string): string {
+  const layout = layoutTree(panel);
+  const head = `${kind}-head`;
+  const cards = layout.cards.map((card) => cardOf(card, card.id === selected));
+  const links = layout.links.map(({ d }) => `<path class="arrow" d="${d}" marker-end="url(#${head})" />`);
+  return `
+    <svg class="${kind}" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="How the capabilities connect">
+      <defs><marker id="${head}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" /></marker></defs>
+      ${links.join("")}
+      ${cards.join("")}
     </svg>`;
+}
+
+/** One card: a status strip naming its state, its title (and story, if another's), and its health marks. */
+function cardOf(card: Card, selected: boolean): string {
+  const { width: W, height: H } = card;
+  const S = card.own ? CARD.strip : OUTSIDE_CARD.strip;
+  const status = card.state === undefined ? (card.landed ? "landed" : "not landed yet") : STATE[card.state];
+  const title = card.own ? card.title : `${card.story ?? ""} · ${card.title}`;
+  const classes = [
+    "box",
+    `state-${card.state ?? (card.landed ? "landed" : "planned")}`,
+    ...(card.landed ? [] : ["pending"]),
+    ...(card.own ? [`health-${card.reported ?? "not-checked"}`] : ["elsewhere"]),
+    ...(selected ? ["selected"] : []),
+  ];
+  const pressable = card.own ? ` data-capability-id="${attribute(card.id)}" role="button" tabindex="0" aria-pressed="${selected}"` : "";
+  const lines = [...(card.own ? [] : [{ words: card.story ?? "", kind: "card-story" }]), ...wrap(card.title, card.own ? 28 : 24, card.own ? 2 : 1).map((words) => ({ words, kind: "card-title" }))];
+  const marks = [
+    ...(card.reported === undefined ? [] : [mark("the agent reports", card.reported)]),
+    ...(card.verified === undefined ? [] : [mark("storytree saw", card.verified)]),
+  ];
+  return `<g class="${classes.join(" ")}"${pressable} transform="translate(${card.x.toFixed(1)} ${card.y.toFixed(1)})">
+      <title>${text(title)}${card.landed ? "" : " (not landed yet)"}</title>
+      <rect class="card-bg" width="${W}" height="${H}" rx="7" />
+      <path class="card-strip" d="M 0 ${S} L 0 7 Q 0 0 7 0 L ${W - 7} 0 Q ${W} 0 ${W} 7 L ${W} ${S} Z" />
+      <text class="card-status" x="8" y="${S - 5}">${status}</text>
+      ${lines.map(({ words, kind }, index) => `<text class="${kind}" x="${W / 2}" y="${S + (card.own ? 17 : 15) + index * 15}">${text(words)}</text>`).join("")}
+      ${marks.map((each, index) => each.replace("<text ", `<text x="8" y="${H - 8 - (marks.length - 1 - index) * 14}" `)).join("")}
+    </g>`;
+}
+
+const SIGN: Readonly<Record<HealthState, string>> = { passing: "✓", failing: "✗", "not-checked": "–" };
+
+function mark(who: string, state: HealthState): string {
+  return `<text class="card-mark mark-${state}">${SIGN[state]} ${text(who)}: ${HEALTH[state]}</text>`;
+}
+
+/** `words` in at most `most` lines of about `width` characters, the last cut short with an ellipsis. */
+function wrap(words: string, width: number, most: number): string[] {
+  const lines: string[] = [];
+  let rest = words.trim();
+  while (rest.length > 0 && lines.length < most) {
+    if (rest.length <= width) {
+      lines.push(rest);
+      rest = "";
+      break;
+    }
+    const cut = rest.lastIndexOf(" ", width);
+    const at = cut < width * 0.4 ? width : cut;
+    lines.push(rest.slice(0, at).trim());
+    rest = rest.slice(at).trim();
+  }
+  if (rest.length > 0 && lines.length > 0) lines[lines.length - 1] = shorten(`${lines.at(-1)} ${rest}`, width);
+  return lines;
 }
 
 function shorten(words: string, most: number): string {

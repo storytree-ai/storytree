@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { CapabilityLine, StoryPanel } from "./drill-down.js";
-import { CARD, layoutTree } from "./tree-layout.js";
+import { CARD, layoutTree, OUTSIDE_CARD } from "./tree-layout.js";
 
 function line(id: string): CapabilityLine {
   return { id, title: `The ${id}`, description: "", reported: "not-checked", state: "planned", contracts: [] };
@@ -32,13 +32,16 @@ test("4.9 the tree is a graph of fixed-size cards: each capability above what it
   const layout = layoutTree(panel);
   const at = new Map(layout.cards.map((card) => [card.id, card]));
   assert.deepEqual([...at.keys()].sort(), ["a", "b", "c", "x", "y"]);
-  for (const card of layout.cards) assert.deepEqual([card.width, card.height], [CARD.width, CARD.height], "no card shrinks to fit");
-  const y = (id: string): number => at.get(id)?.y ?? Number.NaN;
+  for (const card of layout.cards) {
+    const size = card.own ? CARD : OUTSIDE_CARD;
+    assert.deepEqual([card.width, card.height], [size.width, size.height], "no card shrinks to fit");
+  }
+  const y = (id: string): number => { const card = at.get(id); return card === undefined ? Number.NaN : card.y + card.height / 2; };
   assert.ok(y("c") < y("b") && y("b") < y("a") && y("a") < y("x"), "what a capability builds on sits below it");
   assert.equal(y("y"), y("b"), "an outside capability sits one row below the one that builds on it");
   assert.notEqual(y("x"), y("y"), "not every outside capability in one row");
   assert.equal(at.get("x")?.own, false);
   assert.equal(at.get("a")?.own, true);
   assert.equal(layout.links.length, 4);
-  assert.ok(layout.width >= CARD.width && layout.height >= 4 * CARD.height);
+  assert.ok(layout.width >= CARD.width && layout.height >= 3 * CARD.height + OUTSIDE_CARD.height);
 });

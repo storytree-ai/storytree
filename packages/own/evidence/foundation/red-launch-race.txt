@@ -1,0 +1,38 @@
+✖ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (60.592759ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 256.595136
+
+✖ failing tests:
+
+test at packages/own/src/foundation.test.ts:1:6289
+✖ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (60.592759ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   identity: {
+  +     boot: '51ec4fd9-102e-4714-a1c5-cd8fe07774fd',
+  +     pid: 160799,
+  +     platform: 'linux',
+  +     started: 'replacement-lifetime'
+  +   },
+  +   state: 'live'
+  -   state: 'gone'
+    }
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-foundation/packages/own/src/foundation.test.ts:145:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { state: 'live', identity: { pid: 160799, platform: 'linux', started: 'replacement-lifetime', boot: '51ec4fd9-102e-4714-a1c5-cd8fe07774fd' } },
+    expected: { state: 'gone' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

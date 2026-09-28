@@ -2,14 +2,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
-import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from '@storytree/forest';
+import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from '../index.js';
 import { workStates } from '@storytree/arc-surface';
-import { clipToCoast, rimLoops, SHIPPED_COAST } from '../coast-clip.js';
-import { trailFillWidth } from '../core/routing.js';
-import type { InstanceDescriptor } from '../world-to-3d.js';
-import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
-import { plateTransform } from './planet.js';
-import { buildPlanetPathways } from './pathways.js';
+import { clipToCoast, rimLoops, SHIPPED_COAST } from '../../../forest-world/src/coast-clip.js';
+import { trailFillWidth } from '../../../forest-world/src/core/routing.js';
+import type { InstanceDescriptor } from '../../../forest-world/src/world-to-3d.js';
+import { RIBBON_GROUND_SCALE } from '../../../forest-world/src/trail-ribbon-width.js';
+import { plateTransform } from '../../../forest-world/src/planet/planet.js';
+import { buildPlanetPathways } from '../../../forest-world/src/planet/pathways.js';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) => ({ id, title: id, dependsOn, contracts: [], health });
@@ -80,7 +80,7 @@ test('3.7 cross-story chains land at both actual clipped shores and continue int
 
 // Routing errors must never take a failing island off the page (ADR-0646 D4).
 test('3.6 routing failure is visible while every island and its failing trees still draw', async () => {
-  const { planetPathwayDrawing } = await import('./pathways.js');
+  const { planetPathwayDrawing } = await import('../../../forest-world/src/planet/pathways.js');
   const broken = { ...scene, links: [{ from: 'a1', to: 'missing-capability' }],
     islands: scene.islands.map(island => ({ ...island, trees: island.trees.map(t => ({ ...t, form: 'dead' as const })) })) };
   const drawing = planetPathwayDrawing(broken, spots, PLANET_RADIUS);

@@ -1,0 +1,106 @@
+✖ 4.1/4.6: every explicit target gets a refusal with its owner; malformed and unknown targets receive no signal (17.608439ms)
+✖ 4.2: gone, reused, foreign-machine and uncertain lifetimes never authorize a signal (27.104037ms)
+✖ 4.1/4.3: parent delegation covers linked descendants, but excludes conflicting owners and never grants a subagent its siblings (26.525217ms)
+✖ 4.3: a conflicting registration for the same process lifetime prevents signalling it (12.025961ms)
+✖ 4.4/4.5: root exit cannot hide a surviving child; both phases are verified and unsuccessful records remain (12.289431ms)
+✖ 4.4/4.5: probe failure after delivery prevents forced signalling and a stopped verdict (6.591985ms)
+✖ 4.3/4.6: late registrations and unreadable inventory stay explicit; a mixed batch cannot report success (6.60535ms)
+✖ 4.2/4.4 native: stale identity leaves the actual process alive; registered detached child is force-stopped even after root exits (75.447055ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 396.871171
+
+✖ failing tests:
+
+test at packages/own/src/stopping/stopping.test.ts:1:1310
+✖ 4.1/4.6: every explicit target gets a refusal with its owner; malformed and unknown targets receive no signal (17.608439ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:36:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at packages/own/src/stopping/stopping.test.ts:1:2086
+✖ 4.2: gone, reused, foreign-machine and uncertain lifetimes never authorize a signal (27.104037ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:51:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/stopping/stopping.test.ts:1:2915
+✖ 4.1/4.3: parent delegation covers linked descendants, but excludes conflicting owners and never grants a subagent its siblings (26.525217ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:68:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/stopping/stopping.test.ts:1:4582
+✖ 4.3: a conflicting registration for the same process lifetime prevents signalling it (12.025961ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:91:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/stopping/stopping.test.ts:1:5084
+✖ 4.4/4.5: root exit cannot hide a surviving child; both phases are verified and unsuccessful records remain (12.289431ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:103:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/stopping/stopping.test.ts:1:6119
+✖ 4.4/4.5: probe failure after delivery prevents forced signalling and a stopped verdict (6.591985ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:121:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/stopping/stopping.test.ts:1:6719
+✖ 4.3/4.6: late registrations and unreadable inventory stay explicit; a mixed batch cannot report success (6.60535ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:135:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/stopping/stopping.test.ts:1:8543
+✖ 4.2/4.4 native: stale identity leaves the actual process alive; registered detached child is force-stopped even after root exits (75.447055ms)
+  TypeError: stopping.stopOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:183:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+✖ 4.3: a conflicting registration appearing between deliveries prevents the next child signal (49.186035ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 246.477043
+
+✖ failing tests:
+
+test at packages/own/src/stopping/stopping.test.ts:15:484
+✖ 4.3: a conflicting registration appearing between deliveries prevents the next child signal (49.186035ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      4242,
+  +   4243
+    ]
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-stop/packages/own/src/stopping/stopping.test.ts:241:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 4242, 4243 ],
+    expected: [ 4242 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

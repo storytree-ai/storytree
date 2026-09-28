@@ -20,12 +20,12 @@ export function Overlay(props: ComponentProps<typeof Html>) {
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
 
 /** Each story's name over its island, facing the viewer as the camera pans and zooms (3.4). */
-export function Names({ islands, selected, onGlobe = false }: { islands: readonly Island[]; selected: string | undefined; onGlobe?: boolean }) {
+export function Names({ islands, selected, onGlobe = false, dimmed = false }: { islands: readonly Island[]; selected: string | undefined; onGlobe?: boolean; dimmed?: boolean }) {
   return islands.map((island) => {
     const { x, z } = centreOf(island);
     return (
       <Overlay occlude={onGlobe} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div className={`forest-label${onGlobe ? " planet-label" : ""}${island.story === selected ? " selected" : ""}`} data-story-id={island.story}>
+        <div className={`forest-label${onGlobe ? " planet-label" : ""}${island.story === selected ? " selected" : ""}`} data-story-id={island.story} style={{ opacity: dimmed ? 0.24 : 1 }}>
           {island.title}
         </div>
       </Overlay>
@@ -33,35 +33,38 @@ export function Names({ islands, selected, onGlobe = false }: { islands: readonl
   });
 }
 
-/** Which agent holds which capability, over that capability's tree (capability 5). */
+/** A quiet dot over each claimed capability's tree (capability 5). */
 export function Claims({ markers, descriptors, occlude = false }: { markers: readonly Marker[]; descriptors: readonly Descriptor3D[]; occlude?: boolean }) {
   const spots = parcelSpots(descriptors);
   return markers.map((marker) => {
     const spot = spots.get(marker.capability);
     if (spot === undefined) return null;
     return (
-      <Overlay occlude={occlude} key={`${marker.capability}:${marker.text}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
+      <Overlay occlude={occlude} key={`${marker.capability}:${marker.session}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
         <div
-          className={`forest-claim${marker.faded ? " faded" : ""}${marker.hooksNotRunning ? " no-hooks" : ""}`}
+          className="forest-claim-dot"
           data-capability-id={marker.capability}
+          role="img"
+          aria-label={marker.faded ? "Claimed capability, holder is idle" : "Claimed capability"}
           title={marker.faded ? "quiet past the quiet time: it still holds this capability" : ""}
-        >
-          {marker.hooksNotRunning ? `${marker.text} · hooks not running` : marker.text}
-        </div>
+          style={{ width: 8, height: 8, borderRadius: "50%", boxSizing: "border-box",
+            background: "#e2e8e5", border: "1px solid rgb(24 40 32 / 0.7)",
+            boxShadow: "0 1px 3px rgb(0 0 0 / 0.45)", opacity: marker.faded ? 0.45 : 1, pointerEvents: "none" }}
+        />
       </Overlay>
     );
   });
 }
 
 /** A ring on the water round the selected island (3.3). */
-export function SelectionRing({ island, descriptors, onGlobe = false }: { island: Island | undefined; descriptors: readonly Descriptor3D[]; onGlobe?: boolean }) {
+export function SelectionRing({ island, descriptors, onGlobe = false, emphasis = false }: { island: Island | undefined; descriptors: readonly Descriptor3D[]; onGlobe?: boolean; emphasis?: boolean }) {
   if (island === undefined) return null;
   const centre = centreOf(island);
   const reach = islandReach(descriptors, new Map([[island.story, centre]])).get(island.story) ?? 20;
   return (
-    <mesh raycast={() => {}} position={[centre.x, 0.4, centre.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
+    <mesh name={emphasis ? `session-highlight:${island.story}` : ""} raycast={() => {}} position={[centre.x, 0.4, centre.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
       <ringGeometry args={[reach + 3, reach + 5, 96]} />
-      <meshBasicMaterial color="#ffd75e" side={DoubleSide} depthTest={onGlobe} transparent opacity={0.9} />
+      <meshBasicMaterial color={emphasis ? "#edf4ee" : "#ffd75e"} side={DoubleSide} depthTest={onGlobe} transparent opacity={0.9} />
     </mesh>
   );
 }

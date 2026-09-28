@@ -1,0 +1,94 @@
+
+> storytree@ gate /home/mickh/code/storytree03-wt/own-list
+> node scripts/gate.mjs
+
+
+=== typecheck ===
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/own-list
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/librarian typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/app-setup typecheck: Done
+packages/own typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+=== test ===
+scope: affected — packages/own — changed: packages/own
+units: packages/own, scripts/package-boundaries.test.mjs
+test Postgres: listening on 127.0.0.1:40509 (started in 0.1 s)
+
+=== packages/own ===
+✔ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (104.242294ms)
+✔ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (178.142166ms)
+✔ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (52.210387ms)
+✔ 1.5: absent owner and failed registration report an untracked launch instead of guessing (30.934436ms)
+✔ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (10.107107ms)
+✔ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (39.723051ms)
+✔ 3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime (26.841205ms)
+✔ 3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline (3.671409ms)
+✔ 3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal (3.847815ms)
+✔ 3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle (2.849069ms)
+✔ 3.1: the inventory observes a real owned process live and then gone through the native probe (12.409508ms)
+✔ 2.3/2.4 native observation identifies one live process lifetime consistently (7.271614ms)
+✔ 2.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE (24.739004ms)
+✔ 2.3 invalid process identifiers remain uncertain (0.234345ms)
+✔ 2.3 Linux distinguishes absent processes from unreadable or malformed evidence (0.401072ms)
+✔ 2.3/2.4 Linux uses exact boot and start ticks even with spaces and parentheses in command (0.367087ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 570.604988
+
+=== scripts/package-boundaries.test.mjs ===
+✔ this repo keeps every story in its own package, behind a thin frame and front door (37.654544ms)
+✔ the planted trees start from one that keeps the rules (2.520916ms)
+✔ a story with no package is refused, and so is a package that is neither a story's nor declared (2.351794ms)
+✔ a story's code in the frame or the front door is refused (2.48625ms)
+✔ story code the frame still holds passes only while it is declared, and its declaration only while it is there (4.488731ms)
+✔ a package reaching into another story's files is refused, by relative path or by a subpath it does not export (2.19627ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 127.460932
+
+results:
+  PASS    packages/own
+  PASS    scripts/package-boundaries.test.mjs
+test Postgres: stopped (0.1 s)
+
+results:
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits

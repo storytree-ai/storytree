@@ -33,6 +33,8 @@ Record what you learned.
 - \`write_note\` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes an artifact's wording in place.
 - \`record_friction\` when something got in your way, with concrete evidence; \`reinforce\` the existing item when it happens again, with its own evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
 
+Use \`list_own_runs\` for this caller’s recorded work, \`list_all_runs\` for every recorded session on this computer, \`stop_own_run\` for named runs you own, and \`clear_own_runs\` to remove only your confirmed-gone records and read what remains on this computer. These tools work with the app offline; uncertain caller identity grants no stop authority.
+
 If storytree says it isn't running, carry on without it.`;
 
 /** The habits card, as the tool server hands it to the agent. */

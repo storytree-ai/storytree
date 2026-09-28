@@ -14,12 +14,13 @@
  *   never makes an idle holder read as live.
  * - Nothing here ever fails a hook or a tool: `gh` missing, signed out or slow means no merge seen.
  */
-import { execFile, execFileSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type { ActivityLog, Line } from "../activity/index.js";
+import { ask } from "../setup/machine.js";
 import { claimsFrom, readClaims } from "./claims.js";
 
 /** A merged pull request, as GitHub reports it. */
@@ -90,23 +91,21 @@ export async function endMergedClaims(context: MergeContext, watch: MergeWatch =
 }
 
 /** The merged pull requests from `branch`, through `gh`, run in `folder` so it finds the project's repository. */
-export const ghMergedPulls: MergedPulls = (folder, branch) =>
-  new Promise((resolve) => {
-    execFile(
-      "gh",
-      ["pr", "list", "--state", "merged", "--head", branch, "--json", "number,mergedAt", "--limit", "20"],
-      { cwd: folder, timeout: GH_TIMEOUT_MS, windowsHide: true },
-      (error, stdout) => {
-        if (error !== null) return resolve([]);
-        try {
-          const pulls = JSON.parse(stdout) as unknown;
-          resolve(Array.isArray(pulls) ? pulls.filter((pull): pull is MergedPull => typeof pull?.number === "number" && typeof pull?.mergedAt === "string") : []);
-        } catch {
-          resolve([]);
-        }
-      },
-    );
-  });
+export const ghMergedPulls: MergedPulls = (folder, branch) => mergedPullsThrough("gh")(folder, branch);
+
+/** The merged pull requests, asked of `command` with `prefix` before gh's own arguments. */
+export const mergedPullsThrough = (command: string, prefix: readonly string[] = []): MergedPulls => async (folder, branch) => {
+  // No shell: the branch is the user's, not a fixed word. gh itself is an .exe on Windows.
+  const args = [...prefix, "pr", "list", "--state", "merged", "--head", branch, "--json", "number,mergedAt", "--limit", "20"];
+  const answer = await ask(command, args, process.env, GH_TIMEOUT_MS, { cwd: folder, shell: false });
+  if (!answer.answered || answer.code !== 0) return [];
+  try {
+    const pulls = JSON.parse(answer.out) as unknown;
+    return Array.isArray(pulls) ? pulls.filter((pull): pull is MergedPull => typeof pull?.number === "number" && typeof pull?.mergedAt === "string") : [];
+  } catch {
+    return [];
+  }
+};
 
 /** The branch `folder` is on, or undefined when it is not on one (not a git folder, or a detached head). */
 export function currentBranch(folder: string): string | undefined {

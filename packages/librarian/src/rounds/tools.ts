@@ -3,7 +3,6 @@ import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { ToolCall, ToolExtension } from "@storytree/agent-link";
 import { z } from "zod";
 
 import { retire } from "../catalogue/index.js";
@@ -11,6 +10,7 @@ import { annotate, correct, supersede } from "../decision-log/index.js";
 import { claudeCodeMemoryFolder, graduate, park } from "../graduation/index.js";
 import { link } from "../links/index.js";
 import { route } from "../queues/index.js";
+import type { ToolCall, ToolExtension } from "./host.js";
 import { roundDue, worklist } from "./rounds.js";
 
 const text = z.string().trim().min(1);

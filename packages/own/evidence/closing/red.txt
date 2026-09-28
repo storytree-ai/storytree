@@ -1,0 +1,74 @@
+✖ 5.1: clear removes only caller records whose original lifetime and registered descendants are gone (15.585463ms)
+✖ 5.2: live, unknown and foreign records remain; a named subagent cannot clear its siblings (5.319928ms)
+✖ 5.2/5.4: unreadable records and known registration gaps survive clear and prevent unproved child clearance (4.579141ms)
+✖ 5.2: failed removals are reported and never counted as cleared (5.588298ms)
+✖ 5.1/5.2: clear rereads ownership and child membership after probing, before removing a record (1.283479ms)
+✖ 5.3: the closing reading still names live and unknown work belonging to old and other sessions (1.294861ms)
+✖ 5.4: empty observations with persisted, unreadable or caller-carried missing evidence are incomplete (0.919407ms)
+✖ 5.5: an empty or confirmed-gone inventory has bounded local coverage and leaves shared work alone (0.932441ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 240.018409
+
+✖ failing tests:
+
+test at packages/own/src/closing/closing.test.ts:1:1169
+✖ 5.1: clear removes only caller records whose original lifetime and registered descendants are gone (15.585463ms)
+  TypeError: closing.clearOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:37:32)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at packages/own/src/closing/closing.test.ts:1:2457
+✖ 5.2: live, unknown and foreign records remain; a named subagent cannot clear its siblings (5.319928ms)
+  TypeError: closing.clearOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:60:31)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/closing/closing.test.ts:1:3466
+✖ 5.2/5.4: unreadable records and known registration gaps survive clear and prevent unproved child clearance (4.579141ms)
+  TypeError: closing.clearOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:78:32)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/closing/closing.test.ts:1:4313
+✖ 5.2: failed removals are reported and never counted as cleared (5.588298ms)
+  TypeError: closing.clearOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:91:32)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/closing/closing.test.ts:1:4913
+✖ 5.1/5.2: clear rereads ownership and child membership after probing, before removing a record (1.283479ms)
+  TypeError: closing.clearOwned is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:108:30)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/closing/closing.test.ts:1:5847
+✖ 5.3: the closing reading still names live and unknown work belonging to old and other sessions (1.294861ms)
+  TypeError: closing.readClosing is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:129:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/closing/closing.test.ts:1:6981
+✖ 5.4: empty observations with persisted, unreadable or caller-carried missing evidence are incomplete (0.919407ms)
+  TypeError: closing.readClosing is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:145:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/own/src/closing/closing.test.ts:1:8144
+✖ 5.5: an empty or confirmed-gone inventory has bounded local coverage and leaves shared work alone (0.932441ms)
+  TypeError: closing.readClosing is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:165:31)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

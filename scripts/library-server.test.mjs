@@ -81,21 +81,33 @@ test("the seed gives up waiting only after its deadline, naming the holder", asy
   assert.ok(now >= 60_000, "it waited the whole time first");
 });
 
-test("two seeds never write at once: the second waits for the first's writing lock", async () => {
+// A timeout, so a waiter that never gets the lock fails this test instead of hanging it; the
+// harness's own limits (scripts/unit-run.mjs) end the process if an open connection outlives it.
+test("two seeds never write at once: the second waits for the first's writing lock", { timeout: 60_000 }, async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
-  const said = [];
-  const first = await holdSeedLock(url, { log: (line) => said.push(`first: ${line}`) });
+  const first = await holdSeedLock(url, { log: () => {} });
   let secondHas = false;
-  const second = holdSeedLock(url, { log: (line) => said.push(`second: ${line}`) }).then((lock) => {
+  let saidWaiting;
+  const waiting = new Promise((resolve) => {
+    saidWaiting = resolve;
+  });
+  const second = holdSeedLock(url, {
+    log: (line) => {
+      if (/waiting/.test(line)) saidWaiting();
+    },
+  }).then((lock) => {
     secondHas = true;
     return lock;
   });
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  assert.equal(secondHas, false, "while the first holds it, the second waits");
-  assert.ok(said.some((line) => /^second: .*waiting/.test(line)), "and says it is waiting");
-  await first.release();
-  const lock = await second;
+  try {
+    // Whichever comes first: the second saying it waits (right), or the second getting the lock.
+    await Promise.race([waiting, second]);
+    assert.equal(secondHas, false, "while the first holds it, the second waits, and says so");
+  } finally {
+    await first.release();
+    const lock = await second;
+    await lock.release();
+  }
   assert.equal(secondHas, true, "once the first lets go, the second has it");
-  await lock.release();
 });

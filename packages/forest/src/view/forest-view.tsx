@@ -18,6 +18,8 @@ export interface ForestView {
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
   /** Show which agent holds which capability, each marker over its tree (capability 5). */
   showMarkers(markers: readonly Marker[]): void;
+  /** Light a session’s claimed islands without changing the selected story. */
+  highlight(stories: readonly string[] | undefined): void;
   /** Mark `story` selected (undefined for none), as a click would. */
   select(story: string | undefined): void;
   /** Stop drawing and let go of the GPU. */
@@ -31,6 +33,7 @@ interface Drawn {
   scene: ForestScene;
   markers: readonly Marker[];
   selected: string | undefined;
+  highlighted: readonly string[] | undefined;
   viewport: { width: number; height: number } | undefined;
 }
 
@@ -42,7 +45,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {
-    mode: "forest", places: new Map(), scene: { islands: [] }, markers: [], selected: undefined, viewport: undefined,
+    mode: "forest", places: new Map(), scene: { islands: [] }, markers: [], selected: undefined, highlighted: undefined, viewport: undefined,
   };
 
   const render = (next: Partial<Drawn>): void => {
@@ -52,7 +55,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     container.dataset.forestMode = drawn.mode;
     root.render(<>
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} markers={drawn.markers}
-        selected={drawn.selected} onPick={pick} onNote={pickNote} mode={drawn.mode} />
+        selected={drawn.selected} highlighted={drawn.highlighted} onPick={pick} onNote={pickNote} mode={drawn.mode} />
       <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
@@ -89,6 +92,9 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     },
     showMarkers(markers) {
       render({ markers });
+    },
+    highlight(stories) {
+      render({ highlighted: stories });
     },
     select(story) {
       selection.story(story);

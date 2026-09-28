@@ -1,0 +1,22 @@
+{
+  "name": "@storytree/own",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./process": "./src/process/index.ts",
+    "./listing": "./src/listing/index.ts",
+    "./stopping": "./src/stopping/index.ts",
+    "./closing": "./src/closing/index.ts"
+  },
+  "scripts": { "typecheck": "tsc -p ." },
+  "dependencies": {
+    "koffi": "^3.3.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

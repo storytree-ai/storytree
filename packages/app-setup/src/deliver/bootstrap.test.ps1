@@ -43,6 +43,26 @@ try { Select-StorytreeInstaller $release $manifest 'x64'; throw 'accepted stale 
 $file = [IO.Path]::GetTempFileName()
 try {
   [IO.File]::WriteAllText($file, 'interrupted download')
-  try { Assert-StorytreeDownload $file ('a' * 64); throw 'accepted damaged download' } catch { Assert ($_.Exception.Message -match 'checksum') 'reject damaged installer before running it' }
+  try { Assert-StorytreeDownload $file ('a' * 64); throw 'accepted damaged download' } catch { Assert ($_.Exception.Message -match 'checksum') "reject damaged installer before running it: $($_.Exception.Message)" }
 } finally { Remove-Item -LiteralPath $file }
+$report = @{ tools = @{ node = 'installed node with spaces'; cli = 'installed cli with spaces' } }
+$script:Selected = ''
+$script:Connected = @()
+$join = @{
+  Choose = { return $script:Selected }
+  Connect = { param($Tools, $Flags) Assert ($Tools.node -eq $report.tools.node) 'use delivered Node'; Assert ($Tools.cli -eq $report.tools.cli) 'use delivered CLI'; $script:Connected = @($Flags) }
+}
+foreach ($choice in @('1', '2', '3', 's')) {
+  $script:Selected = $choice; $script:Connected = @()
+  Invoke-StorytreeConnection $report $join
+  $expected = switch ($choice) { '1' { '--claude' } '2' { '--codex' } '3' { '--claude,--codex' } 's' { '' } }
+  Assert (($script:Connected -join ',') -eq $expected) "connection selection $choice"
+}
+$script:Selected = 'invalid'
+try { Invoke-StorytreeConnection $report $join; throw 'accepted invalid selection' }
+catch { Assert ($_.Exception.Message -match 'Choose 1, 2, 3 or S') 'invalid choice cannot connect silently' }
+$script:Selected = '3'
+$join.Connect = { throw 'one agent could not connect' }
+try { Invoke-StorytreeConnection $report $join; throw 'accepted partial failure' }
+catch { Assert ($_.Exception.Message -match 'one agent could not connect') 'connection failure reaches installer caller' }
 Write-Output 'delivery bootstrap PASS'

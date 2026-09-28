@@ -38,11 +38,14 @@ const TOOLS = [
   "attach_workspace",
   "check_setup",
   "claim",
+  "clear_own_runs",
   "clear_wait",
   "close_increment",
   "correct_note",
   "edit_plan",
   "land",
+  "list_all_runs",
+  "list_own_runs",
   "make_workspace",
   "open",
   "park_arc",
@@ -66,6 +69,7 @@ const TOOLS = [
   "set_wait",
   "settle_question",
   "show_plan",
+  "stop_own_run",
   "write_note",
 ];
 
@@ -437,9 +441,9 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
         ["read_context", {}],
       ];
-      // Every tool but the setup check's two, which open storytree when it is closed (capability 8).
-      const setupTools = ["check_setup", "set_up_project"];
-      assert.deepEqual(calls.map(([tool]) => tool).sort(), TOOLS.filter((tool) => !setupTools.includes(tool)), "every tool is tried");
+      // Own's offline tools and the setup check's two do not depend on the library.
+      const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs"];
+      assert.deepEqual(calls.map(([tool]) => tool).sort(), TOOLS.filter((tool) => !offlineTools.includes(tool)), "every library tool is tried");
       for (const [tool, args] of calls) {
         const answer = await agent.call(tool, args);
         assert.deepEqual({ text: answer.text, isError: answer.isError }, { text: NOT_RUNNING_ANSWER, isError: false }, tool);

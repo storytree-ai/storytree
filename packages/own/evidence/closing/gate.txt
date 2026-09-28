@@ -1,0 +1,113 @@
+
+> storytree@ gate /home/mickh/code/storytree03-wt/own-close
+> node scripts/gate.mjs
+
+
+=== typecheck ===
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/own-close
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/librarian typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/own typecheck: Done
+packages/app-setup typecheck: Done
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+=== test ===
+scope: affected — packages/own — changed: packages/own
+units: packages/own, scripts/package-boundaries.test.mjs
+test Postgres: listening on 127.0.0.1:40773 (started in 0.1 s)
+
+=== packages/own ===
+✔ 5.1: clear removes only caller records whose original lifetime and registered descendants are gone (43.166987ms)
+✔ 5.2: live, unknown and foreign records remain; a named subagent cannot clear its siblings (16.696907ms)
+✔ 5.2/5.4: unreadable records and known registration gaps survive clear and prevent unproved child clearance (5.502742ms)
+✔ 5.2: failed removals are reported and never counted as cleared (2.689508ms)
+✔ 5.1/5.2: clear rereads ownership and child membership after probing, before removing a record (4.233261ms)
+✔ 5.1/5.2: a child disappearing or being reparented during a probe cannot make its parent clearable (9.388023ms)
+✔ 5.3: the closing reading still names live and unknown work belonging to old and other sessions (4.472105ms)
+✔ 5.4: empty observations with persisted, unreadable or caller-carried missing evidence are incomplete (4.788757ms)
+✔ 5.5: an empty or confirmed-gone inventory has bounded local coverage and leaves shared work alone (2.480592ms)
+✔ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (78.518109ms)
+✔ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (172.814611ms)
+✔ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (33.772041ms)
+✔ 1.5: absent owner and failed registration report an untracked launch instead of guessing (31.70248ms)
+✔ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (9.968255ms)
+✔ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (39.745618ms)
+✔ 3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime (29.181221ms)
+✔ 3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline (6.831648ms)
+✔ 3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal (4.615107ms)
+✔ 3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle (3.909236ms)
+✔ 3.1: the inventory observes a real owned process live and then gone through the native probe (18.285124ms)
+✔ 2.3/2.4 native observation identifies one live process lifetime consistently (14.785486ms)
+✔ 2.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE (37.378021ms)
+✔ 2.3 invalid process identifiers remain uncertain (0.325708ms)
+✔ 2.3 Linux distinguishes absent processes from unreadable or malformed evidence (0.497465ms)
+✔ 2.3/2.4 Linux uses exact boot and start ticks even with spaces and parentheses in command (0.404278ms)
+✔ 4.1/4.6: every explicit target gets a refusal with its owner; malformed and unknown targets receive no signal (35.32362ms)
+✔ 4.2: gone, reused, foreign-machine and uncertain lifetimes never authorize a signal (50.383476ms)
+✔ 4.1/4.3: parent delegation covers linked descendants, but excludes conflicting owners and never grants a subagent its siblings (39.273262ms)
+✔ 4.3: a conflicting registration for the same process lifetime prevents signalling it (13.233768ms)
+✔ 4.4/4.5: root exit cannot hide a surviving child; both phases are verified and unsuccessful records remain (18.363182ms)
+✔ 4.4/4.5: probe failure after delivery prevents forced signalling and a stopped verdict (12.535823ms)
+✔ 4.3/4.6: late registrations and unreadable inventory stay explicit; a mixed batch cannot report success (17.860036ms)
+✔ 4.2/4.4 native: stale identity leaves the actual process alive; registered detached child is force-stopped even after root exits (192.59768ms)
+✔ 4.4 native: a cooperative process exits in the polite phase, while another owner stays live (74.591731ms)
+✔ 4.3: a conflicting registration appearing between deliveries prevents the next child signal (21.514047ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 671.539595
+
+=== scripts/package-boundaries.test.mjs ===
+✔ this repo keeps every story in its own package, behind a thin frame and front door (37.830842ms)
+✔ the planted trees start from one that keeps the rules (2.501621ms)
+✔ a story with no package is refused, and so is a package that is neither a story's nor declared (2.354853ms)
+✔ a story's code in the frame or the front door is refused (2.476885ms)
+✔ story code the frame still holds passes only while it is declared, and its declaration only while it is there (4.323774ms)
+✔ a package reaching into another story's files is refused, by relative path or by a subpath it does not export (2.358129ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 130.170055
+
+results:
+  PASS    packages/own
+  PASS    scripts/package-boundaries.test.mjs
+test Postgres: stopped (0.1 s)
+
+results:
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits

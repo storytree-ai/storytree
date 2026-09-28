@@ -26,14 +26,14 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import type { Library, WriteOptions } from "@storytree/library";
+import { ConnectionError, type Library, type WriteOptions } from "@storytree/library";
 import { librarianTools } from "@storytree/librarian";
 import type { z } from "zod";
 
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
 import { endMergedClaims, type MergeWatch } from "../claims/index.js";
 import { habitsCard } from "../instructions/index.js";
-import { findProject, route } from "../routing/index.js";
+import { findProject, locateStorytree, route } from "../routing/index.js";
 import { QUIET_MS } from "../sessions/index.js";
 import type { SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
@@ -44,6 +44,7 @@ import { registerNoteTools } from "./note-tools.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerSetupTools } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
+import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
 
 export { NOT_RUNNING_ANSWER };
 export type { Answer };
@@ -111,7 +112,7 @@ export interface ToolExtension {
 export function createAgentTools(options: AgentToolOptions): AgentTools {
   // ADR-0644 U1: enable the librarian for storytree's own library first. Its behaviour stays in
   // its package; this is the shared registration point for other stories (ADR-0643 D6).
-  const servedTools = ["check_setup", "set_up_project"];
+  const servedTools = ["check_setup", "set_up_project", ...OWN_TOOLS];
   const extensions = [
     ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools })] : []),
     ...options.extensions ?? [],
@@ -164,6 +165,36 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     callerOf,
   });
   registerPlanTools(define);
+  registerOwnTools({
+    server,
+    ...(options.dataDir === undefined ? {} : { home: path.join(path.dirname(options.dataDir), 'own') }),
+    async owner(context) {
+      let caller = callerOf(context);
+      const meta = metaOf(context);
+      let agent: Agent = caller.harness === 'codex' ? agentOf([], meta) : 'unknown';
+      const where = route(options.folder, locate);
+      if (where.status === 'routed') {
+        try {
+          const { log } = await connections.reach(where.url, where.project);
+          const { lines } = await log.since(where.project, 0);
+          caller = seenCaller(lines, caller, meta);
+          agent = requestOf(lines, meta) || caller.harness === 'codex' ? agentOf(lines, meta) : 'unknown';
+        } catch (error) {
+          if (!isUnreachable(error) && !(error instanceof ConnectionError && error.problem === 'timeout')) throw error;
+          await connections.close();
+        }
+      }
+      // Claude shares one MCP server with subagents: only a correlated hook identifies a call.
+      // Codex carries its caller thread on the request, including while the app is down.
+      if (caller.session === ownSession || agent === 'unknown') return undefined;
+      return { ...caller, agent };
+    },
+    shared() {
+      const lifecycle = locateStorytree(locate);
+      return [{ name: 'storytree app and database', state: 'unknown',
+        reason: `The app lifecycle reports the database ${lifecycle.running ? 'running' : 'not running'}; it supplies no native lifetime or separate app identity. This shared work is managed by the app; use storytree app status or storytree app quit.` }];
+    },
+  });
   registerClaimTools(define, extensions);
   registerWorkTools(define);
   registerNoteTools(define);

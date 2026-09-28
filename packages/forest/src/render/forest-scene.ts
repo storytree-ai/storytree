@@ -12,50 +12,19 @@
  * - A click is turned into a point on the ground, and the island under it is the one selected.
  */
 import type { WorkStates } from "@storytree/arc-surface";
+import { PLACE_WIDTH, type ForestScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
-import { grove, type TreeForm } from "../capability-tree/capability-tree.js";
+import { grove } from "../capability-tree/capability-tree.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 
-/** How many world units one place-width is: wide enough that neighbouring islands never touch. */
-export const PLACE_WIDTH = 16;
+export { PLACE_WIDTH };
+export type { ForestScene, Island, PlacedTree };
+
 /** The largest an island grows, so it always fits its place. */
 const MAX_RADIUS = PLACE_WIDTH * 0.42;
 /** How far apart trees stand on an island. */
 const TREE_SPACING = 1.9;
-
-/** One tree as it stands on its island, in world units. */
-export interface PlacedTree {
-  /** The capability's id; undefined for the one seedling of a story with no capabilities yet. */
-  capability: string | undefined;
-  form: TreeForm;
-  /** How many contracts its capability has: 0.2's engine grows that much ground cover on its parcel. */
-  contracts: number;
-  x: number;
-  z: number;
-  /** How tall it stands, 1 for a full tree. */
-  scale: number;
-  /** Which way it is turned, in radians, so a grove does not look stamped. */
-  turn: number;
-}
-
-/** One story node, as an island. */
-export interface Island {
-  story: string;
-  title: string;
-  x: number;
-  z: number;
-  radius: number;
-  trees: PlacedTree[];
-  /** Changes only when something drawn on the island changes. */
-  key: string;
-}
-
-export interface ForestScene {
-  islands: Island[];
-  /** Recorded capability dependencies; optional for callers drawing land alone. */
-  links?: readonly { from: string; to: string }[];
-}
 
 /** What the forest says it drew: the smoke check's fields (ADR-0634 D2), with the forest's own added. */
 export interface ForestDrawn {

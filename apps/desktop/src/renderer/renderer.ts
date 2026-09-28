@@ -10,13 +10,13 @@ import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
-import { claimMarkers, drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, unclaimedWork, type ForestDrawn } from "@storytree/forest";
+import { claimMarkers, drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { openForestView, mountArtifactCard, renderStoryPanel, renderUnclaimed, type ForestView } from "@storytree/forest/view";
+import { openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, type ForestView } from "@storytree/forest/view";
 import { renderNoProjects, renderSwitcher } from "../view/view.js";
 
 declare global {
@@ -32,7 +32,7 @@ const help = mountSetupHelp(element("help"), window.storytree);
 window.addEventListener("beforeunload", () => help.stop());
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; card: (() => void) | undefined } | undefined;
+let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined } | undefined;
 let current: string | undefined;
 let following: ReturnType<typeof followProjects> | undefined;
 
@@ -102,11 +102,9 @@ async function showForest(name: string): Promise<void> {
   const panel = document.createElement("aside");
   panel.className = "story-panel";
   panel.hidden = true;
-  const unclaimed = document.createElement("aside");
-  unclaimed.className = "unclaimed";
-  content.replaceChildren(holder, panel, unclaimed);
+  content.replaceChildren(holder, panel);
   document.body.dataset.surface = "forest";
-  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, card: undefined };
+  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined };
   showing = mine;
   mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
   const history: Change[] = [];
@@ -166,6 +164,7 @@ async function showForest(name: string): Promise<void> {
   }, core);
   if (showing !== mine) return view.dispose();
   mine.view = view;
+  mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree, onHighlight: stories => view.highlight(stories) });
 
   let drawing = Promise.resolve();
   mine.reading = liveReading({
@@ -182,9 +181,7 @@ async function showForest(name: string): Promise<void> {
         view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
         view.showMarkers(claimMarkers(lines, new Date()));
         core.take(history, news.lines);
-        const work = unclaimedWork(lines);
-        unclaimed.innerHTML = renderUnclaimed(work, unclaimed.querySelector("details")?.open === true);
-        sayWhatWasDrawn({ ...forestDrawn(scene), unclaimed: work.count });
+        sayWhatWasDrawn(forestDrawn(scene));
         if (!panel.hidden) showPanel();
         setState("ready");
       }).catch((error: unknown) => {
@@ -205,6 +202,7 @@ function stopShowing(): void {
   showing?.card?.();
   showing?.arcs?.stop();
   showing?.reading?.stop();
+  showing?.sessions?.stop();
   showing?.view?.dispose();
   showing = undefined;
   delete document.body.dataset.surface;
@@ -216,7 +214,7 @@ function stopShowing(): void {
  * capabilities it drew, by id, with its own fields added. The smoke check judges the surface on
  * show by it.
  */
-function sayWhatWasDrawn(drawn: ForestDrawn & { unclaimed: number }): void {
+function sayWhatWasDrawn(drawn: ForestDrawn): void {
   // Each mounted surface contributes its own reading to the page census.
   document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"), ...drawn });
 }

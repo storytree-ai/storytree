@@ -1,0 +1,309 @@
+--- a/packages/app/src/updates/own-health.ts
++++ /dev/null
+@@ -1,60 +0,0 @@
+-/** Capability 4 · Updates, contract 4.3: the running main build checks its own verified health. */
+-import { spawn } from "node:child_process";
+-import { readFile, writeFile } from "node:fs/promises";
+-import path from "node:path";
+-
+-import type { RunningBuild } from "./follow-main.js";
+-
+-export interface OwnHealthOptions {
+-  /** The slot that has already started, never the slot being built for a later restart. */
+-  readonly running: RunningBuild;
+-  /** The app's home (including a STORYTREE_HOME override), whose database the check joins. */
+-  readonly home: string;
+-  /** The app's logger, which appends to <home>/app.log. */
+-  readonly log: (line: string) => void;
+-}
+-
+-/**
+- * Called in the background after the app opens its database and window, once per running commit.
+- * Follow-main awaits it before polling, so even the interval before the child takes the library
+- * writing lock cannot be interrupted by an update. The command itself uses appLibraryServer with
+- * writes: true: it joins the running app and holds that lock through testing and recording.
+- *
+- * Remember attempts, including failures, so reopening the same build does not keep retrying.
+- * Missing/corrupt state bootstraps a check of the current build. Nothing here rejects startup.
+- * Installed releases have no checkout and never call this.
+- */
+-export async function refreshOwnHealth({ running, home, log }: OwnHealthOptions): Promise<void> {
+-  try {
+-    const record = path.join(home, "own-health.json");
+-    let previous: { sha?: string } | undefined;
+-    try {
+-      previous = JSON.parse(await readFile(record, "utf8")) as { sha?: string };
+-    } catch { /* First use, or an interrupted write: check this build. */ }
+-    if (previous?.sha === running.sha) return;
+-    await writeFile(record, `${JSON.stringify({ sha: running.sha })}\n`);
+-    log(`own-health: checking ${running.sha} from slot ${running.slot} (${running.dir})`);
+-    await new Promise<void>((resolve, reject) => {
+-      // pnpm is a .cmd on Windows. The shell sees only this fixed command, never a path or input.
+-      const child = spawn("pnpm", ["check:own-health"], {
+-        cwd: running.dir,
+-        env: { ...process.env, STORYTREE_HOME: home },
+-        shell: process.platform === "win32",
+-        windowsHide: true,
+-        stdio: ["ignore", "pipe", "pipe"],
+-      });
+-      for (const output of [child.stdout, child.stderr]) {
+-        output.setEncoding("utf8");
+-        output.on("data", (chunk: string) => log(`own-health: ${chunk.trimEnd()}`));
+-      }
+-      child.once("error", reject);
+-      child.once("close", (code, signal) => {
+-        if (code === 0) resolve();
+-        else reject(new Error(signal === null ? `exit code ${code}` : `signal ${signal}`));
+-      });
+-    });
+-    log(`own-health: completed ${running.sha}`);
+-  } catch (error) {
+-    log(`own-health: failed for ${running.sha}: ${error instanceof Error ? error.message : String(error)}; will try again at the next update`);
+-  }
+-}
+--- /dev/null
++++ b/packages/app/src/updates/build-health.ts
+@@ -0,0 +1,60 @@
++/** Capability 4 · Updates, contract 4.3: the running main build checks its own verified health. */
++import { spawn } from "node:child_process";
++import { readFile, writeFile } from "node:fs/promises";
++import path from "node:path";
++
++import type { RunningBuild } from "./follow-main.js";
++
++export interface OwnHealthOptions {
++  /** The slot that has already started, never the slot being built for a later restart. */
++  readonly running: RunningBuild;
++  /** The app's home (including a STORYTREE_HOME override), whose database the check joins. */
++  readonly home: string;
++  /** The app's logger, which appends to <home>/app.log. */
++  readonly log: (line: string) => void;
++}
++
++/**
++ * Called in the background after the app opens its database and window, once per running commit.
++ * Follow-main awaits it before polling, so even the interval before the child takes the library
++ * writing lock cannot be interrupted by an update. The command itself uses appLibraryServer with
++ * writes: true: it joins the running app and holds that lock through testing and recording.
++ *
++ * Remember attempts, including failures, so reopening the same build does not keep retrying.
++ * Missing/corrupt state bootstraps a check of the current build. Nothing here rejects startup.
++ * Installed releases have no checkout and never call this.
++ */
++export async function refreshOwnHealth({ running, home, log }: OwnHealthOptions): Promise<void> {
++  try {
++    const record = path.join(home, "own-health.json");
++    let previous: { sha?: string } | undefined;
++    try {
++      previous = JSON.parse(await readFile(record, "utf8")) as { sha?: string };
++    } catch { /* First use, or an interrupted write: check this build. */ }
++    if (previous?.sha === running.sha) return;
++    await writeFile(record, `${JSON.stringify({ sha: running.sha })}\n`);
++    log(`own-health: checking ${running.sha} from slot ${running.slot} (${running.dir})`);
++    await new Promise<void>((resolve, reject) => {
++      // pnpm is a .cmd on Windows. The shell sees only this fixed command, never a path or input.
++      const child = spawn("pnpm", ["check:own-health"], {
++        cwd: running.dir,
++        env: { ...process.env, STORYTREE_HOME: home },
++        shell: process.platform === "win32",
++        windowsHide: true,
++        stdio: ["ignore", "pipe", "pipe"],
++      });
++      for (const output of [child.stdout, child.stderr]) {
++        output.setEncoding("utf8");
++        output.on("data", (chunk: string) => log(`own-health: ${chunk.trimEnd()}`));
++      }
++      child.once("error", reject);
++      child.once("close", (code, signal) => {
++        if (code === 0) resolve();
++        else reject(new Error(signal === null ? `exit code ${code}` : `signal ${signal}`));
++      });
++    });
++    log(`own-health: completed ${running.sha}`);
++  } catch (error) {
++    log(`own-health: failed for ${running.sha}: ${error instanceof Error ? error.message : String(error)}; will try again at the next update`);
++  }
++}
+--- a/packages/app/src/updates/own-health.test.ts
++++ /dev/null
+@@ -1,82 +0,0 @@
+-/** Capability 4 · Updates, contract 4.3 (ADR-0656 D2): check the newly running main build. */
+-import assert from "node:assert/strict";
+-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+-import { tmpdir } from "node:os";
+-import path from "node:path";
+-import { test } from "node:test";
+-import { setTimeout as delay } from "node:timers/promises";
+-
+-import { refreshOwnHealth } from "./own-health.js";
+-
+-test("4.3 the running slot checks its own build in the background, logs output, and retries failures only at the next update", async () => {
+-  // macOS's temporary directory is a symlink; the child reports its physical working directory.
+-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree own health ")));
+-  const home = path.join(root, "app home");
+-  const said: string[] = [];
+-  mkdirSync(home);
+-  // A real pnpm child, with each slot's command standing in for its full test suite.
+-  const slots = ["a", "b"].map((slot) => {
+-    const dir = path.join(root, slot);
+-    mkdirSync(dir);
+-    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: { "check:own-health": "node check.mjs" } }));
+-    writeFileSync(path.join(dir, "check.mjs"), `
+-      import { appendFileSync, existsSync } from 'node:fs';
+-      import path from 'node:path';
+-      import { setTimeout as delay } from 'node:timers/promises';
+-      const home = process.env.STORYTREE_HOME;
+-      appendFileSync(path.join(home, 'runs'), JSON.stringify({ cwd: process.cwd(), home }) + '\\n');
+-      console.log('health stdout from ${slot}');
+-      console.error('health stderr from ${slot}');
+-      while (existsSync(path.join(home, 'hold'))) await delay(20);
+-      process.exitCode = existsSync(path.join(home, 'fail')) ? 7 : 0;
+-    `);
+-    return dir;
+-  });
+-  const run = (slot: "a" | "b", sha: string): Promise<void> => refreshOwnHealth({
+-    running: { slot, dir: slots[slot === "a" ? 0 : 1]!, sha }, home, log: (line) => said.push(line),
+-  });
+-  const runs = (): { cwd: string; home: string }[] => readFileSync(path.join(home, "runs"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+-  let pending: Promise<void> | undefined;
+-  try {
+-    writeFileSync(path.join(home, "hold"), "");
+-    let finished = false;
+-    pending = run("a", "first-main").then(() => { finished = true; });
+-    const deadline = Date.now() + 20_000;
+-    while (!existsSync(path.join(home, "runs")) && Date.now() < deadline) await delay(20);
+-    assert.ok(existsSync(path.join(home, "runs")), said.join("\n"));
+-    assert.equal(finished, false, "the app can carry on while the health task keeps update polling waiting");
+-    rmSync(path.join(home, "hold"));
+-    await pending;
+-    await run("a", "first-main");
+-    assert.equal(runs().length, 1, "reopening an unchanged build does not check again");
+-
+-    writeFileSync(path.join(home, "fail"), "");
+-    await run("b", "second-main");
+-    await run("b", "second-main");
+-    assert.equal(runs().length, 2, "a failed check does not loop on the same build");
+-    assert.match(said.join("\n"), /failed.*7.*next update/i);
+-    rmSync(path.join(home, "fail"));
+-    await run("a", "third-main");
+-    assert.deepEqual(runs(), [
+-      { cwd: slots[0], home }, { cwd: slots[1], home }, { cwd: slots[0], home },
+-    ], "each update checks from its newly running slot, against the app's exact home");
+-    assert.match(said.join("\n"), /health stdout from b/);
+-    assert.match(said.join("\n"), /health stderr from b/);
+-    assert.match(said.join("\n"), /completed.*third-main/i);
+-  } finally {
+-    rmSync(path.join(home, "hold"), { force: true });
+-    await pending;
+-    rmSync(root, { recursive: true, force: true });
+-  }
+-});
+-
+-test("4.3 a check that cannot start is logged without failing app startup", async () => {
+-  const home = mkdtempSync(path.join(tmpdir(), "storytree-health-missing-"));
+-  const said: string[] = [];
+-  try {
+-    await refreshOwnHealth({ running: { slot: "b", dir: path.join(home, "missing slot"), sha: "new-main" }, home, log: (line) => said.push(line) });
+-    assert.match(said.join("\n"), /failed.*next update/i);
+-  } finally {
+-    rmSync(home, { recursive: true, force: true });
+-  }
+-});
+--- /dev/null
++++ b/packages/app/src/updates/build-health.test.ts
+@@ -0,0 +1,82 @@
++/** Capability 4 · Updates, contract 4.3 (ADR-0656 D2): check the newly running main build. */
++import assert from "node:assert/strict";
++import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import path from "node:path";
++import { test } from "node:test";
++import { setTimeout as delay } from "node:timers/promises";
++
++import { refreshOwnHealth } from "./build-health.js";
++
++test("4.3 the running slot checks its own build in the background, logs output, and retries failures only at the next update", async () => {
++  // macOS's temporary directory is a symlink; the child reports its physical working directory.
++  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree own health ")));
++  const home = path.join(root, "app home");
++  const said: string[] = [];
++  mkdirSync(home);
++  // A real pnpm child, with each slot's command standing in for its full test suite.
++  const slots = ["a", "b"].map((slot) => {
++    const dir = path.join(root, slot);
++    mkdirSync(dir);
++    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: { "check:own-health": "node check.mjs" } }));
++    writeFileSync(path.join(dir, "check.mjs"), `
++      import { appendFileSync, existsSync } from 'node:fs';
++      import path from 'node:path';
++      import { setTimeout as delay } from 'node:timers/promises';
++      const home = process.env.STORYTREE_HOME;
++      appendFileSync(path.join(home, 'runs'), JSON.stringify({ cwd: process.cwd(), home }) + '\\n');
++      console.log('health stdout from ${slot}');
++      console.error('health stderr from ${slot}');
++      while (existsSync(path.join(home, 'hold'))) await delay(20);
++      process.exitCode = existsSync(path.join(home, 'fail')) ? 7 : 0;
++    `);
++    return dir;
++  });
++  const run = (slot: "a" | "b", sha: string): Promise<void> => refreshOwnHealth({
++    running: { slot, dir: slots[slot === "a" ? 0 : 1]!, sha }, home, log: (line) => said.push(line),
++  });
++  const runs = (): { cwd: string; home: string }[] => readFileSync(path.join(home, "runs"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
++  let pending: Promise<void> | undefined;
++  try {
++    writeFileSync(path.join(home, "hold"), "");
++    let finished = false;
++    pending = run("a", "first-main").then(() => { finished = true; });
++    const deadline = Date.now() + 20_000;
++    while (!existsSync(path.join(home, "runs")) && Date.now() < deadline) await delay(20);
++    assert.ok(existsSync(path.join(home, "runs")), said.join("\n"));
++    assert.equal(finished, false, "the app can carry on while the health task keeps update polling waiting");
++    rmSync(path.join(home, "hold"));
++    await pending;
++    await run("a", "first-main");
++    assert.equal(runs().length, 1, "reopening an unchanged build does not check again");
++
++    writeFileSync(path.join(home, "fail"), "");
++    await run("b", "second-main");
++    await run("b", "second-main");
++    assert.equal(runs().length, 2, "a failed check does not loop on the same build");
++    assert.match(said.join("\n"), /failed.*7.*next update/i);
++    rmSync(path.join(home, "fail"));
++    await run("a", "third-main");
++    assert.deepEqual(runs(), [
++      { cwd: slots[0], home }, { cwd: slots[1], home }, { cwd: slots[0], home },
++    ], "each update checks from its newly running slot, against the app's exact home");
++    assert.match(said.join("\n"), /health stdout from b/);
++    assert.match(said.join("\n"), /health stderr from b/);
++    assert.match(said.join("\n"), /completed.*third-main/i);
++  } finally {
++    rmSync(path.join(home, "hold"), { force: true });
++    await pending;
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
++test("4.3 a check that cannot start is logged without failing app startup", async () => {
++  const home = mkdtempSync(path.join(tmpdir(), "storytree-health-missing-"));
++  const said: string[] = [];
++  try {
++    await refreshOwnHealth({ running: { slot: "b", dir: path.join(home, "missing slot"), sha: "new-main" }, home, log: (line) => said.push(line) });
++    assert.match(said.join("\n"), /failed.*next update/i);
++  } finally {
++    rmSync(home, { recursive: true, force: true });
++  }
++});
+--- a/packages/app/src/index.ts
++++ b/packages/app/src/index.ts
+@@ -13,8 +13,8 @@
+ export type { BackUpOptions } from "./lifecycle/backups.js";
+ export { appDirIn, buildApp, electronIn, setUpRuntime, slotOf, slotSha, updateToMain } from "./updates/follow-main.js";
+ export type { Build, RunningBuild, Slot } from "./updates/follow-main.js";
+-export { refreshOwnHealth } from "./updates/own-health.js";
+-export type { OwnHealthOptions } from "./updates/own-health.js";
++export { refreshOwnHealth } from "./updates/build-health.js";
++export type { OwnHealthOptions } from "./updates/build-health.js";
+ export { SEED_CONNECTION, seedWriting } from "./updates/seed-writing.js";
+ export { ReleaseUpdater } from "./updates/releases.js";
+ export type { ReleaseOptions } from "./updates/releases.js";

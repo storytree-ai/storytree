@@ -1,0 +1,70 @@
+✖ own 3.4/3.6/4.1: MCP reads the offline ledger and stops only the named caller scope (79.492929ms)
+✖ own 3.4/3.6/4.1: the built CLI inventories and stops offline, with each outcome and no cross-session authority (244.036758ms)
+✔ 3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime (42.491691ms)
+✖ 3.5/4.1: every offered stop uses stopping authority, including named siblings and conflicting registrations (33.907189ms)
+✔ 3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline (3.523715ms)
+✔ 3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal (3.383309ms)
+✔ 3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle (3.138303ms)
+✔ 3.1: the inventory observes a real owned process live and then gone through the native probe (13.338445ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 5
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 658.46638
+
+✖ failing tests:
+
+test at packages/agent-link/src/tools/own-tools.test.ts:1:515
+✖ own 3.4/3.6/4.1: MCP reads the offline ledger and stops only the named caller scope (79.492929ms)
+  Error [ProtocolError]: Tool list_all_runs not found
+      at ProtocolError.fromError (/home/mickh/code/storytree03-wt/own-doors/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/types/errors.ts:105:16)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:1215:41)
+      at Client._onresponse (/home/mickh/code/storytree03-wt/own-doors/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/client/dist/index.mjs:4102:9)
+      at InMemoryTransport._transport.onmessage (/home/mickh/code/storytree03-wt/own-doors/node_modules/.pnpm/@modelcontextprotocol+client@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:806:22)
+      at InMemoryTransport.send (/home/mickh/code/storytree03-wt/own-doors/node_modules/.pnpm/@modelcontextprotocol+server@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/util/inMemory.ts:68:34)
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-doors/node_modules/.pnpm/@modelcontextprotocol+server@2.1.0/node_modules/@modelcontextprotocol/core-internal/src/shared/protocol.ts:1153:46) {
+    code: -32602,
+    data: undefined
+  }
+
+test at packages/cli/src/own.test.ts:1:372
+✖ own 3.4/3.6/4.1: the built CLI inventories and stops offline, with each outcome and no cross-session authority (244.036758ms)
+  AssertionError [ERR_ASSERTION]: storytree has no "own"
+  
+  next:
+    - storytree   (the families it has)
+  
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors/packages/cli/src/own.test.ts:27:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/own/src/listing/listing.test.ts:1:3042
+✖ 3.5/4.1: every offered stop uses stopping authority, including named siblings and conflicting registrations (33.907189ms)
+  AssertionError [ERR_ASSERTION]: {"session":"parent","harness":"codex"} offered 308108e1-dc7d-4b34-a0b0-25c8856c50ac outside stopping authority
+  
+  false !== true
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors/packages/own/src/listing/listing.test.ts:77:14)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

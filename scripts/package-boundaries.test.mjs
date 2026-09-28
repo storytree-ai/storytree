@@ -85,8 +85,23 @@ test("a package reaching into another story's files is refused, by relative path
   assert.match(problems.join("\n"), /packages\/cli\/src\/families\/forest\.ts.*@storytree\/library\/src\/inner\.ts/);
 });
 
-function pkg(name, exports = { ".": "./src/index.ts" }) {
-  return JSON.stringify({ name: `@storytree/${name}`, exports });
+test("packages that depend on each other, even for development only, are refused: pnpm links them into a loop", (t) => {
+  // On Windows each workspace link is a directory junction, which git walks as a folder, so a
+  // cycle makes `git clean` recurse without end and a desktop session's start never finishes.
+  const problems = boundaryProblems(
+    plant(t, {
+      "packages/forest/package.json": pkg("forest", undefined, { dependencies: { "@storytree/forest-world": "workspace:*" } }),
+      "packages/forest-world/package.json": pkg("forest-world", undefined, { devDependencies: { "@storytree/forest": "workspace:*" } }),
+      "packages/library/package.json": pkg("library", { ".": "./src/index.ts", "./readings": "./src/readings.ts" }, { dependencies: { "@storytree/forest": "workspace:*" } }),
+    }),
+    DECLARED,
+  );
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assert.match(problems[0], /@storytree\/forest → @storytree\/forest-world → @storytree\/forest/);
+});
+
+function pkg(name, exports = { ".": "./src/index.ts" }, fields = {}) {
+  return JSON.stringify({ name: `@storytree/${name}`, exports, ...fields });
 }
 
 /** A temporary copy of KEPT with `files` added over it, removed when the test ends. */

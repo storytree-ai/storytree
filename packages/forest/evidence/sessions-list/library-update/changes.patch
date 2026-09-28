@@ -1,0 +1,121 @@
+--- old/The forest/capability 6/capability_8b120b7271d8/title
++++ new/The forest/capability 6/capability_8b120b7271d8/title
+@@ -1 +1 @@
+-6 · Unclaimed work
++6 · Off-plan work in session rows
+
+--- old/The forest/capability 6/capability_8b120b7271d8/description
++++ new/The forest/capability 6/capability_8b120b7271d8/description
+@@ -1 +1 @@
+-Shows the edits and commands made by agents holding no claim: who made them, which files, and when, with a count always in view. It is how work outside the plan stays visible, even from an agent that never calls storytree.
++Shows edits and commands attributed to no capability or increment within their session row in the forest’s running-sessions list. The row says “off plan”, gives the distinct file count, and expands to the files and command evidence with their times. This is activity outside a claim, not ready work awaiting an owner. It never guesses an island for that activity. Ended sessions are hidden for this increment; retention and idle presentation await the owner’s look.
+
+--- old/The forest/capability 6/contract_c6adde8a295b/title
++++ new/The forest/capability 6/contract_c6adde8a295b/title
+@@ -1 +1 @@
+-6.1 · Session B edits two files while holding no claim: the list shows B, both files and the time, the count reads 2, and no story node changes.
++6.1 · Session B edits two distinct files while holding no claim: its session row says “off plan · 2 files”; expanding it shows both files and the edit times. Repeated edits to the same file do not inflate the file count, and no story island is assigned to these edits.
+
+--- old/The forest/capability 6/contract_890dd416c833/title
++++ new/The forest/capability 6/contract_890dd416c833/title
+@@ -1 +1 @@
+-6.2 · B then claims a capability, and its next edit counts toward that capability instead.
++6.2 · B then claims a capability or increment: its next edit counts toward that claim and does not enter its off-plan file list. Earlier off-plan edits remain visible in B’s row while B is not ended.
+
+--- old/The forest/capability 6/contract_3d0654f1c142/title
++++ new/The forest/capability 6/contract_3d0654f1c142/title
+@@ -1 +1 @@
+-6.3 · An agent that never calls storytree still appears, through its hooks.
++6.3 · An agent that never calls storytree still gets a session row through its hook records. An unclaimed command is retained with its time in that row’s expanded evidence, even when its file count is zero.
+
+--- old/The forest/capability 6/definition_7050124123f4/meaning
++++ new/The forest/capability 6/definition_7050124123f4/meaning
+@@ -1,5 +1 @@
+-- **As built:** `unclaimedWork(lines)` in `packages/forest`: every edit and command the agent
+-  link's own `attributeFrom` counts toward no capability, newest first, with the agent as people
+-  call it, the files or the command, and the time, and their count. It touches no story node. The
+-  page shows a box at the forest's lower left, "Unclaimed work" with its count always in view,
+-  opening to the list; the live reading keeps it current.
++- **As built:** `unclaimedWork(lines)` retains the agent link’s attribution of edits and commands to neither capability nor increment, with session, files or command, and time. The running-sessions reading groups this evidence by session and counts distinct files. The bottom-left session row carries “off plan” and expands to the evidence; the separate “Unclaimed work” box is no longer mounted. Ended sessions are hidden; historical evidence remains in the activity log. No unclaimed edit or command is guessed onto an island.
+
+--- old/The forest/capability 6/definition_6942d4fd0c95/meaning
++++ new/The forest/capability 6/definition_6942d4fd0c95/meaning
+@@ -1 +1 @@
+-  - **U1:** it is listed beside the forest, with a count on the forest view.
++  - **U1 (owner-directed 2026-09-28; look pending):** off-plan evidence lives under its session row in the bottom-left running-sessions list, with its distinct file count visible when the row is visible.
+
+--- old/The forest/capability 6/definition_1e3d9e7e9517/meaning
++++ new/The forest/capability 6/definition_1e3d9e7e9517/meaning
+@@ -1,4 +1 @@
+-  - **N2:** it is named "unclaimed work", not "unplanned activity" (ADR-0632 D5). It comes from
+-    setup before a plan, fixes between claims, agents that skip claiming, agents that ignore
+-    storytree, and seam or glue work done while holding no claim. Glue done under a claim counts
+-    toward that claim. Reducing it is a post-MVP concern: the MVP shows it honestly.
++  - **N2 (owner-directed 2026-09-28; look pending):** the session row says “off plan”. The underlying attribution still means an edit or command made while holding neither a capability nor an increment claim. It includes setup before a plan, fixes between claims and agents that skip claiming; work under a claim counts toward that claim. This label does not mean ready-but-unowned plan work.
+
+--- old/The forest/capability story/definition_9921175aed88/meaning
++++ new/The forest/capability story/definition_9921175aed88/meaning
+@@ -1 +1 @@
+-- **U1:** unclaimed work is listed beside the forest, with a count on the forest view.
++- **U1 (owner-directed 2026-09-28; look pending):** off-plan edits and commands appear within their running-session rows, with a distinct file count and expandable evidence.
+
+--- old/The forest/capability story/definition_f7580c36d97f/meaning
++++ new/The forest/capability story/definition_f7580c36d97f/meaning
+@@ -1,3 +1 @@
+-- **N2:** it is called "unclaimed work", not "unplanned activity". The rule is unchanged: an edit or
+-  command made by a session that holds no claim at that moment. The owner called the name "a smell
+-  but we can address this more post mvp".
++- **N2 (owner-directed 2026-09-28; look pending):** the row calls activity outside claims “off plan”. Its rule is unchanged: an edit or command made by a session holding neither a capability nor an increment claim at that moment.
+
+--- old/The forest/capability 7/ADD capability under story_deee4230348c/title
++++ new/The forest/capability 7/ADD capability under story_deee4230348c/title
+@@ -0,0 +1 @@
++7 · Running sessions
+
+--- old/The forest/capability 7/ADD capability under story_deee4230348c/description
++++ new/The forest/capability 7/ADD capability under story_deee4230348c/description
+@@ -0,0 +1 @@
++A bottom-left list over the forest shows one plain row per non-ended session, what it is doing, an empty context-bar slot and its available context total. Explicitly related subagents and supervised lanes fold beneath their parent behind “+N”. Only “needs you” uses a state colour. Hovering or focusing a row lights its claimed islands and dims the others. Off-plan evidence is carried by capability 6 within the same row. For this increment idle sessions remain plain and ended sessions are hidden; the owner’s look will settle that policy. Parent relationships and totals are read only when recorded or supplied by the agent link; missing values are not guessed.
+
+--- old/The forest/capability 7/ADD capability under story_deee4230348c/dependsOn
++++ new/The forest/capability 7/ADD capability under story_deee4230348c/dependsOn
+@@ -0,0 +1 @@
++["capability_8ffc78a4bad2", "capability_efa4328b624c", "capability_8b120b7271d8"]
+
+--- old/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
++++ new/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
+@@ -0,0 +1 @@
++7.1 · With live, idle and ended sessions in the agent-link reading, the bottom-left list includes each live or idle session once and excludes ended sessions. An idle row stays plain. A row’s task uses its claim reason or held increment title, with a plain fallback when neither is available.
+
+--- old/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
++++ new/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
+@@ -0,0 +1 @@
++7.2 · An explicit parent relation or subagent-started record folds that child under its parent behind an initially collapsed “+N”; expanding reveals its task and collapsing hides it again. No child is duplicated at the top. A recorded subagent lacking its own session reading is shown as observed, without inventing a live state; absent parent relations are never inferred from claim wording.
+
+--- old/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
++++ new/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
+@@ -0,0 +1 @@
++7.3 · A row says “needs you” when an arc containing its claimed increment, or an open increment touching its claimed capability, has an open owner question; a settled question does not cause that state. A parent exposes a hidden child’s need for the owner. Idle, off-plan and unavailable-context states have no state colour.
+
+--- old/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
++++ new/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
+@@ -0,0 +1 @@
++7.4 · Hovering or keyboard-focusing a row lights the forest islands containing its held capabilities and its descendants’ held capabilities and dims the other islands. Leaving the row restores the ordinary forest appearance. With no held island the row does not arbitrarily select one.
+
+--- old/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
++++ new/The forest/capability 7/ADD contract under NEW_RUNNING_SESSIONS_CAPABILITY/title
+@@ -0,0 +1 @@
++7.5 · Every row reserves an empty context-bar slot. When an agent-link context total is supplied the row displays that total; when absent it displays an unavailable mark, never zero. This increment draws no composition segments, thresholds or estimated totals.
+
+--- old/The forest/capability 3/definition_5126fe37ac57/meaning
++++ new/The forest/capability 3/definition_5126fe37ac57/meaning
+@@ -8,7 +8,7 @@
+   wearing its tree's form, with ground cover grown from contract count. The globe reuses that
+   island drawing and 0.2's kit pines (only `dressing-kit.glb` ships, never the kit).
+   The page (`packages/forest/src/view/forest-view.tsx`) mounts the globe alone. The desktop
+-  imports `openForestView`, `renderStoryPanel` and `renderUnclaimed` from `@storytree/forest/view`;
++  imports `openForestView`, `renderStoryPanel` and `mountSessionsList` from `@storytree/forest/view`;
+   the view, navigation, overlays, tests and evidence live in the forest package, with no
+   `NOT_YET_MOVED` exception (ADR-0649 D2). Its story names,
+   island clicks, selection rings and claim markers live in the same scene. The arc surface's
+

@@ -7,9 +7,8 @@
  *   three letters is never looked for.
  * - A name is found as whole words, ignoring case, with `-`, `_` and runs of spaces read as one
  *   space, and its last word may be plural (`claims` finds "Claim", `policies` finds "Policy").
- * - At most five are added, the longest name first (a tie keeps the library's order), and each only
- *   once a session: the ones already given are left out after choosing, so a prompt of known terms
- *   does not pull in weaker ones.
+ * - Every match is added, the longest name first (a tie keeps the library's order), and each only
+ *   once a session: the ones already given are left out.
  * - A harness's own notice, sent to the agent as if it were a prompt, gets none: 0.2's markers, in
  *   the first 400 characters.
  */
@@ -24,8 +23,6 @@ export interface Definition {
   readonly meaning: string;
 }
 
-/** The most definitions one prompt adds. */
-export const MAX_DEFINITIONS = 5;
 /** How much of a meaning is shown: its first line, cut to this many characters. */
 const MEANING_CHARS = 200;
 /** The shortest name looked for. */
@@ -41,7 +38,7 @@ export function isHarnessNotice(prompt: string): boolean {
   return NOTICE_MARKERS.some((marker) => head.includes(marker));
 }
 
-/** The definitions `prompt` names, at most MAX_DEFINITIONS, longest name first. */
+/** All definitions `prompt` names, longest name first. */
 export function definitionsNamedIn(prompt: string, definitions: readonly Definition[]): Definition[] {
   const text = normalised(prompt);
   const found: { definition: Definition; length: number; order: number }[] = [];
@@ -52,7 +49,6 @@ export function definitionsNamedIn(prompt: string, definitions: readonly Definit
   });
   return found
     .sort((a, b) => b.length - a.length || a.order - b.order)
-    .slice(0, MAX_DEFINITIONS)
     .map(({ definition }) => definition);
 }
 

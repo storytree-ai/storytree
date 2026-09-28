@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { removeHooks } from "@storytree/agent-link";
+import { markDisconnected, removeHooks } from "@storytree/agent-link";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };
@@ -38,7 +38,9 @@ function locations(options: ConnectionOptions) {
   const env = options.env ?? process.env;
   const claude = env.CLAUDE_CONFIG_DIR || path.join(home, ".claude");
   const codex = env.CODEX_HOME || path.join(home, ".codex");
-  return { home, env, claude, codex, files: {
+  // Where storytree keeps what the user disconnected, which the setup check honours.
+  const storytree = env.STORYTREE_HOME || path.join(home, ".storytree", "0.3");
+  return { home, env, claude, codex, storytree, files: {
     "claude-code": env.CLAUDE_CONFIG_DIR ? path.join(claude, ".claude.json") : path.join(home, ".claude.json"),
     codex: path.join(codex, "config.toml"),
   } };
@@ -86,6 +88,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       }
       const tools = settings.current === undefined ? "connected" : "already connected";
       if (settings.current === undefined) await settings.add(options.installed);
+      markDisconnected(where.storytree, harness, false);
       result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
@@ -112,6 +115,8 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
       // Validate/remove only this harness's hooks; never call the unscoped `setup remove` command.
       removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
       if (settings.current !== undefined) await settings.remove();
+      // So the setup check, run from another harness's session, does not register its hooks again.
+      markDisconnected(where.storytree, harness, true);
       harnesses.push({ harness, tools: settings.current === undefined ? "not connected" : "disconnected", next: "Restart this agent to finish disconnecting. Project libraries and unrelated settings were kept." });
     } catch {
       harnesses.push({ harness, tools: "kept", next: `Repair ${where.files[harness]} and ${path.join(harness === "claude-code" ? where.claude : where.codex, harness === "claude-code" ? "settings.json" : "hooks.json")}; for Codex, check codex mcp list --json. Retry Disconnect to finish cleanup.` });
@@ -137,7 +142,7 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
       } catch { command = "kept"; }
     }
   }
-  return { harnesses, command, next: command === "kept" ? "Shared command kept while another connection exists or cleanup cannot be confirmed. Existing setup checks still register hooks for detected harness homes; retry Disconnect for cleanup when no connection remains." : "All user connections removed. Project libraries and unrelated settings were kept." };
+  return { harnesses, command, next: command === "kept" ? "Shared command kept while another connection exists or cleanup cannot be confirmed; retry Disconnect for cleanup when no connection remains." : "All user connections removed. Project libraries and unrelated settings were kept." };
 }
 
 function removeInstalledCommand(home: string, env: NodeJS.ProcessEnv, installed: InstalledToolServerCommand): "removed" | "none" {

@@ -41,7 +41,7 @@ function hooksSaid(report: SetupReport): string[] {
   }
   const said = (Object.keys(HARNESSES) as (keyof typeof HARNESSES)[]).map((harness) => {
     const state = report.hooks![harness];
-    return `Hooks for ${HARNESSES[harness]}: ${state === "registered" ? "registered now" : state === "already registered" ? "registered" : "not installed on this machine"}.`;
+    return `Hooks for ${HARNESSES[harness]}: ${state === "registered" ? "registered now" : state === "already registered" ? "registered" : state === "disconnected" ? "none, since you disconnected it (`storytree setup connect` connects it again)" : "not installed on this machine"}.`;
   });
   const statusLine = report.hooks.statusLine;
   if (statusLine === "installed") said.push("Claude Code status line: storytree's installed now; it shows from the next session.");

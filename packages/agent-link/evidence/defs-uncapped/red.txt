@@ -1,0 +1,49 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/defs-uncapped
+> node --import tsx scripts/test.mjs "--test-name-pattern=^3\\.7 " "packages/agent-link/src/hooks/hooks.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/defs-uncapped/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:44155 (started in 0.1 s)
+✖ 3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed (681.311288ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 934.747908
+
+✖ failing tests:
+
+test at packages/agent-link/src/hooks/hooks.test.ts:4:7099
+✖ 3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed (681.311288ms)
+  AssertionError [ERR_ASSERTION]: every matching definition, the longest terms first
+  + actual - expected
+  
+    [
+      '- Front cover',
+      '- Capability',
+      '- Increment',
+      '- Contract',
+      '- Story',
+  -   '- Arc'
+    ]
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/defs-uncapped/packages/agent-link/src/hooks/hooks.test.ts:382:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withTempDir (/home/mickh/code/storytree03-wt/defs-uncapped/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/defs-uncapped/packages/agent-link/src/hooks/hooks.test.ts:356:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '- Front cover', '- Capability', '- Increment', '- Contract', '- Story' ],
+    expected: [ '- Front cover', '- Capability', '- Increment', '- Contract', '- Story', '- Arc' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

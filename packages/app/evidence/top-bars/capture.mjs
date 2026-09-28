@@ -44,6 +44,7 @@ try {
     args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, colorScheme: 'dark', deviceScaleFactor: 1 });
   const errors = []; page.on('pageerror', error => errors.push(String(error)));
+  const capture = async name => { if (!process.env.TOP_BARS_NO_IMAGES) await page.screenshot({ path: path.join(output, name) }); };
   await page.exposeFunction('gearRead', (method, args) => { assert.ok(Object.hasOwn(bridge, method)); return bridge[method](...args); });
   await page.addInitScript(methods => {
     window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.gearRead(method, args)]));
@@ -71,12 +72,15 @@ try {
   const tree = await reads.projectTree('storytree');
   const census = await page.getAttribute('body', 'data-drew');
   assert.deepEqual(smokeProblems('ready', tree, census), []);
-  await page.screenshot({ path: path.join(output, 'bars-closed.png') });
+  await capture('bars-closed.png');
   await page.locator('[data-open-arcs]').click();
   await page.waitForFunction(() => document.querySelector('#arc-drawer').dataset.arcState === 'ready');
   assert.equal((await page.locator('#arc-drawer').boundingBox()).y, 96);
   assert.deepEqual(await page.locator('.arc-handle:visible').boundingBox(), arcBox);
-  await page.screenshot({ path: path.join(output, 'arcs-open.png') });
+  await capture('arcs-open.png');
+  await page.locator('canvas').evaluate(canvas => { window.drawerPointers = 0; canvas.addEventListener('pointerdown', () => window.drawerPointers++); });
+  await page.mouse.click(720, 800);
+  assert.equal(await page.evaluate(() => window.drawerPointers), 1, 'forest input below the open drawer');
   await gear.click();
   assert.equal(await menu.isVisible(), true);
   assert.equal(await gear.getAttribute('aria-expanded'), 'true');
@@ -127,7 +131,7 @@ try {
       await page.waitForFunction(() => document.querySelector('[data-license]').textContent.length > 100);
       await page.getByRole('button', { name: 'First-run guide' }).click();
     }
-    await page.screenshot({ path: path.join(output, `overlay-${section}.png`) });
+    await capture(`overlay-${section}.png`);
   }
   // Focus never escapes to the inert forest, including reverse traversal from the gear.
   await gear.focus(); await page.keyboard.press('Shift+Tab');
@@ -148,6 +152,8 @@ try {
   failChoice = true;
   await gear.click(); await page.selectOption('#project', 'storytree');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.querySelector('#project').value === 'gear-switch-check');
+  assert.equal(await page.locator('#app-projects [role=alert]').isVisible(), true, 'failed selection explains its reason inside the overlay');
+  assert.match(await page.locator('#app-projects [role=alert]').innerText(), /temporary project choice failure/);
   await page.selectOption('#project', 'storytree');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'storytree');
   assert.deepEqual(smokeProblems('ready', tree, await page.getAttribute('body', 'data-drew')), []);
@@ -158,10 +164,27 @@ try {
   assert.ok(narrowBox.x >= 0 && narrowBox.x + narrowBox.width <= 360);
   assert.ok(narrowBox.y >= 48 && narrowBox.y + narrowBox.height <= 640);
   assert.equal(await panel.evaluate(node => node.scrollWidth <= node.clientWidth), true, 'no horizontal overflow');
-  await page.screenshot({ path: path.join(output, 'narrow-settings.png') });
+  await capture('narrow-settings.png');
+  // Explicit empty-project fixture after all real-data captures: first-run Help belongs
+  // inside the overlay even before a forest or arc bar exists.
+  const firstRun = await browser.newPage({ viewport: { width: 360, height: 640 }, colorScheme: 'dark' });
+  firstRun.on('pageerror', error => errors.push(String(error)));
+  await firstRun.exposeFunction('firstRunRead', (method, args) => method === 'projectSelection' ? { projects: [] } : bridge[method](...args));
+  await firstRun.addInitScript(methods => {
+    window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.firstRunRead(method, args)]));
+  }, Object.keys(bridge));
+  await firstRun.goto(`http://127.0.0.1:${server.address().port}/`);
+  await firstRun.waitForFunction(() => document.body.dataset.state === 'empty');
+  assert.equal(await firstRun.locator('#app-menu').isVisible(), true, 'first-run Help is offered without a project');
+  assert.equal(await firstRun.locator('#app-menu #setup-help-panel').isVisible(), true);
+  await firstRun.getByRole('button', { name: 'Close app menu' }).click();
+  assert.ok((await firstRun.locator('main').boundingBox()).y >= 48, 'empty page clears the app bar');
+  await firstRun.getByRole('button', { name: 'App menu', exact: true }).click();
+  assert.equal(await firstRun.locator('#setup-help-panel').isVisible(), true, 'Help can be reopened');
+  await firstRun.close();
   assert.deepEqual(errors, []);
   const result = { snapshot: snapshotPath, records: snapshot.records.length, viewport: { width: 1440, height: 960 }, appBox, arcBox, gearBox, menuBox, narrowBox, stories: tree.stories.length, capabilities: tree.stories.reduce((sum, story) => sum + story.capabilities.length, 0), errors,
-    passed: ['bar order and heights', 'gear only on app bar', 'arc bar omits project', 'drawer below bars', 'centred full-size overlay', 'four dismissal routes', 'focus restoration and containment', 'forest input below bars', 'every section mounted', 'settings save via existing bridge', 'Help license', 'updates action', 'project switch and recovery', 'smoke census', 'narrow fit'] };
+    passed: ['bar order and heights', 'gear only on app bar', 'arc bar omits project', 'drawer below bars', 'centred full-size overlay', 'four dismissal routes', 'focus restoration and containment', 'forest input below bars', 'every section mounted', 'settings save via existing bridge', 'Help license', 'updates action', 'project switch and recovery', 'smoke census', 'narrow fit', 'first-run Help without a project'] };
   writeFileSync(path.join(output, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
 } finally {

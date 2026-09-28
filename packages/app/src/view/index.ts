@@ -22,6 +22,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   const gear = host.querySelector<HTMLButtonElement>(".app-gear")!;
   const menu = host.querySelector<HTMLElement>("#app-menu")!;
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
+  const projectError = menu.querySelector<HTMLElement>("[data-app-project-error]")!;
   const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge }) | null;
   const settings = mountSettings(menu.querySelector<HTMLElement>("[data-app-settings]")!, {
     readSettings: () => desktop!.storytree.readSettings(),
@@ -92,11 +93,16 @@ export function mountAppMenu(host: HTMLElement, options: {
       if (!projects.includes(current ?? "")) select.selectedIndex = -1;
       select.addEventListener("change", () => {
         select.disabled = true;
+        projectError.hidden = true;
         void options.chooseProject(select.value).then(async () => {
           close();
           gear.focus();
           await options.onChosen();
-        }).catch(options.onError).finally(() => { select.disabled = false; });
+        }).catch((error: unknown) => {
+          projectError.textContent = `Couldn’t switch project: ${error instanceof Error ? error.message : String(error)}`;
+          projectError.hidden = false;
+          options.onError(error);
+        }).finally(() => { select.disabled = false; });
       });
     },
     stop(): void {

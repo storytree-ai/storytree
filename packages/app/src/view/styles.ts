@@ -56,6 +56,7 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 }
 .app-project option { padding: 6px; border-radius: 4px; overflow-wrap: anywhere; }
 .app-project option:hover, .app-project option:checked { background: #262a2f; }
+.app-project-error { max-width: 480px; padding-left: 12px; border-left: 2px solid #a9b0ba; overflow-wrap: anywhere; }
 .app-no-projects { margin: 0; color: #a9b0ba; }
 .app-update-status { margin: 24px 0 0; overflow-wrap: anywhere; }
 .app-update-status strong, .app-update-status span { display: block; }

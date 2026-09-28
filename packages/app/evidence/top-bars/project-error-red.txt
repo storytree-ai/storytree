@@ -1,0 +1,18 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: failed selection explains its reason inside the overlay
+
+false !== true
+
+    at <anonymous> (/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/capture.mjs:155:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

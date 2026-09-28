@@ -1,6 +1,6 @@
 /** Capability trails on tangent islands and the glass between them (forest contracts 3.6–3.7).
  * The existing cost-grid router owns routing, merging and width; this adapter only changes spaces. */
-import type { ForestScene, Island } from '@storytree/forest';
+import type { ForestScene, Island } from '../scene.js';
 import { Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
 import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type TrailNetwork, type TrailSegment } from '../core/routing.js';

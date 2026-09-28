@@ -10,13 +10,12 @@ import { test } from "node:test";
 
 import { workStates } from "@storytree/arc-surface";
 import type { NewLine } from "@storytree/agent-link";
-import { forestScene, PLACE_WIDTH, type ForestScene } from "@storytree/forest";
+import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, islandReach, statusOf, type Descriptor3D, type InstanceDescriptor } from "@storytree/forest-world";
 import type { AnnotatedCapability, AnnotatedStory, Change } from "@storytree/library";
 
-import { capabilityFactsFrom, stateForm } from "../kit-vocabulary.js";
-import { parcelCellsFrom } from "../parcel-cells.js";
-import type { Descriptor3D, InstanceDescriptor } from "../world-to-3d.js";
-import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandAt, islandReach, statusOf } from "./forest-ground.js";
+import { capabilityFactsFrom, stateForm } from "../../../forest-world/src/kit-vocabulary.js";
+import { parcelCellsFrom } from "../../../forest-world/src/parcel-cells.js";
+import { forestScene, PLACE_WIDTH, type ForestScene } from "../index.js";
 
 const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 

@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./assets/dressing-kit.glb": "./assets/dressing-kit.glb",
     "./canvas": "./src/ForestWorldCanvas.tsx",
+    "./scene": "./src/scene.ts",
     "./planet": "./src/planet/PlanetWorldCanvas.tsx"
   },
   "scripts": {
@@ -15,15 +16,11 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
-    "@storytree/forest": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "three": "^0.185.1"
   },
   "devDependencies": {
-    "@storytree/agent-link": "workspace:*",
-    "@storytree/arc-surface": "workspace:*",
-    "@storytree/library": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

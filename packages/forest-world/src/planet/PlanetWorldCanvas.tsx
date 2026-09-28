@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type Re
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { DirectionalLight, Group, Quaternion, Vector3, type Camera } from 'three';
-import type { ForestScene, Island } from '@storytree/forest';
+import type { ForestScene, Island } from '../scene.js';
 import { CellGround, KitProps, SHIPPED_GROUND_INPUT, preloadKit } from '../ForestWorldCanvas.js';
 import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
 import { Pathways } from './PlanetTrailRibbons.js';

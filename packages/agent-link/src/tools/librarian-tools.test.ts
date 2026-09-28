@@ -1,4 +1,7 @@
-/** Rounds 6.3–6.4: the real shared server serves curation and gives the session its next step. */
+/**
+ * The librarian story's rounds 6.3–6.4: the real shared server serves curation and gives the session
+ * its next step. Kept here, beside the server, because the librarian cannot depend back on the agent link.
+ */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -9,13 +12,31 @@ import { setTimeout } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
-import { createAgentTools, openActivityLog, type ActivityLog } from "@storytree/agent-link";
-import type { Library } from "@storytree/library";
+import { librarianTools } from "@storytree/librarian";
+import { connect, type Library } from "@storytree/library";
 
-import { librarianTools } from "../index.js";
-import { testServerUrl, withLibrary } from "../testing/pg.js";
+import { openActivityLog, type ActivityLog } from "../activity/index.js";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate", "route"];
+
+/** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
+async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(project);
+    try {
+      await body(library);
+    } finally {
+      await library.close();
+    }
+  } finally {
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+}
 
 async function withClient(body: (world: { client: Client; library: Library; log: ActivityLog; folder: string }) => Promise<void>): Promise<void> {
   await withLibrary(async (library) => {

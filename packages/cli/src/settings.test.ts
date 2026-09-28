@@ -13,7 +13,7 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-test("settings 10.1–10.4: the offline CLI shows, persists and refuses invalid changes", async (t) => {
+test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-settings-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
@@ -69,4 +69,19 @@ test("settings 10.1–10.4: the offline CLI shows, persists and refuses invalid 
     assert.ok(refused.stderr.includes(file), refused.stderr);
     assert.equal(readFileSync(file, "utf8"), '{"context-guidance":null}');
   }
+
+  writeFileSync(file, "{}");
+  assert.match((await invoke(["settings", "show"])).stdout, /library: local \(default\)/);
+  const cloud = await invoke(["settings", "set", "library", "cloudsql", "my-project:australia-southeast1:my-instance", "you@example.com"]);
+  assert.equal(cloud.code, 0, cloud.stderr);
+  assert.match(cloud.stdout, /library: cloudsql my-project:australia-southeast1:my-instance as you@example.com \(set\)/);
+  assert.match((await invoke(["settings", "show"])).stdout, /library: cloudsql .* \(set\)/);
+  const saved = readFileSync(file, "utf8");
+  const refused = await invoke(["settings", "set", "library", "cloudsql", "not-a-connection-name", "you@example.com"]);
+  assert.equal(refused.code, 1, refused.stderr);
+  assert.match(refused.stderr, /project:region:instance/);
+  assert.equal(readFileSync(file, "utf8"), saved);
+  const local = await invoke(["settings", "set", "library", "local"]);
+  assert.equal(local.code, 0, local.stderr);
+  assert.match(local.stdout, /library: local \(set\)/);
 });

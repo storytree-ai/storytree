@@ -19,7 +19,7 @@
     "@storytree/librarian": "workspace:^",
     "pg": "^8.23.0",
     "zod": "^4.6.5",
-    "@storytree/own": "workspace:*"
+    "@storytree/processes": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.1.0",

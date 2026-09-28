@@ -68,7 +68,7 @@ test('3.5/4.1: every offered stop uses stopping authority, including named sibli
   for (const caller of [owner, own.owner, { ...owner, agent: 'unknown' as const }]) {
     const reading = await listing.listRuns({ home, owner: caller, scope: 'all',
       probe: async identity => ({ state: 'live', identity }),
-      stopAction: run => ({ command: `storytree own stop ${run}`, tool: 'stop_own_run', arguments: { runs: [run] } }),
+      stopAction: run => ({ command: `storytree processes stop ${run}`, tool: 'stop_own_run', arguments: { runs: [run] } }),
     });
     const stopped = await stopOwned({ home, owner: caller, targets: reading.rows.map(row => row.run.id) }, {
       probe: async () => ({ state: 'gone' }), signal: async () => { throw new Error('must not signal'); },
@@ -114,10 +114,10 @@ test('3.5: only caller-owned live identities can offer a supplied stop action; s
   const uncertain = record({ birth: { state: 'unknown', reason: 'access denied' } });
   const sibling = record({ owner: { session: 'sibling', harness: 'codex' } });
   await save(home, live, uncertain, sibling);
-  const action = { command: `storytree own stop ${live.id}`, tool: 'stop_runs', arguments: { runs: [live.id] } };
+  const action = { command: `storytree processes stop ${live.id}`, tool: 'stop_runs', arguments: { runs: [live.id] } };
   const result = await listing.listRuns({ home, owner, scope: 'all', now,
     probe: async identity => ({ state: 'live', identity }),
-    stopAction: run => ({ command: `storytree own stop ${run}`, tool: 'stop_runs', arguments: { runs: [run] } }),
+    stopAction: run => ({ command: `storytree processes stop ${run}`, tool: 'stop_runs', arguments: { runs: [run] } }),
     shared: [{ name: 'storytree app and database', state: 'live', reason: 'Managed by the app; use storytree app quit.' }],
   });
   assert.deepEqual(result.rows.find(row => row.run.id === live.id)?.stop, { available: true, ...action });

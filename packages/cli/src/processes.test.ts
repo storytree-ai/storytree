@@ -7,11 +7,11 @@ import test from 'node:test';
 import { setTimeout as pause } from 'node:timers/promises';
 import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/deliver';
 import { buildBins } from '@storytree/agent-link/bins';
-import { launchOwned, readProcess } from '@storytree/own';
+import { launchOwned, readProcess } from '@storytree/processes';
 import { BuiltCommand, storytree } from './testing/cli.js';
 
-for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
-  const home = await mkdtemp(path.join(tmpdir(), 'own-door-'));
+for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
+  const home = await mkdtemp(path.join(tmpdir(), 'processes-door-'));
   const command = new BuiltCommand();
   const children: number[] = [];
   t.after(async () => {
@@ -51,12 +51,19 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
     if (launched.status !== 'tracked') throw new Error('untracked test child');
     runs.push(launched.run);
   }
-  const invoke = (args: string[], identified = true, extra: Record<string, string> = {}) => storytree(command.script, ['own', ...args], {
+  const invoke = (args: string[], identified = true, extra: Record<string, string> = {}) => storytree(command.script, ['processes', ...args], {
     cwd: home, home, env: { CODEX_THREAD_ID: identified ? 'caller' : '', ...extra },
   });
   const all = await invoke(['--all'], false);
   assert.equal(all.code, 0, all.stderr);
   for (const run of runs) assert.ok(all.stdout.includes(run.id), all.stdout);
+  // The story's old name still answers, but the families list names only the new one.
+  const alias = await storytree(command.script, ['own', '--all'], { cwd: home, home, env: { CODEX_THREAD_ID: '' } });
+  assert.equal(alias.code, 0, alias.stderr);
+  for (const run of runs) assert.ok(alias.stdout.includes(run.id), alias.stdout);
+  const listed = await storytree(command.script, [], { cwd: home, home, env: {} });
+  assert.match(listed.stdout, /^ +processes +/m);
+  assert.doesNotMatch(listed.stdout, /^ +own +/m);
   assert.match(all.stdout, /LIVE/);
   assert.match(all.stdout, /no.*stop authority/i);
   assert.match(all.stdout, /untracked/);
@@ -65,7 +72,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   assert.match(missing.stderr, /session identity.*--all/s);
   const self = await invoke([]);
   assert.equal(self.code, 0, self.stderr);
-  assert.ok(self.stdout.includes(`storytree own stop ${runs[0]!.id}`));
+  assert.ok(self.stdout.includes(`storytree processes stop ${runs[0]!.id}`));
   assert.ok(!self.stdout.includes(runs[1]!.id));
   const uncertain = await invoke([], true, { CLAUDE_CODE_SESSION_ID: 'another-session' });
   assert.equal(uncertain.code, 1, uncertain.stdout + uncertain.stderr);

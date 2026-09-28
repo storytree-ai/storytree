@@ -1,10 +1,10 @@
 /** Ledger doors: identity is resolved by the server; all-session inspection needs no library. */
 import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
-import { listRuns, renderInventory } from '@storytree/own/listing';
-import { clearOwned, readClosing, renderClosing } from '@storytree/own/closing';
-import type { SharedWork } from '@storytree/own/listing';
-import { stopOwned } from '@storytree/own/stopping';
-import type { RunOwner } from '@storytree/own';
+import { listRuns, renderInventory } from '@storytree/processes/listing';
+import { clearOwned, readClosing, renderClosing } from '@storytree/processes/closing';
+import type { SharedWork } from '@storytree/processes/listing';
+import { stopOwned } from '@storytree/processes/stopping';
+import type { RunOwner } from '@storytree/processes';
 import { z } from 'zod';
 import { refusalOf, result, type Answer } from './answers.js';
 
@@ -24,7 +24,7 @@ export function registerOwnTools(options: {
         // All-session inspection is available even if the library cannot resolve this caller.
         const owner = name === 'list_all_runs' ? undefined : await options.owner(context);
         if (name !== 'list_all_runs' && (!owner || owner.agent === 'unknown')) {
-          throw new Error('This needs a resolved session identity and calling agent; use list_all_runs (or storytree own --all) for read-only attribution.');
+          throw new Error('This needs a resolved session identity and calling agent; use list_all_runs (or storytree processes --all) for read-only attribution.');
         }
         return result(await act(args, owner));
       }

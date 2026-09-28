@@ -51,6 +51,8 @@ export async function buildBins(outdir: string): Promise<Record<string, string>>
       "cloudflare:sockets",
       // The library's Cloud SQL path loads this lazily; the agent link only reaches a local Postgres.
       "@google-cloud/cloud-sql-connector",
+      // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
+      "@huggingface/transformers",
     ],
   });
   await stageNativeProbes(outdir);

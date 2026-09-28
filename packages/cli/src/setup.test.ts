@@ -16,7 +16,7 @@ before(async () => {
     stdin: { contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(e => { console.error(e.message); process.exitCode = 1; });', resolveDir: fileURLToPath(new URL("../../app-setup", import.meta.url)) },
     outfile: path.join(command.dir, "storytree-deliver.mjs"), bundle: true, platform: "node", format: "esm", target: "node24",
     banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' },
-    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
+    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "@huggingface/transformers"],
   });
   writeFileSync(path.join(command.dir, "storytree-setup.mjs"), 'console.log(JSON.stringify(process.argv.slice(2)));');
 });

@@ -20,7 +20,7 @@ export async function buildToolBundle(outdir) {
     outfile: path.join(outdir, "storytree-deliver.mjs"),
     bundle: true, platform: "node", format: "esm", target: "node24", logLevel: "warning",
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
-    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
+    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "@huggingface/transformers"],
   });
 }
 

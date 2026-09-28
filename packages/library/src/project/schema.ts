@@ -36,4 +36,13 @@ export const PROJECT_SCHEMA: readonly string[] = [
     at        timestamptz NOT NULL DEFAULT now()
   )`,
   `CREATE INDEX IF NOT EXISTS record_event_record_id_idx ON record_event (record_id)`,
+
+  // Capability 14 · Ranked search. Each chunk's vector, kept under its model and the hash of the
+  // chunk's text: a cache the next search fills, not a record, so a snapshot leaves it out.
+  `CREATE TABLE IF NOT EXISTS embedding (
+    model  text NOT NULL,
+    key    text NOT NULL,
+    vector bytea NOT NULL,
+    PRIMARY KEY (model, key)
+  )`,
 ];

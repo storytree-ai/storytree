@@ -1,0 +1,4 @@
+--- capability_01dc27eec57f/description (Capability 2 · Connect an agent, the app setup)
++++ capability_01dc27eec57f/description
+@@ append, after the sentence winhooks-3 added about a disconnected harness staying disconnected @@
++Connect also registers the chosen harness's hooks (and Claude Code's status line), never the unchosen one's, so the first session after installing already runs the start hook that asks the setup question; before this, hooks arrived only when that first session's tool server ran the setup check, too late for its own start. Registering is still not verifying: results keep saying "hooks not verified" until the setup check has received each event.

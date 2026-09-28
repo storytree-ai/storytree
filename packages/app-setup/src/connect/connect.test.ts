@@ -70,6 +70,19 @@ for (const harnesses of [["claude-code"], ["codex"], ["claude-code", "codex"]] a
   });
 }
 
+test("2.2: connecting registers the chosen harness's hooks, so its first session's start hook already runs", async (t) => {
+  const f = fixture(t);
+  const hookScript = path.join(f.tools, "storytree-hook.mjs");
+  const settingsFile = path.join(f.claude, "settings.json");
+  const codexHooks = path.join(f.codex, "hooks.json");
+  await connectAgents({ ...f.options, harnesses: ["claude-code"] });
+  const starts = JSON.parse(readFileSync(settingsFile, "utf8")).hooks.SessionStart.flatMap((entry: { hooks: { args?: string[] }[] }) => entry.hooks);
+  assert.ok(starts.some((hook: { args?: string[] }) => hook.args?.[0] === hookScript && hook.args.includes("--ask-setup")), "the start hook that asks is registered");
+  assert.equal(existsSync(codexHooks), false, "an unchosen harness gets no hooks");
+  await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.ok(readFileSync(codexHooks, "utf8").includes("storytree-hook.mjs"));
+});
+
 test("2.3/2.4: a conflicting 0.2 entry, missing harness and invalid settings get separate recovery actions", async (t) => {
   const f = fixture(t);
   const old = JSON.stringify({ mcpServers: { storytree: { command: "storytree-02" } } });

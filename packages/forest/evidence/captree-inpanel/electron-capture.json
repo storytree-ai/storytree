@@ -1,0 +1,96 @@
+[
+  {
+    "shot": "panel",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_7b7421be1a1b",
+    "panelFrame": {
+      "width": 423,
+      "height": 350,
+      "view": "{\"x\":-1896,\"y\":-160,\"scale\":1}"
+    },
+    "panelCardOnScreen": {
+      "width": 208,
+      "height": 94
+    },
+    "panelSelectedOnScreen": {
+      "dx": 0,
+      "dy": 0
+    },
+    "popOut": {
+      "label": "Open in a larger window",
+      "title": "Open in a larger window"
+    },
+    "textButton": false,
+    "treeOpen": false,
+    "windowCardOnScreen": null
+  },
+  {
+    "shot": "panned",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_81ad90bacdbc",
+    "panelFrame": {
+      "width": 423,
+      "height": 350,
+      "view": "{\"x\":-1939,\"y\":86,\"scale\":1}"
+    },
+    "panelCardOnScreen": {
+      "width": 208,
+      "height": 94
+    },
+    "panelSelectedOnScreen": {
+      "dx": -113,
+      "dy": -30
+    },
+    "popOut": {
+      "label": "Open in a larger window",
+      "title": "Open in a larger window"
+    },
+    "textButton": false,
+    "treeOpen": false,
+    "windowCardOnScreen": null
+  },
+  {
+    "shot": "popout",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_81ad90bacdbc",
+    "panelFrame": {
+      "width": 295,
+      "height": 350,
+      "view": "{\"x\":-1939,\"y\":86,\"scale\":1}"
+    },
+    "panelCardOnScreen": {
+      "width": 208,
+      "height": 94
+    },
+    "panelSelectedOnScreen": {
+      "dx": -49,
+      "dy": -30
+    },
+    "popOut": {
+      "label": "Open in a larger window",
+      "title": "Open in a larger window"
+    },
+    "textButton": false,
+    "treeOpen": true,
+    "view": "{\"x\":-1350,\"y\":198,\"scale\":1}",
+    "windowCardOnScreen": {
+      "width": 208,
+      "height": 94
+    }
+  }
+]

@@ -52,3 +52,6 @@ macOS and Windows without depending on permission changes or user privilege.
 No contract wording or decision changed; there is no pending library patch.
 The laptop supervisor closes the increment after merge. Contract 9.7 remains in
 `increment_79be6b5a62b6`.
+
+[validation.txt](validation.txt) records the required typecheck, full test run,
+repository gate and test-ratio row after merging current main.

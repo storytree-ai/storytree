@@ -6,6 +6,7 @@ records every contract's verified health in the library on Cloud SQL.
 - [red.txt](red.txt): the four new tests in `scripts/own-health.test.mjs` failing before the build
   (where to record, the unconfigured skip, the CI writer with its commit).
 - [green.txt](green.txt): the same file, 20 of 20 passing.
+- [ci-first-run.txt](ci-first-run.txt): the workflow's first real run on main, green, the sign-in step skipped, nothing recorded.
 - [ci-unconfigured.txt](ci-unconfigured.txt): `pnpm check:own-health` run as CI with no identity
   configured, which is what the first runs on main will do until the owner applies
   [`infra/ci-health`](../../../infra/ci-health/README.md): it names the unset variables, records
@@ -34,3 +35,9 @@ project schema. A user granted the owning role `WITH INHERIT FALSE, SET TRUE` op
 Hence [`infra/ci-health/grants.sql`](../../../infra/ci-health/grants.sql).
 
 [library-update/](library-update/README.md): the story text for the supervisor to apply.
+
+Found after #219 merged: `automerge`'s dispatch step read the pull request as not merged 7 seconds
+before GitHub finished the merge (`gh pr merge --auto` returns first; the step ran at 22:19:00, the
+merge landed at 22:19:07), so that merge recorded nothing. The step now waits for the merge, up to
+two minutes, before dispatching. The proof is the next merge's `Record own health on main` step
+starting an Own health run.

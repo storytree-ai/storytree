@@ -80,14 +80,17 @@ try {
     window.__globe.scene.traverse(object => {
       if (object.userData.sessionWisp === undefined || !object.isGroup) return;
       const body = object.children[0], plate = object.parent;
+      const core = body.getObjectByName('WispCore'), shell = body.getObjectByName('WispShell');
+      if (!core || !shell) return;
       const screen = object.getWorldPosition(body.position.clone()).project(window.__globe.camera);
       found.push({ session: object.userData.sessionWisp, story: plate.name.slice('planet:'.length) || plate.parent?.name.slice('planet:'.length),
-        colour: body.material.color.getHexString(), opacity: body.material.opacity, scale: body.scale.x,
+        colour: shell.material.color.getHexString(), opacity: core.material.opacity, shellOpacity: shell.material.opacity, scale: body.scale.x,
+        geometry: { core: core.geometry.uuid, shell: shell.geometry.uuid },
         x: box.left + (screen.x + 1) * box.width / 2, y: box.top + (1 - screen.y) * box.height / 2, front: screen.z < 1 });
     });
     return found.sort((a, b) => (a.session + a.story).localeCompare(b.session + b.story));
   });
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.isGroup && o.userData.sessionWisp) n++; }); return n > 0; });
+  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name === 'WispShell') n++; }); return n > 0; });
 
   // Turn the forest island toward the camera with the production navigation's own setter.
   const face = id => page.evaluate(id => {
@@ -102,6 +105,8 @@ try {
   await face(forest.id);
   await frames();
   const drawn = await wisps();
+  assert.equal(new Set(drawn.map(wisp => wisp.geometry.core)).size, 1, 'sessions share one core geometry');
+  assert.equal(new Set(drawn.map(wisp => wisp.geometry.shell)).size, 1, 'sessions share one shell geometry');
   const summary = drawn.map(({ session, story }) => `${session}@${seed.tree.stories.find(item => item.id === story)?.title}`);
   assert.deepEqual(summary.sort(), [`${ids.a}@The app`, `${ids.a}@The command line`, `${ids.a}@The forest`, `${ids.b}@The forest`, `${ids.idle}@The librarian`].sort(),
     'one wisp per listed session and island; the folded lane orbits only through its parent; the ended session has none');
@@ -113,6 +118,10 @@ try {
     assert.ok(near, `${wisp.session}'s wisp ${wisp.colour} matches its row ${hex}`);
   }
   assert.ok(drawn.find(wisp => wisp.session === ids.idle).opacity < 1, 'a quiet holder with hooks fades');
+  assert.ok(drawn.find(wisp => wisp.session === ids.idle).shellOpacity < drawn.find(wisp => wisp.session === ids.a).shellOpacity,
+    'the shell fades with the core');
+  await frames();
+  assert.deepEqual((await wisps()).map(({ x, y }) => [x, y]), drawn.map(({ x, y }) => [x, y]), 'reduced motion holds every phase still');
   assert.equal(await page.locator('.forest-claim-dot').count(), 0, 'the claim dots are gone');
   await page.screenshot({ path: path.join(here, 'wisps-globe.png') });
 
@@ -151,14 +160,35 @@ try {
   await frames();
   const after = (await wisps()).map(({ x, y }) => [x, y]);
   assert.ok(before.some(([x, y], i) => Math.hypot(x - after[i][0], y - after[i][1]) > 1), 'wisps orbit when motion is allowed');
+
+  // Inspect the same production model from an oblique angle, with the camera centred on it.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await frames();
+  await page.evaluate(session => {
+    const { scene, camera, controls } = window.__globe;
+    let wisp;
+    scene.traverse(object => { if (object.isGroup && object.userData.sessionWisp === session) wisp ??= object; });
+    const V = camera.position.constructor, Q = camera.quaternion.constructor;
+    const centre = wisp.getWorldPosition(new V());
+    const offset = new V(5, 6, 10).normalize().applyQuaternion(wisp.getWorldQuaternion(new Q()));
+    const distance = camera.position.distanceTo(controls.target);
+    camera.position.copy(centre).addScaledVector(offset, distance);
+    controls.target.copy(centre);
+    camera.zoom *= 6;
+    camera.lookAt(centre);
+    camera.updateProjectionMatrix();
+    controls.update();
+  }, ids.b);
+  await frames();
+  await page.screenshot({ path: path.join(here, 'wisps-model-closeup.png') });
   assert.deepEqual(errors, [], 'no browser runtime or console errors');
   const renderer = await page.evaluate(() => {
     const ctx = window.__globe.gl.getContext(), debug = ctx.getExtension('WEBGL_debug_renderer_info');
     return debug && ctx.getParameter(debug.UNMASKED_RENDERER_WEBGL);
   });
-  const result = { browser: await browser.version(), renderer, wisps: drawn.map(({ x, y, ...wisp }) => wisp), errors,
+  const result = { browser: await browser.version(), renderer, wisps: drawn.map(({ x, y, geometry, ...wisp }) => wisp), errors,
     assertions: ['one wisp per listed session and island', 'folded lane and ended session draw none', 'wisp colour equals row colour',
-      'quiet holder fades', 'claim dots gone', 'row hover swells its wisps', 'wisp hover highlights its row and leaving clears it',
+      'all wisps share one core and shell geometry', 'quiet holder fades on both model layers', 'claim dots gone', 'row hover swells its wisps', 'wisp hover highlights its row and leaving clears it',
       'reduced motion holds wisps still; otherwise they orbit'] };
   writeFileSync(path.join(here, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));

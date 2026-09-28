@@ -1,0 +1,211 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/guidance-reading
+> node --import tsx scripts/test.mjs "packages/agent-link/src/context/context.test.ts" "packages/agent-link/src/tools/agent-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/guidance-reading/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:33677 (started in 0.1 s)
+✔ 9.1 a Claude Code transcript reads the session's own latest request: input + cache-read + cache-creation, one count per requestId, and a later subagent or synthetic line does not change it (1.409939ms)
+✔ 9.2 a transcript that is empty, unreadable, or holds only subagent or synthetic requests reads as an absence naming which, never as 0 tokens (0.266416ms)
+✔ 9.3 a Codex rollout reads its last token count's input tokens as tokens used (0.188739ms)
+✖ 9.5 a session's reading is worked out when asked, from the transcript last recorded for it, read at that moment; another session's transcript is never read, and one with no transcript recorded is an absence (88.243221ms)
+✖ 9.6 `storytree context` prints this session's tokens used, worked out at that moment, and --json the record; it exits 0 whatever the figure, and with no reading it says so and prints no number (56.058887ms)
+✖ 9.7 a reading states fresh default or set guidance, including under, at and past it; unusable settings keep the tokens and explain the missing guidance (1.806584ms)
+✖ 9.7 the context command states guidance and its source, exits 0 under and past it, and includes it in JSON (12.069177ms)
+✔ 6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged (254.239497ms)
+✔ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (203.175322ms)
+✔ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (218.490829ms)
+✔ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (222.550834ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (185.992507ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (221.595279ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (226.415339ms)
+✔ 6.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them (147.327526ms)
+✔ 6.2 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim (174.002912ms)
+✔ 6.3 every call is recorded against the session that made it, using the session id the harness passes, and the machine it ran on (121.088572ms)
+✔ 6.4 a bad call gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn't running, carry on without it" (126.294144ms)
+✔ 6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers (3151.275083ms)
+ℹ show_plan answered after 3002 ms: storytree refused that: storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.
+✔ 6.5 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place (194.212629ms)
+✔ the sentence travels with the data: a harness that shows the agent a tool's data instead of its text, as Claude Code 2.1.212 did, still shows the sentence (regression: the agent link's live check, 2026-09-26) (110.519295ms)
+✔ 6.6 searching and opening a note leaves a log line saying which session read it, how it was found (search, link, id or shelf) and whether it took a peek or the whole note (147.04536ms)
+✔ 6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing (152.982263ms)
+✔ 6.8 after Claude Code's /clear, which gives the window a new session id the tool server never sees, each call is recorded on the new session its hook named; a call no hook saw keeps the id the server was started with (481.255746ms)
+✖ 6.22 a test client calls read_context as session S and gets S's reading, worked out at the time of the call, including after S's transcript has grown with no turn ended; after a /clear whose hook named session T, the same call returns T's (108.413212ms)
+✔ 6.9 it parks an increment, readies it, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc (175.118722ms)
+✔ 6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer (157.304577ms)
+✔ 6.12 friction capture uses the calling folder's branch for the shared daily cap (117.242822ms)
+✔ 6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written (122.102377ms)
+✔ 6.13 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal (131.633321ms)
+✔ 6.14 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired (130.144371ms)
+✔ 6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment, and retiring a question an increment is held on is refused (166.794673ms)
+✔ 6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences (126.122147ms)
+✔ 6.17 another story registers its tools on this server, sharing routing, the session log and its instructions (131.82745ms)
+✔ 6.18 another story supplies land's next line only when needed; a refused landing asks for none (145.041753ms)
+✔ 6.16 every library write from a tool names the calling session, including compound writes, claims, and a session changed by the harness (333.817398ms)
+✔ 6.19 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder (234.169504ms)
+✔ ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing (132.781322ms)
+✔ 6.19 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals (279.748033ms)
+✔ 6.22 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words (103.525814ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 35
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9393.641352
+
+✖ failing tests:
+
+test at packages/agent-link/src/context/context.test.ts:2:2016
+✖ 9.5 a session's reading is worked out when asked, from the transcript last recorded for it, read at that moment; another session's transcript is never read, and one with no transcript recorded is an absence (88.243221ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      at: '2026-09-28T02:00:00.000Z',
+      composition: {
+        charsPerToken: 3.8,
+        grounding: 0,
+  ...
+      },
+  -   guidance: {
+  -     position: 'under',
+  -     source: 'default',
+  -     value: 700000
+  -   },
+      harness: 'claude-code',
+      session: 'S',
+      source: '/tmp/storytree-link-vZg5g6/mine.jsonl',
+      tokens: 1100
+    }
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:95:12)
+      at async withTempDir (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:78:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:85:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { session: 'S', harness: 'claude-code', tokens: 1100, composition: { injected: 1100, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, at: '2026-09-28T02:00:00.000Z', source: '/tmp/storytree-link-vZg5g6/mine.jsonl' },
+    expected: { session: 'S', harness: 'claude-code', tokens: 1100, composition: { injected: 1100, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, guidance: { value: 700000, source: 'default', position: 'under' }, at: '2026-09-28T02:00:00.000Z', source: '/tmp/storytree-link-vZg5g6/mine.jsonl' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/context/context.test.ts:2:3517
+✖ 9.6 `storytree context` prints this session's tokens used, worked out at that moment, and --json the record; it exits 0 whatever the figure, and with no reading it says so and prints no number (56.058887ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      at: '-',
+      composition: {
+        charsPerToken: 3.8,
+        grounding: 0,
+  ...
+      },
+  -   guidance: {
+  -     position: 'under',
+  -     source: 'default',
+  -     value: 700000
+  -   },
+      harness: 'claude-code',
+      session: 'S',
+      source: '/tmp/storytree-link-J8b5wC/S.jsonl',
+      tokens: 494345
+    }
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:129:12)
+      at async withTempDir (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:78:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:113:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { session: 'S', harness: 'claude-code', tokens: 494345, composition: { injected: 494345, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, at: '-', source: '/tmp/storytree-link-J8b5wC/S.jsonl' },
+    expected: { session: 'S', harness: 'claude-code', tokens: 494345, guidance: { value: 700000, source: 'default', position: 'under' }, composition: { injected: 494345, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, at: '-', source: '/tmp/storytree-link-J8b5wC/S.jsonl' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/context/context.test.ts:3:1257
+✖ 9.7 a reading states fresh default or set guidance, including under, at and past it; unusable settings keep the tokens and explain the missing guidance (1.806584ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   position: 'under',
+  -   source: 'default',
+  -   value: 700000
+  - }
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:155:12)
+      at async withTempDir (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:145:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { value: 700000, source: 'default', position: 'under' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/context/context.test.ts:3:2660
+✖ 9.7 the context command states guidance and its source, exits 0 under and past it, and includes it in JSON (12.069177ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /under.*700,000.*default/i. Input:
+  
+  "This session's context holds 317,000 tokens (read from /tmp/storytree-link-kVxkNA/S.jsonl)."
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:184:12)
+      at async withTempDir (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:78:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/context/context.test.ts:176:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "This session's context holds 317,000 tokens (read from /tmp/storytree-link-kVxkNA/S.jsonl).",
+    expected: /under.*700,000.*default/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/tools/agent-tools.test.ts:2:28161
+✖ 6.22 a test client calls read_context as session S and gets S's reading, worked out at the time of the call, including after S's transcript has grown with no turn ended; after a /clear whose hook named session T, the same call returns T's (108.413212ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   position: 'under',
+  -   source: 'default',
+  -   value: 700000
+  - }
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/tools/agent-tools.test.ts:671:14)
+      at async withAgent (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/testing/agent.ts:71:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/tools/agent-tools.test.ts:666:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/tools/agent-tools.test.ts:96:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/testing/folders.ts:17:12)
+      at async withProject (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/tools/agent-tools.test.ts:89:3)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/guidance-reading/packages/agent-link/src/tools/agent-tools.test.ts:657:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { value: 700000, source: 'default', position: 'under' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

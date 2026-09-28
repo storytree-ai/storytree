@@ -27,10 +27,10 @@
 // nothing focused, nothing shown; opting in draws the whole network. Ghost
 // (under-island) strips are never drawn here — the cave props carry that story.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useThree, type RootState } from '@react-three/fiber';
 import { Line, MapControls } from '@react-three/drei';
-import { BufferAttribute, Color, OrthographicCamera, type BufferGeometry, type Mesh, type Texture, type Vector3 } from 'three';
+import { AdditiveBlending, BufferAttribute, Color, OrthographicCamera, type BufferGeometry, type Mesh, type MeshStandardMaterial, type Texture, type Vector3 } from 'three';
 import type { InstanceDescriptor, Descriptor3D } from './world-to-3d.js';
 import type { ForestRegrowPresentation } from './ForestWorldCanvas.regrow.js';
 import { islandGrowthProgress, regrowTrailPoints } from './ForestWorldCanvas.causal.js';
@@ -87,6 +87,8 @@ import { CONTACT_SPREAD, SHADOW_CONTACT_BAND, type ContactBand } from './contact
 import { SHADOW_DEPTH, SHADOW_EDGE, type ShadowDepthOptions } from './shadow-rung.js';
 import { kitMeshes, loadEmbeddedKit, roleFootprints, roleHeights, type LoadedKit } from './kit-mesh.js';
 import { deriveKitStatusPresentation } from './kit-status-presentation.js';
+import { preloadWisp, wispGlow } from './wisp-asset.js';
+import { installPropLighting, KIT_PROP_INDIRECT_FRACTION } from './prop-lighting.js';
 import type { NativePropHitEnvelope } from './native-prop-hit-projection.js';
 import { nativePropTargets } from './native-prop-targets.js';
 import {
@@ -1362,13 +1364,38 @@ export function WispBody({ position = [0, 0, 0], colour, opacity = 1, scale = 1,
   name?: string;
 }) {
   return (
-    <mesh position={position} scale={scale} name={name}>
-      <sphereGeometry args={[2.2, 12, 12]} />
-      {/* A tinted body glows less, so its colour survives instead of washing to white. */}
-      <meshStandardMaterial color={colour ?? '#ffe9a8'} emissive={colour ?? '#ffd75e'} emissiveIntensity={colour === undefined ? 1.4 : 0.55}
-        transparent={opacity < 1} opacity={opacity} />
-    </mesh>
+    <group position={position} scale={scale} name={name}>
+      <Suspense fallback={null}>
+        <WispModel colour={colour ?? '#ffd75e'} opacity={opacity} />
+      </Suspense>
+    </group>
   );
+}
+
+function wispLighting(material: MeshStandardMaterial): void {
+  // The ground's 80% ambient washes out a small volume; use the pine kit's sculpted light split.
+  installPropLighting(material, KIT_PROP_INDIRECT_FRACTION);
+}
+
+/** A faceted flame with a bright heart, authored in Blender with its tail along local -X. */
+function WispModel({ colour, opacity }: { colour: string; opacity: number }) {
+  const geometry = use(preloadWisp());
+  const core = useMemo(() => new Color(colour).lerp(new Color('#ffffff'), 0.78), [colour]);
+  return <>
+    {/* Geometry belongs to the page cache; only the per-wisp materials unmount with a session. */}
+    <mesh name="WispCore" geometry={geometry.core} raycast={() => {}}>
+      <meshStandardMaterial color={core} emissive={core} emissiveIntensity={0.25} roughness={0.55}
+        transparent={opacity < 1} opacity={opacity} depthWrite={opacity === 1} onUpdate={wispLighting} />
+    </mesh>
+    <mesh name="WispShell" geometry={geometry.shell} raycast={() => {}}>
+      <meshStandardMaterial color={colour} emissive={colour} emissiveIntensity={0.18} roughness={0.25}
+        transparent opacity={opacity * 0.62} depthWrite={false} onUpdate={wispLighting} />
+    </mesh>
+    <sprite name="WispGlow" position={[-0.6, 0.3, 0]} scale={[12, 12, 1]} raycast={() => {}}>
+      <spriteMaterial map={wispGlow()} color={colour} blending={AdditiveBlending}
+        transparent opacity={opacity * 0.28} depthWrite={false} />
+    </sprite>
+  </>;
 }
 
 export interface ForestWorldCanvasProps {

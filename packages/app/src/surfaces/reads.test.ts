@@ -5,6 +5,9 @@
  */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { openActivityLog, type ActivityLog } from "@storytree/agent-link";
@@ -70,6 +73,29 @@ test("3.4 the page can ask the app for a story's or capability's shelf of front 
 
     assert.deepEqual((await reads.frontCovers(shown, story.id)).map(({ id }) => id), [cover.id], "the story's shelf, and no other's");
     assert.deepEqual((await reads.relatedNotes(shown, cover.id)).map(({ id }) => id), [why.id]);
+  });
+});
+
+test("3.5 the page can ask the app for the context readings of sessions in the project on show, each read from the transcript its hooks named", async () => {
+  const shown = uniqueProjectName();
+  await withApp([shown], async ({ storytree, log, reads }) => {
+    await storytree.openProject(shown);
+    const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
+    try {
+      const transcript = path.join(folder, "A.jsonl");
+      writeFileSync(transcript, `${JSON.stringify({ type: "assistant", requestId: "r1",
+        message: { model: "claude-opus-5-5", usage: { input_tokens: 100, cache_read_input_tokens: 200_000, cache_creation_input_tokens: 0 } } })}\n`);
+      await log.append(shown, { session: "A", harness: "claude-code", source: "hook", kind: "session-started", transcript });
+      await log.append(shown, { session: "B", harness: "codex", source: "hook", kind: "session-started" });
+
+      const [a, b] = await reads.contextReadings(shown, ["A", "B"]);
+      assert.equal(a?.session, "A");
+      assert.equal(a !== undefined && "tokens" in a && a.tokens, 200_100);
+      assert.deepEqual(b && "absent" in b && [b.session, b.absent], ["B", "no hook has named this session's transcript"]);
+      await assert.rejects(reads.contextReadings(uniqueProjectName(), ["A"]), /there is no project called/);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });
 

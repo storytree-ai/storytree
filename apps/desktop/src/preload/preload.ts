@@ -18,6 +18,7 @@ const bridge: StorytreeBridge & SettingsBridge = {
   arcView: (name, id) => ipcRenderer.invoke(CHANNELS.arcView, name, id) as ReturnType<StorytreeBridge["arcView"]>,
   waitHolds: (name, id) => ipcRenderer.invoke(CHANNELS.waitHolds, name, id) as ReturnType<StorytreeBridge["waitHolds"]>,
   heldOnQuestion: (name, id) => ipcRenderer.invoke(CHANNELS.heldOnQuestion, name, id) as ReturnType<StorytreeBridge["heldOnQuestion"]>,
+  contextReadings: (name, sessions) => ipcRenderer.invoke(CHANNELS.contextReadings, name, sessions) as ReturnType<StorytreeBridge["contextReadings"]>,
 
   listProjects: () => ipcRenderer.invoke(CHANNELS.listProjects) as Promise<string[]>,
   projectSelection: () => ipcRenderer.invoke(CHANNELS.projectSelection) as ReturnType<StorytreeBridge["projectSelection"]>,

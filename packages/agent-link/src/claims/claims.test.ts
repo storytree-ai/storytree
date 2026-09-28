@@ -21,6 +21,7 @@ import { claudeCode, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claim, land, readAttribution, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { mergedPullsThrough } from "./merges.js";
 
 interface World {
   log: ActivityLog;
@@ -225,6 +226,20 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
       await runHook({ argv: ["claude-code"], input: JSON.stringify({ ...edit, cwd: folder, session_id: "D" }), merges, locate: { dataDir: testServerDataDir() } });
       assert.deepEqual(await held(), [], "the merge ended B's claim, at the next hook line");
     });
+  });
+});
+
+test("5.10 asking gh for merged pull requests answers when gh exits, even while a process it started still holds its output (regression: gh's tzutil, 2026-09-28)", { timeout: 30_000 }, async () => {
+  await withTempDir(async (folder) => {
+    // A gh that answers one merged pull request, leaving behind a process that keeps its output open for 20s.
+    const gh = path.join(folder, "gh.mjs");
+    const merged = [{ number: 9, mergedAt: "2026-09-28T00:00:00Z" }];
+    // Detached, as Node would otherwise end it with gh on Windows; in the temporary folder, so it holds no folder the test removes.
+    writeFileSync(gh, `import { spawn } from "node:child_process";\nimport { tmpdir } from "node:os";\nspawn(process.execPath, ["-e", "setTimeout(() => {}, 20_000)"], { stdio: "inherit", detached: true, cwd: tmpdir() });\nconsole.log(${JSON.stringify(JSON.stringify(merged))});\nprocess.exit(0);\n`);
+
+    const started = Date.now();
+    assert.deepEqual(await mergedPullsThrough(process.execPath, [gh])(folder, "feature/signup & more"), merged);
+    assert.ok(Date.now() - started < 2_500, `answered when gh exited, not at the deadline: ${Date.now() - started}ms`);
   });
 });
 

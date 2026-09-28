@@ -1,0 +1,16 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/defs-uncapped
+> node --import tsx scripts/test.mjs "--test-name-pattern=^3\\.7 " "packages/agent-link/src/hooks/hooks.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:45279 (started in 0.1 s)
+✔ 3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed (802.279658ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1005.101306
+test Postgres: stopped (0.1 s)

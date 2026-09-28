@@ -1,0 +1,17 @@
+--- old/library/The agent link/capability 3/contract_559aef552d91/title
++++ new/library/The agent link/capability 3/contract_559aef552d91/title
+@@ -1 +1 @@
+-3.7 · At each prompt, the project's definitions for the terms it names are added for the agent: whole words in any case or plural, every one not yet given this session, longest first, with no cap (a prompt naming six gets all six), each once a session. A harness's own notice gets none, and with storytree stopped nothing is printed.
++3.7 · At each prompt, the project's definitions for the terms it names are added for the agent: whole words in any case or plural, every one not yet given this session, longest first, with no cap (a prompt naming six gets all six), each once a session, each meaning's first line cut to 200 characters. A harness's own notice gets none, and with storytree stopped nothing is printed.
+
+--- old/library/The agent link/capability 3/definition_f44c35b631fd/meaning
++++ new/library/The agent link/capability 3/definition_f44c35b631fd/meaning
+@@ -13,3 +13,8 @@
+   measured and never chosen by the owner) is removed by the owner's named choice ("turn the cap
+   off."; ADR-0633), not made a setting. The once-per-session and harness-notice rules stay.
+ 
++- **As built (defs-uncapped):** `definitionsNamedIn` returns every matching definition in longest-first
++  order, retaining library order for ties. `notYetGiven` keeps the once-per-session ledger,
++  the harness-notice filter stays, and meanings keep their first-line, 200-character cut.
++  Contract 3.7's existing built-hook test now requires all six matches, checks their order
++  and suppression on the next prompt, and pins the cut; no setting was added.

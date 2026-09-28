@@ -1,10 +1,14 @@
 /** Contract 10.10: the user's idle duration controls both liveness and claim takeover. */
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { test } from "node:test";
 import { connect } from "@storytree/library";
-import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { claim, readClaims } from "../claims/index.js";
+import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog } from "../activity/index.js";
+import { claim, claimRefusal, readClaims } from "../claims/index.js";
+import { claimsFrom, sessionsFrom } from "../readings.js";
 import { readSessions } from "../sessions/index.js";
+import { claudeCode, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { setSetting } from "./settings.js";
@@ -38,6 +42,11 @@ test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 
       setSetting("idle-after", "10m");
       assert.equal((await readSessions(log, project, { now }))[0]?.state, "idle");
       assert.equal((await readClaims(log, project, { now }))[0]?.holder, "idle");
+      const { lines } = await log.since(project, 0);
+      assert.equal(sessionsFrom(lines, { now })[0]?.state, "live", "the browser default stays 30m");
+      assert.equal(claimsFrom(lines, { now })[0]?.holder, "live");
+      assert.equal(sessionsFrom(lines, { now, quietMs: 10 * 60_000 })[0]?.state, "idle");
+      assert.equal(claimsFrom(lines, { now, quietMs: 10 * 60_000 })[0]?.holder, "idle");
       const taken = await claim(claimant, capability.id, "taking over");
       assert.ok(taken.ok);
       assert.equal(taken.takenOverFrom?.session, "A");
@@ -46,6 +55,46 @@ test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 
       assert.equal((await readSessions(log, project, { now })).find((session) => session.session === "B")?.state, "live");
       assert.equal((await readClaims(log, project, { now }))[0]?.holder, "live");
       assert.equal((await claim({ ...claimant, session: "C" }, capability.id, "command still running")).ok, false);
+    } finally {
+      if (previous === undefined) delete process.env.STORYTREE_HOME;
+      else process.env.STORYTREE_HOME = previous;
+      await log.close();
+      await store.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("10.10 a running MCP server rereads idle-after for its plan and claim takeover", async () => {
+  await withTempDir(async (home) => {
+    const previous = process.env.STORYTREE_HOME;
+    process.env.STORYTREE_HOME = home;
+    const project = uniqueProjectName();
+    const store = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      writeFileSync(path.join(home, ".storytree.json"), JSON.stringify({ project }));
+      const library = await store.openProject(project);
+      const story = await library.addStory({ title: "Idle setting" });
+      const capability = await library.addCapability({ story: story.id, title: "Claimed work" });
+      await claim({ log, library, project, session: "A" }, capability.id, "building");
+      const activity = await store.ownDatabase(ACTIVITY_DATABASE);
+      await activity.query("UPDATE activity SET at = now() - interval '15 minutes' WHERE project = $1", [project]);
+      await withAgent(home, claudeCode("B"), async (agent) => {
+        const before = await agent.call("show_plan");
+        assert.equal(before.isError, false, before.text);
+        assert.match(before.text, /A, live/);
+        assert.equal((await agent.call("claim", { capability: capability.id, reason: "taking over" })).isError, true);
+        setSetting("idle-after", "10m");
+        assert.equal(await claimRefusal({ log, library, project, session: "B" }, capability.id), undefined);
+        const after = await agent.call("show_plan");
+        assert.equal(after.isError, false, after.text);
+        assert.match(after.text, /A, idle/);
+        assert.match(after.text, /A \(idle\)/);
+        const taken = await agent.call("claim", { capability: capability.id, reason: "taking over" });
+        assert.equal(taken.isError, false, taken.text);
+        assert.equal((await readClaims(log, project))[0]?.session, "B");
+      });
     } finally {
       if (previous === undefined) delete process.env.STORYTREE_HOME;
       else process.env.STORYTREE_HOME = previous;

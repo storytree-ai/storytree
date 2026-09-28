@@ -23,8 +23,8 @@ packages/app typecheck: Done
 packages/knowledge-core typecheck: Done
 packages/arc-surface typecheck$ tsc -p .
 packages/cli typecheck$ tsc -p .
-packages/cli typecheck: Done
 packages/arc-surface typecheck: Done
+packages/cli typecheck: Done
 packages/forest typecheck$ tsc -p .
 packages/forest typecheck: Done
 apps/desktop typecheck$ tsc -p .

@@ -34,7 +34,7 @@ import type { ActivityLog, Agent, Line } from "../activity/index.js";
 import { endMergedClaims, type MergeWatch } from "../claims/index.js";
 import { habitsCard } from "../instructions/index.js";
 import { findProject, locateStorytree, route } from "../routing/index.js";
-import { QUIET_MS } from "../sessions/index.js";
+import { idleAfterMs } from "../settings/settings.js";
 import type { SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
@@ -57,7 +57,7 @@ export interface AgentToolOptions {
   readonly dataDir?: string;
   /** The server's environment, where Claude Code puts its session id. By default, the process's. */
   readonly env?: Readonly<Record<string, string | undefined>>;
-  /** How long a claim's holder may be quiet before it can be taken over. By default, sessions' quiet time. */
+  /** How long a claim's holder may be quiet before it can be taken over. By default, the current idle-after setting. */
   readonly quietMs?: number;
   /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
   readonly merges?: MergeWatch;
@@ -121,7 +121,6 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions });
   const connections = new Connections();
   const env = options.env ?? process.env;
-  const quietMs = options.quietMs ?? QUIET_MS;
   // A session id of its own, for a harness that names none: one server process serves one session.
   const ownSession = `storytree-mcp-${randomUUID()}`;
   const locate = options.dataDir === undefined ? {} : { dataDir: options.dataDir };
@@ -135,6 +134,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       if (where.status === "not-a-project") return result({ text: NOT_A_PROJECT_ANSWER });
       const meta = metaOf(context);
       try {
+        const quietMs = options.quietMs ?? idleAfterMs();
         const { library, log } = await connections.reach(where.library, where.project);
         // What the hooks have written, the one run just before this call included (ADR-0629 D2).
         const { lines } = await log.since(where.project, 0);

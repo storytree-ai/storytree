@@ -51,5 +51,5 @@ try {
   }
   await page.screenshot({path:path.join(here,'settings-refused.png')});
   assert.deepEqual(errors,[]);
-  console.log('PASS: actual gear/settings components show 600000 and 30m; save 10m; reject soon, 0m, -5m inline without changing saved bytes; no browser errors. Component preview only; liveness is still held.');
+  console.log('PASS: actual gear/settings components show 600000 and 30m; save 10m; reject soon, 0m, -5m inline without changing saved bytes; no browser errors. Component preview only; session and claim liveness are verified separately in green.txt.');
 } finally { await browser?.close(); rmSync(home,{recursive:true,force:true}); }

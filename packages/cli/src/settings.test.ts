@@ -22,6 +22,7 @@ test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid 
   const defaults = await invoke(["settings", "show"]);
   assert.equal(defaults.code, 0, defaults.stderr);
   assert.match(defaults.stdout, /context-guidance.*600000.*default/);
+  assert.match(defaults.stdout, /idle-after.*30m.*default/);
 
   const set = await invoke(["settings", "set", "context-guidance", "400000"]);
   assert.equal(set.code, 0, set.stderr);
@@ -88,6 +89,7 @@ test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid 
   assert.equal(idle.code, 0, idle.stderr);
   assert.match(idle.stdout, /idle-after.*10m.*set/);
   assert.equal(readSettings(home)["idle-after"].value, "10m");
+  assert.match((await invoke(["settings", "show"])).stdout, /idle-after.*10m.*set/);
   const idleSaved = readFileSync(file, "utf8");
   for (const value of ["soon", "0m", "-5m"]) {
     const refused = await invoke(["settings", "set", "idle-after", value]);

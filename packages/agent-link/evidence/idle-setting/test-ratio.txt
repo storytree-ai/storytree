@@ -5,18 +5,18 @@
 Test code per line of implementation, in code lines (comments and blanks left out):
 
                               test   implementation   ratio
-  apps/desktop                 191            1,356    0.14
-  packages/agent-link        4,096            4,737    0.86
+  apps/desktop                 191            1,358    0.14
+  packages/agent-link        4,147            4,749    0.87
   packages/app-setup           454              953    0.48
   packages/app               1,039            1,837    0.57
   packages/arc-surface         508            1,092    0.47
-  packages/cli               1,673            1,625    1.03
+  packages/cli               1,675            1,626    1.03
   packages/forest-world     25,224           13,307    1.90
-  packages/forest            1,108            3,804    0.29
-  packages/knowledge-core      571            1,086    0.53
+  packages/forest            1,120            3,825    0.29
+  packages/knowledge-core      621            1,320    0.47
   packages/librarian           482              509    0.95
   packages/library           5,484            3,919    1.40
   packages/local-postgres      218              325    0.67
   packages/own                 801              908    0.88
   scripts                    1,453            1,675    0.87
-  all                       43,302           37,133    1.17
+  all                       43,417           37,403    1.16

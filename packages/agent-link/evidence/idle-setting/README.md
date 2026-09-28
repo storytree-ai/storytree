@@ -1,26 +1,28 @@
-# Idle setting — HELD, not landed
+# Idle setting
 
 Increment `increment_d083c638c3ec`, arc `arc_748792ea3487`.
 
-The branch has the 600,000 context default, duration storage/validation, the gear's duration
-control, and the status line's settings-based window. It is **not green**: the session and claim
-consumers still need changes outside the lane's file fence. No PR has been opened.
+Context guidance defaults to 600,000. `idle-after` defaults to `30m` and controls Node session and
+claim readings, locked takeover, the MCP server on each call, and the status line's shared-file
+window. The CLI and gear save positive durations and refuse invalid values without changing the
+file. Settings show lists every reading returned by readSettings.
 
-- `red.txt`: observed failures after pushing red commit `283cd42`.
-- `partial-green.txt`: 61 selected settings, panel, context, tools, hooks and CLI tests pass.
-- `held-liveness.txt`: contract 10.10 still fails (`live` instead of `idle` after setting `10m`).
-- `typecheck.txt`: workspace typecheck passed before the final status-line edit.
-- `typecheck-final-agent-link.txt`: affected package typecheck after that edit.
+The shared algorithms now live in browser-safe readings.ts, with an optional quietMs and a
+30-minute default. Node wrappers supply the current setting. **Known limit:** the forest display
+keeps the 30-minute default; its bridge is outside this lane and the supervisor will park that step.
+
+- `red.txt`: original observed failures after pushing red commit `283cd42`.
+- `red-relaunch.txt`: observed session, live-MCP and settings-show failures before the remaining fixes.
+- `green.txt`: contract 10.10 and the offline CLI checks pass, including live-server setting changes.
+- `verification.txt`: complete local verification summary and test scope/table.
+- `typecheck.txt`: full workspace typecheck.
 - `test-ratio.txt`: informational report, not a gate.
-- `capture.mjs` / `capture.txt`: headless browser checks of real gear/settings components in a
-  preview page, using the real settings writer and a throwaway home. No live library is involved.
-- `settings-default.png`, `settings-saved.png`, `settings-refused.png`: component captures for
-  review, not whole-desktop smoke or owner acceptance.
-- `library-update/`: partial-progress patch/checklist, explicitly held; do not apply as a landing.
+- `capture.mjs` / `capture.txt`: headless checks of real gear/settings components with real writers
+  and a throwaway home. No live library is involved.
+- `settings-default.png`, `settings-saved.png`, `settings-refused.png`: component captures for review.
+- `library-update/`: supervisor-applied patch and checklist matching this implementation.
 
-The exact boundary is documented in `/tmp/idle-setting-report.md`. Required consumer edits include
-`claims/claims.ts` (read and locked takeover), `tools/server.ts` (per-call quiet time), and
-`packages/cli/src/families/settings.ts` (hard-coded settings-show list). The pure browser readings
-also need to remain free of Node file I/O: `readings.ts` reexports the same sessions/claims code used
-by the forest. Changing shared pure readers to import settings.ts directly would cross that seam.
-The supervisor must settle the scope of that plumbing before completion.
+`partial-green.txt`, `held-liveness.txt` and `typecheck-final-agent-link.txt` retain the previous
+run's evidence. They are historical, superseded by the green and verification logs above.
+Component captures are not native desktop smoke or owner appearance acceptance; those remain
+with the laptop supervisor. No live-store query, claim, decision or question was made by this lane.

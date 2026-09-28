@@ -9,3 +9,6 @@ export { LAUNCH_COVERAGE, observeRuns, recordRequestOutcome } from './observatio
 export type { OutcomeOptions, ObservedRun, ObservationOptions, RunObservation } from './observation/observe.js';
 export { readProcess, probeProcess } from './process/index.js';
 export type { ProcessIdentity, ProcessReading } from './process/index.js';
+export { clearOwned, readClosing, renderClosing } from './closing/index.js';
+export type { ClearOptions, ClearDependencies, ClearResult, RetainedRecord, FailedRemoval,
+  KnownGaps, ClosingOptions, ClosingReading } from './closing/index.js';

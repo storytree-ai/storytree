@@ -86,7 +86,7 @@ async function withApp(projects: readonly string[], body: (app: App) => Promise<
   const url = testServerUrl();
   const storytree = await connect({ url });
   const log = await openActivityLog(url);
-  const reads = pageReads({ storytree, serverUrl: url });
+  const reads = pageReads({ storytree });
   try {
     await body({ storytree, log, reads });
   } finally {

@@ -23,7 +23,7 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
   const project = `t-${randomBytes(4).toString("hex")}`;
   const store = await connect({ url });
   const log = await openActivityLog(url);
-  const reads = pageReads({ storytree: store, serverUrl: url });
+  const reads = pageReads({ storytree: store });
   let stop = () => {};
   try {
     const library = await store.openProject(project);

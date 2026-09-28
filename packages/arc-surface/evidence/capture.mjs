@@ -67,7 +67,7 @@ try {
   await library.parkArc(anotherParked.id);
   const closed = await makeArc('Earlier experiment', 'Keep the outcome, including experiments that did not land.');
   await library.addIncrement({ arc: closed.id, title: 'Alternative layout', objective: 'Explore', body: 'Explore', outcome: { disposition: 'withdrawn', note: 'Kept the smaller layout.' } });
-  reads = pageReads({ storytree: store, serverUrl: postgres.url });
+  reads = pageReads({ storytree: store });
   let failRead = false;
   const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); } };
   const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'];

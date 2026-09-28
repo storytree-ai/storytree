@@ -34,10 +34,8 @@ export interface PageReads {
 }
 
 export interface PageReadsOptions {
-  /** The app's connection to its library. */
+  /** The app's connection to its library, local or Cloud SQL; the agent activity log is its own database there. */
   readonly storytree: Storytree;
-  /** The address of the Postgres server the libraries are on, where the agent activity log lives too. */
-  readonly serverUrl: string;
 }
 
 /**
@@ -45,7 +43,7 @@ export interface PageReadsOptions {
  * opened the first time they are asked for, and kept open until close(). A cursor is passed on as
  * the page gave it: the library and the log each refuse one that is not a whole number, 0 or more.
  */
-export function pageReads({ storytree, serverUrl }: PageReadsOptions): PageReads {
+export function pageReads({ storytree }: PageReadsOptions): PageReads {
   const libraries = new Map<string, Promise<Library>>();
   let log: Promise<ActivityLog> | undefined;
 
@@ -69,7 +67,7 @@ export function pageReads({ storytree, serverUrl }: PageReadsOptions): PageReads
 
   function activityLog(): Promise<ActivityLog> {
     if (log === undefined) {
-      const opening = openActivityLog(serverUrl);
+      const opening = openActivityLog(storytree);
       log = opening;
       opening.catch(() => {
         if (log === opening) log = undefined;

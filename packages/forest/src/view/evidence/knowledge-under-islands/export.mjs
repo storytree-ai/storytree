@@ -18,7 +18,7 @@ const server = await start({ dataDir: appHome().pgdata, owner: 'knowledge under 
 let library, reads;
 try {
   library = await connect({ url: server.url });
-  reads = pageReads({ storytree: library, serverUrl: server.url });
+  reads = pageReads({ storytree: library });
   const projects = await reads.listProjects();
   const tree = await reads.projectTree('storytree');
   const history = await reads.changesSince('storytree', 0);

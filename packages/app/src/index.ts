@@ -20,5 +20,7 @@ export { ReleaseUpdater } from "./updates/releases.js";
 export type { ReleaseOptions } from "./updates/releases.js";
 export { buildLabel, launchToRecord } from "./lifecycle/launch.js";
 export type { LaunchRecord } from "./lifecycle/launch.js";
+export { openAppLibrary } from "./lifecycle/open-where-set.js";
+export type { AppLibrary, AppLibraryOptions, StartedPostgres } from "./lifecycle/open-where-set.js";
 export { quitApp } from "./lifecycle/quit.js";
 export type { QuitResult } from "./lifecycle/quit.js";

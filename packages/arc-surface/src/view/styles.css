@@ -1,11 +1,17 @@
 .arc-surface-mount { color: var(--text, #eee); }
-.arc-handle { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 6; min-width: 76px; height: 28px; padding: 1px 18px; border: 1px solid var(--line, #43504d); border-top: 0; border-radius: 0 0 10px 10px; background: var(--surface, #202622); color: inherit; font: inherit; cursor: pointer; box-shadow: 0 3px 10px #0002; }
-.arc-overlay { position: fixed; inset: 0 0 auto; z-index: 5; height: 50dvh; min-height: min(260px, 70dvh); display: flex; flex-direction: column; background: var(--surface, #202622); border-bottom: 1px solid var(--line, #43504d); box-shadow: 0 12px 28px #0004; }
+/* Reserve one top strip on our host, including room for the app's 36px gear at 12px.
+   The forest and its controls keep their own layout beneath it. Removing the mount
+   automatically releases this space. */
+:root :has(> .arc-surface-mount) { margin-top: 60px; }
+.arc-handle { position: fixed; top: 0; left: 0; right: 60px; z-index: 6; display: flex; align-items: center; gap: 14px; width: calc(100% - 60px); height: 60px; padding: 0 20px; border: 0; border-bottom: 1px solid #485159; border-radius: 0; background: #101418; color: #eceae3; font: 14px/1.5 "Segoe UI", system-ui, sans-serif; text-align: left; cursor: pointer; }
+.arc-handle:hover { background: #262a2f; }
+.arc-surface-mount .arc-handle:focus-visible { outline: 2px solid #a9b0ba; outline-offset: -3px; }
+.arc-handle-label { flex: 0 0 auto; font-weight: 600; }
+.arc-handle-project { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #a9b0ba; }
+.arc-handle-caret { margin-left: auto; color: #a9b0ba; }
+.arc-overlay { position: fixed; inset: 60px 0 auto; z-index: 5; height: 50dvh; min-height: min(260px, 70dvh); max-height: calc(100dvh - 60px); display: flex; flex-direction: column; background: var(--surface, #202622); border-bottom: 1px solid var(--line, #43504d); box-shadow: 0 12px 28px #0004; }
 .arc-overlay[hidden], .arc-handle[hidden] { display: none; }
-.arc-header { display: flex; align-items: center; height: 32px; flex: 0 0 32px; padding: 0 18px; border-bottom: 1px solid var(--line, #43504d); }
-.arc-header h2 { margin: 0; font-size: .85rem; font-weight: 600; }
-.arc-header small { margin-left: 10px; color: var(--muted, #adb8b2); font-size: .75rem; font-weight: 400; }
-.arc-overlay button { font: inherit; color: inherit; cursor: pointer; }
+.arc-overlay button:not(.arc-handle) { font: inherit; color: inherit; cursor: pointer; }
 .arc-surface-mount button:focus-visible, .arc-overlay summary:focus-visible { outline: 2px solid #7dbdab; outline-offset: -2px; }
 .arc-status:not(:empty) { padding: 6px 18px; font-size: .8rem; color: #b57719; background: #c5922420; }
 .arc-body { min-height: 0; flex: 1; display: flex; flex-direction: column; animation: arc-pull-down 180ms ease-out; }
@@ -58,4 +64,4 @@
 .arc-answer { border-left: 3px solid #6c9b80; margin: 0 0 10px; padding: 5px 10px; background: #6c9b8012; }
 .arc-empty { color: var(--muted, #adb8b2); padding: 0 18px; }
 @media (prefers-color-scheme: dark) { .arc-state-waiting, .arc-state-blocked { color: #e7c77d; } .arc-state-claimed { color: #a8d6ba; } }
-@media (max-width: 700px) { .arc-panes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .arc-briefing { padding: 10px; } .arc-count { white-space: normal; font-size: .6rem; } .arc-title { font-size: .75rem; } .arc-lane-head { gap: 4px; } .arc-header small { display: none; } }
+@media (max-width: 700px) { .arc-panes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .arc-briefing { padding: 10px; } .arc-count { white-space: normal; font-size: .6rem; } .arc-title { font-size: .75rem; } .arc-lane-head { gap: 4px; } }

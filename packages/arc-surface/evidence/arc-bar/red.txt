@@ -1,0 +1,51 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/arc-bar
+> node --import tsx scripts/test.mjs "packages/arc-surface/src/view/render.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/arc-bar/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:34769 (started in 0.1 s)
+/home/mickh/code/storytree03-wt/arc-bar/packages/arc-surface/src/view/render.test.ts:5
+import { renderBoard, renderHandle } from "./render.js";
+                      ^
+SyntaxError: The requested module './render.js' does not provide an export named 'renderHandle'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0
+✖ packages/arc-surface/src/view/render.test.ts (124.824843ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132.980509
+
+✖ failing tests:
+
+test at packages/arc-surface/src/view/render.test.ts:1:1
+✖ packages/arc-surface/src/view/render.test.ts (124.824843ms)
+  'test failed'
+
+test harness: file failures
+/home/mickh/code/storytree03-wt/arc-bar/packages/arc-surface/src/view/render.test.ts
+  exit code: 1; signal: none
+  stderr:
+  /home/mickh/code/storytree03-wt/arc-bar/packages/arc-surface/src/view/render.test.ts:5
+  import { renderBoard, renderHandle } from "./render.js";
+                        ^
+  SyntaxError: The requested module './render.js' does not provide an export named 'renderHandle'
+      at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+      at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)
+      at async node:internal/modules/esm/loader:643:26
+      at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+  
+  Node.js v24.19.0
+  ERR_TEST_FAILURE: test failed
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

@@ -1,0 +1,59 @@
+{
+  "snapshot": "/home/mickh/storytree-lanes/snapshots/2026-09-28T07-26-00-491Z.json",
+  "records": 1628,
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "barBox": {
+    "x": 0,
+    "y": 0,
+    "width": 1380,
+    "height": 60
+  },
+  "gearBox": {
+    "x": 1392,
+    "y": 12,
+    "width": 36,
+    "height": 36
+  },
+  "drawerBox": {
+    "x": 0,
+    "y": 60,
+    "width": 1440,
+    "height": 480
+  },
+  "controls": {
+    "x": 12,
+    "y": 72,
+    "width": 154.140625,
+    "height": 43.28125
+  },
+  "narrowBar": {
+    "x": 0,
+    "y": 0,
+    "width": 300,
+    "height": 60
+  },
+  "narrowGear": {
+    "x": 312,
+    "y": 12,
+    "width": 36,
+    "height": 36
+  },
+  "stories": 10,
+  "capabilities": 71,
+  "errors": [],
+  "passed": [
+    "bar spans to gear",
+    "forest controls below strip",
+    "click toggle at both ends",
+    "keyboard and Escape focus",
+    "forest pointer input below closed bar and open drawer",
+    "gear reachable",
+    "open/scope and closed persistence",
+    "read-only UI",
+    "smoke census",
+    "narrow viewport"
+  ]
+}

@@ -1,0 +1,18 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/arc-bar
+> node --import tsx scripts/test.mjs "packages/arc-surface/src/view/render.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:33807 (started in 0.1 s)
+✔ 3/4 drawer rows hide queued chips until their blocker's caret opens, with downstream +N (1.734972ms)
+✔ 3/5 question list gives reading cost; opening swaps in the reading and back restores the list (0.580542ms)
+✔ 3.1 the arc bar labels the project safely and exposes open/close to keyboard users (0.199629ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 145.130084
+test Postgres: stopped (0.1 s)

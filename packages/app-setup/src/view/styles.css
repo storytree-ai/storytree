@@ -47,3 +47,14 @@
 .setup-help-panel [role="alert"] { color: var(--fail-text); }
 .setup-help-diagnostics { border-top: 1px solid var(--line); margin-top: .8rem; padding-top: .3rem; }
 .setup-help-diagnostics small { display: block; color: var(--muted); }
+.setup-help-panel.setup-help-embedded {
+  position: static;
+  width: 100%;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}

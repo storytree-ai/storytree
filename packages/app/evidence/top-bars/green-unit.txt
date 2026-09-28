@@ -1,0 +1,20 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/top-bars
+> node --import tsx scripts/test.mjs "packages/app/src/view/render.test.ts" "packages/arc-surface/src/view/render.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:34827 (started in 0.1 s)
+✔ 2.6–2.8 the app bar holds only the gear and opens a sectioned overlay (1.127231ms)
+✔ the project switcher lists every project, selects the current one and escapes names (0.302445ms)
+✔ 3/4 drawer rows hide queued chips until their blocker's caret opens, with downstream +N (1.760414ms)
+✔ 3/5 question list gives reading cost; opening swaps in the reading and back restores the list (0.587737ms)
+✔ 3.1 the arc bar omits the project and exposes open/close to keyboard users (0.239575ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 152.036005
+test Postgres: stopped (0.1 s)

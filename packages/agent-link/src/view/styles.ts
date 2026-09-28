@@ -34,4 +34,5 @@ export const settingsStyles = `
 .settings-saved { color: #a9b0ba; font-size: 12px; }
 .settings-panel [data-read-error] { color: #ff8a80; overflow-wrap: anywhere; }
 @media (max-width: 560px) { .settings-panel { padding: 20px; } .settings-row { grid-template-columns: minmax(0, 1fr); gap: 12px; } .settings-value { width: min(100%, 240px); justify-self: end; } }
+.settings-panel.settings-panel-embedded { width: 100%; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 `;

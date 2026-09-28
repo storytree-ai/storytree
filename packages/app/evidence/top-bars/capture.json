@@ -1,0 +1,58 @@
+{
+  "snapshot": "/home/mickh/storytree-lanes/snapshots/2026-09-28T09-15-09-235Z.json",
+  "records": 1677,
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "appBox": {
+    "x": 0,
+    "y": 0,
+    "width": 1440,
+    "height": 48
+  },
+  "arcBox": {
+    "x": 0,
+    "y": 48,
+    "width": 1440,
+    "height": 48
+  },
+  "gearBox": {
+    "x": 1392,
+    "y": 5.5,
+    "width": 36,
+    "height": 36
+  },
+  "menuBox": {
+    "x": 32,
+    "y": 80,
+    "width": 1376,
+    "height": 848
+  },
+  "narrowBox": {
+    "x": 12,
+    "y": 60,
+    "width": 336,
+    "height": 568
+  },
+  "stories": 10,
+  "capabilities": 71,
+  "errors": [],
+  "passed": [
+    "bar order and heights",
+    "gear only on app bar",
+    "arc bar omits project",
+    "drawer below bars",
+    "centred full-size overlay",
+    "four dismissal routes",
+    "focus restoration and containment",
+    "forest input below bars",
+    "every section mounted",
+    "settings save via existing bridge",
+    "Help license",
+    "updates action",
+    "project switch and recovery",
+    "smoke census",
+    "narrow fit"
+  ]
+}

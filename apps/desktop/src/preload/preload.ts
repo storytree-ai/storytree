@@ -3,10 +3,13 @@
  * bridge, and nothing else. The page runs sandboxed, with no Node and no Electron.
  */
 import { contextBridge, ipcRenderer } from "electron";
+import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/agent-link/view";
 
 import { CHANNELS, type StorytreeBridge } from "../bridge.js";
 
-const bridge: StorytreeBridge = {
+const bridge: StorytreeBridge & SettingsBridge = {
+  readSettings: () => ipcRenderer.invoke(SETTINGS_CHANNELS.readSettings),
+  saveSetting: (name, values) => ipcRenderer.invoke(SETTINGS_CHANNELS.saveSetting, name, values),
   readSetupLicense: () => ipcRenderer.invoke(CHANNELS.readSetupLicense) as ReturnType<StorytreeBridge["readSetupLicense"]>,
   checkSetupFolder: () => ipcRenderer.invoke(CHANNELS.checkSetupFolder) as ReturnType<StorytreeBridge["checkSetupFolder"]>,
   openFeedbackDraft: (draft) => ipcRenderer.invoke(CHANNELS.openFeedbackDraft, draft) as ReturnType<StorytreeBridge["openFeedbackDraft"]>,

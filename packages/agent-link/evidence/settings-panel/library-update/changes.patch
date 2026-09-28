@@ -1,0 +1,23 @@
+--- old/library/The agent link/capability 10/capability_2902dfd80083/description
++++ new/library/The agent link/capability 10/capability_2902dfd80083/description
+@@ -2,3 +2,5 @@
+ 
+ Second setting (ADR-0734 D1, 2026-09-28): `library`, where the library lives, `local` by default or `cloudsql` with the Cloud SQL instance's connection name (project:region:instance) and the Google account to sign in as: `storytree settings set library cloudsql <instance> <user>`, or `storytree settings set library local`. Stored in the same file as `{ "location": "cloudsql", "instance": …, "user": … }`. Routing (capability 1) reads it to say where a project's library is; the app (the app story's lifecycle) reads it to decide whether to start its local Postgres at all.
+ 
++
++As built: Settings in the app’s gear mounts the agent link’s panel through @storytree/agent-link/view. It lists every reading with its value, meaning and default or set-by-you source, and saves through capability 10’s existing writers over desktop IPC. Context guidance uses a numeric text field; Library offers local or Cloud SQL with its instance and account fields. Refusals appear inline verbatim; a read failure offers Retry, and closing returns keyboard focus to the gear. Evidence and owner-review captures: packages/agent-link/evidence/settings-panel/. Appearance awaits the owner’s acceptance.
+
+--- old/library/The agent link/capability 10/ADD contract under capability_2902dfd80083/title
++++ new/library/The agent link/capability 10/ADD contract under capability_2902dfd80083/title
+@@ -0,0 +1 @@
++10.7 · Settings in the app’s gear opens a panel headed Settings, with “Yours on this computer · all projects”. Every setting returned by the reader has its current value, meaning, and default or set-by-you source; values can be saved with capability 10’s writers. A newly listed numeric setting needs no panel change.
+
+--- old/library/The agent link/capability 10/ADD contract under capability_2902dfd80083/title
++++ new/library/The agent link/capability 10/ADD contract under capability_2902dfd80083/title
+@@ -0,0 +1 @@
++10.8 · A refused value shows the writer’s exact reason beside its row, leaves the settings file byte for byte, retains the saved source, and can be corrected and retried. A successful save reads back when the panel reopens. Library location uses the same local/Cloud SQL writer and reports that changes apply when the app next opens.
+
+--- old/library/The agent link/capability 10/ADD contract under capability_2902dfd80083/title
++++ new/library/The agent link/capability 10/ADD contract under capability_2902dfd80083/title
+@@ -0,0 +1 @@
++10.9 · The Settings panel keeps keyboard focus inside it; Close or Escape returns focus to the gear. It fits a narrow window without horizontal scrolling. A failed read shows its reason and Retry, never fabricated defaults; a transport failure leaves Save available for retry.

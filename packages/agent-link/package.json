@@ -5,6 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./readings": "./src/readings.ts",
+    "./settings": "./src/settings/panel.ts",
+    "./view": "./src/view/index.ts",
     "./bins": "./src/bins/build.ts"
   },
   "scripts": {

@@ -11,7 +11,7 @@ export function renderAppMenu(): string {
     <div class="app-menu-actions">
       <div data-app-help></div>
       <button type="button" disabled title="Not available yet">Check for updates</button>
-      <button type="button" disabled title="Not available yet">Settings</button>
+      <div data-app-settings></div>
     </div>
   </section>`;
 }

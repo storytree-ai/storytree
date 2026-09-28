@@ -54,6 +54,7 @@ import {
   type RunningBuild,
 } from "@storytree/app";
 import { setupHelpActions } from "@storytree/app-setup";
+import { settingsActions, SETTINGS_CHANNELS } from "@storytree/agent-link/settings";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
 import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
 
@@ -119,6 +120,9 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
 }
 
 async function run(): Promise<void> {
+  const settings = settingsActions(home.dir);
+  ipcMain.handle(SETTINGS_CHANNELS.readSettings, () => settings.readSettings());
+  ipcMain.handle(SETTINGS_CHANNELS.saveSetting, (_event, name: unknown, values: unknown) => settings.saveSetting(name, values));
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,

@@ -70,9 +70,10 @@ test('the globe occluder hides what sits behind the sphere, and only that, witho
   const radius = 390;
   const occluder = planet.globeOccluder(radius);
   const raycaster = new Raycaster();
-  const eye = new Vector3(0, 0, radius * 4);
+  // The globe's camera is orthographic: every view ray is parallel, along -z here.
   const hitsBefore = (target: Vector3) => {
-    raycaster.set(eye, target.clone().sub(eye).normalize());
+    const eye = target.clone().add(new Vector3(0, 0, radius * 4));
+    raycaster.set(eye, new Vector3(0, 0, -1));
     return raycaster.intersectObjects([occluder], true).filter(hit => hit.distance < eye.distanceTo(target)).length;
   };
   // A name over an island facing the viewer, and one over an island on the far side.

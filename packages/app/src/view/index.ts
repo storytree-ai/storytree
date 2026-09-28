@@ -1,6 +1,8 @@
 import type { ProjectSelection } from "../projects/selection.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";
 import { appMenuStyles } from "./styles.js";
+import { mountUpdates } from "./updates.js";
+import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
 /** A nonmodal menu; the browser handles click, Escape, outside dismissal and return focus. */
 export function mountAppMenu(host: HTMLElement, options: {
@@ -8,6 +10,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   onChosen(): void | Promise<void>;
   onError(error: unknown): void;
   mountHelp(host: HTMLElement, returnFocus: HTMLElement): { stop(): void };
+  checkForUpdates(action: UpdateAction): Promise<UpdateState>;
 }) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(appMenuStyles);
@@ -19,7 +22,13 @@ export function mountAppMenu(host: HTMLElement, options: {
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
   const helpHost = menu.querySelector<HTMLElement>("[data-app-help]")!;
   const help = options.mountHelp(helpHost, gear);
-  const expanded = (event: ToggleEvent) => gear.setAttribute("aria-expanded", String(event.newState === "open"));
+  const updates = mountUpdates(menu, options.checkForUpdates);
+  const expanded = (event: ToggleEvent) => {
+    gear.setAttribute("aria-expanded", String(event.newState === "open"));
+    // A busy update disables its button, which can leave focus on the page. Restore the
+    // opener on dismissal without stealing focus from another control clicked outside.
+    if (event.newState === "closed" && document.activeElement === document.body) gear.focus();
+  };
   menu.addEventListener("beforetoggle", expanded);
   // Help owns its separate panel. Its mount returns focus to the gear when that panel closes.
   helpHost.addEventListener("click", () => menu.hidePopover());
@@ -40,6 +49,7 @@ export function mountAppMenu(host: HTMLElement, options: {
       });
     },
     stop(): void {
+      updates.stop();
       help.stop();
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);
       menu.removeEventListener("beforetoggle", expanded);

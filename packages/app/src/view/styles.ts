@@ -79,4 +79,8 @@ export const appMenuStyles = `
 .app-menu-actions button:hover { background: #262a2f; }
 .app-menu-actions button:disabled { color: #a9b0ba; opacity: .6; cursor: default; background: transparent; }
 .app-no-projects { margin: 0; color: #a9b0ba; }
+.app-update-status { margin: 0 10px 8px; font-size: 12px; overflow-wrap: anywhere; }
+.app-update-status strong, .app-update-status span { display: block; }
+.app-update-status strong { font-weight: 600; color: #eceae3; }
+.app-update-status span { margin-top: 3px; color: #a9b0ba; }
 `;

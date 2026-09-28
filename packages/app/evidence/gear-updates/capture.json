@@ -1,0 +1,52 @@
+{
+  "snapshot": "/home/mickh/storytree-lanes/snapshots/2026-09-28T07-26-00-491Z.json",
+  "records": 1628,
+  "updateProvenance": "Simulated update states through test-only bridge; renderer and project reads are production code.",
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "menuBox": {
+    "x": 1172,
+    "y": 56,
+    "width": 256,
+    "height": 210
+  },
+  "narrowBox": {
+    "x": 92,
+    "y": 56,
+    "width": 256,
+    "height": 419
+  },
+  "stories": 10,
+  "capabilities": 71,
+  "errors": [],
+  "actions": [
+    "check",
+    "check",
+    "status",
+    "status",
+    "status",
+    "check",
+    "check",
+    "check"
+  ],
+  "passed": [
+    "enabled menu entry",
+    "click checks now",
+    "up-to-date running build",
+    "live status semantics",
+    "busy request disabled",
+    "building to ready to restarting via polling",
+    "status survives menu close/reopen",
+    "seed-write wait explanation",
+    "failure reason is plain text",
+    "long failure wraps at 360px",
+    "retry checks again",
+    "IPC rejection shown",
+    "non-runtime explanation",
+    "Escape returns focus",
+    "outside dismissal preserves forest pointer input",
+    "real snapshot smoke census"
+  ]
+}

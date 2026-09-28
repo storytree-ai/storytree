@@ -3,12 +3,13 @@ import { test } from "node:test";
 import { renderAppMenu, renderSwitcher } from "./render.js";
 
 // App capability 2: the gear and project switcher (pending contracts in evidence/gear/library-update).
-test("the gear names and controls an initially closed, light-dismiss menu with help and reserved actions", () => {
+test("the gear names and controls an initially closed, light-dismiss menu with help and an enabled update action", () => {
   const html = renderAppMenu();
   assert.match(html, /<button[^>]*aria-label="App menu"[^>]*popovertarget="app-menu"/);
   assert.match(html, /id="app-menu"[^>]*popover="auto"/);
   assert.match(html, /data-app-help/);
-  assert.match(html, /<button[^>]*disabled[^>]*>Check for updates<\/button>/);
+  assert.match(html, /<button(?![^>]*disabled)[^>]*data-app-updates[^>]*>Check for updates<\/button>/);
+  assert.match(html, /role="status"[^>]*aria-live="polite"/);
   assert.match(html, /<button[^>]*disabled[^>]*>Settings<\/button>/);
 });
 

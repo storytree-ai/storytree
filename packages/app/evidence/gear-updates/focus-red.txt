@@ -1,0 +1,14 @@
+Command: flock /tmp/storytree-heavy.lock node --import tsx packages/app/evidence/gear-updates/capture.mjs
+At green implementation 6b8e4f5 (built desktop renderer), before focus repair.
+
+AssertionError [ERR_ASSERTION]: Escape returns focus to gear
+
+false !== true
+
+    at packages/app/evidence/gear-updates/capture.mjs:107:10
+actual: false
+expected: true
+operator: strictEqual
+Node.js v24.19.0
+
+The checks before this assertion passed: enabled entry; check-on-click; running-build label; live status; disabled busy button; status progression while closed; seed-write wait explanation; failure text has no injected HTML; narrow layout; retry; IPC error; unavailable.

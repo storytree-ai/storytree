@@ -35,7 +35,6 @@ import {
   BACKUP_EVERY_MS,
   background,
   backUp,
-  buildApp,
   buildLabel,
   electronIn,
   launchToRecord,
@@ -48,10 +47,9 @@ import {
   slotSha,
   smokeProblems,
   TRAY_MENU,
-  updateToMain,
+  mainUpdates,
   type Launch,
   type PageReads,
-  type RunningBuild,
 } from "@storytree/app";
 import { setupHelpActions } from "@storytree/app-setup";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
@@ -65,8 +63,6 @@ import { followReleases } from "./releases.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();
-/** How often the app that follows merged main checks whether main has moved. */
-const UPDATE_EVERY_MS = 3 * 60_000;
 /** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 
@@ -78,6 +74,7 @@ let storytree: Storytree | undefined;
 let reads: PageReads | undefined;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
+let updates: ReturnType<typeof mainUpdates> | undefined;
 /** What the window was opened with, so it can be opened again after it is closed. */
 let windowQuery: { project?: string; problem?: string } = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
@@ -175,6 +172,24 @@ async function run(): Promise<void> {
     console.error(problem);
   }
   build = await whichBuild();
+  const dir = slot === undefined ? undefined : path.join(home.runtime, slot);
+  const running = slot === undefined || dir === undefined ? undefined : { slot, dir, sha: await slotSha(dir) };
+  updates = mainUpdates({
+    runtimeDir: home.runtime, runningBuild: build,
+    ...(running === undefined ? {} : { running }),
+    prepare: async () => {
+      if (running !== undefined && storytree !== undefined) {
+        await refreshOwnHealth({ running, home: home.dir, log: line => console.log(line) });
+      }
+    },
+    canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
+    restart: next => lifecycle.restart(
+      { execPath: electronIn(next.dir), args: [appDirIn(next.dir)] },
+      BrowserWindow.getAllWindows().some(window => window.isVisible()),
+    ),
+    log: line => console.log(line),
+  });
+  ipcMain.handle(CHANNELS.checkForUpdates, (_event, action: unknown) => updates!.request(action));
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };
   if (args.smoke) await smoke(openWindow(windowQuery), project);
@@ -183,56 +198,12 @@ async function run(): Promise<void> {
     showTray();
     addStartMenuShortcut();
     void keepBackups();
-    void followMain();
+    updates.start();
     followReleases({
       restart: lifecycle.restart,
       canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
     }, home.dir);
   }
-}
-
-/**
- * When the app runs from one of the runtime's slots, follow merged main: check every few minutes,
- * and when main has moved and its new commit has built beside this one, restart into it, with the
- * window shown only if it is showing now. A failed build is logged and tried again at the next
- * check; the running app is untouched. The app run from anywhere else (a checkout, `pnpm desktop`)
- * never updates itself.
- */
-async function followMain(): Promise<void> {
-  if (slot === undefined) return;
-  const dir = path.join(home.runtime, slot);
-  const running: RunningBuild = { slot, dir, sha: await slotSha(dir) };
-  console.log(`updates: following merged main from slot ${slot} (${running.sha.slice(0, 7)})`);
-  // The new slot is running and the window is open. Check its health in this background task
-  // before polling for another update, including the gap before the child takes the writing lock.
-  if (storytree !== undefined) await refreshOwnHealth({ running, home: home.dir, log: (line) => console.log(line) });
-  if (shutDown !== undefined) return;
-  let checking = false;
-  /** A new build waiting to be restarted into, while a seed writes the library. */
-  let ready: RunningBuild | undefined;
-  const check = async (): Promise<void> => {
-    if (checking || shutDown !== undefined) return;
-    checking = true;
-    try {
-      const next = ready ?? (await updateToMain({ runtimeDir: home.runtime, running, build: buildApp }));
-      if (next === undefined) return;
-      // Restarting stops the database, so it waits while a seed is writing into it.
-      if (postgres !== undefined && (await seedWriting(postgres.url))) {
-        if (ready === undefined) console.log(`updates: main ${next.sha.slice(0, 7)} is built in slot ${next.slot}; restarting once the seed writing the library has finished`);
-        ready = next;
-        return;
-      }
-      console.log(`updates: main moved to ${next.sha.slice(0, 7)}; restarting into slot ${next.slot}`);
-      const showing = BrowserWindow.getAllWindows().some((window) => window.isVisible());
-      void lifecycle.restart({ execPath: electronIn(next.dir), args: [appDirIn(next.dir)] }, showing);
-    } catch (error) {
-      console.error(`updates: ${messageOf(error)}`);
-    } finally {
-      checking = false;
-    }
-  };
-  setInterval(() => void check(), UPDATE_EVERY_MS).unref();
-  void check();
 }
 
 /**
@@ -489,6 +460,7 @@ function drewText(tree: AnnotatedTree, drew: string | undefined): string {
 
 /** Close the library and stop Postgres. Safe to call more than once. */
 function shutdown(): Promise<void> {
+  updates?.stop();
   shutDown ??= (async () => {
     await reads?.close().catch((error: unknown) => console.error(`closing the projects: ${messageOf(error)}`));
     reads = undefined;

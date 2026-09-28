@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { setTimeout as pause } from 'node:timers/promises';
+import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/deliver';
 import { buildBins } from '@storytree/agent-link/bins';
 import { launchOwned, readProcess } from '@storytree/own';
 import { BuiltCommand, storytree } from './testing/cli.js';
@@ -17,7 +18,18 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
     command.remove();
     await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   });
-  await command.build(installed ? async dir => (await buildBins(dir)).storytree! : undefined);
+  await command.build(installed ? async dir => {
+    const install = path.join(dir, 'installed app');
+    const payload = path.join(install, 'resources', 'agent-tools');
+    const bins = await buildBins(payload);
+    // The installer supplies these three assets; this pins verification of the real bin output.
+    await writeFile(path.join(install, 'storytree-0.3.exe'), 'app fixture');
+    await writeFile(path.join(payload, 'node.exe'), 'runtime fixture');
+    await writeFile(path.join(payload, 'storytree-deliver.mjs'), '// delivery fixture');
+    writePayloadManifest(payload, 'x64', '24.21.0');
+    assert.equal(verifyPayload(install, 'x64', 'win32').cli, bins.storytree);
+    return bins.storytree!;
+  } : undefined);
   const runs = [];
   for (const session of ['caller', 'other']) {
     const launched = await launchOwned({ home: path.join(home, 'own'), owner: { session, harness: 'codex' },

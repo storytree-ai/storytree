@@ -1,11 +1,11 @@
 /**
  * Capability 6 · Unclaimed work (the forest story): the edits and commands made by agents holding
- * no claim, who made them, which files, and when, with a count always in view. It is how work
+ * no claim, who made them, which files, and when, grouped into expandable session rows. It is how work
  * outside the plan stays visible, even from an agent that never calls storytree, since its hooks
  * record its edits and commands anyway.
  *
  * Its shelf: unclaimed work is never guessed onto a story (storytree cannot know which it belongs
- * to), so it touches no story node and is listed beside the forest (U1). Whether an edit is
+ * to), so it touches no story node and appears as off-plan evidence in the session list (U1). Whether an edit is
  * unclaimed is decided by the claim, never by the files: the agent link's own attribution
  * (`attributeFrom`) says which capability each counts toward, and one it gives none is unclaimed.
  */

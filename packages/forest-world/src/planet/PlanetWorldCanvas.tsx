@@ -16,7 +16,7 @@ import { createPlanetSurface, lightForCamera, plateTransform, type PlanetSpot } 
 import type { KitPlacement } from '../kit-vocabulary.js';
 
 export type { PlanetSpot } from './planet.js';
-export { plateTransform, PLATE_CLEARANCE } from './planet.js';
+export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;

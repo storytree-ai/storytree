@@ -3,11 +3,14 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, useState, type ComponentProps } from "react";
 import { DoubleSide, type Group } from "three";
-import type { Island, SessionWisp } from "@storytree/forest";
+import { PLANET_RADIUS, type Island, type SessionWisp } from "@storytree/forest";
+import { globeOccluder } from "@storytree/forest-world/planet";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 import { WispBody, WISP_LIFT } from "@storytree/forest-world/canvas";
 
 const NAME_HEIGHT = 30;
+/** Names on the globe hide behind the sphere only: one exact test each, not a raycast of every pine. */
+const GLOBE_OCCLUDER = [{ current: globeOccluder(PLANET_RADIUS) }];
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
 export function Overlay(props: ComponentProps<typeof Html>) {
@@ -24,7 +27,7 @@ export function Names({ islands, selected, onGlobe = false, dimmed = false }: { 
   return islands.map((island) => {
     const { x, z } = centreOf(island);
     return (
-      <Overlay occlude={onGlobe} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
+      <Overlay occlude={onGlobe ? GLOBE_OCCLUDER : false} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
         <div className={`forest-label${onGlobe ? " planet-label" : ""}${island.story === selected ? " selected" : ""}`} data-story-id={island.story} style={{ opacity: dimmed ? 0.24 : 1 }}>
           {island.title}
         </div>

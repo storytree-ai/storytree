@@ -9,7 +9,8 @@ test("the gear names and controls an initially closed, light-dismiss menu with h
   assert.match(html, /id="app-menu"[^>]*popover="auto"/);
   assert.match(html, /data-app-help/);
   assert.match(html, /<button[^>]*disabled[^>]*>Check for updates<\/button>/);
-  assert.match(html, /<button[^>]*disabled[^>]*>Settings<\/button>/);
+  assert.match(html, /data-app-settings/);
+  assert.doesNotMatch(html, /<button[^>]*disabled[^>]*>Settings<\/button>/);
 });
 
 test("the project switcher lists every project, selects the current one and escapes names", () => {

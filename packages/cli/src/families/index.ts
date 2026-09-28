@@ -7,6 +7,7 @@ import { decisions } from "./adr.js";
 import { appFamily } from "./app.js";
 import { arcs } from "./arc.js";
 import { friction, resteer } from "./capture.js";
+import { contextFamily } from "./context.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
 import { library } from "./library.js";
 import { questions } from "./question.js";
@@ -31,4 +32,5 @@ export const FAMILIES: readonly Family[] = [
   workspace,
   own,
   settings,
+  contextFamily,
 ];

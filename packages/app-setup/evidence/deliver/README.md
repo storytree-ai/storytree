@@ -26,7 +26,8 @@ adds implementation and evidence paragraphs without manufacturing post-snapshot 
   first launch without app.json, a repeat/hidden-app launch request, app readiness failures,
   preservation of the last delivery record/0.2/project choice, stable paths after payload
   replacement, command conflicts and real command execution from a fresh shell.
-- `bootstrap.test.ps1`: real PowerShell 7.6.6 on Linux, injected download/install/launch/PATH
+- `bootstrap.test.ps1`: real PowerShell 7.6.6 on Linux and Windows PowerShell 5.1.26100 on
+  Windows 11 arm64 (on Windows the test requires 5.1 and runs pwsh too; CI requires both), injected download/install/launch/PATH
   effects, clean x64/arm64 selection, repeats, every failed step and safe retry, matching
   release selection, corrupted-download refusal and preserving/appending PATH strings.
 - `apps/desktop/src/main/delivery.test.ts`: runs the actual built CLI, hook, setup and delivery

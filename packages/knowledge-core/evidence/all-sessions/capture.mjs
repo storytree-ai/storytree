@@ -61,11 +61,13 @@ try {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.addInitScript(data => {
     const copy = value => structuredClone(value);
+    // The test appends reads here later, as a live session would (ADR-0741 flights).
+    window.__lines = data.lines.lines;
     window.storytree = {
       projectSelection: async () => ({ projects: data.projects, current: 'storytree' }),
       projectTree: async () => copy(data.tree),
       changesSince: async (_, cursor) => ({ changes: copy(data.changes.changes.filter(change => change.seq > cursor)), cursor: data.changes.changes.at(-1)?.seq ?? cursor }),
-      linesSince: async (_, cursor) => ({ lines: copy(data.lines.lines.filter(item => item.seq > cursor)), cursor: data.lines.lines.at(-1)?.seq ?? cursor }),
+      linesSince: async (_, cursor) => ({ lines: copy(window.__lines.filter(item => item.seq > cursor)), cursor: window.__lines.at(-1)?.seq ?? cursor }),
       frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [],
       arcView: async () => null, waitHolds: async () => [], heldOnQuestion: async () => [],
     };
@@ -108,6 +110,17 @@ try {
   assert.equal(await rgb(litBy.get(reads.c[0]).lit), await swatch(ids.c));
   const shared = [...litBy.values()].filter(dot => dot.shared).map(dot => dot.id).sort();
   assert.deepEqual(shared, covers.slice(10, 14).sort(), 'notes two sessions read are shared');
+  const curves = () => page.evaluate(() => {
+    const found = [];
+    window.__globe.scene.traverse(object => { if (object.name.startsWith('knowledge-trail:')) found.push(object.userData); });
+    return found;
+  });
+  // Every listed session's path draws, one curve per step, in its colour (ADR-0740).
+  const allCurves = await curves();
+  const steps = notes => notes.slice(1).map((note, i) => `${notes[i]}>${note}`);
+  assert.deepEqual(allCurves.map(c => `${c.from}>${c.to}`).sort(),
+    [...steps(reads.a), ...steps(reads.lane), ...steps(reads.b), ...steps(reads.c)].sort(), "one curve per step of each agent's reading order");
+  assert.equal(await rgb(allCurves.find(c => c.from === reads.c[0]).colour), await swatch(ids.c), "a curve wears its session's colour");
   await page.screenshot({ path: path.join(here, 'all-sessions.png') });
 
   // Click a row: the core drills into that session alone, the row marked selected.
@@ -118,6 +131,7 @@ try {
   assert.deepEqual(one.map(dot => dot.id).sort(), [...reads.b].sort(), 'a selection lights that session alone');
   assert.ok(one.every(dot => !dot.shared));
   assert.equal(await rgb(one.find(dot => dot.id === reads.b[0]).lit), await swatch(ids.b), 'its orchestrator wears its colour');
+  assert.equal((await curves()).length, reads.b.length - 1, "a selection draws that session's path alone");
   await page.screenshot({ path: path.join(here, 'one-session.png') });
 
   // Drill into the session with a subagent: the subagent wears a shade of the same hue.
@@ -135,6 +149,42 @@ try {
   assert.equal((await dots()).filter(dot => dot.lit).length, expected.size, 'clicking the selected row again shows every session');
   assert.equal(await row(ids.a).getAttribute('data-selected'), null);
   assert.deepEqual(errors, []);
+  // A new read arrives: its step's line grows, and each agent's path glows in a loop (ADR-0742).
+  const readNext = note => page.evaluate(([session, note]) => {
+    const last = window.__lines.at(-1);
+    window.__lines.push({ project: 'storytree', source: 'tool', harness: 'claude-code', session, seq: last.seq + 1, at: new Date().toISOString(),
+      kind: 'note-read', note, found: 'search', read: 'whole', agent: 'orchestrator' });
+  }, [ids.c, note]);
+  const glows = () => page.evaluate(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n; });
+  // How far along its curve a step's line is drawn: 0 not yet, 1 whole.
+  const drawn = (from, to) => page.evaluate(([from, to]) => {
+    let line, end;
+    window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}`) line = o.children[0]; if (o.userData?.id === to) end = o.position; });
+    if (line === undefined || !line.visible) return 0;
+    const tip = line.geometry.attributes.instanceEnd, i = tip.count - 1;
+    return end.distanceTo({ x: tip.getX(i), y: tip.getY(i), z: tip.getZ(i) }) < 0.01 ? 1 : 0.5;
+  }, [from, to]);
+  // With reduced motion (this page's setting) nothing moves: no glow, and a new step is drawn whole at once.
+  assert.equal(await glows(), 0, 'reduced motion never glows');
+  await readNext(covers[60]);
+  await page.waitForFunction(([from, to]) => { let found = false; window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}`) found = true; }); return found; }, [reads.c.at(-1), covers[60]]);
+  assert.equal(await drawn(reads.c.at(-1), covers[60]), 1, 'drawn whole at once');
+  // With motion allowed the next step grows from its earlier read to its later one, and the paths glow in a loop.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await readNext(covers[62]);
+  await page.waitForFunction(([from, to]) => { let part = false; window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}` && o.children[0].visible) part = true; }); return part; }, [covers[60], covers[62]]);
+  assert.equal(await drawn(covers[60], covers[62]), 0.5, 'caught growing, short of its later read');
+  await page.screenshot({ path: path.join(here, 'path-growing.png') });
+  await page.waitForTimeout(1500);
+  assert.equal(await drawn(covers[60], covers[62]), 1, 'then whole');
+  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n > 0; });
+  await page.screenshot({ path: path.join(here, 'path-glow.png') });
+  const heads = await page.evaluate(() => {
+    let n = 0;
+    window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-trail:')) o.traverse(c => { if (c.geometry?.type === 'ConeGeometry') n++; }); });
+    return { n };
+  });
+  assert.equal(heads.n, 0, 'paths carry no arrowheads');
   writeFileSync(path.join(here, 'capture.json'), JSON.stringify({
     sessions: Object.fromEntries(Object.entries(reads).map(([key, notes]) => [ids[key], notes.length])),
     litWithNoneSelected: expected.size, shared: shared.length, litWhenBSelected: one.length,

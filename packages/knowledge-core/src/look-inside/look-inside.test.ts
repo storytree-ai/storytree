@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { coreScene, legend, lighting, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { agentPaths, coreScene, curvePoint, glowAt, growthPlan, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -198,6 +198,87 @@ test("4.9 the globe's dots light as the core does: every listed session with non
   assert.notEqual(one.get("deep")!.colour, "hsl(300, 80%, 68%)", "its subagent a shade");
   assert.equal(one.size, 2, "another session's reads stay faint");
   assert.equal(lighting(reads, [], undefined, present).size, 0, "no running sessions light nothing");
+});
+
+test("4.10 each session's reading path runs from one full read to that agent's next, in its colour; peeks, unknown agents and unlisted sessions draw none", () => {
+  const history = project();
+  const roster = [
+    { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a"] },
+    { session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] },
+  ];
+  const lines = [read("a", "deep", "whole", "orchestrator"), read("a", "cover", "whole", "orchestrator"), read("a", "loose", "peek", "orchestrator"),
+    read("a", "new", "whole", "orchestrator"), read("a", "old", "whole"), read("a", "deep", "whole"),
+    read("b", "cover", "whole", { subagent: "h1" }), read("b", "deep", "whole", { subagent: "h1" }),
+    read("z", "deep", "whole", "orchestrator"), read("z", "cover", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const present = new Set(known.notes.keys());
+  const all = trails(reads, roster, undefined, present).map(({ from, to, colour }) => [from, to, colour]);
+  assert.deepEqual(all, [
+    ["deep", "cover", "hsl(200, 80%, 68%)"], ["cover", "new", "hsl(200, 80%, 68%)"], ["cover", "deep", "hsl(300, 80%, 68%)"],
+  ], "in reading order, from the earlier read to the later; a peek is skipped");
+  const one = trails(reads, roster, "b", present);
+  assert.deepEqual(one.map(({ from, to }) => [from, to]), [["cover", "deep"]], "a selection draws that session alone");
+  assert.match(one[0]!.colour, /^hsl\(300, 80%, \d+%\)$/);
+  assert.notEqual(one[0]!.colour, "hsl(300, 80%, 68%)", "a subagent's path wears its shade");
+  assert.deepEqual(trails(reads, [], undefined, present), [], "no running sessions draw no paths");
+});
+
+test("4.11 each known agent's path ends at its latest full read and carries its reading steps in order; unknown agents and unlisted sessions have none", () => {
+  const history = project();
+  const roster = [
+    { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a"] },
+    { session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] },
+  ];
+  const lines = [read("a", "deep", "whole", "orchestrator"), read("a", "cover", "whole", "orchestrator"), read("a", "loose", "peek", "orchestrator"),
+    read("a", "new", "whole", { subagent: "h1" }), read("a", "old", "whole"),
+    read("b", "cover", "whole", { subagent: "h2" }), read("b", "deep", "whole", { subagent: "h2" }), read("z", "deep", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const present = new Set(known.notes.keys());
+  const all = agentPaths(reads, roster, undefined, present).map(({ mover, colour, note, steps }) => [mover, colour, note, steps.map(({ from, to }) => `${from}>${to}`)]);
+  assert.deepEqual(all, [
+    ["a orchestrator", "hsl(200, 80%, 68%)", "cover", ["deep>cover"]],
+    ["a subagent:h1", "hsl(200, 80%, 68%)", "new", []],
+    ["b subagent:h2", "hsl(300, 80%, 68%)", "deep", ["cover>deep"]],
+  ], "a peek adds no step; an unknown agent and an unlisted session have none");
+  const one = agentPaths(reads, roster, "b", present);
+  assert.deepEqual(one.map(({ mover }) => mover), ["b subagent:h2"], "a selection replays that session's paths alone");
+  assert.notEqual(one[0]!.colour, "hsl(300, 80%, 68%)", "a subagent's path wears its shade");
+  assert.deepEqual(agentPaths(reads, [], undefined, present), []);
+});
+
+test("4.12 a glow travels the step's own curve, bowed away from the centre, bright at its head and trailing back toward where it came from", () => {
+  const from = { x: 50, y: 0, z: 0 }, to = { x: 0, y: 50, z: 0 };
+  assert.deepEqual(curvePoint(from, to, 0), from);
+  assert.deepEqual(curvePoint(from, to, 1), to);
+  const middle = curvePoint(from, to, 0.5);
+  assert.ok(Math.hypot(middle.x, middle.y, middle.z) > Math.hypot(25, 25), "bowed outward, never along the straight chord");
+  const [start, end] = tailSpan(0.6);
+  assert.equal(end, 0.6, "the glow's tail ends at its head");
+  assert.ok(start < end && start >= 0, "and reaches back along the path it came by");
+  assert.deepEqual(tailSpan(0.1), [0, 0.1], "never behind the step's own start");
+  const [, arrived] = tailSpan(1);
+  assert.equal(arrived, 1);
+});
+
+test("4.13 an agent's glow replays its steps in recorded order, one after another, pauses after the last, then loops", () => {
+  const timing = { step: 1000, pause: 500 };
+  assert.deepEqual(glowAt(3, 0, timing), { step: 0, t: 0 });
+  assert.deepEqual(glowAt(3, 1500, timing), { step: 1, t: 0.5 });
+  assert.deepEqual(glowAt(3, 2999, timing), { step: 2, t: 0.999 });
+  assert.equal(glowAt(3, 3200, timing), undefined, "a pause after the last step");
+  assert.deepEqual(glowAt(3, 3600, timing), { step: 0, t: 0.1 }, "then from the first again");
+  assert.equal(glowAt(0, 100, timing), undefined, "a path with no steps never glows");
+});
+
+test("4.14 new steps grow one after another per agent, in recorded order; different agents grow at once, and history grows nothing", () => {
+  const busy = new Map([["a orchestrator", 1500]]);
+  const fresh = [
+    { key: "a1", mover: "a orchestrator", seq: 5 }, { key: "b1", mover: "b orchestrator", seq: 6 }, { key: "a2", mover: "a orchestrator", seq: 7 },
+  ];
+  const plan = growthPlan(fresh, busy, 1000, 800);
+  assert.deepEqual([...plan.starts], [["a1", 1500], ["b1", 1000], ["a2", 2300]], "a waits for its step in flight; b starts now");
+  assert.deepEqual([...plan.busy].sort(), [["a orchestrator", 3100], ["b orchestrator", 1800]]);
+  assert.deepEqual([...growthPlan([], busy, 1000, 800).starts], []);
 });
 
 test("4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection", () => {

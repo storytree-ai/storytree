@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DoubleSide, Quaternion, Vector3 } from 'three';
+import { DoubleSide, Quaternion, Raycaster, Vector3 } from 'three';
 import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 import { LIGHT_DIRECTION } from '../shade-ladder.js';
 import { landHeightRange } from '../land-relief.js';
@@ -64,4 +64,21 @@ test('3.5 the glass has a nearly clear middle, retaining the 80% far-side minimu
     surface.geometry.dispose();
     surface.material.dispose();
   }
+});
+
+test('the globe occluder hides what sits behind the sphere, and only that, without a mesh', () => {
+  const radius = 390;
+  const occluder = planet.globeOccluder(radius);
+  const raycaster = new Raycaster();
+  const eye = new Vector3(0, 0, radius * 4);
+  const hitsBefore = (target: Vector3) => {
+    raycaster.set(eye, target.clone().sub(eye).normalize());
+    return raycaster.intersectObjects([occluder], true).filter(hit => hit.distance < eye.distanceTo(target)).length;
+  };
+  // A name over an island facing the viewer, and one over an island on the far side.
+  assert.equal(hitsBefore(new Vector3(0, 0, radius + 30)), 0);
+  assert.equal(hitsBefore(new Vector3(0, 0, -(radius + 30))), 1);
+  // Just clear of the limb stays visible; just inside the far limb is hidden.
+  assert.equal(hitsBefore(new Vector3(radius + 5, 0, 0)), 0);
+  assert.equal(hitsBefore(new Vector3(radius - 5, 0, -40)), 1);
 });

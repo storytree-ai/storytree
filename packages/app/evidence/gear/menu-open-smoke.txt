@@ -8,11 +8,11 @@
 
 built dist
 
-DevTools listening on ws://127.0.0.1:34031/devtools/browser/76de240a-7c91-437f-bc29-70251fe075d8
-Postgres: listening on 127.0.0.1:39541 (started in 0.1 s)
-library: postgres://postgres@127.0.0.1:39541/postgres
-storytree 0.3: development build 4b18e32 from /home/mickh/code/storytree03-wt/gear (does not update itself)
-[545033:0928/175911.461887:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x268400190a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+DevTools listening on ws://127.0.0.1:32979/devtools/browser/516912d1-db0a-4672-9de2-f11f0c7aa6be
+Postgres: listening on 127.0.0.1:33501 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:33501/postgres
+storytree 0.3: development build b81ed3b from /home/mickh/code/storytree03-wt/gear (does not update itself)
+[558523:0928/180534.411766:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x1bd400191600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
 smoke: screenshot /home/mickh/code/storytree03-wt/gear/packages/app/evidence/gear/menu-open.png (1120x860)
 Project
 storytree

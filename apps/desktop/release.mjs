@@ -68,9 +68,26 @@ if (process.argv[2] === "source") {
       const release = JSON.parse(existing.stdout);
       if (!release.isDraft || release.targetCommitish !== sha) throw new Error("Release identity already belongs to another publication");
     } else {
-      gh("release", "create", tag, "--repo", repository, "--target", sha, "--draft", "--title", `storytree ${version}`, "--notes", `Windows x64 and arm64 installer, built from verified merged main ${sha}. The installed app follows this release feed automatically.`);
+      gh("release", "create", tag, "--repo", repository, "--target", sha, "--draft", "--title", `storytree ${version}`, "--notes", notes(readFileSync(path.join(dir, "install-storytree.txt"), "utf8").trim(), sha));
     }
     gh("release", "upload", tag, ...files.map((file) => path.join(dir, file)), "--repo", repository, "--clobber");
     gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
   }
 } else throw new Error("Use source or publish");
+
+/** The release page's text: how to install first, since a first user may arrive here from anywhere. */
+function notes(command, sha) {
+  return [
+    "## Install",
+    "",
+    "Needs Windows (x64 or arm64) and Claude Code or Codex, installed and signed in. In PowerShell, run:",
+    "",
+    "```powershell",
+    command,
+    "```",
+    "",
+    "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
+    "",
+    `Windows x64 and arm64 installer, built from verified merged main ${sha}. The installed app follows this release feed automatically.`,
+  ].join("\n");
+}

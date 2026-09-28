@@ -1,13 +1,26 @@
 # storytree
 
+## Install
+
+You need Windows (x64 or arm64) and Claude Code or Codex, installed and signed in. In Windows
+PowerShell (5.1+) or PowerShell 7, run:
+
+```powershell
+& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+```
+
+It installs the app and opens it. Then open **Help → First-run guide** in the app to connect your
+agent. What the command does and checks: [apps/desktop/README.md](apps/desktop/README.md).
+
 **Storytree 0.3.** Storytree is the observability layer beside your coding agent. You build a
 project with Claude Code or Codex, and storytree shows you what is being built: each project as a
 forest that grows as stories land, an arc surface for what is planned, in progress and done, and a
 plain-language view of how each story works and whether it is healthy. Health shows what the agent
 *reported* separately from what storytree *verified* for itself.
 
-Open **Help → First-run guide** in the app for setup, connection checks, the offline license and
-feedback. Help is available before you have a project and while viewing any forest.
+Once it is installed, **Help → First-run guide** in the app covers setup, connection checks, the
+offline license and feedback. Help is available before you have a project and while viewing any
+forest.
 
 ## Where this stands
 

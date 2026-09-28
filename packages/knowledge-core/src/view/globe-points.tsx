@@ -1,12 +1,12 @@
 import type { GlobePoint } from "../shelves/positions.js";
 import type { RecordEnvelope } from "@storytree/library";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AdditiveBlending, Color } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { curvePoint, glowAt, growthPlan, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail } from "../look-inside/look-inside.js";
+import { curvePoint, glowAt, growthPlan, heldNotes, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
@@ -45,6 +45,22 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
     growth.current = { starts: new Map([...growth.current.starts, ...plan.starts]), busy: plan.busy };
     return growth.current.starts;
   }, [trails]);
+  // A newly read note lights only when the line growing into it arrives (ADR-0742 D2).
+  const shown = useRef<ReadonlySet<string>>(new Set());
+  const [, arrived] = useState(0);
+  const now = performance.now();
+  const held = heldNotes(trails.map(trail => ({ to: trail.to, key: trailKey(trail) })), starts, now, GROW_MS, shown.current);
+  const showing = held.size === 0 ? lit : new Map([...lit].filter(([note]) => !held.has(note)));
+  useEffect(() => { shown.current = new Set(showing.keys()); });
+  useEffect(() => {
+    const next = Math.min(...trails.flatMap(trail => {
+      const start = starts.get(trailKey(trail));
+      return start !== undefined && start + GROW_MS > now ? [start + GROW_MS] : [];
+    }));
+    if (!Number.isFinite(next)) return;
+    const timer = setTimeout(() => arrived(tick => tick + 1), next - performance.now() + 16);
+    return () => clearTimeout(timer);
+  });
   return <group name="knowledge-points">
     {trails.map(trail => {
       const from = at.get(trail.from), to = at.get(trail.to);
@@ -55,10 +71,10 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
     {points.map(point => <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
-        lit: lit.get(point.id)?.colour ?? null, shared: lit.get(point.id)?.shared ?? false }}>
-      <sphereGeometry args={[radius * (lit.has(point.id) ? 0.009 : 0.006), 12, 8]} />
-      <meshBasicMaterial color={lit.get(point.id)?.colour ?? "#a5c5d1"} transparent opacity={lit.has(point.id) ? 1 : lit.size > 0 ? 0.3 : 0.52} depthWrite={false} />
-      {lit.get(point.id)?.shared && <mesh raycast={noRaycast}>
+        lit: showing.get(point.id)?.colour ?? null, shared: showing.get(point.id)?.shared ?? false }}>
+      <sphereGeometry args={[radius * (showing.has(point.id) ? 0.009 : 0.006), 12, 8]} />
+      <meshBasicMaterial color={showing.get(point.id)?.colour ?? "#a5c5d1"} transparent opacity={showing.has(point.id) ? 1 : lit.size > 0 ? 0.3 : 0.52} depthWrite={false} />
+      {showing.get(point.id)?.shared && <mesh raycast={noRaycast}>
         <sphereGeometry args={[radius * 0.017, 12, 8]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.22} depthWrite={false} />
       </mesh>}

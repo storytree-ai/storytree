@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, coreScene, curvePoint, glowAt, growthPlan, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { agentPaths, coreScene, curvePoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -279,6 +279,16 @@ test("4.14 new steps grow one after another per agent, in recorded order; differ
   assert.deepEqual([...plan.starts], [["a1", 1500], ["b1", 1000], ["a2", 2300]], "a waits for its step in flight; b starts now");
   assert.deepEqual([...plan.busy].sort(), [["a orchestrator", 3100], ["b orchestrator", 1800]]);
   assert.deepEqual([...growthPlan([], busy, 1000, 800).starts], []);
+});
+
+test("4.15 a newly read note stays unlit until the growing line into it arrives; history and notes already lit are never held", () => {
+  const steps = [{ to: "b", key: "a>b" }, { to: "c", key: "b>c" }, { to: "y", key: "x>y" }];
+  const starts = new Map([["a>b", 1000], ["b>c", 1900]]);
+  const grow = 900;
+  assert.deepEqual([...heldNotes(steps, starts, 1500, grow, new Set())].sort(), ["b", "c"], "b's line is growing, c's is queued behind it");
+  assert.deepEqual([...heldNotes(steps, starts, 2000, grow, new Set())], ["c"], "b lights the moment its line arrives");
+  assert.deepEqual([...heldNotes(steps, starts, 1500, grow, new Set(["c"]))], ["b"], "a note already lit stays lit");
+  assert.deepEqual([...heldNotes(steps, starts, 3000, grow, new Set())], [], "every line has arrived");
 });
 
 test("4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection", () => {

@@ -202,5 +202,13 @@ test("9.7 the context command states guidance and its source, exits 0 under and 
       assert.equal(json.code, 0);
       assert.deepEqual(JSON.parse(json.text).guidance, { value: 400_000, source: "set", position });
     }
+
+    // A settings file whose guidance is unusable still routes (routing reads only the library
+    // setting), so the command gives the tokens and says why the guidance could not be read.
+    writeFileSync(path.join(home, "settings.json"), '{"context-guidance":"four hundred"}');
+    const damaged = await contextCommand(options);
+    assert.equal(damaged.code, 0);
+    assert.ok(damaged.text.includes("450,000 tokens"), damaged.text);
+    assert.match(damaged.text, /guidance/i);
   });
 });

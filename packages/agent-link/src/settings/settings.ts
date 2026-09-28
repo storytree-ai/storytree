@@ -94,6 +94,32 @@ export function readSettings(home: string = storytreeHome()): SettingsReading {
   };
 }
 
+/**
+ * Only where the library lives, for everything that finds the library (routing, the app). Damage
+ * elsewhere in settings.json is left for the settings that own it to report, so it never stops a
+ * command that needs only the library (a context reading among them). The file must still be a
+ * JSON object, and a damaged library setting is reported naming the file: where the library is
+ * cannot be guessed, and is never read as local.
+ */
+export function readLibrary(home: string = storytreeHome()): LibraryLocation {
+  const file = path.join(home, "settings.json");
+  let text: string;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" && lstatSync(file, { throwIfNoEntry: false }) === undefined) return { location: "local" };
+    throw new Error(`Cannot read settings file "${file}": ${(error as Error).message}`, { cause: error });
+  }
+  try {
+    const stored: unknown = JSON.parse(text);
+    if (stored === null || typeof stored !== "object" || Array.isArray(stored)) throw new Error("expected a JSON object of setting names and values");
+    const value = (stored as Record<string, unknown>)[library.name];
+    return value === undefined ? { location: "local" } : checkedLibrary(value);
+  } catch (error) {
+    throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say where the library is.`, { cause: error });
+  }
+}
+
 /** Persist a user's choice in the same home as project-choice.json, after checking its type. */
 export function setSetting(name: string, value: string, home: string = storytreeHome()): SettingReading {
   checkName(name);

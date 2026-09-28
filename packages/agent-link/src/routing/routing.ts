@@ -29,7 +29,7 @@ import path from "node:path";
 
 import type { ConnectOptions, Storytree } from "@storytree/library";
 
-import { readSettings } from "../settings/settings.js";
+import { readLibrary } from "../settings/settings.js";
 
 import { recordProjectChoice } from "./project-choice.js";
 
@@ -130,7 +130,7 @@ export function locateStorytree(options: LocateOptions = {}): StorytreeAddress {
  */
 export function locateLibrary(options: LocateOptions = {}): { found: true; connect: ConnectOptions } | { found: false; message: string } {
   const home = options.home ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
-  const setting = readSettings(home).library;
+  const setting = readLibrary(home);
   if (setting.location === "cloudsql") return { found: true, connect: { cloudSql: { instance: setting.instance, user: setting.user } } };
   const local = locateStorytree({ dataDir: options.dataDir ?? path.join(home, "pgdata") });
   return local.running ? { found: true, connect: { url: local.url } } : { found: false, message: local.message };

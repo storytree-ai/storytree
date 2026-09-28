@@ -4,10 +4,11 @@
  * the public API, against the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
+import { connect as dial, createServer, type AddressInfo, type Socket } from "node:net";
 import { test } from "node:test";
 
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { connect, RestoreRefusedError, type Library, type Storytree } from "../index.js";
+import { connect, RestoreRefusedError, type Library, type ProjectSnapshot, type Storytree } from "../index.js";
 
 async function withServer(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });
@@ -103,4 +104,67 @@ test("1.8 restoring into a project that holds any record or history is refused, 
     await library.close();
     await other.close();
   });
+});
+
+/**
+ * A stand-in for a far-away server: a proxy to the test server that holds every packet it passes
+ * each way for `delayMs`, as a network to another continent does. Its URL, and how to stop it.
+ */
+async function slowLink(delayMs: number): Promise<{ url: string; close(): Promise<void> }> {
+  const target = new URL(testServerUrl());
+  const sockets = new Set<Socket>();
+  const relay = (from: Socket, to: Socket) => from.on("data", (chunk) => setTimeout(() => to.write(chunk), delayMs));
+  const proxy = createServer((client) => {
+    const server = dial({ host: target.hostname, port: Number(target.port) });
+    for (const socket of [client, server]) {
+      sockets.add(socket);
+      socket.on("error", () => {});
+      socket.on("close", () => sockets.delete(socket));
+    }
+    relay(client, server);
+    relay(server, client);
+    client.on("close", () => server.destroy());
+    server.on("close", () => client.destroy());
+  });
+  await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+  const url = new URL(target.href);
+  url.hostname = "127.0.0.1";
+  url.port = String((proxy.address() as AddressInfo).port);
+  return {
+    url: url.href,
+    close: () => new Promise<void>((resolve) => {
+      for (const socket of sockets) socket.destroy();
+      proxy.close(() => resolve());
+    }),
+  };
+}
+
+test("1.7 a restore over a slow link finishes in seconds, not a round trip per record", async () => {
+  // A project the size of storytree's own, in miniature: 2,000 records and 4,000 history entries.
+  const at = "2026-09-28T00:00:00.000Z";
+  const records = Array.from({ length: 2_000 }, (_, i) => ({ id: `definition_${String(i).padStart(12, "0")}`, type: "definition", version: 1, fields: { term: `Term ${i}`, meaning: "It means this." }, createdAt: at, updatedAt: at }));
+  const history = records.flatMap((record, i) => [
+    { seq: 2 * i + 1, recordId: record.id, type: record.type, action: "created" as const, record: record.fields, actor: "tester", at },
+    { seq: 2 * i + 2, recordId: record.id, type: record.type, action: "updated" as const, record: record.fields, reason: "edited", at },
+  ]);
+  const name = uniqueProjectName();
+  const snapshot: ProjectSnapshot = { format: "storytree-project-snapshot", version: 1, project: name, takenAt: at, records, history };
+  const link = await slowLink(20);
+  const far = await connect({ url: link.url, connectTimeoutMs: 10_000 });
+  try {
+    const started = performance.now();
+    await far.restore(name, snapshot);
+    const seconds = (performance.now() - started) / 1000;
+    assert.ok(seconds < 15, `restored in ${seconds.toFixed(1)} s`);
+    await withServer([name], async (storytree) => {
+      // The server writes times in its own zone; the instants are what must match.
+      const instant = (time: string) => new Date(time).toISOString();
+      const again = await storytree.snapshot(name);
+      assert.deepEqual(again.records.map((r) => ({ ...r, createdAt: instant(r.createdAt), updatedAt: instant(r.updatedAt) })), snapshot.records);
+      assert.deepEqual(again.history.map((e) => ({ ...e, at: instant(e.at) })), snapshot.history);
+    });
+  } finally {
+    await far.close();
+    await link.close();
+  }
 });

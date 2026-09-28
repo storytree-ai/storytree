@@ -6,7 +6,7 @@
  * the refusal's own words, and never opens the local library instead, which would split one board
  * in two.
  */
-import { readSettings } from "@storytree/agent-link";
+import { readLibrary } from "@storytree/agent-link";
 import type { ConnectOptions, Storytree } from "@storytree/library";
 
 /** The app's own Postgres, as local-postgres hands it back: where it listens, and how to stop it. */
@@ -34,7 +34,7 @@ export interface AppLibrary<P extends StartedPostgres = StartedPostgres> {
 
 /** Open the library where the settings say, starting the app's own Postgres only when it is local. */
 export async function openAppLibrary<P extends StartedPostgres>(options: AppLibraryOptions<P>): Promise<AppLibrary<P>> {
-  const setting = readSettings(options.home).library;
+  const setting = readLibrary(options.home);
   if (setting.location === "cloudsql") {
     const { instance, user } = setting;
     try {

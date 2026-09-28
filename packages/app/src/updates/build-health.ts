@@ -1,7 +1,14 @@
-/** Capability 4 · Updates, contract 4.3: the running main build checks its own verified health. */
+/**
+ * Capability 4 · Updates, contract 4.3: the running main build checks its own verified health, into
+ * the app's own library. With the library on Cloud SQL, CI's run on main is its one writer
+ * (ADR-0744 D3), so the app records nothing there: a test that fails on only one machine would
+ * otherwise flip a card between two readings.
+ */
 import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+import { readLibrary } from "@storytree/agent-link";
 
 import type { RunningBuild } from "./follow-main.js";
 
@@ -26,6 +33,11 @@ export interface OwnHealthOptions {
  */
 export async function refreshOwnHealth({ running, home, log }: OwnHealthOptions): Promise<void> {
   try {
+    const setting = readLibrary(home);
+    if (setting.location === "cloudsql") {
+      log(`own-health: not checking ${running.sha}: the library is on Cloud SQL (${setting.instance}), where CI records own health after each merge to main (ADR-0744)`);
+      return;
+    }
     const record = path.join(home, "own-health.json");
     let previous: { sha?: string } | undefined;
     try {

@@ -6,6 +6,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { setLibrary } from "@storytree/agent-link";
+
 import { refreshOwnHealth } from "./build-health.js";
 
 test("4.3 the running slot checks its own build in the background, logs output, and retries failures only at the next update", async () => {
@@ -78,5 +80,24 @@ test("4.3 a check that cannot start is logged without failing app startup", asyn
     assert.match(said.join("\n"), /failed.*next update/i);
   } finally {
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("4.3 with the library on Cloud SQL the app records no own health, since CI is its one writer (ADR-0744)", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-health-cloudsql-"));
+  const home = path.join(root, "home");
+  const dir = path.join(root, "a");
+  const said: string[] = [];
+  mkdirSync(home);
+  mkdirSync(dir);
+  writeFileSync(path.join(dir, "package.json"), JSON.stringify({ scripts: { "check:own-health": "node check.mjs" } }));
+  writeFileSync(path.join(dir, "check.mjs"), "import { writeFileSync } from 'node:fs'; writeFileSync('ran', '');");
+  setLibrary(["cloudsql", "proj:region:inst", "someone@example.com"], home);
+  try {
+    await refreshOwnHealth({ running: { slot: "a", dir, sha: "main" }, home, log: (line) => said.push(line) });
+    assert.equal(existsSync(path.join(dir, "ran")), false, "the check never runs");
+    assert.match(said.join("\n"), /CI records own health/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

@@ -31,7 +31,7 @@ export async function buildCommand(outdir: string): Promise<string> {
     logLevel: "warning",
     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
-    external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets"],
+    external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],
   });
   await stageNativeProbes(outdir);
   return path.join(outdir, "storytree.mjs");

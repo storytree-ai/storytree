@@ -49,6 +49,8 @@ export async function buildBins(outdir: string): Promise<Record<string, string>>
       "pg-native",
       "pg-cloudflare",
       "cloudflare:sockets",
+      // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
+      "@huggingface/transformers",
     ],
   });
   await stageNativeProbes(outdir);

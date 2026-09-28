@@ -81,6 +81,7 @@ const LIBRARY_API = [
   "definitions",
   "editNote",
   "search",
+  "rank",
   "relatedNotes",
   "related",
   "frontCovers",

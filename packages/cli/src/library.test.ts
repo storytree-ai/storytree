@@ -174,3 +174,18 @@ test("3.8 `library retire` retires records with a reason and their writer", asyn
     }
   });
 });
+
+test("3.9 `search` gives the artifacts ranked by the library (capability 14), at most --limit; with no model, the word matches and why", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    for (const n of [1, 2, 3]) await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });
+    await library.defineTerm({ term: "Deploys", meaning: "Deploys go out on Tuesdays" });
+
+    const ran = await world.run(["library", "search", "mailer", "--limit", "2"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.match(ran.stdout, /ranked by words: the embedding model is switched off/);
+    assert.match(ran.stdout, /Mailer 1[\s\S]*Mailer 2/);
+    assert.doesNotMatch(ran.stdout, /Mailer 3|Tuesdays/);
+  });
+});

@@ -26,6 +26,8 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
 import { NumberTakenError, type HistoryEntry } from "../transactions/index.js";
+import { defaultEmbedder } from "./bge-small.js";
+import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
 
 /**
@@ -59,6 +61,29 @@ export interface DecisionView {
   /** Its composed statement, marked stale once its text has changed since; absent until one is composed. */
   readonly composed?: { readonly statement: string; readonly composedAt: string; readonly stale: boolean };
 }
+/** What a ranked search is computed with: the embedder, and where its vectors are kept (capability 14). */
+export interface Ranking {
+  readonly embedder: EmbedderSource;
+  readonly vectors: VectorStore;
+}
+/** How many artifacts a ranked search gives back unless told. */
+export const RANK_LIMIT = 10;
+/** A ranked search's answer (capability 14). */
+export interface Ranked {
+  /** "meaning" when ranked by the embedding model; "words" when it could not be, and why is said. */
+  readonly by: "meaning" | "words";
+  /** Why it fell back to words; absent when ranked by meaning. */
+  readonly why?: string;
+  /** The artifacts, best first. A score, the cosine of its best chunk with the question, comes with meaning only. */
+  readonly hits: { readonly note: Note; readonly score?: number }[];
+}
+/** A ranked search's options: how many artifacts to give back, RANK_LIMIT unless told. */
+export interface RankOptions {
+  readonly limit?: number;
+}
+/** One embedder per process for every library not handed another, so the model loads once. */
+const SHARED_EMBEDDER = defaultEmbedder();
+
 /** A new definition's fields. Every link must name a live artifact. */
 export type NewDefinition = FieldsOf<"definition">;
 /** An edit of an artifact: some of its kind's fields. A field set to undefined is removed. */
@@ -127,10 +152,12 @@ type NumberingMove = "full-record" | "founding-books";
 export class Knowledge {
   readonly #records: SchemaRecords;
   readonly #project: string | undefined;
+  readonly #ranking: Ranking;
 
-  constructor(records: SchemaRecords, project?: string) {
+  constructor(records: SchemaRecords, project?: string, ranking: Partial<Ranking> = {}) {
     this.#records = records;
     this.#project = project;
+    this.#ranking = { embedder: ranking.embedder ?? SHARED_EMBEDDER, vectors: ranking.vectors ?? new MemoryVectors() };
   }
 
   /**
@@ -410,6 +437,29 @@ export class Knowledge {
       const texts = textsOf(note).map((text) => text.toLowerCase());
       return words.every((word) => texts.some((text) => text.includes(word)));
     });
+  }
+
+  /**
+   * The live artifacts ranked by how close their meaning is to `query`, best first, at most
+   * `limit` of them (capability 14, ADR-0732). Each artifact's rendered text is embedded in chunks
+   * and it scores by its best chunk's cosine with the question; a chunk not embedded before (a new
+   * or edited artifact) is embedded now. With no embedding model to hand, it gives search()'s
+   * word matches instead, in creation order, and says why.
+   */
+  async rank(query: string, options: RankOptions = {}): Promise<Ranked> {
+    const limit = options.limit ?? RANK_LIMIT;
+    if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError(`limit is how many to give back, a whole number above 0; got ${limit}`);
+    if (query.trim() === "") throw new RangeError("a ranked search needs words to rank by");
+    let embedder;
+    try {
+      embedder = await this.#ranking.embedder();
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error);
+      return { by: "words", why, hits: (await this.search(query)).slice(0, limit).map((note) => ({ note })) };
+    }
+    const notes = await this.#notes();
+    const ranked = await rankByMeaning(notes.map((note) => ({ item: note, text: renderNote(note) })), query, embedder, this.#ranking.vectors);
+    return { by: "meaning", hits: ranked.slice(0, limit).map(({ item, score }) => ({ note: item, score })) };
   }
 
   /**

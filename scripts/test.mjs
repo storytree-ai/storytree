@@ -180,7 +180,9 @@ async function runTests(env, units) {
 
 async function runNodeTest(env, files) {
   try {
-    return await runUnit({ root, env, args: testArgs, files, onSpawn: (spawned) => (child = spawned) });
+    // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
+    // ranked search is tested with a fake embedder, and everything else ranks by words.
+    return await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, onSpawn: (spawned) => (child = spawned) });
   } finally {
     child = undefined;
   }

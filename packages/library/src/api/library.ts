@@ -215,7 +215,7 @@ export interface Library {
   search(query: string): Promise<Note[]>;
   /**
    * The live artifacts ranked by how close their meaning is to `query`, best first, ten unless
-   * `limit` says (capability 14, ADR-0664). With no embedding model to hand it gives search()'s
+   * `limit` says (capability 14, ADR-0732). With no embedding model to hand it gives search()'s
    * word matches instead, and says why.
    */
   rank(query: string, options?: RankOptions): Promise<Ranked>;

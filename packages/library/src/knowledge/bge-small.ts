@@ -1,6 +1,6 @@
 /**
  * Capability 14 · Ranked search: the real embedder, BAAI/bge-small-en-v1.5 run in this process by
- * transformers.js on ONNX Runtime (ADR-0664). Nothing is loaded until the first search needs it; the
+ * transformers.js on ONNX Runtime (ADR-0733 D1-D2). Nothing is loaded until the first search needs it; the
  * model is downloaded once into the storytree home's `models` folder and read from there after.
  *
  * STORYTREE_EMBEDDER=off switches it off (the test runner does, so no test or CI run downloads the

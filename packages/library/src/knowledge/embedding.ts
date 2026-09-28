@@ -1,12 +1,12 @@
 /**
- * Capability 14 · Ranked search (the library story, ADR-0664): a search ranks the live artifacts by
+ * Capability 14 · Ranked search (the library story, ADR-0732; built as ADR-0733 says): a search ranks the live artifacts by
  * how close their meaning is to the question, with an embedding model computed on this computer.
  * The shape is the one 0.2's measurement settled (hindsight-memory-layer-arc-inc-02): an artifact's
  * rendered text, packed into ~3000-character chunks on paragraph boundaries; each chunk embedded;
  * an artifact scored by its best chunk's cosine with the question, which is sent with no prefix.
  *
  * A vector is kept under the hash of the chunk it was made from, so an artifact that is written is
- * embedded again at the next search, and a search never ranks by a stale vector.
+ * embedded again at the next search, and a search never ranks by a stale vector (ADR-0733 D4).
  */
 import { createHash } from "node:crypto";
 

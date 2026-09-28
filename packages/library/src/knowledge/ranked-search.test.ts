@@ -1,5 +1,5 @@
 /**
- * Capability 14 · Ranked search (ADR-0664): `rank` orders the live artifacts by meaning, on BOTH
+ * Capability 14 · Ranked search (ADR-0732): `rank` orders the live artifacts by meaning, on BOTH
  * backends. The embedder is a fake that maps words to a few meanings, so "email" and "mailer" land
  * together as a real model would place them; no test loads or downloads the real model.
  */

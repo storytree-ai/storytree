@@ -441,7 +441,7 @@ export class Knowledge {
 
   /**
    * The live artifacts ranked by how close their meaning is to `query`, best first, at most
-   * `limit` of them (capability 14, ADR-0664). Each artifact's rendered text is embedded in chunks
+   * `limit` of them (capability 14, ADR-0732). Each artifact's rendered text is embedded in chunks
    * and it scores by its best chunk's cosine with the question; a chunk not embedded before (a new
    * or edited artifact) is embedded now. With no embedding model to hand, it gives search()'s
    * word matches instead, in creation order, and says why.

@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { coreScene, legend, lighting, noteCard, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { coreScene, curvePoint, legend, lighting, noteCard, tailSpan, trails, wisps, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -221,6 +221,43 @@ test("4.10 each session's reading path runs from one full read to that agent's n
   assert.match(one[0]!.colour, /^hsl\(300, 80%, \d+%\)$/);
   assert.notEqual(one[0]!.colour, "hsl(300, 80%, 68%)", "a subagent's path wears its shade");
   assert.deepEqual(trails(reads, [], undefined, present), [], "no running sessions draw no paths");
+});
+
+test("4.11 each known agent's wisp rests at its latest full read and carries its reading steps in order; unknown agents and unlisted sessions have none", () => {
+  const history = project();
+  const roster = [
+    { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a"] },
+    { session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] },
+  ];
+  const lines = [read("a", "deep", "whole", "orchestrator"), read("a", "cover", "whole", "orchestrator"), read("a", "loose", "peek", "orchestrator"),
+    read("a", "new", "whole", { subagent: "h1" }), read("a", "old", "whole"),
+    read("b", "cover", "whole", { subagent: "h2" }), read("b", "deep", "whole", { subagent: "h2" }), read("z", "deep", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const present = new Set(known.notes.keys());
+  const all = wisps(reads, roster, undefined, present).map(({ mover, colour, note, steps }) => [mover, colour, note, steps.map(({ from, to }) => `${from}>${to}`)]);
+  assert.deepEqual(all, [
+    ["a orchestrator", "hsl(200, 80%, 68%)", "cover", ["deep>cover"]],
+    ["a subagent:h1", "hsl(200, 80%, 68%)", "new", []],
+    ["b subagent:h2", "hsl(300, 80%, 68%)", "deep", ["cover>deep"]],
+  ], "a peek moves no wisp; an unknown agent and an unlisted session have none");
+  const one = wisps(reads, roster, "b", present);
+  assert.deepEqual(one.map(({ mover }) => mover), ["b subagent:h2"], "a selection flies that session's wisps alone");
+  assert.notEqual(one[0]!.colour, "hsl(300, 80%, 68%)", "a subagent's wisp wears its shade");
+  assert.deepEqual(wisps(reads, [], undefined, present), []);
+});
+
+test("4.12 a wisp flies the step's own curve, bowed away from the centre, and its tail trails behind it toward where it came from", () => {
+  const from = { x: 50, y: 0, z: 0 }, to = { x: 0, y: 50, z: 0 };
+  assert.deepEqual(curvePoint(from, to, 0), from);
+  assert.deepEqual(curvePoint(from, to, 1), to);
+  const middle = curvePoint(from, to, 0.5);
+  assert.ok(Math.hypot(middle.x, middle.y, middle.z) > Math.hypot(25, 25), "bowed outward, never along the straight chord");
+  const [start, end] = tailSpan(0.6);
+  assert.equal(end, 0.6, "the tail ends at the wisp");
+  assert.ok(start < end && start >= 0, "and reaches back along the path it came by");
+  assert.deepEqual(tailSpan(0.1), [0, 0.1], "never behind the step's own start");
+  const [, arrived] = tailSpan(1);
+  assert.equal(arrived, 1);
 });
 
 test("4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection", () => {

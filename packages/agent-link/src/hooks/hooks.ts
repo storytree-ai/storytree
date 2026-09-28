@@ -12,10 +12,11 @@
  * one at the end of each turn, ADR-0636 D2) is run with `--background`: once it knows it has a line
  * to write, it hands its input to a copy of itself that it leaves running, and exits.
  *
- * One more, at each prompt (ADR-0636 D1, b2), is the one hook that prints: the project's
- * definitions for the terms the prompt names (definitions.ts), and once-per-session advice to
- * start fresh when a Claude Code session passes its context guidance (context-nudge.ts).
- * The harness waits for it, so it gives up after 2 s and prints nothing.
+ * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions for the terms the
+ * prompt names (definitions.ts), and once-per-session advice to start fresh when a Claude Code
+ * session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
+ * after 2 s and prints nothing. The only other that prints is at session start, in a folder that
+ * isn't a storytree project: it has the agent ask the user whether to set storytree up there.
  *
  * A hook's input is the harness's own JSON on stdin. hookLines() turns it into lines, and knows
  * nothing of storytree's state; runHook() routes the session's folder (capability 1) and, only when
@@ -24,7 +25,7 @@
  */
 import type { NewLine } from "../activity/index.js";
 import type { MergeWatch } from "../claims/index.js";
-import { route, withConnectTimeout, type LocateOptions } from "../routing/index.js";
+import { askToSetUp, findProject, route, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { codexLines } from "./codex.js";
 import { contextNudge } from "./context-nudge.js";
@@ -47,6 +48,8 @@ export interface HookInput {
 
 /** The flag that makes a hook hand its writing to the background instead of doing it. */
 export const BACKGROUND = "--background";
+/** The flag of Claude Code's session-start hook that it waits for: it only asks the setup question, and writes nothing. */
+export const ASK_SETUP = "--ask-setup";
 
 /** The lines one hook's input makes, and the folder the session was working in. */
 export interface HookLines {
@@ -73,6 +76,20 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
   }
 }
 
+/**
+ * For a session starting in a folder that isn't a storytree project, the harness's hook output that
+ * has the agent ask the user whether to set it up, before the task it was given (a first session's
+ * short task otherwise never reaches check_setup). Undefined for anything else. It only reads the
+ * folders above, so it is quick; and it never sets anything up (ADR-0626 D5).
+ */
+function setupQuestion(input: unknown): string | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const { hook_event_name: event, cwd: folder } = input as Record<string, unknown>;
+  if (event !== "SessionStart" || typeof folder !== "string" || folder === "" || findProject(folder).project !== undefined) return undefined;
+  const context = `storytree: ${askToSetUp(folder)} Do this before you start on the user's request, then call storytree's check_setup tool and do what it says.`;
+  return JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: context } });
+}
+
 /** A prompt the user sent, as both harnesses' prompt hook gives it (UserPromptSubmit). */
 interface Prompted {
   readonly harness: "claude-code" | "codex";
@@ -90,6 +107,11 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
   try {
     const [harness = "", ...flags] = argv;
     const parsed = parse(input);
+    // Codex waits for every hook, so its one session-start hook asks; Claude Code's own asking hook is a second one it waits for.
+    if (flags.includes(ASK_SETUP) || harness === "codex") {
+      const question = setupQuestion(parsed);
+      if (question !== undefined || flags.includes(ASK_SETUP)) return question;
+    }
     const asked = promptIn(harness, parsed);
     if (asked !== undefined) return await withinTime(contextForPrompt(asked));
     const made = hookLines(harness, parsed);

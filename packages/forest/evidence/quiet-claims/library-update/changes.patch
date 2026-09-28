@@ -1,0 +1,47 @@
+--- old/The forest/capability 5/capability_efa4328b624c/description
++++ new/The forest/capability 5/capability_efa4328b624c/description
+@@ -1 +1 @@
+-Shows which agent holds which capability right now, with the agent's one-line reason, at that capability in its story node. It follows the agent link's claims and sessions, so the marker of an agent that has gone quiet fades, and a session whose hooks never reported in is flagged rather than shown as idle.
++Shows each capability held by an agent as a small dot at that capability's tree, with no visible agent name, reason text or hooks warning. It follows the agent link's claims and sessions, so a holder whose hooks have reported fades after the quiet time; a holder whose hooks have never reported is never faded as idle. Missing hooks are reported by the agent link's setup check (capability 8, contract 8.5).
+
+--- old/The forest/capability 5/contract_981ada25d50e/title
++++ new/The forest/capability 5/contract_981ada25d50e/title
+@@ -1 +1 @@
+-5.1 · Session A claims "email form", and a marker reading "Claude Code: building the email form" appears at that capability.
++5.1 · Session A claims "email form", and a small dot appears at that capability's tree, with no visible agent name or reason text.
+
+--- old/The forest/capability 5/contract_c21f6ee3bb69/title
++++ new/The forest/capability 5/contract_c21f6ee3bb69/title
+@@ -1 +1 @@
+-5.2 · After the quiet time with no new line the marker fades, and when A reports the capability landed it goes.
++5.2 · For a holder whose hooks have reported, after the quiet time with no new line the dot fades; when A reports the capability landed its dot goes.
+
+--- old/The forest/capability 5/contract_ac5d2e1c14df/title
++++ new/The forest/capability 5/contract_ac5d2e1c14df/title
+@@ -1 +1 @@
+-5.3 · A session seen only through its tool calls is flagged "hooks not running".
++5.3 · A session seen only through its tool calls keeps its dot unfaded even past the quiet time; the map draws no hooks warning.
+
+--- old/The forest/capability 5/definition_436891b5b577/meaning
++++ new/The forest/capability 5/definition_436891b5b577/meaning
+@@ -1 +1,2 @@
+-  - A missing hook never reads as an agent doing nothing (ADR-0626 D4).
++  - A missing hook never reads as an agent doing nothing (ADR-0626 D4). The map shows no hooks
++    warning; the agent link's setup check reports missing hooks and the fix (capability 8, contract 8.5).
+
+--- old/The forest/capability 5/definition_7c841c6b4298/meaning
++++ new/The forest/capability 5/definition_7c841c6b4298/meaning
+@@ -1,7 +1,9 @@
+ - **As built:** `claimMarkers(lines, now)` in `packages/forest`: one marker per claim standing, read
+   through the agent link's own `claimsFrom` and `sessionsFrom`, from its browser-safe entry
+   `@storytree/agent-link/readings` (added for the page, which cannot bundle the root entry's
+-  Postgres code). A marker says "<agent>: <reason>", fades when its holder is quiet past the quiet
+-  time, is flagged "hooks not running" when its session wrote no hook line (never faded), and
+-  carries no health or state. The page draws each over its tree, and the live reading's minute
+-  clock re-judges them with no new line.
++  Postgres code). The page draws a small dot at each claimed capability's tree, with no visible
++  agent name, reason text or hooks warning. A dot fades when its holder is quiet past the quiet
++  time only if that session has written a hook line; a hookless holder is never faded as idle.
++  The dot carries no health or state. The live reading's minute clock re-judges the dots with
++  no new line. Missing hooks and their fixes belong to the agent link's existing setup check
++  (`verifyHooks` in `packages/agent-link/src/setup/verify.ts`, reported by `check_setup`).

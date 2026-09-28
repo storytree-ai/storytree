@@ -33,21 +33,24 @@ export function Names({ islands, selected, onGlobe = false }: { islands: readonl
   });
 }
 
-/** Which agent holds which capability, over that capability's tree (capability 5). */
+/** A quiet dot over each claimed capability's tree (capability 5). */
 export function Claims({ markers, descriptors, occlude = false }: { markers: readonly Marker[]; descriptors: readonly Descriptor3D[]; occlude?: boolean }) {
   const spots = parcelSpots(descriptors);
   return markers.map((marker) => {
     const spot = spots.get(marker.capability);
     if (spot === undefined) return null;
     return (
-      <Overlay occlude={occlude} key={`${marker.capability}:${marker.text}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
+      <Overlay occlude={occlude} key={`${marker.capability}:${marker.session}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
         <div
-          className={`forest-claim${marker.faded ? " faded" : ""}${marker.hooksNotRunning ? " no-hooks" : ""}`}
+          className="forest-claim-dot"
           data-capability-id={marker.capability}
+          role="img"
+          aria-label={marker.faded ? "Claimed capability, holder is idle" : "Claimed capability"}
           title={marker.faded ? "quiet past the quiet time: it still holds this capability" : ""}
-        >
-          {marker.hooksNotRunning ? `${marker.text} · hooks not running` : marker.text}
-        </div>
+          style={{ width: 8, height: 8, borderRadius: "50%", boxSizing: "border-box",
+            background: "#e2e8e5", border: "1px solid rgb(24 40 32 / 0.7)",
+            boxShadow: "0 1px 3px rgb(0 0 0 / 0.45)", opacity: marker.faded ? 0.45 : 1, pointerEvents: "none" }}
+        />
       </Overlay>
     );
   });

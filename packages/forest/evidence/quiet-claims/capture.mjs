@@ -57,6 +57,9 @@ try {
   }, seed);
   await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && window.__globe && window.__nav);
+  // Dismiss the app's first-run guide through its ordinary control before photographing the map.
+  const closeHelp = page.getByRole('button', { name: 'Close help', exact: true });
+  if (await closeHelp.isVisible()) await closeHelp.click();
   await page.waitForFunction(() => document.querySelectorAll('.forest-claim, .forest-claim-dot').length === 4);
   // Turn the claimed island toward the camera, through the existing navigation rotation.
   await page.evaluate(id => {

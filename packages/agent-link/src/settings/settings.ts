@@ -37,7 +37,9 @@ export function readSettings(home: string = storytreeHome()): SettingsReading {
 
 /** Persist a user's choice in the same home as project-choice.json. */
 export function setSetting(name: string, value: string, home: string = storytreeHome()): SettingReading {
-  const overrides = { ...readOverrides(home), [name]: Number(value) };
+  checkName(name);
+  const number = checkedValue(/^\d+$/.test(value) ? Number(value) : NaN);
+  const overrides = { ...readOverrides(home), [name]: number };
   mkdirSync(home, { recursive: true });
   const file = path.join(home, "settings.json");
   const temporary = `${file}.${randomUUID()}.tmp`;
@@ -48,6 +50,17 @@ export function setSetting(name: string, value: string, home: string = storytree
     rmSync(temporary, { force: true });
   }
   return readSettings(home)["context-guidance"];
+}
+
+function checkName(name: string): asserts name is "context-guidance" {
+  if (name !== contextGuidance.name) throw new Error(`Unknown setting ${JSON.stringify(name)}. Available setting: ${contextGuidance.name}.`);
+}
+
+function checkedValue(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${contextGuidance.name} must be a positive whole number of tokens (at most ${Number.MAX_SAFE_INTEGER}).`);
+  }
+  return value;
 }
 
 function readOverrides(home: string): Partial<Record<"context-guidance", number>> {

@@ -65,3 +65,54 @@ test at packages/cli/src/settings.test.ts:1:492
     operator: 'strictEqual',
     diff: 'simple'
   }
+✔ 10.1 without a settings file, context guidance reads as 700,000 tokens with its type and meaning (1.128984ms)
+✖ 10.3 unknown names and values that are not positive whole numbers are refused without changing the file (7.339452ms)
+✖ settings 10.2: set persists in the storytree home and show reads it back as set (1201.470017ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1569.362419
+
+✖ failing tests:
+
+test at packages/agent-link/src/settings/settings.test.ts:1:956
+✖ 10.3 unknown names and values that are not positive whole numbers are refused without changing the file (7.339452ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at <anonymous> (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/settings/settings.test.ts:33:14)
+      at withTempDir (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/settings/settings.test.ts:28:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /unknown setting/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/settings.test.ts:1:492
+✖ settings 10.2: set persists in the storytree home and show reads it back as set (1201.470017ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/settings/packages/cli/src/settings.test.ts:55:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

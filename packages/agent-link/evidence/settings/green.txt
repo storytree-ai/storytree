@@ -17,3 +17,14 @@
 ℹ skipped 0
 ℹ todo 0
 ℹ duration_ms 1455.339202
+✔ 10.1 without a settings file, context guidance reads as 700,000 tokens with its type and meaning (1.104859ms)
+✔ 10.3 unknown names and values that are not positive whole numbers are refused without changing the file (1.458501ms)
+✔ settings 10.2: set persists in the storytree home and show reads it back as set (1325.449187ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1694.670638

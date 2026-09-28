@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import type { AnnotatedTree, HealthColumn, NodeHealth } from "@storytree/library";
 
-import { inBuildOrder, projectView, renderProject, renderSwitcher } from "./view.js";
+import { inBuildOrder, projectView, renderProject } from "./view.js";
 
 const NOT_CHECKED: HealthColumn = { state: "not-checked" };
 const health = (reported: HealthColumn, verified: HealthColumn): NodeHealth => ({ reported, verified });
@@ -163,13 +163,6 @@ test("a project with no stories says so", () => {
   const empty = renderProject("site", { stories: [], arcs: [] });
   assert.match(empty, /site has no stories yet/);
   assert.doesNotMatch(empty, /data-story-id/);
-});
-
-test("the project switcher lists every project, the one shown selected, names escaped", () => {
-  const html = renderSwitcher(["app", "storytree", "<odd>"], "storytree");
-  assert.deepEqual(attributeValues(html, "value"), ["app", "storytree", "&lt;odd&gt;"]);
-  assert.match(html, /<option value="storytree" selected>storytree<\/option>/);
-  assert.doesNotMatch(html, /<option value="app" selected>/);
 });
 
 // --- helpers ---------------------------------------------------------------------------------

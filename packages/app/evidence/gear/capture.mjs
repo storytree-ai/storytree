@@ -24,6 +24,7 @@ try {
   await store.restore('storytree', snapshot);
   reads = pageReads({ storytree: store, serverUrl: pg.url });
   const selection = projectSelection({ file: path.join(temporary, 'choice.json'), listProjects: () => store.listProjects() });
+  await selection.choose('storytree');
   let failChoice = false;
   const bridge = { ...reads, projectSelection: () => selection.read(), chooseProject: async name => {
     if (failChoice) { failChoice = false; throw new Error('temporary project choice failure'); }
@@ -31,7 +32,7 @@ try {
   } };
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
-    if (!['index.html', 'renderer.js', 'renderer.css', 'styles.css', 'app-setup.css', 'arc-surface.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
+    if (!['index.html', 'renderer.js', 'styles.css', 'app-setup.css', 'arc-surface.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
     res.end(readFileSync(path.join(dist, name)));
   });
@@ -43,7 +44,7 @@ try {
   await page.exposeFunction('gearRead', (method, args) => { assert.ok(Object.hasOwn(bridge, method)); return bridge[method](...args); });
   await page.addInitScript(methods => {
     window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.gearRead(method, args)]));
-    localStorage.setItem('storytree:setup:guide-seen:v1', 'yes');
+    try { localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'); } catch { /* about:blank has no storage */ }
   }, Object.keys(bridge));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
@@ -93,7 +94,7 @@ try {
   assert.equal(await page.locator('#setup-help-panel').isVisible(), false);
   assert.equal(await gear.evaluate(node => node === document.activeElement), true, 'help returns focus to gear');
   // Explicit fixture for switching; all three captures above contain only the supplied snapshot.
-  await store.createProject('gear-switch-check');
+  await (await store.openProject('gear-switch-check')).close();
   await page.waitForFunction(() => document.querySelectorAll('#project option').length === 2, undefined, { timeout: 15000 });
   await page.evaluate(() => { window.previousCanvas = document.querySelector('canvas'); });
   await gear.click(); await page.selectOption('#project', 'gear-switch-check');

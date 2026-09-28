@@ -61,50 +61,6 @@ code {
   padding: 0.05em 0.3em;
 }
 
-.app-bar {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 1.5rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-}
-
-.app-name {
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.app-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.app-version {
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.switcher {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.switcher select {
-  margin-left: 0.4rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0.2rem 0.5rem;
-}
-
 main {
   max-width: 72rem;
   margin: 0 auto;
@@ -307,7 +263,7 @@ main {
   }
 }
 
-/* The forest (the forest story, capability 3): it fills the window under the app bar. */
+/* The forest (the forest story, capability 3): it fills the window. */
 
 body[data-surface="forest"] {
   height: 100vh;

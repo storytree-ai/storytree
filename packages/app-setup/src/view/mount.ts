@@ -5,7 +5,7 @@ import { guide, recoveryRequest } from "./guide.js";
 const SEEN = "storytree:setup:guide-seen:v1";
 
 /** A single help surface survives empty/error states and project switching in the thin frame. */
-export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge): { open(): void; stop(): void } {
+export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, options: { returnFocus?: HTMLElement } = {}): { open(): void; stop(): void } {
   const entry = document.createElement("div");
   entry.className = "setup-help";
   entry.innerHTML = `<button type="button" aria-controls="setup-help-panel" aria-expanded="false">Help</button>`;
@@ -142,7 +142,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge): { op
   function close(): void {
     panel.hidden = true; launch.setAttribute("aria-expanded", "false");
     try { localStorage.setItem(SEEN, "yes"); } catch { /* Help remains usable without preference storage. */ }
-    launch.focus();
+    (options.returnFocus ?? launch).focus();
   }
   function key(event: KeyboardEvent): void {
     if (event.key === "Escape" && !panel.hidden) {

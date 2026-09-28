@@ -33,7 +33,7 @@ try {
   await selection.read();
   server = createServer((req, res) => {
     const name = req.url === '/' ? 'index.html' : req.url.slice(1);
-    if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css'].includes(name)) { res.writeHead(404); res.end(); return; }
+    if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404); res.end(); return; }
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
     res.end(readFileSync(path.join(root, 'apps/desktop/dist/renderer', name)));
   });
@@ -58,11 +58,16 @@ try {
     return reads[method](...args);
   });
   await context.addInitScript(() => {
+    try { localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'); } catch { /* about:blank has no storage */ }
     window.storytree = Object.fromEntries(['projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'].map(name => [name, (...args) => window.bridge(name, args)]));
   });
   context.on('page', page => page.on('pageerror', error => errors.push(error.stack ?? String(error))));
   let page = await context.newPage();
   const url = `http://127.0.0.1:${server.address().port}/`;
+  const chooseProject = async name => {
+    if (!(await page.locator('#app-menu').isVisible())) await page.getByRole('button', { name: 'App menu', exact: true }).click();
+    await page.selectOption('#project', name);
+  };
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'empty');
   const emptyText = await page.locator('#content').innerText();
@@ -92,9 +97,9 @@ try {
   mkdirSync(second);
   await setUpProject({ folder: second, project: 'other-site', storytree: library, storytreeHome: home });
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'other-site', undefined, { timeout: 30000 });
-  await page.selectOption('#project', 'my-site');
+  await chooseProject('my-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.querySelector('#project').value === 'other-site');
-  await page.selectOption('#project', 'my-site');
+  await chooseProject('my-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.close();
   selection = projectSelection(preferences);
@@ -112,7 +117,7 @@ try {
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'z-new-site');
   assert.equal(await page.locator('#project option').count(), 4);
   await page.screenshot({ path: path.join(out, 'last-setup-choice.png') });
-  await page.selectOption('#project', 'my-site');
+  await chooseProject('my-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.close();
   await setup('b-closed-site');

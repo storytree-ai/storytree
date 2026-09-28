@@ -7,6 +7,43 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { background, TRAY_MENU } from "./background.js";
+import { followProjects } from "../projects/follow.js";
+
+test("1.7 smoke teardown stops page polling before closing the library, without logging a closed-library error", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const logged: unknown[] = [];
+  t.mock.method(console, "error", (error: unknown) => logged.push(error));
+  let libraryOpen = true;
+  let reads = 0;
+  const following = followProjects({
+    read: async () => {
+      reads++;
+      if (!libraryOpen) throw new Error("the library is not open");
+      return { projects: ["storytree"], current: "storytree" };
+    },
+    onChange: () => {},
+    onError: (error) => console.error(error),
+  });
+  t.after(() => following.stop());
+  await following.refresh();
+  assert.equal(reads, 1, "the page is polling before teardown");
+
+  let exitCode: number | undefined;
+  const app = background({
+    stopPages: () => following.stop(),
+    stopDatabase: async () => {
+      libraryOpen = false;
+      // Postgres may take longer to stop than the page's next poll.
+      t.mock.timers.tick(3000);
+      await following.refresh();
+    },
+    exit: (code) => { exitCode = code; },
+  });
+  await app.quit();
+  assert.deepEqual(logged, [], "successful smoke teardown must not log a closed-library error");
+  assert.equal(reads, 1, "no page read starts after the library closes");
+  assert.equal(exitCode, 0);
+});
 
 test("1.7 closing the window leaves the app and its database running, and the tray's Quit is the one way to stop them", async () => {
   const done: string[] = [];

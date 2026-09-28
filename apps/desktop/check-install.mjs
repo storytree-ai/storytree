@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { checkTools } from "./check-tools.mjs";
+import { checkEmbeddingBinaries, checkTools } from "./check-tools.mjs";
 
 const release = path.resolve("apps/desktop/release");
 const installer = readdirSync(release).find((file) => file.endsWith("-setup.exe"));
@@ -33,17 +33,19 @@ try {
   const postgres = execFileSync(path.join(installed, "resources", "postgres", "bin", "postgres.exe"), ["--version"], { encoding: "utf8", timeout: 30_000 });
   assert.match(postgres, /PostgreSQL/);
   const tools = path.join(installed, "resources", "agent-tools");
+  checkEmbeddingBinaries(tools, "x64");
   const node = path.join(tools, "node.exe");
   const runtime = execFileSync(node, ["-p", "JSON.stringify({arch:process.arch,version:process.versions.node})"], { encoding: "utf8", timeout: 30_000 });
   assert.equal(JSON.parse(runtime).arch, process.arch);
   assert.match(JSON.parse(runtime).version, /^24\./);
-  execFileSync(node, [path.join(tools, "storytree-deliver.mjs"), "inspect", installed, process.arch], { timeout: 30_000 });
   await checkTools(node, tools, path.join(temp, "fresh user"));
   // An x64 CI host cannot execute arm64 Node; inspect its PE architecture and manifest instead.
   const armTools = path.join(release, "win-arm64-unpacked", "resources", "agent-tools");
+  checkEmbeddingBinaries(armTools, "arm64");
   const armNode = readFileSync(path.join(armTools, "node.exe"));
   assert.equal(armNode.readUInt16LE(armNode.readUInt32LE(0x3c) + 4), 0xaa64, "arm64 payload contains native arm64 Node");
   assert.equal(JSON.parse(readFileSync(path.join(armTools, "payload.json"), "utf8")).arch, "arm64");
+  execFileSync(node, [path.join(tools, "storytree-deliver.mjs"), "inspect", installed, process.arch], { timeout: 30_000 });
   assert.match(readFileSync(path.join(release, "latest.yml"), "utf8"), new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));
   console.log(`4.4 PASS: NSIS installed ${version}; its Electron, Postgres and update configuration work`);
   console.log("app setup 4.2 PASS: the NSIS and arm64 portable payloads carry the same offline license");

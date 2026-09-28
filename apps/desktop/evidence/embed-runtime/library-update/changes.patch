@@ -1,0 +1,11 @@
+--- old/library/The library/capability 14/capability_556e276756c9/description
++++ new/library/The library/capability 14/capability_556e276756c9/description
+@@ -1 +1,3 @@
+ A library search ranks the live artifacts by how close their meaning is to the question, using an embedding model (bge-small) run on this computer, with no LLM, paid API or extra service, as the owner directed (0.2's ADR-0664). An artifact written or edited is embedded again before the next search ranks it, and with no model to hand the search falls back to word matches and says why.
++
++As built: Windows delivery stages the locked Transformers Node distribution, ONNX Runtime CPU binding and DLL, and the Sharp runtime dependency beside the CLI and MCP entrypoints for x64 and arm64. No model weights ship. The existing lazy loader downloads bge-small on first use into <storytree home>/models. The installed-layout check imports Transformers and runs a weight-free ONNX Identity graph on the native CPU backend without a source checkout. Windows x64 execution is checked by installer CI; ARM64 PE headers are inspected, with ARM64 execution awaiting a native Windows acceptance run.
+
+--- old/library/The library/capability 14/ADD contract under capability_556e276756c9/title
++++ new/library/The library/capability 14/ADD contract under capability_556e276756c9/title
+@@ -0,0 +1 @@
++14.5 · The installed Windows CLI and MCP tools resolve their bundled Transformers and native ONNX CPU runtime without a checkout or npm installation, on x64 and arm64. The installer ships runtime code and target binaries, never model weights; the embedding model remains a first-use download into <storytree home>/models.

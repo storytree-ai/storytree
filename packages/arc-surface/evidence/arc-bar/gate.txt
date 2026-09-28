@@ -1,0 +1,507 @@
+
+> storytree@ gate /home/mickh/code/storytree03-wt/arc-bar
+> node scripts/gate.mjs
+
+
+=== typecheck ===
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/arc-bar
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/forest-world typecheck$ tsc -p .
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/own typecheck: Done
+packages/library typecheck: Done
+packages/forest-world typecheck: Done
+packages/librarian typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app-setup typecheck: Done
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+packages/forest typecheck$ tsc -p .
+packages/forest typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+=== test ===
+scope: affected — apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core — changed: packages/arc-surface; their dependents: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/cli, packages/forest, packages/knowledge-core
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core, scripts/package-boundaries.test.mjs
+test Postgres: listening on 127.0.0.1:39867 (started in 0.1 s)
+
+=== apps/desktop ===
+✔ smoke can capture either globe mode, while ordinary launches keep the Forest default (1.332465ms)
+✔ app setup 1.1: the desktop's complete tool bundle runs outside a checkout, including MCP and imported chunks (936.547935ms)
+✔ capabilities are shown in build order: each after every capability it depends on, and otherwise in the order they were added (2.717372ms)
+✔ each capability shows its health in two columns side by side, Agent reported then Storytree verified, each state a badge (0.706866ms)
+✔ a capability expands to show its contracts, each with its own two columns and what its entries say: who, when and the note (0.500299ms)
+✔ the story heads the page with its title, description and rolled-up health, all text escaped, and `code` shown as code (0.358257ms)
+✔ a project with no stories says so (0.143475ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1056.401913
+
+=== packages/agent-link ===
+✔ 2.1 two separate processes write lines for two sessions, and reading from the start returns every line once, in the order written (933.802797ms)
+✔ 2.2 reading "since line N" returns only the lines after N, in order, each carrying the number to pass next time (47.181648ms)
+✔ 2.3 lines written for project "site" never appear when reading project "app" (23.756567ms)
+✔ the log opens even when Postgres on Windows resets its first connection, as it did the first time the log was opened in a fresh cluster (regression: the Windows run of storytree-ai/storytree#11) (99.059725ms)
+✔ 2.4 the log never shows up in the library's list of projects, and writing lines leaves the library's own records and change feed untouched (193.621347ms)
+✔ 2.5 lines two machines write for one project, each through its own library connection, are both read back from either, in order (local server) (69.791288ms)
+﹣ 2.5 lines two machines write for one project, each through its own library connection, are both read back from either, in order (Cloud SQL, live) (0.33886ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER — owner-gated
+✔ 5.1 session A claims "email form", and the claim shows A and the reason (338.460155ms)
+✔ 5.2 B's claim on it is refused, naming A; once A has been idle past the quiet time, B's claim succeeds (1480.882755ms)
+✔ 5.3 when A reports it landed, the claim ends and a "landed" line is written; a release, or A's session ending, also ends it (236.648305ms)
+✔ 5.4 a claim on a capability the library doesn't have is refused, and when two agents claim at the same instant exactly one wins (218.622251ms)
+✔ 5.5 an edit made while A holds "email form" counts toward it, and an edit from a session holding nothing counts as unplanned activity (221.363509ms)
+✔ 5.6 while a command A started is still running, past the quiet time, B's claim on A's capability is refused naming A (1493.712032ms)
+✔ 5.10 a claim taken on branch feature/signup ends with a merged line once GitHub shows a pull request from that branch merged after the claim was taken, found at the next tool call or hook line; one merged before the claim, or still open, ends nothing (286.139752ms)
+✔ 5.10 asking gh for merged pull requests answers when gh exits, even while a process it started still holds its output (regression: gh's tzutil, 2026-09-28) (279.145457ms)
+✔ 5.11 the public readings list current capability and increment claims and find the holder of one unit (125.040541ms)
+✔ 5.7 session A claims a proposed increment, which the claim shows while the library shows it active, and B's claim on it is refused naming A; a ready one starts the same way, an active one is not started again, and a closed one is refused (128.855213ms)
+✔ 5.8 claiming an increment whose own wait holds, or whose arc's wait holds, is refused naming each blocker and its reason, and one held on an open question is refused as waiting on the owner; nothing is written and it is not started; once the wait releases the claim succeeds (137.374192ms)
+✔ 5.9 a claim on a capability is refused when every open increment naming it is waiting, naming what they wait for; it succeeds when one of them is not waiting, and a capability no open increment names is never refused (113.769671ms)
+✔ 5.15 cancelling a claim queued for the activity lock leaves no claim (capability) (103.576431ms)
+✔ 5.15 cancelling a claim queued for the activity lock leaves no claim (active increment) (96.734449ms)
+✔ 5.12 session A makes a workspace for a proposed increment: a new folder where its harness keeps worktrees, on a fresh branch cut from origin's main as just fetched, and A holds the increment there, the claim naming that branch, and the increment is active (781.239948ms)
+✔ 5.13 making a workspace for work another live session holds, or for waiting work, is refused naming the holder or the blocker, and no folder, branch or line is made; for work the session already holds it is refused naming the branch it holds it on (483.673061ms)
+✔ 5.14 when main cannot be fetched fresh, as from a folder with no origin, it is refused saying why, and nothing is claimed or started (274.819779ms)
+✔ 5.12 Codex prepares without creating or claiming, then attaches the app's detached or named worktree at the pinned fresh commit (450.167835ms)
+✔ 5.13 Codex checks held, waiting and already-owned work before creation, and refuses a claim lost before attachment without changing the app worktree (281.172589ms)
+✔ 5.14 Codex refuses invalid returned directories and releases a claim if naming the branch fails, keeping the app worktree (450.994044ms)
+✔ 5.13 a claim taken by this session during attachment is refused as already yours and never released or retargeted (611.811488ms)
+✔ 9.1 a Claude Code transcript reads the session's own latest request: input + cache-read + cache-creation, one count per requestId, and a later subagent or synthetic line does not change it (1.99167ms)
+✔ 9.2 a transcript that is empty, unreadable, or holds only subagent or synthetic requests reads as an absence naming which, never as 0 tokens (0.392884ms)
+✔ 9.3 a Codex rollout reads its last token count's input tokens as tokens used (0.259006ms)
+✔ 9.5 a session's reading is worked out when asked, from the transcript last recorded for it, read at that moment; another session's transcript is never read, and one with no transcript recorded is an absence (86.032891ms)
+✔ 9.6 `storytree context` prints this session's tokens used, worked out at that moment, and --json the record; it exits 0 whatever the figure, and with no reading it says so and prints no number (162.349291ms)
+✔ 3.1 recorded Claude Code hook inputs (a start, a file edit, a shell command, an end) make four lines on that session, carrying the file path, the command and the machine's name (1074.722181ms)
+✔ 3.2 recorded Codex hook inputs make the same four lines, with the edited files read out of its patch text (653.379276ms)
+✔ 3.3 with storytree stopped, with garbage input, or outside a storytree project, the command exits cleanly in under half a second and writes nothing (835.967413ms)
+✔ 3.4 it runs on Windows without a Unix shell, and it never prints anything the agent would see, even when storytree cannot be reached (4208.931643ms)
+✔ 3.5 recorded inputs for starting a subagent, for a storytree tool call inside it and for one by the orchestrator make three lines: the subagent's id, type and task, and who asked for each call, by the call's id, for Claude Code and Codex alike (575.714356ms)
+✔ 3.6 recorded inputs from before a shell command, after one that failed, and at the end of a turn make three lines: the command started, and finished, under the call's id, and the turn ended; for Codex, which waits for its hooks, the hook hands its line to one in the background (594.329906ms)
+✔ 3.7 at each prompt, the project's definitions for the terms it names are added for the agent: whole words in any case or plural, at most five, longest first, each once a session; a harness's own notice gets none, and with storytree stopped nothing is printed (610.77969ms)
+✔ 3.8 the status line shows what this session holds, how many other agents are working, and a warning when another is editing a file it edited; with storytree stopped it says so, and outside a project it shows nothing (537.724437ms)
+✔ 3.12 recorded Claude Code and Codex hook inputs record on their session the transcript the harness named, the latest one recorded being the session's: a `claude -p` run's transcript under an unrelated project directory, and a session moved into worktree B whose transcript is under folder A's, are read from exactly that path, with no folder searched (499.522798ms)
+✔ 7.1 the card names every tool the server has, and no tool the server lacks (81.965917ms)
+✔ 7.2 the card is no longer than 60 lines (0.265029ms)
+✔ 7.3 the tool server hands the card to the agent at the start of every session (22.526468ms)
+✔ 1.1 setting a folder up as project "site" leaves a marker naming it, and asking from the folder, a sub-folder and a git worktree of it all give "site" (645.760346ms)
+✔ 1.2 a folder with no marker, in it or above it, gives "not a storytree project" (50.786673ms)
+✔ 1.3 a project name the library would refuse is refused when setting a folder up, and nothing is written (11.482624ms)
+✔ 1.4 with the app's database stopped, asking where to send activity answers "storytree isn't running" in well under a second (4.724152ms)
+✔ 1.5 a leftover address from a crashed app counts as not running: it answers in well under a second and never hangs (42.668231ms)
+✔ 1.6 with the library set to Cloud SQL, a project routes to that instance whether or not the app's database runs, and no local address is tried (3.489884ms)
+✔ 4.1 a start line makes a live session labelled "Claude Code", with its folder, when it started and when it was last seen (58.877714ms)
+✔ 4.2 with no line for longer than the quiet time the session reads as idle, and after its end line it reads as ended (37.33826ms)
+✔ 4.3 a resumed window continues the same session instead of starting a second one (31.191719ms)
+✔ 4.4 a Codex session whose hooks never ran, but which calls a storytree tool, still appears and is flagged "hooks not running" (29.503069ms)
+✔ 4.5 a command that started 40 minutes ago and has not finished keeps its session live; once it finishes, or its turn ends, the quiet time counts again, and one older than the longest a command may run no longer counts (27.206775ms)
+✔ 10.1 without a settings file, context guidance reads as 700,000 tokens with its type and meaning (1.908401ms)
+✔ 10.4 invalid settings are reported on read and set, and their bytes are preserved (7.068849ms)
+✔ 10.4 an unreadable settings path is reported and a set does not replace it (5.282713ms)
+✔ 10.3 unknown names and values that are not positive whole numbers are refused without changing the file (4.473701ms)
+✔ 10.5 the library is local by default, set to a Cloud SQL instance, and set back to local (2.24224ms)
+✔ 10.6 a library setting that is not local or a well-written Cloud SQL instance and account is refused, the file untouched (1.807827ms)
+✔ 8.1 in a throwaway home with only the tool server installed, the first session start registers the hooks for Claude Code and for Codex without touching any other setting (368.828484ms)
+✔ 8.2 a second start changes nothing, and removing storytree takes out exactly what it added (7.417708ms)
+✔ 8.3 with storytree closed, a session start opens it (356.423116ms)
+✔ opening storytree waits until it accepts connections, not only until it has said where it will listen (regression: the agent link's live check, 2026-09-26) (1868.551303ms)
+✔ 8.4 setup records the chosen project only after a successful yes, never on an existing-project check (1332.509883ms)
+✔ 8.10 a terminal runs the shared setup check with diagnostic lines and fixes, creating a project only on request (142.219109ms)
+✔ 8.5 the agent fires a test of each hook, and the connection shows as verified only when storytree has received every one; until then it names the missing hook and the fix (533.156308ms)
+✔ 8.7 a status line of the user's own is kept: storytree's is installed only where there is none, and removing storytree leaves theirs (2.119606ms)
+✔ 8.8 with gh missing, or signed out, the check says so and names the fix; signed in, it says nothing about it (22.227911ms)
+✔ 8.9 in a throwaway home, the first start puts a storytree command on the path, a second changes nothing, and removing storytree takes it out (135.75673ms)
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.177761ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+✔ 8.11 the check says whether Claude Code or Codex is installed and signed in, and whether git and a Node of at least 24 are present, naming each fix; a tool that does not answer is never waited on (4010.528051ms)
+✔ 8.11 a tool that exits while something it started still holds its output is not waited on (regression: gh auth status's tzutil, 2026-09-28) (506.994546ms)
+✔ 6.20 cancelling an MCP edit queued for the write lock leaves the record and history unchanged (376.042446ms)
+✔ 6.21 cancelling claim at library (proposal) leaves no claim, activation or workspace change (263.08484ms)
+✔ 6.21 cancelling make_workspace at library (ready) leaves no claim, activation or workspace change (313.377663ms)
+✔ 6.21 cancelling attach_workspace at library (proposal) leaves no claim, activation or workspace change (400.81559ms)
+✔ 6.21 cancelling claim at admitted (proposal) completes the admitted claim (260.854143ms)
+✔ 6.21 cancelling make_workspace at admitted (proposal) completes the admitted claim (364.981841ms)
+✔ 6.21 cancelling attach_workspace at admitted (proposal) completes the admitted claim (501.362984ms)
+✔ 6.1 a test client lists the tools, then plans an arc, a story, a capability and a contract, which appear in the library's tree, the story and the capability each with its founding decision first on its shelf, and it can correct each of them (144.284146ms)
+✔ 6.2 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim (259.835711ms)
+✔ 6.3 every call is recorded against the session that made it, using the session id the harness passes, and the machine it ran on (123.272735ms)
+✔ 6.4 a bad call gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn't running, carry on without it" (124.218208ms)
+✔ 6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers (3370.764726ms)
+ℹ show_plan answered after 3002 ms: storytree refused that: storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.
+✔ 6.5 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place (210.869517ms)
+✔ the sentence travels with the data: a harness that shows the agent a tool's data instead of its text, as Claude Code 2.1.212 did, still shows the sentence (regression: the agent link's live check, 2026-09-26) (119.145523ms)
+✔ 6.6 searching and opening a note leaves a log line saying which session read it, how it was found (search, link, id or shelf) and whether it took a peek or the whole note (142.365717ms)
+✔ 6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing (231.493029ms)
+✔ 6.8 after Claude Code's /clear, which gives the window a new session id the tool server never sees, each call is recorded on the new session its hook named; a call no hook saw keeps the id the server was started with (511.852421ms)
+✔ 6.22 a test client calls read_context as session S and gets S's reading, worked out at the time of the call, including after S's transcript has grown with no turn ended; after a /clear whose hook named session T, the same call returns T's (166.081284ms)
+✔ 6.9 it parks an increment, readies it, starts it by claiming it, and closes it landed with its pull request, which ends the claim and closes the arc; it records a landing never parked, parks new work on the closed arc, which re-opens it, and parks and unparks the arc (170.503605ms)
+✔ 6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer (175.085282ms)
+✔ 6.12 friction capture uses the calling folder's branch for the shared daily cap (118.645056ms)
+✔ 6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written (141.051837ms)
+✔ 6.13 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal (135.953499ms)
+✔ 6.14 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired (137.381128ms)
+✔ 6.11 it raises a question on an arc and holds an increment on it, which a claim then finds waiting on the owner; it settles the question with his answer, which releases the increment, and retiring a question an increment is held on is refused (165.387287ms)
+✔ 6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences (124.069549ms)
+✔ 6.17 another story registers its tools on this server, sharing routing, the session log and its instructions (131.88637ms)
+✔ 6.18 another story supplies land's next line only when needed; a refused landing asks for none (144.655495ms)
+✔ 6.16 every library write from a tool names the calling session, including compound writes, claims, and a session changed by the harness (330.776297ms)
+✔ 6.19 it makes a workspace for an increment: a worktree on a fresh branch from origin's main, where Claude Code keeps its own, with the claim held by the calling session and the way into it named; for work another session holds it gets a readable refusal naming the holder (230.768086ms)
+✔ ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing (125.29774ms)
+✔ 6.19 Codex gets app creation arguments then attaches the returned worktree through the tools, with readable refusals (270.274328ms)
+✔ 6.22 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words (117.705396ms)
+✔ 6.4 the shared server lists and calls every librarian verb, attributes writes and preserves refusals (601.15887ms)
+✔ 6.3 land and worklist use the calling session's start, including resumed and unknown sessions (314.924642ms)
+✔ 6.4 the installed server enables the librarian for storytree's own library first (26.533643ms)
+✔ own 3.4/3.6/4.1/5.1: source MCP reads and clears the offline ledger and stops only its caller scope (140.832158ms)
+✔ own 3.4/3.6/4.1/5.1: installed MCP reads and clears the offline ledger and stops only its caller scope (446.598478ms)
+✔ own 3.6: offline Claude MCP refuses self authority from a stale server environment (11.15746ms)
+✔ own online 3.6/4.1: Claude hook identity selects only its named subagent, after a session reset (271.967156ms)
+ℹ tests 115
+ℹ suites 0
+ℹ pass 113
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 11704.253476
+
+=== packages/app ===
+✔ 1.7 closing the window leaves the app and its database running, and the tray's Quit is the one way to stop them (2.767227ms)
+✔ 1.7 a start that arrives while the app is quitting is not lost: once the database has stopped, the app opens again with its window (0.405167ms)
+✔ 1.7 restarting into an update stops the database once, and the new build shows its window only if it was showing or the app was started again meanwhile (0.791698ms)
+✔ 1.7 asking the app to quit from outside stops it as the tray's Quit does: the database once, then exit, and it does not open again (0.334853ms)
+✔ 1.8 the app writes a snapshot of each project to backups/<project>/, keeping that project's newest 14, and each restores (1241.872597ms)
+✔ 1.6 the app that follows merged main records how to open it, and a development copy never replaces that record (2.066754ms)
+✔ 1.6 the app says which build it is: main's commit when it follows merged main, else the development checkout it runs from (0.301007ms)
+✔ 1.9 with the library set to Cloud SQL, the app starts no local Postgres and connects to the instance (2.892037ms)
+✔ 1.10 an unreachable Cloud SQL library is said in the refusal's own words, and the local library is never opened instead (1.014276ms)
+✔ 1.7 asking the running app to quit sends it --quit and answers once its database has stopped (23.01161ms)
+✔ 1.7 asking a stopped app to quit starts nothing and says it is not running (0.575042ms)
+✔ 1.7 an app that does not stop in time is reported as still running, not as quit (1.104138ms)
+✔ 2.2 the list is reread every three seconds, unchanged reads leave the surface alone, and stopping ends polling (2.716389ms)
+✔ 2.2, 2.3 a transient read or picker failure can redraw the unchanged project after recovery (1.22541ms)
+✔ 2.2, 2.4 a newly set-up first project appears on the next read, and another new project counts as a choice (2.538017ms)
+✔ 2.3, 2.4 the last setup yes wins across a batch or closed window; a later picker or launch choice wins in turn (1.826313ms)
+✔ 2.4 a setup completed during a list query is not overwritten by that stale read (0.857444ms)
+✔ 2.3 reopening follows the last picker choice, --project wins, and a missing remembered project falls back to the first (1.535103ms)
+✔ 3.1 the page can ask the app for the library's changes and the agent log's new lines since a point, for the project on show, and only newer ones come back (1007.684341ms)
+✔ 3.2 a name that is not a project is refused, and never created (12.225936ms)
+✔ 3.4 the page can ask the app for a story's or capability's shelf of front covers, and for the notes that link to a note, for the project on show (109.561595ms)
+✔ 3.3 the smoke check, pointed at the surface on show, passes only if that surface says it drew every story and capability of the project (2.397879ms)
+✔ 4.3 the running slot checks its own build in the background, logs output, and retries failures only at the next update (2310.937664ms)
+✔ 4.3 a check that cannot start is logged without failing app startup (2.604024ms)
+✔ 4.1 when merged main moves, the app is built at main's new commit beside the one running, and work not merged to main is never run (300.736488ms)
+✔ 4.2 a build that fails leaves the running app as it is (133.22081ms)
+✔ 4.6 only successful CI for main or the unchanged head of a merged main PR can publish a release (1.211904ms)
+✔ 4.6 each later main commit gets a higher release version, while a rerun keeps the same version (0.434924ms)
+✔ 4.4 an installed app downloads a newer release, waits for a seed, stops its database and restarts through NSIS (47.28012ms)
+✔ 4.5 a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it (17.921138ms)
+✔ 4.5 repeated checks share one download and quitting prevents a pending install (7.712901ms)
+✔ 4.1 the restart into a new build waits while a seed is writing the app's library (54.120177ms)
+✔ the gear names and controls an initially closed, light-dismiss menu with help and reserved actions (1.429852ms)
+✔ the project switcher lists every project, selects the current one and escapes names (0.400358ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2446.746146
+
+=== packages/app-setup ===
+✔ 2.1/2.3: choosing claude-code preserves settings and repeats once (3.781231ms)
+✔ 2.1/2.3: choosing codex preserves settings and repeats once (2.091119ms)
+✔ 2.1/2.3: choosing claude-code and codex preserves settings and repeats once (1.99682ms)
+✔ 2.3/2.4: a conflicting 0.2 entry, missing harness and invalid settings get separate recovery actions (2.349635ms)
+✔ 2.2/2.6: the registered launch keeps the session folder and reaches its existing setup check; registration cannot verify hooks (52.629944ms)
+✔ 2.5: disconnect one keeps the other and command; disconnect all removes only this installation's hooks and launcher (4.979098ms)
+✔ 2.3: incompatible Codex command and disabled tools are explained without overwriting (1.789772ms)
+✔ 2.4: invalid JSON shapes are preserved and an interrupted settings edit can safely retry (2.057085ms)
+✔ 2.5: a Claude-only machine finishes cleanup without requiring Codex (1.818707ms)
+✔ 2.5: damaged hook settings keep the connection for a safe retry; a replaced registration is left alone (2.030574ms)
+✔ 2.4: invalid hook settings block only that harness; missing installed tools direct a reinstall (1.246881ms)
+﹣ 1.1 / 1.3 / 1.4 / 1.6 under pwsh: PowerShell delivery selects Windows architecture, reuses, retries, preserves failures and persists PATH (2.997117ms) # pwsh unavailable here; Windows CI runs this proof
+✔ 1.1 / 1.5: a delivered payload includes every imported chunk and rejects a damaged or wrong-architecture runtime (3.17602ms)
+✔ 1.2 / 1.3: first delivery and a repeat always launch the app visibly, wait for its database, and preserve projects and settings (3.630121ms)
+✔ 1.4: failure to launch or reach the app never publishes a successful installation over the last usable record (1.900334ms)
+✔ 1.6: command conflicts of every Windows executable kind are named and left untouched (2.941791ms)
+✔ 1.1: a payload cannot bless a missing entry point or a path outside its installation (1.554521ms)
+✔ 1.6: a fresh shell runs the installed command with spaces and preserves its exit code (26.600199ms)
+✔ 1.6 / 2.5: disconnect recognises the delivered launcher and removes it once no agent is connected (2.619533ms)
+✔ 1.1 / 1.4: runtime acquisition verifies bytes before replacing a payload (22.377803ms)
+✔ 5.1/5.2 opens only the reviewed title and body as a GitHub issue draft (2.082163ms)
+✔ 5.3 a failed handoff keeps the prepared text available and accepts an edited retry (0.388605ms)
+✔ 5.2 invalid or empty drafts never reach the external opener (0.495239ms)
+✔ 4.1/4.2 reads the shipped resource without a checkout and reads a replacement after update (12.945355ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 445.865791
+
+=== packages/arc-surface ===
+✔ 2.1–2.4 the board names each window, reason, quiet age and missing hooks, only on the work its arc names (3.239492ms)
+✔ 2.2 every claim-ending event removes the holder, and a running command follows the agent link's live reading (2.691531ms)
+✔ 3.2 lanes show finished bars first, then oldest open work, with named counts and state colours (3.501956ms)
+✔ 3.3 lanes sort waiting, blocked, claimed, idle, quiet then recent activity; scopes partition arcs and idle age is on the chip (1.624865ms)
+✔ 3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed read, sees a claim on its next poll, ages without new lines and reports what it drew (155.622966ms)
+✔ 5.1 and 5.3 briefing starts with intent, separates open and settled questions with their answers, and initially picks the first waiting arc (1.982401ms)
+✔ 5.2 a question is read statement first with trade-offs, a non-binding recommendation and measured folds; unstructured options survive (0.549864ms)
+✔ it reads everything at once, then asks about every two seconds from where it got to, and hands on only what is new (3.296482ms)
+✔ it re-reads the clock once a minute even when nothing is new (6.501688ms)
+✔ a read that fails is reported, and the next ask tries again from the same place (0.826043ms)
+✔ 3/4 drawer rows hide queued chips until their blocker's caret opens, with downstream +N (2.448486ms)
+✔ 3/5 question list gives reading cost; opening swaps in the reading and back restores the list (0.617083ms)
+✔ 3.1 the arc bar labels the project safely and exposes open/close to keyboard users (0.242736ms)
+✔ 4.1 and 4.3 queued arcs live under their blockers, released waits return to the top, and owner questions are never buried (2.035743ms)
+✔ 4.2 arrows mean a real chain; branching queues are sets, retaining hidden depth and other waits (0.745881ms)
+✔ 4.4 each wait names its blocker, arc and reason, each blocker names held-up work, and permanent waits explain themselves (0.552359ms)
+✔ 1.4 only a recorded landing or pull request makes a closed increment green; every other close keeps its reason (1.982452ms)
+✔ 1.5 waiting on you precedes queued, held, open; proposals do not await approval and released active work stays in progress (0.525568ms)
+✔ 1.6 the arc reads closed/parked, waiting, blocked, claimed, idle, quiet in that order (0.292681ms)
+✔ 1.1 a part no line names is planned; a claim makes it in progress, a landed report landed, and a new claim after landing in progress again (1.300354ms)
+✔ 1.2 a part released, or whose window closes, without landing stays in progress (0.258796ms)
+✔ 1.3 a story is planned while every part is planned or it has none, landed once every part has landed, and in progress otherwise (0.265559ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 587.794497
+
+=== packages/cli ===
+✔ 4.5 `arc list` names each live arc with the library's state (1301.980615ms)
+✔ 4.1 an arc with no intent is refused (480.616006ms)
+✔ 4.2 a close with no pull request needs a note (1137.756839ms)
+✔ 4.3 a wait that would close a loop is refused, naming the loop, and nothing is written (903.936707ms)
+✔ 4.4 `arc show` names what each waiting increment waits for (657.789793ms)
+✔ 4.6 closing an increment ends its claim for any holder and outcome; a refused close leaves it held (1588.307061ms)
+✔ 7.1 a claim made through the agent tool appears with its harness and reason (1227.223591ms)
+✔ 7.2 an idle claim reads idle (585.521765ms)
+✔ 7.3 `noticeboard <id>` names the holder, or "nobody" (1026.311781ms)
+✔ 9.4 friction capture caps each branch and day at three, including routed reports; reinforcement stays available (2943.401938ms)
+✔ 9.1 friction with vague evidence is refused; concrete evidence is captured with its writer (739.114998ms)
+✔ 9.2 a re-steer whose evidence is a paraphrase is refused; the quote and self-report stay apart (818.121111ms)
+✔ 9.3 `reinforce` appends a dated recurrence to the existing friction, keeping its route (731.318399ms)
+✔ 6.3 a superseded decision drops out of `--current`; filters use the library's status (2402.326854ms)
+✔ 6.5 `adr pull` names a decision by id, number, or ADR number (916.317164ms)
+✔ 6.1 two `adr new` run at once get different, increasing numbers (746.366392ms)
+✔ 6.2 pull then push with no edit changes nothing (815.412027ms)
+✔ 6.4 a composed statement reads stale after its decision's text changes (1004.44164ms)
+✔ 6.6 `adr new --number` keeps the supplied number and refuses reuse or invalid numbers (1088.387473ms)
+✔ 8.1 with storytree closed, it opens it (1763.876538ms)
+✔ 8.2 with `gh` signed out, it names `gh auth login` (481.501662ms)
+✔ 8.3 in a folder that is not a project, it creates nothing unless told to (1046.466988ms)
+✔ 8.4 a second run changes nothing (1043.406204ms)
+✔ 1.1 in a project folder, `library search` finds a note written through the library (1668.280959ms)
+✔ 1.2 in a folder that is not a project, it exits non-zero with "not a storytree project" (197.614956ms)
+✔ 1.3 with storytree stopped, it says "storytree isn't running" within a second (214.477526ms)
+✔ 1.4 a record the library refuses reaches you as the library's own message, and nothing is written (1188.074997ms)
+✔ 1.5 `storytree` alone lists the families (168.900305ms)
+✔ 8.5 setup installs the full command beside its hooks; the launcher reads the library and runs doctor (2385.875898ms)
+✔ 3.1 `read` returns the whole body (1648.217403ms)
+✔ 3.2 `edit` changes only the named fields (1625.817261ms)
+✔ 3.3 `new` without a required field is refused, naming it (678.351827ms)
+✔ 3.4 `history` lists every write with its writer, including retirement (734.771293ms)
+✔ 3.5 `list` shows only live records of the kind and filters by a field (865.304731ms)
+✔ 3.6 saving a memory is refused with its reason and writes nothing (284.174742ms)
+✔ 3.7 `related <artifact> --unlinked` lists the artifacts most like it that no link reaches (620.554699ms)
+✔ 3.8 `library retire` retires records with a reason and their writer (533.411453ms)
+✔ 3.9 `search` gives the artifacts ranked by the library (capability 14), at most --limit; with no model, the word matches and why (246.2755ms)
+✔ own 3.4/3.6/4.1/5.1: standalone CLI inventories, stops and clears offline (4030.912859ms)
+✔ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (2892.685423ms)
+✔ 5.5 `question list` lists open questions across arcs, or on one arc (1644.305413ms)
+✔ 5.1 a question with no stakes is refused (587.751551ms)
+✔ 5.2 settling needs an answer (1026.562401ms)
+✔ 5.3 a held increment reads as waiting on you until its question is settled (1563.130793ms)
+✔ 5.4 question retire only retires questions; either door refuses a question an increment is held on (1013.504027ms)
+✔ 5.6 `question check` says whether a question's review is fresh or lapsed; `question renew` re-stamps it, and renewing a settled question is refused (954.1129ms)
+✔ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (3797.594978ms)
+✔ 2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged and disconnects one without the other (2583.312281ms)
+✔ 2.2 / 2.3: partial connection is nonzero, preserves a conflict and still connects the other agent (600.400843ms)
+✔ 2.1 / 2.2: explicit selection, a readable delivery record and installed tools are required (1613.95138ms)
+✔ a wrong built-command exit code reports both child streams and the command context (4.342197ms)
+✔ 10.1 a story with a capability and a contract prints in order with "agent says passing" (1072.694134ms)
+✔ 10.2 an unknown story says so (725.870103ms)
+✔ 11.1 from an agent's shell, `workspace <increment> --reason` makes a worktree on a fresh branch from origin's main and claims the increment for that session on that branch, naming the folder to work in (1396.331864ms)
+✔ 11.2 work another live session holds is refused naming its holder, and no worktree is made (711.745183ms)
+✔ 11.3 from a shell no agent session runs, it is refused saying to run it from the agent, and nothing is claimed (370.698435ms)
+✔ 11.4 Codex prepares app creation then attaches its returned folder; an invalid directory and a person-only shell are refused (820.45319ms)
+✔ 11.5 `workspace release` ends the calling session's increment or capability claim without closing or landing the work (375.899294ms)
+✔ 11.6 `workspace release` refuses another session's claim, an unheld target, and a shell without an agent session (521.556045ms)
+✔ 2.1 an edit through the command shows in history as the person (992.269341ms)
+✔ 2.2 the same edit with a harness session id shows as that session (798.70554ms)
+ℹ tests 61
+ℹ suites 0
+ℹ pass 61
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8800.070793
+
+=== packages/forest ===
+✔ 5.1 a claim sends one wisp of its session round that capability's island, a second island gets a second (6.57687ms)
+✔ 5.2 after the quiet time with no new line the wisp fades, and when its last capability on the island lands it goes (2.365846ms)
+✔ 5.3 a hookless holder's wisp stays unfaded even past the quiet time (0.562358ms)
+✔ 5.4 none of this changes how a capability's state is drawn (0.864106ms)
+✔ 5.5 a session keeps one colour, never green or the needs-you amber; folded subagents and rowless sessions draw no wisp (1.975157ms)
+✔ 2.1 planned, being built, landed and passing, and landed and failing give a seedling, a seedling, a full green tree and a dead tree, in build order, each with what it builds on (3.116445ms)
+✔ 2.2 a capability the agent reports red while it is being built stays a seedling (0.246653ms)
+✔ 2.3 a landed capability with nothing reported is a pale tree (0.186568ms)
+✔ 2.4 a story with no capabilities yet shows one seedling (0.193451ms)
+✔ 4.1 a story whose third capability builds on the first two opens in build order, with the agent's health, and a diagram of exactly two arrows (3.193483ms)
+✔ 4.2 a capability that builds on one in another story points at it, named with that story, and marked until it lands (0.544754ms)
+✔ 4.3 a capability with no description says so instead of leaving a blank (0.275909ms)
+✔ 4.4 a contract reported red, then green, says so; one reported only green says that (0.477345ms)
+✔ 4.5 storytree's own column shows beside the agent's only where something wrote it (0.427219ms)
+✔ 4.7 the panel shows one capability below its diagram: the one chosen, else the first in build order not yet landed (3.224633ms)
+✔ the globe opens facing a failing island, even when its other trees are healthy or being built (1.475449ms)
+✔ each failing island behind the globe gets a rim marker whose turn brings it to the front (1.15743ms)
+✔ turning the view removes front-side markers and places hidden ones on the correct rim, including at a pole (0.301839ms)
+✔ without failures the first story is faced, and an empty globe keeps its neutral turn (0.235201ms)
+✔ 1.4 the same places always give the same globe spots, packed from the front pole on a fixed sphere (2.662976ms)
+✔ 1.5 adding or retiring a story moves no other globe island and never reuses a retired spot (1.046857ms)
+✔ each of 0.3's four tree forms is drawn as one of 0.2's statuses: a seedling and a pale tree are tinted pines, a green tree the kit's own pine, a dead tree a bare trunk (2.791282ms)
+✔ every story node's ground is drawn at its place on the spiral, one parcel per capability, each wearing its tree's form (26.322889ms)
+✔ a story with no capabilities yet still gets ground and its one seedling (2.118081ms)
+✔ neighbouring story nodes never overlap, even when every story is large (98.19541ms)
+✔ a capability landing changes only its own story node's ground, so only that island is redrawn (6.441991ms)
+✔ a click on the ground picks the story node whose land is under it, and open sea picks none (1.730889ms)
+✔ a capability's contracts grow ground cover on its parcel, as 0.2's test counts did, and a capability with none grows none (9.76917ms)
+✔ 3.1 every story is drawn as a story node with its capability tree, and the smoke check finds them all (3.83885ms)
+✔ 3.2 a capability landing redraws just its story node (1.505177ms)
+✔ 3.3 clicking a story node selects it, and clicking the open sea selects nothing (0.471504ms)
+✔ 3.4 each story node shows its story's name (0.36492ms)
+✔ 1.6 / 3.8 all 36 measured places leave the approved trunk clearance between their clipped coasts (831.53279ms)
+✔ 3.6 every recorded builds-on link has one continuous trail chain, with shared trunks drawn once (67.821985ms)
+✔ 3.7 cross-story chains land at both actual clipped shores and continue into their capability parcels (30.706173ms)
+✔ 3.6 routing failure is visible while every island and its failing trees still draw (12.649162ms)
+✔ one row per non-ended claiming session, plain idle, reason and held islands follow standing claims (5.370497ms)
+✔ explicit children nest once, propagate needs-you and islands; ending a parent promotes its living child (1.597152ms)
+✔ off-plan work stays out of the list until 5 distinct unclaimed files, then shows its files and command evidence; claimed edits stay out and islands are never guessed (2.306132ms)
+✔ an unclaimed push or pull request surfaces the session whatever its file count; other commands do not (0.550366ms)
+✔ supplied supervision and totals use a view seam without parsing transcripts; missing parents and cycles keep rows reachable (0.706605ms)
+✔ 1.1 three stories give three story nodes, each with its title and its health as the agent reports it (2.423437ms)
+✔ 1.2 adding a story to the library adds a node, and retiring a story removes its node (0.505459ms)
+✔ 1.3 the first story sits at the centre and each later one takes the next place on a spiral; adding or retiring a story moves no other node, and a retired story's place is never given to another (3.062813ms)
+✔ 6.1 two edits by a session holding nothing are listed with its name, the files and the time, the count reads 2, and no story node changes (13.935769ms)
+✔ 6.2 after a claim, the session's next edit counts toward that capability instead (0.470803ms)
+✔ 6.3 an agent that never calls storytree still appears, through its hooks (0.258345ms)
+✔ the forest page including claim markers can be built for the browser (500.267033ms)
+✔ the closest dot within an eight-pixel screen radius wins; depth breaks equal screen distances (0.968728ms)
+✔ land in front wins in Forest; without land in Library every visible dot can be picked (0.232466ms)
+✔ a far-side masked dot, a dot outside the viewport, and a clipped dot cannot win (0.246222ms)
+✔ the transparent near shell permits a dot; land and the far shell retain Forest occlusion (17.093864ms)
+✔ a card replaces a story and a story replaces a card; Close and Escape dismiss the card (2.859673ms)
+✔ the globe opens every story with its grove at its permanent place, readable by the smoke check (2.718412ms)
+✔ a click picks the rotated island mesh, while the see-through shell keeps far-side islands unselectable (5.900453ms)
+✔ a hidden failure has a marker in the camera's frame, and its click turns it to the eye after orbiting (0.626952ms)
+✔ Forest never hides a failing island; only an explicit Library choice suppresses its marker (0.278484ms)
+✔ 7.1–7.5 rows start folded, show safe words and available total beside an empty slot (26.691666ms)
+✔ 5.5 a row wears its session's wisp colour, and a hovered wisp highlights its row (2.004403ms)
+✔ 4.6 the panel is the story's sentences, its diagram, and below it only the capability selected (3.856063ms)
+✔ 4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its health; another story's is not (0.7355ms)
+✔ 4.8 a story with no capabilities shows its sentences and nothing below (0.243617ms)
+ℹ tests 62
+ℹ suites 0
+ℹ pass 62
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1581.79088
+
+=== packages/knowledge-core ===
+✔ 2.1 an accepted decision that supersedes an old one makes it a ghost, even with its cover mark left; a proposal does not (3.201799ms)
+✔ 2.2 a new cover on the same shelf linking to the old one, then the old mark cleared, makes a unique 'earlier cover' ghost (1.782227ms)
+✔ 2.3 a chain of replacements ends beside its current successor; a missing or ambiguous one is 'replacement not placed' (0.388034ms)
+✔ 2.4 depth and incoming links count only notes that are neither ghosts nor proposed, and replacement is not a link (0.638294ms)
+✔ 4.1 the core keeps each shelf's entrance, named, at its island's place, and a pinned note's card says all it knows (6.65013ms)
+✔ 4.1 a card uses an artifact's description or summary fields and preserves whole text when there is no summary (0.471293ms)
+✔ 4.2 links show only for the pinned note, in their stored direction both ways, and never as replay cues (1.138964ms)
+✔ 4.3 an unreached note is grey whatever other sessions did, every note has a visible size, and the size toggle moves nothing (1.32483ms)
+✔ 4.4 replay steps one session's agents in order; each agent hides on its own; the legend invents no names or tasks (1.02217ms)
+✔ 4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection (0.317138ms)
+✔ 3.1 peeks and whole reads of a note by several agents in one session are one visit; a second session makes two (2.703813ms)
+✔ 3.2 interleaved agents replay apart in recorded order, ties broken by line number; a missing agent is 'unknown' (0.876079ms)
+✔ 3.3 a peek draws no step and keeps the last full-read stop; a whole read found by link is still a jump (0.377464ms)
+✔ 3.4 the same lines twice count once; switching projects clears the picture; a read of a note gone is counted missing (0.523705ms)
+✔ 3.5 with no captured reads the picture says 'no recorded reads', never that the knowledge went unused (0.478177ms)
+✔ 1.5 the globe draws each placed artifact once beneath its home island at its longest-chain depth (2.890041ms)
+✔ 1.6 loose artifacts fill a stable ball within 0.55 radii, separated by 0.035 radii from each other and shelves (6.417003ms)
+✔ 1.6 a larger library keeps 2,000 loose dots separately clickable inside the shell (191.956652ms)
+✔ 1.8 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge (0.777601ms)
+✔ 1.1 depth is the longest chain from the shelf, the shelf-to-cover step counting 1, and link counts never change it (2.122519ms)
+✔ 1.2 a note two shelves reach appears once at its greatest depth, naming both; a cover keeps its own shelf as home (1.208156ms)
+✔ 1.3 a loop is drawn as a labelled error at one group depth, and what lies beyond it keeps its longest chain (0.613055ms)
+✔ 1.4 forty covers on their shelves and five notes on none give forty at depth 1 and five outside; an empty shelf says so (1.193679ms)
+✔ 1.8 isStoryText recognizes only definitions whose term or title starts with the stored story-text prefix (1.222244ms)
+✔ 4.1 the shared artifact card shows kind, title and summary without inspection metadata; Close dismisses it (1.516437ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 772.786487
+
+=== scripts/package-boundaries.test.mjs ===
+✔ this repo keeps every story in its own package, behind a thin frame and front door (42.63917ms)
+✔ the planted trees start from one that keeps the rules (2.661874ms)
+✔ a story with no package is refused, and so is a package that is neither a story's nor declared (2.467441ms)
+✔ a story's code in the frame or the front door is refused (2.516114ms)
+✔ story code the frame still holds passes only while it is declared, and its declaration only while it is there (4.447166ms)
+✔ a package reaching into another story's files is refused, by relative path or by a subpath it does not export (2.298938ms)
+✔ packages that depend on each other, even for development only, are refused: pnpm links them into a loop (2.137869ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 138.894232
+
+results:
+  PASS    apps/desktop — 1.1 s
+  PASS    packages/agent-link — 11.7 s
+  PASS    packages/app — 2.5 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.6 s
+  PASS    packages/cli — 8.8 s
+  PASS    packages/forest — 1.6 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    scripts/package-boundaries.test.mjs — 0.2 s
+test Postgres: stopped (0.1 s)
+
+results:
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits

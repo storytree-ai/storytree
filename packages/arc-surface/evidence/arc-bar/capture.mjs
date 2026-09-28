@@ -67,6 +67,7 @@ try {
   });
   await page.mouse.click(720, barBox.height + 24);
   assert.equal(await page.evaluate(() => window.pointerCount), 1, 'forest receives pointer input immediately below the closed bar');
+  if (await page.locator('.panel-close').isVisible()) await page.locator('.panel-close').click();
   await page.screenshot({ path: path.join(output, 'bar-closed.png') });
   await bar.click({ position: { x: 20, y: barBox.height / 2 } });
   await page.waitForSelector('.arc-overlay[data-arc-state=ready]');
@@ -81,6 +82,7 @@ try {
   await gear.click();
   assert.equal(await page.locator('#app-menu').isVisible(), true, 'gear is reachable with the drawer open');
   await gear.click();
+  if (await page.locator('.panel-close').isVisible()) await page.locator('.panel-close').evaluate(button => button.click());
   await page.screenshot({ path: path.join(output, 'bar-open.png') });
   await close.click({ position: { x: barBox.width - 20, y: barBox.height / 2 } });
   assert.equal(await drawer.isVisible(), false, 'clicking the bar again closes it');

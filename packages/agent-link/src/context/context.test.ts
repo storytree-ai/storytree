@@ -1,12 +1,12 @@
 /**
- * Capability 9 · Context readings: one test per contract 9.1-9.3, 9.5 and 9.6 in the agent link
+ * Capability 9 · Context readings: contracts 9.1-9.3 and 9.5-9.7 in the agent link
  * story. The transcripts are written line by line in the shapes Claude Code 2.1.283 and Codex 0.155
  * write them (a Claude Code assistant line's `message.usage` under its `requestId`; a Codex
  * `event_msg` of type `token_count`); the lines naming each session's transcript go to the real
  * agent activity log on the Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -144,7 +144,7 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
 test("9.7 a reading states fresh default or set guidance, including under, at and past it; unusable settings keep the tokens and explain the missing guidance", async () => {
   await withTempDir(async (home) => {
     const transcript = path.join(home, "S.jsonl");
-    const lines = [{ n: 1, at: "2026-09-28T02:00:00.000Z", project: "test", session: "S", source: "hook", harness: "codex", kind: "session-started", transcript }] as const;
+    const lines = [{ seq: 1, at: "2026-09-28T02:00:00.000Z", project: "test", session: "S", source: "hook", harness: "codex", kind: "session-started", transcript }] as const;
     const read = async (tokens: number) => {
       writeFileSync(transcript, jsonl(codexLine(tokens)));
       const reading = await contextReading(lines, "S", { home });
@@ -161,14 +161,20 @@ test("9.7 a reading states fresh default or set guidance, including under, at an
     setSetting("context-guidance", "500000", home);
     assert.deepEqual((await read(450_000)).guidance, { value: 500_000, source: "set", position: "under" });
     const file = path.join(home, "settings.json");
-    for (const contents of ["{", '{"context-guidance":0}']) {
+    for (const [contents, reason] of [["{", /JSON/], ['{"context-guidance":0}', /positive whole number/]] as const) {
       writeFileSync(file, contents);
       const { guidance } = await read(450_000);
       assert.ok("absent" in guidance);
       assert.ok(guidance.absent.includes(file));
       assert.match(guidance.absent, /Invalid settings file/);
-      assert.ok(guidance.absent.length > file.length + "Invalid settings file".length);
+      assert.match(guidance.absent, reason);
     }
+    rmSync(file);
+    mkdirSync(file);
+    const { guidance } = await read(450_000);
+    assert.ok("absent" in guidance);
+    assert.match(guidance.absent, /Cannot read settings file/);
+    assert.ok(guidance.absent.includes(file));
   });
 });
 

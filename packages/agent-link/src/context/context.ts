@@ -9,7 +9,7 @@
  * by folder: that is what blinded 0.2 for batch sessions and for sessions that moved worktrees.
  *
  * A reading is tokens used, with no window size and no fraction (ADR-0728 D1): the guidance a
- * session judges against is a token figure, set on a settings surface still to come. It reads and
+ * session judges against is a token figure from the per-user settings (9.7). It reads and
  * never enforces. Any session's reading can be worked out this way without that session asking,
  * which is how a board can show one per session.
  */
@@ -17,6 +17,7 @@ import { readFile } from "node:fs/promises";
 
 import type { ActivityLog, Line } from "../activity/index.js";
 import { claudeCodeComposition, type Composition } from "./composition.js";
+import { contextGuidance, type ContextGuidance } from "./guidance.js";
 import { isCount, isRecord, jsonLines, SYNTHETIC } from "./transcript.js";
 
 /** Tokens a transcript's latest own request held, or why there is no figure. Never a 0 standing in for an absence. */
@@ -34,6 +35,8 @@ export type ContextReading = {
   readonly tokens: number;
   /** What those tokens are made of (9.8), or why that is not known. */
   readonly composition: Composition | { readonly absent: string };
+  /** The user's current context guidance and where this count sits, or why it could not be read (9.7). */
+  readonly guidance: ContextGuidance;
 } | { readonly absent: string });
 
 /** A Codex rollout's records are not sorted into groups yet: its composition is this absence. */
@@ -82,7 +85,7 @@ export function transcriptOf(lines: readonly Line[], session: string): { transcr
 }
 
 /** `session`'s reading from `lines`, its transcript read now. */
-export async function contextReading(lines: readonly Line[], session: string, { now = new Date() }: { now?: Date } = {}): Promise<ContextReading> {
+export async function contextReading(lines: readonly Line[], session: string, { now = new Date(), home }: { now?: Date; home?: string } = {}): Promise<ContextReading> {
   const at = now.toISOString();
   const named = transcriptOf(lines, session);
   if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
@@ -97,11 +100,11 @@ export async function contextReading(lines: readonly Line[], session: string, { 
   const count = harness === "codex" ? codexTokens(text) : claudeCodeTokens(text);
   if ("absent" in count) return { ...who, ...count, at, source: transcript };
   const composition = harness === "codex" ? undefined : claudeCodeComposition(text);
-  return { ...who, tokens: count.tokens, composition: composition ?? { absent: harness === "codex" ? CODEX_COMPOSITION_ABSENT : "the transcript holds no own request to sort" }, at, source: transcript };
+  return { ...who, tokens: count.tokens, composition: composition ?? { absent: harness === "codex" ? CODEX_COMPOSITION_ABSENT : "the transcript holds no own request to sort" }, guidance: contextGuidance(count.tokens, home), at, source: transcript };
 }
 
 /** `session`'s reading in `project`, worked out now from what the hooks recorded. */
-export async function readContext(log: ActivityLog, project: string, session: string, options: { now?: Date } = {}): Promise<ContextReading> {
+export async function readContext(log: ActivityLog, project: string, session: string, options: { now?: Date; home?: string } = {}): Promise<ContextReading> {
   const { lines } = await log.since(project, 0);
   return contextReading(lines, session, options);
 }

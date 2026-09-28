@@ -28,9 +28,10 @@ import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, shell, Tray } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, shell, Tray } from "electron";
 
 import {
+  agentActiveAt,
   appDirIn,
   BACKUP_EVERY_MS,
   background,
@@ -48,6 +49,7 @@ import {
   smokeProblems,
   TRAY_MENU,
   mainUpdates,
+  whenToInstall,
   type Launch,
   type PageReads,
 } from "@storytree/app";
@@ -76,6 +78,8 @@ let reads: PageReads | undefined;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
 let updates: ReturnType<typeof mainUpdates> | undefined;
+/** An installed app's release updater, which answers the gear's Updates panel in its place. */
+let releases: ReturnType<typeof followReleases>;
 /** What the window was opened with, so it can be opened again after it is closed. */
 let windowQuery: { project?: string; problem?: string } = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
@@ -200,7 +204,7 @@ async function run(): Promise<void> {
     ),
     log: line => console.log(line),
   });
-  ipcMain.handle(CHANNELS.checkForUpdates, (_event, action: unknown) => updates!.request(action));
+  ipcMain.handle(CHANNELS.checkForUpdates, (_event, action: unknown) => (releases ?? updates!).request(action));
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };
   if (args.smoke) await smoke(openWindow(windowQuery), project);
@@ -210,9 +214,21 @@ async function run(): Promise<void> {
     addStartMenuShortcut();
     void keepBackups();
     updates.start();
-    followReleases({
+    const launchedAt = Date.now();
+    releases = followReleases({
       restart: lifecycle.restart,
       canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
+      // Installing stops the app and its database for a minute or two: not under a user or an agent.
+      quiet: async () => {
+        const now = Date.now();
+        const showing = BrowserWindow.getAllWindows().some(window => window.isVisible() && !window.isMinimized());
+        const agent = storytree === undefined ? undefined : await agentActiveAt(storytree);
+        return whenToInstall({
+          now, launchedAt,
+          ...(showing ? { windowActiveAt: now - powerMonitor.getSystemIdleTime() * 1000 } : {}),
+          ...(agent === undefined ? {} : { agentActiveAt: agent }),
+        }) === "now";
+      },
     }, home.dir);
   }
 }

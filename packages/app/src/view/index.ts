@@ -32,7 +32,10 @@ export function mountAppMenu(host: HTMLElement, options: {
     selectSection("help");
     menu.showPopover();
   });
-  const updates = mountUpdates(menu, options.checkForUpdates);
+  const updates = mountUpdates(menu, options.checkForUpdates, (waiting) => {
+    gear.toggleAttribute("data-update-pending", waiting);
+    gear.title = waiting ? "App menu: an update is ready to install" : "App menu";
+  });
   let section = "projects";
   let stopped = false;
   const wasInert = options.background.inert;

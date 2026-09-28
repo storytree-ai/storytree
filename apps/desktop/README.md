@@ -33,7 +33,11 @@ The installed app follows the public GitHub release feed. Only NSIS writes
 `resources/storytree-installed`; unpacked and portable copies keep their existing behaviour.
 Downloads and checks are handled by electron-updater. Its NSIS launch is passed to the same
 `background().restart` used by the development updater, which stops the database before the
-installer runs. The app waits while a seed writes. Failures are logged in
+installer runs. The app waits while a seed writes, and a downloaded release installs only at a
+quiet moment (`whenToInstall`): not in the first ten minutes after a launch, and not until the
+visible window and every agent session that has not ended have been idle for ten minutes. Until
+then the gear shows a dot and its Updates panel offers Restart to update, which installs at once.
+Failures are logged in
 `~/.storytree/0.3/releases.log` and tried again at the next three-minute check.
 
 `.github/workflows/release.yml` listens for completed CI runs because CI's own token merges do

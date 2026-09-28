@@ -19,6 +19,9 @@ export interface InstallMoment {
   readonly asked?: boolean;
 }
 
-export function whenToInstall(_moment: InstallMoment): "now" | "wait" {
+export function whenToInstall(moment: InstallMoment): "now" | "wait" {
+  if (moment.asked === true) return "now";
+  const recent = (at: number | undefined, span: number) => at !== undefined && moment.now - at < span;
+  if (recent(moment.launchedAt, SETTLE_MS) || recent(moment.windowActiveAt, QUIET_MS) || recent(moment.agentActiveAt, QUIET_MS)) return "wait";
   return "now";
 }

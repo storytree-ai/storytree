@@ -5,6 +5,8 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-bar { position: fixed; inset: 0 0 auto; height: var(--app-bar-height); z-index: 7; display: flex; align-items: center; justify-content: end; padding: 0 12px; background: #101418; border-bottom: 1px solid #485159; }
 .app-gear { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #eceae3; cursor: pointer; }
 .app-gear:hover, .app-gear[aria-expanded="true"] { background: #262a2f; }
+.app-gear[data-update-pending] { position: relative; }
+.app-gear[data-update-pending]::after { content: ""; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #e0b252; }
 .app-gear:focus-visible, .app-menu :focus-visible { outline: 2px solid #a9b0ba; outline-offset: 2px; }
 .app-menu {
   position: fixed; inset: var(--app-bar-height) 0 0; width: 100%; height: calc(100dvh - var(--app-bar-height)); max-width: none; max-height: none; margin: 0; padding: 32px; border: 0;

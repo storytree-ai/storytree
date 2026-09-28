@@ -1,14 +1,22 @@
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
-/** Plain, live status inside the gear; closing the menu never cancels an update. */
-export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>) {
+/**
+ * Plain, live status inside the gear; closing the menu never cancels an update. The status is read
+ * every minute as well, so a downloaded release waiting to install is announced (`pending`) and can
+ * be installed now from the same button.
+ */
+export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) => Promise<UpdateState>, pending: (waiting: boolean) => void = () => {}) {
   const button = host.querySelector<HTMLButtonElement>("[data-app-updates]")!;
   const status = host.querySelector<HTMLElement>("#app-update-status")!;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
+  let action: UpdateAction = "check";
   const show = (state: UpdateState) => {
     const busy = ["checking", "building", "ready", "restarting"].includes(state.phase);
     button.disabled = busy;
+    action = state.phase === "pending" ? "install" : "check";
+    button.textContent = state.phase === "pending" ? "Restart to update" : "Check for updates";
+    pending(state.phase === "pending");
     status.hidden = state.phase === "idle";
     status.dataset.phase = state.phase;
     const [title, detail] = updateText(state);
@@ -17,7 +25,7 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
     const text = document.createElement("span");
     text.textContent = detail;
     status.replaceChildren(heading, text);
-    if (busy) timer = setTimeout(() => void read("status"), 200);
+    timer = setTimeout(() => void read("status"), busy ? 200 : 60_000);
   };
   const read = async (action: UpdateAction) => {
     clearTimeout(timer);
@@ -29,10 +37,12 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
     }
   };
   const check = () => {
-    show({ phase: "checking", runningBuild: "" });
-    void read("check");
+    const asked = action;
+    show({ phase: asked === "install" ? "restarting" : "checking", runningBuild: "" });
+    void read(asked);
   };
   button.addEventListener("click", check);
+  void read("status");
   return { stop() { stopped = true; clearTimeout(timer); button.removeEventListener("click", check); } };
 }
 
@@ -42,6 +52,7 @@ export function updateText(state: UpdateState): readonly [string, string] {
     case "checking": return ["Checking for updates…", "Looking for the latest build."];
     case "up-to-date": return ["Up to date", `Running ${state.runningBuild}.`];
     case "building": return ["Building update…", `${state.nextBuild ?? "The new build"} will restart the app when ready.`];
+    case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is downloaded. It installs once no one has used the window, and no agent has worked, for ten minutes. Restart now to install it: the app is back in a minute or two.`];
     case "ready": return ["Update ready", `${state.nextBuild ?? "The new build"} will restart after the library finishes writing.`];
     case "restarting": return ["Restarting…", `Opening ${state.nextBuild ?? "the new build"}.`];
     case "failed": return ["Couldn’t update", `${state.reason ?? "The check failed."} The running app is unchanged. Try again.`];

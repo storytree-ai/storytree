@@ -1,0 +1,16 @@
+--- old/The app/capability 4 · Updates/contract_aec036a8b4aa/title
++++ new/The app/capability 4 · Updates/contract_aec036a8b4aa/title
+@@ -1 +1 @@
+-4.4 · An installed Windows app checks for a newer published release, downloads and verifies it, waits for a library seed to finish, then stops its database and restarts through the installer into the new app using the same lifecycle handoff as the development updater.
++4.4 · An installed Windows app checks for a newer published release, downloads and verifies it, and installs it only at a quiet moment: not in the first ten minutes after a launch, not while the window has been used or an agent session has worked in the last ten minutes, and never while a library seed writes; the user can install it at once from the gear, which shows a pending update. Installing stops its database and restarts through the installer into the new app using the same lifecycle handoff as the development updater.
+--- old/The app/capability 4 · Updates/contract_4b3ac966f799/title
++++ new/The app/capability 4 · Updates/contract_4b3ac966f799/title
+@@ -1 +1 @@
+-4.7 · Check for updates in the gear checks merged main now, using the same updater as the automatic check. Concurrent requests share the work. If no newer build is needed, the menu says the app is up to date and identifies the running build.
++4.7 · Check for updates in the gear checks now, using the same updater as the automatic check: merged main where the app follows main, published releases where it is installed. Concurrent requests share the work. If no newer build is needed, the menu says the app is up to date and identifies the running build.
+--- old/The app/capability 4 · Updates/capability_6a0c1b26f586/description
++++ new/The app/capability 4 · Updates/capability_6a0c1b26f586/description
+@@ -1 +1,3 @@
+ The app keeps itself up to date by itself: on the owner's machine it runs from its own copy of merged main, notices new merges within a few minutes, and rebuilds and restarts itself in the background, so it never runs unmerged work and nobody rebuilds it by hand. Check for updates in the gear asks that same merged-main updater to check now and shows the running build and its progress or failure. A ready build restarts once no seed is writing the library. A checkout explains that it does not update itself. Before first users, an installed app does the same from published releases.
++
++As built (increment_aca4e6853237): an installed app's downloaded release waits for a quiet moment (packages/app whenToInstall: ten minutes after launch, ten minutes without window input or agent activity from a session that has not ended), because a first install was replaced 17 seconds after setup said the app was open (packages/app-setup/evidence/acceptance, F1). The gear answers from the release updater in an installed app, marks itself with a dot while an update is pending, and its Restart to update installs at once. A seed still holds any restart.

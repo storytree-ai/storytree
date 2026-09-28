@@ -13,11 +13,15 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-test("settings 10.2: set persists in the storytree home and show reads it back as set", async (t) => {
+test("settings 10.1–10.4: the offline CLI shows, persists and refuses invalid changes", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-settings-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
+
+  const defaults = await invoke(["settings", "show"]);
+  assert.equal(defaults.code, 0, defaults.stderr);
+  assert.match(defaults.stdout, /context-guidance.*700000.*default/);
 
   const set = await invoke(["settings", "set", "context-guidance", "400000"]);
   assert.equal(set.code, 0, set.stderr);

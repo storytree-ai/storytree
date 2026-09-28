@@ -71,7 +71,7 @@ function readOverrides(home: string): Partial<Record<"context-guidance", number>
   } catch (error) {
     // A dangling symlink exists but cannot be read; it must not become a default or be replaced.
     if ((error as NodeJS.ErrnoException).code === "ENOENT" && lstatSync(file, { throwIfNoEntry: false }) === undefined) return {};
-    throw new Error(`Cannot read settings file ${JSON.stringify(file)}: ${(error as Error).message}`, { cause: error });
+    throw new Error(`Cannot read settings file "${file}": ${(error as Error).message}`, { cause: error });
   }
   try {
     const stored: unknown = JSON.parse(text);
@@ -85,6 +85,6 @@ function readOverrides(home: string): Partial<Record<"context-guidance", number>
     }
     return overrides;
   } catch (error) {
-    throw new Error(`Invalid settings file ${JSON.stringify(file)}: ${(error as Error).message} Repair it before reading or changing settings.`, { cause: error });
+    throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before reading or changing settings.`, { cause: error });
   }
 }

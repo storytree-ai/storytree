@@ -1,0 +1,29 @@
+▶ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in
+  ✖ 2.1 [cloud-sql] save creates a record; saving the same id again replaces it; each save appends one history entry (20339.3149ms)
+✖ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (20350.4607ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 65606.3369
+
+✖ failing tests:
+
+test at src\transactions\behaviour-suite.ts:1:287
+✖ 2.1 [cloud-sql] save creates a record; saving the same id again replaces it; each save appends one history entry (20339.3149ms)
+  Error [ConnectionError]: Storytree could not reach the Cloud SQL instance "storytree-498613:australia-southeast1:storytree-pg" within 20 seconds. Check that the instance is running and has a public IP address, and that this network can reach Google Cloud, then try again.
+      at timedOut (C:\code\storytree03\.claude\worktrees\increment-5e6ac23db68f-98df31\packages\library\src\project\cloud-sql.ts:243:10)
+      at signIn (C:\code\storytree03\.claude\worktrees\increment-5e6ac23db68f-98df31\packages\library\src\project\cloud-sql.ts:173:13)
+      at async cloudSqlServer (C:\code\storytree03\.claude\worktrees\increment-5e6ac23db68f-98df31\packages\library\src\project\cloud-sql.ts:94:19)
+      at async connect (C:\code\storytree03\.claude\worktrees\increment-5e6ac23db68f-98df31\packages\library\src\project\storytree.ts:101:31)
+      at async <anonymous> (C:\code\storytree03\.claude\worktrees\increment-5e6ac23db68f-98df31\packages\library\src\transactions\cloud-sql.test.ts:54:25)
+      at async TestContext.<anonymous> (C:\code\storytree03\.claude\worktrees\increment-5e6ac23db68f-98df31\packages\library\src\transactions\behaviour-suite.ts:31:34)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1869:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    problem: 'timeout'
+  }

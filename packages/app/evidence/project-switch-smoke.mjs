@@ -27,7 +27,7 @@ let pg, library, reads, browser, server;
 try {
   pg = await start({ dataDir: path.join(home, 'pgdata'), owner: 'app projects smoke' });
   library = await connect({ url: pg.url });
-  reads = pageReads({ storytree: library, serverUrl: pg.url });
+  reads = pageReads({ storytree: library });
   const preferences = { file: path.join(home, 'project-choice.json'), listProjects: () => library.listProjects() };
   let selection = projectSelection(preferences);
   await selection.read();

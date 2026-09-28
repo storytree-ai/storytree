@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project routing: one test per contract 1.1-1.5 in the agent link story.
+ * Capability 1 · Project routing: one test per contract 1.1-1.6 in the agent link story.
  *
  * The folders are throwaway directories. Setting one up opens its project in the library on the
  * real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and its
@@ -19,6 +19,7 @@ import { test } from "node:test";
 
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 
+import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, setUpProject } from "./index.js";
@@ -134,7 +135,7 @@ test("1.4 with the app's database stopped, asking where to send activity answers
     // Running: the test server's own owner record says where it listens.
     const running = { dataDir: testServerDataDir() };
     assert.deepEqual(locateStorytree(running), { running: true, url: testServerUrl() });
-    assert.deepEqual(route(path.join(folder, "src"), running), { status: "routed", project: "site", folder, url: testServerUrl() });
+    assert.deepEqual(route(path.join(folder, "src"), running), { status: "routed", project: "site", folder, library: { url: testServerUrl() } });
 
     // Stopped: a stopped server leaves no owner record.
     const stopped = { dataDir: path.join(dir, "home", "pgdata") };
@@ -165,6 +166,34 @@ test("1.5 a leftover address from a crashed app counts as not running: it answer
       // A record that cannot be read counts the same.
       writeFileSync(`${dataDir}.owner.json`, "{ half a rec");
       assert.deepEqual(locateStorytree({ dataDir }), { running: false, message: NOT_RUNNING });
+    });
+  } finally {
+    silent.close();
+  }
+});
+
+test("1.6 with the library set to Cloud SQL, a project routes to that instance whether or not the app's database runs, and no local address is tried", async () => {
+  const cloudSql = { instance: "my-project:australia-southeast1:my-instance", user: "you@example.com" };
+  // A live process's record pointing at a port that accepts and never answers: trying it would hang.
+  const silent = createServer(() => {});
+  await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+  const { port } = silent.address() as AddressInfo;
+  try {
+    await withTempDir((dir) => {
+      const folder = markedFolder(dir, "site");
+      const home = path.join(dir, "home");
+      const dataDir = path.join(home, "pgdata");
+      setLibrary(["cloudsql", cloudSql.instance, cloudSql.user], home);
+
+      const stopped = timed(() => route(folder, { dataDir }));
+      assert.deepEqual(stopped.result, { status: "routed", project: "site", folder, library: { cloudSql } });
+      assert.ok(stopped.ms < QUICK_MS, `answered in ${stopped.ms.toFixed(0)} ms`);
+      writeOwnerRecord(dataDir, { pid: process.pid, port });
+      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { cloudSql } });
+
+      // Set back to local, routing follows the app's owner record again.
+      setLibrary(["local"], home);
+      assert.deepEqual(route(folder, { dataDir }), { status: "routed", project: "site", folder, library: { url: `postgres://postgres@127.0.0.1:${port}/postgres` } });
     });
   } finally {
     silent.close();

@@ -89,3 +89,39 @@ test("10.3 unknown names and values that are not positive whole numbers are refu
     assert.equal(existsSync(absentHome), false);
   });
 });
+
+const INSTANCE = "my-project:australia-southeast1:my-instance";
+
+test("10.5 the library is local by default, set to a Cloud SQL instance, and set back to local", async () => {
+  await withTempDir((home) => {
+    const initial = agentLink.readSettings(home).library;
+    assert.equal(initial.location, "local");
+    assert.equal(initial.default, "local");
+    assert.equal(initial.source, "default");
+    assert.match(initial.meaning, /where/i);
+    agentLink.setSetting("context-guidance", "400000", home);
+    assert.deepEqual(agentLink.setLibrary(["cloudsql", INSTANCE, "you@example.com"], home),
+      { ...initial, location: "cloudsql", instance: INSTANCE, user: "you@example.com", source: "set" });
+    assert.deepEqual(agentLink.readSettings(home).library,
+      { ...initial, location: "cloudsql", instance: INSTANCE, user: "you@example.com", source: "set" });
+    assert.equal(agentLink.readSettings(home)["context-guidance"].value, 400_000, "the other setting is kept");
+    assert.deepEqual(JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8")).library,
+      { location: "cloudsql", instance: INSTANCE, user: "you@example.com" });
+    assert.deepEqual(agentLink.setLibrary(["local"], home), { ...initial, source: "set" });
+  });
+});
+
+test("10.6 a library setting that is not local or a well-written Cloud SQL instance and account is refused, the file untouched", async () => {
+  await withTempDir((home) => {
+    agentLink.setLibrary(["local"], home);
+    const file = path.join(home, "settings.json");
+    const before = readFileSync(file, "utf8");
+    for (const words of [[], ["remote"], ["local", "extra"], ["cloudsql"], ["cloudsql", INSTANCE], ["cloudsql", "my-instance", "you@example.com"],
+      ["cloudsql", INSTANCE, "not an email"], ["cloudsql", INSTANCE, "you@example.com", "extra"]]) {
+      assert.throws(() => agentLink.setLibrary(words, home), /library/i, JSON.stringify(words));
+      assert.equal(readFileSync(file, "utf8"), before, JSON.stringify(words));
+    }
+    writeFileSync(file, JSON.stringify({ library: { location: "cloudsql", instance: "bad" } }));
+    assert.throws(() => agentLink.readSettings(home), /invalid settings file/i);
+  });
+});

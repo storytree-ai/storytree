@@ -52,7 +52,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       }
       said.push(`This folder is storytree project ${quoted(report.project.name)}.`);
       try {
-        const { log } = await connections.reach(report.storytree.url, report.project.name);
+        const { log } = await connections.reach(report.storytree.library, report.project.name);
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller((await log.since(report.project.name, 0)).lines, heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
@@ -95,10 +95,10 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       if (running.state === "not running") return result({ text: NOT_RUNNING_ANSWER });
       try {
         await setUpProject({
-          folder, project: name, storytree: await connections.server(running.url),
+          folder, project: name, storytree: await connections.server(running.library),
           ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
         });
-        const { log } = await connections.reach(running.url, name);
+        const { log } = await connections.reach(running.library, name);
         await log.append(name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "set_up_project" });
         return result({ text: `This folder is now storytree project ${quoted(name)}. Call check_setup to finish the setup.`, data: { project: name } });
       } catch (error) {

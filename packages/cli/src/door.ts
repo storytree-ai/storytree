@@ -14,7 +14,7 @@
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
 import { openActivityLog, readClaims, route, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
-import type { Library, Storytree, WriteOptions } from "@storytree/library";
+import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
 import { Refusal, render, type Answer } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
@@ -163,7 +163,7 @@ class Opened {
 
   async claims(): Promise<Claim[]> {
     const where = this.#routed();
-    const log = await openActivityLog(where.url);
+    const log = await openActivityLog(await this.#server());
     try {
       return await readClaims(log, where.project);
     } finally {
@@ -181,19 +181,25 @@ class Opened {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
-    const log = await (this.#log ??= openActivityLog(where.url));
+    const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree)));
     return { log, library, project: where.project, folder: this.#cwd, ...caller };
   }
 
   async #open(): Promise<Library> {
     const where = this.#routed();
-    const { connect } = await import("@storytree/library");
-    this.#storytree = connect({ url: where.url });
-    return (await this.#storytree).openProject(where.project);
+    return (await this.#server()).openProject(where.project);
   }
 
-  /** The project and storytree's address, or the refusal saying why there are none. */
-  #routed(): { project: string; url: string } {
+  /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
+  #server(): Promise<Storytree> {
+    return (this.#storytree ??= (async () => {
+      const { connect } = await import("@storytree/library");
+      return connect(this.#routed().library);
+    })());
+  }
+
+  /** The project and where its library is, or the refusal saying why there are none. */
+  #routed(): { project: string; library: ConnectOptions } {
     const where = route(this.#cwd);
     if (where.status === "not-a-project") {
       throw new Refusal(`${where.message}: no .storytree.json in ${this.#cwd} or any folder above it`, {

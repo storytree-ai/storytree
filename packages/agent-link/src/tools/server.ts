@@ -135,7 +135,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       if (where.status === "not-a-project") return result({ text: NOT_A_PROJECT_ANSWER });
       const meta = metaOf(context);
       try {
-        const { library, log } = await connections.reach(where.url, where.project);
+        const { library, log } = await connections.reach(where.library, where.project);
         // What the hooks have written, the one run just before this call included (ADR-0629 D2).
         const { lines } = await log.since(where.project, 0);
         const caller = seenCaller(lines, callerOf(context), meta);
@@ -175,7 +175,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       const where = route(options.folder, locate);
       if (where.status === 'routed') {
         try {
-          const { log } = await connections.reach(where.url, where.project);
+          const { log } = await connections.reach(where.library, where.project);
           const { lines } = await log.since(where.project, 0);
           caller = seenCaller(lines, caller, meta);
           agent = requestOf(lines, meta) || caller.harness === 'codex' ? agentOf(lines, meta) : 'unknown';

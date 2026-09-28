@@ -23,7 +23,7 @@
  */
 import type { NewLine } from "../activity/index.js";
 import type { MergeWatch } from "../claims/index.js";
-import { route, type LocateOptions } from "../routing/index.js";
+import { route, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { codexLines } from "./codex.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
@@ -98,9 +98,13 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
       return undefined;
     }
     // Only now, with lines to write and somewhere to write them, is the database reached.
-    const { openActivityLog, thisMachine } = await import("../activity/index.js");
+    const [{ openActivityLog, thisMachine }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
-    const log = await openActivityLog(where.url, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) });
+    const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
+    const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
+      await storytree.close();
+      throw error;
+    });
     try {
       for (const line of made.lines) await log.append(where.project, line);
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
@@ -112,6 +116,7 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
       }
     } finally {
       await log.close();
+      await storytree.close();
     }
   } catch {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said.
@@ -136,7 +141,7 @@ async function definitionsFor({ session, folder, prompt }: Prompted): Promise<st
   const where = route(folder);
   if (where.status !== "routed") return undefined;
   const { connect } = await import("@storytree/library");
-  const storytree = await connect({ url: where.url });
+  const storytree = await connect(where.library);
   try {
     const library = await storytree.openProject(where.project);
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));

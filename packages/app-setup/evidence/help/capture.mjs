@@ -33,7 +33,7 @@ let folder, failBrowser = true, failCopy = false;
 try {
   pg = await start({ dataDir: path.join(home, 'pgdata'), owner: 'setup help acceptance' });
   library = await connect({ url: pg.url });
-  reads = pageReads({ storytree: library, serverUrl: pg.url });
+  reads = pageReads({ storytree: library });
   const selection = projectSelection({ file: path.join(home, 'project-choice.json'), listProjects: () => library.listProjects() });
   const help = setupHelpActions({
     licenseFile, storytreeHome: home, chooseFolder: async () => folder,

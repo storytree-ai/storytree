@@ -21,6 +21,8 @@ import pg from "pg";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
+import type { Storytree } from "@storytree/library";
+
 import { NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine } from "./lines.js";
 
 /** The database the log lives in, on the same server as the projects' libraries. */
@@ -98,7 +100,12 @@ interface ActivityRow {
 }
 
 /**
- * Open the agent activity log on the Postgres server at `url` (a postgres:// URL; its own database
+ * Open the agent activity log where `server` is: the database of its own that a library connection
+ * hands out (contract 2.5, ADR-0735 D3), on whatever server the library resolved to, local or Cloud
+ * SQL; or the Postgres server at a postgres:// URL. From a connection, the log's pool is the
+ * connection's, and closes with it.
+ *
+ * At a URL, the log opens on the server there (its own database
  * is used only to create the log's, the first time). The log's database and table are made if
  * they are missing.
  *
@@ -107,8 +114,16 @@ interface ActivityRow {
  * connection before its refusal arrives. Either way the database is made if it is missing, from
  * the server's own, and the log's is tried once more.
  */
-export async function openActivityLog(url: string, options: OpenOptions = {}): Promise<ActivityLog> {
-  const server = new URL(url);
+export async function openActivityLog(server: string | Storytree, options: OpenOptions = {}): Promise<ActivityLog> {
+  if (typeof server !== "string") {
+    const pool = await server.ownDatabase(ACTIVITY_DATABASE);
+    await applySchema(pool);
+    return new PgActivityLog(pool, options.machine, false);
+  }
+  return openAtUrl(new URL(server), options);
+}
+
+async function openAtUrl(server: URL, options: OpenOptions): Promise<ActivityLog> {
   const timeout = options.connectTimeoutMs ?? 5_000;
   const first = newPool(databaseUrl(server, ACTIVITY_DATABASE), timeout);
   try {
@@ -134,9 +149,13 @@ class PgActivityLog implements ActivityLog {
   readonly #machine: string | undefined;
   #closing: Promise<void> | undefined;
 
-  constructor(pool: Pool, machine: string | undefined) {
+  readonly #ownsPool: boolean;
+
+  /** `ownsPool` false: the pool is a library connection's, which ends it. */
+  constructor(pool: Pool, machine: string | undefined, ownsPool = true) {
     this.#pool = pool;
     this.#machine = machine;
+    this.#ownsPool = ownsPool;
   }
 
   async append(project: string, line: NewLine): Promise<Line> {
@@ -189,7 +208,7 @@ class PgActivityLog implements ActivityLog {
   }
 
   close(): Promise<void> {
-    this.#closing ??= this.#pool.end();
+    this.#closing ??= this.#ownsPool ? this.#pool.end() : Promise.resolve();
     return this.#closing;
   }
 

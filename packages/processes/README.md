@@ -1,6 +1,6 @@
-# What did I leave running?
+# Process ledger
 
-`@storytree/own` owns local process ownership and observation. This foundation implements
+`@storytree/processes` owns local process ownership and observation. This foundation implements
 capabilities 1 and 2 of `story_9abd84ab493f`. It requires neither a running app/database nor a
 claim. Listing, stopping and closing have exported empty homes (`/listing`, `/stopping`,
 `/closing`) for the following lanes.
@@ -12,7 +12,7 @@ Both harness adapters pass the agent link's already resolved `ToolCall.caller` a
 command text, PID adoption or session-age heuristic supplies ownership.
 
 ```ts
-import { launchOwned, ownerFromCall, observeRuns, recordRequestOutcome } from '@storytree/own';
+import { launchOwned, ownerFromCall, observeRuns, recordRequestOutcome } from '@storytree/processes';
 
 const result = await launchOwned({
   owner: ownerFromCall(call), // or { session: boundSession, harness: 'manual' }

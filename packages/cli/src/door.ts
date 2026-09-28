@@ -61,6 +61,8 @@ export interface Verb {
 /** A family of verbs: `storytree <name> <verb>`. */
 export interface Family {
   readonly name: string;
+  /** Former names it still answers to, left out of the families list. */
+  readonly aliases?: readonly string[];
   readonly summary: string;
   readonly verbs: readonly Verb[];
   /** Families within it: `storytree arc increment <verb>`. */
@@ -103,7 +105,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
 async function dispatch(argv: readonly string[], context: Context): Promise<Answer> {
   const [first, ...rest] = argv;
   if (first === undefined || first === "--help" || first === "-h" || first === "help") return families();
-  const family = FAMILIES.find((candidate) => candidate.name === first);
+  const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
   if (family === undefined) {
     throw new Refusal(`storytree has no "${first}"`, { code: 2, next: [{ command: "storytree", why: "the families it has" }] });
   }

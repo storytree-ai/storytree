@@ -16,7 +16,7 @@
     "@storytree/agent-link": "workspace:*",
     "@storytree/app": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/own": "workspace:*"
+    "@storytree/processes": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

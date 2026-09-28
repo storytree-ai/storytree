@@ -62,7 +62,11 @@ export function Wisps({ wisps, island, descriptors, highlighted, onHover }: {
     const turn = still ? 0 : (performance.now() / 1000 / ORBIT_SECONDS) * Math.PI * 2;
     orbiting.forEach((wisp, index) => {
       const angle = turn + (wisp.phase * Math.PI) / 180;
-      groups.current[index]?.position.set(centre.x + Math.cos(angle) * radius, WISP_LIFT, centre.z + Math.sin(angle) * radius);
+      const group = groups.current[index];
+      if (group === null || group === undefined) return;
+      group.position.set(centre.x + Math.cos(angle) * radius, WISP_LIFT, centre.z + Math.sin(angle) * radius);
+      // Local +X follows the tangent; the Blender flame's -X tail trails behind it.
+      group.rotation.y = -angle - Math.PI / 2;
     });
     // The canvases draw on demand, so an orbit asks for its next frame.
     if (!still) state.invalidate();

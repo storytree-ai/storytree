@@ -1,0 +1,12 @@
+--- old/What did I leave running?/capability 4/capability_f3a301d328cd/description
++++ new/What did I leave running?/capability 4/capability_f3a301d328cd/description
+@@ -1 +1,9 @@
+ The session can stop the runs it names without stopping another session's work. It checks the run and its covered children after each attempt, and reports failure whenever their disappearance cannot be confirmed.
++
++As built: `@storytree/own/stopping` exports `stopOwned({ owner, targets, home?, graceMs?, forceMs? })`. Targets are registered run UUIDs. Parent sessions cover explicitly delegated sessions and registered `parentRun` descendants; a named subagent cannot stop its parent or siblings. Malformed/unregistered, foreign-machine and conflicting-owner targets are refused; uncertain or replaced lifetimes never authorize signalling.
++
++Each result states its computer, registered membership, exclusions, gaps, attempts and final process readings. Ownership is reread before each delivery. Polite and forced phases each check the root and every covered child; survivors, unknown readings, ownership changes, late registrations and unreadable inventory make the result unsuccessful. All records remain for capability 5.
++
++Coverage is explicitly `registered-runs-and-linked-descendants`, with `nativeTree: unconfirmed` and the foundation launch-coverage warning. A successful scoped stop is not proof that unregistered OS descendants or the whole computer are clear. Linux uses identity-checked pidfds; macOS uses combined birth/PID-version evidence and audit-token signals; Windows uses a FILETIME-checked handle, targeted WM_CLOSE when available, then bounded force. No process-group or PID-only fallback is used.
++
++Evidence: `packages/own/evidence/stopping/README.md`, `red.txt`, `green.txt`, and the pull request's native Linux/macOS/Windows checks. CLI `own stop` and MCP `stop_own_run` remain an integration follow-up if the sibling listing front doors are not yet on main; preserve scope and incomplete results there.

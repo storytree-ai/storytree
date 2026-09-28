@@ -6,6 +6,7 @@ records every contract's verified health in the library on Cloud SQL.
 - [red.txt](red.txt): the four new tests in `scripts/own-health.test.mjs` failing before the build
   (where to record, the unconfigured skip, the CI writer with its commit).
 - [green.txt](green.txt): the same file, 20 of 20 passing.
+- [ci-first-run.txt](ci-first-run.txt): the workflow's first real run on main, green, the sign-in step skipped, nothing recorded.
 - [ci-unconfigured.txt](ci-unconfigured.txt): `pnpm check:own-health` run as CI with no identity
   configured, which is what the first runs on main will do until the owner applies
   [`infra/ci-health`](../../../infra/ci-health/README.md): it names the unset variables, records

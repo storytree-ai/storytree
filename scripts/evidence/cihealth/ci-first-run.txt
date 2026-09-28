@@ -1,0 +1,25 @@
+Own health, run 36491785742 on main at 4cd6be2 (dispatched by hand, 2026-09-28T22:20Z), identity not configured:
+https://github.com/storytree-ai/storytree/actions/runs/36491785742
+
+
+✓ main Own health · 36491785742
+Triggered via workflow_dispatch about 1 minute ago
+
+JOBS
+✓ record own health in 38s (ID 109161877195)
+
+ANNOTATIONS
+- "The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748"
+record own health: .github#1
+
+
+For more information about the job, try: gh run view --job=109161877195
+View this run on GitHub: https://github.com/storytree-ai/storytree/actions/runs/36491785742
+
+Run pnpm check:own-health	2026-09-28T22:20:56.8433385Z 
+Run pnpm check:own-health	2026-09-28T22:20:56.8434341Z > storytree@ check:own-health /home/runner/work/storytree/storytree
+Run pnpm check:own-health	2026-09-28T22:20:56.8435303Z > node --import tsx scripts/check-own-health.mjs
+Run pnpm check:own-health	2026-09-28T22:20:56.8435776Z 
+Run pnpm check:own-health	2026-09-28T22:20:57.5484065Z CI has no Google identity to record health with: the repository variables HEALTH_WIF_PROVIDER, HEALTH_SERVICE_ACCOUNT, HEALTH_CLOUDSQL_INSTANCE are unset (infra/ci-health/README.md says how to set them). Nothing was recorded.
+  - Sign in to Google as CI's health identity
+  ✓ Run pnpm check:own-health

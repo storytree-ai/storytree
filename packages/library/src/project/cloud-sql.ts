@@ -137,10 +137,13 @@ function checkConfig(config: unknown): CloudSqlConfig {
  * whole bound on reaching the instance.
  */
 async function googleConnector(project: string): Promise<CloudSqlConnector> {
-  const [{ AuthTypes, Connector, IpAddressTypes }, { GoogleAuth }] = await Promise.all([
+  const [{ AuthTypes, Connector, IpAddressTypes }, googleAuth] = await Promise.all([
     import("@google-cloud/cloud-sql-connector"),
     import("google-auth-library"),
   ]);
+  // google-auth-library is CommonJS: Node names its exports, and a bundle (the installed command
+  // and agent link) hands them over as the module's default instead.
+  const { GoogleAuth } = "GoogleAuth" in googleAuth ? googleAuth : (googleAuth as { default: typeof googleAuth }).default;
   const auth = new GoogleAuth({
     projectId: project,
     // What the connector asks for when it signs in itself: the Admin API, and the database sign-in.

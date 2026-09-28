@@ -366,10 +366,10 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
 
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {
-    // connect() hands back exactly openProject, listProjects, snapshot, restore and close (snapshot and
+    // connect() hands back exactly openProject, listProjects, snapshot, restore, ownDatabase (7.7) and close (snapshot and
     // restore are contracts 1.6 to 1.8, ADR-0641 B1), and openProject a Library
     // with exactly the API's name and methods. Neither exposes the internals.
-    assert.deepEqual(surface(storytree), ["close", "listProjects", "openProject", "restore", "snapshot"]);
+    assert.deepEqual(surface(storytree), ["close", "listProjects", "openProject", "ownDatabase", "restore", "snapshot"]);
     const lib = await storytree.openProject(name);
     assert.deepEqual(surface(lib), [...LIBRARY_API].sort());
     for (const internal of ["pool", "transactions", "records", "work", "knowledge", "project", "server"]) {

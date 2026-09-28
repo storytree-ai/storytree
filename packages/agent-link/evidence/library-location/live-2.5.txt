@@ -1,0 +1,17 @@
+
+> storytree@ test C:\code\storytree03\.claude\worktrees\increment-5e6ac23db68f-98df31
+> node --import tsx scripts/test.mjs "packages/agent-link/src/activity/activity-on-library.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:60124 (started in 0.6 s)
+✔ 2.5 lines two machines write for one project, each through its own library connection, are both read back from either, in order (local server) (225.1075ms)
+✔ 2.5 lines two machines write for one project, each through its own library connection, are both read back from either, in order (Cloud SQL, live) (2585.7544ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3409.0713
+test Postgres: stopped (0.2 s)

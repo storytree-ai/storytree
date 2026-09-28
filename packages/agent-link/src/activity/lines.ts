@@ -16,6 +16,11 @@ const common = {
   folder: z.string().min(1).optional(),
   /** The name of the machine the line was written on (ADR-0636 D1), as the log that wrote it was told it. */
   machine: z.string().min(1).optional(),
+  /**
+   * The session's transcript file, as the harness named it to the hook (`transcript_path`): where
+   * its context reading is worked out from (capability 9, ADR-0725). Never found by folder.
+   */
+  transcript: z.string().min(1).optional(),
 };
 
 /**

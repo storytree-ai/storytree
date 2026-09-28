@@ -28,7 +28,8 @@ const STARTS_SUBAGENT = new Set(["Agent", "Task"]);
 export function claudeCodeLines(input: Record<string, unknown>): HookLines | undefined {
   const { session_id: session, cwd: folder, hook_event_name: event } = input;
   if (!isText(session) || !isText(folder) || !isText(event)) return undefined;
-  const common = { session, harness: "claude-code", source: "hook", folder } as const;
+  // The transcript the harness named, on every line: where the session's context is read from (capability 9).
+  const common = { session, harness: "claude-code", source: "hook", folder, ...(isText(input.transcript_path) ? { transcript: input.transcript_path } : {}) } as const;
   const line = (made: NewLine | undefined): HookLines | undefined => (made === undefined ? undefined : { folder, lines: [made] });
 
   switch (event) {

@@ -1,7 +1,7 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
 import { claimsFrom, sessionsFrom, type Line, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import { unclaimedWork, type UnclaimedEntry } from "../unclaimed-work/unclaimed-work.js";
+import { needsAttention, unclaimedWork, type UnclaimedEntry } from "../unclaimed-work/unclaimed-work.js";
 
 /** Integration seam for explicit agent-link readings once available. Never inferred from prose. */
 export interface SessionDetails {
@@ -33,6 +33,8 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   for (const entry of unclaimedWork(lines).entries) evidence.set(entry.session, [...(evidence.get(entry.session) ?? []), entry]);
   const rows = new Map<string, SessionRow>();
   const parents = new Map<string, string>();
+  /** Sessions that earn a row of their own: they hold a claim, or their off-plan work needs attention. */
+  const listed = new Set<string>();
   for (const session of sessions) {
     if (session.state === "ended") continue;
     const own = claims.filter(claim => claim.session === session.session);
@@ -42,6 +44,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     const question = arcs.some(arc => arc.questions.some(q => q.fields.lifecycle === "open") &&
       arc.increments.some(inc => inc.fields.status !== "closed" && (heldIncrements.includes(inc) || inc.fields.touches?.some(id => held.has(id)))));
     const offPlan = evidence.get(session.session) ?? [];
+    if (own.length > 0 || needsAttention(offPlan)) listed.add(session.session);
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
     rows.set(session.session, { id: session.session,
@@ -78,7 +81,9 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     row.stories = [...new Set([...row.stories, ...row.children.flatMap(child => child.stories)])];
   }
   for (const row of roots) includeChildren(row);
-  return roots;
+  // Unclaimed work below the attention line stays recorded but out of the list.
+  const earnsRow = (row: SessionRow): boolean => listed.has(row.id) || row.children.some(earnsRow);
+  return roots.filter(earnsRow);
 }
 
 function contextTotal(detail: SessionDetails | undefined): number | undefined {

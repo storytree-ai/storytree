@@ -6,6 +6,8 @@ The list shows one row per non-ended session, with claim words, an empty context
 
 The separate Unclaimed work box is replaced by each session's `off plan` file count and expandable, timestamped edit/command evidence. File counts are distinct paths; claimed edits never enter this evidence. Idle sessions remain plain; ended sessions and their old evidence are hidden, pending the owner's look.
 
+**Off-plan rows are hidden unless they need attention** (increment `increment_9aa5452fdfe2`, owner-directed 2026-09-28). A session holding no claim is still recorded in full, but it gets a row only when its unclaimed edits reach **5 distinct files**, or when it runs `git push` or `gh pr create` while holding no claim. Below that line (editing a little before claiming, a quick unclaimed fix, reading around) it stays out of the list. A surfaced row looks exactly as before. The capture adds a pusher session (0 files, one `git push`: shown) and a below-the-line session (4 files and a `git stash push`: no row); the pictures were re-taken on Windows with Playwright's headless Chromium.
+
 ## Evidence
 
 - [Default list](sessions-list.png)

@@ -9,7 +9,7 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { openActivityLog, type ActivityLog, type LinesSince } from "@storytree/agent-link";
+import { contextReading, openActivityLog, type ActivityLog, type ContextReading, type LinesSince } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Hold, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -29,6 +29,8 @@ export interface PageReads {
   arcView(project: unknown, id: unknown): Promise<ArcView | null>;
   waitHolds(project: unknown, id: unknown): Promise<Hold[]>;
   heldOnQuestion(project: unknown, id: unknown): Promise<string[]>;
+  /** Each named session's context reading in a project (agent link 9.5), read now from the transcript its hooks named, in the order asked. */
+  contextReadings(project: unknown, sessions: unknown): Promise<ContextReading[]>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;
 }
@@ -89,6 +91,12 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
     arcView: async (name, id) => (await library(await project(name))).arcView(id as string),
     waitHolds: async (name, id) => (await library(await project(name))).waitHolds(id as string),
     heldOnQuestion: async (name, id) => (await library(await project(name))).heldOnQuestion(id as string),
+    contextReadings: async (name, sessions) => {
+      const known = await project(name);
+      if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
+      const { lines } = await (await activityLog()).since(known, 0);
+      return Promise.all(sessions.map((session: string) => contextReading(lines, session)));
+    },
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];
       libraries.clear();

@@ -1,0 +1,28 @@
+{
+  "1440": [
+    {
+      "id": "short",
+      "slotLeft": 335,
+      "slotWidth": 65,
+      "totalRight": 446
+    },
+    {
+      "id": "long",
+      "slotLeft": 335,
+      "slotWidth": 65,
+      "totalRight": 446
+    },
+    {
+      "id": "badges",
+      "slotLeft": 508,
+      "slotWidth": 65,
+      "totalRight": 619
+    },
+    {
+      "id": "needs",
+      "slotLeft": 393,
+      "slotWidth": 65,
+      "totalRight": 504
+    }
+  ]
+}

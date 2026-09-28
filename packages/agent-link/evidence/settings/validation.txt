@@ -1,0 +1,32 @@
+Checked commit: 99d5cf0e1dd40287d898805f1dd325a891d091df
+
+flock /tmp/storytree-heavy.lock pnpm typecheck: PASS
+flock /tmp/storytree-heavy.lock pnpm test: exit 0
+scope: full — everything — packages/agent-link/evidence/settings/README.md changed in @storytree/agent-link, which the test harness and scripts/ run on
+results:
+  PASS    apps/desktop — 1.1 s
+  PASS    packages/agent-link — 11.1 s
+  PASS    packages/app — 2.5 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.7 s
+  PASS    packages/cli — 8.3 s
+  PASS    packages/forest — 1.6 s
+  PASS    packages/forest-world — 9.9 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    packages/librarian — 1.2 s
+  PASS    packages/library — 10.5 s
+  PASS    packages/local-postgres — 3.5 s
+  PASS    packages/own — 0.8 s
+  PASS    scripts — 4.7 s
+
+Settings tests and the test runner used throwaway STORYTREE_HOME directories.
+The PowerShell delivery test is skipped on this Linux host; Windows CI supplies that proof.
+
+pnpm test-ratio:
+                              test   implementation   ratio
+  all                       42,204           33,937    1.24
+
+flock /tmp/storytree-heavy.lock pnpm gate: exit 0
+  PASS    typecheck
+  PASS    test (full repository, all 14 units)
+  NOT RUN check:guidance — no role or note change detected; no library edits

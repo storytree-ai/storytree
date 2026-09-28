@@ -10,7 +10,8 @@ export function renderAppMenu(): string {
     <div data-app-switcher></div>
     <div class="app-menu-actions">
       <div data-app-help></div>
-      <button type="button" disabled title="Not available yet">Check for updates</button>
+      <button type="button" data-app-updates aria-describedby="app-update-status">Check for updates</button>
+      <div id="app-update-status" class="app-update-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
       <div data-app-settings></div>
     </div>
   </section>`;

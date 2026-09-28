@@ -29,7 +29,9 @@ test("4.1 when merged main moves, the app is built at main's new commit beside t
     assert.equal(await updateToMain({ runtimeDir, running, build }), undefined, "a commit on another branch is never picked up");
 
     const second = commit("main", "two");
-    const next = await updateToMain({ runtimeDir, running, build });
+    const building: string[] = [];
+    const next = await updateToMain({ runtimeDir, running, build, onBuilding: sha => building.push(sha) });
+    assert.deepEqual(building, [second], "the new commit is reported while its build starts");
     assert.deepEqual([next?.slot, next?.sha], ["b", second], "when main moves, main's new commit is built in the other slot");
     assert.equal(readFileSync(path.join(running.dir, "file.txt"), "utf8"), "one", "and the running slot is left as it is");
     assert.deepEqual(built, ["a one", "b two"], "every build was of main");

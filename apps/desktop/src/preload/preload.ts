@@ -10,6 +10,7 @@ import { CHANNELS, type StorytreeBridge } from "../bridge.js";
 const bridge: StorytreeBridge & SettingsBridge = {
   readSettings: () => ipcRenderer.invoke(SETTINGS_CHANNELS.readSettings),
   saveSetting: (name, values) => ipcRenderer.invoke(SETTINGS_CHANNELS.saveSetting, name, values),
+  checkForUpdates: (action) => ipcRenderer.invoke(CHANNELS.checkForUpdates, action) as ReturnType<StorytreeBridge["checkForUpdates"]>,
   readSetupLicense: () => ipcRenderer.invoke(CHANNELS.readSetupLicense) as ReturnType<StorytreeBridge["readSetupLicense"]>,
   checkSetupFolder: () => ipcRenderer.invoke(CHANNELS.checkSetupFolder) as ReturnType<StorytreeBridge["checkSetupFolder"]>,
   openFeedbackDraft: (draft) => ipcRenderer.invoke(CHANNELS.openFeedbackDraft, draft) as ReturnType<StorytreeBridge["openFeedbackDraft"]>,

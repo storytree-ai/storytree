@@ -3,11 +3,12 @@
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { LinesSince } from "@storytree/agent-link";
-import type { ProjectSelection } from "@storytree/app";
+import type { ProjectSelection, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { AnnotatedTree, ArcView, Hold, Changes, Note, SchemaRecord } from "@storytree/library";
 
 export interface StorytreeBridge extends SetupHelpBridge {
+  checkForUpdates(action: UpdateAction): Promise<UpdateState>;
   /** The names of the projects in the app's library, sorted. */
   listProjects(): Promise<string[]>;
   /** The current project list and the last chosen project, including newly set-up projects. */
@@ -36,6 +37,7 @@ export interface StorytreeBridge extends SetupHelpBridge {
 
 /** The IPC channels the functions travel on. */
 export const CHANNELS = {
+  checkForUpdates: "storytree:check-for-updates",
   readSetupLicense: "storytree:read-setup-license",
   checkSetupFolder: "storytree:check-setup-folder",
   openFeedbackDraft: "storytree:open-feedback-draft",

@@ -52,6 +52,8 @@ export interface UpdateOptions {
   /** The slot the app is running from. */
   running: RunningBuild;
   build: Build;
+  /** Main has moved; report the build before work begins in the other slot. */
+  onBuilding?: (sha: string) => void;
 }
 
 /**
@@ -59,9 +61,10 @@ export interface UpdateOptions {
  * and build it there. Returns the new build to restart into, or undefined when main has not moved.
  * A failed build rejects, and the running slot is untouched.
  */
-export async function updateToMain({ runtimeDir, running, build }: UpdateOptions): Promise<RunningBuild | undefined> {
+export async function updateToMain({ runtimeDir, running, build, onBuilding }: UpdateOptions): Promise<RunningBuild | undefined> {
   const sha = await fetchMain(repoDir(runtimeDir));
   if (sha === running.sha) return undefined;
+  onBuilding?.(sha);
   return buildInSlot(runtimeDir, running.slot === "a" ? "b" : "a", sha, build);
 }
 

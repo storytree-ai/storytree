@@ -12,7 +12,7 @@ import type { z } from "zod";
 interface ActivityLine {
   readonly kind: string;
   readonly session: string;
-  readonly harness?: string;
+  readonly harness?: string | undefined;
   readonly at: string;
 }
 

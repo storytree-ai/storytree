@@ -80,7 +80,7 @@ test('3.7 cross-story chains land at both actual clipped shores and continue int
 
 // Routing errors must never take a failing island off the page (ADR-0646 D4).
 test('3.6 routing failure is visible while every island and its failing trees still draw', async () => {
-  const { planetPathwayDrawing } = await import('./pathways.js');
+  const { planetPathwayDrawing } = await import('../../../forest-world/src/planet/pathways.js');
   const broken = { ...scene, links: [{ from: 'a1', to: 'missing-capability' }],
     islands: scene.islands.map(island => ({ ...island, trees: island.trees.map(t => ({ ...t, form: 'dead' as const })) })) };
   const drawing = planetPathwayDrawing(broken, spots, PLANET_RADIUS);

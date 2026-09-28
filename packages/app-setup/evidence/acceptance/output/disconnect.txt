@@ -1,0 +1,23 @@
+=== disconnect codex 
+Codex: tools disconnected.
+Restart this agent to finish disconnecting. Project libraries and unrelated settings were kept.
+
+Shared command kept while another connection exists or cleanup cannot be confirmed. Existing setup checks still register hooks for detected harness homes; retry Disconnect for cleanup when no connection remains.
+rc=0 
+=== codex mcp list 
+No MCP servers configured yet. Try `codex mcp add my-tool -- my-command`.
+=== codex hooks.json 
+ 
+=== claude mcp 
+The system cannot find the file specified.
+Checking MCP server health…
+
+claude.ai Google Drive: https://drivemcp.googleapis.com/mcp/v1 - √ Connected
+claude.ai Gmail: https://gmailmcp.googleapis.com/mcp/v1 - √ Connected
+claude.ai Google Calendar: https://calendarmcp.googleapis.com/mcp/v1 - √ Connected
+storytree: C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\node.exe C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp.mjs - √ Connected
+=== storytree cmd 
+C:\Users\mickh\.storytree\0.3\bin\storytree.cmd
+=== claude session 
+Yes, storytree now says `verified: true` (its only other note is that `gh` isn't signed in; `gh auth login` fixes that).
+rc=0

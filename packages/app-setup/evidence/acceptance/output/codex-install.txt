@@ -1,0 +1,29 @@
+C:\Users\mickh\AppData\Local\Microsoft\WindowsApps;C:\Users\mickh\.storytree\0.3\bin;C:\Users\mickh\.local\bin
+Found Codex CLI [OpenAI.Codex] Version 0.158.0
+This application is licensed to you by its owner.
+Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+This package requires the following dependencies:
+  - Packages
+      BurntSushi.ripgrep.MSVC
+      Microsoft.VCRedist.2015+.x64
+(1/1) Found RipGrep MSVC [BurntSushi.ripgrep.MSVC] Version 15.2.0
+This application is licensed to you by its owner.
+Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+Downloading https://github.com/BurntSushi/ripgrep/releases/download/15.2.0/ripgrep-15.2.0-x86_64-pc-windows-msvc.zip
+Successfully verified installer hash
+Extracting archive...
+Successfully extracted archive
+Starting package install...
+Command line alias added: "rg"
+Path environment variable modified; restart your shell to use the new value.
+Successfully installed
+
+Downloading https://github.com/openai/codex/releases/download/rust-v0.158.0/codex-x86_64-pc-windows-msvc.exe.zip
+Successfully verified installer hash
+Extracting archive...
+Successfully extracted archive
+Starting package install...
+Command line alias added: "codex-command-runner"
+Command line alias added: "codex-windows-sandbox-setup"
+Command line alias added: "codex"
+Successfully installed

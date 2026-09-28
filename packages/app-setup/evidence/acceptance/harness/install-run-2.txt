@@ -1,0 +1,15 @@
+Start-Transcript -LiteralPath "$HOME\st-evidence\install-2.transcript.txt"
+New-Item -ItemType Directory -Force "$HOME\Second Folder With Spaces" | Out-Null
+Set-Location -LiteralPath "$HOME\Second Folder With Spaces"
+Get-Location
+$before = @{ ts = (Get-Item "$HOME\.storytree\0.3\delivery.json").LastWriteTime; exe = (Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").LastWriteTime; ver = (Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").VersionInfo.ProductVersion }
+"before: $($before | ConvertTo-Json -Compress)"
+$t = Get-Date
+& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+S
+"install exit: $LASTEXITCODE; seconds: $([int]((Get-Date) - $t).TotalSeconds)"
+"after exe: $((Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").LastWriteTime) ver $((Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").VersionInfo.ProductVersion)"
+"folder contents after: $((Get-ChildItem -Force -LiteralPath "$HOME\Second Folder With Spaces" | Measure-Object).Count) items"
+"first folder contents: $((Get-ChildItem -Force -LiteralPath "$HOME\My First Project" | Measure-Object).Count) items"
+"user PATH: $([Environment]::GetEnvironmentVariable('Path','User'))"
+Stop-Transcript

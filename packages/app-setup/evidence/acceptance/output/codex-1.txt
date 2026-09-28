@@ -1,0 +1,27 @@
+Reading additional input from stdin...
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\codex trial
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0e840-fc1b-7b40-916b-4f2358a9c2a7
+--------
+user
+I'm starting a new project in this folder. To begin, create hello.txt containing the word hi.
+codex
+I’ll create `hello.txt` containing `hi`.
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Set-Content -LiteralPath 'C:\\Users\\mickh\\codex trial\\hello.txt' -Value 'hi' -NoNewline" in C:\Users\mickh\codex trial
+ succeeded in 920ms:
+codex
+Created [hello.txt](</C:/Users/mickh/codex trial/hello.txt>) containing `hi`.
+Created [hello.txt](</C:/Users/mickh/codex trial/hello.txt>) containing `hi`.
+tokens used
+2,575
+rc=0 
+hello.txt

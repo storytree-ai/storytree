@@ -1,0 +1,7 @@
+Start-Transcript -LiteralPath "$HOME\st-evidence\install-1.transcript.txt"
+Set-Location -LiteralPath "$HOME\My First Project"
+Get-Location
+& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+3
+"install exit: $LASTEXITCODE"
+Stop-Transcript

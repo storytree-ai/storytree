@@ -1,0 +1,33 @@
+=== connect 1 
+The system cannot find the path specified.
+The system cannot find the path specified.
+Claude Code: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+
+Codex: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+rc=0 
+=== connect 2 (repeat) 
+Claude Code: tools already connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+
+Codex: tools already connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+rc=0 
+=== claude mcp list 
+Checking MCP server health…
+
+claude.ai Google Drive: https://drivemcp.googleapis.com/mcp/v1 - √ Connected
+claude.ai Gmail: https://gmailmcp.googleapis.com/mcp/v1 - √ Connected
+claude.ai Google Calendar: https://calendarmcp.googleapis.com/mcp/v1 - √ Connected
+storytree: C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\node.exe C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp.mjs - √ Connected
+=== codex mcp list 
+Name       Command                                                                             Args                                                                                         Env  Cwd  Status   Auth       
+storytree  C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\node.exe  C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp.mjs  -    -    enabled  Unsupported
+=== codex config 
+[tui]
+screen_reader_detection_done = true
+
+[mcp_servers.storytree]
+command = "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe"
+args = ["C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-mcp.mjs"]

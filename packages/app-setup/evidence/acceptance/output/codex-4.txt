@@ -1,0 +1,108 @@
+Reading additional input from stdin...
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\codex trial
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0e845-f19e-70b0-8b98-7e4864ec9929
+--------
+user
+Call storytree's check_setup and verify the hooks exactly as it asks (a file edit and a command), then call check_setup again and report exactly which hook events it says are verified and which are not. Do not install any software or sign in to anything.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+hook: SessionStart
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+I’ll find Storytree’s setup check, follow its file-edit and command instructions, then run it again and report the hook verification results.
+
+hook: PreToolUse
+hook: PreToolUse Completed
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Item -Force .storytree-check -ErrorAction SilentlyContinue | Select-Object FullName,Length; Get-ChildItem -Force -Filter AGENTS.md | ForEach-Object { Get-Content -LiteralPath $_.FullName }' in C:\Users\mickh\codex trial
+ succeeded in 1257ms:
+
+FullName                                    Length
+--------                                    ------
+C:\Users\mickh\codex trial\.storytree-check     16
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -LiteralPath .storytree-check' in C:\Users\mickh\codex trial
+ succeeded in 980ms:
+storytree-check
+
+hook: PostToolUse
+hook: PostToolUse Completed
+apply patch
+patch: completed
+C:\Users\mickh\codex trial\.storytree-check
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'echo storytree-check' in C:\Users\mickh\codex trial
+ succeeded in 1069ms:
+storytree-check
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Completed
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+codex
+Edited `.storytree-check`, ran `echo storytree-check`, then called `check_setup` again.
+
+Storytree reports these hook events verified:
+
+- Session start
+- A Storytree tool call
+- A file edit
+- A command
+
+Not verified: **none** (`verified: true`, `missing: []`).
+
+No software was installed, and no sign-in was performed.
+hook: Stop
+hook: Stop Completed
+Edited `.storytree-check`, ran `echo storytree-check`, then called `check_setup` again.
+
+Storytree reports these hook events verified:
+
+- Session start
+- A Storytree tool call
+- A file edit
+- A command
+
+Not verified: **none** (`verified: true`, `missing: []`).
+
+tokens usedNo software was installed, and no sign-in was performed.
+
+15,181
+rc=0 
+storytree is running.
+Hooks for Claude Code: registered.
+Hooks for Codex: registered.
+This folder is storytree project "codex-trial".
+Hooks last seen firing: 2026-09-28T13:49:27.038Z, from Codex.
+The storytree command: on your path.
+GitHub's gh is not signed in, so a claim will not end when its pull request merges. Fix: run `gh auth login`.
+Claude Code is installed and signed in; Codex is installed and signed in.
+git is installed.
+Node v24.19.0 is installed.

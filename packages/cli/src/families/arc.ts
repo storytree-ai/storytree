@@ -40,9 +40,14 @@ function listOf(args: Args, name: string): string[] | undefined {
 const ARC_FIELDS = ["title", "intent", "end-state", "description"] as const;
 const INCREMENT_FIELDS = ["title", "objective", "body"] as const;
 
-/** An increment's close, as given: its outcome. */
+/** An increment's close, as given: its outcome, every field kept as text (`--pr 132` is "132", not a number). */
 function closeOf(args: Args): { disposition: never; pr?: string; note?: string; date?: string } {
-  return given(args, ["disposition", "pr", "note", "date"]) as never;
+  const fields: Record<string, string> = {};
+  for (const name of ["disposition", "pr", "note", "date"]) {
+    const value = args.text(name);
+    if (value !== undefined) fields[name] = value;
+  }
+  return fields as never;
 }
 
 /** Why an open increment cannot start yet: the blockers holding it, and the owner's questions it is held on. */

@@ -137,10 +137,13 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
         assert.equal((await readClaims(log, world.project))[0]?.increment, increment.id);
         assert.deepEqual(await log.since(world.project, 0), before);
 
-        const outcome = disposition === "landed" ? ["--pr", "#132"] : ["--note", "Folded into the sign-up page"];
+        // A bare pull request number, as the guidance's `--pr <n>` gives it, is kept as the text it is.
+        const outcome = disposition === "landed" ? ["--pr", "132"] : ["--note", "Folded into the sign-up page"];
         const ran = await world.run([...close, ...outcome], env);
         assert.equal(ran.code, 0, ran.stderr);
-        assert.equal((await library.arcView(arc))?.increments.find((one) => one.id === increment.id)?.fields.outcome?.disposition, disposition);
+        const closed = (await library.arcView(arc))?.increments.find((one) => one.id === increment.id)?.fields.outcome;
+        assert.equal(closed?.disposition, disposition);
+        if (disposition === "landed") assert.equal(closed?.pr, "132");
         assert.deepEqual(await readClaims(log, world.project), [], "closing it must end the claim");
         const line = (await log.since(world.project, 0)).lines.at(-1);
         assert.equal(line?.kind, "closed");

@@ -290,7 +290,9 @@ function recordLaunch(): void {
     return;
   }
   try {
-    writeFileSync(home.launchRecord, `${JSON.stringify(record, null, 2)}\n`);
+    // With its own process id: on a Cloud SQL library there is no local database's owner record, so
+    // this is how `storytree app quit` finds the running app (app lifecycle 1.11).
+    writeFileSync(home.launchRecord, `${JSON.stringify({ ...record, pid: process.pid }, null, 2)}\n`);
   } catch (error) {
     console.error(`recording how to open the app: ${messageOf(error)}`);
   }

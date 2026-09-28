@@ -28,13 +28,15 @@ export async function contextCommand({ folder, env, json = false, locate }: Cont
   if (!session) return said(json, "This shell names no agent session (neither CLAUDE_CODE_SESSION_ID nor CODEX_THREAD_ID is set), so there is no context reading.");
   const where = route(folder, locate);
   if (where.status !== "routed") return said(json, `No context reading: ${where.message}.`);
-  const { openActivityLog } = await import("../activity/index.js");
-  const log = await openActivityLog(where.url);
+  const [{ openActivityLog }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
+  const storytree = await connect(where.library);
   try {
+    const log = await openActivityLog(storytree);
     const reading = await readContext(log, where.project, session);
+    await log.close();
     return { text: json ? JSON.stringify(reading) : sentence(reading), code: 0 };
   } finally {
-    await log.close();
+    await storytree.close();
   }
 }
 

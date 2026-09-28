@@ -1,8 +1,19 @@
 // `pnpm check:own-health`: run each of 0.3's own stories' tests and record each contract's VERIFIED
-// health in the project `storytree` in the desktop app's library (~/.storytree/0.3/pgdata). The
-// library is the one copy of those stories (ADR-0641), so each story, its contracts and their
-// numbers are read from it; nothing is read from a file into it. This is what stayed of
-// `pnpm seed:library` when its file-to-library half was deleted (ADR-0641 D2 step 4, choice H1).
+// health in the project `storytree`. The library is the one copy of those stories (ADR-0641), so
+// each story, its contracts and their numbers are read from it; nothing is read from a file into
+// it. This is what stayed of `pnpm seed:library` when its file-to-library half was deleted
+// (ADR-0641 D2 step 4, choice H1).
+//
+// Which library, and as whom (scripts/own-health.mjs's recordingTarget):
+// - On CI (.github/workflows/own-health.yml, after each merge to main, ADR-0744 D3), the Cloud SQL
+//   library, signed in as CI's own service account (infra/ci-health), as "storytree test run on
+//   CI", with the commit in each note. With that identity not configured, it says so and records
+//   nothing, successfully.
+// - Run by hand, the library the storytree setting names (`storytree settings show`): the Cloud SQL
+//   instance, signed in as the setting's account; or the desktop app's own (~/.storytree/0.3/pgdata),
+//   joining the running app's database, or starting the app's Postgres itself when the app is not
+//   running, and holding the one-writer lock while it records (scripts/library-server.mjs), so the
+//   app never restarts into an update mid-write.
 //
 // A story's tests are its own package's: the story is proven by the tests in packages/<name>/src,
 // the package named after its title (scripts/own-health.mjs's packageOf), and nobody else's, since
@@ -10,12 +21,8 @@
 // contracts are left not checked.
 //
 // Only the verified column is written. The reported column is what an agent says through the agent
-// link, and this never writes it: showing the two apart is the point of the two columns.
-//
-// It joins the running app's database, or starts the app's Postgres itself when the app is not
-// running, and holds the one-writer lock while it records (scripts/library-server.mjs), so the app
-// never restarts into an update mid-write. The rules for what counts as passing live in
-// scripts/own-health.mjs.
+// link, and this never writes it: showing the two apart is the point of the two columns. The rules
+// for what counts as passing live in scripts/own-health.mjs.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -23,11 +30,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { readLibrary } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
 
 import { appHome } from "../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
-import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, VERIFIED_BY } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, recordingTarget } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const PROJECT = "storytree";
@@ -51,21 +59,33 @@ main().then(
 
 async function main() {
   const home = appHome();
-  console.log(`the app's library: ${home.pgdata}`);
-  server = await appLibraryServer(COMMAND, { writes: true });
+  const target = recordingTarget({ env: process.env, setting: readLibrary(home.dir) });
+  if (!target.record) {
+    console.log(target.why);
+    return 0;
+  }
+  let where;
+  if (target.library === "app") {
+    console.log(`the app's library: ${home.pgdata}`);
+    server = await appLibraryServer(COMMAND, { writes: true });
+    where = { url: server.url };
+  } else {
+    console.log(`the library on Cloud SQL: ${target.library.cloudSql.instance}, as ${target.library.cloudSql.user}`);
+    where = target.library;
+  }
 
   let storytree;
   try {
-    storytree = await connect({ url: server.url });
+    storytree = await connect(where);
     if (!(await storytree.listProjects()).includes(PROJECT)) {
-      console.error(`\nThe app's library has no project "${PROJECT}", so there are no stories to check.`);
+      console.error(`\nThe library has no project "${PROJECT}", so there are no stories to check.`);
       return 1;
     }
     const library = await storytree.openProject(PROJECT);
     try {
       let code = 0;
       for (const story of (await library.projectTree()).stories) {
-        if (!(await checkStory(library, story))) code = 1;
+        if (!(await checkStory(library, story, target.writer))) code = 1;
       }
       return code;
     } finally {
@@ -73,7 +93,7 @@ async function main() {
     }
   } finally {
     await storytree?.close();
-    await server.stop();
+    await server?.stop();
   }
 }
 
@@ -81,7 +101,7 @@ async function main() {
  * Run `story`'s own tests and record each of its contracts' verified health from what they showed.
  * False if the run produced no report, so no health could be recorded.
  */
-async function checkStory(library, story) {
+async function checkStory(library, story, writer) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story.title);
   const source = path.join(root, "packages", name, "src");
@@ -116,7 +136,7 @@ async function checkStory(library, story) {
     for (const result of unmapped) console.log(`  ${result.status.padEnd(7)} ${result.name}`);
   }
 
-  console.log(`\nverified health of "${story.title}", by "${VERIFIED_BY}":`);
+  console.log(`\nverified health of "${story.title}", by "${writer.by}"${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}:`);
   for (const capability of story.capabilities) {
     console.log(`  ${capability.title}`);
     for (const contract of capability.contracts) {
@@ -131,7 +151,7 @@ async function checkStory(library, story) {
       console.log(line);
     }
   }
-  const written = await recordHealth(library, contractIds, verdicts);
+  const written = await recordHealth(library, contractIds, verdicts, writer);
   console.log(
     `\nrecorded: ${written.passing} passing, ${written.failing} failing; ` +
       `${written.notChecked} not checked (nothing written for those). The reported column is untouched.`,
@@ -148,7 +168,7 @@ async function runTests(glob) {
       const child = spawn(
         process.execPath,
         ["--import", "tsx", path.join(root, "scripts", "test.mjs"), "--test-reporter=junit", `--test-reporter-destination=${report}`, glob],
-        { cwd: root, stdio: "inherit" },
+        { cwd: root, stdio: "inherit", env: withoutGoogleSignIn(process.env) },
       );
       child.on("error", reject);
       child.on("exit", (exitCode) => resolve(exitCode ?? 1));
@@ -158,4 +178,13 @@ async function runTests(glob) {
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+}
+
+/**
+ * The environment without CI's Google sign-in (what google-github-actions/auth exports): the
+ * stories' tests run against their own throwaway Postgres, and none of them may reach the real
+ * library as CI's identity.
+ */
+function withoutGoogleSignIn(env) {
+  return Object.fromEntries(Object.entries(env).filter(([name]) => !/^(GOOGLE_|CLOUDSDK_|GCLOUD_|GCP_)/.test(name)));
 }

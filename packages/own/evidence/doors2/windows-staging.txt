@@ -3,3 +3,5 @@ staged arm64: Node 24.21.0 (SHA-256 verified), Node license, complete buildBins 
 x64: public verifyPayload accepted the entire actual payload and every SHA-256; Koffi PE machine = 0x8664.
 arm64: public verifyPayload accepted the entire actual payload and every SHA-256; Koffi PE machine = 0xaa64.
 Linux assembly/manifest proof; app-presence fixture only. Real Windows native execution and installed app verification remain CI/laptop evidence.
+x64: actual electron-builder resource copy preserved the entire manifest and native PE target; public verifyPayload PASS.
+arm64: actual electron-builder resource copy preserved the entire manifest and native PE target; public verifyPayload PASS.

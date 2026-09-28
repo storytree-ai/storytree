@@ -56,6 +56,10 @@
       {
         "from": "dist/agent-tools/${arch}",
         "to": "agent-tools"
+      },
+      {
+        "from": "dist/agent-tools/${arch}/node_modules",
+        "to": "agent-tools/node_modules"
       }
     ],
     "npmRebuild": false,

@@ -1,0 +1,27 @@
+task last result: 0
+storytree quit: its database has stopped.
+quit exit: 0
+uninstall storytree
+app folder after: False
+removed C:\Users\mickh\.storytree\0.3
+removed C:\Users\mickh\AppData\Local\@storytreedesktop-updater
+removed empty ~\.storytree
+user PATH: storytree bin removed
+claude mcp remove
+Removed MCP server storytree from user config
+File modified: C:\Users\mickh\.claude.json
+claude settings.json now: {
+  "autoUpdatesChannel": "latest",
+  "theme": "dark"
+}
+winget uninstall Git.Git
+No installed package found matching input criteria.
+winget uninstall OpenJS.NodeJS.LTS
+No installed package found matching input criteria.
+winget uninstall GitHub.cli
+No installed package found matching input criteria.
+removed C:\Users\mickh\Retest 1 Claude A
+removed C:\Users\mickh\Retest 1 Claude B
+removed C:\Users\mickh\Retest 1 Claude C
+removed C:\Users\mickh\Retest 1 First Folder
+removed C:\Users\mickh\Retest 1 Second Folder

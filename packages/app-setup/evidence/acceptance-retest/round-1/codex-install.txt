@@ -1,0 +1,3 @@
+Command line alias added: "codex-windows-sandbox-setup"
+Command line alias added: "codex"
+Successfully installed

@@ -1,0 +1,102 @@
+date: 2026-09-29T01:23:06.2975146+10:00
+--- commands on a fresh PATH
+git        C:\Program Files\Git\cmd\git.exe
+node       C:\Program Files\nodejs\node.exe
+gh         C:\Program Files\GitHub CLI\gh.exe
+claude     C:\Users\mickh\.local\bin\claude.exe
+codex      (none)
+storytree  C:\Users\mickh\.storytree\0.3\bin\storytree.cmd
+--- user PATH
+C:\Users\mickh\AppData\Local\Microsoft\WindowsApps
+C:\Users\mickh\.storytree\0.3\bin
+C:\Users\mickh\.local\bin
+C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links
+C:\Users\mickh\AppData\Roaming\npm
+--- storytree install
+installed: 0.3.242.0
+home ~\.storytree\0.3: True
+updater cache: True
+~\.codex: True
+--- processes
+
+   Id ProcessName   SessionId
+   -- -----------   ---------
+ 1148 postgres              2
+ 2392 postgres              2
+ 3588 postgres              2
+ 7664 postgres              2
+ 8176 postgres              2
+ 8612 postgres              2
+10492 postgres              2
+12588 postgres              2
+13124 postgres              2
+14308 postgres              2
+14792 postgres              2
+16352 postgres              2
+17668 postgres              2
+20572 postgres              2
+ 3556 storytree-0.3         2
+14368 storytree-0.3         2
+18676 storytree-0.3         2
+20592 storytree-0.3         2
+
+
+
+--- Claude Code settings.json (storytree lines)
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"matcher": "mcp__storytree__.*",
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"command": "C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe",
+"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs",
+"command": "\"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\node.exe\" \"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-hook.mjs\" statusline"
+--- claude.json mcpServers keys
+storytree
+--- home folders
+.cache
+.claude
+.codex
+.local
+.sbx-denybin
+.storytree
+AppData
+Application Data
+claude trial
+claude trial 2
+codex trial
+Contacts
+Cookies
+Documents
+Downloads
+Favorites
+IntelGraphicsProfiles
+Links
+Local Settings
+Music
+My Documents
+My First Project
+NetHood
+OneDrive
+PrintHood
+Recent
+Saved Games
+Searches
+Second Folder With Spaces
+SendTo
+st-evidence
+st-retest
+Start Menu
+Templates
+Videos
+--- scheduled tasks named st-*

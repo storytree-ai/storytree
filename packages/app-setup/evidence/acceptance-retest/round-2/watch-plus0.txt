@@ -1,0 +1,11 @@
+task last result: 0
+=== plus0 at 2026-09-29T02:42:54.2940295+10:00
+postgres: 7 (started 02:42:45)
+storytree-0.3: 4 (started 02:42:36)
+version: 0.3.249.0
+window: 'storytree 0.3 ú version 0.3.249' pid 18244 visible=True minimised=False front=False rect=260,0,1660,1020
+saved C:\Users\mickh\st-retest\r2\app-plus0.png
+releases.log tail:
+2026-09-28T16:42:46.143Z Checking for update
+2026-09-28T16:42:46.169Z Generated new staging user ID: 8e45500f-a62d-54ca-92dd-d3a24eb00d5d
+2026-09-28T16:42:48.716Z Update for version 0.3.249 is not available (latest version: 0.3.249, downgrade is disallowed).

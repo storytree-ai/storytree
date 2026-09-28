@@ -1,0 +1,16 @@
+codex: C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links\codex.exe
+codex-cli 0.158.0
+--- storytree setup connect --codex (1)
+Codex: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+exit 0
+--- storytree setup connect --codex (2)
+Codex: tools already connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+exit 0
+--- codex mcp list
+Name       Command                                                                             Args                                                                                         Env  Cwd  Status   Auth       
+storytree  C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\node.exe  C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp.mjs  -    -    enabled  Unsupported
+--- ~\.codex\hooks.json present: True
+storytree hook lines: 7
+--- config.toml storytree tables: 1

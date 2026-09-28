@@ -1,0 +1,8 @@
+[system] {"type": "system", "subtype": "hook_started", "hook_id": "e5910fa1-f4fb-4e7b-b5ff-85c8de2f5e53", "hook_name": "SessionStart:startup", "hook_event": "SessionStart"}
+[system] {"type": "system", "subtype": "hook_started", "hook_id": "ad7c2563-b697-4996-8b44-4f99a9574251", "hook_name": "SessionStart:startup", "hook_event": "SessionStart"}
+[system] {"type": "system", "subtype": "hook_response", "hook_id": "ad7c2563-b697-4996-8b44-4f99a9574251", "hook_name": "SessionStart:startup", "hook_event": "SessionStart", "output": "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"storytree: This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project \\\"retest-1-claude-c\\\" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on. Do this before you start on the user
+[system] {"type": "system", "subtype": "hook_response", "hook_id": "e5910fa1-f4fb-4e7b-b5ff-85c8de2f5e53", "hook_name": "SessionStart:startup", "hook_event": "SessionStart", "output": "", "stdout": "", "stderr": "", "exit_code": 0, "outcome": "success"}
+ASSISTANT: Before I create the file: this folder isn't set up as a storytree project yet. Do you want me to set it up? It would use the project name **retest-1-claude-c** unless you choose another one (lower-case letters, digits and hyphens only).
+
+Say yes (and give a name if you want a different one) or no, and then I'll create `notes.txt` containing `hello`.
+[result] success turns=1 denials=[]

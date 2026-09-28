@@ -1,0 +1,7 @@
+Work on "MicksOldLaptop" — all recorded sessions.
+Reading incomplete: some work could not be observed.
+No recorded runs in this scope.
+
+Shared — "storytree app and database": unknown. The app lifecycle reports the database running; it supplies no native lifetime or separate app identity. This shared work is managed by the app; use storytree app status or storytree app quit.
+
+Only runs launched through the owned launcher on this computer are tracked. Other launch paths and descendants not explicitly registered at launch are untracked; this is not a whole-machine census.

@@ -80,7 +80,6 @@ export function SessionsList({ rows, loading = false, error, highlighted, onHigh
   onHighlight(stories: readonly string[] | undefined, session?: string): void;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const [filesOpen, setFilesOpen] = useState<ReadonlySet<string>>(new Set());
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
   const visible: { row: SessionRow; depth: number }[] = [];
@@ -100,7 +99,7 @@ export function SessionsList({ rows, loading = false, error, highlighted, onHigh
   }, [islands, session, onHighlight]);
   useEffect(() => {
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
-      sessions: visible.map(({ row }) => row.id), unclaimed: visible.reduce((n, { row }) => n + row.offPlan.length, 0) });
+      sessions: visible.map(({ row }) => row.id) });
   });
   const toggle = (set: ReadonlySet<string>, id: string): ReadonlySet<string> => {
     const next = new Set(set);
@@ -124,20 +123,10 @@ export function SessionsList({ rows, loading = false, error, highlighted, onHigh
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} ${row.children.length} children of ${row.label}`}
             onClick={() => setExpanded(toggle(expanded, row.id))}>+{row.children.length}</button>}
           {row.needsYou && <span className="session-needs-you">needs you</span>}
-          {row.offPlan.length > 0 && <button type="button" className="session-off-plan" aria-expanded={filesOpen.has(row.id)}
-            aria-label={`${filesOpen.has(row.id) ? "Hide" : "Show"} off-plan work for ${row.label}`}
-            onClick={() => setFilesOpen(toggle(filesOpen, row.id))}>off plan · {row.files.length} {row.files.length === 1 ? "file" : "files"}</button>}
           <span className="session-context-slot" aria-hidden="true" />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
             {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
         </div>
-        {filesOpen.has(row.id) && <div className="session-evidence">
-          <p>Edits and commands made outside a claim.</p>
-          <ol>{row.offPlan.map((entry, index) => <li key={index}>
-            <time dateTime={entry.at}>{new Date(entry.at).toLocaleString()}</time>
-            {entry.command === undefined ? entry.files.map(file => <code key={file}>{file}</code>) : <code>{entry.command}</code>}
-          </li>)}</ol>
-        </div>}
       </li>)}
     </ul>
   </aside>;

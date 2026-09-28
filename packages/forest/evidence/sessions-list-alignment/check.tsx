@@ -14,14 +14,17 @@ import type { SessionRow } from "../../src/sessions-list/sessions-list.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(path.join(here, "../../src/view/styles.css"), "utf8");
 const base = { agent: "Claude Code", state: "active", needsYou: false, totalTokens: undefined,
-  stories: [], files: [], offPlan: [], children: [] } as unknown as SessionRow;
+  stories: [], children: [] } as unknown as SessionRow;
+// ADR-0737 D2: a claim's reason is held to 40 characters; these are the widest ordinary names at that limit.
+const atLimit = ["Make workspace for the Wisps with Mowgli", "Line up the sessions-list context bar ok"];
 const rows: SessionRow[] = [
   { ...base, id: "short", label: "Fix" },
-  { ...base, id: "long", label: "Build the running sessions list and its context bar for the owner's look", totalTokens: 412_000 },
-  { ...base, id: "badges", label: "Hosted library: a library location setting and Cloud SQL support", needsYou: true, children: [{ ...base, id: "lane", label: "Lane" }],
-    files: ["a.ts", "b.ts"], offPlan: [{ at: new Date(0).toISOString(), files: ["a.ts", "b.ts"] }] } as SessionRow,
+  { ...base, id: "limit-1", label: atLimit[0]!, totalTokens: 412_000 },
+  { ...base, id: "limit-2", label: atLimit[1]! },
+  { ...base, id: "badges", label: "Hosted library: a library location setting and Cloud SQL support", needsYou: true, children: [{ ...base, id: "lane", label: "Lane" }] },
   { ...base, id: "needs", label: "Wisps orbit their islands", needsYou: true, totalTokens: 1_200_000 },
 ];
+assert.ok(atLimit.every(label => label.length === 40));
 const html = renderToStaticMarkup(createElement(SessionsList, { rows, onHighlight() {} }));
 const playwright = process.env.PLANET_PLAYWRIGHT
   ?? "C:/code/storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs";
@@ -42,7 +45,12 @@ try {
       const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
     });
     await page.screenshot({ path: path.join(here, `rows-${width}.png`), clip: box });
-    results[width] = edges;
+    // A name at the limit shows whole on a plain row at the list's default width.
+    const clipped: string[] = await page.$$eval(".session-row", (list: HTMLElement[]) => list
+      .filter(row => row.dataset.sessionId!.startsWith("limit-"))
+      .flatMap(row => { const label = row.querySelector(".session-label") as HTMLElement; return label.scrollWidth > label.clientWidth ? [`${row.dataset.sessionId} ${label.scrollWidth}>${label.clientWidth}px`] : []; }));
+    results[width] = { edges, clipped };
+    if (width === 1440) assert.deepEqual(clipped, [], `a 40-character name is cut off at the default width: ${clipped.join(", ")}`);
     await page.close();
     assert.equal(new Set(edges.map(e => e.slotLeft)).size, 1, `bars start at different x at ${width}px: ${JSON.stringify(edges)}`);
     assert.equal(new Set(edges.map(e => e.totalRight)).size, 1, `totals end at different x at ${width}px: ${JSON.stringify(edges)}`);

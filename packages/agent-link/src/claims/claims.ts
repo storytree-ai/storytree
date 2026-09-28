@@ -63,7 +63,21 @@ export type ClaimAnswer =
   | { ok: false; refused: "held"; holder: Claim }
   | { ok: false; refused: "unknown-capability"; capability: string }
   | { ok: false; refused: "closed"; increment: string }
-  | { ok: false; refused: "waiting"; waits: Waiting[] };
+  | { ok: false; refused: "waiting"; waits: Waiting[] }
+  | { ok: false; refused: "reason-too-long"; limit: number; length: number };
+
+/**
+ * A claim's reason is its session's name in the forest's running-sessions list, so it is held to
+ * what that list's label column shows at its default width (ADR-0737 D2): measured in Chromium at
+ * 13px system-ui, 40 characters of ordinary words fit its 290px unclipped.
+ */
+export const CLAIM_REASON_LIMIT = 40;
+
+/** Why `reason` cannot be a claim's reason, or undefined when it can. */
+export function reasonRefusal(reason: string): Extract<ClaimAnswer, { refused: "reason-too-long" }> | undefined {
+  const length = [...reason.trim()].length;
+  return length > CLAIM_REASON_LIMIT ? { ok: false, refused: "reason-too-long", limit: CLAIM_REASON_LIMIT, length } : undefined;
+}
 
 /**
  * An increment that waits (ADR-0643 D2), and what still holds it: a blocker, as the library's
@@ -108,6 +122,8 @@ const CLAIM_KINDS = ["claimed", "released", "landed", "closed", "merged", "sessi
  * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing.
  */
 export async function claim(context: ClaimContext, id: string, reason: string): Promise<ClaimAnswer> {
+  const tooLong = reasonRefusal(reason);
+  if (tooLong !== undefined) return tooLong;
   const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {

@@ -1,4 +1,4 @@
-/** Running sessions and off-plan rows: the forest's session-to-island reading. */
+/** Running sessions: the forest's session-to-island reading. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Line, NewLine } from "@storytree/agent-link/readings";
@@ -55,31 +55,10 @@ test("explicit children nest once, propagate needs-you and islands; ending a par
   assert.deepEqual(sessionRows(tree, lines, [arc], now).map(row => row.id), ["child"]);
 });
 
-test("off-plan work stays out of the list until 5 distinct unclaimed files, then shows its files and command evidence; claimed edits stay out and islands are never guessed", () => {
-  const lines = log({ ...off, kind: "file-edited", files: ["src/a.ts", "src/b.ts"] },
-    { ...off, kind: "file-edited", files: ["src/a.ts", "src/c.ts", "src/d.ts"] },
-    { ...off, kind: "command-run", command: "pnpm test" });
-  assert.deepEqual(sessionRows(tree, lines, [], now), [], "4 files is below the line");
-  lines.push(...log({ ...off, kind: "file-edited", files: ["src/e.ts"] }).map(line => ({ ...line, seq: 4 })));
-  const [row] = sessionRows(tree, lines, [], now);
-  assert.deepEqual(row!.files, ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"]);
-  assert.equal(row!.offPlan.length, 4);
-  assert.equal(row!.offPlan[1]!.command, "pnpm test");
-  assert.deepEqual(row!.stories, []);
-  lines.push(...log({ ...off, kind: "claimed", capability: "cap-one", reason: "Build" },
-    { ...off, kind: "file-edited", files: ["src/claimed.ts"] }).map(line => ({ ...line, seq: line.seq + 4 })));
-  assert.deepEqual(sessionRows(tree, lines, [], now)[0]!.files, ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"]);
-});
-
-test("an unclaimed push or pull request surfaces the session whatever its file count; other commands do not", () => {
-  const ran = (session: string, command: string): NewLine => ({ session, harness: "codex", source: "hook", kind: "command-run", command });
-  const lines = log(ran("reader", "git status"), ran("reader", "git stash push"), ran("reader", "pnpm test"),
-    ran("pusher", "git -C C:/work/x push -u origin fix"), ran("opener", "cd x && gh pr create --fill"),
-    claimed("cap-one", "Build signup"), { ...parent, kind: "command-run", command: "git push" });
-  const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => row.id).sort(), ["opener", "parent", "pusher"]);
-  assert.deepEqual(rows.find(row => row.id === "pusher")!.files, []);
-  assert.equal(rows.find(row => row.id === "pusher")!.offPlan[0]!.command, "git -C C:/work/x push -u origin fix");
+test("7.1 a session holding no claim gets no row however much unclaimed work it has done (ADR-0737 D1)", () => {
+  const lines = log({ ...off, kind: "file-edited", files: ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts", "f.ts"] },
+    { ...off, kind: "command-run", command: "git push -u origin fix" }, { ...off, kind: "command-run", command: "gh pr create --fill" });
+  assert.deepEqual(sessionRows(tree, lines, [], now), []);
 });
 
 test("supplied supervision and totals use a view seam without parsing transcripts; missing parents and cycles keep rows reachable", () => {

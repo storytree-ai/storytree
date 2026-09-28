@@ -94,6 +94,19 @@ test("4.10 each card has a strip naming its work state in words, and the agent's
   assert.match(away, /<text class="card-status"[^>]*>not landed yet<\/text>/);
 });
 
+test("4.11 the tree has its own space in the panel, at full size, with a pop-out icon beside it and no text button", () => {
+  const html = renderStoryPanel(panel, "next");
+  const frame = html.match(/<div class="panel-tree-frame"[\s\S]*?<\/svg>\s*<\/div>\s*<\/div>/)?.[0];
+  assert.ok(frame !== undefined, "a framed space holding the tree");
+  assert.match(frame, /<div class="panel-tree-surface">\s*<svg class="panel-diagram"/, "the tree is drawn on a surface that is moved, not shrunk");
+  assert.doesNotMatch(frame, /<button/, "no button inside the frame, where a press starts a drag");
+  const popOut = html.match(/<button[^>]*data-open-tree[^>]*>/)?.[0];
+  assert.ok(popOut !== undefined, "a pop-out control");
+  assert.match(popOut, /aria-label="Open in a larger window"/);
+  assert.match(popOut, /title="Open in a larger window"/);
+  assert.doesNotMatch(html, /Open the capability tree/, "the icon replaces the text button");
+});
+
 test("4.8 a story with no capabilities shows its sentences and nothing below", () => {
   const html = renderStoryPanel({ ...panel, capabilities: [], arrows: [] }, undefined);
   assert.match(html, /What s is\. Why\./);

@@ -1,0 +1,58 @@
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/mickh/code/storytree03-wt/captree2/packages/forest/src/view/pan-zoom.js' imported from /home/mickh/code/storytree03-wt/captree2/packages/forest/src/view/pan-zoom.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///home/mickh/code/storytree03-wt/captree2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+    at resolveDirectorySync (file:///home/mickh/code/storytree03-wt/captree2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+    at resolveTsPathsSync (file:///home/mickh/code/storytree03-wt/captree2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+    at resolve (file:///home/mickh/code/storytree03-wt/captree2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/mickh/code/storytree03-wt/captree2/packages/forest/src/view/pan-zoom.js'
+}
+
+Node.js v24.19.0
+✖ src/view/pan-zoom.test.ts (114.028807ms)
+✔ 4.6 the panel is the story's sentences, its diagram, and below it only the capability selected (8.133224ms)
+✔ 4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its health; another story's is not (1.591072ms)
+✔ 4.10 each card has a strip naming its work state in words, and the agent's report and storytree's as labelled marks (1.434274ms)
+✖ 4.11 the tree has its own space in the panel, at full size, with a pop-out icon beside it and no text button (2.395028ms)
+✔ 4.8 a story with no capabilities shows its sentences and nothing below (0.14198ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 257.607457
+
+✖ failing tests:
+
+test at src/view/pan-zoom.test.ts:1:1
+✖ src/view/pan-zoom.test.ts (114.028807ms)
+  'test failed'
+
+test at src/view/story-panel.test.ts:1:3885
+✖ 4.11 the tree has its own space in the panel, at full size, with a pop-out icon beside it and no text button (2.395028ms)
+  AssertionError [ERR_ASSERTION]: a framed space holding the tree
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/captree2/packages/forest/src/view/story-panel.test.ts:100:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

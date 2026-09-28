@@ -1,0 +1,15 @@
+✔ 4.11 the panel's space opens on the selected card, the larger window on the middle of the story's cards (1.199478ms)
+✔ 4.11 however far it is dragged, some of the tree stays in the space (0.184029ms)
+✔ 4.6 the panel is the story's sentences, its diagram, and below it only the capability selected (7.818506ms)
+✔ 4.8 each of the story's capabilities is a box you can click, marked when selected and tinted by its health; another story's is not (1.403705ms)
+✔ 4.10 each card has a strip naming its work state in words, and the agent's report and storytree's as labelled marks (1.355664ms)
+✔ 4.11 the tree has its own space in the panel, at full size, with a pop-out icon beside it and no text button (1.203575ms)
+✔ 4.8 a story with no capabilities shows its sentences and nothing below (0.170483ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134.479629

@@ -17,7 +17,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type TreeSpace } from "@storytree/forest/view";
+import { attachPanZoom, openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type PanZoom, type TreeSpace } from "@storytree/forest/view";
 import { renderNoProjects } from "../view/view.js";
 
 declare global {
@@ -114,11 +114,15 @@ async function showForest(name: string): Promise<void> {
    * the panel opened on, so it holds while the live reading redraws. Cleared when another story opens.
    */
   let chosen: string | undefined;
+  /** The panel's own tree space, moved by the pointer, and whose story it shows. */
+  let inPanel: { story: string; moving: PanZoom } | undefined;
 
   /** The drill-down for the selected story node, or none (capability 4), with one capability shown below its diagram. */
   const showPanel = (): void => {
     if (document.body.dataset.note !== undefined) {
       mine.tree?.close();
+      inPanel?.moving.stop();
+      inPanel = undefined;
       panel.hidden = false;
       mine.card ??= mountArtifactCard(panel, core, () => mine.view?.select(undefined));
       return;
@@ -130,6 +134,8 @@ async function showForest(name: string): Promise<void> {
     panel.hidden = drilled === undefined;
     if (story === undefined || drilled === undefined) {
       mine.tree?.close();
+      inPanel?.moving.stop();
+      inPanel = undefined;
       return panel.replaceChildren();
     }
     const selected = selectedCapability(drilled, chosen);
@@ -139,25 +145,25 @@ async function showForest(name: string): Promise<void> {
     for (const node of panel.querySelectorAll<HTMLElement>(".panel-detail")) {
       if (open.has(node.dataset.capabilityId)) node.querySelector("details")?.setAttribute("open", "");
     }
-    for (const box of panel.querySelectorAll<SVGGElement>(".panel-diagram [data-capability-id]")) {
-      const choose = (): void => {
-        chosen = box.dataset.capabilityId;
+    // The tree's own space in the panel (ADR-0743): it keeps its view while the same story redraws.
+    const kept = inPanel?.story === drilled.story ? inPanel.moving.view : undefined;
+    inPanel?.moving.stop();
+    inPanel = undefined;
+    const frame = panel.querySelector<HTMLElement>(".panel-tree-frame");
+    const surface = frame?.querySelector<HTMLElement>(".panel-tree-surface");
+    if (frame != null && surface != null) {
+      const moving = attachPanZoom(frame, surface, (id) => {
+        chosen = id;
         showPanel();
-        panel.querySelector<SVGGElement>(".panel-diagram .selected")?.focus();
-      };
-      box.addEventListener("click", choose);
-      box.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        choose();
+        panel.querySelector<SVGGElement>(".panel-diagram .selected")?.focus({ preventScroll: true });
       });
+      if (kept === undefined) moving.centre(selected);
+      else moving.place(kept);
+      inPanel = { story: drilled.story, moving };
     }
-    // The tree's own space (ADR-0743): opened from the panel, redrawn with it while open.
+    // The larger window: popped out from the panel's space, redrawn with it while open.
     const openTree = (): void => mine.tree?.show(drilled, selected);
     panel.querySelector("[data-open-tree]")?.addEventListener("click", openTree);
-    panel.querySelector(".panel-diagram")?.addEventListener("click", (event) => {
-      if ((event.target as Element).closest("[data-capability-id]") === null) openTree();
-    });
     if (mine.tree?.open === true) openTree();
     panel.querySelector(".panel-close")?.addEventListener("click", () => {
       mine.view?.select(undefined);

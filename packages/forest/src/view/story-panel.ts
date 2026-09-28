@@ -60,18 +60,27 @@ function badge(who: string, state: HealthState): string {
  * The diagram: the capability tree as 0.2 drew it (ADR-0743), laid out by `layoutTree`: one card
  * per capability, what it builds on below it, each card with a strip across its top naming its work
  * state in words and coloured to match the arc surface, and the agent's report and storytree's as
- * labelled marks (ADR-0630). In the panel it is a preview scaled to the panel's width, with a button
- * that opens it in its own space, where it pans and zooms at a readable size (`mountTreeSpace`).
+ * labelled marks (ADR-0630). In the panel it has its own framed space, where it is drawn at a
+ * readable size and pans and zooms (`attachPanZoom`); a pop-out icon in the frame's corner, outside
+ * the frame so pressing it starts no drag, opens the same tree in a larger window (`mountTreeSpace`).
  * The story's own cards are buttons, and `selected` is marked; another story's card is muted, names
  * its story, and is not a button (ADR-0659 D3, D5).
  */
 function diagram(panel: StoryPanel, selected: string | undefined): string {
   return `
     <div class="panel-tree">
-      <button type="button" class="panel-open-tree" data-open-tree>Open the capability tree</button>
-      ${renderTree(panel, selected, "panel-diagram")}
+      <div class="panel-tree-frame">
+        <div class="panel-tree-surface">
+          ${renderTree(panel, selected, "panel-diagram")}
+        </div>
+      </div>
+      <button type="button" class="panel-tree-pop-out" data-open-tree aria-label="${POP_OUT}" title="${POP_OUT}">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" /></svg>
+      </button>
     </div>`;
 }
+
+const POP_OUT = "Open in a larger window";
 
 /** The capability tree of `panel` as an SVG of class `kind`, at its natural size: 1 unit is 1 pixel. */
 export function renderTree(panel: StoryPanel, selected: string | undefined, kind: string): string {

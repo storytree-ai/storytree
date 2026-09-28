@@ -1,0 +1,38 @@
+--- old/library/The forest/capability 4/capability_f0ffead428df/description
++++ new/library/The forest/capability 4/capability_f0ffead428df/description
+@@ -1 +1 @@
+-Clicking a story node opens a panel that explains the story in plain words: its sentences, and its capability tree, each capability pointing at the ones it builds on, including any in other stories, named with their story and marked if not yet landed. The tree opens in a space of its own over the forest, where it is drawn at a readable size and the user drags it around and zooms it instead of it shrinking to fit; each capability's card names its work state in words on a coloured strip, with the agent's report and storytree's as labelled marks (ADR-0743). Clicking one of the story's own capabilities, in the panel or in the tree's space, shows it below the panel's tree: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
++Clicking a story node opens a panel that explains the story in plain words: its sentences, and its capability tree, each capability pointing at the ones it builds on, including any in other stories, named with their story and marked if not yet landed. The tree has a space of its own inside the panel, where it is drawn at a readable size and the user drags it around and zooms it instead of it shrinking to fit; an icon in that space's corner opens the same tree in a larger window over the forest. Each capability's card names its work state in words on a coloured strip, with the agent's report and storytree's as labelled marks (ADR-0743). Clicking one of the story's own capabilities, in the panel's tree or in the larger window, shows it below the panel's tree: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
+
+--- old/library/The forest/capability 4/ADD contract under capability_f0ffead428df/title
++++ new/library/The forest/capability 4/ADD contract under capability_f0ffead428df/title
+@@ -0,0 +1 @@
++4.11 · The capability tree has its own space inside the panel, drawn at full size and moved by dragging and zooming, with no scroll bars and never out of reach; it opens on the selected capability, and an icon in its corner, labelled "Open in a larger window", opens the tree's larger window.
+
+--- old/library/The forest/capability 4/definition_d706c4dfe91c/meaning
++++ new/library/The forest/capability 4/definition_d706c4dfe91c/meaning
+@@ -10,5 +10,6 @@
+-  a panel over the forest's right side: the story's sentences, then an "Open the capability tree"
+-  button over a preview of the tree scaled to the panel, then the selected capability, with its
+-  contracts folded until asked for. No front cover shows in the panel (ADR-0659 D4). Clicking a
+-  story node opens it, the × or empty space closes it, and the live reading keeps it current,
+-  holding the selected capability.
++  a panel over the forest's right side: the story's sentences, then the tree in a framed space of
++  its own (22rem high, the panel's width) with a pop-out icon in its corner, then the selected
++  capability, with its contracts folded until asked for. No front cover shows in the panel
++  (ADR-0659 D4). Clicking a story node opens it, the × or empty space closes it, and the live
++  reading keeps it current, holding the selected capability and where its tree was moved to.
+@@ -22,5 +23,9 @@
+-  `mountTreeSpace` (`view/tree-space.ts`) opens it in its own layer over the forest, beside the
+-  panel, which narrows while it is open: drag pans, the wheel or a pinch zooms about the pointer,
+-  with no scroll bars and a pan bounded so the tree stays in reach; it opens centred on the story's
+-  own cards, keeps its place while the live reading redraws, and Escape, × or the panel closing
+-  closes it. Clicking a card there chooses the panel's capability as clicking it in the panel does.
++  Both spaces move the tree with `attachPanZoom` (`view/pan-zoom.ts`): drag pans, the wheel or a
++  pinch zooms about the pointer, with no scroll bars and a pan bounded so the tree stays in reach,
++  and a card pressed and released without a drag is a click that chooses it. The panel's space
++  opens at full size centred on the selected capability. Its pop-out icon ("Open in a larger
++  window") opens `mountTreeSpace` (`view/tree-space.ts`), a layer over the forest beside the panel,
++  which narrows while it is open; that opens centred on the story's own cards, keeps its place
++  while the live reading redraws, and Escape, × or the panel closing closes it. Clicking a card
++  there chooses the panel's capability as clicking it in the panel does.

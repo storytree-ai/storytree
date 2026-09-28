@@ -655,36 +655,69 @@ body[data-surface="forest"] main {
   margin: 0.35rem 0;
 }
 
-/* The capability tree (ADR-0743): in the panel a preview scaled to its width, with the way into
-   the tree's own space, where the same cards pan and zoom at a readable size. */
+/* The capability tree (ADR-0743): in the panel it has its own framed space, where the cards pan
+   and zoom at a readable size; the icon in its corner pops the same tree out into a larger window. */
 
 .panel-tree {
   position: relative;
   margin: 0.6rem 0 0.8rem;
 }
 
-.panel-open-tree {
-  font: inherit;
-  font-size: 0.85rem;
-  margin-bottom: 0.4rem;
-  padding: 0.25rem 0.7rem;
-  color: var(--text);
-  background: var(--none-bg);
-  border: 1px solid var(--none-line);
-  border-radius: 6px;
-  cursor: pointer;
+.panel-tree-frame {
+  position: relative;
+  height: 22rem;
+  overflow: hidden; /* no scroll bars: the drag moves it (0.2's ADR-0502) */
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
-.panel-open-tree:hover {
-  border-color: var(--muted);
+.panel-tree-frame.is-grabbing {
+  cursor: grabbing;
+}
+
+.panel-tree-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
 }
 
 .panel-diagram {
   display: block;
-  max-width: 100%;
-  max-height: 16rem;
-  height: auto;
-  cursor: zoom-in;
+  max-width: none;
+}
+
+.panel-tree-pop-out {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.panel-tree-pop-out:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.panel-tree-pop-out path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tree-space {

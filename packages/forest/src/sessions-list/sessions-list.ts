@@ -24,7 +24,7 @@ export interface SessionRow {
   state: SessionState | "observed";
   needsYou: boolean;
   totalTokens: number | undefined;
-  /** What those tokens are made of, when the reading could tell (a Codex reading cannot yet). */
+  /** What those tokens are made of, when the reading could tell. */
   composition?: ContextGroups | undefined;
   stories: string[];
   children: SessionRow[];

@@ -56,9 +56,9 @@ test at packages/library/src/project/cloud-connection.test.ts:1:21123
 test at packages/library/src/testing/pg.test.ts:1:742
 ✖ database cleanup propagates a failed fallback instead of leaving a database silently or retrying forever (1.345527ms)
   AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
-  
+
   Caught error:
-  
+
   Error: permission denied to terminate process
       at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/testing/pg.test.ts:26:3)
       at async Test.run (node:internal/test_runner/test:1389:7)

@@ -1,0 +1,13 @@
+✔ 3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime (33.435395ms)
+✔ 3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline (5.782638ms)
+✔ 3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal (3.74518ms)
+✔ 3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle (2.741895ms)
+✔ 3.1: the inventory observes a real owned process live and then gone through the native probe (12.892305ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 245.415356

@@ -1,0 +1,46 @@
+--- a/packages/agent-link/package.json
++++ b/packages/agent-link/package.json
+@@ -16,7 +16,8 @@
+     "@storytree/library": "workspace:*",
+     "@storytree/librarian": "workspace:^",
+     "pg": "^8.23.0",
+-    "zod": "^4.6.5"
++    "zod": "^4.6.5",
++    "@storytree/own": "workspace:*"
+   },
+   "devDependencies": {
+     "@modelcontextprotocol/client": "^2.1.0",
+--- a/packages/cli/package.json
++++ b/packages/cli/package.json
+@@ -15,7 +15,8 @@
+   "dependencies": {
+     "@storytree/agent-link": "workspace:*",
+     "@storytree/app": "workspace:*",
+-    "@storytree/library": "workspace:*"
++    "@storytree/library": "workspace:*",
++    "@storytree/own": "workspace:*"
+   },
+   "devDependencies": {
+     "@types/node": "^24.13.6",
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -72,6 +72,9 @@
+ 
+   packages/agent-link:
+     dependencies:
++      '@storytree/own':
++        specifier: workspace:*
++        version: link:../own
+       '@modelcontextprotocol/server':
+         specifier: ^2.1.0
+         version: 2.1.0
+@@ -184,6 +187,9 @@
+ 
+   packages/cli:
+     dependencies:
++      '@storytree/own':
++        specifier: workspace:*
++        version: link:../own
+       '@storytree/agent-link':
+         specifier: workspace:*
+         version: link:../agent-link

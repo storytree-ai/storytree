@@ -9,7 +9,7 @@ Test code per line of implementation, in code lines (comments and blanks left ou
   packages/agent-link        3,813            3,936    0.97
   packages/app-setup           447              946    0.47
   packages/app                 972            1,435    0.68
-  packages/arc-surface         495              903    0.55
+  packages/arc-surface         507            1,092    0.46
   packages/cli               1,662            1,623    1.02
   packages/forest-world     25,203           13,238    1.90
   packages/forest            1,160            3,720    0.31
@@ -19,4 +19,4 @@ Test code per line of implementation, in code lines (comments and blanks left ou
   packages/local-postgres      218              325    0.67
   packages/own                 801              908    0.88
   scripts                    1,453            1,675    0.87
-  all                       42,950           35,453    1.21
+  all                       42,962           35,642    1.21

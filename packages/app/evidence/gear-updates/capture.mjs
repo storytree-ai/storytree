@@ -113,7 +113,8 @@ try {
     canvas.addEventListener('pointerdown', () => window.pointerCount++);
   });
   await gear.click();
-  await page.mouse.click(400, 16);
+  // Main's full-width arc bar now owns the top strip; dismiss onto visible forest.
+  await page.mouse.click(400, 760);
   assert.equal(await menu.isVisible(), false, 'outside click closes menu after an update');
   assert.equal(await page.evaluate(() => window.pointerCount), 1, 'outside dismissal preserves forest pointer input');
   const tree = await reads.projectTree('storytree');

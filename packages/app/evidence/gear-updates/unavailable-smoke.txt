@@ -8,11 +8,11 @@
 
 built dist
 
-DevTools listening on ws://127.0.0.1:34269/devtools/browser/41934d49-f680-459a-afeb-21db530a0ae3
-Postgres: listening on 127.0.0.1:46181 (started in 0.1 s)
-library: postgres://postgres@127.0.0.1:46181/postgres
-storytree 0.3: development build 6b8e4f5 from /home/mickh/code/storytree03-wt/gear-updates (does not update itself)
-[619901:0928/183652.904388:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x5400190400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+DevTools listening on ws://127.0.0.1:35973/devtools/browser/8267e47f-0ce8-48aa-999a-f10889d40ab0
+Postgres: listening on 127.0.0.1:38853 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:38853/postgres
+storytree 0.3: development build 8a772e1 from /home/mickh/code/storytree03-wt/gear-updates (does not update itself)
+[646377:0928/184207.391186:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x36ac00191c00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
 smoke: screenshot /home/mickh/code/storytree03-wt/gear-updates/packages/app/evidence/gear-updates/unavailable.png (1120x860)
 Project
 storytree
@@ -33,8 +33,9 @@ The app setup
 What did I leave running?
 Forest
 Library
-Arcs storytree
-━ ▴
+Arcs
+storytree
+▴
 Active
 Parked
 Closed

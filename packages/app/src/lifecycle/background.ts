@@ -2,8 +2,8 @@
  * Capability 1 · Lifecycle: the app keeps running in the background (contract 1.7, ADR-0636 D3).
  * Closing the window does not stop storytree or its database, so agents' activity is still
  * recorded while the window is closed. The tray icon's Quit is the one way to stop it: the database
- * is stopped once, and the app exits only after it has stopped. apps/desktop wires this to
- * Electron's events.
+ * is stopped once, after the pages stop polling, and the app exits only after it has stopped.
+ * apps/desktop wires this to Electron's events.
  */
 export interface TrayItem {
   /** What the item does: `show` brings the window back, `quit` stops the app. */
@@ -28,7 +28,7 @@ export interface Launch {
 export interface Background {
   /** The last window was closed: the app keeps running, and nothing is stopped. */
   windowClosed(): "keep-running";
-  /** Stop the database, then exit. Asking again waits for the same stop. */
+  /** Stop the pages, then the database, then exit. Asking again waits for the same stop. */
   quit(code?: number): Promise<void>;
   /**
    * Stop the database, then start `target` (a newer build) and exit. The new build shows its window
@@ -45,6 +45,8 @@ export interface Background {
 }
 
 export interface BackgroundOptions {
+  /** Ends the pages so their polling stops before their library closes. */
+  stopPages?: () => void;
   /** Stops the database (and closes what reads it). */
   stopDatabase: () => Promise<void>;
   /** Ends the app. */
@@ -56,12 +58,15 @@ export interface BackgroundOptions {
   relaunch?: (target: Launch | undefined, inBackground: boolean) => void;
 }
 
-export function background({ stopDatabase, exit, relaunch }: BackgroundOptions): Background {
+export function background({ stopPages, stopDatabase, exit, relaunch }: BackgroundOptions): Background {
   let quitting: Promise<void> | undefined;
   /** What to start once stopped: a restart's target, or this build again ("self"). */
   let next: { target: Launch | undefined; shown: boolean } | undefined;
   const stop = (code: number): Promise<void> => {
-    quitting ??= stopDatabase()
+    quitting ??= (async () => {
+      stopPages?.();
+      await stopDatabase();
+    })()
       .catch(() => {})
       .then(() => {
         if (next !== undefined) relaunch?.(next.target, !next.shown);

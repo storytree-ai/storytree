@@ -1,0 +1,100 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/smoke-teardown
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--screenshot" "/tmp/smoke-teardown-snapshot.PS4s6V/smoke.png" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/smoke-teardown/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--screenshot" "/tmp/smoke-teardown-snapshot.PS4s6V/smoke.png" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader"
+
+built dist
+Postgres: listening on 127.0.0.1:45915 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:45915/postgres
+storytree 0.3: development build 02caab0 from /home/mickh/code/storytree03-wt/smoke-teardown (does not update itself)
+[750968:0928/201356.598798:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x1f400192200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+smoke: screenshot /tmp/smoke-teardown-snapshot.PS4s6V/smoke.png (1120x860)
+App
+Close ×
+Projects
+Settings
+Updates
+Help
+Help with storytree
+First-run guide
+License
+Send feedback
+Start your first project
+Open your chosen agent in your project folder. After connecting Claude Code or Codex during installation, start a new session there. Storytree does not run the agent for you.
+Say yes when asked. The agent checks setup and asks before creating a storytree project. Choose its name. Saying no leaves the folder unconfigured.
+Let the connection check finish. Review any approval prompt from your agent for storytree tools, a small check-file edit or a command. Approve the check if you want to continue. Ask the agent to run check_setup again until it reports hooks verified: session start, tool call, file edit and command have reached storytree. Registered hooks alone are not verification.
+Give the agent a small piece of work. Your new project appears in the running app. Its forest can start empty; a story and its capabilities appear as the agent plans them, with activity and health as work proceeds.
+Add another project
+
+Start a new agent session in a second folder and answer its setup question separately. Only a second yes creates a second project. The app refreshes its project list automatically; use the project picker to return to either forest.
+
+Windows asks whether to trust the installer
+
+Connection incomplete? Check a folder below for setup diagnostics. This folder check does not register hooks or install the command; those checks will say “skipped”. Use Copy request for your agent to complete setup and verify hook receipt in your agent session.
+
+Check a folder…
+Copy request for your agent
+
+Request to paste into your agent
+
+Need help or have a suggestion? Use Send feedback to prepare a GitHub issue.
+
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+What did I leave running?
+Forest
+Library
+Arcs
+▴
+Active
+Parked
+Closed
+quiet
+The app's window: one gear in the corner, no title bar
+2 landed · 2 open
+quiet
+Running sessions on the forest: quiet claims and a context list
+3 landed · 5 open
+quiet
+Storytree 0.3 arc surface: planned, in progress and landed, per project
+5 landed · 1 open
+quiet
+An agent link settings surface users configure
+2 landed · 4 open
+quiet
+Hosted library: local by default, Google Cloud SQL as the option, then we move onto it
+4 open
+quiet
+Storytree 0.3 to first users: one-command install and first run, and trusted-circle users
+10 landed · 3 open
+quiet
+Storytree 0.3 cutover: 0.3 builds itself, 0.2 goes read-only
+11 landed · 2 open
+The app's window: one gear in the corner, no title bar
+
+Owner-directed 2026-09-28 (to session 5081745b, verbatim): "Maybe we put a gear icon top right corner. Can we make the context guidance cover the nudge as well - should be one setting. Gear top right corner can also have a check for updates surface, that updates and reboots the app. Also while we doing frontend feedback, can we make the arc surface menu bar that you click to expand a full bar or something prettier, atm it looks ugly being this small drawer in the top centre of the window. We can also move the project selector, help, etc into the gear, dont think we need a title bar that says storytree 0.3 - the window in windows already says this. Can you add these increments or fresh arcs".
+
+The app's window loses its own title bar (apps/desktop/src/renderer/index.html: header.app-bar with "storytree 0.3", the project switcher and the help button). One gear in the top-right corner holds what the bar held: the project switcher (the app story's, capability 2), help (the app setup's surface, mountSetupHelp), a check for updates that updates and restarts the app now (the app story's capability 4, Updates, which today only polls merged main every 3 minutes, apps/desktop/src/main/main.ts:67), and the settings panel (the agent link's Settings, capability 10, on arc_748792ea3487). The Windows title bar already names the app.
+
+Package ownership (ADR-0649): the gear is the app story's (packages/app); each item in it is mounted by the story that owns it; the desktop frame only mounts. Visual units go through frontend-builder: geometry and behaviour red to green, then a captured look the owner accepts, never self-accepted.
+
+
+Nothing is waiting on you here
+
+"Blocked" comes only from waits on other work.
+
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

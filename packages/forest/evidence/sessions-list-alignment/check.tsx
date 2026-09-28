@@ -49,7 +49,24 @@ try {
     const clipped: string[] = await page.$$eval(".session-row", (list: HTMLElement[]) => list
       .filter(row => row.dataset.sessionId!.startsWith("limit-"))
       .flatMap(row => { const label = row.querySelector(".session-label") as HTMLElement; return label.scrollWidth > label.clientWidth ? [`${row.dataset.sessionId} ${label.scrollWidth}>${label.clientWidth}px`] : []; }));
-    results[width] = { edges, clipped };
+    // The legend (increment_950cdb5c388a): four entries in bar order whose swatches wear the segments' own colours,
+    // and a header that stays inside the panel.
+    const legend: { group: string; text: string; colour: string }[] = await page.$$eval(".session-legend [data-group]",
+      (list: HTMLElement[]) => list.map(entry => ({ group: entry.dataset.group!, text: entry.textContent!.trim(),
+        colour: getComputedStyle(entry.querySelector(".session-swatch")!).backgroundColor })));
+    const segments: Record<string, string> = await page.$$eval(".session-segment[data-group]", (list: HTMLElement[]) =>
+      Object.fromEntries(list.map(segment => [segment.dataset.group!, getComputedStyle(segment).backgroundColor])));
+    const header = await page.$eval(".sessions-list", (panel: HTMLElement) => {
+      const head = panel.querySelector("header")!;
+      return { overflow: head.scrollWidth > head.clientWidth, right: Math.round(head.getBoundingClientRect().right),
+        panelRight: Math.round(panel.getBoundingClientRect().right) };
+    });
+    assert.deepEqual(legend.map(entry => [entry.group, entry.text]),
+      [["injected", "Injected"], ["grounding", "Grounding"], ["implementation", "Implementation"], ["other", "Other"]], `legend at ${width}px`);
+    for (const entry of legend) assert.equal(entry.colour, segments[entry.group], `${entry.group} swatch differs from its segment at ${width}px`);
+    assert.ok(!header.overflow && header.right <= header.panelRight, `the header leaves the panel at ${width}px: ${JSON.stringify(header)}`);
+    if (width === 1440) assert.ok(edges.every(e => e.slotWidth === 120), `bars are not 120px at 1440px: ${JSON.stringify(edges)}`);
+    results[width] = { edges, clipped, legend };
     if (width === 1440) assert.deepEqual(clipped, [], `a 40-character name is cut off at the default width: ${clipped.join(", ")}`);
     await page.close();
     assert.equal(new Set(edges.map(e => e.slotLeft)).size, 1, `bars start at different x at ${width}px: ${JSON.stringify(edges)}`);

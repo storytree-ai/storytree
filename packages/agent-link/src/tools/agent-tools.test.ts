@@ -1137,3 +1137,17 @@ test("6.19 Codex gets app creation arguments then attaches the returned worktree
     });
   });
 });
+
+test("6.22 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words", async () => {
+  await withProject(async ({ folder, library }) => {
+    for (const n of [1, 2, 3]) await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });
+
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const answer = await agent.call("search_notes", { query: "mailer", limit: 2 });
+
+      assert.match(answer.text, /ranked by words: the embedding model is switched off/);
+      assert.match(answer.text, /Mailer 1[\s\S]*Mailer 2/);
+      assert.doesNotMatch(answer.text, /Mailer 3/);
+    });
+  });
+});

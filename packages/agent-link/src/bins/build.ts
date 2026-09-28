@@ -69,8 +69,12 @@ export async function stageNativeProbes(outdir: string, platform = process.platf
   const modules = path.join(outdir, 'node_modules');
   await mkdir(modules, { recursive: true });
   await rm(path.join(modules, '@koromix'), { recursive: true, force: true });
-  await cp(path.dirname(koffi), path.join(modules, 'koffi'), { recursive: true, dereference: true });
-  await cp(path.dirname(native), path.join(modules, nativeName), { recursive: true, dereference: true });
+  const staged = path.join(modules, 'koffi');
+  await rm(staged, { recursive: true, force: true });
+  await cp(path.dirname(koffi), staged, { recursive: true, dereference: true });
+  // Koffi's supported prebuild layout avoids scoped package paths, which the installer's
+  // payload guard rejects. Keep every ABI triplet from the exact target package (e.g. musl).
+  await cp(path.dirname(native), path.join(staged, 'build', 'koffi'), { recursive: true, dereference: true });
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

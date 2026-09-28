@@ -1,0 +1,21 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/own-doors2
+> node --import tsx scripts/test.mjs "packages/cli/src/own.test.ts" "packages/agent-link/src/tools/own-tools.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:37743 (started in 0.1 s)
+✔ own 3.4/3.6/4.1/5.1: source MCP reads and clears the offline ledger and stops only its caller scope (177.293876ms)
+✔ own 3.4/3.6/4.1/5.1: installed MCP reads and clears the offline ledger and stops only its caller scope (473.089504ms)
+✔ own 3.6: offline Claude MCP refuses self authority from a stale server environment (11.547393ms)
+✔ own online 3.6/4.1: Claude hook identity selects only its named subagent, after a session reset (182.066606ms)
+✔ own 3.4/3.6/4.1/5.1: standalone CLI inventories, stops and clears offline (2414.414201ms)
+✔ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (2380.631786ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5157.194532
+test Postgres: stopped (0.1 s)

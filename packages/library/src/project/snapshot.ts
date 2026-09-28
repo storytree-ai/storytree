@@ -142,18 +142,29 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
       "SELECT EXISTS (SELECT 1 FROM record) OR EXISTS (SELECT 1 FROM record_event) AS held",
     );
     if (held.rows[0]?.held === true) throw new RestoreRefusedError(project);
-    for (const record of snapshot.records) {
+    // In batches, not a statement per row: across a network each statement is a round trip, and a
+    // project of 18,000 history entries restored row by row into Cloud SQL took 11 minutes.
+    for (const batch of batches(snapshot.records)) {
       await client.query(
         `INSERT INTO record (id, type, version, fields, created_at, updated_at)
-         VALUES ($1, $2, $3, $4::jsonb, $5::timestamptz, $6::timestamptz)`,
-        [record.id, record.type, record.version, JSON.stringify(record.fields), record.createdAt, record.updatedAt],
+         SELECT id, type, version, fields, created_at, updated_at
+           FROM jsonb_to_recordset($1::jsonb)
+             AS r(id text, type text, version int, fields jsonb, created_at timestamptz, updated_at timestamptz)`,
+        [JSON.stringify(batch.map((record) => ({
+          id: record.id, type: record.type, version: record.version, fields: record.fields, created_at: record.createdAt, updated_at: record.updatedAt,
+        })))],
       );
     }
-    for (const event of snapshot.history) {
+    for (const batch of batches(snapshot.history)) {
       await client.query(
         `INSERT INTO record_event (seq, record_id, type, action, record, reason, actor, at)
-         VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8::timestamptz)`,
-        [event.seq, event.recordId, event.type, event.action, JSON.stringify(event.record), event.reason ?? null, event.actor ?? null, event.at],
+         SELECT seq, record_id, type, action, record, reason, actor, at
+           FROM jsonb_to_recordset($1::jsonb)
+             AS e(seq bigint, record_id text, type text, action text, record jsonb, reason text, actor text, at timestamptz)`,
+        [JSON.stringify(batch.map((event) => ({
+          seq: event.seq, record_id: event.recordId, type: event.type, action: event.action, record: event.record,
+          reason: event.reason ?? null, actor: event.actor ?? null, at: event.at,
+        })))],
       );
     }
     if (snapshot.history.length > 0) {
@@ -167,4 +178,11 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
   } finally {
     client.release(failed);
   }
+}
+
+/** How many rows a restore sends in one statement: a few hundred kilobytes of JSON at most. */
+const RESTORE_BATCH = 500;
+
+function* batches<T>(rows: readonly T[]): Generator<readonly T[]> {
+  for (let at = 0; at < rows.length; at += RESTORE_BATCH) yield rows.slice(at, at + RESTORE_BATCH);
 }

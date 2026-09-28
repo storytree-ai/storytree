@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { markDisconnected, removeHooks } from "@storytree/agent-link";
+import { markDisconnected, registerHooks, removeHooks } from "@storytree/agent-link";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };
@@ -45,6 +45,8 @@ function locations(options: ConnectionOptions) {
     codex: path.join(codex, "config.toml"),
   } };
 }
+/** The hook the installation carries: its bundled Node and the hook script beside its tool server. */
+const hookCommand = (installed: InstalledToolServerCommand) => ({ node: installed.command, script: path.join(path.dirname(installed.args[0]), "storytree-hook.mjs") });
 const executable = (harness: Harness) => harness === "claude-code" ? "claude" : "codex";
 async function openSettings(harness: Harness, options: ConnectionOptions): Promise<Settings> {
   const where = locations(options);
@@ -52,16 +54,22 @@ async function openSettings(harness: Harness, options: ConnectionOptions): Promi
 }
 const conflict = (file: string) => `The existing storytree entry in ${file} is incompatible and was kept (including any 0.2 entry). Review or move that entry yourself before retrying. The name storytree is required by the existing hooks.`;
 
-/** Register the chosen harnesses independently. No app launch, agent session, project creation or hook attestation. */
+/**
+ * Register the chosen harnesses independently: the tool server and storytree's hooks. The hooks go
+ * in now, not at the first session's setup check, because a harness reads its hooks when a session
+ * starts: registered later, the first session would miss the start hook that asks the setup question.
+ * No app launch, agent session, project creation or hook attestation.
+ */
 export async function connectAgents(options: ConnectionOptions): Promise<ConnectionResult[]> {
   const where = locations(options);
   const results: ConnectionResult[] = [];
+  const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {
     const settingsFile = where.files[harness];
     const result = (tools: ConnectionResult["tools"], next: string) => results.push({ harness, settingsFile, tools, hooks: "not verified", next });
     try {
       const installed = installedToolServerCommand(options.installed.command, options.installed.args[0]);
-      if (options.installed.args.length !== 1 || ![installed.command, installed.args[0]].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");
+      if (options.installed.args.length !== 1 || ![installed.command, installed.args[0], hook.script].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");
     } catch {
       result("not connected", "Re-run the storytree installer to restore its bundled Node and tool server, then retry Connect.");
       continue;
@@ -89,6 +97,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       const tools = settings.current === undefined ? "connected" : "already connected";
       if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
+      registerHooks(harness === "claude-code" ? { claude: where.claude } : { codex: where.codex }, hook);
       result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
@@ -103,7 +112,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
 export async function disconnectAgents(options: ConnectionOptions): Promise<DisconnectReport> {
   const where = locations(options);
   const harnesses: DisconnectionResult[] = [];
-  const hook = { node: options.installed.command, script: path.join(path.dirname(options.installed.args[0]), "storytree-hook.mjs") };
+  const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {
     let settings: Settings | undefined;
     try {

@@ -11,6 +11,7 @@
  * The agent link keeps its test helpers inside its package, so the few these tests need are
  * restated here, as it restates the library's.
  */
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -97,6 +98,11 @@ export interface Ran {
   ms: number;
 }
 
+/** Assert the command's exit status, retaining its output when it fails. */
+export function assertExitCode(ran: Pick<Ran, "code" | "stdout" | "stderr">, expected: number, context = "built command"): void {
+  assert.equal(ran.code, expected, `${context}\nstderr:\n${ran.stderr}\nstdout:\n${ran.stdout}`);
+}
+
 export interface RunOptions {
   /** The folder it runs in. */
   readonly cwd: string;
@@ -126,7 +132,7 @@ export function storytree(script: string, args: readonly string[], options: RunO
     child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
     child.on("error", reject);
-    child.on("exit", (code) => resolve({ code, stdout, stderr, ms: performance.now() - started }));
+    child.on("close", (code) => resolve({ code, stdout, stderr, ms: performance.now() - started }));
   });
 }
 

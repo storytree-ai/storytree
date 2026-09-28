@@ -81,8 +81,8 @@ test("the seed gives up waiting only after its deadline, naming the holder", asy
   assert.ok(now >= 60_000, "it waited the whole time first");
 });
 
-// A timeout, so a waiter that never gets the lock fails the run instead of hanging it: the scripts
-// unit runs with --test-timeout=0, and an open connection keeps the process alive.
+// A timeout, so a waiter that never gets the lock fails this test instead of hanging it; the
+// harness's own limits (scripts/unit-run.mjs) end the process if an open connection outlives it.
 test("two seeds never write at once: the second waits for the first's writing lock", { timeout: 60_000 }, async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");

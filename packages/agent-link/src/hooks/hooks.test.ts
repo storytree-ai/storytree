@@ -31,6 +31,7 @@ import pg from "pg";
 
 import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { buildBins } from "../bins/build.js";
+import { readContext } from "../context/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
@@ -137,9 +138,9 @@ async function linesAnywhereFor(session: string): Promise<number> {
   }
 }
 
-/** The line's own fields, without the number and time the log gives it. */
-function written(line: Line): Omit<Line, "seq" | "at"> {
-  const { seq: _seq, at: _at, ...rest } = line;
+/** The line's own fields, without the number and time the log gives it, nor the transcript every line carries (3.12 pins that). */
+function written(line: Line): Omit<Line, "seq" | "at" | "transcript"> {
+  const { seq: _seq, at: _at, transcript: _transcript, ...rest } = line;
   return rest;
 }
 
@@ -429,6 +430,62 @@ test("3.8 the status line shows what this session holds, how many other agents a
   } finally {
     await log.close();
     await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.12 recorded Claude Code and Codex hook inputs record on their session the transcript the harness named, the latest one recorded being the session's: a `claude -p` run's transcript under an unrelated project directory, and a session moved into worktree B whose transcript is under folder A's, are read from exactly that path, with no folder searched", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      // Worktree B is the project folder the session now works in; its transcripts sit elsewhere.
+      const worktreeB = projectFolder(dir, project);
+      const usage = (tokens: number) => `${JSON.stringify({ type: "assistant", requestId: `req_${tokens}`, message: { model: "claude-opus-5-5", usage: { input_tokens: tokens, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })}
+`;
+      const transcriptIn = (folder: string, name: string, text: string): string => {
+        mkdirSync(folder, { recursive: true });
+        const file = path.join(folder, name);
+        writeFileSync(file, text);
+        return file;
+      };
+      const hookWith = async (harness: "claude-code" | "codex", name: string, transcript: string, session?: string) => {
+        const input = { ...JSON.parse(recorded(harness, name, worktreeB)), transcript_path: transcript, ...(session === undefined ? {} : { session_id: session }) };
+        const ran = await runHook(harness, JSON.stringify(input), home);
+        assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, name);
+      };
+
+      // A `claude -p` run: its transcript is under a project directory unrelated to its folder.
+      const batch = transcriptIn(path.join(dir, "claude", "projects", "C--elsewhere-main-checkout"), "batch.jsonl", usage(21_000));
+      await hookWith("claude-code", "session-start-startup", batch, "batch-session");
+      const batchReading = await readContext(log, project, "batch-session");
+      assert.deepEqual({ tokens: "tokens" in batchReading ? batchReading.tokens : undefined, source: batchReading.source }, { tokens: 21_000, source: batch });
+
+      // A session that started in folder A and moved into worktree B: the transcript stays under A's directory.
+      const fromA = transcriptIn(path.join(dir, "claude", "projects", "C--work-folder-A"), "moved.jsonl", usage(43_000));
+      await hookWith("claude-code", "post-tool-use-bash", fromA, "moved-session");
+      // Another session, more recently active and working in B too, is never read for it.
+      const other = transcriptIn(path.join(dir, "claude", "projects", "C--work-folder-B"), "other.jsonl", usage(99_000));
+      await hookWith("claude-code", "post-tool-use-write", other, "other-session");
+      const moved = await readContext(log, project, "moved-session");
+      assert.equal("tokens" in moved && moved.tokens, 43_000);
+      assert.equal(moved.source, fromA);
+
+      // The latest transcript recorded for a session is its transcript.
+      const later = transcriptIn(path.join(dir, "claude", "projects", "C--work-folder-A"), "later.jsonl", usage(7_000));
+      await hookWith("claude-code", "session-end", later, "moved-session");
+      assert.equal((await readContext(log, project, "moved-session")).source, later);
+
+      // Codex names its rollout the same way.
+      const rollout = transcriptIn(path.join(dir, "codex", "sessions"), "rollout.jsonl", `${JSON.stringify({ type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 12_348 } } } })}
+`);
+      await hookWith("codex", "post-tool-use-bash", rollout, "codex-session");
+      const codex = await readContext(log, project, "codex-session");
+      assert.deepEqual({ harness: codex.harness, tokens: "tokens" in codex ? codex.tokens : undefined, source: codex.source }, { harness: "codex", tokens: 12_348, source: rollout });
+    });
+  } finally {
+    await log.close();
     await dropTestProjects([project]);
   }
 });

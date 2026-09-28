@@ -51,13 +51,16 @@ export function pathEnv(path: string | undefined): NodeJS.ProcessEnv {
  * Run `command args` found on the path in `env`, giving up after `waitMs`; never rejects. It answers
  * when the tool exits, not when its output closes, which a process it started (gh's tzutil, a
  * console host) may never let happen.
+ *
+ * On Windows a user's tool is often a .cmd shim, which only a shell runs, so by default the words
+ * go through one there; pass `shell: false` for any argument that is not fixed, such as a branch.
  */
-export function ask(command: string, args: readonly string[], env: NodeJS.ProcessEnv, waitMs: number): Promise<Answer> {
+export function ask(command: string, args: readonly string[], env: NodeJS.ProcessEnv, waitMs: number, options: { readonly cwd?: string; readonly shell?: boolean } = {}): Promise<Answer> {
   return new Promise((resolve) => {
-    // On Windows a user's tool is often a .cmd shim, which only a shell runs. The words are fixed.
-    const child = process.platform === "win32"
-      ? spawn([command, ...args].join(" "), { env, shell: true, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] })
-      : spawn(command, args, { env, stdio: ["ignore", "pipe", "ignore"] });
+    const cwd = options.cwd === undefined ? {} : { cwd: options.cwd };
+    const child = (options.shell ?? process.platform === "win32")
+      ? spawn([command, ...args].join(" "), { env, ...cwd, shell: true, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] })
+      : spawn(command, args, { env, ...cwd, windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
     let out = "";
     child.stdout.on("data", (chunk: Buffer) => { out += chunk.toString(); });
     const timer = setTimeout(() => {

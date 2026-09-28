@@ -60,9 +60,11 @@ test("4.1 an arc with no intent is refused", async () => {
 test("4.2 a close with no pull request needs a note", async () => {
   await inWorld(command, async (world) => {
     const arc = await anArc(world);
-    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Email form", "--objective", "Build it", "--body", "The form, then its checks"]);
+    // A title that reads as a number is kept as the text given.
+    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "2027", "--objective", "Build it", "--body", "The form, then its checks"]);
     assert.equal(parked.code, 0, parked.stderr);
     const increment = idIn(parked.stdout, "increment");
+    assert.equal((await (await world.library()).arcView(arc))?.increments[0]?.fields.title, "2027");
 
     const bare = await world.run(["arc", "increment", "close", increment, "--disposition", "withdrawn"]);
     assert.equal(bare.code, 1);
@@ -137,10 +139,13 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
         assert.equal((await readClaims(log, world.project))[0]?.increment, increment.id);
         assert.deepEqual(await log.since(world.project, 0), before);
 
-        const outcome = disposition === "landed" ? ["--pr", "#132"] : ["--note", "Folded into the sign-up page"];
+        // A bare pull request number, as the guidance's `--pr <n>` gives it, is kept as the text it is.
+        const outcome = disposition === "landed" ? ["--pr", "132"] : ["--note", "Folded into the sign-up page"];
         const ran = await world.run([...close, ...outcome], env);
         assert.equal(ran.code, 0, ran.stderr);
-        assert.equal((await library.arcView(arc))?.increments.find((one) => one.id === increment.id)?.fields.outcome?.disposition, disposition);
+        const closed = (await library.arcView(arc))?.increments.find((one) => one.id === increment.id)?.fields.outcome;
+        assert.equal(closed?.disposition, disposition);
+        if (disposition === "landed") assert.equal(closed?.pr, "132");
         assert.deepEqual(await readClaims(log, world.project), [], "closing it must end the claim");
         const line = (await log.since(world.project, 0)).lines.at(-1);
         assert.equal(line?.kind, "closed");

@@ -3,6 +3,8 @@
 export { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, setUpProject, storytreeHome } from "./routing/index.js";
 export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddress } from "./routing/index.js";
 export { readProjectChoice, recordProjectChoice } from "./routing/project-choice.js";
+export { readSettings, setSetting } from "./settings/settings.js";
+export type { SettingReading, SettingsReading } from "./settings/settings.js";
 export { ACTIVITY_DATABASE, NEW_LINE, openActivityLog } from "./activity/index.js";
 export type { ActivityLog, Agent, Line, LineKind, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { labelOf, QUIET_MS, readSessions, sessionsFrom } from "./sessions/index.js";
@@ -14,5 +16,7 @@ export type { AgentToolOptions, AgentTools, ToolExtension, ToolCall, DefineTool,
 export { CHECK_COMMAND, CHECK_FILE, defaultHomes, openStorytree, registerHooks, removeHooks, runSetupCheck, suggestedName, verifyHooks } from "./setup/index.js";
 export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
 export { habitsCard } from "./instructions/index.js";
+export { contextCommand, contextReading, readContext } from "./context/index.js";
+export type { ContextCommandAnswer, ContextCommandOptions, ContextReading } from "./context/index.js";
 export { CaptureError, hasConcreteEvidence, recordFriction, recordResteer, reinforceFriction } from "./capture/index.js";
 export type { NewFriction, NewResteer, Reinforcement } from "./capture/index.js";

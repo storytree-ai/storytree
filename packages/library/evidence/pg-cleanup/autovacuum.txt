@@ -1,0 +1,34 @@
+[
+  {
+    version: 'PostgreSQL 17.10 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0, 64-bit'
+  }
+]
+backend before FORCE: [
+  {
+    pid: 462334,
+    usename: null,
+    backend_type: 'autovacuum worker',
+    query: 'autovacuum: VACUUM ANALYZE public.probe'
+  }
+]
+dropTestDatabases failed: {
+  message: 'permission denied to terminate process',
+  code: '42501',
+  routine: 'TerminateOtherDBBackends',
+  detail: 'Only roles with privileges of the role whose process is being terminated or with privileges of the "pg_signal_backend" role may terminate this process.'
+}
+plain DROP succeeded
+[
+  {
+    version: 'PostgreSQL 17.10 on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0, 64-bit'
+  }
+]
+backend before FORCE: [
+  {
+    pid: 462572,
+    usename: null,
+    backend_type: 'autovacuum worker',
+    query: 'autovacuum: VACUUM ANALYZE public.probe'
+  }
+]
+dropTestDatabases succeeded

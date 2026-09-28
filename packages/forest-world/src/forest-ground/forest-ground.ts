@@ -20,7 +20,7 @@
  * to these actual clipped coasts and parcel centres, then feeds the ground's worn paths and the
  * cross-island ribbon from one shared network (ADR-0169, ADR-0655 D3).
  */
-import { PLACE_WIDTH, type ForestScene, type Island, type TreeForm } from "@storytree/forest";
+import { PLACE_WIDTH, type ForestScene, type Island, type TreeForm } from "../scene.js";
 
 import {
   AXIAL_DIRS,

@@ -12,10 +12,10 @@
  * seedling, so a new story is never invisible.
  */
 import type { PartState, WorkStates } from "@storytree/arc-surface";
+import type { TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedCapability, AnnotatedStory, HealthState } from "@storytree/library";
 
-/** How a capability's tree looks. */
-export type TreeForm = "seedling" | "pale" | "green" | "dead";
+export type { TreeForm };
 
 /** One tree in a story node's grove. */
 export interface Tree {

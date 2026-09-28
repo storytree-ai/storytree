@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { ToolCall } from '@storytree/agent-link';
 
 const text = z.string().trim().min(1);
 const agent = z.union([z.literal('orchestrator'), z.literal('unknown'), z.object({
@@ -10,7 +9,15 @@ export const ownerSchema = z.object({
 }).strict();
 /** Already resolved caller identity. parentSession is an explicit delegation, never inferred. */
 export type RunOwner = z.infer<typeof ownerSchema>;
-export function ownerFromCall(call: Pick<ToolCall, 'caller' | 'agent'>): RunOwner {
+/**
+ * The agent link's tool call, as far as ownership reads it. Restated rather than imported: the agent
+ * link depends on this package, and a dependency back would make a workspace cycle.
+ */
+export interface OwningCall {
+  readonly caller: { readonly session: string; readonly harness?: string };
+  readonly agent: RunOwner['agent'];
+}
+export function ownerFromCall(call: OwningCall): RunOwner {
   return ownerSchema.parse({ ...call.caller, agent: call.agent });
 }
 export function sameOwner(left: RunOwner, right: RunOwner): boolean {

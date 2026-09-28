@@ -5,7 +5,7 @@ Increment `increment_8d245936227b`, arc `arc_197b9208adfc`. **Partial landing: d
 ## What lands
 
 - Apply #154's prepared dependency patch to CLI, agent-link and the lockfile.
-- Listing shares the stopping API's ownership and conflicting-registration checks. Named subagents cannot see sibling/parent runs as self or receive their stop offers; a session caller retains established multi-hop delegated sessions.
+- Listing refuses self reads with an explicitly unknown agent identity and points to all-session inspection; uncertainty never becomes an empty self reading. Listing shares the stopping API's ownership and conflicting-registration checks. Named subagents cannot see sibling/parent runs as self or receive their stop offers; a session caller retains established multi-hop delegated sessions.
 - A behavioral test compares every listing offer against stopOwned's actual per-target verdict for unchanged live fixtures, including conflicting registrations. Existing fixture lifetimes now use distinct PIDs so independent runs do not accidentally claim one native lifetime.
 - No CLI family or MCP registration is enabled by this landing. The prepared front-door implementation and its tests are preserved in front-doors.patch.
 
@@ -29,7 +29,7 @@ Fence expansions were requested in the lane conversation but not granted before 
 
 ## Evidence and library hand-off
 
-- Red commit: `ebe3d2b`, pushed before running the new tests. red.txt records the missing CLI/MCP doors and ownership mismatch.
+- Red commit: `ebe3d2b`, pushed before running the new tests. red.txt records the missing CLI/MCP doors and ownership mismatch. A final review pinned uncertain self identity in pushed red commit `493c346`; red-uncertain-self.txt records the missing refusal before its fix. The PR was held as a draft during this red/green correction.
 - front-doors-source-green.txt: eight focused tests passed on Linux after the candidate implementation (before it was withdrawn at the fence). This is source/standalone evidence, not installed-MCP or non-Linux proof.
 - front-doors-preflight.txt: full scope and the actual instruction-card failures; passing per-test detail omitted.
 - gate.txt and test-ratio.txt: final landed unit's full checks and ratio. Read scope and result tables. Guidance is NOT RUN because no roles or library notes were edited.

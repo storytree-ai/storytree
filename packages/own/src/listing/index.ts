@@ -56,6 +56,9 @@ export async function listRuns(options: InventoryOptions = {}): Promise<Inventor
     throw new Error('storytree own needs a session identity from the calling harness; use storytree own --all for local attribution without a session.');
   }
   const owner = checked.success ? checked.data : undefined;
+  if (scope === 'self' && owner?.agent === 'unknown') {
+    throw new Error('storytree own cannot establish the calling agent identity; use storytree own --all for local attribution without stop authority.');
+  }
   const observation = await observeRuns(options);
   const inspecting = await readProcess(process.pid);
   const now = options.now ?? new Date();
@@ -74,7 +77,7 @@ export async function listRuns(options: InventoryOptions = {}): Promise<Inventor
     const refused = owner === undefined ? undefined : refusal(run, owner, ledger);
     if (run.machine !== observation.machine) stop = unavailable('Recorded on another computer; no local stop authority.');
     else if (owner === undefined) stop = unavailable('No caller session identity; all-session attribution grants no stop authority.');
-    else if (ownership === 'other') stop = unavailable('Owned by another session; ask that owner to stop it.');
+    else if (ownership === 'other') stop = unavailable('Owned by another session or agent; ask that owner to stop it.');
     else if (refused) stop = unavailable(refused);
     else if (row.process.state === 'gone') stop = unavailable('This recorded lifetime is already gone.');
     else if (row.process.state === 'unknown') stop = unavailable(`Process identity is uncertain: ${row.process.reason}`);

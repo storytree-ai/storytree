@@ -13,12 +13,14 @@
  */
 import path from "node:path";
 
-import { findProject } from "../routing/index.js";
+import { findProject, suggestedName } from "../routing/index.js";
 import { defaultHomes, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
 import { machineState, type MachineState } from "./machine.js";
+
+export { suggestedName };
 
 export type { SetupLine } from "./diagnostics.js";
 export { machineState, NODE_FLOOR } from "./machine.js";
@@ -83,14 +85,3 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   return { ...report, lines: setupLines(report) };
 }
 
-/** A project name to suggest for `folder`: its own name, as the library's project-name rule allows. */
-export function suggestedName(folder: string): string {
-  const name = path
-    .basename(path.resolve(folder))
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/, "")
-    .slice(0, 40)
-    .replace(/-+$/, "");
-  return name === "" ? "my-project" : name;
-}

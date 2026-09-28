@@ -22,7 +22,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { BACKGROUND, STORYTREE_TOOLS } from "../hooks/index.js";
+import { ASK_SETUP, BACKGROUND, STORYTREE_TOOLS } from "../hooks/index.js";
 
 /** The command a harness runs as storytree's hook: a Node and the built hook script. */
 export interface HookCommand {
@@ -141,7 +141,8 @@ function isStorytreesStatusLine(statusLine: unknown): boolean {
 function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[]> {
   const run = (background: boolean) => ({ type: "command", command: node, args: [script, "claude-code"], ...(background ? { async: true } : {}) });
   return {
-    SessionStart: [{ hooks: [run(true)] }],
+    // The one in the background writes the start; the one it waits for asks the setup question in a folder that isn't a project.
+    SessionStart: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", ASK_SETUP] }] }],
     PreToolUse: [
       { matcher: `${STORYTREE_TOOLS}.*`, hooks: [run(false)] },
       { matcher: "Bash|PowerShell", hooks: [run(true)] },

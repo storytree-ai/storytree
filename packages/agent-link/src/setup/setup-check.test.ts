@@ -210,6 +210,49 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
   });
 });
 
+/** Run one of storytree's registered hooks as `harness` runs it: Claude Code a program with arguments, Codex a line through this machine's shell. */
+function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"][number], input: string, storytreeHome: string): string {
+  const env = { ...process.env, STORYTREE_HOME: storytreeHome };
+  const [command, args] =
+    harness === "claude-code" ? [hook.command, hook.args ?? []] : process.platform === "win32" ? ["powershell", ["-NoProfile", "-Command", hook.command]] : ["sh", ["-c", hook.command]];
+  const ran = spawnSync(command, args, { input, env, encoding: "utf8", timeout: 10_000 });
+  assert.equal(ran.status, 0, `${harness}: ${ran.stderr}`);
+  return ran.stdout;
+}
+
+test("8.12 at the start of a session in a folder that isn't a storytree project, a hook the harness waits for tells the agent to ask the user whether to set storytree up; in a project, nothing, and nothing is ever set up", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    registerHooks(home.homes, { node: process.execPath, script: hookScript });
+    const stopped = path.join(dir, "stopped-home");
+    mkdirSync(stopped);
+    const fresh = path.join(dir, "new-site");
+    const project = path.join(dir, "site");
+    for (const folder of [fresh, project]) mkdirSync(folder);
+    writeFileSync(path.join(project, MARKER_FILE), `${JSON.stringify({ project: "site" })}\n`);
+
+    for (const [harness, settings] of [["claude-code", home.claudeSettings], ["codex", home.codexHooks]] as const) {
+      const starts = ((readJson(settings).hooks as Record<string, HookEntry[]>).SessionStart ?? []).flatMap((entry) => entry.hooks);
+      // What reaches the agent: the output of the hooks the harness waits for (Claude Code's run in the background print nothing it reads).
+      const told = (folder: string) => {
+        const input = JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: folder });
+        return starts.filter((hook) => hook.async !== true).map((hook) => runRegistered(harness, hook, input, stopped)).filter((out) => out !== "");
+      };
+      const [asked, ...more] = told(fresh);
+      assert.equal(more.length, 0, `${harness}: told once`);
+      const output = JSON.parse(asked ?? "{}") as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } };
+      assert.equal(output.hookSpecificOutput?.hookEventName, "SessionStart", harness);
+      const context = output.hookSpecificOutput?.additionalContext ?? "";
+      assert.ok(context.includes("set_up_project") && context.includes('"new-site"'), `${harness}: ${context}`);
+      assert.deepEqual(told(project), [], `${harness}: nothing in a project`);
+      for (const hook of starts.filter((hook) => hook.async === true)) {
+        assert.equal(runRegistered(harness, hook, JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: fresh }), stopped), "", `${harness}: nothing from the background`);
+      }
+    }
+    assert.equal(existsSync(path.join(fresh, MARKER_FILE)), false, "the folder is not set up");
+  });
+});
+
 test("8.3 with storytree closed, a session start opens it", async () => {
   await withTempDir(async (dir) => {
     const storytreeHome = path.join(dir, "storytree-home");

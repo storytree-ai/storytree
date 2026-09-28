@@ -334,6 +334,9 @@ importers:
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
+      '@storytree/forest-world':
+        specifier: workspace:*
+        version: link:../forest-world
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

@@ -301,22 +301,68 @@ export interface Trail {
 export function trails(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
   present: ReadonlySet<string>): Trail[] {
   const drawn = new Map<string, Trail>();
-  const take = (member: string, colourOf: (agent: string) => string, key: string) => {
-    for (const { agent, jumps } of reads.replay(member, present).agents) {
-      for (const { from, to, seq } of jumps) {
-        if (from === undefined || from === to || drawn.has(`${key} ${from} ${to}`)) continue;
-        drawn.set(`${key} ${from} ${to}`, { from, to, colour: colourOf(agent), seq });
-      }
+  for (const { listed, replay, colour } of drawnAgents(reads, roster, session, present)) {
+    for (const { from, to, seq } of replay.jumps) {
+      if (from === undefined || from === to || drawn.has(`${listed} ${from} ${to}`)) continue;
+      drawn.set(`${listed} ${from} ${to}`, { from, to, colour, seq });
     }
-  };
-  if (session === undefined) {
-    for (const { session: listed, colour, members } of roster) for (const member of members) take(member, () => colour, listed);
-  } else {
-    const { agents } = reads.replay(session, present);
-    const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
-    take(session, (agent) => colours.get(agent)!, session);
   }
   return [...drawn.values()].sort((a, b) => a.seq - b.seq);
+}
+
+/** One known agent's wisp (ADR-0741): where it rests, and every step it has flown, in recorded order. */
+export interface Wisp {
+  /** The session the reads were filed under and the agent, as "<session> <agent>". */
+  mover: string;
+  colour: string;
+  /** The note it read in full most recently. */
+  note: string;
+  steps: Trail[];
+}
+
+/**
+ * The wisps to fly (ADR-0741 D1): one per known agent of each drawn session (as `trails` draws
+ * them) that has read something in full, resting at its latest full read. A peek moves no wisp,
+ * and an unknown agent or an unlisted session has none.
+ */
+export function wisps(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
+  present: ReadonlySet<string>): Wisp[] {
+  return drawnAgents(reads, roster, session, present).flatMap(({ member, replay, colour }) => {
+    const note = replay.lit.filter(({ read }) => read === "whole").at(-1)?.note;
+    if (!replay.known || note === undefined) return [];
+    const steps = replay.jumps.flatMap(({ from, to, seq }) => from === undefined || from === to ? [] : [{ from, to, colour, seq }]);
+    return [{ mover: `${member} ${replay.agent}`, colour, note, steps }];
+  });
+}
+
+/** Each agent of each drawn session, with the colour its paths and wisp wear (ADR-0740 D2). */
+function drawnAgents(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
+  present: ReadonlySet<string>): { listed: string; member: string; replay: AgentReplay; colour: string }[] {
+  if (session === undefined) {
+    return roster.flatMap(({ session: listed, colour, members }) =>
+      members.flatMap((member) => reads.replay(member, present).agents.map((replay) => ({ listed, member, replay, colour }))));
+  }
+  const { agents } = reads.replay(session, present);
+  const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
+  return agents.map((replay) => ({ listed: session, member: session, replay, colour: colours.get(replay.agent)! }));
+}
+
+/** How far a wisp's tail reaches back along its step, as a fraction of the step (ADR-0741 D2). */
+const TAIL = 0.35;
+
+/** A point `t` of the way along a step's curve: a quadratic Bezier bowed away from the globe's centre (ADR-0740 D3). */
+export function curvePoint(from: Point, to: Point, t: number): Point {
+  const middle = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2, z: (from.z + to.z) / 2 };
+  const out = length(middle) === 0 ? { x: 0, y: 1, z: 0 } : unit(middle);
+  const bow = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z) * 0.3;
+  const control = { x: middle.x + out.x * bow, y: middle.y + out.y * bow, z: middle.z + out.z * bow };
+  const a = (1 - t) ** 2, b = 2 * t * (1 - t), c = t * t;
+  return { x: from.x * a + control.x * b + to.x * c, y: from.y * a + control.y * b + to.y * c, z: from.z * a + control.z * b + to.z * c };
+}
+
+/** The part of a step's curve a wisp at `t` trails behind it: from up to TAIL back, to the wisp. */
+export function tailSpan(t: number): [number, number] {
+  return [Math.max(0, t - TAIL), t];
 }
 
 interface LiveNote {

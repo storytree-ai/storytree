@@ -18,10 +18,15 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   if (hooks === undefined) {
     lines.push({ check: "hooks", state: "skipped", message: "This check has no installed storytree hook command to register.", fix: "Run the check from an installed storytree." });
   } else {
+    const name = (harness: "claude-code" | "codex") => harness === "codex" ? "Codex" : "Claude Code";
     const registered = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered");
+    // Name only the harnesses whose hooks are in place: not one that is not on this machine or was disconnected.
+    const present = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered" || hooks[harness] === "already registered");
     lines.push({ check: "hooks", state: registered.length > 0 ? "fixed" : "ok", message: registered.length > 0
-      ? `storytree's hooks were registered for ${registered.map((harness) => harness === "codex" ? "Codex" : "Claude Code").join(" and ")}.`
-      : "storytree's hooks are registered for Claude Code and Codex; receiving them is verified inside a session." });
+      ? `storytree's hooks were registered for ${registered.map(name).join(" and ")}.`
+      : present.length > 0
+        ? `storytree's hooks are registered for ${present.map(name).join(" and ")}; receiving them is verified inside a session.`
+        : "No harness here has storytree's hooks: neither Claude Code nor Codex is on this machine and connected." });
     lines.push({ check: "status-line", state: hooks.statusLine === "installed" ? "fixed" : "ok", message: hooks.statusLine === "installed"
       ? "storytree's status line was installed in Claude Code: it shows from the next session."
       : hooks.statusLine === "the user's own kept"

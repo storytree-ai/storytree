@@ -56,6 +56,9 @@ def flame(name, rings, segments, mat):
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.mesh.normals_make_consistent(inside=False)
     bpy.ops.object.mode_set(mode='OBJECT')
+    # The shell catches a rounded highlight; the luminous heart keeps its pine-kit facets.
+    for polygon in mesh.polygons:
+        polygon.use_smooth = name == 'WispShell'
     obj.select_set(False)
     return obj
 
@@ -70,13 +73,11 @@ flame('WispShell', [
     (-4.9, 2.5, 0.04, 0.04),
 ], 10, material('ShellPreview', (0.34, 0.69, 1.0), 0.18, 0.62))
 
-flame('WispCore', [
-    (1.65, 0.0, 0.06, 0.06),
-    (1.0, 0.0, 0.85, 0.85),
-    (0.0, 0.05, 1.18, 1.04),
-    (-1.05, 0.23, 0.83, 0.73),
-    (-2.5, 0.85, 0.04, 0.04),
-], 8, material('CorePreview', (0.84, 0.94, 1.0), 0.8, 1.0))
+bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=1.4, location=(0.3, 0, 0.03))
+core = bpy.context.object
+core.name = 'WispCore'
+core.data.name = 'WispCore'
+core.data.materials.append(material('CorePreview', (0.84, 0.94, 1.0), 0.25, 1.0))
 
 output = Path(__file__).with_name('wisp.glb')
 bpy.ops.export_scene.gltf(

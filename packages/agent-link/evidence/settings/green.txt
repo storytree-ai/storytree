@@ -1,0 +1,9 @@
+✔ 10.1 without a settings file, context guidance reads as 700,000 tokens with its type and meaning (0.964252ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 371.413439

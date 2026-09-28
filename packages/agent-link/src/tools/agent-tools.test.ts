@@ -10,7 +10,7 @@
  * What the tests check is read back through the library and the activity log themselves.
  */
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
@@ -52,6 +52,7 @@ const TOOLS = [
   "plan_contract",
   "plan_story",
   "raise_question",
+  "read_context",
   "ready_increment",
   "record_friction",
   "record_resteer",
@@ -434,6 +435,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["raise_question", { arc: "arc_000000000000", title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" }],
         ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],
         ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
+        ["read_context", {}],
       ];
       // Every tool but the setup check's two, which open storytree when it is closed (capability 8).
       const setupTools = ["check_setup", "set_up_project"];
@@ -644,6 +646,35 @@ test("6.8 after Claude Code's /clear, which gives the window a new session id th
         { tool: "show_plan", session: "claude-before-clear" },
       ],
     );
+  });
+});
+
+test("6.22 a test client calls read_context as session S and gets S's reading, worked out at the time of the call, including after S's transcript has grown with no turn ended; after a /clear whose hook named session T, the same call returns T's", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const usage = (requestId: string, tokens: number) => `${JSON.stringify({ type: "assistant", requestId, message: { model: "claude-opus-5-5", usage: { input_tokens: tokens, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })}\n`;
+    const before = path.join(folder, "..", "before-clear.jsonl");
+    const after = path.join(folder, "..", "after-clear.jsonl");
+    writeFileSync(before, usage("req_1", 180_000));
+    writeFileSync(after, usage("req_1", 9_000));
+    const hook = { harness: "claude-code", source: "hook", folder } as const;
+    await log.append(project, { ...hook, session: "claude-before-clear", kind: "session-started", how: "startup", transcript: before });
+
+    await withAgent(folder, claudeCode("claude-before-clear"), async (agent) => {
+      const first = await agent.call("read_context", {});
+      assert.equal(first.isError, false);
+      assert.deepEqual({ session: first.data.session, tokens: first.data.tokens, source: first.data.source }, { session: "claude-before-clear", tokens: 180_000, source: before });
+      assert.match(first.text, /180,000 tokens/);
+
+      // The transcript grows mid-turn, with no hook run: the next call reads it as it now stands.
+      appendFileSync(before, usage("req_2", 240_000));
+      assert.equal((await agent.call("read_context", {})).data.tokens, 240_000);
+
+      // After /clear the window is session T, which only its hooks name; the server still holds S's id.
+      await log.append(project, { ...hook, session: "claude-after-clear", kind: "session-started", how: "clear", transcript: after });
+      await log.append(project, { ...hook, session: "claude-after-clear", kind: "tool-requested", tool: "read_context", call: "toolu_ctx", agent: "orchestrator", transcript: after });
+      const cleared = await agent.call("read_context", {}, { "claudecode/toolUseId": "toolu_ctx" });
+      assert.deepEqual({ session: cleared.data.session, tokens: cleared.data.tokens }, { session: "claude-after-clear", tokens: 9_000 });
+    });
   });
 });
 

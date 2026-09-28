@@ -38,6 +38,7 @@ import { QUIET_MS } from "../sessions/index.js";
 import type { SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
+import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
 import { registerNoteTools } from "./note-tools.js";
 import { registerPlanTools } from "./plan-tools.js";
@@ -166,6 +167,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   registerClaimTools(define, extensions);
   registerWorkTools(define);
   registerNoteTools(define);
+  registerContextTools(define);
   for (const extension of extensions) extension.registerTools?.(define);
 
   return {

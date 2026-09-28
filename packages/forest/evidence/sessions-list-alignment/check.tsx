@@ -19,10 +19,10 @@ const base = { agent: "Claude Code", state: "active", needsYou: false, totalToke
 const atLimit = ["Make workspace for the Wisps with Mowgli", "Line up the sessions-list context bar ok"];
 const rows: SessionRow[] = [
   { ...base, id: "short", label: "Fix" },
-  { ...base, id: "limit-1", label: atLimit[0]!, totalTokens: 412_000 },
-  { ...base, id: "limit-2", label: atLimit[1]! },
+  { ...base, id: "limit-1", label: atLimit[0]!, totalTokens: 412_000, composition: { injected: 57, grounding: 36, implementation: 70, other: 132 } },
+  { ...base, id: "limit-2", label: atLimit[1]!, totalTokens: 790_000, composition: { injected: 90, grounding: 300, implementation: 250, other: 150 } },
   { ...base, id: "badges", label: "Hosted library: a library location setting and Cloud SQL support", needsYou: true, children: [{ ...base, id: "lane", label: "Lane" }] },
-  { ...base, id: "needs", label: "Wisps orbit their islands", needsYou: true, totalTokens: 1_200_000 },
+  { ...base, id: "needs", label: "Wisps orbit their islands", agent: "Codex", needsYou: true, totalTokens: 300_000 },
 ];
 assert.ok(atLimit.every(label => label.length === 40));
 const html = renderToStaticMarkup(createElement(SessionsList, { rows, onHighlight() {} }));

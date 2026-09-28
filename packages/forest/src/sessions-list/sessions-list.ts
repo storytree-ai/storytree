@@ -4,10 +4,19 @@ import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
-/** Integration seam for explicit agent-link readings once available. Never inferred from prose. */
+/** Estimated tokens in each of a context's four groups (agent link 9.8): read as shares, not a second total. */
+export interface ContextGroups {
+  injected: number;
+  grounding: number;
+  implementation: number;
+  other: number;
+}
+
+/** Facts about a session read elsewhere (the agent link's context reading, 9.5). Never inferred from prose. */
 export interface SessionDetails {
   parentSession?: string;
   totalTokens?: number;
+  composition?: ContextGroups | undefined;
 }
 export interface SessionRow {
   id: string;
@@ -17,6 +26,8 @@ export interface SessionRow {
   state: SessionState | "observed";
   needsYou: boolean;
   totalTokens: number | undefined;
+  /** What those tokens are made of, when the reading could tell (a Codex reading cannot yet). */
+  composition?: ContextGroups | undefined;
   stories: string[];
   children: SessionRow[];
 }
@@ -46,7 +57,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     rows.set(session.session, { id: session.session,
       label: own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title || session.label,
       agent: session.label, state: session.state, needsYou: question,
-      totalTokens: contextTotal(detail),
+      totalTokens: contextTotal(detail), composition: detail?.composition,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
@@ -55,7 +66,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
       agent: line.type ?? "Subagent", state: "observed", needsYou: false,
-      totalTokens: contextTotal(details.get(line.subagent)), stories: [], children: [] });
+      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
   const roots: SessionRow[] = [];

@@ -1,6 +1,7 @@
 /** The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { ContextReading } from "@storytree/agent-link";
 import type { Line } from "@storytree/agent-link/readings";
 import { liveReading, type LiveReads } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
@@ -11,6 +12,23 @@ import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/a
 export interface SessionsReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;
   arcView(project: string, id: string): Promise<ArcView | null>;
+  /** The agent link's context readings (9.5, 9.8) for these sessions, read now; the rows' bars and totals. */
+  contextReadings?(project: string, sessions: readonly string[]): Promise<readonly ContextReading[]>;
+}
+
+/** How often the listed sessions' context readings are asked for again. */
+const READING_EVERY_MS = 10_000;
+
+/** A reading as the facts a row shows: its tokens, and its four groups when it has them. */
+function detailsOf(reading: ContextReading): SessionDetails {
+  if (!("tokens" in reading)) return {};
+  return "absent" in reading.composition ? { totalTokens: reading.tokens }
+    : { totalTokens: reading.tokens, composition: { injected: reading.composition.injected, grounding: reading.composition.grounding,
+      implementation: reading.composition.implementation, other: reading.composition.other } };
+}
+
+function everyId(rows: readonly SessionRow[]): string[] {
+  return rows.flatMap(row => [row.id, ...everyId(row.children)]);
 }
 
 /** The optional details seam takes already-read facts; it never asks for or parses transcripts. */
@@ -33,18 +51,39 @@ export function mountSessionsList(container: HTMLElement, options: {
   let lines: Line[] = [];
   let rows: SessionRow[] = [];
   let details: ReadonlyMap<string, SessionDetails> = new Map();
+  let readings: ReadonlyMap<string, SessionDetails> = new Map();
+  let askedAt = -Infinity;
+  let asking = false;
   let highlighted: string | undefined;
   let selected: string | undefined;
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined}
     error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
-  const refresh = (now: Date): void => {
+  /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
+  const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
+    .map(id => [id, { ...details.get(id), ...readings.get(id) }]));
+  const askReadings = (): void => {
+    const ask = options.reads.contextReadings;
+    if (ask === undefined || asking || Date.now() - askedAt < READING_EVERY_MS || rows.length === 0) return;
+    asking = true;
+    askedAt = Date.now();
+    ask.call(options.reads, options.project, everyId(rows)).then(answers => {
+      readings = new Map(answers.map(reading => [reading.session, detailsOf(reading)]));
+    }, () => {
+      // A reading that fails leaves the bars as they were; the next ask tries again.
+    }).finally(() => {
+      asking = false;
+      if (!stopped) refresh(new Date(), false);
+    });
+  };
+  const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined) return;
-    rows = sessionRows(tree, lines, arcs, now, details);
+    rows = sessionRows(tree, lines, arcs, now, merged());
     options.onWisps?.(sessionWisps(rows, lines, now));
     options.onRoster?.(sessionRoster(rows));
     draw();
+    if (ask) askReadings();
   };
   draw();
   const reading = liveReading({ project: options.project, reads: options.reads,
@@ -79,6 +118,37 @@ export function mountSessionsList(container: HTMLElement, options: {
       host.remove();
     },
   };
+}
+
+/**
+ * The bar's scale: 1,000,000 tokens across its full width, the same for every row so rows compare.
+ * A reading carries no window size (ADR-0728 D1), so this is the display's choice, not a limit; a
+ * session past it fills the bar and its total says how far.
+ */
+export const BAR_TOKENS = 1_000_000;
+/** Claude Code's marks (ADR-0557 in 0.2): the context guidance default (ADR-0729) and the line past it. Codex rows are raw. */
+const CLAUDE_TICKS = [700_000, 850_000];
+const GROUPS = [["injected", "Injected"], ["grounding", "Grounding"], ["implementation", "Implementation"], ["other", "Other"]] as const;
+
+const percent = (tokens: number): string => `${+(Math.min(tokens, BAR_TOKENS) / BAR_TOKENS * 100).toFixed(2)}%`;
+const count = (tokens: number): string => Math.round(tokens).toLocaleString("en-US");
+
+/** A row's context: its tokens on the bar's scale, split into the reading's four groups when it has them. */
+function ContextBar({ row }: { row: SessionRow }) {
+  const tokens = row.totalTokens;
+  if (tokens === undefined) return <span className="session-context-slot" aria-hidden="true" />;
+  const { composition } = row;
+  const sum = composition === undefined ? 0 : GROUPS.reduce((total, [group]) => total + composition[group], 0);
+  const parts = composition === undefined || sum === 0 ? undefined
+    : GROUPS.map(([group, name]) => ({ group, name, tokens: tokens * composition[group] / sum }));
+  const title = parts === undefined ? `${count(tokens)} tokens`
+    : `${count(tokens)} tokens: ${parts.map(part => `${part.name} ${count(part.tokens)}`).join(" · ")} (an estimated split)`;
+  return <span className="session-context-slot" title={title}>
+    {parts === undefined
+      ? <span className="session-segment" data-group="raw" style={{ width: percent(tokens) }} />
+      : parts.map(part => <span key={part.group} className="session-segment" data-group={part.group} style={{ width: percent(part.tokens) }} />)}
+    {row.agent === "Claude Code" && CLAUDE_TICKS.map(tick => <span key={tick} className="session-tick" style={{ left: percent(tick) }} />)}
+  </span>;
 }
 
 export function SessionsList({ rows, loading = false, error, highlighted, selected, onHighlight, onSelect }: {
@@ -143,7 +213,7 @@ export function SessionsList({ rows, loading = false, error, highlighted, select
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} ${row.children.length} children of ${row.label}`}
             onClick={event => { event.stopPropagation(); setExpanded(toggle(expanded, row.id)); }}>+{row.children.length}</button>}
           {row.needsYou && <span className="session-needs-you">needs you</span>}
-          <span className="session-context-slot" aria-hidden="true" />
+          <ContextBar row={row} />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
             {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
         </div>

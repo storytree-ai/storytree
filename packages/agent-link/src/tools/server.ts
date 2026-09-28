@@ -198,7 +198,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   registerClaimTools(define, extensions);
   registerWorkTools(define);
   registerNoteTools(define);
-  registerContextTools(define);
+  registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
   for (const extension of extensions) extension.registerTools?.(define);
 
   return {

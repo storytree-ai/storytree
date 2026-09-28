@@ -6,16 +6,17 @@
 import { z } from "zod";
 
 import { readContext } from "../context/index.js";
+import { guidanceSentence } from "../context/guidance.js";
 import type { Define } from "./server.js";
 
-export function registerContextTools(define: Define): void {
+export function registerContextTools(define: Define, home?: string): void {
   define(
     "read_context",
-    "How many tokens your own context window holds right now, read from your session's transcript. It states no limit: judge it against the project's guidance.",
+    "How many tokens your own context window holds right now, read from your session's transcript, and whether that is under, at or past your context guidance. Guidance is not an enforced limit.",
     z.object({}),
     async (_args, { log, project, caller }) => {
-      const reading = await readContext(log, project, caller.session);
-      const text = "absent" in reading ? `No context reading for this session: ${reading.absent}.` : `Your context holds ${reading.tokens.toLocaleString("en-US")} tokens.`;
+      const reading = await readContext(log, project, caller.session, home === undefined ? {} : { home });
+      const text = "absent" in reading ? `No context reading for this session: ${reading.absent}.` : `Your context holds ${reading.tokens.toLocaleString("en-US")} tokens. ${guidanceSentence(reading.guidance)}`;
       return { text, data: { ...reading } };
     },
   );

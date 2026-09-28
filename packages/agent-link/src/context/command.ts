@@ -4,8 +4,11 @@
  * shell's environment: Claude Code's `CLAUDE_CODE_SESSION_ID`, Codex's `CODEX_THREAD_ID`. It exits
  * 0 whatever it finds: a figure, or an absence said in words and never as a number.
  */
+import path from "node:path";
+
 import { route, type LocateOptions } from "../routing/index.js";
 import { readContext, type ContextReading } from "./context.js";
+import { guidanceSentence } from "./guidance.js";
 
 export interface ContextCommandOptions {
   /** The folder the command runs in: its project is routed from here. */
@@ -32,7 +35,8 @@ export async function contextCommand({ folder, env, json = false, locate }: Cont
   const storytree = await connect(where.library);
   try {
     const log = await openActivityLog(storytree);
-    const reading = await readContext(log, where.project, session);
+    const home = locate?.home ?? (locate?.dataDir === undefined ? undefined : path.dirname(path.resolve(locate.dataDir)));
+    const reading = await readContext(log, where.project, session, home === undefined ? {} : { home });
     await log.close();
     return { text: json ? JSON.stringify(reading) : sentence(reading), code: 0 };
   } finally {
@@ -43,7 +47,7 @@ export async function contextCommand({ folder, env, json = false, locate }: Cont
 /** The reading as one sentence: the figure and where it came from, or the absence in words. */
 function sentence(reading: ContextReading): string {
   if ("absent" in reading) return `No context reading for this session: ${reading.absent}.`;
-  return `This session's context holds ${reading.tokens.toLocaleString("en-US")} tokens (read from ${reading.source}).`;
+  return `This session's context holds ${reading.tokens.toLocaleString("en-US")} tokens (read from ${reading.source}). ${guidanceSentence(reading.guidance)}`;
 }
 
 function said(json: boolean, text: string): ContextCommandAnswer {

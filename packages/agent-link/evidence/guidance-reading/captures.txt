@@ -1,0 +1,50 @@
+Default guidance
+exit: 0
+This session's context holds 317,000 tokens (read from /tmp/guidance-reading-capture-DacqdI/S.jsonl). This is under the context guidance of 700,000 tokens (default).
+
+Set guidance: under
+exit: 0
+This session's context holds 317,000 tokens (read from /tmp/guidance-reading-capture-DacqdI/S.jsonl). This is under the context guidance of 400,000 tokens (set).
+
+Set guidance: past
+exit: 0
+This session's context holds 450,000 tokens (read from /tmp/guidance-reading-capture-DacqdI/S.jsonl). This is past the context guidance of 400,000 tokens (set).
+
+Set guidance: JSON
+exit: 0
+{"session":"S","harness":"claude-code","tokens":450000,"composition":{"injected":450000,"grounding":0,"implementation":0,"other":0,"unsorted":[],"charsPerToken":3.8},"guidance":{"value":400000,"source":"set","position":"past"},"at":"2026-09-28T10:49:56.816Z","source":"/tmp/guidance-reading-capture-DacqdI/S.jsonl"}
+
+Set guidance: equal
+exit: 0
+This session's context holds 400,000 tokens (read from /tmp/guidance-reading-capture-DacqdI/S.jsonl). This is at the context guidance of 400,000 tokens (set).
+
+Changed setting: next read
+exit: 0
+This session's context holds 450,000 tokens (read from /tmp/guidance-reading-capture-DacqdI/S.jsonl). This is under the context guidance of 500,000 tokens (set).
+
+Unusable settings, with an available activity log
+{
+  "session": "S",
+  "harness": "claude-code",
+  "tokens": 450000,
+  "composition": {
+    "injected": 450000,
+    "grounding": 0,
+    "implementation": 0,
+    "other": 0,
+    "unsorted": [],
+    "charsPerToken": 3.8
+  },
+  "guidance": {
+    "absent": "Invalid settings file \"/tmp/guidance-reading-capture-DacqdI/settings.json\": Expected property name or '}' in JSON at position 1 (line 1 column 2) Repair it before reading or changing settings."
+  },
+  "at": "2026-09-28T10:49:56.829Z",
+  "source": "/tmp/guidance-reading-capture-DacqdI/S.jsonl"
+}
+Context guidance could not be read: Invalid settings file "/tmp/guidance-reading-capture-DacqdI/settings.json": Expected property name or '}' in JSON at position 1 (line 1 column 2) Repair it before reading or changing settings.
+
+Unresolved dependency: a fresh command cannot route the library with unusable settings
+Invalid settings file "/tmp/guidance-reading-capture-DacqdI/settings.json": Expected property name or '}' in JSON at position 1 (line 1 column 2) Repair it before reading or changing settings.
+
+No transcript recorded
+{"session":"missing","absent":"no hook has named this session's transcript","at":"2026-09-28T10:49:56.830Z"}

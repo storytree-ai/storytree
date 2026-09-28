@@ -50,3 +50,10 @@ test("7.6 a row's bar is its tokens on a 1,000,000-token scale in four groups, n
   assert.doesNotMatch(codex, /session-tick/);
   assert.match(codex, /title="1,200,000 tokens"/);
 });
+
+test("7.6 the header names the bar's four colours in bar order", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
+  const header = html.match(/<header>.*<\/header>/)?.[0] ?? "";
+  assert.deepEqual([...header.matchAll(/data-group="(\w+)"><span class="session-swatch"[^>]*><\/span>(\w+)/g)].map(m => [m[1], m[2]]),
+    [["injected", "Injected"], ["grounding", "Grounding"], ["implementation", "Implementation"], ["other", "Other"]]);
+});

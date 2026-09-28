@@ -1,38 +1,23 @@
 
 > storytree@ desktop:smoke /home/mickh/code/storytree03-wt/settings-panel
-> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/menu-open.png"
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--disable-renderer-backgrounding" "--disable-background-timer-throttling" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/menu-open.png"
 
 
 > @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/settings-panel/apps/desktop
-> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/menu-open.png"
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--disable-renderer-backgrounding" "--disable-background-timer-throttling" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/menu-open.png"
 
 built dist
 
-DevTools listening on ws://127.0.0.1:46619/devtools/browser/95fe7498-2c7b-4010-bc59-1f38197d492b
-Postgres: listening on 127.0.0.1:33235 (started in 0.1 s)
-library: postgres://postgres@127.0.0.1:33235/postgres
-storytree 0.3: development build 9b8d5e2 from /home/mickh/code/storytree03-wt/settings-panel (does not update itself)
-[643417:0928/184041.228022:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0xe6c0018f800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+DevTools listening on ws://127.0.0.1:34915/devtools/browser/328da2d1-3cb9-4bb3-92d0-3e2c3f45d4ac
+Postgres: listening on 127.0.0.1:38795 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:38795/postgres
+storytree 0.3: development build bdd1549 from /home/mickh/code/storytree03-wt/settings-panel (does not update itself)
 smoke: screenshot /home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/menu-open.png (1120x860)
-Project
-storytree
-Help
-Check for updates
-Settings
-The library
-The agent link
-The app
-The forest
-The arc surface
-The command line
-The librarian
-The knowledge core
-The app setup
-What did I leave running?
 Forest
 Library
-Arcs storytree
-━ ▴
+Arcs
+storytree
+▴
 Active
 Parked
 Closed

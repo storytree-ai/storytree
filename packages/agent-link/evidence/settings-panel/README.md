@@ -56,8 +56,14 @@ DISPLAY=:196 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock \
 ```
 
 The native driver resets only that throwaway home’s settings before each capture. All
-four images are produced by the real smoke command after interaction through its actual
-preload and IPC; no fixture replaces settings there. The headless route uses the same
+four images are CDP screenshots of the real smoke window after interaction through its actual
+preload and IPC; no fixture replaces settings there. This reuses the gear lane’s native-picker
+capture path: Electron’s `capturePage` sometimes returns an earlier compositor frame, such as
+the default before a confirmed save. CDP forces a fresh frame; no pixels are edited. The driver
+brings the window forward and closes the already-exercised arc drawer to show the panel against
+the forest. A brief table lock on the throwaway snapshot holds smoke’s final census read while
+the screenshot completes; it changes no record, then releases so the real census and exit run.
+Each smoke command still verifies the forest census and exits successfully. The headless route uses the same
 writers and a separate temporary database, with explicit injected failures only in its
 retry checks. Both drivers close their browsers and temporary database processes.
 

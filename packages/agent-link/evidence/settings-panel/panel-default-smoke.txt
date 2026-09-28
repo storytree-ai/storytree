@@ -1,18 +1,18 @@
 
 > storytree@ desktop:smoke /home/mickh/code/storytree03-wt/settings-panel
-> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/panel-default.png"
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--disable-renderer-backgrounding" "--disable-background-timer-throttling" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/panel-default.png"
 
 
 > @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/settings-panel/apps/desktop
-> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/panel-default.png"
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--disable-renderer-backgrounding" "--disable-background-timer-throttling" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/panel-default.png"
 
 built dist
 
-DevTools listening on ws://127.0.0.1:33935/devtools/browser/f94582e6-9786-4edf-97d9-2f6d2424b888
-Postgres: listening on 127.0.0.1:35365 (started in 0.1 s)
-library: postgres://postgres@127.0.0.1:35365/postgres
-storytree 0.3: development build 9b8d5e2 from /home/mickh/code/storytree03-wt/settings-panel (does not update itself)
-[643698:0928/184049.000012:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x3fbc00193a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+DevTools listening on ws://127.0.0.1:43947/devtools/browser/42af208d-0217-488c-845d-3aa5eb6e973a
+Postgres: listening on 127.0.0.1:35083 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:35083/postgres
+storytree 0.3: development build bdd1549 from /home/mickh/code/storytree03-wt/settings-panel (does not update itself)
+[663828:0928/185310.429099:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x9bc00191000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
 smoke: screenshot /home/mickh/code/storytree03-wt/settings-panel/packages/agent-link/evidence/settings-panel/panel-default.png (1120x860)
 The library
 The agent link
@@ -26,8 +26,9 @@ The app setup
 What did I leave running?
 Forest
 Library
-Arcs storytree
-━ ▴
+Arcs
+storytree
+▴
 Active
 Parked
 Closed
@@ -64,26 +65,25 @@ Nothing is waiting on you here
 Sessions 0
 
 No running sessions
-
-Settings
-
-Yours on this computer · all projects
-
-Close
-Context guidance
-
-Soft guidance for context size in tokens; it does not enforce a hard limit.
-
-tokens
-default
-Save
-Library
-
-Where the library lives: local, the storytree app's own database on this computer, or cloudsql, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email).
-
-On this computer
-Google Cloud SQL
-default
-Save
 smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Error occurred in handler for 'storytree:changes-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78696:31)
+    at /home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78539:84
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)
+Error occurred in handler for 'storytree:lines-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78696:31)
+    at /home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78540:82
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)
+Error occurred in handler for 'storytree:changes-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78696:31)
+    at /home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78539:84
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)
+Error occurred in handler for 'storytree:lines-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78696:31)
+    at /home/mickh/code/storytree03-wt/settings-panel/apps/desktop/dist/main.cjs:78540:82
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)
 Postgres: stopped (0.1 s)

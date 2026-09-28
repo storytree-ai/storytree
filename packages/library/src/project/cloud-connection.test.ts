@@ -819,7 +819,9 @@ async function assertBorrowed(project: Project, user: string, creator: string): 
   const { rows: signedIn } = await project.pool.query<{ current: string; session: string; db: string }>(
     "SELECT current_user AS current, session_user AS session, current_database() AS db",
   );
-  assert.deepEqual(signedIn, [{ current: user, session: user, db: database }], "the project is signed in as the user itself");
+  // Signed in as the user itself, acting as the role that owns the database (contract 8.3), so a
+  // second account sharing that role reaches the same tables.
+  assert.deepEqual(signedIn, [{ current: creator, session: user, db: database }], "signed in as the user, acting as the owning role");
 
   const { tables, meta } = await withTestClient(async (client) => {
     const listed = await client.query<{ name: string; owner: string }>(
@@ -829,7 +831,7 @@ async function assertBorrowed(project: Project, user: string, creator: string): 
     return { tables: listed.rows, meta: Object.fromEntries(kept.rows.map((row) => [row.key, row.value])) };
   }, database);
   assert.ok(tables.length > 0, "the project has its tables");
-  assert.deepEqual(tables.filter((table) => table.owner !== user), [], "every one of them made by the user");
+  assert.deepEqual(tables.filter((table) => table.owner !== creator), [], "every one of them the owning role's");
   assert.deepEqual(meta, { project: project.name }, "holding the project's name");
 
   const store = new PgTransactions(project.pool);

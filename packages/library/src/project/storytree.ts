@@ -129,7 +129,7 @@ class ServerConnection implements Storytree {
     const database = projectDatabase(name);
     try {
       await this.#createDatabaseIfMissing(database);
-      const pool = this.#server.pool(database);
+      const pool = this.#server.pool(database, await this.#owningRole(database));
       try {
         await applySchema(pool, name);
       } catch (error) {
@@ -151,7 +151,7 @@ class ServerConnection implements Storytree {
     let pool = this.#own.get(name);
     if (pool === undefined) {
       pool = this.#createDatabaseIfMissing(name).then(
-        () => this.#server.pool(name),
+        async () => this.#server.pool(name, await this.#owningRole(name)),
         (error: unknown) => Promise.reject(this.#server.explain(error)),
       );
       // A failed opening is forgotten, so the next ask tries again.
@@ -204,6 +204,24 @@ class ServerConnection implements Storytree {
     } finally {
       this.#server.close();
     }
+  }
+
+  /**
+   * The role that owns `database`, when this connection's user is not it and may take it on: the
+   * role its connections then act as (contract 8.3). Two accounts sharing one server both reach
+   * each project's database through the role that created it, so every table either makes belongs
+   * to that role, and neither ever needs the other's ownership to open the project again (a
+   * CREATE INDEX IF NOT EXISTS checks the table's owner even when the index is there).
+   */
+  async #owningRole(database: string): Promise<string | undefined> {
+    const { rows } = await this.#server.admin.query<{ owner: string; mine: boolean; may: boolean }>(
+      `SELECT pg_get_userbyid(datdba) AS owner, datdba = (SELECT oid FROM pg_roles WHERE rolname = current_user) AS mine,
+              pg_has_role(current_user, datdba, 'SET') AS may
+         FROM pg_database WHERE datname = $1`,
+      [database],
+    );
+    const [found] = rows;
+    return found === undefined || found.mine || !found.may ? undefined : found.owner;
   }
 
   async #createDatabaseIfMissing(database: string): Promise<void> {

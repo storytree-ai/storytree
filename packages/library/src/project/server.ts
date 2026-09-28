@@ -9,8 +9,11 @@ import type { Pool, PoolConfig } from "pg";
 
 import { ConnectionError } from "./connection-error.js";
 
-/** Makes a connection pool for one database on the server. */
-export type PoolFactory = (database: string) => Pool;
+/**
+ * Makes a connection pool for one database on the server; with `role`, every connection in it acts
+ * as that role (a startup `role` setting), so what it creates belongs to the role, not the account.
+ */
+export type PoolFactory = (database: string, role?: string) => Pool;
 
 /** One Postgres server, as storytree reaches it. */
 export interface ServerAccess {
@@ -37,11 +40,12 @@ export interface ServerAccess {
  * databases are created, on either kind of server.
  */
 export function localServer(url: URL, connectTimeoutMs = 3_000): ServerAccess {
-  const pool = (connectionString: string) => newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs });
+  const pool = (connectionString: string, role?: string) =>
+    newPool({ connectionString, connectionTimeoutMillis: connectTimeoutMs, ...actingAs(role) });
   return {
     kind: "postgres",
     admin: pool(url.href),
-    pool: (database) => pool(databaseUrl(url, database)),
+    pool: (database, role) => pool(databaseUrl(url, database), role),
     explain: (error) => {
       if (error instanceof Error && /timeout expired|timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(error.message)) {
         return new ConnectionError(
@@ -54,6 +58,12 @@ export function localServer(url: URL, connectTimeoutMs = 3_000): ServerAccess {
     },
     close: () => {},
   };
+}
+
+/** The pg config that makes each connection act as `role` from its start, or none. */
+export function actingAs(role: string | undefined): PoolConfig {
+  // A startup option: backslash-escape what libpq's option parser would split on.
+  return role === undefined ? {} : { options: `-c role=${role.replace(/[\\ ]/g, (c) => `\\${c}`)}` };
 }
 
 /** A pool for `config`. */

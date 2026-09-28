@@ -59,7 +59,7 @@ export function verifyPayload(installDir: string, arch: Architecture, platform: 
     if (!(file in payload.files)) throw new Error(`Missing payload entry: ${file}`);
   }
   for (const [file, expected] of Object.entries(payload.files)) {
-    if (!/^[\w./-]+$/.test(file) || file.split("/").some((part) => part === ".." || part === "") || path.isAbsolute(file)) throw new Error(`Unsafe payload path: ${file}`);
+    if (!/^[\w@./-]+$/.test(file) || file.split("/").some((part) => part === ".." || part === "") || path.isAbsolute(file)) throw new Error(`Unsafe payload path: ${file}`);
     if (typeof expected !== "string" || !/^[a-f0-9]{64}$/.test(expected) || digest(path.join(tools.dir, file)) !== expected) throw new Error(`Damaged payload file: ${file}`);
   }
   if (!existsSync(tools.app)) throw new Error(`Missing app executable: ${tools.app}`);

@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-test("app setup 1.1: the desktop's complete tool bundle runs outside a checkout, including MCP and imported chunks", () => {
+test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, including native embedding inference without a model download", () => {
   const temp = mkdtempSync(path.join(tmpdir(), "storytree delivered tools "));
   const cwd = fileURLToPath(new URL("../../../../", import.meta.url));
   try {
@@ -21,5 +21,7 @@ test("app setup 1.1: the desktop's complete tool bundle runs outside a checkout,
       console.log('standalone tools PASS');
     `], { cwd, env: { ...process.env, STORYTREE_DELIVERY_TEST_DIR: temp }, encoding: "utf8", timeout: 60_000 });
     assert.match(result, /standalone tools PASS/);
+    assert.match(result, /native ONNX CPU inference returned 42; no model download/);
+    console.log(result.trim());
   } finally { rmSync(temp, { recursive: true, force: true }); }
 });

@@ -1,0 +1,39 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/idle-setting
+> node --import tsx scripts/test.mjs "packages/agent-link/src/settings/idle-liveness.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:42581 (started in 0.1 s)
+✖ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (146.604412ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 340.028413
+
+✖ failing tests:
+
+test at packages/agent-link/src/settings/idle-liveness.test.ts:1:532
+✖ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (146.604412ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'live' !== 'idle'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:39:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:13:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'live',
+    expected: 'idle',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

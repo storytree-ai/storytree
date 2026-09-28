@@ -9,8 +9,17 @@ const contextGuidance = {
   name: "context-guidance",
   type: "positive whole number",
   unit: "tokens",
-  default: 700_000,
+  default: 600_000,
   meaning: "Soft guidance for context size in tokens; it does not enforce a hard limit.",
+} as const;
+
+const idleAfter = {
+  name: "idle-after",
+  label: "Time before a session is considered idle",
+  type: "duration",
+  unit: "",
+  default: "30m",
+  meaning: "A session with no activity or command running becomes idle after this time. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 10m. Default: 30 minutes.",
 } as const;
 
 const library = {
@@ -21,7 +30,7 @@ const library = {
     "a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email).",
 } as const;
 
-export interface SettingReading {
+interface ContextGuidanceReading {
   readonly name: "context-guidance";
   readonly type: "positive whole number";
   readonly unit: "tokens";
@@ -30,6 +39,19 @@ export interface SettingReading {
   readonly value: number;
   readonly source: "default" | "set";
 }
+
+interface IdleReading {
+  readonly name: "idle-after";
+  readonly label: string;
+  readonly type: "duration";
+  readonly unit: "";
+  readonly default: string;
+  readonly meaning: string;
+  readonly value: string;
+  readonly source: "default" | "set";
+}
+
+export type SettingReading = ContextGuidanceReading | IdleReading;
 
 /** Where the library lives: this computer's app, or a Cloud SQL instance and the account to sign in to it as. */
 export type LibraryLocation = { readonly location: "local" } | { readonly location: "cloudsql"; readonly instance: string; readonly user: string };
@@ -42,12 +64,14 @@ export type LibraryReading = LibraryLocation & {
 };
 
 export interface SettingsReading {
-  readonly "context-guidance": SettingReading;
+  readonly "context-guidance": ContextGuidanceReading;
+  readonly "idle-after": IdleReading;
   readonly library: LibraryReading;
 }
 
 interface Stored {
   "context-guidance"?: number;
+  "idle-after"?: string;
   library?: LibraryLocation;
 }
 
@@ -61,14 +85,24 @@ export function readSettings(home: string = storytreeHome()): SettingsReading {
       value: guidance ?? contextGuidance.default,
       source: guidance === undefined ? "default" : "set",
     },
+    "idle-after": {
+      ...idleAfter,
+      value: stored["idle-after"] ?? idleAfter.default,
+      source: stored["idle-after"] === undefined ? "default" : "set",
+    },
     library: { ...library, ...(stored.library ?? { location: "local" }), source: stored.library === undefined ? "default" : "set" },
   };
 }
 
-/** Persist a user's choice of a whole-number setting in the same home as project-choice.json. */
+/** Persist a user's choice in the same home as project-choice.json, after checking its type. */
 export function setSetting(name: string, value: string, home: string = storytreeHome()): SettingReading {
   checkName(name);
   if (name === library.name) return refuse("Set the library with `storytree settings set library local`, or `… library cloudsql <instance> <user>`.");
+  if (name === idleAfter.name) {
+    checkedDuration(value);
+    write(home, { ...readStored(home), [name]: value });
+    return readSettings(home)[name];
+  }
   const number = checkedGuidance(/^\d+$/.test(value) ? Number(value) : NaN);
   write(home, { ...readStored(home), [name]: number });
   return readSettings(home)["context-guidance"];
@@ -101,10 +135,25 @@ function refuse(message: string): never {
   throw new Error(message);
 }
 
-function checkName(name: string): asserts name is "context-guidance" | "library" {
-  if (name !== contextGuidance.name && name !== library.name) {
-    refuse(`Unknown setting ${JSON.stringify(name)}. Available settings: ${contextGuidance.name}, ${library.name}.`);
+function checkName(name: string): asserts name is "context-guidance" | "idle-after" | "library" {
+  if (name !== contextGuidance.name && name !== idleAfter.name && name !== library.name) {
+    refuse(`Unknown setting ${JSON.stringify(name)}. Available settings: ${contextGuidance.name}, ${idleAfter.name}, ${library.name}.`);
   }
+}
+
+/** The current idle duration in milliseconds; read afresh so a running session sees changes. */
+export function idleAfterMs(home?: string): number {
+  return checkedDuration(readSettings(home)["idle-after"].value);
+}
+
+function checkedDuration(value: unknown): number {
+  const match = typeof value === "string" ? /^(\d+)(s|m|h|d)$/.exec(value) : null;
+  const units: Record<string, number> = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 };
+  const ms = match === null ? NaN : Number(match[1]) * units[match[2]!]!;
+  if (!Number.isSafeInteger(ms) || ms <= 0) {
+    refuse("idle-after must be a positive duration in whole seconds (s), minutes (m), hours (h) or days (d), such as 10m, within the safe millisecond range.");
+  }
+  return ms;
 }
 
 function checkedGuidance(value: unknown): number {
@@ -162,6 +211,10 @@ function readStored(home: string): Stored {
     for (const [name, value] of Object.entries(stored)) {
       checkName(name);
       if (name === "library") settings.library = checkedLibrary(value);
+      else if (name === "idle-after") {
+        checkedDuration(value);
+        settings[name] = value as string;
+      }
       else settings[name] = checkedGuidance(value);
     }
     return settings;

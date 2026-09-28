@@ -22,6 +22,7 @@ import type { ConnectOptions } from "@storytree/library";
 
 import type { Line } from "../activity/index.js";
 import { route, withConnectTimeout } from "../routing/index.js";
+import { idleAfterMs } from "../settings/settings.js";
 
 /** How long the status line waits for storytree before showing nothing. */
 const WAIT_MS = 2_000;
@@ -49,7 +50,7 @@ function sessionIn(input: unknown): { session?: string; folder?: string } {
 }
 
 async function lineFor(where: ConnectOptions, project: string, session: string, folder: string): Promise<string> {
-  const [{ openActivityLog }, { connect }, { claimsFrom }, { QUIET_MS, sessionsFrom }] = await Promise.all([
+  const [{ openActivityLog }, { connect }, { claimsFrom }, { sessionsFrom }] = await Promise.all([
     import("../activity/index.js"),
     import("@storytree/library"),
     import("../claims/index.js"),
@@ -60,19 +61,20 @@ async function lineFor(where: ConnectOptions, project: string, session: string, 
   try {
     const [{ lines }, library] = await Promise.all([log.since(project, 0), storytree.openProject(project)]);
     const now = Date.now();
+    const quietMs = idleAfterMs();
     const titles = new Map<string, string>();
     const tree = await library.projectTree();
     for (const story of tree.stories) for (const capability of story.capabilities) titles.set(capability.id, capability.title);
     for (const arc of tree.arcs) for (const increment of (await library.arcView(arc.id))?.increments ?? []) titles.set(increment.id, increment.fields.title);
 
-    const held = claimsFrom(lines, { now: new Date(now) }).filter((claim) => claim.session === session);
-    const others = sessionsFrom(lines, { now: new Date(now) }).filter((other) => other.session !== session && other.state === "live");
+    const held = claimsFrom(lines, { now: new Date(now), quietMs }).filter((claim) => claim.session === session);
+    const others = sessionsFrom(lines, { now: new Date(now), quietMs }).filter((other) => other.session !== session && other.state === "live");
     const parts = [
       "storytree",
       held.length === 0 ? "holds nothing" : `holds ${held.map((claim) => titles.get(claim.capability ?? claim.increment) ?? claim.capability ?? claim.increment).join(", ")}`,
       others.length === 0 ? "no other agents working" : `${others.length} other agent${others.length === 1 ? "" : "s"} working`,
     ];
-    const shared = sharedFile(lines, session, new Set(others.map((other) => other.session)), now - QUIET_MS);
+    const shared = sharedFile(lines, session, new Set(others.map((other) => other.session)), now - quietMs);
     if (shared !== undefined) parts.push(`⚠ ${shown(shared.file, folder)} is being edited by ${shared.label} too`);
     return parts.join(" · ");
   } finally {

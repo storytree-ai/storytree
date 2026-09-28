@@ -1,0 +1,4 @@
+
+> @storytree/agent-link@ typecheck /home/mickh/code/storytree03-wt/idle-setting/packages/agent-link
+> tsc -p .
+

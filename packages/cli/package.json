@@ -25,6 +25,7 @@
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
-    "@storytree/app-setup": "workspace:*"
+    "@storytree/app-setup": "workspace:*",
+    "electron-builder": "26.15.3"
   }
 }

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import test from 'node:test';
 import { setTimeout as pause } from 'node:timers/promises';
 import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/deliver';
@@ -20,15 +21,26 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   });
   await command.build(installed ? async dir => {
     const install = path.join(dir, 'installed app');
-    const payload = path.join(install, 'resources', 'agent-tools');
-    const bins = await buildBins(payload);
+    const desktop = path.join(dir, 'desktop');
+    const payload = path.join(desktop, 'dist', 'agent-tools', 'x64');
+    await buildBins(payload);
+    await mkdir(install, { recursive: true });
     // The installer supplies these three assets; this pins verification of the real bin output.
     await writeFile(path.join(install, 'storytree-0.3.exe'), 'app fixture');
     await writeFile(path.join(payload, 'node.exe'), 'runtime fixture');
     await writeFile(path.join(payload, 'storytree-deliver.mjs'), '// delivery fixture');
     writePayloadManifest(payload, 'x64', '24.21.0');
-    assert.equal(verifyPayload(install, 'x64', 'win32').cli, bins.storytree);
-    return bins.storytree!;
+    // Exercise the actual packager copy with the desktop's rules before verifying/running it.
+    const config = JSON.parse(await readFile(new URL('../../../apps/desktop/package.json', import.meta.url), 'utf8'));
+    const require = createRequire(import.meta.url);
+    const { getFileMatchers, copyFiles } = createRequire(require.resolve('electron-builder'))('app-builder-lib/out/fileMatcher.js');
+    const rules = config.build.extraResources.filter((rule: { to: string }) => rule.to.startsWith('agent-tools'));
+    const matchers = getFileMatchers({ extraResources: rules }, 'extraResources', path.join(install, 'resources'), {
+      defaultSrc: desktop, globalOutDir: path.join(dir, 'release'), customBuildOptions: {},
+      macroExpander: (value: string) => value.replaceAll('${arch}', 'x64'),
+    });
+    await copyFiles(matchers);
+    return verifyPayload(install, 'x64', 'win32').cli;
   } : undefined);
   const runs = [];
   for (const session of ['caller', 'other']) {

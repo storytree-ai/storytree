@@ -209,6 +209,9 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+      electron-builder:
+        specifier: 26.15.3
+        version: 26.15.3(electron-builder-squirrel-windows@26.15.3)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

@@ -34,3 +34,9 @@ project schema. A user granted the owning role `WITH INHERIT FALSE, SET TRUE` op
 Hence [`infra/ci-health/grants.sql`](../../../infra/ci-health/grants.sql).
 
 [library-update/](library-update/README.md): the story text for the supervisor to apply.
+
+Found after #219 merged: `automerge`'s dispatch step read the pull request as not merged 7 seconds
+before GitHub finished the merge (`gh pr merge --auto` returns first; the step ran at 22:19:00, the
+merge landed at 22:19:07), so that merge recorded nothing. The step now waits for the merge, up to
+two minutes, before dispatching. The proof is the next merge's `Record own health on main` step
+starting an Own health run.

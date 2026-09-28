@@ -1,0 +1,57 @@
+✖ a wrong built-command exit code reports both child streams and the command context (2.646009ms)
+✖ file failures name the file, exit status and its own stderr under concurrent execution (167.831929ms)
+✔ a test that fails leaving a handle open ends its unit with that failure, not a hang (104.648288ms)
+✔ a test that never ends fails at the per-test limit, and the unit goes on to end (1107.101955ms)
+✔ a unit past its deadline is killed with its whole process tree, naming the test still running (3021.011273ms)
+✔ each unit's time is added to the machine's timing history, outside the checkout (1.13112ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4482.054031
+
+✖ failing tests:
+
+test at packages/cli/src/testing/cli.test.ts:1:105
+✖ a wrong built-command exit code reports both child streams and the command context (2.646009ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /stderr:\nCannot load installed command/. Input:
+  
+  'setup disconnect both\n\n1 !== 2\n'
+  
+      at Object.<anonymous> (/home/mickh/code/storytree03-wt/win-flakes/packages/cli/src/testing/cli.test.ts:14:12)
+      at expectedException (node:assert:578:17)
+      at expectsError (node:assert:703:21)
+      at strict.throws (node:assert:759:3)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/win-flakes/packages/cli/src/testing/cli.test.ts:9:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'setup disconnect both\n\n1 !== 2\n',
+    expected: /stderr:\nCannot load installed command/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at scripts/unit-run.test.mjs:29:1
+✖ file failures name the file, exit status and its own stderr under concurrent execution (167.831929ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /exit\.test\.mjs\n  exit code: 7; signal: none\n  stderr:\n  loader stopped before tests/. Input:
+  
+  '\n'
+  
+      at TestContext.<anonymous> (file:///home/mickh/code/storytree03-wt/win-flakes/scripts/unit-run.test.mjs:46:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '\n',
+    expected: /exit\.test\.mjs\n  exit code: 7; signal: none\n  stderr:\n  loader stopped before tests/,
+    operator: 'match',
+    diff: 'simple'
+  }

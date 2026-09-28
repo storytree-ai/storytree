@@ -1,0 +1,24 @@
+Command: flock /tmp/storytree-heavy.lock pnpm gate
+Scope: full — everything — scripts/test-running-reporter.mjs changed outside the workspace packages
+
+results:
+  PASS    apps/desktop — 1.2 s
+  PASS    packages/agent-link — 10.8 s
+  PASS    packages/app — 2.5 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.7 s
+  PASS    packages/cli — 7.4 s
+  PASS    packages/forest — 1.6 s
+  PASS    packages/forest-world — 10.0 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    packages/librarian — 1.1 s
+  PASS    packages/library — 10.7 s
+  PASS    packages/local-postgres — 3.5 s
+  PASS    packages/own — 0.8 s
+  PASS    scripts — 4.7 s
+test Postgres: stopped (0.1 s)
+
+results:
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits

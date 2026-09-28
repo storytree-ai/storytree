@@ -1,0 +1,76 @@
+✖ 4.4 a downloaded release waits out the first minutes after a launch (2.005408ms)
+✖ 4.4 a downloaded release waits while the window is in use or an agent is working (0.267057ms)
+✔ 4.4 the user's say-so installs at once, whatever else is going on (0.182476ms)
+✔ 4.4 an installed app downloads a newer release, waits for a seed, stops its database and restarts through NSIS (29.203504ms)
+✖ 4.4 a downloaded release waits for a quiet moment, says it is pending, and installs when the user asks (7.088801ms)
+✔ 4.5 a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it (12.277724ms)
+✔ 4.5 repeated checks share one download and quitting prevents a pending install (4.50794ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 4
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.058469
+
+✖ failing tests:
+
+test at src/updates/install-moment.test.ts:1:220
+✖ 4.4 a downloaded release waits out the first minutes after a launch (2.005408ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'now' !== 'wait'
+  
+      at TestContext.<anonymous> (~/code/storytree03-wt/winupdate-1/packages/app/src/updates/install-moment.test.ts:13:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'now',
+    expected: 'wait',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/updates/install-moment.test.ts:1:520
+✖ 4.4 a downloaded release waits while the window is in use or an agent is working (0.267057ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'now' !== 'wait'
+  
+      at TestContext.<anonymous> (~/code/storytree03-wt/winupdate-1/packages/app/src/updates/install-moment.test.ts:20:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'now',
+    expected: 'wait',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/updates/releases.test.ts:1:1808
+✖ 4.4 a downloaded release waits for a quiet moment, says it is pending, and installs when the user asks (7.088801ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'restarting'
+  - 'waiting'
+  
+      at TestContext.<anonymous> (~/code/storytree03-wt/winupdate-1/packages/app/src/updates/releases.test.ts:49:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'restarting',
+    expected: 'waiting',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

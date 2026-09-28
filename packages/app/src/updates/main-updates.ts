@@ -3,9 +3,10 @@ import { buildApp, updateToMain, type RunningBuild } from "./follow-main.js";
 
 export const UPDATE_EVERY_MS = 3 * 60_000;
 
-export type UpdateAction = "check" | "status";
+/** "install" asks for a downloaded release at once; merged-main builds treat it as "check". */
+export type UpdateAction = "check" | "install" | "status";
 export interface UpdateState {
-  readonly phase: "idle" | "checking" | "up-to-date" | "building" | "ready" | "restarting" | "failed" | "unavailable";
+  readonly phase: "idle" | "checking" | "up-to-date" | "building" | "ready" | "pending" | "restarting" | "failed" | "unavailable";
   readonly runningBuild: string;
   readonly nextBuild?: string;
   readonly reason?: string;
@@ -71,8 +72,8 @@ export function mainUpdates(options: MainUpdatesOptions) {
     check,
     /** One IPC call: asking starts work; subsequent status reads never start another build. */
     request(action: unknown): UpdateState {
-      if (action !== "check" && action !== "status") throw new Error("Unknown update action");
-      if (action === "check") void check();
+      if (action !== "check" && action !== "install" && action !== "status") throw new Error("Unknown update action");
+      if (action !== "status") void check();
       return state;
     },
     start(): void {

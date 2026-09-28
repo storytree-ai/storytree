@@ -72,9 +72,6 @@ importers:
 
   packages/agent-link:
     dependencies:
-      '@storytree/own':
-        specifier: workspace:*
-        version: link:../own
       '@modelcontextprotocol/server':
         specifier: ^2.1.0
         version: 2.1.0
@@ -84,6 +81,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/own':
+        specifier: workspace:*
+        version: link:../own
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -187,9 +187,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@storytree/own':
-        specifier: workspace:*
-        version: link:../own
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
@@ -199,13 +196,22 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/own':
+        specifier: workspace:*
+        version: link:../own
     devDependencies:
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../app-setup
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+      electron-builder:
+        specifier: 26.15.3
+        version: 26.15.3(electron-builder-squirrel-windows@26.15.3)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

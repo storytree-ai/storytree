@@ -13,6 +13,7 @@ import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { plan } from "./tree.js";
 import { workspace } from "./workspace.js";
+import { own } from "./own.js";
 
 export const FAMILIES: readonly Family[] = [
   library,
@@ -27,4 +28,5 @@ export const FAMILIES: readonly Family[] = [
   plan,
   setupFamily,
   workspace,
+  own,
 ];

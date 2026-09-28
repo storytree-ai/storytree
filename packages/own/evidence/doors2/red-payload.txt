@@ -1,0 +1,21 @@
+✖ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (137.190078ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 488.242316
+
+✖ failing tests:
+
+test at packages/cli/src/own.test.ts:1:610
+✖ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (137.190078ms)
+  Error: Unsafe payload path: node_modules/@koromix/koffi-linux-x64/README.md
+      at verifyPayload (/home/mickh/code/storytree03-wt/own-doors2/packages/app-setup/src/deliver/payload.ts:62:130)
+      at <anonymous> (/home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/own.test.ts:30:18)
+      at async BuiltCommand.build (/home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/testing/cli.ts:73:20)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/own.test.ts:21:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

@@ -1,0 +1,58 @@
+verify on Windows	Run node apps/desktop/check-install.mjs	﻿2026-09-28T01:26:46.7910504Z ##[group]Run node apps/desktop/check-install.mjs
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:26:46.7910856Z node apps/desktop/check-install.mjs
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:26:46.7967132Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:26:46.7967388Z env:
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:26:46.7967916Z   PNPM_HOME: C:\Users\runneradmin\setup-pnpm\node_modules\.bin
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:26:46.7968171Z ##[endgroup]
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:26.1441323Z ENOENT: no such file or directory, open 'C:\Users\RUNNER~1\AppData\Local\Temp\storytree-installer-Cn84Jo\app with spaces\resources\agent-tools\node_modules\koffi\build\koffi\index.js'
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8379929Z node:internal/errors:986
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8380414Z   const err = new Error(message);
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8380671Z               ^
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8380782Z
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8381578Z Error: Command failed: C:\Users\RUNNER~1\AppData\Local\Temp\storytree-installer-Cn84Jo\app with spaces\resources\agent-tools\node.exe C:\Users\RUNNER~1\AppData\Local\Temp\storytree-installer-Cn84Jo\app with spaces\resources\agent-tools\storytree-deliver.mjs inspect C:\Users\RUNNER~1\AppData\Local\Temp\storytree-installer-Cn84Jo\app with spaces x64
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8384471Z ENOENT: no such file or directory, open 'C:\Users\RUNNER~1\AppData\Local\Temp\storytree-installer-Cn84Jo\app with spaces\resources\agent-tools\node_modules\koffi\build\koffi\index.js'
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8385463Z
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8385730Z     at genericNodeError (node:internal/errors:986:15)
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8386146Z     at wrappedFn (node:internal/errors:540:14)
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8386419Z     at checkExecSyncError (node:child_process:942:11)
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8386672Z     at execFileSync (node:child_process:978:15)
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8386959Z     at file:///D:/a/storytree/storytree/apps/desktop/check-install.mjs:40:3
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8387271Z     at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8387543Z     at async node:internal/modules/esm/loader:647:26
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8387844Z     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8388190Z   status: 1,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8388382Z   signal: null,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8388540Z   output: [
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8388660Z     null,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8388837Z     Buffer(0) [Uint8Array] [],
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8389024Z     Buffer(184) [Uint8Array] [
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8389234Z        69,  78,  79,  69,  78,  84,  58,  32, 110, 111,  32, 115,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8389471Z       117,  99, 104,  32, 102, 105, 108, 101,  32, 111, 114,  32,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8389716Z       100, 105, 114, 101,  99, 116, 111, 114, 121,  44,  32, 111,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8389958Z       112, 101, 110,  32,  39,  67,  58,  92,  85, 115, 101, 114,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8390192Z       115,  92,  82,  85,  78,  78,  69,  82, 126,  49,  92,  65,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8390452Z       112, 112,  68,  97, 116,  97,  92,  76, 111,  99,  97, 108,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8390686Z        92,  84, 101, 109, 112,  92, 115, 116, 111, 114, 121, 116,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8390928Z       114, 101, 101,  45, 105, 110, 115, 116,  97, 108, 108, 101,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8391142Z       114,  45,  67, 110,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8391317Z       ... 84 more items
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8391507Z     ]
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8391653Z   ],
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8391799Z   pid: 5624,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8391978Z   stdout: Buffer(0) [Uint8Array] [],
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8392180Z   stderr: Buffer(184) [Uint8Array] [
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8392403Z      69,  78,  79,  69,  78,  84,  58,  32, 110, 111,  32, 115,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8392665Z     117,  99, 104,  32, 102, 105, 108, 101,  32, 111, 114,  32,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8392908Z     100, 105, 114, 101,  99, 116, 111, 114, 121,  44,  32, 111,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8393147Z     112, 101, 110,  32,  39,  67,  58,  92,  85, 115, 101, 114,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8393378Z     115,  92,  82,  85,  78,  78,  69,  82, 126,  49,  92,  65,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8393610Z     112, 112,  68,  97, 116,  97,  92,  76, 111,  99,  97, 108,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8396516Z      92,  84, 101, 109, 112,  92, 115, 116, 111, 114, 121, 116,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8396880Z     114, 101, 101,  45, 105, 110, 115, 116,  97, 108, 108, 101,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8397184Z     114,  45,  67, 110,
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8397410Z     ... 84 more items
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8397631Z   ]
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8397836Z }
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8397959Z
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.8398066Z Node.js v24.21.0
+verify on Windows	Run node apps/desktop/check-install.mjs	2026-09-28T01:27:30.9186234Z ##[error]Process completed with exit code 1.

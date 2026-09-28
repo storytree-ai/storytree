@@ -1,5 +1,5 @@
 // Packaging adapter: reuse the agent link's build, then stage both native Windows runtimes.
-import { buildBins } from "@storytree/agent-link/bins";
+import { buildBins, stageNativeProbes } from "@storytree/agent-link/bins";
 import { NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -32,12 +32,13 @@ export async function stageTools() {
   for (const arch of ["x64", "arm64"]) {
     const dir = path.join(root, arch);
     cpSync(common, dir, { recursive: true });
+    await stageNativeProbes(dir, "win32", arch);
     await stageRuntime(path.join(dir, "node.exe"), windowsRuntime(arch));
     const license = await fetch(`https://raw.githubusercontent.com/nodejs/node/v${NODE_VERSION}/LICENSE`, { signal: AbortSignal.timeout(30_000) });
     if (!license.ok) throw new Error(`Could not download the Node ${NODE_VERSION} license`);
     writeFileSync(path.join(dir, "NODE-LICENSE"), await license.text());
     writePayloadManifest(dir, arch, NODE_VERSION);
-    console.log(`staged ${arch}: Node ${NODE_VERSION} (SHA-256 verified), Node license, complete buildBins output and delivery helper`);
+    console.log(`staged ${arch}: Node ${NODE_VERSION} (SHA-256 verified), Node license, complete buildBins output, target Koffi probes and delivery helper`);
   }
   rmSync(common, { recursive: true, force: true });
 }

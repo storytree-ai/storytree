@@ -1,0 +1,29 @@
+✖ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (215.6697ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 570.463747
+
+✖ failing tests:
+
+test at packages/cli/src/own.test.ts:1:664
+✖ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (215.6697ms)
+  Error: ENOENT: no such file or directory, open '/tmp/storytree-cli-bin-7BDEFq/installed app/resources/agent-tools/node_modules/koffi/CHANGELOG.md'
+      at Object.openSync (node:fs:622:18)
+      at readFileSync (node:fs:488:35)
+      at digest (file:///home/mickh/code/storytree03-wt/own-doors2/packages/app-setup/src/deliver/payload.ts:1:423)
+      at verifyPayload (file:///home/mickh/code/storytree03-wt/own-doors2/packages/app-setup/src/deliver/payload.ts:1:2558)
+      at file:///home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/own.test.ts:1:2216
+      at BuiltCommand.build (file:///home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/testing/cli.ts:1:1764)
+      at TestContext.<anonymous> (file:///home/mickh/code/storytree03-wt/own-doors2/packages/cli/src/own.test.ts:1:1041)
+      at Test.run (node:internal/test_runner/test:1389:7)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/tmp/storytree-cli-bin-7BDEFq/installed app/resources/agent-tools/node_modules/koffi/CHANGELOG.md'
+  }

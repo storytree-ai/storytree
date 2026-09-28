@@ -1,0 +1,271 @@
+Passing per-test detail omitted except installed-door and habits contracts. Full scope and unit result tables retained.
+
+> storytree@ gate /home/mickh/code/storytree03-wt/own-doors2
+> node scripts/gate.mjs
+
+
+=== typecheck ===
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/own-doors2
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/library typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
+packages/forest-world typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck: Done
+packages/forest typecheck: Done
+packages/forest-world typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/app-setup typecheck: Done
+packages/own typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+=== test ===
+scope: full — everything — apps/desktop/package.json changed: package manifests are the dependency graph this scope is read from
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, packages/own, scripts
+test Postgres: listening on 127.0.0.1:43529 (started in 0.1 s)
+
+=== apps/desktop ===
+✔ app setup 1.1: the desktop's complete tool bundle runs outside a checkout, including MCP and imported chunks (863.335798ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 946.445536
+
+=== packages/agent-link ===
+✔ 7.1 the card names every tool the server has, and no tool the server lacks (88.252512ms)
+✔ 7.2 the card is no longer than 60 lines (0.286924ms)
+✔ 7.3 the tool server hands the card to the agent at the start of every session (22.783825ms)
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.195761ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+ℹ show_plan answered after 3003 ms: storytree refused that: storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.
+✔ own 3.4/3.6/4.1/5.1: source MCP reads and clears the offline ledger and stops only its caller scope (211.781576ms)
+✔ own 3.4/3.6/4.1/5.1: installed MCP reads and clears the offline ledger and stops only its caller scope (410.206588ms)
+✔ own 3.6: offline Claude MCP refuses self authority from a stale server environment (12.045126ms)
+✔ own online 3.6/4.1: Claude hook identity selects only its named subagent, after a session reset (297.261009ms)
+ℹ tests 93
+ℹ suites 0
+ℹ pass 92
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 15505.682496
+
+=== packages/app ===
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2352.527594
+
+=== packages/app-setup ===
+﹣ 1.1 / 1.3 / 1.4 / 1.6: PowerShell delivery selects Windows architecture, reuses, retries, preserves failures and persists PATH (2.872989ms) # PowerShell unavailable here; Windows CI runs this proof
+ℹ tests 24
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 392.830336
+
+=== packages/arc-surface ===
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 560.715023
+
+=== packages/cli ===
+✔ own 3.4/3.6/4.1/5.1: standalone CLI inventories, stops and clears offline (3462.981115ms)
+✔ own 3.4/3.6/4.1/5.1: installed CLI inventories, stops and clears offline (2818.658644ms)
+ℹ tests 58
+ℹ suites 0
+ℹ pass 58
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7576.240625
+
+=== packages/forest ===
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 719.162307
+
+=== packages/forest-world ===
+ℹ routed in 1127ms
+THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1. All geometries must have compatible attributes; make sure "uv2" attribute exists among all geometries, or in none of them.
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:727bb663-ad1d-4b80-8de3-6ac77d78e456
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:8ca477f1-d2bb-4c34-9be6-99bb70e0321a
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:83a63d6f-ed3a-4676-a6c4-5bf49f96da0d
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:e661019e-aea3-4820-a8c3-2116471486f7
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:947b35b2-e07a-4c47-9226-3a144634e8dc
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:a447f4c0-1f22-4ad9-b7ad-e8af0ecf822c
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:6a044f01-c5e9-44d8-b408-389925d05dc1
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:11686586-afc7-4033-95ba-0bedf60f0a3d
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:a1634783-b51c-43c9-b925-f6dc0ae655fe
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:4bba09c6-af66-4ba2-90d9-0a6a928a81e0
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:badcf1bf-3b78-4707-906f-2fc404dbe284
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:20bd24d6-f1ac-4a48-a074-cfab80c15357
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:b460ed12-6193-46bf-aebf-40c59789b9c2
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:da212d28-b776-4c78-b2db-8e8847328606
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:e2c7de49-3263-457e-87b7-649a2766b9f8
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:82ae7d31-b179-4f76-b947-b6108d7303b3
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:8bfef3ce-9397-433d-a7f9-d111f088fc60
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:829ac5a5-0b36-48c5-b8d0-5d1fb5ec21e1
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:fed5b168-ed36-4d86-a95b-8de22cf344f7
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:89609ccd-6099-49e3-996a-4e82d2e1c450
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:ca7d6cf5-4f2b-4c77-8333-75c57bd71346
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:255126ea-0c4e-40f8-8186-5ee56b972179
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:347d3ee5-c8db-46e0-913d-70a5e901c872
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:0e2909b3-eca4-4fb6-9438-d65c0c38b34a
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:b38d18fc-34b1-4720-8232-949b9ce8bc08
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:293ceb9e-851a-46dc-9d9a-3f249c5b6885
+THREE.GLTFLoader: Couldn't load texture blob:nodedata:00f6c18a-f84b-4b6c-ae56-d5c1b421d22c
+  delivered feature period 2.64 ground units = 2.80 x the 0.9422985606158449-unit lattice
+  grain rung-flip fraction on flat ground at strength 0.37691942424633795: 73.1% (12384/16940)
+  rung-flip fraction: 4 rungs 14.4% -> 9 rungs 73.1%
+ℹ tests 1474
+ℹ suites 0
+ℹ pass 1474
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8870.234804
+
+=== packages/knowledge-core ===
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 655.81152
+
+=== packages/librarian ===
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1254.942742
+
+=== packages/library ===
+ℹ admin handshake refused after 3001 ms
+ℹ project handshake refused after 3001 ms
+▶ 8.1 robustness, offline: capability 2's behaviour suite, unchanged, in projects a user that may not create databases opened on the cloud path by borrowing a role that may
+  ✔ 2.1 [cloud-sql path, borrowing a creator role] save creates a record; saving the same id again replaces it; each save appends one history entry (120.010745ms)
+  ✔ 2.2 [cloud-sql path, borrowing a creator role] edit changes only the fields it names; every other field keeps its stored value (86.35086ms)
+  ✔ 2.3 [cloud-sql path, borrowing a creator role] edit merges onto what is stored now, so racing edits of different fields all survive (102.128857ms)
+  ✔ 2.4 [cloud-sql path, borrowing a creator role] edit of a missing record returns null and creates nothing (81.208265ms)
+  ✔ 2.5 [cloud-sql path, borrowing a creator role] get of a missing record returns null and never throws (84.430777ms)
+  ✔ 2.6 [cloud-sql path, borrowing a creator role] list(type) returns only that type's current records, ordered by id, and [] when there are none (96.339596ms)
+  ✔ 2.7 [cloud-sql path, borrowing a creator role] retire removes the record from get and list, keeps the reason in history, and is a harmless no-op when repeated or missing (82.70756ms)
+  ✔ 2.8 [cloud-sql path, borrowing a creator role] history returns every change in order with strictly increasing seq; it filters by id and by since (111.918145ms)
+  ✔ 2.9 [cloud-sql path, borrowing a creator role] a validate check sees the merged result, and if it throws nothing is written (91.059811ms)
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.811529ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+ℹ tests 176
+ℹ suites 1
+ℹ pass 175
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 9824.91519
+
+=== packages/local-postgres ===
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3362.39445
+
+=== packages/own ===
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 678.688944
+
+=== scripts ===
+▶ judge: every contract in a leading list shares the test's result, once each
+  ✔ 2.2, 2.4 · choosing a project mentions 9.9 in prose (0.266005ms)
+  ✔ 2.2, 2.3 recovery (0.201772ms)
+  ✔ 4.1 and 4.3 queued arcs (0.182226ms)
+  ✔ 2.10 / 7.6 [memory] writer history (0.164562ms)
+  ✔ 2.1–2.4 the board names each window (0.285682ms)
+  ✔ 3.1, 3.4–3.6 the open overlay (0.269852ms)
+  ✔ 2.2, 2.2–2.4 / 2.4 and 2.3 (0.254202ms)
+ℹ tests 60
+ℹ suites 0
+ℹ pass 60
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1075.092028
+
+results:
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/app-setup
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/library
+  PASS    packages/local-postgres
+  PASS    packages/own
+  PASS    scripts
+test Postgres: stopped (0.1 s)
+
+results:
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits

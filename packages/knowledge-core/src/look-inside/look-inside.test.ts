@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { coreScene, legend, lighting, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { coreScene, legend, lighting, noteCard, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -198,6 +198,29 @@ test("4.9 the globe's dots light as the core does: every listed session with non
   assert.notEqual(one.get("deep")!.colour, "hsl(300, 80%, 68%)", "its subagent a shade");
   assert.equal(one.size, 2, "another session's reads stay faint");
   assert.equal(lighting(reads, [], undefined, present).size, 0, "no running sessions light nothing");
+});
+
+test("4.10 each session's reading path runs from one full read to that agent's next, in its colour; peeks, unknown agents and unlisted sessions draw none", () => {
+  const history = project();
+  const roster = [
+    { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a"] },
+    { session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] },
+  ];
+  const lines = [read("a", "deep", "whole", "orchestrator"), read("a", "cover", "whole", "orchestrator"), read("a", "loose", "peek", "orchestrator"),
+    read("a", "new", "whole", "orchestrator"), read("a", "old", "whole"), read("a", "deep", "whole"),
+    read("b", "cover", "whole", { subagent: "h1" }), read("b", "deep", "whole", { subagent: "h1" }),
+    read("z", "deep", "whole", "orchestrator"), read("z", "cover", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const present = new Set(known.notes.keys());
+  const all = trails(reads, roster, undefined, present).map(({ from, to, colour }) => [from, to, colour]);
+  assert.deepEqual(all, [
+    ["deep", "cover", "hsl(200, 80%, 68%)"], ["cover", "new", "hsl(200, 80%, 68%)"], ["cover", "deep", "hsl(300, 80%, 68%)"],
+  ], "in reading order, from the earlier read to the later; a peek is skipped");
+  const one = trails(reads, roster, "b", present);
+  assert.deepEqual(one.map(({ from, to }) => [from, to]), [["cover", "deep"]], "a selection draws that session alone");
+  assert.match(one[0]!.colour, /^hsl\(300, 80%, \d+%\)$/);
+  assert.notEqual(one[0]!.colour, "hsl(300, 80%, 68%)", "a subagent's path wears its shade");
+  assert.deepEqual(trails(reads, [], undefined, present), [], "no running sessions draw no paths");
 });
 
 test("4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection", () => {

@@ -138,6 +138,7 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.arcView, (_event, name: unknown, id: unknown) => open().arcView(name, id));
   ipcMain.handle(CHANNELS.waitHolds, (_event, name: unknown, id: unknown) => open().waitHolds(name, id));
   ipcMain.handle(CHANNELS.heldOnQuestion, (_event, name: unknown, id: unknown) => open().heldOnQuestion(name, id));
+  ipcMain.handle(CHANNELS.contextReadings, (_event, name: unknown, sessions: unknown) => open().contextReadings(name, sessions));
 
   ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));
   ipcMain.handle(CHANNELS.projectSelection, () => projects?.read() ?? { projects: [], current: undefined });

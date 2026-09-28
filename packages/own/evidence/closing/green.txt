@@ -1,0 +1,17 @@
+✔ 5.1: clear removes only caller records whose original lifetime and registered descendants are gone (44.684647ms)
+✔ 5.2: live, unknown and foreign records remain; a named subagent cannot clear its siblings (12.593283ms)
+✔ 5.2/5.4: unreadable records and known registration gaps survive clear and prevent unproved child clearance (3.788587ms)
+✔ 5.2: failed removals are reported and never counted as cleared (2.23725ms)
+✔ 5.1/5.2: clear rereads ownership and child membership after probing, before removing a record (3.801372ms)
+✔ 5.1/5.2: a child disappearing or being reparented during a probe cannot make its parent clearable (5.673919ms)
+✔ 5.3: the closing reading still names live and unknown work belonging to old and other sessions (5.8433ms)
+✔ 5.4: empty observations with persisted, unreadable or caller-carried missing evidence are incomplete (3.475753ms)
+✔ 5.5: an empty or confirmed-gone inventory has bounded local coverage and leaves shared work alone (2.090652ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 278.701264

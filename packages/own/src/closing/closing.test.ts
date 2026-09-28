@@ -105,8 +105,9 @@ test('5.1/5.2: clear rereads ownership and child membership after probing, befor
   } } });
   const lateChild = record({ parentRun: root.id, birth: uncertain });
   await save(home, root);
+  let probes = 0;
   const late = await closing.clearOwned({ home, owner, probe: async () => {
-    await save(home, lateChild);
+    if (++probes === 2) await save(home, lateChild);
     return { state: 'gone' };
   } });
   assert.deepEqual(late.removed, []);
@@ -118,6 +119,27 @@ test('5.1/5.2: clear rereads ownership and child membership after probing, befor
   } });
   assert.deepEqual(changed.removed, []);
   assert.match(changed.retained[0]?.reason ?? '', /changed|owner/i);
+});
+
+test('5.1/5.2: a child disappearing or being reparented during a probe cannot make its parent clearable', async t => {
+  const home = await ledger(t);
+  const parent = record({ birth: { state: 'live', identity: {
+    pid: 12345, platform: process.platform, boot: 'boot', started: 'original-lifetime',
+  } } });
+  const child = record({ parentRun: parent.id, birth: uncertain });
+  for (const mutation of ['remove', 'reparent'] as const) {
+    await save(home, parent, child);
+    let probes = 0;
+    const result = await closing.clearOwned({ home, owner, probe: async () => {
+      if (++probes === 2) {
+        if (mutation === 'remove') await rm(path.join(home, 'runs', `${child.id}.json`));
+        else await save(home, { ...child, parentRun: randomUUID() });
+      }
+      return { state: 'gone' };
+    } });
+    assert.ok(!result.removed.includes(parent.id), mutation);
+    assert.match(result.retained.find(row => row.run === parent.id)?.reason ?? '', /changed/);
+  }
 });
 
 test('5.3: the closing reading still names live and unknown work belonging to old and other sessions', async t => {

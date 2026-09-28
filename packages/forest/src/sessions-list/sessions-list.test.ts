@@ -40,10 +40,11 @@ test("explicit children nest once, propagate needs-you and islands; ending a par
     { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },
     { ...child, kind: "claimed", increment: "inc", reason: "Finish signup" },
     { ...parent, kind: "subagent-started", subagent: "reader", task: "Read the library" });
-  const [row] = sessionRows(tree, lines, [arc], now);
+  const [row] = sessionRows(tree, lines, [arc], now, new Map([["reader", { totalTokens: 123 }]]));
   assert.equal(row!.children.length, 2);
   assert.equal(row!.children[0]!.id, "child");
   assert.equal(row!.children[1]!.label, "Read the library");
+  assert.equal(row!.children[1]!.totalTokens, 123, "observed subagents use the supplied reading too");
   assert.equal(row!.needsYou, true, "a folded child's question remains visible");
   assert.deepEqual(row!.stories, ["one", "two"]);
   const settled = structuredClone(arc);

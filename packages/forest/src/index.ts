@@ -14,3 +14,5 @@ export type { Marker } from "./agent-claims/agent-claims.js";
 export { unclaimedWork } from "./unclaimed-work/unclaimed-work.js";
 export type { UnclaimedEntry, UnclaimedWork } from "./unclaimed-work/unclaimed-work.js";
 export { edgeMarkers, openingTurn, turnToIsland, type EdgeMarker, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";
+
+export { sessionRows, type SessionRow, type SessionDetails } from "./sessions-list/sessions-list.js";

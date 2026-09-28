@@ -16,9 +16,12 @@ The text above that marker is written by hand, and it counts toward the file's 4
 - `pnpm check:guidance` says whether this file, AGENTS.md and the role files match the library.
   It reads the app's library, so CI cannot run it: run it yourself when you change a role or a note
   a role stands on.
-- 0.3's plan (arcs, increments, the owner's questions) lives only in the app's library, project
+- 0.3's plan (arcs, increments, the owner's questions) lives only in the library, project
   `storytree`, which this checkout's `.storytree.json` names; 0.2's store holds none of it since
-  cutover. With the app running, `pnpm storytree …` is 0.3's own command line: `arc list`, `arc show`,
+  cutover. The library is where your `library` setting says (`pnpm storytree settings show`): since
+  2026-09-28 storytree's own is on Cloud SQL, shared by the laptop and the Mint box, so the app need
+  not be running and a Mint lane claims and writes for itself, with no relaying. `pnpm storytree …` is
+  0.3's own command line: `arc list`, `arc show`,
   `workspace <increment> --reason …` (claims it and makes the worktree), `arc increment close`.
 - To change a role or a note it stands on: `pnpm storytree library search <words>`,
   `pnpm storytree library edit <id> --<field> @file`, `pnpm storytree library new agent|principle|…`.

@@ -1,0 +1,18 @@
+Transcript started, output file is C:\Users\mickh\st-evidence\install-2.transcript.txt
+
+Path                                    
+----                                    
+C:\Users\mickh\Second Folder With Spaces
+
+
+before: {"exe":"\/Date(1790590070000)\/","ver":"0.3.218.0","ts":"\/Date(1790590342385)\/"}
+storytree is installed; its app is open and its database is ready. Delivery did not create a project.
+The storytree command is available in a fresh Windows terminal.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Skipped agent connection. Later run storytree setup connect --claude or --codex (or both).
+install exit: 0; seconds: 4
+after exe: 09/28/2026 20:07:50 ver 0.3.218.0
+folder contents after: 0 items
+first folder contents: 0 items
+user PATH: C:\Users\mickh\AppData\Local\Microsoft\WindowsApps;C:\Users\mickh\.storytree\0.3\bin
+Transcript stopped, output file is C:\Users\mickh\st-evidence\install-2.transcript.txt

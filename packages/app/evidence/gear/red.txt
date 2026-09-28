@@ -1,0 +1,90 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/gear
+> node --import tsx scripts/test.mjs "packages/app/src/view/render.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/gear/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:34187 (started in 0.1 s)
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/mickh/code/storytree03-wt/gear/packages/app/src/view/render.js' imported from /home/mickh/code/storytree03-wt/gear/packages/app/src/view/render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+    at resolveDirectorySync (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+    at resolveTsPathsSync (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+    at resolve (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/mickh/code/storytree03-wt/gear/packages/app/src/view/render.js'
+}
+
+Node.js v24.19.0
+✖ packages/app/src/view/render.test.ts (98.78951ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 106.878299
+
+✖ failing tests:
+
+test at packages/app/src/view/render.test.ts:1:1
+✖ packages/app/src/view/render.test.ts (98.78951ms)
+  'test failed'
+
+test harness: file failures
+/home/mickh/code/storytree03-wt/gear/packages/app/src/view/render.test.ts
+  exit code: 1; signal: none
+  stderr:
+  node:internal/modules/esm/resolve:271
+      throw new ERR_MODULE_NOT_FOUND(
+            ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/mickh/code/storytree03-wt/gear/packages/app/src/view/render.js' imported from /home/mickh/code/storytree03-wt/gear/packages/app/src/view/render.test.ts
+      at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+      at moduleResolve (node:internal/modules/esm/resolve:865:10)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolveBaseSync (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+      at resolveDirectorySync (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+      at resolveTsPathsSync (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+      at resolve (file:///home/mickh/code/storytree03-wt/gear/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/mickh/code/storytree03-wt/gear/packages/app/src/view/render.js'
+  }
+  
+  Node.js v24.19.0
+  ERR_TEST_FAILURE: test failed
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.
+built apps/desktop/dist
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: the page draws no app bar
+
+1 !== 0
+
+    at <anonymous> (/home/mickh/code/storytree03-wt/gear/packages/app/evidence/gear/capture.mjs:50:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

@@ -7,6 +7,7 @@
  */
 import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
+import { mountAppMenu } from "@storytree/app/view";
 import { mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
@@ -17,7 +18,7 @@ import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
 import { openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, type ForestView } from "@storytree/forest/view";
-import { renderNoProjects, renderSwitcher } from "../view/view.js";
+import { renderNoProjects } from "../view/view.js";
 
 declare global {
   interface Window {
@@ -26,10 +27,17 @@ declare global {
 }
 
 const content = element("content");
-const switcher = element("switcher");
 const params = new URLSearchParams(location.search);
-const help = mountSetupHelp(element("help"), window.storytree);
-window.addEventListener("beforeunload", () => help.stop());
+const appMenu = mountAppMenu(element("app-menu-host"), {
+  chooseProject: async (name) => { await window.storytree.chooseProject(name); },
+  onChosen: () => following?.refresh(),
+  onError: (error) => {
+    showMessage("error", "The project could not be selected", messageOf(error));
+    void following?.refresh(true);
+  },
+  mountHelp: (host, returnFocus) => mountSetupHelp(host, window.storytree, { returnFocus }),
+});
+window.addEventListener("beforeunload", () => appMenu.stop());
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined } | undefined;
@@ -56,18 +64,7 @@ async function open(): Promise<void> {
 
 /** Redraw the picker when the list changes; only replace the surface when its project changes. */
 async function show({ current: name, projects }: ProjectSelection): Promise<void> {
-  switcher.innerHTML = projects.length === 0 ? "" : renderSwitcher(projects, projects.includes(name ?? "") ? name : undefined);
-  const select = switcher.querySelector("select");
-  if (select !== null) {
-    if (!projects.includes(name ?? "")) select.selectedIndex = -1;
-    select.addEventListener("change", () => {
-      void window.storytree.chooseProject(select.value).then(() => following?.refresh())
-        .catch((error: unknown) => {
-          showMessage("error", "The project could not be selected", messageOf(error));
-          void following?.refresh(true);
-        });
-    });
-  }
+  appMenu.update({ projects, current: name });
   if (name === undefined) {
     current = undefined;
     stopShowing();
@@ -85,7 +82,7 @@ async function show({ current: name, projects }: ProjectSelection): Promise<void
   delete document.body.dataset.drew;
   delete document.body.dataset.selected;
   if (!projects.includes(name)) {
-    return showMessage("missing", `There is no project called “${name}”`, "Pick one of the projects in the switcher above.");
+    return showMessage("missing", `There is no project called “${name}”`, "Pick a project from the gear menu in the top-right corner.");
   }
   document.title = `${name} · storytree 0.3`;
   await showForest(name);

@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./projects": "./src/projects/follow.ts"
+    "./projects": "./src/projects/follow.ts",
+    "./view": "./src/view/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

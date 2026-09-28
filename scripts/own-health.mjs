@@ -302,3 +302,10 @@ export async function recordHealth(library, contractIds, verdicts) {
   }
   return written;
 }
+
+// --- where to record ------------------------------------------------------------------------
+
+/** Not yet: where a run's verified health is recorded. */
+export function recordingTarget() {
+  throw new Error("recordingTarget is not built yet");
+}

@@ -1,5 +1,5 @@
 /**
- * Contract 9.8 · what a Claude Code session's context is made of, in the four groups the owner
+ * Contract 9.8 · what a Claude Code or Codex session's context is made of, in the four groups the owner
  * named (arc_895e232031b0): Injected (what arrives unasked), Grounding (reading to understand),
  * Implementation (changing things, and every call the session authored), Other (the rest).
  *
@@ -121,17 +121,9 @@ function storytreeReads(args: readonly string[]): boolean {
 export function claudeCodeComposition(text: string): Composition | undefined {
   const records = jsonLines(text);
   if (records === "empty") return undefined;
-  const bytes: Record<CompositionGroup, number> = { injected: 0, grounding: 0, implementation: 0, other: 0 };
-  const unsorted = new Set<string>();
+  const { add, unknown, seen, unsorted, composition } = tally();
   const calls = new Map<string, CompositionGroup | undefined>();
-  let seen = 0;
   let floor: number | undefined;
-  const add = (group: CompositionGroup, value: unknown): void => {
-    const size = Buffer.byteLength(JSON.stringify(value) ?? "");
-    bytes[group] += size;
-    seen += size;
-  };
-  const unknown = (label: string, value: unknown): void => { unsorted.add(label); add("other", value); };
 
   for (const record of records) {
     if (record.isSidechain === true) continue;
@@ -140,7 +132,7 @@ export function claudeCodeComposition(text: string): Composition | undefined {
       const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created } = message.usage;
       if (isCount(input)) {
         const resident = input + (isCount(read) ? read : 0) + (isCount(created) ? created : 0);
-        floor = Math.max(0, resident - Math.ceil(seen / CHARS_PER_TOKEN));
+        floor = Math.max(0, resident - Math.ceil(seen() / CHARS_PER_TOKEN));
       }
     }
     if (record.type === "attachment") {
@@ -178,14 +170,141 @@ export function claudeCodeComposition(text: string): Composition | undefined {
       }
     }
   }
-  if (floor === undefined) return undefined;
+  return floor === undefined ? undefined : composition(floor);
+}
+
+/** Codex tools by the Claude Code tool that does the same, so one table sorts both. Shells are read by their command. */
+const CODEX_TOOLS: Readonly<Record<string, string>> = {
+  apply_patch: "Edit", view_image: "Read", web__run: "WebFetch", spawn_agent: "Agent", wait_agent: "TaskOutput",
+};
+const CODEX_SHELLS = new Set(["shell_command", "exec_command"]);
+/** Items that are the session's own history, summarised or passed between agents: Other, and sorted. */
+const CODEX_OTHER_ITEMS = new Set(["reasoning", "compaction", "agent_message"]);
+
+/** What one Codex tool call does: a shell by its command's verbs, any other tool as its Claude Code twin. */
+function codexToolGroup(name: string, args: JsonRecord): CompositionGroup | undefined {
+  if (CODEX_SHELLS.has(name)) return callGroup("Bash", { command: args.command ?? args.cmd });
+  const twin = CODEX_TOOLS[name] ?? (name.startsWith("mcp__") ? undefined : CODEX_TOOLS[name.slice(name.lastIndexOf("__") + 2)]);
+  return callGroup(twin ?? name, args);
+}
+
+/**
+ * An `exec` cell is a script calling `tools.<name>(…)`: it reads only if every call in it does,
+ * changes things if any call does, and is unsorted when a call nothing sorts (or no call) decides it.
+ */
+function execGroup(source: string): { group: CompositionGroup | undefined; unsorted: string[] } {
+  const starts = [...source.matchAll(/tools\.(\w+)\s*\(/g)];
+  if (starts.length === 0) return { group: undefined, unsorted: ["tool:exec:script"] };
+  const groups = starts.map((start, index) => {
+    const name = start[1] ?? "";
+    const body = source.slice(start.index, starts[index + 1]?.index);
+    const literal = /["']?(?:command|cmd)["']?\s*:\s*("(?:[^"\\]|\\.)*")/.exec(body)?.[1];
+    let command: unknown;
+    try { command = literal === undefined ? undefined : JSON.parse(literal); } catch { command = undefined; }
+    return { name, group: codexToolGroup(name, { command }) };
+  });
+  if (groups.some(({ group }) => group === "implementation")) return { group: "implementation", unsorted: [] };
+  const unknown = groups.filter(({ group }) => group === undefined).map(({ name }) => `tool:${name}`);
+  return unknown.length > 0 ? { group: undefined, unsorted: unknown } : { group: "grounding", unsorted: [] };
+}
+
+/**
+ * The composition of a Codex rollout (Codex 0.155's shapes), or `undefined` when it holds no token
+ * count to take the unrecorded floor from. Sorted as a Claude Code transcript is, by the labels
+ * Codex writes: the session's `base_instructions` and `developer` messages are Injected, and so is
+ * a `user` message the harness added (one Codex never recorded as the user's own `UserMessage`);
+ * an `exec` cell by what its tool calls do, a `wait` by the cell it waits on, and an output by its
+ * call. Codex has no request id: its first token count's input less the bytes recorded before it
+ * is the tool list and world state it sent unrecorded, counted as Injected. Its bookkeeping
+ * (`event_msg`, `world_state`, `turn_context`, `token_usage_record`, `compacted`) is not counted.
+ */
+export function codexComposition(text: string): Composition | undefined {
+  const records = jsonLines(text);
+  if (records === "empty") return undefined;
+  const typed = new Set<string>();
+  for (const record of records) {
+    const item = isRecord(record.payload) && isRecord(record.payload.item) ? record.payload.item : undefined;
+    if (record.type !== "event_msg" || item?.type !== "UserMessage" || !Array.isArray(item.content)) continue;
+    for (const part of item.content) if (isRecord(part) && typeof part.text === "string" && part.text.trim() !== "") typed.add(part.text.trim());
+  }
+  const { add, unknown, seen, unsorted, composition } = tally();
+  const calls = new Map<string, CompositionGroup | undefined>();
+  const cells = new Map<string, CompositionGroup | undefined>();
+  let floor: number | undefined;
+
+  for (const record of records) {
+    const payload = isRecord(record.payload) ? record.payload : undefined;
+    if (payload === undefined) continue;
+    if (record.type === "session_meta") {
+      const base = payload.base_instructions;
+      if (base !== undefined) add("injected", isRecord(base) && typeof base.text === "string" ? base.text : base);
+      continue;
+    }
+    if (record.type === "event_msg") {
+      const usage = payload.type === "token_count" && isRecord(payload.info) ? payload.info.last_token_usage : undefined;
+      if (floor === undefined && isRecord(usage) && isCount(usage.input_tokens)) floor = Math.max(0, usage.input_tokens - Math.ceil(seen() / CHARS_PER_TOKEN));
+      continue;
+    }
+    if (record.type !== "response_item") continue;
+    const type = typeof payload.type === "string" ? payload.type : "<untyped>";
+    const id = typeof payload.call_id === "string" ? payload.call_id : undefined;
+    if (type === "message") {
+      const own = Array.isArray(payload.content) && payload.content.some((part) => isRecord(part) && typeof part.text === "string" && typed.has(part.text.trim()));
+      add(payload.role === "developer" || (payload.role === "user" && !own) ? "injected" : "other", payload);
+    } else if (type === "custom_tool_call" || type === "function_call") {
+      const name = typeof payload.name === "string" ? payload.name : "<unnamed>";
+      let sorted: { group: CompositionGroup | undefined; unsorted: string[] };
+      if (type === "custom_tool_call" && name === "exec") {
+        sorted = execGroup(typeof payload.input === "string" ? payload.input : "");
+      } else {
+        let args: unknown;
+        try { args = typeof payload.arguments === "string" ? JSON.parse(payload.arguments) : payload.arguments; } catch { args = undefined; }
+        const input = isRecord(args) ? args : {};
+        const cell = name === "wait" && typeof input.cell_id === "string" ? input.cell_id : undefined;
+        const group = cell !== undefined && cells.has(cell) ? cells.get(cell) : codexToolGroup(name, input);
+        sorted = { group, unsorted: group === undefined ? [`tool:${name}`] : [] };
+      }
+      if (id !== undefined) calls.set(id, sorted.group);
+      for (const label of sorted.unsorted) unsorted.add(label);
+      add("implementation", payload);
+    } else if (type === "custom_tool_call_output" || type === "function_call_output") {
+      if (id === undefined || !calls.has(id)) { unknown("tool_result:unmatched", payload); continue; }
+      const cell = /cell ID (\w+)/.exec(JSON.stringify(payload.output) ?? "")?.[1];
+      if (cell !== undefined && !cells.has(cell)) cells.set(cell, calls.get(id));
+      add(calls.get(id) ?? "other", payload);
+    } else if (CODEX_OTHER_ITEMS.has(type)) {
+      add("other", payload);
+    } else {
+      unknown(`item:${type}`, payload);
+    }
+  }
+  return floor === undefined ? undefined : composition(floor);
+}
+
+/** A running count of bytes per group, and the labels nothing sorted. */
+function tally() {
+  const bytes: Record<CompositionGroup, number> = { injected: 0, grounding: 0, implementation: 0, other: 0 };
+  const unsorted = new Set<string>();
+  let seen = 0;
+  const add = (group: CompositionGroup, value: unknown): void => {
+    const size = Buffer.byteLength(JSON.stringify(value) ?? "");
+    bytes[group] += size;
+    seen += size;
+  };
   const tokens = (group: CompositionGroup): number => Math.round(bytes[group] / CHARS_PER_TOKEN);
   return {
-    injected: floor + tokens("injected"),
-    grounding: tokens("grounding"),
-    implementation: tokens("implementation"),
-    other: tokens("other"),
-    unsorted: [...unsorted].sort(),
-    charsPerToken: CHARS_PER_TOKEN,
+    add,
+    unknown: (label: string, value: unknown): void => { unsorted.add(label); add("other", value); },
+    seen: (): number => seen,
+    unsorted,
+    /** The groups in tokens, the unrecorded `floor` counted as Injected. */
+    composition: (floor: number): Composition => ({
+      injected: floor + tokens("injected"),
+      grounding: tokens("grounding"),
+      implementation: tokens("implementation"),
+      other: tokens("other"),
+      unsorted: [...unsorted].sort(),
+      charsPerToken: CHARS_PER_TOKEN,
+    }),
   };
 }

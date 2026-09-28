@@ -1,0 +1,70 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/top-bars
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-help.png"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/top-bars/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-help.png"
+
+built dist
+Debugger listening on ws://127.0.0.1:46389/28791006-a4e5-4fa1-b4ea-39cd2ac4a366
+For help, see: https://nodejs.org/learn/getting-started/debugging
+
+DevTools listening on ws://127.0.0.1:36069/devtools/browser/4c781d61-9d6b-4ab3-93ea-b15a44bc5132
+Debugger attached.
+Debugger ending on ws://127.0.0.1:46389/28791006-a4e5-4fa1-b4ea-39cd2ac4a366
+For help, see: https://nodejs.org/learn/getting-started/debugging
+Postgres: listening on 127.0.0.1:35411 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:35411/postgres
+storytree 0.3: development build e482964 from /home/mickh/code/storytree03-wt/top-bars (does not update itself)
+[728686:0928/194200.128701:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x2fd40018aa00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+smoke: screenshot /home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-help.png (1120x860)
+App
+Close ×
+Projects
+Settings
+Updates
+Help
+Help with storytree
+First-run guide
+License
+Send feedback
+Start your first project
+Open your chosen agent in your project folder. After connecting Claude Code or Codex during installation, start a new session there. Storytree does not run the agent for you.
+Say yes when asked. The agent checks setup and asks before creating a storytree project. Choose its name. Saying no leaves the folder unconfigured.
+Let the connection check finish. Review any approval prompt from your agent for storytree tools, a small check-file edit or a command. Approve the check if you want to continue. Ask the agent to run check_setup again until it reports hooks verified: session start, tool call, file edit and command have reached storytree. Registered hooks alone are not verification.
+Give the agent a small piece of work. Your new project appears in the running app. Its forest can start empty; a story and its capabilities appear as the agent plans them, with activity and health as work proceeds.
+Add another project
+
+Start a new agent session in a second folder and answer its setup question separately. Only a second yes creates a second project. The app refreshes its project list automatically; use the project picker to return to either forest.
+
+Windows asks whether to trust the installer
+
+Connection incomplete? Check a folder below for setup diagnostics. This folder check does not register hooks or install the command; those checks will say “skipped”. Use Copy request for your agent to complete setup and verify hook receipt in your agent session.
+
+Check a folder…
+Copy request for your agent
+
+Request to paste into your agent
+
+Need help or have a suggestion? Use Send feedback to prepare a GitHub issue.
+
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+What did I leave running?
+Forest
+Library
+Arcs
+▾
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

@@ -1,0 +1,53 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/top-bars
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-updates.png"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/top-bars/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-updates.png"
+
+built dist
+Debugger listening on ws://127.0.0.1:37009/7761f28f-bb9b-476b-94c8-fc1f3e58710f
+For help, see: https://nodejs.org/learn/getting-started/debugging
+
+DevTools listening on ws://127.0.0.1:42847/devtools/browser/f9d5010e-d518-4ae4-bead-f385050eafe9
+Debugger attached.
+Debugger ending on ws://127.0.0.1:37009/7761f28f-bb9b-476b-94c8-fc1f3e58710f
+For help, see: https://nodejs.org/learn/getting-started/debugging
+Postgres: listening on 127.0.0.1:40195 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:40195/postgres
+storytree 0.3: development build e482964 from /home/mickh/code/storytree03-wt/top-bars (does not update itself)
+[728496:0928/194147.037673:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x33d40018f800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+smoke: screenshot /home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-updates.png (1120x860)
+App
+Close ×
+Projects
+Settings
+Updates
+Help
+Updates
+
+Keep storytree up to date.
+
+Check for updates
+Updates unavailable
+This app is not running from a runtime slot and does not update itself.
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+What did I leave running?
+Forest
+Library
+Arcs
+▾
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

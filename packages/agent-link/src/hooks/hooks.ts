@@ -86,7 +86,9 @@ function setupQuestion(input: unknown): string | undefined {
   if (typeof input !== "object" || input === null) return undefined;
   const { hook_event_name: event, cwd: folder } = input as Record<string, unknown>;
   if (event !== "SessionStart" || typeof folder !== "string" || folder === "" || findProject(folder).project !== undefined) return undefined;
-  const context = `storytree: ${askToSetUp(folder)} Do this before you start on the user's request, then call storytree's check_setup tool and do what it says.`;
+  // "Before you start" alone was not enough: on the Windows retest, 3 sessions in 3 did the task first
+  // and asked after; told to end the turn and wait, 3 in 3 asked first (acceptance-retest round-2/ab).
+  const context = `storytree: ${askToSetUp(folder)} Ask this first, before you create, edit or run anything for the user's request, and end your turn there to wait for their answer. Once they have answered, call storytree's check_setup tool and do what it says.`;
   return JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: context } });
 }
 

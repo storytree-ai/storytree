@@ -1,0 +1,19 @@
+--- old/library/The app/capability 4/contract_b872bebaa9b8/description
++++ new/library/The app/capability 4/contract_b872bebaa9b8/description
+@@ -1 +1 @@
+-After restarting into a new merged-main build, the app runs `pnpm check:own-health` from that running slot in the background, against its own library. Its window and database remain available. The check joins the running app's database through `appLibraryServer` with `writes: true`, holding the writing lock so an update cannot restart the app while the check runs. The check's output and failures go to `~/.storytree/0.3/app.log` (or the same file under `STORYTREE_HOME`). A failed check never stops the app and is tried again at the next update. Reopening the same build does not repeat the attempt. This contract applies to the app that follows merged main; installed releases do not run checkout scripts.
++After restarting into a new merged-main build, the app runs `pnpm check:own-health` from that running slot in the background, against its own library. Its window and database remain available. The check joins the running app's database through `appLibraryServer` with `writes: true`, holding the writing lock so an update cannot restart the app while the check runs. The check's output and failures go to `~/.storytree/0.3/app.log` (or the same file under `STORYTREE_HOME`). A failed check never stops the app and is tried again at the next update. Reopening the same build does not repeat the attempt. When the `library` setting names a Cloud SQL instance, the app runs no check and records nothing: CI's run on main is the one writer of the shared library's verified health (ADR-0744 D3), and the app's log says so in one line. This contract applies to the app that follows merged main; installed releases do not run checkout scripts.
+
+--- old/library/The app/capability 4/definition_35a9bf6d841b/meaning
++++ new/library/The app/capability 4/definition_35a9bf6d841b/meaning
+@@ -8,4 +8,9 @@
+   existing library writer lock. Installed release updates retain their existing behavior. Red-to-
+   green proof is in `packages/app/src/updates/own-health.test.ts`; a real-database proof also
+   verified that the command joins the app, holds/releases the updater's writer lock, updates
+   verified health, and preserves reported health.
++- **As built** (`increment_10dc2a4c5f78`, ADR-0744 D3): CI is the one writer of the shared
++  library's verified health. `refreshOwnHealth` (`packages/app/src/updates/build-health.ts`) reads
++  the `library` setting first; on Cloud SQL it logs one line (`own-health: not checking <sha>: the
++  library is on Cloud SQL …, where CI records own health …`) and spawns nothing. With the setting
++  local it checks as before, since nothing else writes the app's own library. Proved by
++  `packages/app/src/updates/build-health.test.ts` (4.3's Cloud SQL test).

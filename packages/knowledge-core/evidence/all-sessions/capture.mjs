@@ -121,18 +121,6 @@ try {
   assert.deepEqual(allCurves.map(c => `${c.from}>${c.to}`).sort(),
     [...steps(reads.a), ...steps(reads.lane), ...steps(reads.b), ...steps(reads.c)].sort(), "one curve per step of each agent's reading order");
   assert.equal(await rgb(allCurves.find(c => c.from === reads.c[0]).colour), await swatch(ids.c), "a curve wears its session's colour");
-  // Each known agent's wisp rests at its latest full read when the view opens; history never flies (ADR-0741 D1, D3).
-  const flyers = () => page.evaluate(() => {
-    const found = [];
-    window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-wisp:')) found.push(o.name.slice('knowledge-wisp:'.length)); });
-    let tails = 0;
-    window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-wisp-tail:') && o.visible) tails++; });
-    return { found: found.sort(), tails };
-  });
-  const resting = await flyers();
-  assert.deepEqual(resting.found, [`${ids.a} orchestrator`, `${ids.a} subagent:${ids.lane}`, `${ids.b} orchestrator`, `${ids.c} orchestrator`].sort(),
-    'one wisp per known agent of each listed session');
-  assert.equal(resting.tails, 0, 'nothing flies on opening');
   await page.screenshot({ path: path.join(here, 'all-sessions.png') });
 
   // Click a row: the core drills into that session alone, the row marked selected.
@@ -161,35 +149,42 @@ try {
   assert.equal((await dots()).filter(dot => dot.lit).length, expected.size, 'clicking the selected row again shows every session');
   assert.equal(await row(ids.a).getAttribute('data-selected'), null);
   assert.deepEqual(errors, []);
-  // A new read arrives: that agent's wisp moves to it (ADR-0741 D2, D3).
+  // A new read arrives: its step's line grows, and each agent's path glows in a loop (ADR-0742).
   const readNext = note => page.evaluate(([session, note]) => {
     const last = window.__lines.at(-1);
     window.__lines.push({ project: 'storytree', source: 'tool', harness: 'claude-code', session, seq: last.seq + 1, at: new Date().toISOString(),
       kind: 'note-read', note, found: 'search', read: 'whole', agent: 'orchestrator' });
   }, [ids.c, note]);
-  const tails = () => page.evaluate(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-wisp-tail:') && o.visible) n++; }); return n; });
-  const landedOn = note => page.waitForFunction(([mover, note]) => {
-    let at, dot;
-    window.__globe.scene.traverse(o => { if (o.name === `knowledge-wisp:${mover}`) at = o.position; if (o.userData?.id === note) dot = o.position; });
-    return at !== undefined && dot !== undefined && at.distanceTo(dot) < 0.01;
-  }, [`${ids.c} orchestrator`, note]);
-  // With reduced motion (this page's setting) it goes straight there: no flight, no tail.
+  const glows = () => page.evaluate(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n; });
+  // How far along its curve a step's line is drawn: 0 not yet, 1 whole.
+  const drawn = (from, to) => page.evaluate(([from, to]) => {
+    let line, end;
+    window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}`) line = o.children[0]; if (o.userData?.id === to) end = o.position; });
+    if (line === undefined || !line.visible) return 0;
+    const tip = line.geometry.attributes.instanceEnd, i = tip.count - 1;
+    return end.distanceTo({ x: tip.getX(i), y: tip.getY(i), z: tip.getZ(i) }) < 0.01 ? 1 : 0.5;
+  }, [from, to]);
+  // With reduced motion (this page's setting) nothing moves: no glow, and a new step is drawn whole at once.
+  assert.equal(await glows(), 0, 'reduced motion never glows');
   await readNext(covers[60]);
-  await landedOn(covers[60]);
-  assert.equal(await tails(), 0, 'reduced motion never draws a tail');
-  // With motion allowed it flies the step's curve, trailing a tail, and lands on the note.
+  await page.waitForFunction(([from, to]) => { let found = false; window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}`) found = true; }); return found; }, [reads.c.at(-1), covers[60]]);
+  assert.equal(await drawn(reads.c.at(-1), covers[60]), 1, 'drawn whole at once');
+  // With motion allowed the next step grows from its earlier read to its later one, and the paths glow in a loop.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await readNext(covers[62]);
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-wisp-tail:') && o.visible) n++; }); return n > 0; });
-  await page.screenshot({ path: path.join(here, 'wisp-in-flight.png') });
-  await landedOn(covers[62]);
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-wisp-tail:') && o.visible) n++; }); return n === 0; });
+  await page.waitForFunction(([from, to]) => { let part = false; window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}` && o.children[0].visible) part = true; }); return part; }, [covers[60], covers[62]]);
+  assert.equal(await drawn(covers[60], covers[62]), 0.5, 'caught growing, short of its later read');
+  await page.screenshot({ path: path.join(here, 'path-growing.png') });
+  await page.waitForTimeout(1500);
+  assert.equal(await drawn(covers[60], covers[62]), 1, 'then whole');
+  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n > 0; });
+  await page.screenshot({ path: path.join(here, 'path-glow.png') });
   const heads = await page.evaluate(() => {
     let n = 0;
     window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-trail:')) o.traverse(c => { if (c.geometry?.type === 'ConeGeometry') n++; }); });
-    return n;
+    return { n };
   });
-  assert.equal(heads, 0, 'paths carry no arrowheads: the fade and the wisp show the way');
+  assert.equal(heads.n, 0, 'paths carry no arrowheads');
   writeFileSync(path.join(here, 'capture.json'), JSON.stringify({
     sessions: Object.fromEntries(Object.entries(reads).map(([key, notes]) => [ids[key], notes.length])),
     litWithNoneSelected: expected.size, shared: shared.length, litWhenBSelected: one.length,

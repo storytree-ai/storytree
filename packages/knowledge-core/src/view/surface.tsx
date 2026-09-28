@@ -11,7 +11,7 @@ import type { Line } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge } from "../ghosts/ghosts.js";
-import { coreScene, legend, lighting, noteCard, trails as readingPaths, wisps as flyingWisps, noteTitle, pinnedLinks, replayFrame, type CoreInput, type Point, type RosterEntry, type SizeBy } from "../look-inside/look-inside.js";
+import { coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, type CoreInput, type Point, type RosterEntry, type SizeBy } from "../look-inside/look-inside.js";
 import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -229,7 +229,7 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
     [store.reads, state.version, state.roster, state.session, known]);
   const paths = useMemo(() => readingPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     [store.reads, state.version, state.roster, state.session, known]);
-  const movers = useMemo(() => flyingWisps(store.reads, state.roster, state.session, new Set(known.notes.keys())),
+  const replays = useMemo(() => agentPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     [store.reads, state.version, state.roster, state.session, known]);
-  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} trails={paths} wisps={movers} />;
+  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} trails={paths} paths={replays} />;
 }

@@ -290,6 +290,8 @@ export interface Trail {
   to: string;
   colour: string;
   seq: number;
+  /** The session the reads were filed under and the agent that read, as "<session> <agent>". */
+  mover: string;
 }
 
 /**
@@ -301,17 +303,17 @@ export interface Trail {
 export function trails(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
   present: ReadonlySet<string>): Trail[] {
   const drawn = new Map<string, Trail>();
-  for (const { listed, replay, colour } of drawnAgents(reads, roster, session, present)) {
+  for (const { listed, member, replay, colour } of drawnAgents(reads, roster, session, present)) {
     for (const { from, to, seq } of replay.jumps) {
       if (from === undefined || from === to || drawn.has(`${listed} ${from} ${to}`)) continue;
-      drawn.set(`${listed} ${from} ${to}`, { from, to, colour, seq });
+      drawn.set(`${listed} ${from} ${to}`, { from, to, colour, seq, mover: `${member} ${replay.agent}` });
     }
   }
   return [...drawn.values()].sort((a, b) => a.seq - b.seq);
 }
 
-/** One known agent's wisp (ADR-0741): where it rests, and every step it has flown, in recorded order. */
-export interface Wisp {
+/** One known agent's reading path (ADR-0742): every step it has taken, in recorded order, and where it ends. */
+export interface AgentPath {
   /** The session the reads were filed under and the agent, as "<session> <agent>". */
   mover: string;
   colour: string;
@@ -321,21 +323,46 @@ export interface Wisp {
 }
 
 /**
- * The wisps to fly (ADR-0741 D1): one per known agent of each drawn session (as `trails` draws
- * them) that has read something in full, resting at its latest full read. A peek moves no wisp,
- * and an unknown agent or an unlisted session has none.
+ * The paths to replay (ADR-0742 D3): one per known agent of each drawn session (as `trails` draws
+ * them) that has read something in full, ending at its latest full read. A peek adds no step, and
+ * an unknown agent or an unlisted session has none.
  */
-export function wisps(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>): Wisp[] {
+export function agentPaths(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
+  present: ReadonlySet<string>): AgentPath[] {
   return drawnAgents(reads, roster, session, present).flatMap(({ member, replay, colour }) => {
     const note = replay.lit.filter(({ read }) => read === "whole").at(-1)?.note;
     if (!replay.known || note === undefined) return [];
-    const steps = replay.jumps.flatMap(({ from, to, seq }) => from === undefined || from === to ? [] : [{ from, to, colour, seq }]);
-    return [{ mover: `${member} ${replay.agent}`, colour, note, steps }];
+    const mover = `${member} ${replay.agent}`;
+    const steps = replay.jumps.flatMap(({ from, to, seq }) => from === undefined || from === to ? [] : [{ from, to, colour, seq, mover }]);
+    return [{ mover, colour, note, steps }];
   });
 }
 
-/** Each agent of each drawn session, with the colour its paths and wisp wear (ADR-0740 D2). */
+/** Where an agent's looping glow is (ADR-0742 D3): each step takes `step` ms in order, then a `pause`, then again. */
+export function glowAt(steps: number, elapsed: number, timing: { step: number; pause: number }): { step: number; t: number } | undefined {
+  if (steps === 0) return undefined;
+  const at = elapsed % (steps * timing.step + timing.pause);
+  if (at >= steps * timing.step) return undefined;
+  return { step: Math.floor(at / timing.step), t: (at % timing.step) / timing.step };
+}
+
+/**
+ * When each new step starts growing (ADR-0742 D2): one agent's steps one after another in recorded
+ * order, each waiting for that agent's step already growing; different agents at once.
+ */
+export function growthPlan(fresh: readonly { key: string; mover: string; seq: number }[], busy: ReadonlyMap<string, number>, now: number,
+  grow: number): { starts: Map<string, number>; busy: Map<string, number> } {
+  const starts = new Map<string, number>();
+  const next = new Map(busy);
+  for (const { key, mover } of [...fresh].sort((a, b) => a.seq - b.seq)) {
+    const start = Math.max(now, next.get(mover) ?? now);
+    starts.set(key, start);
+    next.set(mover, start + grow);
+  }
+  return { starts, busy: next };
+}
+
+/** Each agent of each drawn session, with the colour its paths wear (ADR-0740 D2). */
 function drawnAgents(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
   present: ReadonlySet<string>): { listed: string; member: string; replay: AgentReplay; colour: string }[] {
   if (session === undefined) {
@@ -347,7 +374,7 @@ function drawnAgents(reads: ReadRecord, roster: readonly RosterEntry[], session:
   return agents.map((replay) => ({ listed: session, member: session, replay, colour: colours.get(replay.agent)! }));
 }
 
-/** How far a wisp's tail reaches back along its step, as a fraction of the step (ADR-0741 D2). */
+/** How far a glow's tail reaches back along its step, as a fraction of the step (ADR-0742 D3). */
 const TAIL = 0.35;
 
 /** A point `t` of the way along a step's curve: a quadratic Bezier bowed away from the globe's centre (ADR-0740 D3). */
@@ -360,7 +387,7 @@ export function curvePoint(from: Point, to: Point, t: number): Point {
   return { x: from.x * a + control.x * b + to.x * c, y: from.y * a + control.y * b + to.y * c, z: from.z * a + control.z * b + to.z * c };
 }
 
-/** The part of a step's curve a wisp at `t` trails behind it: from up to TAIL back, to the wisp. */
+/** The part of a step's curve a glow with its head at `t` lights: from up to TAIL back, to the head. */
 export function tailSpan(t: number): [number, number] {
   return [Math.max(0, t - TAIL), t];
 }

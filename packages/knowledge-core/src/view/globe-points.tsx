@@ -1,35 +1,57 @@
 import type { GlobePoint } from "../shelves/positions.js";
 import type { RecordEnvelope } from "@storytree/library";
-import { Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { WispBody } from "@storytree/forest-world/canvas";
 import { useEffect, useMemo, useRef } from "react";
-import { AdditiveBlending, Color, Vector3, type Group } from "three";
+import { AdditiveBlending, Color } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { curvePoint, noteTitle, tailSpan, type Lighting, type Point, type Trail, type Wisp } from "../look-inside/look-inside.js";
+import { curvePoint, glowAt, growthPlan, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
+/** How long a new step's line takes to grow, and each step of a glow's loop, and its rest between loops (ADR-0742). */
+const GROW_MS = 900;
+const GLOW = { step: 900, pause: 1200 };
+
+const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
+
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], wisps = [] }: {
+export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [] }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
   /** Notes a running session read, in its colour; a shared one gets a halo (ADR-0738). */
   lit?: ReadonlyMap<string, Lighting>;
-  /** Each session's reading path, one curve per step, pointing to the later read (ADR-0740). */
+  /** Each session's reading path, one curve per step, from the earlier read to the later (ADR-0740). */
   trails?: readonly Trail[];
-  /** Each drawn agent's wisp, flying its new steps as they arrive (ADR-0741). */
-  wisps?: readonly Wisp[];
+  /** Each drawn agent's path, replayed by a looping glow (ADR-0742). */
+  paths?: readonly AgentPath[];
 }) {
   const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
+  // Steps already read when the view first had any are history and never grow (ADR-0742 D4).
+  const history = useRef<number | undefined>(undefined);
+  const growth = useRef<{ starts: Map<string, number>; busy: Map<string, number> }>({ starts: new Map(), busy: new Map() });
+  const starts = useMemo(() => {
+    if (trails.length === 0) return growth.current.starts;
+    if (history.current === undefined) {
+      history.current = Math.max(...trails.map(({ seq }) => seq));
+      return growth.current.starts;
+    }
+    if (reducedMotion()) return growth.current.starts;
+    const fresh = trails.filter(trail => trail.seq > history.current! && !growth.current.starts.has(trailKey(trail)))
+      .map(trail => ({ key: trailKey(trail), mover: trail.mover, seq: trail.seq }));
+    if (fresh.length === 0) return growth.current.starts;
+    const plan = growthPlan(fresh, growth.current.busy, performance.now(), GROW_MS);
+    growth.current = { starts: new Map([...growth.current.starts, ...plan.starts]), busy: plan.busy };
+    return growth.current.starts;
+  }, [trails]);
   return <group name="knowledge-points">
     {trails.map(trail => {
       const from = at.get(trail.from), to = at.get(trail.to);
       return from === undefined || to === undefined ? null
-        : <TrailCurve key={`${trail.colour} ${trail.from} ${trail.to}`} trail={trail} from={from} to={to} />;
+        : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} />;
     })}
-    {wisps.map(wisp => <FlyingWisp key={wisp.mover} wisp={wisp} at={at} radius={radius} />)}
+    {!reducedMotion() && paths.map(path => <PathGlow key={path.mover} path={path} at={at} starts={starts} />)}
     {points.map(point => <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
@@ -45,132 +67,106 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
 }
 
 const STEPS = 24;
-const vector = ({ x, y, z }: Point) => new Vector3(x, y, z);
+const sample = (from: Point, to: Point, end: number): number[] =>
+  Array.from({ length: STEPS + 1 }, (_, index) => curvePoint(from, to, end * index / STEPS)).flatMap(({ x, y, z }) => [x, y, z]);
 
 /**
  * One step of a reading path: a quadratic Bezier bowed away from the globe's centre, so it never
- * lies along a stored link, fading from dim at the earlier read to full colour at the later one
- * (ADR-0740 D1, D3). No arrowhead: the fade and the flying wisp show the way (ADR-0741 D4).
+ * lies along a stored link, fading from dim at the earlier read to full colour at the later one,
+ * with no arrowhead (ADR-0740 D1, D3; ADR-0742 D5). A new step grows from its earlier read to its
+ * later one, starting at `grow` (ADR-0742 D2); before then it is not drawn.
  */
-function TrailCurve({ trail, from, to }: { trail: Trail; from: Point; to: Point }) {
-  const points = Array.from({ length: STEPS + 1 }, (_, index) => vector(curvePoint(from, to, index / STEPS)));
-  const full = new Color(trail.colour);
-  const dim = full.clone().multiplyScalar(0.25);
-  const colours = points.map((_, index) => dim.clone().lerp(full, index / STEPS).toArray() as [number, number, number]);
+function TrailCurve({ trail, from, to, grow }: { trail: Trail; from: Point; to: Point; grow: number | undefined }) {
+  const invalidate = useThree(state => state.invalidate);
+  const size = useThree(state => state.size);
+  const line = useMemo(() => lineOf(1.6, false), []);
+  useEffect(() => () => { line.geometry.dispose(); line.material.dispose(); }, [line]);
+  useEffect(() => { line.material.resolution.set(size.width, size.height); }, [line, size]);
+  const colours = useMemo(() => {
+    const full = new Color(trail.colour);
+    const dim = full.clone().multiplyScalar(0.25);
+    return Array.from({ length: STEPS + 1 }, (_, index) => dim.clone().lerp(full, index / STEPS).toArray()).flat();
+  }, [trail.colour]);
+  // Drawn to `end` of the way along; the colours stay dim-to-bright over what is drawn.
+  const draw = (end: number) => {
+    line.geometry.setPositions(sample(from, to, end));
+    line.geometry.setColors(colours);
+    line.visible = end > 0;
+  };
+  const done = useRef(false);
+  useEffect(() => {
+    done.current = grow === undefined;
+    draw(grow === undefined ? 1 : 0);
+    invalidate();
+  }, [line, from, to, colours, grow]);
+  useFrame(() => {
+    if (done.current || grow === undefined) return;
+    const progress = Math.min(1, Math.max(0, (performance.now() - grow) / GROW_MS));
+    draw(progress * progress * (3 - 2 * progress));
+    if (progress >= 1) done.current = true;
+    invalidate();
+  });
   return <group name={`knowledge-trail:${trail.from}>${trail.to}`} userData={{ from: trail.from, to: trail.to, colour: trail.colour }}>
-    <Line points={points} vertexColors={colours} lineWidth={1.6} transparent opacity={0.85} depthWrite={false} raycast={noRaycast} />
+    <primitive object={line} />
   </group>;
 }
 
-/** How long one step's flight takes, and how many points draw its tail. */
-const FLIGHT_MS = 1400;
-const TAIL_POINTS = 20;
-/** The wisp model's size against the globe: smaller than an island's session wisp. */
-const WISP_SCALE = 0.011;
-/** The model's tail lies along its local -X, so +X faces the way it flies. */
-const FORWARD = new Vector3(1, 0, 0);
+/** A thick line whose points change as it grows or glows; additive for a glow, so its dark end adds nothing. */
+function lineOf(width: number, additive: boolean): Line2 {
+  const line = new Line2(new LineGeometry(), new LineMaterial({
+    linewidth: width, vertexColors: true, transparent: true, depthWrite: false,
+    ...(additive ? { blending: AdditiveBlending } : { opacity: 0.85 }),
+  }));
+  line.raycast = noRaycast;
+  line.visible = false;
+  line.frustumCulled = false;
+  return line;
+}
 
-const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const GLOW_POINTS = 20;
 
 /**
- * One agent's wisp (ADR-0741). It opens resting at its latest read (no history replay, D3); each
- * step that arrives afterwards joins a queue and is flown in recorded order along the step's own
- * curve, facing the way it moves, trailing a tail that brightens toward it. When it lands the
- * tail draws in behind it. With reduced motion it moves straight to its new note.
+ * One agent's looping glow (ADR-0742 D3): it travels the agent's grown steps in recorded order,
+ * bright at its head and fading behind, so it shows which way the agent read; after the last step
+ * it rests, then starts again from the first.
  */
-function FlyingWisp({ wisp, at, radius }: { wisp: Wisp; at: ReadonlyMap<string, Point>; radius: number }) {
-  const body = useRef<Group>(null);
+function PathGlow({ path, at, starts }: { path: AgentPath; at: ReadonlyMap<string, Point>; starts: ReadonlyMap<string, number> }) {
   const invalidate = useThree(state => state.invalidate);
   const size = useThree(state => state.size);
-  const seen = useRef(wisp.steps.at(-1)?.seq ?? -Infinity);
-  const queue = useRef<Trail[]>([]);
-  const flight = useRef<{ step: Trail; start: number; duration: number } | undefined>(undefined);
-  const resting = useRef(wisp.note);
-  const tail = useMemo(() => {
-    const line = new Line2(new LineGeometry(), new LineMaterial({
-      linewidth: 4, vertexColors: true, transparent: true, depthWrite: false, blending: AdditiveBlending,
-    }));
-    line.raycast = noRaycast;
-    line.visible = false;
-    line.frustumCulled = false;
-    return line;
-  }, []);
-  useEffect(() => () => { tail.geometry.dispose(); tail.material.dispose(); }, [tail]);
-  useEffect(() => { tail.material.resolution.set(size.width, size.height); }, [tail, size]);
+  const began = useRef(performance.now());
+  const glow = useMemo(() => lineOf(3.5, true), []);
+  useEffect(() => () => { glow.geometry.dispose(); glow.material.dispose(); }, [glow]);
+  useEffect(() => { glow.material.resolution.set(size.width, size.height); }, [glow, size]);
   const colours = useMemo(() => {
-    const full = new Color(wisp.colour);
-    // Additive: black adds nothing, so the far end of the tail fades to nothing.
-    return Array.from({ length: TAIL_POINTS }, (_, index) => full.clone().multiplyScalar((index / (TAIL_POINTS - 1)) ** 1.6).toArray()).flat();
-  }, [wisp.colour]);
-
-  // New steps queue behind any flight in progress; history before the view opened is never flown.
-  useEffect(() => {
-    const fresh = wisp.steps.filter(({ seq }) => seq > seen.current);
-    if (fresh.length === 0) return;
-    seen.current = fresh.at(-1)!.seq;
-    if (reducedMotion()) {
-      queue.current = [];
-      flight.current = undefined;
-      resting.current = fresh.at(-1)!.to;
-    } else queue.current.push(...fresh);
-    invalidate();
-  }, [wisp, invalidate]);
+    // Additive: black adds nothing, so the far end fades to nothing; the head is whitened to glow.
+    const head = new Color(path.colour).lerp(new Color("#ffffff"), 0.12);
+    return Array.from({ length: GLOW_POINTS }, (_, index) => head.clone().multiplyScalar((index / (GLOW_POINTS - 1)) ** 1.8).toArray()).flat();
+  }, [path.colour]);
 
   useFrame(() => {
-    const group = body.current;
-    if (group === null) return;
     const now = performance.now();
-    if (flight.current === undefined && queue.current.length > 0) {
-      const step = queue.current.shift()!;
-      // A backlog flies faster, so the wisp keeps up with its agent.
-      flight.current = { step, start: now, duration: FLIGHT_MS / Math.min(3, 1 + queue.current.length * 0.5) };
-    }
-    const current = flight.current;
-    const from = current === undefined ? undefined : at.get(current.step.from), to = current === undefined ? undefined : at.get(current.step.to);
-    if (current === undefined || from === undefined || to === undefined) {
-      if (current !== undefined) { resting.current = current.step.to; flight.current = undefined; }
-      const rest = at.get(resting.current);
-      group.visible = rest !== undefined;
-      if (rest !== undefined) group.position.set(rest.x, rest.y, rest.z);
-      tail.visible = false;
-      return;
-    }
-    // t runs past 1 while the tail draws in behind the landed wisp.
-    const t = (now - current.start) / current.duration;
-    const [tailStart] = tailSpan(t);
-    if (tailStart >= 1) {
-      resting.current = current.step.to;
-      flight.current = undefined;
-      tail.visible = false;
-      invalidate();
-      return;
-    }
-    const head = Math.min(1, t);
-    const eased = head * head * (3 - 2 * head);
-    const place = vector(curvePoint(from, to, eased));
-    group.visible = true;
-    group.position.copy(place);
-    const ahead = vector(curvePoint(from, to, Math.min(1, eased + 0.02)));
-    const behind = vector(curvePoint(from, to, Math.max(0, eased - 0.02)));
-    const direction = ahead.sub(behind);
-    if (direction.lengthSq() > 0) group.quaternion.setFromUnitVectors(FORWARD, direction.normalize());
-    const start = Math.min(eased, tailStart * tailStart * (3 - 2 * Math.min(1, tailStart)));
+    // A step still growing, or yet to grow, is not part of the loop yet.
+    const steps = path.steps.filter(step => {
+      const start = starts.get(`${step.colour} ${step.from} ${step.to}`);
+      return (start === undefined || start + GROW_MS <= now) && at.has(step.from) && at.has(step.to);
+    });
+    const place = glowAt(steps.length, now - began.current, GLOW);
+    invalidate();
+    if (place === undefined) { glow.visible = false; return; }
+    const step = steps[place.step]!;
+    const from = at.get(step.from)!, to = at.get(step.to)!;
+    const [tail, head] = tailSpan(place.t);
     const positions: number[] = [];
-    for (let index = 0; index < TAIL_POINTS; index++) {
-      const point = curvePoint(from, to, start + (eased - start) * index / (TAIL_POINTS - 1));
+    for (let index = 0; index < GLOW_POINTS; index++) {
+      const point = curvePoint(from, to, tail + (head - tail) * index / (GLOW_POINTS - 1));
       positions.push(point.x, point.y, point.z);
     }
-    tail.geometry.setPositions(positions);
-    tail.geometry.setColors(colours);
-    tail.computeLineDistances();
-    tail.visible = eased > start;
-    invalidate();
+    glow.geometry.setPositions(positions);
+    glow.geometry.setColors(colours);
+    glow.computeLineDistances();
+    glow.visible = head > tail;
+    glow.userData = { mover: path.mover, step: `${step.from}>${step.to}` };
   });
 
-  return <>
-    <primitive object={tail} name={`knowledge-wisp-tail:${wisp.mover}`} />
-    <group ref={body} name={`knowledge-wisp:${wisp.mover}`} userData={{ mover: wisp.mover, colour: wisp.colour }} scale={radius * WISP_SCALE}>
-      <WispBody colour={wisp.colour} />
-    </group>
-  </>;
+  return <primitive object={glow} name={`knowledge-glow:${path.mover}`} />;
 }

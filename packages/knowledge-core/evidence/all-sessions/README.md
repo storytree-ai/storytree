@@ -4,12 +4,13 @@ Increment `increment_e7d28849c36b`. With no session selected, the globe's knowle
 
 Each session's reading path draws too (ADR-0740): a curve from each full read to the same agent's next, in the session's colour (or the agent's shade once drilled in), bowed away from the globe's centre, fading from dim at the earlier read to full at the later one. A curve means "read next", never a followed link.
 
-Each known agent also has a small wisp (ADR-0741), the forest's own model, resting at its latest full read. When a new read arrives it flies that step's curve facing forward, trailing a tail that brightens toward it and draws in after it lands; the paths carry no arrowheads. Opening the view replays no history, and with reduced motion the wisp jumps straight to its new note.
+A new step's line grows from its earlier read to its later one as it is read, and each known agent's path is replayed in a loop by a glow travelling its steps in recorded order, bright at its head and fading behind (ADR-0742). Paths carry no arrowheads. Opening the view grows nothing; with reduced motion nothing grows or glows.
 
 - [No session selected: three sessions, four shared notes](all-sessions.png)
 - [One session selected](one-session.png)
 - [Drilled into a session with an explorer subagent: a darker shade of the same hue](drill-in-shades.png)
-- [A wisp in flight, trailing its tail](wisp-in-flight.png)
+- [A new step's line growing](path-growing.png)
+- [The paths' looping glow](path-glow.png)
 - [What the capture asserted](capture.json)
 
 These are the real desktop page in headless Chromium (SwiftShader) on Windows, over the forest snapshot with three synthetic sessions reading real shelf-placed notes.

@@ -18,6 +18,9 @@ import path from "node:path";
 /** Who writes the verified health: a run of the story's tests, seen by storytree for itself. */
 export const VERIFIED_BY = "storytree test run";
 
+/** The same, run by CI on each change to main (ADR-0744 D3), with its commit in each note. */
+export const VERIFIED_BY_CI = "storytree test run on CI";
+
 // --- a test run -------------------------------------------------------------------------------
 
 /**
@@ -281,14 +284,16 @@ function optional(field, value) {
 }
 
 /**
- * Write each verdict to its contract's VERIFIED column: passing or failing, by the test run, with
- * its tally as the note. A not-checked verdict writes nothing. The reported column is never
- * touched: that is what an agent says, and no agent has spoken here.
+ * Write each verdict to its contract's VERIFIED column: passing or failing, by `writer` (a test
+ * run), with its tally as the note, and the commit it ran on when the writer names one. A
+ * not-checked verdict writes nothing. The reported column is never touched: that is what an agent
+ * says, and no agent has spoken here.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
  * @param {Map<string, Verdict>} verdicts
+ * @param {Writer} [writer]
  */
-export async function recordHealth(library, contractIds, verdicts) {
+export async function recordHealth(library, contractIds, verdicts, writer = { by: VERIFIED_BY }) {
   const written = { passing: 0, failing: 0, notChecked: 0 };
   for (const [number, verdict] of verdicts) {
     if (verdict.state === "not-checked") {
@@ -297,8 +302,54 @@ export async function recordHealth(library, contractIds, verdicts) {
     }
     const id = contractIds.get(number);
     if (id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
-    await library.recordVerified(id, verdict.state, { by: VERIFIED_BY, ...optional("note", verdict.note) });
+    const note = writer.commit === undefined ? verdict.note : `${verdict.note}, at commit ${writer.commit}`;
+    await library.recordVerified(id, verdict.state, { by: writer.by, ...optional("note", note) });
     written[verdict.state]++;
   }
   return written;
+}
+
+
+// --- where to record ------------------------------------------------------------------------
+
+/** @typedef {{ by: string, commit?: string }} Writer */
+
+/**
+ * The repository variables that name CI's Google identity (infra/ci-health): the workload identity
+ * provider it signs in through, the service account it acts as, and the Cloud SQL instance.
+ */
+export const CI_IDENTITY = ["HEALTH_WIF_PROVIDER", "HEALTH_SERVICE_ACCOUNT", "HEALTH_CLOUDSQL_INSTANCE"];
+
+/**
+ * Where a run records verified health, and as whom. On CI (GITHUB_ACTIONS), the Cloud SQL library
+ * the CI identity names, signed in as its service account, by a test run on CI at GITHUB_SHA; and
+ * when any of that identity's repository variables is unset, nowhere, saying which. Run by hand,
+ * the library the storytree setting names: the Cloud SQL instance, or the desktop app's own
+ * (`"app"`).
+ * @param {{ env: Record<string, string | undefined>, setting: { location: "local" } | { location: "cloudsql", instance: string, user: string } }} input
+ * @returns {{ record: false, why: string } | { record: true, library: "app" | { cloudSql: { instance: string, user: string } }, writer: Writer }}
+ */
+export function recordingTarget({ env, setting }) {
+  if (env.GITHUB_ACTIONS === "true") {
+    const unset = CI_IDENTITY.filter((name) => (env[name] ?? "") === "");
+    if (unset.length > 0) {
+      return {
+        record: false,
+        why:
+          `CI has no Google identity to record health with: the repository variable${unset.length === 1 ? "" : "s"} ` +
+          `${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} unset (infra/ci-health/README.md says how to set them). Nothing was recorded.`,
+      };
+    }
+    // Cloud SQL names a service account's database user by its email without .gserviceaccount.com.
+    const user = env.HEALTH_SERVICE_ACCOUNT.replace(/\.gserviceaccount\.com$/, "");
+    return {
+      record: true,
+      library: { cloudSql: { instance: env.HEALTH_CLOUDSQL_INSTANCE, user } },
+      writer: { by: VERIFIED_BY_CI, ...optional("commit", env.GITHUB_SHA) },
+    };
+  }
+  if (setting.location === "cloudsql") {
+    return { record: true, library: { cloudSql: { instance: setting.instance, user: setting.user } }, writer: { by: VERIFIED_BY } };
+  }
+  return { record: true, library: "app", writer: { by: VERIFIED_BY } };
 }

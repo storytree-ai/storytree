@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { connect } from "@storytree/library";
 import pg from "pg";
 
-import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, recordingTarget } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const librarySrc = path.join(root, "packages", "library", "src");
@@ -213,6 +213,52 @@ test("recordHealth writes each passing or failing verdict to the verified column
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "nothing is written for a contract not checked");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.4")), [], "nor for one with no verdict");
   });
+});
+
+test("recordHealth writes as the writer it is given: a run on CI says so, with its commit in the note", async () => {
+  await withLibrary(async (lib) => {
+    const { contractIds } = contractsOf(await kettle(lib));
+    const verdicts = new Map([["1.1", { number: "1.1", state: "passing", note: "2/2 tests passed" }]]);
+    await recordHealth(lib, contractIds, verdicts, { by: "storytree test run on CI", commit: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" });
+    const { verified } = await lib.health(contractIds.get("1.1"));
+    assert.equal(verified.by, "storytree test run on CI");
+    assert.equal(verified.note, "2/2 tests passed, at commit 9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6");
+  });
+});
+
+const CI = {
+  GITHUB_ACTIONS: "true",
+  GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6",
+  HEALTH_WIF_PROVIDER: "projects/635716509357/locations/global/workloadIdentityPools/github-actions/providers/storytree-ci-health",
+  HEALTH_SERVICE_ACCOUNT: "storytree-ci-health@storytree-498613.iam.gserviceaccount.com",
+  HEALTH_CLOUDSQL_INSTANCE: "storytree-498613:australia-southeast1:storytree-pg",
+};
+
+test("on CI, own health is recorded in the Cloud SQL library the CI identity names, signed in as its service account, by a test run on CI", () => {
+  assert.deepEqual(recordingTarget({ env: CI, setting: { location: "local" } }), {
+    record: true,
+    library: { cloudSql: { instance: "storytree-498613:australia-southeast1:storytree-pg", user: "storytree-ci-health@storytree-498613.iam" } },
+    writer: { by: "storytree test run on CI", commit: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" },
+  });
+});
+
+test("on CI with the identity not configured, nothing is recorded, and it says which repository variables are unset", () => {
+  const { HEALTH_WIF_PROVIDER, HEALTH_CLOUDSQL_INSTANCE, ...partly } = CI;
+  const target = recordingTarget({ env: partly, setting: { location: "local" } });
+  assert.equal(target.record, false);
+  assert.match(target.why, /HEALTH_WIF_PROVIDER, HEALTH_CLOUDSQL_INSTANCE/);
+  assert.doesNotMatch(target.why, /HEALTH_SERVICE_ACCOUNT/);
+  assert.equal(recordingTarget({ env: { ...CI, HEALTH_SERVICE_ACCOUNT: "" }, setting: { location: "local" } }).record, false, "an empty variable is unset");
+});
+
+test("run by hand, own health is recorded in the library the setting names: the Cloud SQL instance, or the app's own", () => {
+  const cloud = { location: "cloudsql", instance: "storytree-498613:australia-southeast1:storytree-pg", user: "storytree-mint@storytree-498613.iam" };
+  assert.deepEqual(recordingTarget({ env: {}, setting: cloud }), {
+    record: true,
+    library: { cloudSql: { instance: cloud.instance, user: cloud.user } },
+    writer: { by: "storytree test run" },
+  });
+  assert.deepEqual(recordingTarget({ env: {}, setting: { location: "local" } }), { record: true, library: "app", writer: { by: "storytree test run" } });
 });
 
 const JUNIT = `<?xml version="1.0" encoding="utf-8"?>

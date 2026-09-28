@@ -16,7 +16,8 @@ name: CI
 # request from a fork is checked, never merged automatically.
 #
 # `verify` also runs on each push to main. A merge that `automerge` makes starts no such run:
-# GitHub starts no workflow from a push made with a workflow's own token.
+# GitHub starts no workflow from a push made with a workflow's own token. So `automerge` starts
+# own-health.yml on main itself, which records each contract's verified health (ADR-0744 D3).
 
 on:
   pull_request:
@@ -115,6 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: write # to start the own-health workflow on main once merged
       contents: write
       pull-requests: write
     steps:
@@ -129,3 +131,18 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           SHA: ${{ github.event.pull_request.head.sha }}
         run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$SHA" --delete-branch
+      # Main has changed, and this merge starts no push workflow (it was made with this token), so
+      # start the one that records each contract's verified health on main (own-health.yml). Only
+      # once the merge has happened: a merge --auto left waiting records nothing now, and the next
+      # change to main records it. The merge is already made, so a failure here never fails it.
+      - name: Record own health on main
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state --jq .state)" = MERGED ]; then
+            gh workflow run own-health.yml --repo "$GITHUB_REPOSITORY" --ref main
+          else
+            echo "Not merged yet, so main has not changed: nothing to record."
+          fi

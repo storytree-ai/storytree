@@ -1,0 +1,2 @@
+CI has no Google identity to record health with: the repository variables HEALTH_WIF_PROVIDER, HEALTH_SERVICE_ACCOUNT, HEALTH_CLOUDSQL_INSTANCE are unset (infra/ci-health/README.md says how to set them). Nothing was recorded.
+exit code 0

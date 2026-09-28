@@ -1,0 +1,523 @@
+the app's library: <throwaway home>/pgdata
+running the tests of "The library" (packages/library/src/**/*.test.ts, junit reporter) …
+tests: 190 results: 189 passed, 0 failed, 1 skipped
+verified health of "The library", by "storytree test run":
+  1 · Project libraries
+    1.1   passing      1/1 tests passed
+    1.2   passing      2/2 tests passed
+    1.3   passing      1/1 tests passed
+    1.4   passing      1/1 tests passed
+    1.5   passing      1/1 tests passed
+    1.6   passing      1/1 tests passed
+    1.7   passing      2/2 tests passed
+    1.8   passing      1/1 tests passed
+    1.9   passing      1/1 tests passed
+  2 · Library transactions
+    2.1   passing      2/2 tests passed
+    2.2   passing      2/2 tests passed
+    2.3   passing      2/2 tests passed
+    2.4   passing      2/2 tests passed
+    2.5   passing      2/2 tests passed
+    2.6   passing      2/2 tests passed
+    2.7   passing      2/2 tests passed
+    2.8   passing      2/2 tests passed
+    2.9   passing      2/2 tests passed
+    2.10  passing      3/3 tests passed
+    2.11  passing      2/2 tests passed
+  3 · Data schema
+    3.1   passing      2/2 tests passed
+    3.2   passing      2/2 tests passed
+    3.3   passing      2/2 tests passed
+    3.4   passing      2/2 tests passed
+    3.5   passing      2/2 tests passed
+    3.6   passing      2/2 tests passed
+    3.7   passing      2/2 tests passed
+    3.8   passing      2/2 tests passed
+    3.9   passing      2/2 tests passed
+  4 · Work model
+    4.1   passing      2/2 tests passed
+    4.2   passing      2/2 tests passed
+    4.3   passing      2/2 tests passed
+    4.4   passing      2/2 tests passed
+    4.5   passing      2/2 tests passed
+  6 · Knowledge artifacts
+    6.3   passing      2/2 tests passed
+    6.4   passing      2/2 tests passed
+    6.1   passing      2/2 tests passed
+    6.2   passing      2/2 tests passed
+    6.5   passing      2/2 tests passed
+    6.7   passing      2/2 tests passed
+    6.6   passing      2/2 tests passed
+    6.9   not-checked  no tests
+    6.8   not-checked  no tests
+    6.10  passing      2/2 tests passed
+  5 · Health record
+    5.1   passing      2/2 tests passed
+    5.2   passing      2/2 tests passed
+    5.3   passing      2/2 tests passed
+    5.4   passing      2/2 tests passed
+    5.5   passing      2/2 tests passed
+  7 · Library API
+    7.2   passing      1/1 tests passed
+    7.3   passing      1/1 tests passed
+    7.1   passing      1/1 tests passed
+    7.4   passing      1/1 tests passed
+    7.5   passing      2/2 tests passed
+    7.6   passing      3/3 tests passed
+    7.7   passing      1/1 tests passed
+  8 · Cloud connection (GCP)
+    8.1   not-checked  1 of 14 tests skipped (live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated); its earlier entry (failing, 2026-09-27T12:08:46.044Z) is left as it was
+    8.2   passing      8/8 tests passed
+    8.3   passing      1/1 tests passed
+  9 · Knowledge entrances
+    9.1   passing      2/2 tests passed
+    9.2   passing      2/2 tests passed
+    9.3   passing      2/2 tests passed
+    9.4   passing      2/2 tests passed
+  10 · Work in flight
+    10.2  passing      2/2 tests passed
+    10.1  passing      2/2 tests passed
+    10.3  passing      2/2 tests passed
+    10.4  passing      2/2 tests passed
+  11 · Waits
+    11.1  passing      2/2 tests passed
+    11.3  passing      2/2 tests passed
+    11.2  passing      2/2 tests passed
+    11.4  passing      2/2 tests passed
+  12 · Owner questions
+    12.1  passing      2/2 tests passed
+    12.2  passing      2/2 tests passed
+    12.3  passing      2/2 tests passed
+    12.4  passing      2/2 tests passed
+    12.5  passing      2/2 tests passed
+    12.6  passing      2/2 tests passed
+  13 · Decision log
+    13.1  passing      2/2 tests passed
+    13.2  passing      2/2 tests passed
+    13.3  passing      2/2 tests passed
+    13.4  passing      2/2 tests passed
+    13.5  passing      6/6 tests passed
+    13.6  passing      2/2 tests passed
+    13.7  passing      2/2 tests passed
+    13.8  passing      4/4 tests passed
+  14 · Ranked search
+    14.1  passing      2/2 tests passed
+    14.2  passing      2/2 tests passed
+    14.3  passing      2/2 tests passed
+    14.4  passing      2/2 tests passed
+    14.5  not-checked  no tests
+recorded: 86 passing, 0 failing; 4 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The agent link" (packages/agent-link/src/**/*.test.ts, junit reporter) …
+tests: 133 results: 131 passed, 0 failed, 2 skipped
+verified health of "The agent link", by "storytree test run":
+  1 · Project routing
+    1.1   passing      1/1 tests passed
+    1.2   passing      1/1 tests passed
+    1.3   passing      1/1 tests passed
+    1.4   passing      1/1 tests passed
+    1.5   passing      1/1 tests passed
+    1.6   passing      1/1 tests passed
+    1.7   passing      1/1 tests passed
+  2 · Agent activity log
+    2.1   passing      1/1 tests passed
+    2.2   passing      1/1 tests passed
+    2.3   passing      1/1 tests passed
+    2.4   passing      1/1 tests passed
+    2.5   not-checked  1 of 2 tests skipped (live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER — owner-gated)
+  3 · Hooks
+    3.1   passing      1/1 tests passed
+    3.2   passing      1/1 tests passed
+    3.3   passing      1/1 tests passed
+    3.4   passing      1/1 tests passed
+    3.5   passing      1/1 tests passed
+    3.6   passing      1/1 tests passed
+    3.7   passing      1/1 tests passed
+    3.8   passing      1/1 tests passed
+    3.12  passing      1/1 tests passed
+  4 · Sessions
+    4.1   passing      1/1 tests passed
+    4.2   passing      1/1 tests passed
+    4.3   passing      1/1 tests passed
+    4.4   passing      1/1 tests passed
+    4.5   passing      1/1 tests passed
+  5 · Claims
+    5.1   passing      1/1 tests passed
+    5.2   passing      1/1 tests passed
+    5.3   passing      1/1 tests passed
+    5.4   passing      1/1 tests passed
+    5.5   passing      1/1 tests passed
+    5.6   passing      1/1 tests passed
+    5.7   passing      1/1 tests passed
+    5.8   passing      1/1 tests passed
+    5.9   passing      1/1 tests passed
+    5.10  passing      2/2 tests passed
+    5.11  passing      1/1 tests passed
+    5.12  passing      2/2 tests passed
+    5.13  passing      3/3 tests passed
+    5.14  passing      2/2 tests passed
+    5.15  passing      2/2 tests passed
+    5.16  passing      1/1 tests passed
+  6 · Agent tools (the MCP server)
+    6.1   passing      1/1 tests passed
+    6.2   passing      1/1 tests passed
+    6.3   passing      2/2 tests passed
+    6.4   passing      4/4 tests passed
+    6.5   passing      1/1 tests passed
+    6.6   passing      1/1 tests passed
+    6.7   passing      1/1 tests passed
+    6.8   passing      1/1 tests passed
+    6.9   passing      1/1 tests passed
+    6.10  passing      1/1 tests passed
+    6.11  passing      1/1 tests passed
+    6.12  passing      2/2 tests passed
+    6.13  passing      1/1 tests passed
+    6.14  passing      1/1 tests passed
+    6.15  passing      1/1 tests passed
+    6.16  passing      1/1 tests passed
+    6.17  passing      1/1 tests passed
+    6.18  passing      1/1 tests passed
+    6.19  passing      2/2 tests passed
+    6.20  passing      1/1 tests passed
+    6.21  passing      6/6 tests passed
+    6.22  passing      2/2 tests passed
+    6.22  passing      2/2 tests passed
+  7 · Instructions (the habits card)
+    7.1   passing      1/1 tests passed
+    7.2   passing      1/1 tests passed
+    7.3   passing      1/1 tests passed
+  8 · Setup check
+    8.1   passing      1/1 tests passed
+    8.2   passing      1/1 tests passed
+    8.3   passing      1/1 tests passed
+    8.4   passing      1/1 tests passed
+    8.5   passing      1/1 tests passed
+    8.6   not-checked  no tests
+    8.7   passing      1/1 tests passed
+    8.8   passing      1/1 tests passed
+    8.9   not-checked  1 of 2 tests skipped (Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it); its earlier entry (passing, 2026-09-28T14:12:38.415Z) is left as it was
+    8.10  passing      1/1 tests passed
+    8.11  passing      2/2 tests passed
+    8.12  passing      1/1 tests passed
+  9 · Context readings
+    9.1   passing      1/1 tests passed
+    9.2   passing      1/1 tests passed
+    9.3   passing      1/1 tests passed
+    9.5   passing      1/1 tests passed
+    9.6   passing      1/1 tests passed
+    9.7   passing      3/3 tests passed
+    9.8   passing      2/2 tests passed
+    9.9   passing      4/4 tests passed
+  10 · Settings
+    10.1  passing      1/1 tests passed
+    10.2  not-checked  no tests
+    10.3  passing      1/1 tests passed
+    10.4  passing      2/2 tests passed
+    10.5  passing      1/1 tests passed
+    10.6  passing      1/1 tests passed
+    10.7  passing      2/2 tests passed
+    10.8  passing      1/1 tests passed
+    10.9  not-checked  no tests
+    10.10 passing      4/4 tests passed
+recorded: 92 passing, 0 failing; 5 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The app" (packages/app/src/**/*.test.ts, junit reporter) …
+tests: 47 results: 47 passed, 0 failed, 0 skipped
+verified health of "The app", by "storytree test run":
+  1 · Lifecycle
+    1.1   not-checked  no tests
+    1.2   not-checked  no tests
+    1.3   not-checked  no tests
+    1.4   not-checked  no tests
+    1.5   not-checked  no tests
+    1.6   passing      2/2 tests passed
+    1.7   passing      8/8 tests passed
+    1.8   passing      1/1 tests passed
+    1.9   passing      1/1 tests passed
+    1.10  passing      1/1 tests passed
+    1.11  not-checked  no tests
+  2 · Storytree projects
+    2.1   not-checked  no tests
+    2.2   passing      3/3 tests passed
+    2.3   passing      3/3 tests passed
+    2.4   passing      3/3 tests passed
+    2.5   not-checked  no tests
+    2.6   passing      1/1 tests passed
+    2.7   passing      1/1 tests passed
+    2.8   passing      1/1 tests passed
+  3 · Surfaces
+    3.1   passing      1/1 tests passed
+    3.2   passing      1/1 tests passed
+    3.3   passing      1/1 tests passed
+    3.4   passing      1/1 tests passed
+    3.5   passing      1/1 tests passed
+  4 · Updates
+    4.1   passing      2/2 tests passed
+    4.2   passing      1/1 tests passed
+    4.4   passing      5/5 tests passed
+    4.5   passing      2/2 tests passed
+    4.6   passing      2/2 tests passed
+    4.3   passing      2/2 tests passed
+    4.7   not-checked  no tests
+    4.8   not-checked  no tests
+    4.9   not-checked  no tests
+    4.10  not-checked  no tests
+recorded: 22 passing, 0 failing; 12 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The forest" (packages/forest/src/**/*.test.ts, junit reporter) …
+tests: 66 results: 66 passed, 0 failed, 0 skipped
+verified health of "The forest", by "storytree test run":
+  1 · Story nodes
+    1.1   passing      1/1 tests passed
+    1.2   passing      1/1 tests passed
+    1.3   passing      1/1 tests passed
+    1.4   passing      1/1 tests passed
+    1.5   passing      1/1 tests passed
+    1.6   passing      1/1 tests passed
+  2 · Capability tree
+    2.1   passing      1/1 tests passed
+    2.2   passing      1/1 tests passed
+    2.3   passing      1/1 tests passed
+    2.4   passing      1/1 tests passed
+  3 · Story node render
+    3.1   passing      1/1 tests passed
+    3.2   passing      1/1 tests passed
+    3.3   passing      1/1 tests passed
+    3.4   passing      1/1 tests passed
+    3.5   not-checked  no tests
+    3.6   passing      2/2 tests passed
+    3.7   passing      1/1 tests passed
+    3.8   passing      1/1 tests passed
+    3.9   not-checked  no tests
+    3.10  not-checked  no tests
+    3.11  not-checked  no tests
+    3.12  not-checked  no tests
+    3.13  not-checked  no tests
+  4 · Drill-down
+    4.1   passing      1/1 tests passed
+    4.2   passing      1/1 tests passed
+    4.3   passing      1/1 tests passed
+    4.4   passing      1/1 tests passed
+    4.5   passing      1/1 tests passed
+    4.6   passing      1/1 tests passed
+    4.7   passing      1/1 tests passed
+    4.8   passing      2/2 tests passed
+    4.9   passing      1/1 tests passed
+    4.10  passing      1/1 tests passed
+    4.11  passing      3/3 tests passed
+  5 · Agent capability claims
+    5.1   passing      1/1 tests passed
+    5.2   passing      1/1 tests passed
+    5.3   passing      1/1 tests passed
+    5.4   passing      1/1 tests passed
+    5.5   passing      2/2 tests passed
+  7 · Running sessions
+    7.1   passing      2/2 tests passed
+    7.2   passing      1/1 tests passed
+    7.3   passing      1/1 tests passed
+    7.4   passing      1/1 tests passed
+    7.5   passing      1/1 tests passed
+    7.6   passing      2/2 tests passed
+    7.7   not-checked  no tests
+recorded: 39 passing, 0 failing; 7 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The arc surface" (packages/arc-surface/src/**/*.test.ts, junit reporter) …
+tests: 22 results: 22 passed, 0 failed, 0 skipped
+verified health of "The arc surface", by "storytree test run":
+  1 · Work states
+    1.1   passing      1/1 tests passed
+    1.2   passing      1/1 tests passed
+    1.3   passing      1/1 tests passed
+    1.4   passing      1/1 tests passed
+    1.5   passing      1/1 tests passed
+    1.6   passing      1/1 tests passed
+  2 · Agents on the board
+    2.1   passing      1/1 tests passed
+    2.2   passing      2/2 tests passed
+    2.3   passing      1/1 tests passed
+    2.4   passing      1/1 tests passed
+  3 · Arc surface
+    3.1   passing      2/2 tests passed
+    3.2   passing      1/1 tests passed
+    3.3   passing      1/1 tests passed
+    3.4   passing      1/1 tests passed
+    3.5   passing      1/1 tests passed
+    3.6   passing      1/1 tests passed
+    3.7   not-checked  no tests
+  4 · Waits
+    4.1   passing      1/1 tests passed
+    4.2   passing      1/1 tests passed
+    4.3   passing      1/1 tests passed
+    4.4   passing      1/1 tests passed
+  5 · Briefing
+    5.1   passing      1/1 tests passed
+    5.2   passing      1/1 tests passed
+    5.3   passing      1/1 tests passed
+recorded: 23 passing, 0 failing; 1 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The command line" (packages/cli/src/**/*.test.ts, junit reporter) …
+tests: 61 results: 60 passed, 1 failed, 0 skipped
+verified health of "The command line", by "storytree test run":
+  1 · Front door
+    1.1   passing      1/1 tests passed
+    1.2   passing      1/1 tests passed
+    1.3   passing      1/1 tests passed
+    1.4   passing      1/1 tests passed
+    1.5   passing      1/1 tests passed
+  2 · Who wrote it
+    2.1   passing      3/3 tests passed
+    2.2   passing      2/2 tests passed
+  3 · Library
+    3.1   passing      1/1 tests passed
+    3.2   passing      1/1 tests passed
+    3.3   passing      1/1 tests passed
+    3.4   passing      1/1 tests passed
+    3.5   passing      1/1 tests passed
+    3.6   passing      1/1 tests passed
+    3.7   passing      1/1 tests passed
+    3.8   passing      1/1 tests passed
+    3.9   passing      1/1 tests passed
+  4 · Arcs and increments
+    4.1   passing      1/1 tests passed
+    4.2   passing      1/1 tests passed
+    4.3   passing      1/1 tests passed
+    4.4   passing      1/1 tests passed
+    4.5   passing      1/1 tests passed
+    4.6   passing      1/1 tests passed
+  5 · Questions
+    5.2   passing      1/1 tests passed
+    5.1   passing      1/1 tests passed
+    5.3   passing      1/1 tests passed
+    5.4   passing      1/1 tests passed
+    5.5   passing      1/1 tests passed
+    5.6   passing      1/1 tests passed
+  6 · Decisions
+    6.1   passing      1/1 tests passed
+    6.2   passing      1/1 tests passed
+    6.3   passing      1/1 tests passed
+    6.4   passing      1/1 tests passed
+    6.5   passing      1/1 tests passed
+    6.6   passing      1/1 tests passed
+  10 · Plan view
+    10.1  passing      1/1 tests passed
+    10.2  passing      1/1 tests passed
+  7 · Board, read only
+    7.1   passing      1/1 tests passed
+    7.2   passing      1/1 tests passed
+    7.3   passing      1/1 tests passed
+  8 · Doctor
+    8.1   passing      1/1 tests passed
+    8.2   passing      1/1 tests passed
+    8.3   passing      1/1 tests passed
+    8.4   passing      1/1 tests passed
+    8.5   failing      0/1 tests passed
+  9 · Friction and re-steers
+    9.1   passing      1/1 tests passed
+    9.3   passing      1/1 tests passed
+    9.2   passing      1/1 tests passed
+  11 · Workspace
+    11.1  passing      1/1 tests passed
+    11.2  passing      1/1 tests passed
+    11.3  passing      1/1 tests passed
+    11.4  passing      1/1 tests passed
+    11.5  passing      1/1 tests passed
+    11.6  passing      1/1 tests passed
+recorded: 52 passing, 1 failing; 0 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The librarian" (packages/librarian/src/**/*.test.ts, junit reporter) …
+tests: 20 results: 20 passed, 0 failed, 0 skipped
+verified health of "The librarian", by "storytree test run":
+  1 · Links
+    1.1   passing      1/1 tests passed
+    1.2   passing      1/1 tests passed
+    1.3   passing      1/1 tests passed
+    1.4   passing      1/1 tests passed
+  2 · Decision log
+    2.1   passing      1/1 tests passed
+    2.2   passing      1/1 tests passed
+    2.3   passing      1/1 tests passed
+    2.4   passing      1/1 tests passed
+  3 · Catalogue
+    3.1   passing      1/1 tests passed
+    3.2   passing      1/1 tests passed
+  4 · Graduation
+    4.1   passing      1/1 tests passed
+    4.2   passing      1/1 tests passed
+    4.3   passing      1/1 tests passed
+    4.4   passing      1/1 tests passed
+  5 · Queues
+    5.1   passing      1/1 tests passed
+    5.2   passing      1/1 tests passed
+    5.3   passing      1/1 tests passed
+    5.4   passing      1/1 tests passed
+  6 · Rounds
+    6.1   passing      1/1 tests passed
+    6.2   passing      1/1 tests passed
+    6.3   not-checked  no tests; its earlier entry (passing, 2026-09-28T07:25:02.164Z) is left as it was
+    6.4   not-checked  no tests; its earlier entry (passing, 2026-09-28T07:25:02.166Z) is left as it was
+    6.5   not-checked  no tests
+recorded: 20 passing, 0 failing; 3 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The knowledge core" (packages/knowledge-core/src/**/*.test.ts, junit reporter) …
+tests: 34 results: 34 passed, 0 failed, 0 skipped
+verified health of "The knowledge core", by "storytree test run":
+  2 · Earlier decisions beside their replacements
+    2.1   passing      1/1 tests passed
+    2.2   passing      1/1 tests passed
+    2.3   passing      1/1 tests passed
+    2.4   passing      1/1 tests passed
+  1 · Knowledge under its shelves
+    1.1   passing      1/1 tests passed
+    1.2   passing      1/1 tests passed
+    1.3   passing      1/1 tests passed
+    1.4   passing      1/1 tests passed
+    1.5   passing      1/1 tests passed
+    1.6   passing      2/2 tests passed
+    1.7   not-checked  no tests
+    1.8   passing      2/2 tests passed
+  3 · Reads by session and agent
+    3.1   passing      1/1 tests passed
+    3.2   passing      1/1 tests passed
+    3.3   passing      1/1 tests passed
+    3.4   passing      1/1 tests passed
+    3.5   passing      1/1 tests passed
+  4 · Look inside and inspect an artifact
+    4.1   passing      3/3 tests passed
+    4.2   passing      1/1 tests passed
+    4.3   passing      1/1 tests passed
+    4.4   passing      1/1 tests passed
+    4.5   passing      1/1 tests passed
+    4.6   not-checked  no tests
+    4.7   passing      1/1 tests passed
+    4.8   passing      1/1 tests passed
+    4.9   passing      1/1 tests passed
+    4.10  passing      1/1 tests passed
+    4.11  passing      1/1 tests passed
+    4.12  passing      1/1 tests passed
+    4.15  passing      1/1 tests passed
+recorded: 28 passing, 0 failing; 2 not checked (nothing written for those). The reported column is untouched.
+running the tests of "The app setup" (packages/app-setup/src/**/*.test.ts, junit reporter) …
+tests: 26 results: 25 passed, 0 failed, 1 skipped
+verified health of "The app setup", by "storytree test run":
+  1 · Get storytree
+    1.1   not-checked  1 of 3 tests skipped (pwsh unavailable here; Windows CI runs this proof); its earlier entry (failing, 2026-09-28T07:25:10.148Z) is left as it was
+    1.2   passing      1/1 tests passed
+    1.3   not-checked  1 of 1 tests skipped (pwsh unavailable here; Windows CI runs this proof); its earlier entry (failing, 2026-09-28T07:25:10.153Z) is left as it was
+    1.4   not-checked  1 of 1 tests skipped (pwsh unavailable here; Windows CI runs this proof); its earlier entry (failing, 2026-09-28T07:25:10.155Z) is left as it was
+    1.5   not-checked  no tests
+    1.6   not-checked  1 of 2 tests skipped (pwsh unavailable here; Windows CI runs this proof); its earlier entry (passing, 2026-09-28T07:25:10.156Z) is left as it was
+  2 · Connect an agent
+    2.1   not-checked  no tests
+    2.2   not-checked  no tests
+    2.3   not-checked  no tests
+    2.4   not-checked  no tests
+    2.5   not-checked  no tests
+    2.6   not-checked  no tests
+  3 · First-run guide
+    3.1   not-checked  no tests
+    3.2   not-checked  no tests
+    3.3   not-checked  no tests
+  4 · Read the license
+    4.1   passing      1/1 tests passed
+    4.2   passing      1/1 tests passed
+  5 · Send feedback
+    5.1   passing      1/1 tests passed
+    5.2   passing      2/2 tests passed
+    5.3   passing      1/1 tests passed
+    5.4   not-checked  no tests
+recorded: 6 passing, 0 failing; 15 not checked (nothing written for those). The reported column is untouched.
+"Process ledger" has no tests yet (no packages/process-ledger), so its 27 contracts are left not checked.
+exit code 0

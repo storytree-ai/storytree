@@ -1,0 +1,62 @@
+name: Own health
+
+# After each change to main, run each of storytree 0.3's own stories' tests and record each
+# contract's VERIFIED health in the library on Cloud SQL (ADR-0744 D3-D4): `pnpm check:own-health`,
+# the same rules a hand run uses (scripts/own-health.mjs), written as "storytree test run on CI"
+# with the commit in each note. Never from a pull request's run: only main's own commits are
+# recorded.
+#
+# CI's merges are made with the workflow's own token, and GitHub starts no push workflow from those,
+# so ci.yml's `automerge` dispatches this workflow on main once its merge has happened. A push to
+# main made any other way starts it too, and it can be run by hand (Actions > Own health > Run
+# workflow) to record main as it is now.
+#
+# It signs in to Google keylessly: GitHub's OIDC token, exchanged through workload identity
+# federation for CI's own service account (infra/ci-health), which may connect to the instance as
+# its database user and nothing more. Three repository variables name that identity; until they
+# are all set, the job says so and passes without recording anything.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One recording at a time. A run in progress finishes; a newer one waits, replacing any older one
+# still waiting, so the last change to main is always the one recorded.
+concurrency:
+  group: own-health
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  record:
+    name: record own health
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write # GitHub's OIDC token, for the keyless sign-in
+    env:
+      HEALTH_WIF_PROVIDER: ${{ vars.HEALTH_WIF_PROVIDER }}
+      HEALTH_SERVICE_ACCOUNT: ${{ vars.HEALTH_SERVICE_ACCOUNT }}
+      HEALTH_CLOUDSQL_INSTANCE: ${{ vars.HEALTH_CLOUDSQL_INSTANCE }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Only when the identity is configured: without it the action has nothing to sign in as, and
+      # the script below says which variables are unset.
+      - name: Sign in to Google as CI's health identity
+        if: env.HEALTH_WIF_PROVIDER != '' && env.HEALTH_SERVICE_ACCOUNT != '' && env.HEALTH_CLOUDSQL_INSTANCE != ''
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.HEALTH_WIF_PROVIDER }}
+          service_account: ${{ vars.HEALTH_SERVICE_ACCOUNT }}
+      - run: pnpm check:own-health

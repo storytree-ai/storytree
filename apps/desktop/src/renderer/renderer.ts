@@ -164,7 +164,9 @@ async function showForest(name: string): Promise<void> {
   if (showing !== mine) return view.dispose();
   mine.view = view;
   mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree,
-    onHighlight: (stories, session) => view.highlight(stories, session), onWisps: wisps => view.showWisps(wisps) });
+    onHighlight: (stories, session) => view.highlight(stories, session), onWisps: wisps => view.showWisps(wisps),
+    onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
+  core.onSelect(session => mine.sessions?.select(session));
 
   let drawing = Promise.resolve();
   mine.reading = liveReading({

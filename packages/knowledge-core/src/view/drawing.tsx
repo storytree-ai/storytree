@@ -15,7 +15,7 @@ import { useThree } from "@react-three/fiber";
 import React, { useEffect, useMemo } from "react";
 import { Quaternion, Raycaster, Vector2, Vector3, type Object3D } from "three";
 
-import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, SizeBy } from "../look-inside/look-inside.js";
+import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, RosterEntry, SizeBy } from "../look-inside/look-inside.js";
 
 /** Grey for a note the session never reached, pale for one it did (ADR-0647 V1, the prototype's version 4 greys). */
 const GREY = "#3a3d46";
@@ -56,7 +56,7 @@ export function CoreInside({ scene, radius, pinned, links, frame, legend, select
       </Html>}
     </group>)}
     {scene.notes.map((note) => <Note key={note.id} note={note} ball={ball} pinned={note.id === pinned}
-      colour={note.tone === "lit" ? colours.get(note.agent ?? "") ?? REACHED : note.tone === "reached" ? REACHED : GREY} />)}
+      colour={note.tone === "lit" ? note.colour ?? colours.get(note.agent ?? "") ?? REACHED : note.tone === "reached" ? REACHED : GREY} />)}
     {links.map(({ from, to }) => {
       const a = byId.get(from), b = byId.get(to);
       return a === undefined || b === undefined ? null : <Arrow key={`${from}>${to}`} from={a.at} to={b.at} size={ball * 1.4} />;
@@ -80,6 +80,10 @@ function Note({ note, ball, colour, pinned }: { note: DrawnNote; ball: number; c
     {note.loop !== undefined && <mesh>
       <sphereGeometry args={[size * 1.7, 12, 8]} />
       <meshBasicMaterial color={LOOP} wireframe />
+    </mesh>}
+    {note.shared && <mesh>
+      <sphereGeometry args={[size * 2, 16, 12]} />
+      <meshBasicMaterial color="#ffffff" transparent opacity={0.22} depthWrite={false} />
     </mesh>}
     {pinned && <mesh>
       <sphereGeometry args={[size * 1.5, 16, 12]} />
@@ -145,10 +149,12 @@ export function pickNote(ray: Raycaster, scene: Object3D): string | undefined {
 }
 
 /** The panel beside the core: what is drawn, the session, the size, the replay, the legend and the pinned note's card. */
-export function CorePanel({ scene, counts, sessions, session, sizeBy, frame, step, playing, legend, hidden, card, on }: {
+export function CorePanel({ scene, counts, sessions, roster, session, sizeBy, frame, step, playing, legend, hidden, card, on }: {
   scene: CoreScene;
   counts: { placed: number; outside: number; ghosts: number; loops: number };
   sessions: readonly { id: string; label: string }[];
+  /** The listed running sessions, lit together while none is selected (ADR-0738). */
+  roster: readonly RosterEntry[];
   session: string | undefined;
   sizeBy: SizeBy;
   frame: ReplayFrame | undefined;
@@ -179,10 +185,20 @@ export function CorePanel({ scene, counts, sessions, session, sizeBy, frame, ste
     {scene.status !== undefined && <p className="core-status">{scene.status}</p>}
     {sessions.length > 0 && <label className="core-row">Session{" "}
       <select value={session ?? ""} onChange={(event) => on.session(event.target.value === "" ? undefined : event.target.value)}>
-        <option value="">none</option>
+        <option value="">{roster.length > 0 ? "All running sessions" : "none"}</option>
         {sessions.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
       </select>
     </label>}
+    {session === undefined && roster.length > 0 && <>
+      <ul className="core-legend" aria-label="Running sessions">
+        {roster.map(({ session: id, label, colour }) => <li key={id}>
+          <button type="button" className="core-legend-session" onClick={() => on.session(id)}>
+            <span className="core-swatch" style={{ background: colour }} />{label}
+          </button>
+        </li>)}
+      </ul>
+      <p className="core-note">Each running session lights what it has read since it started, in its colour. A haloed note was read by more than one.</p>
+    </>}
     <div className="core-row" role="group" aria-label="Size by">
       Size by{" "}
       {(["visits", "links-in"] as const).map((mode) => <button key={mode} type="button" aria-pressed={sizeBy === mode} onClick={() => on.sizeBy(mode)}>

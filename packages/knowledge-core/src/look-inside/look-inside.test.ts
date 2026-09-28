@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { coreScene, legend, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { coreScene, legend, lighting, noteCard, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -144,6 +144,60 @@ test("4.4 replay steps one session's agents in order; each agent hides on its ow
     ["orchestrator", "orchestrator", undefined], ["subagent:h1", "explorer", undefined], ["subagent:h2", "subagent h2", undefined], ["unknown", "unknown agent", undefined],
   ]);
   assert.equal(new Set(key.map(({ colour }) => colour)).size, 4, "each agent its own colour");
+});
+
+test("4.7 with no session selected, every listed session lights what it read in its own colour, and a note two of them read is shared", () => {
+  const history = project();
+  const roster = [
+    { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a", "a-child"] },
+    { session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] },
+  ];
+  const lines = [read("a", "deep", "whole", "orchestrator"), read("a-child", "new", "peek"), read("b", "cover", "whole", "orchestrator"),
+    read("b", "deep", "peek", { subagent: "h1" }), read("z", "loose", "whole", "orchestrator")];
+  const notes = new Map(coreScene(input(history, lines, { roster })).notes.map((note) => [note.id, note]));
+  assert.deepEqual([notes.get("cover")!.tone, notes.get("cover")!.colour, notes.get("cover")!.shared], ["lit", "hsl(300, 80%, 68%)", false]);
+  assert.deepEqual([notes.get("new")!.tone, notes.get("new")!.colour], ["lit", "hsl(200, 80%, 68%)"], "a child's reads wear its parent's colour");
+  assert.equal(notes.get("deep")!.shared, true, "read by two listed sessions");
+  assert.equal(notes.get("deep")!.colour, "hsl(300, 80%, 68%)", "a shared note wears its latest reader's colour");
+  assert.equal(notes.get("loose")!.tone, "grey", "a session with no row lights nothing");
+  assert.equal(notes.get("old")!.tone, "grey");
+
+  const drilled = new Map(coreScene(input(history, lines, { roster, session: "b" })).notes.map((note) => [note.id, note]));
+  assert.equal(drilled.get("new")!.tone, "grey", "a selection shows that session alone");
+});
+
+test("4.8 drilling into a listed session wears its colour: the orchestrator the session's own, each subagent a shade of its hue", () => {
+  const history = project();
+  const lines = [read("s1", "cover", "whole", "orchestrator"), read("s1", "deep", "whole", { subagent: "h1", type: "explorer" }),
+    read("s1", "old", "whole", { subagent: "h2" }), read("s1", "new", "whole")];
+  const present = new Set(knowledge(history.changes).notes.keys());
+  const { agents } = input(history, lines).reads.replay("s1", present);
+  const key = new Map(legend(agents, "hsl(200, 80%, 68%)").map(({ agent, colour }) => [agent, colour]));
+  assert.equal(key.get("orchestrator"), "hsl(200, 80%, 68%)");
+  const shades = [key.get("subagent:h1")!, key.get("subagent:h2")!];
+  for (const shade of shades) assert.match(shade, /^hsl\(200, 80%, \d+%\)$/);
+  assert.equal(new Set([key.get("orchestrator"), ...shades]).size, 3, "each agent still told apart");
+  assert.equal(key.get("unknown"), legend(agents).find(({ agent }) => agent === "unknown")!.colour, "unknown stays pale");
+});
+
+test("4.9 the globe's dots light as the core does: every listed session with none selected, one session in its shades when selected", () => {
+  const history = project();
+  const roster = [
+    { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a"] },
+    { session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] },
+  ];
+  const lines = [read("a", "deep", "whole", "orchestrator"), read("b", "cover", "whole", "orchestrator"),
+    read("b", "deep", "whole", { subagent: "h1" }), read("z", "loose", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const present = new Set(known.notes.keys());
+  const all = lighting(reads, roster, undefined, present);
+  assert.deepEqual([...all].sort(), [["cover", { colour: "hsl(300, 80%, 68%)", shared: false }], ["deep", { colour: "hsl(300, 80%, 68%)", shared: true }]]);
+  const one = lighting(reads, roster, "b", present);
+  assert.equal(one.get("cover")!.colour, "hsl(300, 80%, 68%)", "b's orchestrator wears b's colour");
+  assert.match(one.get("deep")!.colour, /^hsl\(300, 80%, \d+%\)$/);
+  assert.notEqual(one.get("deep")!.colour, "hsl(300, 80%, 68%)", "its subagent a shade");
+  assert.equal(one.size, 2, "another session's reads stay faint");
+  assert.equal(lighting(reads, [], undefined, present).size, 0, "no running sessions light nothing");
 });
 
 test("4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection", () => {

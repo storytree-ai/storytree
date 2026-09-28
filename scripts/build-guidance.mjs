@@ -8,15 +8,17 @@
 // before anything can reach a library. This generator may hold a library connection; nothing on a
 // session's startup path may, so no hook runs it.
 //
-// It reads the library of the running app when there is one, through the address the app leaves
-// beside its data directory, and otherwise starts the app's Postgres on that directory, as
-// `pnpm library:export` does, and stops it again at the end. The rules live in scripts/guidance.mjs.
+// It reads the library wherever the user's `library` setting puts it (ADR-0745 found it reading a
+// stale local copy after storytree's own library moved to Cloud SQL): the Cloud SQL instance the
+// setting names, or the running app's local database through the address it leaves beside its data
+// directory, and otherwise starts the app's Postgres on that directory, as `pnpm library:export`
+// does, and stops it again at the end. The rules live in scripts/guidance.mjs.
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { locateStorytree } from "@storytree/agent-link";
+import { locateLibrary, readLibrary } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
@@ -74,9 +76,10 @@ async function main() {
 
 /** Run `read` on the project's library, or say why the library could not be opened and return undefined. */
 async function withLibrary(read) {
-  const running = locateStorytree({ dataDir: appHome().pgdata });
-  let url = running.running ? running.url : undefined;
-  if (url === undefined) {
+  const home = path.dirname(appHome().pgdata);
+  const where = locateLibrary({ home, dataDir: appHome().pgdata });
+  let options = where.found ? where.connect : undefined;
+  if (options === undefined && readLibrary(home).location === "local") {
     try {
       server = await start({ dataDir: appHome().pgdata, owner: COMMAND });
     } catch (error) {
@@ -84,9 +87,9 @@ async function withLibrary(read) {
       console.error(`The app's library in ${appHome().pgdata} is in use by process ${error.pid}. When it has finished, run \`${COMMAND}\` again.`);
       return undefined;
     }
-    url = server.url;
+    options = { url: server.url };
   }
-  const storytree = await connect({ url });
+  const storytree = await connect(options);
   try {
     if (!(await storytree.listProjects()).includes(PROJECT)) {
       console.error(`The app's library has no project "${PROJECT}". Restore it from a snapshot with \`pnpm library:restore\`.`);

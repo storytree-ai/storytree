@@ -1,0 +1,152 @@
+
+> storytree@ desktop:smoke <worktree>
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/tmp/cardwords-smoke-end.png"
+
+
+> @storytree/desktop@0.3.0 smoke <worktree>/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/tmp/cardwords-smoke-end.png"
+
+built dist
+Downloading Electron binary...
+Debugger listening on ws://127.0.0.1:34533/23ae7b4e-3ade-4539-b491-f84734844434
+For help, see: https://nodejs.org/learn/getting-started/debugging
+
+DevTools listening on ws://127.0.0.1:42071/devtools/browser/06eb6a5e-03a4-490d-a38e-027448b5b99b
+Debugger attached.
+Postgres: listening on 127.0.0.1:38539 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:38539/postgres
+storytree 0.3: development build 2ef0295 from <worktree> (does not update itself)
+[1350528:0929/075122.514672:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x31040018e600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+captree: capture window visible
+Debugger ending on ws://127.0.0.1:34533/23ae7b4e-3ade-4539-b491-f84734844434
+For help, see: https://nodejs.org/learn/getting-started/debugging
+smoke: screenshot /tmp/cardwords-smoke-end.png (1120x860)
+App
+Close ×
+Projects
+Settings
+Updates
+Help
+Help with storytree
+First-run guide
+License
+Send feedback
+Start your first project
+Open your chosen agent in your project folder. After connecting Claude Code or Codex during installation, start a new session there. Storytree does not run the agent for you.
+Say yes when asked. The agent checks setup and asks before creating a storytree project. Choose its name. Saying no leaves the folder unconfigured.
+Let the connection check finish. Review any approval prompt from your agent for storytree tools, a small check-file edit or a command. Approve the check if you want to continue. Ask the agent to run check_setup again until it reports hooks verified: session start, tool call, file edit and command have reached storytree. Registered hooks alone are not verification.
+Give the agent a small piece of work. Your new project appears in the running app. Its forest can start empty; a story and its capabilities appear as the agent plans them, with activity and health as work proceeds.
+Add another project
+
+Start a new agent session in a second folder and answer its setup question separately. Only a second yes creates a second project. The app refreshes its project list automatically; use the project picker to return to either forest.
+
+Windows asks whether to trust the installer
+
+Connection incomplete? Check a folder below for setup diagnostics. This folder check does not register hooks or install the command; those checks will say “skipped”. Use Copy request for your agent to complete setup and verify hook receipt in your agent session.
+
+Check a folder…
+Copy request for your agent
+
+Request to paste into your agent
+
+Need help or have a suggestion? Use Send feedback to prepare a GitHub issue.
+
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+Process ledger
+Forest
+Library
+Arcs
+▴
+Active
+Parked
+Closed
+waiting
+Storytree 0.3 to first users: one-command install and first run, and trusted-circle users
+18 landed · 4 open
+waiting
+Running sessions on the forest: quiet claims and a context list
+10 landed
+quiet
+Hosted library: local by default, Google Cloud SQL as the option, then we move onto it
+2 landed · 2 open
+quiet
+An agent link settings surface users configure
+9 landed · 2 open
+quiet
+Storytree 0.3 cutover: 0.3 builds itself, 0.2 goes read-only
+12 landed · 2 open
+quiet
+Storytree 0.3 arc surface: planned, in progress and landed, per project
+5 landed · 1 open
+Storytree 0.3 to first users: one-command install and first run, and trusted-circle users
+
+*Moved from storytree 0.2's library at cutover (2026-09-27), where this arc was `storytree-0-3-first-users-arc`. ADR numbers in this text are 0.2's decision numbers; 0.2's copy stays readable there.*
+
+**Storytree 0.3 from "it builds itself" to first users: one-command install and first run, then a handful of trusted-circle users.** Split out of `trusted-circle-distribution-arc` on 2026-09-26 (owner-permitted reshape) at ADR-0625's cutover, so the plan's steps 5–7 queue behind the point where 0.3 works. The plan, its order and its signed specs (ADR-0625) are unchanged; the intent, audience and scope are `trusted-circle-distribution-arc`'s and are not restated here.
+
+**Steps carried here** (ADR-0625 D6): install and first run (step 6) after cutover, then first users (step 7, last). The forest (step 5) moved on 2026-09-26 to its own lane arc, `storytree-0-3-forest-arc`, ahead of cutover. That was the owner-directed lane split; see `trusted-circle-distribution-arc`'s intent. First users still needs the forest. ADR-0625 says these move into 0.3's own library at cutover; this arc holds them until then.
+
+**Also carried: the chaos-drill scoping** (moved from `minimal-viable-tdd-arc`, ADR-0623). It needs 0.3's operational seams running, which is exactly what this arc's gate waits for. It is an exploration and does NOT block first users: step 7's own dependency sentence names steps 5 and 6 only. Whether first users should wait on any adopted drills is an owner call, not settled here.
+
+**Tests follow ADR-0623 (minimal viable TDD)**: see `trusted-circle-distribution-arc`'s intent.
+
+Waiting on you
+Remember a no to the setup question, per folder?
+340 words · no diagram
+Open ↗
+Accept the new update promise (contract 4.4): install only at a quiet moment
+336 words · no diagram
+Open ↗
+Should a first user be told to install Git and Node?
+317 words · no diagram
+Open ↗
+
+"Blocked" comes only from waits on other work.
+
+Settled
+Answer
+
+rename install and firstrun to "The app setup" and approve the capability tree i've reviewed it. [Then selected: "All as recommended, F1 (Recommended)" — a clicked option label listing B1 P2 R1 G1 F1 N2 S1 W1 Q1 D1 V1.]
+
+
+Approve the install-and-first-run capability tree, and pick its lettered choices
+1127 words · no diagram
+Open ↗
+Answer
+
+For Chaosdrills go with A the recommendation.
+
+Keep a small set of chaos drills for 0.3, and which?
+655 words · no diagram
+Open ↗
+Answer
+
+A: session runs it here (Recommended) — a clicked option label, shown as: installs the release on this laptop, connects your Claude Code and Codex, a few minutes of real sessions, reports back, then undoes its changes unless you say keep.
+
+Run the app setup's Windows acceptance on this laptop, elsewhere, or later?
+572 words · no diagram
+Open ↗
+Answer
+
+Owner, 2026-09-28: "I've just granted access to my old laptop which is fresh and windows, use that. we dont need to fully simulate a new user with fresh accounts and stuff yet, just do the basics. session "Windows laptop testing setup for 0.3" is actively reviewing the connection to the old laptop". Codex CLI: "Yes, install then remove" (the acceptance session may install the Codex command line for the test and remove it after).
+
+Windows acceptance: a default install here would share your dev app's home; how should it run?
+1022 words · diagram stored
+Open ↗
+Sessions 0
+Injected
+Grounding
+Implementation
+Other
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "Process ledger" and all 70 capabilities
+Postgres: stopped (0.1 s)

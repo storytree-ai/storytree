@@ -1,0 +1,4 @@
+task last result: 0
+folder before: hello.txt
+claude exit: 0
+folder after: .storytree-check, .storytree.json, hello.txt

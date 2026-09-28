@@ -1,0 +1,29 @@
+--- storytree setup disconnect codex
+Codex: tools disconnected.
+Restart this agent to finish disconnecting. Project libraries and unrelated settings were kept.
+
+Shared command kept while another connection exists or cleanup cannot be confirmed; retry Disconnect for cleanup when no connection remains.
+exit 0
+--- codex mcp list
+No MCP servers configured yet. Try `codex mcp add my-tool -- my-command`.
+--- ~\.codex\hooks.json present: False
+--- claude mcp list
+
+storytree: C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\node.exe 
+C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp.mjs - √ Connected
+--- storytree command: C:\Users\mickh\.storytree\0.3\bin\storytree.cmd
+--- storytree doctor
+storytree is running.
+Hooks for Claude Code: registered.
+Hooks for Codex: none, since you disconnected it (`storytree setup connect` connects it again).
+This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.
+The storytree command: on your path.
+GitHub's gh is not installed, so a claim will not end when its pull request merges. Fix: install it from https://cli.github.com, then run `gh auth login`.
+Claude Code is installed and signed in; Codex is installed and not signed in.
+git is not installed. Fix: Install git from https://git-scm.com, then run the setup check again.
+Node is not installed. Fix: Install Node 24 or later from https://nodejs.org, then run the setup check again.
+
+next:
+  - storytree doctor --set-up mickh   (make it a project, or name it as you like)
+
+

@@ -1,0 +1,21 @@
+task last result: 0
+Transcript started, output file is C:\Users\mickh\st-retest\r3\install-2.transcript.txt
+
+Path                                 
+----                                 
+C:\Users\mickh\Retest 3 Second Folder
+
+
+before: exe 2026-09-29T03:05:16.0000000+10:00 ver 0.3.250.0; updater cache files 1
+storytree is installed; its app is open and its database is ready. Delivery did not create a project.
+The storytree command is available in a fresh Windows terminal.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Claude Code: tools already connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+install exit: 0; seconds: 3
+after: exe 2026-09-29T03:05:16.0000000+10:00 ver 0.3.250.0
+second folder items after: 0
+first folder items after: 0
+user PATH: C:\Users\mickh\AppData\Local\Microsoft\WindowsApps;C:\Users\mickh\.local\bin;C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links;C:\Users\mickh\.storytree\0.3\bin
+projects under home: bin, electron, pgdata, app.json, delivery.json, pgdata.log, pgdata.owner.json, pgdata.tools.log, releases.log
+Transcript stopped, output file is C:\Users\mickh\st-retest\r3\install-2.transcript.txt

@@ -1,0 +1,18 @@
+task last result: 0
+Transcript started, output file is C:\Users\mickh\st-retest\r1\install-1.transcript.txt
+
+Path                                
+----                                
+C:\Users\mickh\Retest 1 First Folder
+
+
+Downloading storytree for Windows x64. The installer is unsigned; Windows may ask whether to run it.
+storytree is installed; its app is open and its database is ready. Delivery did not create a project.
+The storytree command is available in a fresh Windows terminal.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Claude Code: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.
+install exit: 0; seconds: 470; ready at 2026-09-29T01:44:45.9074452+10:00
+installed version: 0.3.247.0
+folder items after: 0
+Transcript stopped, output file is C:\Users\mickh\st-retest\r1\install-1.transcript.txt

@@ -1,0 +1,13 @@
+--- storytree setup disconnect codex
+Codex: tools disconnected.
+Restart this agent to finish disconnecting. Project libraries and unrelated settings were kept.
+
+Shared command kept while another connection exists or cleanup cannot be confirmed; retry Disconnect for cleanup when no connection remains.
+exit 0
+--- codex mcp list
+No MCP servers configured yet. Try `codex mcp add my-tool -- my-command`.
+--- ~\.codex\hooks.json present: False
+--- claude mcp list
+
+storytree: C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\node.exe 
+C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp.mjs - √ Connected

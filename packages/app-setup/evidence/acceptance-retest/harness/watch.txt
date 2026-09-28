@@ -1,0 +1,1 @@
+& "$HOME\st-retest\watch.ps1" -Label LABEL -Dir "$HOME\st-retest\rROUND"

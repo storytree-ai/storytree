@@ -1,0 +1,29 @@
+uninstall storytree
+app folder after: False
+removed C:\Users\mickh\.storytree\0.3
+removed C:\Users\mickh\AppData\Local\@storytreedesktop-updater
+removed C:\Users\mickh\.codex
+removed empty ~\.storytree
+user PATH: storytree bin removed
+claude mcp remove
+Removed MCP server storytree from user config
+File modified: C:\Users\mickh\.claude.json
+claude settings.json now: {
+  "autoUpdatesChannel": "latest",
+  "theme": "dark"
+}
+winget uninstall Git.Git
+Starting package uninstall...
+Successfully uninstalled
+winget uninstall OpenJS.NodeJS.LTS
+Starting package uninstall...
+Successfully uninstalled
+winget uninstall GitHub.cli
+Starting package uninstall...
+Successfully uninstalled
+removed C:\Users\mickh\My First Project
+removed C:\Users\mickh\Second Folder With Spaces
+removed C:\Users\mickh\claude trial
+removed C:\Users\mickh\claude trial 2
+removed C:\Users\mickh\codex trial
+renamed st-evidence to st-evidence-run1

@@ -1,0 +1,4 @@
+Starting package uninstall...
+Successfully uninstalled
+.codex removed
+INFO: Could not find files for the given pattern(s).

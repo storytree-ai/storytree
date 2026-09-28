@@ -1,0 +1,18 @@
+$r = "$HOME\st-retest\rROUND"
+Start-Transcript -LiteralPath "$r\install-2.transcript.txt"
+$f = "$HOME\Retest ROUND Second Folder"
+New-Item -ItemType Directory -Force $f | Out-Null
+Set-Location -LiteralPath $f
+Get-Location
+$exe = "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe"
+"before: exe $((Get-Item $exe).LastWriteTime.ToString('o')) ver $((Get-Item $exe).VersionInfo.ProductVersion); updater cache files $(@(Get-ChildItem -Recurse -File "$env:LOCALAPPDATA\@storytreedesktop-updater" -EA SilentlyContinue).Count)"
+$t = Get-Date
+& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+1
+"install exit: $LASTEXITCODE; seconds: $([int]((Get-Date) - $t).TotalSeconds)"
+"after: exe $((Get-Item $exe).LastWriteTime.ToString('o')) ver $((Get-Item $exe).VersionInfo.ProductVersion)"
+"second folder items after: $((Get-ChildItem -Force -LiteralPath $f | Measure-Object).Count)"
+"first folder items after: $((Get-ChildItem -Force -LiteralPath "$HOME\Retest ROUND First Folder" | Measure-Object).Count)"
+"user PATH: $([Environment]::GetEnvironmentVariable('Path','User'))"
+"projects under home: $((Get-ChildItem -Force "$HOME\.storytree\0.3" -EA SilentlyContinue | Select-Object -ExpandProperty Name) -join ', ')"
+Stop-Transcript

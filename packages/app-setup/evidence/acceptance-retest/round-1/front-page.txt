@@ -1,0 +1,3 @@
+Fetched https://github.com/storytree-ai/storytree (signed out) at 2026-09-28T15:58:28Z; main at d89735b.
+Headings in the rendered README: storytree,Install,Where this stands,This repo's own library,How changes land,Generations,License
+Install command shown: & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))

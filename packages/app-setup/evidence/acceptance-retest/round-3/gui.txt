@@ -1,0 +1,42 @@
+task last result: 0
+storytree quit: its database has stopped.
+storytree processes after quit: 0
+debug targets: 
+evalfile C:\Users\mickh\st-retest\steps.js "helpers loaded"
+shot app-1-first-view
+mouse App menu clicked at 1076 24
+mouse Projects NOT VISIBLE
+shot app-2-projects
+eval "retest-three-a,retest-three-b"
+evalfile C:\Users\mickh\st-retest\steps.js "helpers loaded"
+eval "options=retest-three-a,retest-three-b | now state=ready project=retest-three-a"
+shot app-3-forest-retest-three-a
+eval "options=retest-three-a,retest-three-b | now state=ready project=retest-three-b"
+shot app-4-forest-retest-three-b
+eval "retest-three-b · storytree 0.3"
+mouse App menu clicked at 1076 24
+mouse Help clicked at 132 326
+mouse First-run guide clicked at 324 242
+shot app-5-help-guide
+block on: True
+mouse License clicked at 426 242
+evalfile C:\Users\mickh\st-retest\licread.js "license chars=6024 polyform=true offline-note=true"
+shot app-6-license-offline
+block removed: True
+mouse Send feedback clicked at 525 242
+mouse css=[name=title] clicked at 646 463
+typed 28 chars
+mouse css=[name=body] clicked at 646 590
+typed 62 chars
+shot app-7-feedback-form
+mouse Open GitHub draft clicked at 335 692
+evalfile C:\Users\mickh\st-retest\fbstatus.js "Connection incomplete? Check a folder below for setup diagnostics. This folder check does not register hooks or install the command; those checks will say “skipped”. Use Copy request for your agent to complete setup and verify hook receipt in your agent session. || This copy travels with the app and is available offline. || Review your message here, then open a draft on storytree-ai/storytree. You need a GitHub account to submit a public issue. Include only what you want to share. || Opened a draft in your browser. Review it on GitHub and submit it yourself."
+shot app-8-feedback-opened
+mouse Updates clicked at 132 281
+mouse Check for updates clicked at 334 285
+eval "Keep storytree up to date.\n\nCheck for updates\nUp to date\nRunning 0.3.250."
+shot app-9-updates
+task last result: 0
+storytree quit: its database has stopped.
+storytree processes: 4
+debug port closed

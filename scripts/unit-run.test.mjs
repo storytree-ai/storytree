@@ -25,6 +25,31 @@ function captured() {
   } } };
 }
 
+// increment_655d99c13fc3: a file dying before it reports any test must explain its failure.
+test("file failures name the file, exit status and its own stderr under concurrent execution", async (t) => {
+  const files = {
+    "exit.test.mjs": `import { writeSync } from "node:fs";
+writeSync(2, "loader stopped before tests\\n"); process.exit(7);`,
+    "load.test.mjs": `throw new Error("cannot load relief fixture");`,
+    "rejection.test.mjs": `Promise.reject(new Error("unhandled fixture rejection"));`,
+    "healthy.test.mjs": `import { test } from "node:test";
+console.error("a different file's stderr"); test("healthy neighbor", () => {});`,
+  };
+  // Windows does not preserve a Unix termination signal in a self-killed process's status.
+  if (process.platform !== "win32") files["signal.test.mjs"] = `process.kill(process.pid, "SIGTERM");`;
+  const root = fixture(t, files);
+  const { out, options } = captured();
+  const result = await runUnit({ root, files: Object.keys(files), env: process.env, args: ["--test-concurrency=4"], ...options });
+  assert.notEqual(result.code, 0);
+  assert.equal(result.timedOut, false);
+  const diagnostics = out.text.slice(out.text.indexOf("test harness: file failures"));
+  assert.match(diagnostics, /exit\.test\.mjs\n  exit code: 7; signal: none\n  stderr:\n  loader stopped before tests/);
+  assert.match(diagnostics, /load\.test\.mjs\n  exit code: 1; signal: none\n  stderr:[\s\S]*cannot load relief fixture/);
+  assert.match(diagnostics, /rejection\.test\.mjs\n  exit code: 1; signal: none\n  stderr:[\s\S]*unhandled fixture rejection/);
+  if (process.platform !== "win32") assert.match(diagnostics, /signal\.test\.mjs\n  exit code: none; signal: SIGTERM\n  stderr: \(empty\)/);
+  assert.doesNotMatch(diagnostics, /healthy\.test\.mjs|a different file's stderr/);
+});
+
 test("a test that fails leaving a handle open ends its unit with that failure, not a hang", async (t) => {
   const root = fixture(t, {
     "leak.test.mjs": `import { test } from "node:test"; import assert from "node:assert"; import net from "node:net";

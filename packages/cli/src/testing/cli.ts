@@ -11,6 +11,7 @@
  * The agent link keeps its test helpers inside its package, so the few these tests need are
  * restated here, as it restates the library's.
  */
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -95,6 +96,11 @@ export interface Ran {
   stderr: string;
   /** How long it took, from starting Node to its exit, in milliseconds. */
   ms: number;
+}
+
+/** Assert the command's exit status, retaining its output when it fails. */
+export function assertExitCode(ran: Pick<Ran, "code" | "stdout" | "stderr">, expected: number, context = "built command"): void {
+  assert.equal(ran.code, expected, context);
 }
 
 export interface RunOptions {

@@ -4,7 +4,9 @@
 .sessions-list ul { list-style:none; margin:0; padding:0; }
 .sessions-list p { margin:4px 0; font-size:12px; color:#abb4b1; }
 .session-row { display:flex; align-items:center; gap:8px; min-height:29px; border-radius:4px; padding:0 4px; }
-.session-row:hover,.session-row:focus-within { background:#ffffff0b; }
+.session-row:hover,.session-row:focus-within,.session-row[data-highlighted] { background:#ffffff0b; }
+.session-colour { width:8px; height:8px; flex-shrink:0; border-radius:50%; }
+.session-row[data-highlighted] .session-colour { box-shadow:0 0 0 2px #ffffff55; }
 .session-row:focus-visible,.sessions-list button:focus-visible { outline:1px solid #d9dedb; outline-offset:2px; }
 .session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:60px; max-width:270px; }
 .sessions-list button { font:inherit; cursor:pointer; background:none; color:inherit; border:0; border-radius:3px; padding:1px 3px; white-space:nowrap; }

@@ -28,7 +28,9 @@ export function SessionIslandEmphasis({ emphasis }: { emphasis: SessionEmphasis 
   useFrame(() => {
     if (!emphasis) return;
     anchor.current?.parent?.traverse(object => {
-      if (!(object instanceof Mesh) || object.name.startsWith("session-highlight:") || saved.current.has(object)) return;
+      // Wisps keep their own colour and fade; the session they belong to is lit through them directly.
+      if (!(object instanceof Mesh) || object.name.startsWith("session-highlight:") || saved.current.has(object)
+        || object.parent?.userData.sessionWisp !== undefined) return;
       const original: Material | Material[] = object.material;
       const copies = (Array.isArray(original) ? original : [original]).map(source => {
         const copy = source.clone();

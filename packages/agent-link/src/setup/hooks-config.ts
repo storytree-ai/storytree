@@ -9,7 +9,8 @@
  *   background (`async`); the end hook runs before Claude Code exits, the hook before storytree's
  *   own tools before the call is made, so its line is there when the call reaches the tool server
  *   (ADR-0629 D2), and the prompt hook before the prompt reaches the agent, since what it prints is
- *   added for the agent (ADR-0636 D1).
+ *   added for the agent (ADR-0636 D1). Without Git for Windows, Claude Code has no Bash tool and
+ *   runs commands with its PowerShell tool, so each hook that listens for Bash listens for it too.
  * - Codex: `<CODEX_HOME>/hooks.json` (else ~/.codex). Codex runs a hook as one command line through
  *   its shell (PowerShell on Windows, sh elsewhere), so the line is written for the shell of this
  *   machine. Codex has no background hooks, so the ones before each shell command and at the end of
@@ -143,10 +144,10 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
     SessionStart: [{ hooks: [run(true)] }],
     PreToolUse: [
       { matcher: `${STORYTREE_TOOLS}.*`, hooks: [run(false)] },
-      { matcher: "Bash", hooks: [run(true)] },
+      { matcher: "Bash|PowerShell", hooks: [run(true)] },
     ],
-    PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|Agent|Task", hooks: [run(true)] }],
-    PostToolUseFailure: [{ matcher: "Bash", hooks: [run(true)] }],
+    PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task", hooks: [run(true)] }],
+    PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }],
     Stop: [{ hooks: [run(true)] }],
     UserPromptSubmit: [{ hooks: [run(false)] }],
     SessionEnd: [{ hooks: [run(false)] }],

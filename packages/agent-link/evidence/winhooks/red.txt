@@ -1,0 +1,507 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/winhooks-1
+> node --import tsx scripts/test.mjs "--test-name-pattern=^(3\\.6|8\\.1|8\\.2) "
+
+scope: full — everything — packages/agent-link/src/hooks/hooks.test.ts changed in @storytree/agent-link, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, packages/processes, scripts
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/winhooks-1/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:43005 (started in 0.1 s)
+
+=== apps/desktop ===
+✔ apps/desktop/src/main/args.test.ts (114.283001ms)
+✔ apps/desktop/src/main/delivery.test.ts (109.482916ms)
+✔ apps/desktop/src/view/view.test.ts (113.068054ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 130.098394
+
+=== packages/agent-link ===
+✔ packages/agent-link/src/activity/activity-log.test.ts (614.13128ms)
+✔ packages/agent-link/src/activity/activity-on-library.test.ts (623.13699ms)
+✔ packages/agent-link/src/claims/claims.test.ts (1334.611235ms)
+✔ packages/agent-link/src/claims/workspace.test.ts (725.390389ms)
+✔ packages/agent-link/src/context/composition.test.ts (327.13812ms)
+✔ packages/agent-link/src/context/context.test.ts (513.795573ms)
+✖ 3.6 recorded inputs from before a shell command, after one that failed, and at the end of a turn make three lines: the command started, and finished, under the call's id, and the turn ended; for Codex, which waits for its hooks, the hook hands its line to one in the background (1208.575587ms)
+✔ packages/agent-link/src/instructions/habits-card.test.ts (1234.219942ms)
+✔ packages/agent-link/src/routing/project-routing.test.ts (656.990816ms)
+✔ packages/agent-link/src/sessions/sessions.test.ts (427.019514ms)
+✔ packages/agent-link/src/settings/idle-liveness.test.ts (1332.893924ms)
+✔ packages/agent-link/src/settings/panel.test.ts (268.584022ms)
+✔ packages/agent-link/src/settings/settings.test.ts (953.614643ms)
+✖ 8.1 in a throwaway home with only the tool server installed, the first session start registers the hooks for Claude Code and for Codex without touching any other setting (183.822278ms)
+✖ 8.2 a second start changes nothing, and removing storytree takes out exactly what it added (5.122206ms)
+✔ packages/agent-link/src/tools/agent-tools.test.ts (991.062011ms)
+✔ packages/agent-link/src/tools/librarian-tools.test.ts (946.420872ms)
+✔ packages/agent-link/src/tools/own-tools.test.ts (949.983207ms)
+✔ packages/agent-link/src/view/settings.test.ts (308.011601ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 16
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1934.889479
+
+✖ failing tests:
+
+test at packages/agent-link/src/hooks/hooks.test.ts:4:4772
+✖ 3.6 recorded inputs from before a shell command, after one that failed, and at the end of a turn make three lines: the command started, and finished, under the call's id, and the turn ended; for Codex, which waits for its hooks, the hook hands its line to one in the background (1208.575587ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   {
+  -     call: 'toolu_01Kjexd4yP2myMhXEATFdm25',
+  -     command: 'echo probe-start\nexit 3',
+  -     folder: '/tmp/storytree-link-DD4jkj/site',
+  -     harness: 'claude-code',
+  -     kind: 'command-started',
+  -     machine: 'mickh-A520I-AC',
+  -     project: 't-48bf4ba4',
+  -     session: '5d0c1f7e-6a2b-4c55-9f0e-0c9d3b1e7a42',
+  -     source: 'hook'
+  -   },
+  -   {
+  -     call: 'toolu_01Kjexd4yP2myMhXEATFdm25',
+  -     command: 'echo probe-start\nexit 3',
+  -     folder: '/tmp/storytree-link-DD4jkj/site',
+  -     harness: 'claude-code',
+  -     kind: 'command-run',
+  -     machine: 'mickh-A520I-AC',
+  -     project: 't-48bf4ba4',
+  -     session: '5d0c1f7e-6a2b-4c55-9f0e-0c9d3b1e7a42',
+  -     source: 'hook'
+  -   },
+  -   {
+  -     call: 'toolu_0198fGg1AbRnVBG34suBFFTy',
+  -     command: 'echo probe-command',
+  -     folder: '/tmp/storytree-link-DD4jkj/site',
+  -     harness: 'claude-code',
+  -     kind: 'command-run',
+  -     machine: 'mickh-A520I-AC',
+  -     project: 't-48bf4ba4',
+  -     session: '5d0c1f7e-6a2b-4c55-9f0e-0c9d3b1e7a42',
+  -     source: 'hook'
+  -   }
+  - ]
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/hooks/hooks.test.ts:325:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withTempDir (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/hooks/hooks.test.ts:303:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { project: 't-48bf4ba4', session: '5d0c1f7e-6a2b-4c55-9f0e-0c9d3b1e7a42', harness: 'claude-code', source: 'hook', folder: '/tmp/storytree-link-DD4jkj/site', machine: 'mickh-A520I-AC', kind: 'command-started', command: 'echo probe-start\nexit 3', call: 'toolu_01Kjexd4yP2myMhXEATFdm25' }, { project: 't-48bf4ba4', session: '5d0c1f7e-6a2b-4c55-9f0e-0c9d3b1e7a42', harness: 'claude-code', source: 'hook', folder: '/tmp/storytree-link-DD4jkj/site', machine: 'mickh-A520I-AC', kind: 'command-run', command: 'echo probe-start\nexit 3', call: 'toolu_01Kjexd4yP2myMhXEATFdm25' }, { project: 't-48bf4ba4', session: '5d0c1f7e-6a2b-4c55-9f0e-0c9d3b1e7a42', harness: 'claude-code', source: 'hook', folder: '/tmp/storytree-link-DD4jkj/site', machine: 'mickh-A520I-AC', kind: 'command-run', command: 'echo probe-command', call: 'toolu_0198fGg1AbRnVBG34suBFFTy' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/setup/setup-check.test.ts:2:1232
+✖ 8.1 in a throwaway home with only the tool server installed, the first session start registers the hooks for Claude Code and for Codex without touching any other setting (183.822278ms)
+  AssertionError [ERR_ASSERTION]: claude-code: before a PowerShell command
+      at <anonymous> (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/setup/setup-check.test.ts:160:18)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withTempDir (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/setup/setup-check.test.ts:133:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/setup/setup-check.test.ts:2:4192
+✖ 8.2 a second start changes nothing, and removing storytree takes out exactly what it added (5.122206ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'already registered'
+  - 'registered'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/setup/setup-check.test.ts:201:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withTempDir (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/winhooks-1/packages/agent-link/src/setup/setup-check.test.ts:179:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'already registered',
+    expected: 'registered',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+=== packages/app ===
+✔ packages/app/src/lifecycle/background.test.ts (176.360219ms)
+✔ packages/app/src/lifecycle/backups.test.ts (455.277333ms)
+✔ packages/app/src/lifecycle/launch.test.ts (227.345345ms)
+✔ packages/app/src/lifecycle/open-where-set.test.ts (589.11181ms)
+✔ packages/app/src/lifecycle/quit.test.ts (558.043295ms)
+✔ packages/app/src/projects/follow.test.ts (197.549696ms)
+✔ packages/app/src/projects/selection.test.ts (583.115694ms)
+✔ packages/app/src/surfaces/reads.test.ts (569.198517ms)
+✔ packages/app/src/surfaces/smoke.test.ts (203.43953ms)
+✔ packages/app/src/updates/build-health.test.ts (227.177336ms)
+✔ packages/app/src/updates/follow-main.test.ts (193.982061ms)
+✔ packages/app/src/updates/main-updates.test.ts (236.5428ms)
+✔ packages/app/src/updates/release-source.test.ts (231.12452ms)
+✔ packages/app/src/updates/releases.test.ts (346.851745ms)
+✔ packages/app/src/updates/seed-writing.test.ts (261.353783ms)
+✔ packages/app/src/view/render.test.ts (212.372132ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 607.566163
+
+=== packages/app-setup ===
+✔ packages/app-setup/src/connect/connect.test.ts (360.595603ms)
+✔ packages/app-setup/src/deliver/bootstrap.test.ts (130.761131ms)
+✔ packages/app-setup/src/deliver/delivery.test.ts (398.809717ms)
+✔ packages/app-setup/src/deliver/runtime.test.ts (115.228146ms)
+✔ packages/app-setup/src/help/feedback.test.ts (132.460699ms)
+✔ packages/app-setup/src/help/license.test.ts (134.788339ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 412.916895
+
+=== packages/arc-surface ===
+✔ packages/arc-surface/src/agents/agents.test.ts (175.919062ms)
+✔ packages/arc-surface/src/board/board.test.ts (201.095769ms)
+✔ packages/arc-surface/src/board/live-board.test.ts (486.394542ms)
+✔ packages/arc-surface/src/briefing/briefing.test.ts (159.744578ms)
+✔ packages/arc-surface/src/live-reading/live-reading.test.ts (165.62292ms)
+✔ packages/arc-surface/src/view/render.test.ts (164.966573ms)
+✔ packages/arc-surface/src/waits/waits.test.ts (175.00726ms)
+✔ packages/arc-surface/src/work-states/board-states.test.ts (177.878212ms)
+✔ packages/arc-surface/src/work-states/work-states.test.ts (172.394018ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 503.644728
+
+=== packages/cli ===
+✔ packages/cli/src/arcs.test.ts (1066.693777ms)
+✔ packages/cli/src/board.test.ts (784.672369ms)
+✔ packages/cli/src/capture.test.ts (1207.776298ms)
+✔ packages/cli/src/decisions.test.ts (596.895812ms)
+✔ 8.1 with storytree closed, it opens it (1704.960949ms)
+✔ 8.2 with `gh` signed out, it names `gh auth login` (312.821785ms)
+✔ packages/cli/src/front-door.test.ts (601.91392ms)
+✔ packages/cli/src/launcher.test.ts (579.936387ms)
+✔ 3.6 saving a memory is refused with its reason and writes nothing (1438.325496ms)
+✔ packages/cli/src/processes.test.ts (1459.659788ms)
+✔ packages/cli/src/questions.test.ts (464.370239ms)
+✔ packages/cli/src/settings.test.ts (1375.924845ms)
+✔ packages/cli/src/setup.test.ts (997.705026ms)
+✔ packages/cli/src/testing/cli.test.ts (1009.412828ms)
+✔ packages/cli/src/tree.test.ts (1123.29115ms)
+✔ packages/cli/src/workspace.test.ts (1259.683114ms)
+✔ packages/cli/src/writer.test.ts (913.561215ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2500.087429
+
+=== packages/forest ===
+✔ packages/forest/src/agent-claims/agent-claims.test.ts (289.785772ms)
+✔ packages/forest/src/capability-tree/capability-tree.test.ts (292.861693ms)
+✔ packages/forest/src/drill-down/drill-down.test.ts (278.547001ms)
+✔ packages/forest/src/drill-down/tree-layout.test.ts (271.133784ms)
+✔ packages/forest/src/never-hidden/never-hidden.test.ts (185.59258ms)
+✔ packages/forest/src/planet-places/planet-places.test.ts (205.245399ms)
+✔ packages/forest/src/render/forest-ground.test.ts (545.12801ms)
+✔ packages/forest/src/render/forest-scene.test.ts (758.607625ms)
+✔ packages/forest/src/render/packed-coasts.test.ts (687.834604ms)
+✔ 3.6 every recorded builds-on link has one continuous trail chain, with shared trunks drawn once (43.627364ms)
+✔ 3.6 routing failure is visible while every island and its failing trees still draw (8.345336ms)
+✔ packages/forest/src/sessions-list/sessions-list.test.ts (273.441156ms)
+✔ packages/forest/src/story-nodes/story-nodes.test.ts (220.409965ms)
+✔ packages/forest/src/view/browser-build.test.ts (214.093962ms)
+✔ packages/forest/src/view/globe-picking.test.ts (424.753872ms)
+✔ packages/forest/src/view/panel-selection.test.ts (201.801139ms)
+✔ packages/forest/src/view/planet-view.test.ts (729.380646ms)
+✔ packages/forest/src/view/sessions-list.test.ts (394.788861ms)
+✔ packages/forest/src/view/story-panel.test.ts (290.480732ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1031.231899
+
+=== packages/forest-world ===
+✔ packages/forest-world/src/ForestWorldCanvas.causal.test.ts (202.887671ms)
+✔ packages/forest-world/src/ForestWorldCanvas.growth-material.test.ts (449.607086ms)
+✔ packages/forest-world/src/ForestWorldCanvas.readiness.test.ts (227.924765ms)
+✔ packages/forest-world/src/ForestWorldCanvas.registered-camera.test.ts (399.478407ms)
+✔ packages/forest-world/src/ForestWorldCanvas.regrow.test.ts (216.275083ms)
+✔ packages/forest-world/src/ForestWorldCanvas.underlay.test.ts (1764.706739ms)
+✔ packages/forest-world/src/banded-ground-material.blight.test.ts (726.808341ms)
+✔ packages/forest-world/src/banded-ground-material.layers.test.ts (696.17402ms)
+✔ packages/forest-world/src/banded-ground-material.level.test.ts (728.622005ms)
+✔ packages/forest-world/src/banded-ground-material.test.ts (784.502086ms)
+✔ packages/forest-world/src/banded-ground-material.wheat.test.ts (741.641829ms)
+✔ packages/forest-world/src/camera-framing.test.ts (453.923342ms)
+✔ packages/forest-world/src/cell-ground-geometry.test.ts (518.267765ms)
+✔ packages/forest-world/src/coast-clip.test.ts (454.604495ms)
+✔ packages/forest-world/src/contact-shade.test.ts (416.542019ms)
+✔ packages/forest-world/src/core/camera.test.ts (226.213906ms)
+✔ packages/forest-world/src/core/drift-containment.test.ts (361.637731ms)
+✔ packages/forest-world/src/core/forest-world.test.ts (235.003536ms)
+✔ packages/forest-world/src/core/projection-equivariance.test.ts (429.216536ms)
+✔ packages/forest-world/src/core/resting-view.test.ts (241.029179ms)
+✔ packages/forest-world/src/core/routing.test.ts (265.24403ms)
+✔ packages/forest-world/src/core/scatter-camera.test.ts (337.708602ms)
+✔ packages/forest-world/src/core/scene-parcel-repair.test.ts (352.670864ms)
+✔ packages/forest-world/src/core/scene-tile-art.test.ts (392.722397ms)
+✔ packages/forest-world/src/core/scene-tile-lengths.test.ts (364.716348ms)
+✔ packages/forest-world/src/core/scene.test.ts (522.796214ms)
+✔ packages/forest-world/src/core/substrate-camera.test.ts (274.772855ms)
+✔ packages/forest-world/src/core/tile-art.test.ts (325.240477ms)
+✔ packages/forest-world/src/cover-dressing.test.ts (531.621331ms)
+✔ packages/forest-world/src/detail-normal-texture.test.ts (514.41026ms)
+✔ packages/forest-world/src/dressing-ground.test.ts (445.721357ms)
+✔ packages/forest-world/src/exact-colour.test.ts (400.853848ms)
+✔ packages/forest-world/src/forest-ground-is-one-mesh.test.ts (739.796525ms)
+✔ packages/forest-world/src/ground-casters.test.ts (397.619707ms)
+✔ packages/forest-world/src/ground-dependency.test.ts (545.801228ms)
+✔ packages/forest-world/src/island-path.test.ts (483.474146ms)
+✔ packages/forest-world/src/kit-mesh.test.ts (649.199601ms)
+✔ packages/forest-world/src/kit-status-presentation.test.ts (590.682693ms)
+✔ packages/forest-world/src/kit-vocabulary.test.ts (515.232532ms)
+✔ packages/forest-world/src/land-blight.test.ts (349.430942ms)
+✔ packages/forest-world/src/land-grain.test.ts (360.58935ms)
+✔ packages/forest-world/src/land-grass.test.ts (362.158881ms)
+✔ packages/forest-world/src/land-per-capability.test.ts (412.924249ms)
+✔ packages/forest-world/src/land-relief.test.ts (308.6112ms)
+✔ packages/forest-world/src/land-rock.test.ts (386.517855ms)
+✔ packages/forest-world/src/land-sand.test.ts (373.169539ms)
+✔ packages/forest-world/src/land-shadow.test.ts (380.034976ms)
+✔ packages/forest-world/src/land-wear.test.ts (400.922188ms)
+✔ packages/forest-world/src/land-wheat.test.ts (358.20857ms)
+✔ packages/forest-world/src/leaf-tint.test.ts (231.281348ms)
+✔ packages/forest-world/src/light-calibration.test.ts (375.78719ms)
+✔ packages/forest-world/src/map-dressing.test.ts (485.320361ms)
+✔ packages/forest-world/src/map-texels.test.ts (203.061893ms)
+✔ packages/forest-world/src/native-prop-hit-projection.test.ts (323.733776ms)
+✔ packages/forest-world/src/native-prop-hit-records.test.ts (336.480039ms)
+✔ packages/forest-world/src/native-prop-targets.test.ts (387.64691ms)
+✔ packages/forest-world/src/parcel-cells.test.ts (193.560822ms)
+✔ packages/forest-world/src/planet/planet.test.ts (574.22926ms)
+✔ packages/forest-world/src/prop-lighting.test.ts (568.245958ms)
+✔ packages/forest-world/src/resting-world-framing.test.ts (390.047378ms)
+✔ packages/forest-world/src/shade-ladder.test.ts (229.895437ms)
+✔ packages/forest-world/src/shadow-atlas.test.ts (423.95804ms)
+✔ packages/forest-world/src/shadow-rung.test.ts (390.495439ms)
+✔ packages/forest-world/src/shore-atlas.test.ts (430.557022ms)
+✔ packages/forest-world/src/shore-fall.test.ts (386.000012ms)
+✔ packages/forest-world/src/shore-grid.test.ts (410.662924ms)
+✔ packages/forest-world/src/shore-ring.test.ts (366.50335ms)
+✔ packages/forest-world/src/stepped-skirt.test.ts (327.579909ms)
+✔ packages/forest-world/src/texture-convention.test.ts (215.274694ms)
+✔ packages/forest-world/src/trail-ribbon-width.test.ts (235.389009ms)
+✔ packages/forest-world/src/trail-wear.test.ts (227.259872ms)
+✔ packages/forest-world/src/true-footprint.test.ts (156.095288ms)
+✔ packages/forest-world/src/wear-atlas.test.ts (258.288602ms)
+✔ packages/forest-world/src/wisp-mesh.test.ts (252.776064ms)
+✔ packages/forest-world/src/world-to-3d.test.ts (261.454674ms)
+ℹ tests 75
+ℹ suites 0
+ℹ pass 75
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2997.378541
+
+=== packages/knowledge-core ===
+✔ packages/knowledge-core/src/ghosts/ghosts.test.ts (128.856064ms)
+✔ packages/knowledge-core/src/look-inside/look-inside.test.ts (152.821903ms)
+✔ packages/knowledge-core/src/reads/reads.test.ts (126.425168ms)
+✔ packages/knowledge-core/src/shelves/globe.test.ts (154.180041ms)
+✔ packages/knowledge-core/src/shelves/shelves.test.ts (139.704303ms)
+✔ packages/knowledge-core/src/shelves/story-text.test.ts (161.002557ms)
+✔ packages/knowledge-core/src/view/card.test.ts (646.725873ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 669.838942
+
+=== packages/librarian ===
+✔ packages/librarian/src/catalogue/catalogue.test.ts (296.606744ms)
+✔ packages/librarian/src/decision-log/decision-log.test.ts (288.308086ms)
+✔ packages/librarian/src/graduation/graduation.test.ts (273.098425ms)
+✔ packages/librarian/src/links/links.test.ts (310.440383ms)
+✔ packages/librarian/src/queues/queues.test.ts (305.741971ms)
+✔ packages/librarian/src/rounds/rounds.test.ts (292.911968ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 329.946563
+
+=== packages/library ===
+✔ packages/library/src/api/library-api.test.ts (487.119888ms)
+✔ packages/library/src/api/own-database.test.ts (409.322079ms)
+✔ packages/library/src/api/public-reads.test.ts (455.985758ms)
+✔ packages/library/src/api/snapshot.test.ts (505.429226ms)
+✔ packages/library/src/api/writer.test.ts (422.001906ms)
+✔ packages/library/src/health/health-record.test.ts (506.057268ms)
+✔ packages/library/src/knowledge/decision-log.test.ts (518.573817ms)
+✔ packages/library/src/knowledge/knowledge-entrances.test.ts (536.121427ms)
+✔ packages/library/src/knowledge/knowledge-kinds.test.ts (525.239243ms)
+✔ packages/library/src/knowledge/knowledge-memory.test.ts (557.604872ms)
+✔ packages/library/src/knowledge/ranked-search.test.ts (488.33174ms)
+✔ packages/library/src/knowledge/related-unlinked.test.ts (470.667006ms)
+✔ 8.2 a cloudSql setting that is not an instance's connection name and a Google account email is refused before any network call, saying what to fix (8.850837ms)
+✔ 8.2 no Google sign-in found is refused with the command that signs in, never a hang (1.030417ms)
+✔ 8.2 an expired or revoked Google sign-in is refused with the command that signs in again (1.091162ms)
+✔ 8.2 an instance that does not exist, or that the account may not use, is refused naming the instance and the Cloud SQL Client role (0.585952ms)
+✔ 8.2 a Google account that is not a database user on the instance is refused, saying to add it as a Cloud SQL IAM user (90.991764ms)
+✔ 8.2 opening a new project on Cloud SQL as a user that may not create databases, with no role to borrow, is refused with the two lines that let it (212.163315ms)
+✔ 8.2 on the local path too, opening a new project as a server user that may not create databases, with no role to borrow, is refused with the two lines that let it (123.918548ms)
+✔ 8.2 a Cloud SQL instance that does not answer is refused after a bounded wait, never a hang (505.972367ms)
+✔ 8.1 robustness, offline: on either path, a user that may not create databases opens a new project by borrowing a role that may, and hands the role back (403.17189ms)
+✔ 8.1 robustness, offline: of the roles a user may take on that may create databases, it borrows the first by name, reached directly or through another role, and never one it may not SET ROLE to (242.752701ms)
+▶ 8.1 robustness, offline: capability 2's behaviour suite, unchanged, in projects a user that may not create databases opened on the cloud path by borrowing a role that may
+  ✔ 2.1 [cloud-sql path, borrowing a creator role] save creates a record; saving the same id again replaces it; each save appends one history entry (106.846139ms)
+  ✔ 2.2 [cloud-sql path, borrowing a creator role] edit changes only the fields it names; every other field keeps its stored value (84.334933ms)
+  ✔ 2.3 [cloud-sql path, borrowing a creator role] edit merges onto what is stored now, so racing edits of different fields all survive (114.15601ms)
+  ✔ 2.4 [cloud-sql path, borrowing a creator role] edit of a missing record returns null and creates nothing (80.629056ms)
+  ✔ 2.5 [cloud-sql path, borrowing a creator role] get of a missing record returns null and never throws (84.301449ms)
+  ✔ 2.6 [cloud-sql path, borrowing a creator role] list(type) returns only that type's current records, ordered by id, and [] when there are none (111.068246ms)
+  ✔ 2.7 [cloud-sql path, borrowing a creator role] retire removes the record from get and list, keeps the reason in history, and is a harmless no-op when repeated or missing (84.618091ms)
+  ✔ 2.8 [cloud-sql path, borrowing a creator role] history returns every change in order with strictly increasing seq; it filters by id and by since (111.708152ms)
+  ✔ 2.9 [cloud-sql path, borrowing a creator role] a validate check sees the merged result, and if it throws nothing is written (85.891138ms)
+✔ 8.1 robustness, offline: capability 2's behaviour suite, unchanged, in projects a user that may not create databases opened on the cloud path by borrowing a role that may (883.519248ms)
+✔ 8.1 robustness, offline: the live proof's cleanup drops a project database the borrowed role owns, over the user's own connection, even while the project is still open (210.790058ms)
+✔ 8.1 robustness, offline: cleanup still drops the database when a backend the user cannot terminate disconnects (96.019781ms)
+✔ packages/library/src/project/no-memory-type.test.ts (456.697479ms)
+✔ packages/library/src/project/project-libraries.test.ts (462.261094ms)
+✔ 3.6 [memory] an edit that would leave the record invalid is refused, and nothing is written (14.315844ms)
+✔ 3.6 [postgres] an edit that would leave the record invalid is refused, and nothing is written (212.13906ms)
+✔ packages/library/src/testing/pg.test.ts (290.539373ms)
+✔ packages/library/src/transactions/cancellation.test.ts (461.828804ms)
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.90611ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+✔ packages/library/src/transactions/memory.test.ts (253.96349ms)
+✔ packages/library/src/transactions/pg.test.ts (477.962259ms)
+✔ packages/library/src/work/owner-questions.test.ts (471.660152ms)
+✔ packages/library/src/work/waits.test.ts (359.774463ms)
+✔ packages/library/src/work/work-in-flight.test.ts (339.600775ms)
+✔ packages/library/src/work/work-model.test.ts (318.392764ms)
+ℹ tests 46
+ℹ suites 1
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 3684.524877
+
+=== packages/local-postgres ===
+✔ packages/local-postgres/src/local-postgres.test.ts (143.298969ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 151.88322
+
+=== packages/processes ===
+✔ packages/processes/src/closing/closing.test.ts (219.045744ms)
+✔ packages/processes/src/foundation.test.ts (214.798099ms)
+✔ packages/processes/src/listing/listing.test.ts (216.280383ms)
+✔ packages/processes/src/process/index.test.ts (122.205004ms)
+✔ packages/processes/src/stopping/stopping.test.ts (217.740276ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.338703
+
+=== scripts ===
+✔ scripts/gate.test.mjs (121.795607ms)
+✔ scripts/guidance.test.mjs (243.597555ms)
+✔ scripts/library-export.test.mjs (242.801524ms)
+✔ scripts/library-server.test.mjs (207.354114ms)
+✔ scripts/node-runtime.test.mjs (94.690427ms)
+✔ scripts/own-health.test.mjs (238.682021ms)
+✔ scripts/package-boundaries.test.mjs (124.453013ms)
+✔ scripts/provision-worktree.test.mjs (117.44227ms)
+✔ scripts/restore-library.test.mjs (113.293393ms)
+✔ scripts/test-scope.test.mjs (115.940608ms)
+✔ scripts/unit-run.test.mjs (110.564199ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 261.402766
+
+results:
+  PASS    apps/desktop — 0.2 s
+  FAIL    packages/agent-link — 2.0 s
+  PASS    packages/app — 0.6 s
+  PASS    packages/app-setup — 0.4 s
+  PASS    packages/arc-surface — 0.5 s
+  PASS    packages/cli — 2.5 s
+  PASS    packages/forest — 1.1 s
+  PASS    packages/forest-world — 3.0 s
+  PASS    packages/knowledge-core — 0.7 s
+  PASS    packages/librarian — 0.4 s
+  PASS    packages/library — 3.7 s
+  PASS    packages/local-postgres — 0.2 s
+  PASS    packages/processes — 0.3 s
+  PASS    scripts — 0.3 s
+rerun only these: pnpm test -- --rerun-failed
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

@@ -198,7 +198,7 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     for (const entry of Object.values(olderHooks).flat()) if (entry.matcher !== undefined) entry.matcher = entry.matcher.replace("|PowerShell", "");
     writeFileSync(home.claudeSettings, `${JSON.stringify(older, null, 2)}\n`);
     const upgraded = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.equal(upgraded.hooks["claude-code"], "registered");
+    assert.equal(upgraded.hooks?.["claude-code"], "registered");
     assert.ok(runsFor(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code").PostToolUseFailure?.[0], "PowerShell", true), "the older install now hears PowerShell");
     removeHooks(home.homes);
 

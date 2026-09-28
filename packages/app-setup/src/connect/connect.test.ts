@@ -39,7 +39,6 @@ function fixture(t: { after(fn: () => void): void }) {
   for (const dir of [claude, codex, bin, tools]) mkdirSync(dir);
   const script = path.join(tools, "storytree-mcp.mjs");
   writeFileSync(script, "// installed tool server\n");
-  writeFileSync(path.join(tools, "storytree-hook.mjs"), "// installed hook\n");
   const installed = installedToolServerCommand(process.execPath, script);
   const options = { installed, home, env: { PATH: bin }, run };
   const claudeFile = path.join(home, ".claude.json");

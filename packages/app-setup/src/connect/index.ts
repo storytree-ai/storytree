@@ -69,7 +69,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
     const result = (tools: ConnectionResult["tools"], next: string) => results.push({ harness, settingsFile, tools, hooks: "not verified", next });
     try {
       const installed = installedToolServerCommand(options.installed.command, options.installed.args[0]);
-      if (options.installed.args.length !== 1 || ![installed.command, installed.args[0], hook.script].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");
+      if (options.installed.args.length !== 1 || ![installed.command, installed.args[0]].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");
     } catch {
       result("not connected", "Re-run the storytree installer to restore its bundled Node and tool server, then retry Connect.");
       continue;

@@ -6,7 +6,7 @@ Test code per line of implementation, in code lines (comments and blanks left ou
 
                               test   implementation   ratio
   apps/desktop                 189            1,243    0.15
-  packages/agent-link        3,873            4,449    0.87
+  packages/agent-link        3,929            4,600    0.85
   packages/app-setup           447              953    0.47
   packages/app               1,015            1,830    0.55
   packages/arc-surface         508            1,092    0.47
@@ -19,4 +19,4 @@ Test code per line of implementation, in code lines (comments and blanks left ou
   packages/local-postgres      218              325    0.67
   packages/own                 801              908    0.88
   scripts                    1,453            1,675    0.87
-  all                       43,066           36,620    1.18
+  all                       43,122           36,771    1.17

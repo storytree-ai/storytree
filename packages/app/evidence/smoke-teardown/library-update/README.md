@@ -11,6 +11,8 @@ preserve IDs, links, other fields and changes made since that snapshot.
 - [ ] Append the teardown “As built” text to `definition_1be250107f9f` — `meaning`.
 - [ ] Append the regression and native smoke proof to `definition_b5284f2d8f14` — `meaning`.
 - [ ] Read back all three edited records and verify existing links remain.
+- [ ] File/dispatch the separate agent-link connection-reset regression described in
+  [the CI follow-up](../ci-followup.md), outside this lane's file fence.
 - [ ] Close `increment_8202fb90e611` on `arc_2ae8d2ebe1f6` after merge, using
   `/tmp/smoke-teardown-close.md`; the supervisor holds the claim.
 

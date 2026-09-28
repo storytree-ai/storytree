@@ -91,7 +91,10 @@ test("9.5 a session's reading is worked out when asked, from the transcript last
     await log.append(project, { ...common, session: "T", kind: "session-started", transcript: theirs });
 
     const first = await readContext(log, project, "S", { now: new Date("2026-09-28T02:00:00.000Z") });
-    assert.deepEqual(first, { session: "S", harness: "claude-code", tokens: 1_100, at: "2026-09-28T02:00:00.000Z", source: mine });
+    assert.deepEqual(first, { session: "S", harness: "claude-code", tokens: 1_100,
+      // No record before its one request: all 1,100 tokens are the system prompt and tool list (9.8).
+      composition: { injected: 1_100, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 },
+      at: "2026-09-28T02:00:00.000Z", source: mine });
 
     // The transcript grew with no turn ended and no hook fired: the next ask sees it.
     appendFileSync(mine, jsonl(claudeLine("req_2", { input: 200, read: 50_000, created: 800 })));
@@ -121,7 +124,8 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
 
     const json = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "S" }, json: true, locate });
     assert.equal(json.code, 0);
-    assert.deepEqual({ ...JSON.parse(json.text), at: "-" }, { session: "S", harness: "claude-code", tokens: 494_345, at: "-", source: transcript });
+    assert.deepEqual({ ...JSON.parse(json.text), at: "-" }, { session: "S", harness: "claude-code", tokens: 494_345,
+      composition: { injected: 494_345, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, at: "-", source: transcript });
 
     const nothing = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "nobody" }, locate });
     assert.equal(nothing.code, 0);

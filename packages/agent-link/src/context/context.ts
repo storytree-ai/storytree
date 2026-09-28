@@ -16,6 +16,8 @@
 import { readFile } from "node:fs/promises";
 
 import type { ActivityLog, Line } from "../activity/index.js";
+import { claudeCodeComposition, type Composition } from "./composition.js";
+import { isCount, isRecord, jsonLines, SYNTHETIC } from "./transcript.js";
 
 /** Tokens a transcript's latest own request held, or why there is no figure. Never a 0 standing in for an absence. */
 export type TokenCount = { readonly tokens: number } | { readonly absent: string };
@@ -28,10 +30,14 @@ export type ContextReading = {
   readonly at: string;
   /** The transcript it was read from, when one was named. */
   readonly source?: string;
-} & ({ readonly tokens: number } | { readonly absent: string });
+} & ({
+  readonly tokens: number;
+  /** What those tokens are made of (9.8), or why that is not known. */
+  readonly composition: Composition | { readonly absent: string };
+} | { readonly absent: string });
 
-/** The harness's marker for a line it made itself rather than the model answering. */
-const SYNTHETIC = "<synthetic>";
+/** A Codex rollout's records are not sorted into groups yet: its composition is this absence. */
+export const CODEX_COMPOSITION_ABSENT = "a Codex rollout's composition is not read yet";
 
 /**
  * A Claude Code transcript's figure: its own latest request's `input_tokens` +
@@ -89,37 +95,13 @@ export async function contextReading(lines: readonly Line[], session: string, { 
     return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
   }
   const count = harness === "codex" ? codexTokens(text) : claudeCodeTokens(text);
-  return { ...who, ...count, at, source: transcript };
+  if ("absent" in count) return { ...who, ...count, at, source: transcript };
+  const composition = harness === "codex" ? undefined : claudeCodeComposition(text);
+  return { ...who, tokens: count.tokens, composition: composition ?? { absent: harness === "codex" ? CODEX_COMPOSITION_ABSENT : "the transcript holds no own request to sort" }, at, source: transcript };
 }
 
 /** `session`'s reading in `project`, worked out now from what the hooks recorded. */
 export async function readContext(log: ActivityLog, project: string, session: string, options: { now?: Date } = {}): Promise<ContextReading> {
   const { lines } = await log.since(project, 0);
   return contextReading(lines, session, options);
-}
-
-type JsonRecord = Record<string, unknown>;
-
-/** Each line of `text` that is a JSON object; "empty" for a text with no lines at all. */
-function jsonLines(text: string): JsonRecord[] | "empty" {
-  const lines = text.split("\n").filter((line) => line.trim() !== "");
-  if (lines.length === 0) return "empty";
-  const records: JsonRecord[] = [];
-  for (const line of lines) {
-    try {
-      const parsed: unknown = JSON.parse(line);
-      if (isRecord(parsed)) records.push(parsed);
-    } catch {
-      // A line cut short while the harness writes it, or one that is not JSON: not a reading.
-    }
-  }
-  return records;
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }

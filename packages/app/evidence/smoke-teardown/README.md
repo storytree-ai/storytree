@@ -12,6 +12,7 @@ during teardown cannot start another page. Ordinary window closing still leaves 
 - [Native Electron smoke log](smoke.txt): the restored real project's census passes, followed
   by clean teardown. The log includes stdout and stderr through process exit.
 - [Library patch and supervisor checklist](library-update/README.md).
+- [Unrelated macOS CI failure for the supervisor](ci-followup.md).
 
 The regression lives in `packages/app/src/lifecycle/background.test.ts` under contract 1.7.
 It advances the real follower's timer with Node's mock clock to make the shutdown race
@@ -36,7 +37,10 @@ census and no closed-library or IPC-handler error. Electron's routine platform d
 if present, remain visible. The command's incidental screenshot stays in the throwaway home.
 
 Checks: `pnpm typecheck`, scoped `pnpm test` and `pnpm gate`, under `/tmp/storytree-heavy.lock`.
-The scope includes desktop, app and their dependents; it is not a full-repository test run.
+The initial scope includes desktop, app and their dependents. After merging current main,
+the gate selected the full repository suite because the incoming agent-link changes also
+reach the test harness.
 Guidance is NOT RUN: no generated role or supporting guidance note changed.
-No forest files, live stores, decisions, questions or claims were changed. No durable
-guidance curation, friction or owner redirection arose from this bounded lifecycle fix.
+No forest files, live stores, decisions, questions or claims were changed. No guidance
+curation or owner redirection arose. The CI follow-up records the evidence for a separate
+agent-link fix outside this lane's file fence.

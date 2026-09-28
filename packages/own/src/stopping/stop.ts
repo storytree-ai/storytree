@@ -55,7 +55,7 @@ function sessionAuthority(caller: RunOwner): boolean {
   return caller.agent === undefined || caller.agent === 'orchestrator';
 }
 /** Delegation comes only from registered parentSession edges, never command/folder/age. */
-function owns(caller: RunOwner, owner: RunOwner, runs: readonly RunRecord[], visited = new Set<string>()): boolean {
+export function owns(caller: RunOwner, owner: RunOwner, runs: readonly RunRecord[], visited = new Set<string>()): boolean {
   if (caller.harness !== owner.harness) return false;
   if (sameOwner(caller, owner)) {
     if (sessionAuthority(caller)) return true;
@@ -74,7 +74,7 @@ function sameLifetime(left: RunRecord, right: RunRecord): boolean {
   return left.birth.identity.platform === right.birth.identity.platform && left.birth.identity.boot === right.birth.identity.boot &&
     left.birth.identity.started === right.birth.identity.started;
 }
-function refusal(run: RunRecord, caller: RunOwner, ledger: LedgerReading): string | undefined {
+export function refusal(run: RunRecord, caller: RunOwner, ledger: Pick<LedgerReading, 'machine' | 'runs'>): string | undefined {
   if (run.machine !== ledger.machine) return 'run belongs to another computer';
   if (!owns(caller, run.owner, ledger.runs)) return 'run is outside the caller’s established ownership/delegation scope';
   if (ledger.runs.some(other => other.id !== run.id && sameLifetime(run, other) && !owns(caller, other.owner, ledger.runs))) {

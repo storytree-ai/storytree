@@ -1,10 +1,11 @@
 /** Capability 3: one local inventory reading for the CLI, MCP and closing surfaces. */
 import { ownerSchema, sameOwner } from '../ledger/records.js';
-import type { RunOwner, RunRecord } from '../ledger/records.js';
+import type { RunOwner } from '../ledger/records.js';
 import { observeRuns } from '../observation/observe.js';
 import type { ObservationOptions, ObservedRun, RunObservation } from '../observation/observe.js';
 import { readProcess } from '../process/index.js';
 import type { ProcessIdentity } from '../process/index.js';
+import { owns, refusal } from '../stopping/stop.js';
 
 export interface StopAction {
   readonly command: string;
@@ -58,19 +59,23 @@ export async function listRuns(options: InventoryOptions = {}): Promise<Inventor
   const observation = await observeRuns(options);
   const inspecting = await readProcess(process.pid);
   const now = options.now ?? new Date();
-  const byId = new Map(observation.runs.map(row => [row.run.id, row.run]));
+  const runs = observation.runs.map(row => row.run);
+  const ledger = { machine: observation.machine, runs };
   const rows: InventoryRow[] = [];
   for (const row of observation.runs) {
     const { run } = row;
     // An old run at a reused PID is still a row. Only this exact lifetime is the inspector.
     if (run.machine === observation.machine && run.birth.state === 'live' && inspecting.state === 'live' &&
         sameIdentity(run.birth.identity, inspecting.identity)) continue;
-    const ownership = owner === undefined ? 'other' : relationship(run, owner, byId, observation.machine);
+    const ownership = owner === undefined || !owns(owner, run.owner, runs) ? 'other' :
+      sameOwner(owner, run.owner) ? 'self' : 'descendant';
     if (scope === 'self' && ownership === 'other') continue;
     let stop: StopOffer;
+    const refused = owner === undefined ? undefined : refusal(run, owner, ledger);
     if (run.machine !== observation.machine) stop = unavailable('Recorded on another computer; no local stop authority.');
     else if (owner === undefined) stop = unavailable('No caller session identity; all-session attribution grants no stop authority.');
     else if (ownership === 'other') stop = unavailable('Owned by another session; ask that owner to stop it.');
+    else if (refused) stop = unavailable(refused);
     else if (row.process.state === 'gone') stop = unavailable('This recorded lifetime is already gone.');
     else if (row.process.state === 'unknown') stop = unavailable(`Process identity is uncertain: ${row.process.reason}`);
     else if (options.stopAction === undefined) stop = unavailable('Stop action is not available on this surface.');
@@ -91,24 +96,6 @@ export async function listRuns(options: InventoryOptions = {}): Promise<Inventor
 function unavailable(reason: string): StopOffer { return { available: false, reason }; }
 function sameIdentity(a: ProcessIdentity, b: ProcessIdentity): boolean {
   return a.pid === b.pid && a.platform === b.platform && a.boot === b.boot && a.started === b.started;
-}
-
-/** Follow only explicit local parent links, never folder, command, age or a reused PID. */
-function relationship(run: RunRecord, owner: RunOwner, byId: ReadonlyMap<string, RunRecord>, machine: string): InventoryRow['ownership'] {
-  if (sameOwner(run.owner, owner)) return 'self';
-  const visited = new Set<string>();
-  let child = run;
-  while (child.machine === machine && !visited.has(child.id)) {
-    visited.add(child.id);
-    if (child.owner.parentSession === owner.session && child.owner.harness === owner.harness) return 'descendant';
-    const parent = child.parentRun === undefined ? undefined : byId.get(child.parentRun);
-    if (parent === undefined || parent.machine !== machine ||
-        (!sameOwner(child.owner, parent.owner) &&
-         !(child.owner.parentSession === parent.owner.session && child.owner.harness === parent.owner.harness))) break;
-    if (sameOwner(parent.owner, owner)) return 'descendant';
-    child = parent;
-  }
-  return 'other';
 }
 
 /** Both front doors render the same reading; live work is a successful inventory result. */

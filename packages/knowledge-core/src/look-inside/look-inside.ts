@@ -29,6 +29,16 @@ export interface CoreInput {
   sizeBy: SizeBy;
   /** The replay's current frame, lighting notes in their agents' colours. */
   frame?: ReplayFrame;
+  /** The running sessions the host lists, lit together while no session is selected (ADR-0738). */
+  roster?: readonly RosterEntry[];
+}
+
+/** One listed running session: its colour, and the session ids (its own and its children's) whose reads wear it. */
+export interface RosterEntry {
+  session: string;
+  label: string;
+  colour: string;
+  members: readonly string[];
 }
 
 export interface Entrance {
@@ -50,6 +60,10 @@ export interface DrawnNote {
   tone: "lit" | "reached" | "grey";
   /** The agent that lit it in the frame. */
   agent: string | undefined;
+  /** With no session selected: the colour of the latest listed session to read it. */
+  colour: string | undefined;
+  /** With no session selected: read by more than one listed session. */
+  shared: boolean;
 }
 
 export interface CoreScene {
@@ -103,6 +117,8 @@ export interface LegendEntry {
 const ORCHESTRATOR = "#0072B2";
 const SUBAGENTS = ["#E69F00", "#009E73", "#CC79A7", "#F0E442", "#56B4E9", "#D55E00"];
 const UNKNOWN = "#9AA0AA";
+/** Lightnesses a listed session's subagents take, skipping the session's own. */
+const SHADES = [46, 84, 36, 76, 56, 90, 28];
 /** Ghosts sit beside their replacements, in radians. */
 const GHOST_OFFSET = 0.035;
 /** Notes no shelf reaches orbit outside; ghosts with no placed replacement orbit further out. */
@@ -144,13 +160,16 @@ export function coreScene(input: CoreInput): CoreScene {
 
   const present = new Set(knowledge.notes.keys());
   const reached = new Set(session === undefined ? [] : reads.replay(session, present).agents.flatMap(({ lit }) => lit.map(({ note }) => note)));
+  const live = session === undefined ? liveReads(reads, input.roster ?? [], present) : new Map<string, LiveNote>();
   const notes: DrawnNote[] = [...at].map(([id, point]) => {
     const count = sizeBy === "visits" ? reads.visits(id) : knowledge.linksIn.get(id) ?? 0;
     const placement = core.placed.get(id);
     const agent = frame?.lit.get(id);
+    const lit = live.get(id);
     return {
       id, title: titleOf(knowledge, id), at: point, depth: placement?.depth, ghost: knowledge.ghosts.has(id), loop: placement?.loop,
-      size: 1 + Math.sqrt(count), tone: agent !== undefined ? "lit" : reached.has(id) ? "reached" : "grey", agent,
+      size: 1 + Math.sqrt(count), tone: agent !== undefined || lit !== undefined ? "lit" : reached.has(id) ? "reached" : "grey", agent,
+      colour: lit?.colour, shared: (lit?.sessions.size ?? 0) > 1,
     };
   });
   return { entrances, notes, sizeLabel: SIZE_LABELS[sizeBy], status: reads.status() };
@@ -214,16 +233,52 @@ export function replayFrame(agents: readonly AgentReplay[], step: number, hidden
   return { lit, jumps: jumps.sort((a, b) => a.seq - b.seq), steps: events.length };
 }
 
-/** The legend: the orchestrator, each subagent as the harness named it, then unknown, each its own colour. */
-export function legend(agents: readonly AgentReplay[]): LegendEntry[] {
+/**
+ * The legend: the orchestrator, each subagent as the harness named it, then unknown, each its own
+ * colour. A listed session's `colour` (an hsl) is the orchestrator's, and its subagents wear shades
+ * of that hue (ADR-0738 D5); otherwise the fixed palette.
+ */
+export function legend(agents: readonly AgentReplay[], colour?: string): LegendEntry[] {
   const rank = (agent: string) => (agent === "orchestrator" ? 0 : agent === "unknown" ? 2 : 1);
+  const hsl = colour === undefined ? undefined : /^hsl\((\d+), (\d+)%, (\d+)%\)$/.exec(colour);
+  const subagent = (index: number): string => {
+    if (hsl === null || hsl === undefined) return SUBAGENTS[index % SUBAGENTS.length]!;
+    const lightness = SHADES.filter((shade) => shade !== Number(hsl[3]))[index % (SHADES.length - 1)]!;
+    return `hsl(${hsl[1]}, ${hsl[2]}%, ${lightness}%)`;
+  };
   let next = 0;
   return [...agents]
     .sort((a, b) => rank(a.agent) - rank(b.agent))
     .map(({ agent, label, task }) => ({
       agent, label, task,
-      colour: agent === "orchestrator" ? ORCHESTRATOR : agent === "unknown" ? UNKNOWN : SUBAGENTS[next++ % SUBAGENTS.length]!,
+      colour: agent === "orchestrator" ? (hsl ? colour! : ORCHESTRATOR) : agent === "unknown" ? UNKNOWN : subagent(next++),
     }));
+}
+
+interface LiveNote {
+  colour: string;
+  seq: number;
+  sessions: Set<string>;
+}
+
+/** Every listed session's reads since it started, no fade: each note in its latest reader's colour (ADR-0738 D1-D3). */
+function liveReads(reads: ReadRecord, roster: readonly RosterEntry[], present: ReadonlySet<string>): Map<string, LiveNote> {
+  const live = new Map<string, LiveNote>();
+  for (const { session, colour, members } of roster) {
+    for (const member of members) {
+      for (const { lit } of reads.replay(member, present).agents) {
+        for (const { note, seq } of lit) {
+          const seen = live.get(note);
+          if (seen === undefined) live.set(note, { colour, seq, sessions: new Set([session]) });
+          else {
+            seen.sessions.add(session);
+            if (seq > seen.seq) Object.assign(seen, { colour, seq });
+          }
+        }
+      }
+    }
+  }
+  return live;
 }
 
 function titlesOf(changes: readonly Change[]): Map<string, string> {

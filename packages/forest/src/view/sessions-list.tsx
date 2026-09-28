@@ -4,7 +4,8 @@ import { createRoot } from "react-dom/client";
 import type { Line } from "@storytree/agent-link/readings";
 import { liveReading, type LiveReads } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import { sessionRows, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
+import type { RosterEntry } from "@storytree/knowledge-core";
+import { sessionRoster, sessionRows, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 
 export interface SessionsReads extends LiveReads {
@@ -19,6 +20,10 @@ export function mountSessionsList(container: HTMLElement, options: {
   onHighlight(stories: readonly string[] | undefined, session?: string): void;
   /** Hears each listed session's wisps (capability 5) whenever the rows are redrawn. */
   onWisps?(wisps: readonly SessionWisp[]): void;
+  /** Hears the listed rows as the knowledge core's roster whenever they are redrawn (ADR-0738 D2). */
+  onRoster?(roster: readonly RosterEntry[]): void;
+  /** A row was clicked: select its session, or undefined to go back to every session (ADR-0738 D5). */
+  onSelect?(session: string | undefined): void;
 }) {
   const host = document.createElement("div");
   container.append(host);
@@ -29,13 +34,16 @@ export function mountSessionsList(container: HTMLElement, options: {
   let rows: SessionRow[] = [];
   let details: ReadonlyMap<string, SessionDetails> = new Map();
   let highlighted: string | undefined;
+  let selected: string | undefined;
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined}
-    error={error} highlighted={highlighted} onHighlight={options.onHighlight} />);
+    error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
+    {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   const refresh = (now: Date): void => {
     if (stopped || tree === undefined) return;
     rows = sessionRows(tree, lines, arcs, now, details);
     options.onWisps?.(sessionWisps(rows, lines, now));
+    options.onRoster?.(sessionRoster(rows));
     draw();
   };
   draw();
@@ -61,6 +69,8 @@ export function mountSessionsList(container: HTMLElement, options: {
     showDetails(next: ReadonlyMap<string, SessionDetails>) { details = next; refresh(new Date()); },
     /** Highlight a session's row from its wisp, or none. */
     hover(session: string | undefined) { highlighted = session; draw(); },
+    /** Mark the session the knowledge core has selected, or none. */
+    select(session: string | undefined) { selected = session; draw(); },
     stop() {
       stopped = true;
       reading.stop();
@@ -71,22 +81,28 @@ export function mountSessionsList(container: HTMLElement, options: {
   };
 }
 
-export function SessionsList({ rows, loading = false, error, highlighted, onHighlight }: {
+export function SessionsList({ rows, loading = false, error, highlighted, selected, onHighlight, onSelect }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   error?: string | undefined;
   /** The session whose wisp is hovered on the forest. */
   highlighted?: string | undefined;
+  /** The session the knowledge core has selected. */
+  selected?: string | undefined;
   onHighlight(stories: readonly string[] | undefined, session?: string): void;
+  onSelect?(session: string | undefined): void;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
   const visible: { row: SessionRow; depth: number }[] = [];
-  const visit = (list: readonly SessionRow[], depth: number): void => {
+  /** Each row's top-level session: a click on a child selects its parent, whose reads it shares. */
+  const rootOf = new Map<string, string>();
+  const visit = (list: readonly SessionRow[], depth: number, top?: string): void => {
     for (const row of list) {
       visible.push({ row, depth });
-      if (expanded.has(row.id)) visit(row.children, depth + 1);
+      rootOf.set(row.id, top ?? row.id);
+      if (expanded.has(row.id)) visit(row.children, depth + 1, top ?? row.id);
     }
   };
   visit(rows, 0);
@@ -113,7 +129,11 @@ export function SessionsList({ rows, loading = false, error, highlighted, onHigh
     {!loading && rows.length === 0 && <p>No running sessions</p>}
     <ul>
       {visible.map(({ row, depth }) => <li key={row.id} style={{ marginLeft: Math.min(depth, 5) * 14 }}>
-        <div className="session-row" data-session-id={row.id} data-state={row.state} data-highlighted={row.id === highlighted || undefined} tabIndex={0}
+        <div className="session-row" data-session-id={row.id} data-state={row.state} data-highlighted={row.id === highlighted || undefined}
+          data-selected={row.id === selected || undefined} tabIndex={0}
+          onClick={() => { const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); }}
+          onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault(); const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); } }}
           aria-label={`${row.label} · ${row.agent}${row.needsYou ? " · needs you" : ""}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
@@ -121,7 +141,7 @@ export function SessionsList({ rows, loading = false, error, highlighted, onHigh
           <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}`}>{row.label}</span>
           {row.children.length > 0 && <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} ${row.children.length} children of ${row.label}`}
-            onClick={() => setExpanded(toggle(expanded, row.id))}>+{row.children.length}</button>}
+            onClick={event => { event.stopPropagation(); setExpanded(toggle(expanded, row.id)); }}>+{row.children.length}</button>}
           {row.needsYou && <span className="session-needs-you">needs you</span>}
           <span className="session-context-slot" aria-hidden="true" />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>

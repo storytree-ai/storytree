@@ -13,4 +13,4 @@ export { sessionColour, sessionWisps } from "./agent-claims/agent-claims.js";
 export type { SessionWisp } from "./agent-claims/agent-claims.js";
 export { edgeMarkers, openingTurn, turnToIsland, type EdgeMarker, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";
 
-export { sessionRows, type SessionRow, type SessionDetails } from "./sessions-list/sessions-list.js";
+export { sessionRoster, sessionRows, type SessionRow, type SessionDetails } from "./sessions-list/sessions-list.js";

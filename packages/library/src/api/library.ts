@@ -9,7 +9,7 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { DecisionNumberPlan, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Related, RelatedOptions } from "../knowledge/index.js";
+import type { DecisionNumberPlan, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Ranked, RankOptions, Related, RelatedOptions } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
@@ -213,6 +213,12 @@ export interface Library {
   editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null>;
   /** The live artifacts holding every word of `query`, ignoring case, in creation order. */
   search(query: string): Promise<Note[]>;
+  /**
+   * The live artifacts ranked by how close their meaning is to `query`, best first, ten unless
+   * `limit` says (capability 14, ADR-0664). With no embedding model to hand it gives search()'s
+   * word matches instead, and says why.
+   */
+  rank(query: string, options?: RankOptions): Promise<Ranked>;
   /** The live artifacts linking to artifact `noteId`, in creation order. */
   relatedNotes(noteId: string): Promise<Note[]>;
   /**
@@ -502,6 +508,10 @@ class LibraryHandle implements Library {
 
   search(query: string): Promise<Note[]> {
     return this.#project.knowledge.search(query);
+  }
+
+  rank(query: string, options?: RankOptions): Promise<Ranked> {
+    return this.#project.knowledge.rank(query, options);
   }
 
   relatedNotes(noteId: string): Promise<Note[]> {

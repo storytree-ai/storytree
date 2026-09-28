@@ -166,7 +166,9 @@ function runNodeTest(env, files) {
   return new Promise((resolve, reject) => {
     child = spawn(process.execPath, ["--import", "tsx", "--test", ...testArgs, ...files], {
       cwd: root,
-      env,
+      // No test loads the embedding model, so no run, CI included, downloads it (ADR-0664):
+      // ranked search is tested with a fake embedder, and everything else ranks by words.
+      env: { ...env, STORYTREE_EMBEDDER: "off" },
       stdio: "inherit",
     });
     child.on("error", reject);

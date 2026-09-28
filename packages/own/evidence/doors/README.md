@@ -24,7 +24,7 @@ Fence expansions were requested in the lane conversation but not granted before 
 - `front-doors.patch`: thin own family; offline MCP registration; tests exercising the built standalone CLI and in-memory Codex MCP against real native child processes with app/database absent; CLI native staging; and actions that name only the available entry point.
 - `instructions.patch`: the required source card addition, outside the fence and **not applied**. Apply alongside front-doors.patch only once ownership is extended. Both patches pass git apply --check against this landing.
 - The shared builder/Windows payload staging is still to implement and prove through a built MCP test on Linux/macOS/Windows and both Windows payload architectures. The prepared patch is not a claim of completed installed integration.
-- Claude offline identity remains unresolved. Do not recover authority from timing, a synthetic MCP session or a stale server environment. No clear command was added because capability 5 has no API.
+- Claude offline identity remains unresolved. Do not recover authority from timing, a synthetic MCP session or a stale server environment. Capability 5’s clearOwned/readClosing API landed in #157 while this PR was starting. No clear door is enabled here; the resumed integration should now wire own clear through that API and preserve removed, retained, failed and gaps separately.
 - The standalone CLI patch passes the existing app lifecycle reading into own as explicitly limited/unknown shared work: no invented PID/lifetime, no session stop action, and the app's management command named. Give MCP the same public shared reading when resuming.
 
 ## Evidence and library hand-off

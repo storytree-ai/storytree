@@ -1,6 +1,6 @@
 /** Capability 10 · Per-user settings, owned by the agent link (ADR-0729). */
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { storytreeHome } from "../routing/index.js";
@@ -64,12 +64,27 @@ function checkedValue(value: unknown): number {
 }
 
 function readOverrides(home: string): Partial<Record<"context-guidance", number>> {
+  const file = path.join(home, "settings.json");
   let text: string;
   try {
-    text = readFileSync(path.join(home, "settings.json"), "utf8");
+    text = readFileSync(file, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
-    throw error;
+    // A dangling symlink exists but cannot be read; it must not become a default or be replaced.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" && lstatSync(file, { throwIfNoEntry: false }) === undefined) return {};
+    throw new Error(`Cannot read settings file ${JSON.stringify(file)}: ${(error as Error).message}`, { cause: error });
   }
-  return JSON.parse(text) as Partial<Record<"context-guidance", number>>;
+  try {
+    const stored: unknown = JSON.parse(text);
+    if (stored === null || typeof stored !== "object" || Array.isArray(stored)) {
+      throw new Error("expected a JSON object of setting names and values");
+    }
+    const overrides: Partial<Record<"context-guidance", number>> = {};
+    for (const [name, value] of Object.entries(stored)) {
+      checkName(name);
+      overrides[name] = checkedValue(value);
+    }
+    return overrides;
+  } catch (error) {
+    throw new Error(`Invalid settings file ${JSON.stringify(file)}: ${(error as Error).message} Repair it before reading or changing settings.`, { cause: error });
+  }
 }

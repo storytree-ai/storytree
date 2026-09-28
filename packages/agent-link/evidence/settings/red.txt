@@ -116,3 +116,79 @@ test at packages/cli/src/settings.test.ts:1:492
     operator: 'strictEqual',
     diff: 'simple'
   }
+✔ 10.1 without a settings file, context guidance reads as 700,000 tokens with its type and meaning (1.196423ms)
+✖ 10.4 invalid settings are reported on read and set, and their bytes are preserved (2.176164ms)
+✖ 10.4 an unreadable settings path is reported and a set does not replace it (0.867468ms)
+✔ 10.3 unknown names and values that are not positive whole numbers are refused without changing the file (1.285221ms)
+✖ settings 10.2: set persists in the storytree home and show reads it back as set (1449.157361ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 2
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1818.84222
+
+✖ failing tests:
+
+test at packages/agent-link/src/settings/settings.test.ts:1:1106
+✖ 10.4 invalid settings are reported on read and set, and their bytes are preserved (2.176164ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception (reported): {"context-guidance":null}
+      at <anonymous> (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/settings/settings.test.ts:42:14)
+      at withTempDir (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/settings/settings.test.ts:28:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/settings/settings.test.ts:1:2360
+✖ 10.4 an unreadable settings path is reported and a set does not replace it (0.867468ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /cannot read settings file/i. Input:
+  
+  'EISDIR: illegal operation on a directory, read'
+  
+      at Object.<anonymous> (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/settings/settings.test.ts:64:16)
+      at expectedException (node:assert:578:17)
+      at expectsError (node:assert:703:21)
+      at strict.throws (node:assert:759:3)
+      at <anonymous> (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/settings/settings.test.ts:62:14)
+      at withTempDir (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/settings/packages/agent-link/src/settings/settings.test.ts:56:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'EISDIR: illegal operation on a directory, read',
+    expected: /cannot read settings file/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/settings.test.ts:1:506
+✖ settings 10.2: set persists in the storytree home and show reads it back as set (1449.157361ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/settings/packages/cli/src/settings.test.ts:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

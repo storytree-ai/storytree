@@ -24,7 +24,14 @@ function fixture() {
 test("1.1 / 1.5: a delivered payload includes every imported chunk and rejects a damaged or wrong-architecture runtime", () => {
   const f = fixture();
   try {
+    const runtime = path.join(f.tools.dir, "node_modules", "@huggingface", "transformers", "package.json");
+    mkdirSync(path.dirname(runtime), { recursive: true });
+    writeFileSync(runtime, '{"name":"@huggingface/transformers"}');
+    writePayloadManifest(f.tools.dir, "arm64", "24.21.0");
     assert.equal(verifyPayload(f.install, "arm64", "win32").node, f.tools.node);
+    writeFileSync(runtime, "changed without a release");
+    assert.throws(() => verifyPayload(f.install, "arm64", "win32"), /Damaged payload file/);
+    writeFileSync(runtime, '{"name":"@huggingface/transformers"}');
     assert.throws(() => verifyPayload(f.install, "x64", "win32"), /architecture/i);
     rmSync(path.join(f.tools.dir, "chunks", "shared.mjs"));
     assert.throws(() => verifyPayload(f.install, "arm64", "win32"), /shared.mjs/);

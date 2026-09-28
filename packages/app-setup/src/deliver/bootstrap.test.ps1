@@ -43,7 +43,7 @@ try { Select-StorytreeInstaller $release $manifest 'x64'; throw 'accepted stale 
 $file = [IO.Path]::GetTempFileName()
 try {
   [IO.File]::WriteAllText($file, 'interrupted download')
-  try { Assert-StorytreeDownload $file ('a' * 64); throw 'accepted damaged download' } catch { Assert ($_.Exception.Message -match 'checksum') 'reject damaged installer before running it' }
+  try { Assert-StorytreeDownload $file ('a' * 64); throw 'accepted damaged download' } catch { Assert ($_.Exception.Message -match 'checksum') "reject damaged installer before running it: $($_.Exception.Message)" }
 } finally { Remove-Item -LiteralPath $file }
 $report = @{ tools = @{ node = 'installed node with spaces'; cli = 'installed cli with spaces' } }
 $script:Selected = ''

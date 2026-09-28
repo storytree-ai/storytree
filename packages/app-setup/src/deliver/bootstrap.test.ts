@@ -16,7 +16,10 @@ for (const { command, required } of engines) {
     const found = spawnSync(command, ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"], { encoding: "utf8" });
     if (found.error && !required) return t.skip(`${command} unavailable here; Windows CI runs this proof`);
     assert.ifError(found.error);
-    const result = spawnSync(command, ["-NoProfile", "-File", fileURLToPath(new URL("./bootstrap.test.ps1", import.meta.url))], { encoding: "utf8" });
+    // A user opens Windows PowerShell afresh; a module path inherited from pwsh (CI's shell) would load 7's modules into 5.1.
+    const env = { ...process.env };
+    if (command === "powershell.exe") for (const name of Object.keys(env)) if (name.toUpperCase() === "PSMODULEPATH") delete env[name];
+    const result = spawnSync(command, ["-NoProfile", "-File", fileURLToPath(new URL("./bootstrap.test.ps1", import.meta.url))], { encoding: "utf8", env });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /delivery bootstrap PASS/);
   });

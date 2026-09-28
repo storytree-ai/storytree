@@ -342,7 +342,7 @@ function prompted(harness: "claude-code" | "codex", folder: string, prompt: stri
   return JSON.stringify({ ...JSON.parse(recorded(harness, "user-prompt-submit", folder)), prompt, session_id: session });
 }
 
-test("3.7 at each prompt, the project's definitions for the terms it names are added for the agent: whole words in any case or plural, at most five, longest first, each once a session; a harness's own notice gets none, and with storytree stopped nothing is printed", async () => {
+test("3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   try {
@@ -351,7 +351,8 @@ test("3.7 at each prompt, the project's definitions for the terms it names are a
     const claim = await define("Claim", "Holding a capability while you build it.\nA second agent is refused.");
     const quiet = await define("Quiet time", "How long a session may say nothing before it reads as idle.");
     await define("Id", "Too short to look for.");
-    await define("Front cover", "A decision that is the way into a story's knowledge.");
+    const frontMeaning = "A decision that is the way into a story's knowledge. ".repeat(5);
+    const front = await define("Front cover", frontMeaning);
     await withTempDir(async (dir) => {
       const folder = projectFolder(dir, project);
       const home = storytreeHome(dir, true);
@@ -380,9 +381,11 @@ test("3.7 at each prompt, the project's definitions for the terms it names are a
       const named = await ask("codex", "Each arc, story, capability, contract, increment and front cover", "cx-1");
       assert.deepEqual(
         named?.split("\n").slice(1).map((line) => line.split(" (")[0]),
-        ["- Front cover", "- Capability", "- Increment", "- Contract", "- Story"],
-        "at most five, the longest terms first",
+        ["- Front cover", "- Capability", "- Increment", "- Contract", "- Story", "- Arc"],
+        "every matching definition, the longest terms first",
       );
+      assert.equal(named?.split("\n")[1], `- Front cover (${front.id}): ${frontMeaning.slice(0, 199)}…`, "meanings cut to 200 characters");
+      assert.equal(await ask("codex", "Each arc, story, capability, contract, increment and front cover", "cx-1"), undefined, "all six remembered for the session");
     });
   } finally {
     await storytree.close();

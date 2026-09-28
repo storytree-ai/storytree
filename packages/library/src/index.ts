@@ -1,7 +1,8 @@
 // @storytree/library: the project library every later storytree story reads and writes, and the
 // only way to reach it (capability 7 · Library API, the library story). At run time this entry
 // exports connect() and the errors a caller may need to catch by class. Everything else it exports
-// is a type, and none of them reaches a connection pool, a store or a table. The package exports
+// is a type, and none of them reaches a connection pool, a store or a table, but for one: a
+// connection's own database beside the projects (contract 7.7). The package exports
 // nothing but this entry, so the internals behind it cannot be imported at all.
 export { connect } from "./api/index.js";
 export type { Change, Changes, Library, Storytree } from "./api/index.js";

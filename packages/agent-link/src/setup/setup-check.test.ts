@@ -204,7 +204,7 @@ test("8.3 with storytree closed, a session start opens it", async () => {
     assert.equal(locateStorytree({ dataDir }).running, false, "closed to begin with");
     try {
       const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
-      assert.deepEqual(report.storytree, { state: "opened", url: testServerUrl() });
+      assert.deepEqual(report.storytree, { state: "opened", library: { url: testServerUrl() } });
       assert.deepEqual(locateStorytree({ dataDir }), { running: true, url: testServerUrl() });
     } finally {
       const record = `${dataDir}.owner.json`;

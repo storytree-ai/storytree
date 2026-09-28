@@ -61,7 +61,13 @@ export interface Storytree {
   snapshot(name: string): Promise<ProjectSnapshot>;
   /** Restore a snapshot into the project called `name`, only if it holds no record and no history (1.7, 1.8). */
   restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
-  /** Close this connection and every project opened through it. */
+  /**
+   * A database of the caller's own called `name`, beside the projects on the same server, local or
+   * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, never listed
+   * as a project, and closed with this connection. A project's database is never handed out.
+   */
+  ownDatabase(name: string): Promise<Pool>;
+  /** Close this connection, every project opened through it, and its own databases. */
   close(): Promise<void>;
 }
 
@@ -109,6 +115,7 @@ export type ProjectSeams = CloudSqlSeams & { readonly embedder?: EmbedderSource 
 class ServerConnection implements Storytree {
   readonly #server: ServerAccess;
   readonly #projects = new Set<ProjectLibrary>();
+  readonly #own = new Map<string, Promise<Pool>>();
   readonly #embedder: EmbedderSource | undefined;
   #closed = false;
 
@@ -135,6 +142,23 @@ class ServerConnection implements Storytree {
     } catch (error) {
       throw this.#server.explain(error);
     }
+  }
+
+  ownDatabase(name: string): Promise<Pool> {
+    if (name.startsWith(PROJECT_DATABASE_PREFIX) || name === "" || name === "postgres") {
+      return Promise.reject(new Error(`"${name}" is not a database of its own to hand out: it is a project's, or the server's.`));
+    }
+    let pool = this.#own.get(name);
+    if (pool === undefined) {
+      pool = this.#createDatabaseIfMissing(name).then(
+        () => this.#server.pool(name),
+        (error: unknown) => Promise.reject(this.#server.explain(error)),
+      );
+      // A failed opening is forgotten, so the next ask tries again.
+      pool.catch(() => this.#own.delete(name));
+      this.#own.set(name, pool);
+    }
+    return pool;
   }
 
   async listProjects(): Promise<string[]> {
@@ -174,6 +198,8 @@ class ServerConnection implements Storytree {
     this.#closed = true;
     try {
       await Promise.all([...this.#projects].map((project) => project.close()));
+      const own = await Promise.allSettled(this.#own.values());
+      await Promise.all(own.map((opened) => (opened.status === "fulfilled" && !opened.value.ended ? opened.value.end() : undefined)));
       await this.#server.admin.end();
     } finally {
       this.#server.close();

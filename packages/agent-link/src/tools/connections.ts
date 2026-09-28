@@ -1,10 +1,13 @@
 /**
  * The tool server's connections to storytree: one to the library's server and one to the agent
- * activity log, both at the address project routing gives, and each project's library once opened.
- * They are made on first use and kept, and dropped when storytree moves (a new address) or goes
- * away, so the next call starts afresh.
+ * activity log, both where project routing says the library is (the app's local database or a Cloud
+ * SQL instance), and each project's library once opened. They are made on first use and kept, and
+ * dropped when storytree moves (a new address or location) or goes away, so the next call starts
+ * afresh. The log keeps its lines in the library connection's own database (ADR-0735 D3).
  */
-import { connect, ConnectionError, type Library, type Storytree } from "@storytree/library";
+import { connect, ConnectionError, type ConnectOptions, type Library, type Storytree } from "@storytree/library";
+
+import { withConnectTimeout } from "../routing/index.js";
 
 import { openActivityLog, thisMachine, type ActivityLog } from "../activity/index.js";
 
@@ -17,38 +20,39 @@ export interface Reached {
 }
 
 export class Connections {
-  #url: string | undefined;
+  #where: string | undefined;
   #storytree: Promise<Storytree> | undefined;
   #log: Promise<ActivityLog> | undefined;
   readonly #libraries = new Map<string, Promise<Library>>();
 
-  /** The connection to the storytree at `url`: the library's server, where projects are opened. */
-  async server(url: string): Promise<Storytree> {
-    if (this.#url !== url) {
+  /** The connection to the library where `library` says: its server, where projects are opened. */
+  async server(library: ConnectOptions): Promise<Storytree> {
+    const where = JSON.stringify(library);
+    if (this.#where !== where) {
       await this.close();
-      this.#url = url;
+      this.#where = where;
     }
-    return (this.#storytree ??= forgetOnFailure(connect({ url, connectTimeoutMs: CONNECT_TIMEOUT_MS }), () => (this.#storytree = undefined)));
+    return (this.#storytree ??= forgetOnFailure(connect(withConnectTimeout(library, CONNECT_TIMEOUT_MS)), () => (this.#storytree = undefined)));
   }
 
-  /** The library of `project` and the activity log, on the storytree at `url`. */
-  async reach(url: string, project: string): Promise<Reached> {
-    const storytree = await this.server(url);
+  /** The library of `project` and the activity log, where `library` says. */
+  async reach(library: ConnectOptions, project: string): Promise<Reached> {
+    const storytree = await this.server(library);
     const machine = thisMachine();
-    const opened = () => openActivityLog(url, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) });
+    const opened = () => openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) });
     const log = (this.#log ??= forgetOnFailure(opened(), () => (this.#log = undefined)));
-    let library = this.#libraries.get(project);
-    if (library === undefined) {
-      library = forgetOnFailure(storytree.openProject(project), () => this.#libraries.delete(project));
-      this.#libraries.set(project, library);
+    let opening = this.#libraries.get(project);
+    if (opening === undefined) {
+      opening = forgetOnFailure(storytree.openProject(project), () => this.#libraries.delete(project));
+      this.#libraries.set(project, opening);
     }
     try {
-      const [openedLibrary, openedLog] = await Promise.all([library, log]);
+      const [openedLibrary, openedLog] = await Promise.all([opening, log]);
       return { library: openedLibrary, log: openedLog };
     } catch (error) {
       // Both openings started together. Let both discard their timed-out sockets before
       // answering, so an immediate retry cannot pick up the other failed opening.
-      await Promise.allSettled([library, log]);
+      await Promise.allSettled([opening, log]);
       // Either handshake can expire first. Give the same actionable answer for the log as
       // the library gives for its pools.
       if (error instanceof Error && /timeout expired|timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(error.message)) {
@@ -65,8 +69,9 @@ export class Connections {
     this.#storytree = undefined;
     this.#log = undefined;
     this.#libraries.clear();
-    this.#url = undefined;
-    await Promise.allSettled([storytree?.then((server) => server.close()), log?.then((opened) => opened.close())]);
+    this.#where = undefined;
+    await Promise.allSettled([log?.then((opened) => opened.close())]);
+    await Promise.allSettled([storytree?.then((server) => server.close())]);
   }
 }
 

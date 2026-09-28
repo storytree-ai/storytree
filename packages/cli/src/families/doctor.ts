@@ -20,6 +20,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import { openActivityLog, runSetupCheck, setUpProject, type SetupReport } from "@storytree/agent-link";
+import type { ConnectOptions } from "@storytree/library";
 
 import { Refusal, type Answer } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -82,14 +83,20 @@ function machineSaid(report: SetupReport): string[] {
 }
 
 /** When storytree last heard from a hook in `project`, and from which harness. */
-async function lastHook(url: string, project: string): Promise<string> {
-  const log = await openActivityLog(url);
+async function lastHook(library: ConnectOptions, project: string): Promise<string> {
+  const { connect } = await import("@storytree/library");
+  const storytree = await connect(library);
+  const log = await openActivityLog(storytree).catch(async (error: unknown) => {
+    await storytree.close();
+    throw error;
+  });
   try {
     const hook = (await log.since(project, 0)).lines.filter((line) => line.source === "hook").at(-1);
     if (hook === undefined) return "No hook has reached storytree in this project yet: start an agent session here.";
     return `Hooks last seen firing: ${hook.at}${hook.harness === undefined ? "" : `, from ${HARNESSES[hook.harness as keyof typeof HARNESSES] ?? hook.harness}`}.`;
   } finally {
     await log.close();
+    await storytree.close();
   }
 }
 
@@ -104,16 +111,21 @@ const doctor: Verb = {
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),
     });
     if (report.storytree.state === "not running") throw new Refusal(report.storytree.message);
-    const said = [report.storytree.state === "opened" ? "storytree was closed, so it has been opened." : "storytree is running."];
+    const { library } = report.storytree;
+    const said = [
+      library.cloudSql !== undefined
+        ? `The library is on the Cloud SQL instance ${library.cloudSql.instance}, signed in to as ${library.cloudSql.user} (the library setting).`
+        : report.storytree.state === "opened" ? "storytree was closed, so it has been opened." : "storytree is running.",
+    ];
     said.push(...hooksSaid(report));
     const next = [];
     const setUp = args.text("set-up");
     if (report.project.status === "set up") {
       said.push(`This folder is storytree project "${report.project.name}".`);
-      said.push(await lastHook(report.storytree.url, report.project.name));
+      said.push(await lastHook(library, report.project.name));
     } else if (setUp !== undefined) {
       const { connect } = await import("@storytree/library");
-      const storytree = await connect({ url: report.storytree.url });
+      const storytree = await connect(library);
       try {
         await setUpProject({ folder: context.cwd, project: setUp, storytree });
       } finally {

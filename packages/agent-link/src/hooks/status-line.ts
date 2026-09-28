@@ -18,8 +18,10 @@
  */
 import path from "node:path";
 
+import type { ConnectOptions } from "@storytree/library";
+
 import type { Line } from "../activity/index.js";
-import { route } from "../routing/index.js";
+import { route, withConnectTimeout } from "../routing/index.js";
 
 /** How long the status line waits for storytree before showing nothing. */
 const WAIT_MS = 2_000;
@@ -32,7 +34,7 @@ export async function statusLine(input: string): Promise<string> {
     const where = route(folder);
     if (where.status === "not-a-project") return "";
     if (where.status === "not-running") return "storytree isn't running";
-    return (await withinTime(lineFor(where.url, where.project, session, folder))) ?? "";
+    return (await withinTime(lineFor(where.library, where.project, session, folder))) ?? "";
   } catch {
     return "";
   }
@@ -46,15 +48,15 @@ function sessionIn(input: unknown): { session?: string; folder?: string } {
   return { ...(typeof session === "string" && session !== "" ? { session } : {}), ...(folder === undefined ? {} : { folder }) };
 }
 
-async function lineFor(url: string, project: string, session: string, folder: string): Promise<string> {
+async function lineFor(where: ConnectOptions, project: string, session: string, folder: string): Promise<string> {
   const [{ openActivityLog }, { connect }, { claimsFrom }, { QUIET_MS, sessionsFrom }] = await Promise.all([
     import("../activity/index.js"),
     import("@storytree/library"),
     import("../claims/index.js"),
     import("../sessions/index.js"),
   ]);
-  const log = await openActivityLog(url, { connectTimeoutMs: WAIT_MS });
-  const storytree = await connect({ url });
+  const storytree = await connect(withConnectTimeout(where, WAIT_MS));
+  const log = await openActivityLog(storytree, { connectTimeoutMs: WAIT_MS });
   try {
     const [{ lines }, library] = await Promise.all([log.since(project, 0), storytree.openProject(project)]);
     const now = Date.now();

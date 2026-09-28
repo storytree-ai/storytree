@@ -1,6 +1,7 @@
 /**
  * The storytree 0.3 desktop app's main process. It starts the app's own Postgres on its data
- * directory (~/.storytree/0.3/pgdata) through local-postgres, connects the library through its
+ * directory (~/.storytree/0.3/pgdata) through local-postgres, or, when the user's library setting
+ * names a Cloud SQL instance, starts none and uses the instance; connects the library through its
  * public API, opens the project asked for (`--project <name>`, else `storytree` if there is one,
  * else the first), and shows it. It answers the page's questions (bridge.ts) through
  * @storytree/app's pageReads: the projects, a project's tree, and the library's changes and the
@@ -38,6 +39,7 @@ import {
   buildLabel,
   electronIn,
   launchToRecord,
+  openAppLibrary,
   pageReads,
   projectSelection,
   refreshOwnHealth,
@@ -151,9 +153,16 @@ async function run(): Promise<void> {
   let problem: string | undefined;
   let project: string | undefined;
   try {
-    postgres = await start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) });
-    storytree = await connect({ url: postgres.url });
-    reads = pageReads({ storytree, serverUrl: postgres.url });
+    // Where the library lives is the user's library setting: this app's own Postgres (the default),
+    // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
+    const opened = await openAppLibrary({
+      home: home.dir,
+      startLocal: () => start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) }),
+      connect,
+    });
+    ({ storytree, postgres } = opened);
+    console.log(`library: ${opened.where}`);
+    reads = pageReads({ storytree });
     projects = projectSelection({ listProjects: () => open().listProjects(), file: path.join(home.dir, "project-choice.json") });
     project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();

@@ -1,0 +1,40 @@
+{
+  "snapshot": "/home/mickh/storytree-lanes/snapshots/2026-09-28T07-26-00-491Z.json",
+  "records": 1628,
+  "panelBox": {
+    "x": 340,
+    "y": 228.5,
+    "width": 760,
+    "height": 503
+  },
+  "inputBox": {
+    "x": 866,
+    "y": 362.5,
+    "width": 159.0625,
+    "height": 37
+  },
+  "narrowBox": {
+    "x": 17,
+    "y": 24,
+    "width": 326,
+    "height": 592
+  },
+  "errors": [],
+  "passed": [
+    "Settings enabled",
+    "all reader settings",
+    "default value/source/meaning",
+    "values on the right",
+    "keyboard save",
+    "source changes on save",
+    "CLI refusal text and unchanged bytes",
+    "transport retry",
+    "reopen persisted value",
+    "Cloud SQL fields, refusal and save",
+    "slow save preserves subsequent focus",
+    "read retry without fabricated defaults",
+    "native dialog focus and Escape return",
+    "narrow viewport",
+    "forest smoke census"
+  ]
+}

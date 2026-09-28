@@ -1,3 +1,4 @@
+import { mountSettings, type SettingsBridge } from "@storytree/agent-link/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";
 import { appMenuStyles } from "./styles.js";
@@ -22,6 +23,14 @@ export function mountAppMenu(host: HTMLElement, options: {
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
   const helpHost = menu.querySelector<HTMLElement>("[data-app-help]")!;
   const help = options.mountHelp(helpHost, gear);
+  const settingsHost = menu.querySelector<HTMLElement>("[data-app-settings]")!;
+  const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge }) | null;
+  const settings = mountSettings(settingsHost, {
+    readSettings: () => desktop!.storytree.readSettings(),
+    saveSetting: (name, values) => desktop!.storytree.saveSetting(name, values),
+  }, { returnFocus: gear });
+  // Dismiss the popover before opening the modal, so its focus return cannot steal dialog focus.
+  settingsHost.addEventListener("click", () => menu.hidePopover(), { capture: true });
   const updates = mountUpdates(menu, options.checkForUpdates);
   const expanded = (event: ToggleEvent) => {
     gear.setAttribute("aria-expanded", String(event.newState === "open"));
@@ -51,6 +60,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     stop(): void {
       updates.stop();
       help.stop();
+      settings.stop();
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);
       menu.removeEventListener("beforetoggle", expanded);
       host.replaceChildren();

@@ -65,3 +65,39 @@ results:
 $ pnpm test-ratio
                               test   implementation   ratio
   all                       43,128           36,750    1.17
+
+After merging origin/main 3f80b21 (branch merge 58ea490)
+$ flock /tmp/storytree-heavy.lock pnpm install
+PASS (lockfile current)
+$ flock /tmp/storytree-heavy.lock pnpm gate
+Scope and final tables excerpt:
+scope: full — everything — packages/agent-link/evidence/guidance-reading/README.md changed in @storytree/agent-link, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, packages/own, scripts
+
+results:
+  PASS    apps/desktop — 1.1 s
+  PASS    packages/agent-link — 11.7 s
+  PASS    packages/app — 2.6 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.6 s
+  PASS    packages/cli — 8.5 s
+  PASS    packages/forest — 1.6 s
+  PASS    packages/forest-world — 9.8 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    packages/librarian — 1.1 s
+  PASS    packages/library — 11.8 s
+  PASS    packages/local-postgres — 3.4 s
+  PASS    packages/own — 0.7 s
+  PASS    scripts — 4.7 s
+test Postgres: stopped (0.1 s)
+
+results:
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits
+
+Existing live Cloud SQL proofs remain skipped without owner credentials.
+
+$ pnpm test-ratio
+                              test   implementation   ratio
+  all                       43,149           36,850    1.17

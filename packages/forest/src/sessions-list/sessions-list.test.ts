@@ -20,12 +20,13 @@ const arc = { arc: { id: "arc", fields: { title: "Build" } }, state: "active",
   increments: [{ id: "inc", fields: { title: "Finish signup", status: "active", touches: ["cap-two"] } }],
   questions: [{ id: "q", fields: { title: "Choose wording", lifecycle: "open" } }] } as ArcView;
 
-test("one row per non-ended session, plain idle, reason and held islands follow standing claims", () => {
+test("one row per non-ended claiming session, plain idle, reason and held islands follow standing claims", () => {
   const lines = log(claimed("cap-one", "Build signup"), claimed("cap-two", "Build signup"),
-    { ...off, kind: "session-started", at: "2026-09-28T10:00:00Z" },
-    { ...child, kind: "session-ended" });
+    { ...off, kind: "claimed", increment: "tidy", reason: "", at: "2026-09-28T10:00:00Z" },
+    { ...child, kind: "session-ended" },
+    { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });
   const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => row.id), ["parent", "off"]);
+  assert.deepEqual(rows.map(row => row.id), ["parent", "off"], "a session holding no claim gets no row");
   assert.equal(rows[0]!.label, "Build signup");
   assert.deepEqual(rows[0]!.stories, ["one", "two"]);
   assert.equal(rows[1]!.state, "idle");
@@ -54,22 +55,35 @@ test("explicit children nest once, propagate needs-you and islands; ending a par
   assert.deepEqual(sessionRows(tree, lines, [arc], now).map(row => row.id), ["child"]);
 });
 
-test("off-plan rows retain distinct files and command evidence; claimed edits stay out and islands are never guessed", () => {
+test("off-plan work stays out of the list until 5 distinct unclaimed files, then shows its files and command evidence; claimed edits stay out and islands are never guessed", () => {
   const lines = log({ ...off, kind: "file-edited", files: ["src/a.ts", "src/b.ts"] },
-    { ...off, kind: "file-edited", files: ["src/a.ts"] },
+    { ...off, kind: "file-edited", files: ["src/a.ts", "src/c.ts", "src/d.ts"] },
     { ...off, kind: "command-run", command: "pnpm test" });
+  assert.deepEqual(sessionRows(tree, lines, [], now), [], "4 files is below the line");
+  lines.push(...log({ ...off, kind: "file-edited", files: ["src/e.ts"] }).map(line => ({ ...line, seq: 4 })));
   const [row] = sessionRows(tree, lines, [], now);
-  assert.deepEqual(row!.files, ["src/a.ts", "src/b.ts"]);
-  assert.equal(row!.offPlan.length, 3);
-  assert.equal(row!.offPlan[0]!.command, "pnpm test");
+  assert.deepEqual(row!.files, ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"]);
+  assert.equal(row!.offPlan.length, 4);
+  assert.equal(row!.offPlan[1]!.command, "pnpm test");
   assert.deepEqual(row!.stories, []);
   lines.push(...log({ ...off, kind: "claimed", capability: "cap-one", reason: "Build" },
-    { ...off, kind: "file-edited", files: ["src/claimed.ts"] }).map(line => ({ ...line, seq: line.seq + 3 })));
-  assert.deepEqual(sessionRows(tree, lines, [], now)[0]!.files, ["src/a.ts", "src/b.ts"]);
+    { ...off, kind: "file-edited", files: ["src/claimed.ts"] }).map(line => ({ ...line, seq: line.seq + 4 })));
+  assert.deepEqual(sessionRows(tree, lines, [], now)[0]!.files, ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"]);
+});
+
+test("an unclaimed push or pull request surfaces the session whatever its file count; other commands do not", () => {
+  const ran = (session: string, command: string): NewLine => ({ session, harness: "codex", source: "hook", kind: "command-run", command });
+  const lines = log(ran("reader", "git status"), ran("reader", "git stash push"), ran("reader", "pnpm test"),
+    ran("pusher", "git -C C:/work/x push -u origin fix"), ran("opener", "cd x && gh pr create --fill"),
+    claimed("cap-one", "Build signup"), { ...parent, kind: "command-run", command: "git push" });
+  const rows = sessionRows(tree, lines, [], now);
+  assert.deepEqual(rows.map(row => row.id).sort(), ["opener", "parent", "pusher"]);
+  assert.deepEqual(rows.find(row => row.id === "pusher")!.files, []);
+  assert.equal(rows.find(row => row.id === "pusher")!.offPlan[0]!.command, "git -C C:/work/x push -u origin fix");
 });
 
 test("supplied supervision and totals use a view seam without parsing transcripts; missing parents and cycles keep rows reachable", () => {
-  const lines = log(claimed("cap-one", "Build signup"), { ...child, kind: "session-started" });
+  const lines = log(claimed("cap-one", "Build signup"), { ...child, kind: "claimed", increment: "inc", reason: "Finish signup" });
   const details = new Map([["child", { parentSession: "parent", totalTokens: 120_000 }]]);
   const [row] = sessionRows(tree, lines, [], now, details);
   assert.equal(row!.children[0]!.totalTokens, 120_000);

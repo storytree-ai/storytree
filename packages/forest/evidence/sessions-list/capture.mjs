@@ -14,7 +14,8 @@ const app = seed.tree.stories.find(story => story.title === 'The app');
 const librarian = seed.tree.stories.find(story => story.title === 'The librarian');
 const ids = {
   parent: 'sessions-list-supervisor', child: 'sessions-list-build-lane', digest: 'sessions-list-digest',
-  idle: 'sessions-list-idle', offPlan: 'sessions-list-off-plan', ended: 'sessions-list-ended',
+  idle: 'sessions-list-idle', offPlan: 'sessions-list-off-plan', pusher: 'sessions-list-pusher',
+  belowLine: 'sessions-list-below-line', ended: 'sessions-list-ended',
   arc: 'arc_sessions_list_fixture', increment: 'increment_sessions_list_fixture', question: 'question_sessions_list_fixture',
 };
 const now = Date.now();
@@ -34,9 +35,16 @@ line(ids.parent, 2, { kind: 'subagent-started', subagent: ids.digest, type: 'exp
 line(ids.idle, 61, { kind: 'session-started' });
 line(ids.idle, 60, { kind: 'claimed', source: 'tool', capability: librarian.capabilities[0].id, reason: 'Check the library links' });
 line(ids.offPlan, 3, { kind: 'session-started', harness: 'codex' });
-line(ids.offPlan, 2, { kind: 'file-edited', harness: 'codex', files: ['src/example.ts', 'src/example.test.ts'] });
-line(ids.offPlan, 1, { kind: 'file-edited', harness: 'codex', files: ['src/example.ts'] });
+line(ids.offPlan, 2, { kind: 'file-edited', harness: 'codex', files: ['src/example.ts', 'src/example.test.ts', 'src/other.ts'] });
+line(ids.offPlan, 1, { kind: 'file-edited', harness: 'codex', files: ['src/example.ts', 'src/more.ts', 'src/last.ts'] });
 line(ids.offPlan, 0, { kind: 'command-run', harness: 'codex', command: 'pnpm test -- sessions-list' });
+// Crosses the line with no files: a push made while holding no claim.
+line(ids.pusher, 3, { kind: 'session-started' });
+line(ids.pusher, 1, { kind: 'command-run', command: 'git push -u origin quick-fix' });
+// Below the line: four unclaimed files and an ordinary command stay recorded but get no row.
+line(ids.belowLine, 3, { kind: 'session-started' });
+line(ids.belowLine, 2, { kind: 'file-edited', files: ['src/a.ts', 'src/b.ts', 'src/c.ts', 'src/d.ts'] });
+line(ids.belowLine, 1, { kind: 'command-run', command: 'git stash push' });
 line(ids.ended, 5, { kind: 'session-started' });
 line(ids.ended, 4, { kind: 'session-ended', reason: 'finished' });
 seed.lines = { lines, cursor: lines.length };
@@ -106,8 +114,12 @@ try {
   await row(ids.parent).waitFor();
   await row(ids.idle).waitFor();
   await row(ids.offPlan).waitFor();
+  await row(ids.pusher).waitFor();
   const visibleIds = () => list.locator('.session-row:visible').evaluateAll(nodes => nodes.map(node => node.dataset.sessionId).sort());
-  assert.deepEqual(await visibleIds(), [ids.parent, ids.idle, ids.offPlan].sort(), 'one row per root session; ended and nested sessions hidden');
+  assert.deepEqual(await visibleIds(), [ids.parent, ids.idle, ids.offPlan, ids.pusher].sort(),
+    'one row per root session; ended, nested and below-the-line unclaimed sessions hidden');
+  assert.equal(await row(ids.belowLine).count(), 0, 'four unclaimed files and a stash give no row');
+  assert.match(await row(ids.pusher).locator('.session-off-plan').innerText(), /off plan.*0 files/i, 'a push surfaces the row with no files');
   assert.match(await row(ids.parent).innerText(), /Build the running sessions list/);
   assert.equal(await row(ids.idle).getAttribute('data-state'), 'idle', 'idle remains visible');
   assert.doesNotMatch(await list.innerText(), /hooks not running/i);
@@ -206,13 +218,13 @@ try {
   assert.match(await children.innerText(), /\+2/);
   await children.click();
   assert.equal(await children.getAttribute('aria-expanded'), 'true');
-  assert.deepEqual(await visibleIds(), [ids.parent, ids.child, ids.digest, ids.idle, ids.offPlan].sort(), 'explicit subagents expand once, including a child with its own log');
+  assert.deepEqual(await visibleIds(), [ids.parent, ids.child, ids.digest, ids.idle, ids.offPlan, ids.pusher].sort(), 'explicit subagents expand once, including a child with its own log');
   assert.match(await row(ids.child).innerText(), /Capture the running sessions view/);
   assert.match(await row(ids.digest).innerText(), /Read the list contracts/);
 
   const offPlan = row(ids.offPlan).locator('.session-off-plan');
   assert.match(await offPlan.getAttribute('aria-label'), /^Show off-plan work for /);
-  assert.match(await offPlan.innerText(), /off plan.*2 files/i, 'repeated edit counts the same file once');
+  assert.match(await offPlan.innerText(), /off plan.*5 files/i, 'five distinct files surface the row; a repeated edit counts once');
   await offPlan.click();
   assert.equal(await offPlan.getAttribute('aria-expanded'), 'true');
   const expandedText = await list.innerText();
@@ -246,11 +258,12 @@ try {
     return debug && ctx.getParameter(debug.UNMASKED_RENDERER_WEBGL);
   });
   const result = { browser: await browser.version(), renderer,
-    fixture: 'prior read-only library snapshot; synthetic root, nested, idle, off-plan and ended sessions; one open owner question',
-    bounds, rootSessions: [ids.parent, ids.idle, ids.offPlan], context, stateColors,
+    fixture: 'prior read-only library snapshot; synthetic root, nested, idle, off-plan (5 files), pusher, below-the-line and ended sessions; one open owner question',
+    bounds, rootSessions: [ids.parent, ids.idle, ids.offPlan, ids.pusher], context, stateColors,
     hover: hovered.map(({ id, emphasis }) => ({ id, emphasis })), rings,
     assertions: ['root rows deduplicate claims', 'idle visible; ended hidden', 'two explicit children collapsed and expandable',
-      'empty bar slots and unavailable totals', 'off-plan files deduplicate; edit and command details expand',
+      'empty bar slots and unavailable totals', 'unclaimed work below 5 files with no push or pull request gets no row',
+      'a push with no claim surfaces a row', 'off-plan files deduplicate; edit and command details expand',
       'hover and focus link all claimed islands and restore materials', 'question settlement refreshes',
       'session ending refreshes', 'polling preserves both expansions'],
     errors, warnings: [...new Set(warnings)] };

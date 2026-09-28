@@ -90,7 +90,7 @@ const PG_CONNECT_TIMEOUT =
 export async function cloudSqlServer(config: unknown, seams: CloudSqlSeams = {}): Promise<ServerAccess> {
   const { instance, user } = checkConfig(config);
   const timeoutMs = seams.timeoutMs ?? TIMEOUT_MS;
-  const connector = await (seams.connector ?? googleConnector)();
+  const connector = await (seams.connector ?? (() => googleConnector(instanceParts(instance).project)))();
   const options = await signIn(connector, instance, user, timeoutMs);
   const pool = (database: string) => newPool({ ...options, user, database, connectionTimeoutMillis: timeoutMs });
   return {
@@ -131,11 +131,22 @@ function checkConfig(config: unknown): CloudSqlConfig {
 
 /**
  * Google's Cloud SQL connector, imported only now, so the local path never loads Google code. It
- * signs in with Application Default Credentials (`gcloud auth application-default login`).
+ * signs in with Application Default Credentials (`gcloud auth application-default login`), told
+ * the instance's own Google Cloud project: left to find one itself, Google's auth library runs
+ * `gcloud config config-helper`, which took 30 to 40 seconds on a Windows laptop, longer than the
+ * whole bound on reaching the instance.
  */
-async function googleConnector(): Promise<CloudSqlConnector> {
-  const { AuthTypes, Connector, IpAddressTypes } = await import("@google-cloud/cloud-sql-connector");
-  const connector = new Connector();
+async function googleConnector(project: string): Promise<CloudSqlConnector> {
+  const [{ AuthTypes, Connector, IpAddressTypes }, { GoogleAuth }] = await Promise.all([
+    import("@google-cloud/cloud-sql-connector"),
+    import("google-auth-library"),
+  ]);
+  const auth = new GoogleAuth({
+    projectId: project,
+    // What the connector asks for when it signs in itself: the Admin API, and the database sign-in.
+    scopes: ["https://www.googleapis.com/auth/sqlservice.admin", "https://www.googleapis.com/auth/sqlservice.login"],
+  });
+  const connector = new Connector({ auth });
   return {
     getOptions: ({ instanceConnectionName, authType, ipType }) =>
       connector.getOptions({ instanceConnectionName, authType: AuthTypes[authType], ipType: IpAddressTypes[ipType] }),

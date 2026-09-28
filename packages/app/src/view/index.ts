@@ -23,7 +23,12 @@ export function mountAppMenu(host: HTMLElement, options: {
   const helpHost = menu.querySelector<HTMLElement>("[data-app-help]")!;
   const help = options.mountHelp(helpHost, gear);
   const updates = mountUpdates(menu, options.checkForUpdates);
-  const expanded = (event: ToggleEvent) => gear.setAttribute("aria-expanded", String(event.newState === "open"));
+  const expanded = (event: ToggleEvent) => {
+    gear.setAttribute("aria-expanded", String(event.newState === "open"));
+    // A busy update disables its button, which can leave focus on the page. Restore the
+    // opener on dismissal without stealing focus from another control clicked outside.
+    if (event.newState === "closed" && document.activeElement === document.body) gear.focus();
+  };
   menu.addEventListener("beforetoggle", expanded);
   // Help owns its separate panel. Its mount returns focus to the gear when that panel closes.
   helpHost.addEventListener("click", () => menu.hidePopover());

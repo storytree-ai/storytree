@@ -1,0 +1,75 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/gear-updates
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/gear-updates/packages/app/evidence/gear-updates/ready.png"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/gear-updates/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/gear-updates/packages/app/evidence/gear-updates/ready.png"
+
+built dist
+
+DevTools listening on ws://127.0.0.1:35513/devtools/browser/b3a28eaf-2ca2-4aa9-a264-4f38a9e71b02
+Postgres: listening on 127.0.0.1:41537 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:41537/postgres
+storytree 0.3: development build 6b8e4f5 from /home/mickh/code/storytree03-wt/gear-updates (does not update itself)
+[619224:0928/183633.299836:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x28040018f800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+smoke: screenshot /home/mickh/code/storytree03-wt/gear-updates/packages/app/evidence/gear-updates/ready.png (1120x860)
+Project
+storytree
+Help
+Check for updates
+Update ready
+main f21aa04 will restart after the library finishes writing.
+Settings
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+What did I leave running?
+Forest
+Library
+Arcs storytree
+━ ▴
+Active
+Parked
+Closed
+quiet
+Hosted library: local by default, Google Cloud SQL as the option, then we move onto it
+4 open
+quiet
+Storytree 0.3 to first users: one-command install and first run, and trusted-circle users
+10 landed · 3 open
+quiet
+Running sessions on the forest: quiet claims and a context list
+3 landed · 3 open
+quiet
+Storytree 0.3 cutover: 0.3 builds itself, 0.2 goes read-only
+11 landed · 2 open
+quiet
+An agent link settings surface users configure
+2 landed · 2 open
+quiet
+Bring more of 0.2 into the 0.3 MVP
+9 landed · 1 open
+quiet
+Storytree 0.3 arc surface: planned, in progress and landed, per project
+4 landed · 1 open
+Hosted library: local by default, Google Cloud SQL as the option, then we move onto it
+
+Make where the library lives a user setting, local by default, with Google Cloud SQL as the one hosted option (ADR-0734, decision_0a16e7f63feb, owner-directed 2026-09-28), then move storytree's own development onto the cloud library so every machine (laptop and Mint box) reads and writes one board. Why now: the Mint box cannot reach the laptop's local library (127.0.0.1, trust auth, found through a local owner record), so its lanes' claims and library edits have been relayed by hand through the laptop supervisor, and the forest's sessions list cannot show them. The setting belongs with the per-user settings the agent link settings arc built (arc_748792ea3487, capability 10: settings.json in the storytree home, set from the command line); both the app and the agent link must honour it. 0.2 proved the cloud path: Cloud SQL instance storytree-498613:australia-southeast1:storytree-pg, Cloud SQL Node connector, keyless IAM auth from ambient ADC (read 0.2's packages/library/src/store/connection.ts in C:\code\storytree for behaviour; port behaviour, never copy code). Non-GCP hosted and self-hosted servers are out of scope for the MVP (ADR-0734 D2).
+
+
+Nothing is waiting on you here
+
+"Blocked" comes only from waits on other work.
+
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

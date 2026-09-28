@@ -35,7 +35,7 @@ test("5.5 a row wears its session's wisp colour, and a hovered wisp highlights i
   assert.doesNotMatch(plain, /data-highlighted/);
 });
 
-test("7.6 a row's bar is its tokens on a 1,000,000-token scale in four groups, numbers on hover; Claude rows mark 700K and 850K, Codex rows are one raw segment", () => {
+test("7.6 a row's bar is its tokens on a 1,000,000-token scale in four groups, numbers on hover; Claude rows mark 700K and 850K, Codex rows none; a row without a composition is one raw segment", () => {
   const composition = { injected: 100, grounding: 100, implementation: 150, other: 50 };
   const claude = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], agent: "Claude Code", totalTokens: 400_000, composition }], onHighlight() {} }));
   for (const [group, width] of [["injected", "10%"], ["grounding", "10%"], ["implementation", "15%"], ["other", "5%"]]) {

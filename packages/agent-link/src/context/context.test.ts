@@ -152,7 +152,10 @@ test("9.7 a reading states fresh default or set guidance, including under, at an
       assert.equal(reading.tokens, tokens);
       return reading;
     };
-    assert.deepEqual((await read(317_000)).guidance, { value: 700_000, source: "default", position: "under" });
+    const first = await read(317_000);
+    assert.deepEqual(first.guidance, { value: 700_000, source: "default", position: "under" });
+    // Nothing recorded before its one token count: all of it is the unrecorded tool list and world state (9.8).
+    assert.deepEqual("composition" in first && first.composition, { injected: 317_000, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 });
     setSetting("context-guidance", "400000", home);
     for (const [tokens, position] of [[317_000, "under"], [400_000, "at"], [450_000, "past"]] as const) {
       assert.deepEqual((await read(tokens)).guidance, { value: 400_000, source: "set", position });

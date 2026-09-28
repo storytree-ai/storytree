@@ -153,6 +153,12 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
       const edits = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task"] : ["apply_patch", "Bash", "spawn_agent"];
       for (const tool of edits) assert.ok(runsFor(events.PostToolUse?.[0], tool, anchored), `${harness}: after ${tool}`);
       if (harness === "claude-code") assert.ok(runsFor(events.PostToolUseFailure?.[0], "Bash", anchored), "after a shell command that failed");
+      // Without Git for Windows, Claude Code runs commands with its PowerShell tool instead of Bash.
+      if (harness === "claude-code") {
+        const shellBefore = (events.PreToolUse ?? []).find((entry) => entry.background);
+        for (const [entry, when] of [[shellBefore, "before"], [events.PostToolUse?.[0], "after"], [events.PostToolUseFailure?.[0], "after a failed"]] as const)
+          assert.ok(runsFor(entry, "PowerShell", anchored), `claude-code: ${when} a PowerShell command`);
+      }
 
       // The harness waits for the hook before a storytree tool, so its line is written before the
       // call reaches the tool server; the one before a shell command never makes the agent wait.
@@ -184,6 +190,17 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
     assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", statusLine: "none" }, "and removing again finds nothing");
+
+    // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
+    registerHooks(home.homes, HOOK);
+    const older = readJson(home.claudeSettings);
+    const olderHooks = older.hooks as Record<string, HookEntry[]>;
+    for (const entry of Object.values(olderHooks).flat()) if (entry.matcher !== undefined) entry.matcher = entry.matcher.replace("|PowerShell", "");
+    writeFileSync(home.claudeSettings, `${JSON.stringify(older, null, 2)}\n`);
+    const upgraded = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.equal(upgraded.hooks?.["claude-code"], "registered");
+    assert.ok(runsFor(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code").PostToolUseFailure?.[0], "PowerShell", true), "the older install now hears PowerShell");
+    removeHooks(home.homes);
 
     // A registration from an older install, at another path, is replaced rather than doubled.
     registerHooks(home.homes, { ...HOOK, script: path.join(dir, "old", "storytree-hook.mjs") });

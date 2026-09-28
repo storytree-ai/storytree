@@ -11,7 +11,7 @@ import type { Line } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge } from "../ghosts/ghosts.js";
-import { coreScene, legend, noteCard, noteTitle, pinnedLinks, replayFrame, type CoreInput, type Point, type RosterEntry, type SizeBy } from "../look-inside/look-inside.js";
+import { coreScene, legend, lighting, noteCard, noteTitle, pinnedLinks, replayFrame, type CoreInput, type Point, type RosterEntry, type SizeBy } from "../look-inside/look-inside.js";
 import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -216,7 +216,7 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
   return card === undefined ? null : <NoteCard card={card} onClose={onClose} />;
 }
 
-/** Faint knowledge under the globe's islands, without story text, ghosts or replay. */
+/** Knowledge under the globe's islands, without story text, ghosts or replay: faint, or lit by the running sessions' reads (ADR-0738). */
 export function KnowledgeGlobePoints({ core, spots, radius }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
 }) {
@@ -224,5 +224,8 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.history), [state.history]);
   const points = useMemo(() => globePoints(underShelves(state.history, known), spots, radius, known.notes), [state.history, known, spots, radius]);
-  return <GlobePoints points={points} radius={radius} notes={known.notes} />;
+  const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
+    // The record is kept in place, so its version stands in for its reads.
+    [store.reads, state.version, state.roster, state.session, known]);
+  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} />;
 }

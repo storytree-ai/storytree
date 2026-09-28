@@ -255,6 +255,35 @@ export function legend(agents: readonly AgentReplay[], colour?: string): LegendE
     }));
 }
 
+/** A lit note's colour, and whether more than one listed session read it. */
+export interface Lighting {
+  colour: string;
+  shared: boolean;
+}
+
+/**
+ * Which notes light, and in what colour (ADR-0738). With no session selected: every listed
+ * session's reads since it started, each note in its latest reader's colour, shared when more than
+ * one read it. With one selected: that session's whole reads, each note in the colour of the agent
+ * that first read it, a listed session's agents in shades of its colour.
+ */
+export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
+  present: ReadonlySet<string>): Map<string, Lighting> {
+  if (session === undefined) {
+    return new Map([...liveReads(reads, roster, present)].map(([note, { colour, sessions }]) => [note, { colour, shared: sessions.size > 1 }]));
+  }
+  const { agents } = reads.replay(session, present);
+  const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
+  const first = new Map<string, { colour: string; seq: number }>();
+  for (const { agent, lit } of agents) {
+    for (const { note, seq } of lit) {
+      const seen = first.get(note);
+      if (seen === undefined || seq < seen.seq) first.set(note, { colour: colours.get(agent)!, seq });
+    }
+  }
+  return new Map([...first].map(([note, { colour }]) => [note, { colour, shared: false }]));
+}
+
 interface LiveNote {
   colour: string;
   seq: number;

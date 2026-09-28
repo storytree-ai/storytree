@@ -1,0 +1,11 @@
+{
+  "sessions": {
+    "builder": 14,
+    "builder-lane": 6,
+    "traversal-a": 14,
+    "librarian": 12
+  },
+  "litWithNoneSelected": 42,
+  "shared": 4,
+  "litWhenBSelected": 14
+}

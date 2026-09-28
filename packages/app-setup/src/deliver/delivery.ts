@@ -1,4 +1,4 @@
-import { locateStorytree, storytreeHome } from "@storytree/agent-link";
+import { locateApp, locateStorytree, readLibrary, storytreeHome } from "@storytree/agent-link";
 import { spawn } from "node:child_process";
 import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
@@ -25,9 +25,20 @@ function launch(exe: string): Promise<void> {
   });
 }
 
-async function waitForApp(home: string): Promise<void> {
-  const deadline = Date.now() + 90_000;
+/**
+ * Wait until the delivered app is up. On a local library that is its database answering; on a
+ * Cloud SQL library the app starts no local database, so it is the app itself running (its launch
+ * record's process, app lifecycle 1.11).
+ */
+export async function waitForApp(home: string, timeoutMs = 90_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  const cloud = readLibrary(home).location === "cloudsql";
   while (Date.now() < deadline) {
+    if (cloud) {
+      if (locateApp(home).running) return;
+      await sleep(250);
+      continue;
+    }
     const address = locateStorytree({ dataDir: path.join(home, "pgdata") });
     if (address.running) {
       const { hostname, port } = new URL(address.url);
@@ -42,7 +53,7 @@ async function waitForApp(home: string): Promise<void> {
     }
     await sleep(250);
   }
-  throw new Error("The app's database did not answer within 90 seconds. Open the app to read its error, then retry the delivery command.");
+  throw new Error(`The app did not come up within ${timeoutMs / 1000} seconds. Open the app to read its error, then retry the delivery command.`);
 }
 
 /** Delivery touches only its own command and record. It never creates a project or configures a harness. */

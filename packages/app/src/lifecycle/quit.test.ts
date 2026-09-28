@@ -5,6 +5,7 @@
  * its database has stopped. Stand-ins for the running app: its owner record, and its start.
  */
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -68,6 +69,33 @@ test("1.7 an app that does not stop in time is reported as still running, not as
     assert.equal(result.state, "still running");
     assert.ok(now >= 30_000, "it waited the whole time first");
   } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("1.11 with the library on Cloud SQL (no local database), the running app is found from its launch record and quit", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-quit-cloud-"));
+  // A stand-in for the running app: a live process, named in app.json as the app records itself.
+  const app = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });
+  try {
+    writeFileSync(path.join(dir, "app.json"), JSON.stringify({ command: "slot/electron.exe", args: ["slot/app"], pid: app.pid }));
+    const opened: string[][] = [];
+    const result = await quitApp({
+      home: dir,
+      open: (command, args) => {
+        opened.push([command, ...args]);
+        app.kill();
+      },
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, Math.min(ms, 20))),
+    });
+    assert.deepEqual(opened, [["slot/electron.exe", "slot/app", "--quit"]]);
+    assert.equal(result.state, "quit");
+    // Stopped, it reads as not running, and nothing is started.
+    const again = await quitApp({ home: dir, open: (command, args) => opened.push([command, ...args]) });
+    assert.equal(again.state, "not running");
+    assert.equal(opened.length, 1);
+  } finally {
+    app.kill();
     rmSync(dir, { recursive: true, force: true });
   }
 });

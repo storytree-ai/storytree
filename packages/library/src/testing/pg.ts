@@ -102,7 +102,17 @@ export async function dropTestDatabases(databases: Iterable<string>, server?: Qu
   if (names.length === 0) return;
   const drop = async (client: Queryable): Promise<void> => {
     for (const name of names) {
-      await client.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(name)} WITH (FORCE)`);
+      const sql = `DROP DATABASE IF EXISTS ${quoteIdentifier(name)}`;
+      try {
+        await client.query(`${sql} WITH (FORCE)`);
+      } catch (error) {
+        if (typeof error !== "object" || error === null ||
+          !("code" in error) || error.code !== "42501" ||
+          !("routine" in error) || error.routine !== "TerminateOtherDBBackends") throw error;
+        // FORCE can refuse an autovacuum worker (which has no login role). Plain DROP ends
+        // autovacuum itself and waits for departing backends. Still fail if it cannot drop it.
+        await client.query(sql);
+      }
     }
   };
   if (server !== undefined) {

@@ -1,0 +1,80 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/pg-cleanup
+> node --import tsx scripts/test.mjs "--test-name-pattern=cleanup" "packages/library/src/project/cloud-connection.test.ts" "packages/library/src/testing/pg.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/pg-cleanup/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:36731 (started in 0.1 s)
+✔ 8.1 robustness, offline: the live proof's cleanup drops a project database the borrowed role owns, over the user's own connection, even while the project is still open (257.228832ms)
+✖ 8.1 robustness, offline: cleanup still drops the database when a backend the user cannot terminate disconnects (107.146398ms)
+✔ database cleanup propagates errors other than a refusal to terminate a backend (1.560463ms)
+✖ database cleanup propagates a failed fallback instead of leaving a database silently or retrying forever (1.345527ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 656.974218
+
+✖ failing tests:
+
+test at packages/library/src/project/cloud-connection.test.ts:1:21123
+✖ 8.1 robustness, offline: cleanup still drops the database when a backend the user cannot terminate disconnects (107.146398ms)
+  error: permission denied to terminate process
+      at /home/mickh/code/storytree03-wt/pg-cleanup/node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/client.js:694:17
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Object.query (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/project/cloud-connection.test.ts:641:22)
+      at async drop (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/testing/pg.ts:105:7)
+      at async dropTestDatabases (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/testing/pg.ts:109:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/project/cloud-connection.test.ts:638:9)
+      at async withClient (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/testing/pg.ts:79:12)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/project/cloud-connection.test.ts:636:7)
+      at async withClient (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/testing/pg.ts:79:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/project/cloud-connection.test.ts:635:5) {
+    length: 264,
+    severity: 'ERROR',
+    code: '42501',
+    detail: 'Only roles with privileges of the role whose process is being terminated or with privileges of the "pg_signal_backend" role may terminate this process.',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'procarray.c',
+    line: '3903',
+    routine: 'TerminateOtherDBBackends'
+  }
+
+test at packages/library/src/testing/pg.test.ts:1:742
+✖ database cleanup propagates a failed fallback instead of leaving a database silently or retrying forever (1.345527ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+
+  Caught error:
+
+  Error: permission denied to terminate process
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/testing/pg.test.ts:26:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: permission denied to terminate process
+        at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/pg-cleanup/packages/library/src/testing/pg.test.ts:21:37)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

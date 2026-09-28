@@ -374,6 +374,20 @@ function drawnAgents(reads: ReadRecord, roster: readonly RosterEntry[], session:
   return agents.map((replay) => ({ listed: session, member: session, replay, colour: colours.get(replay.agent)! }));
 }
 
+/**
+ * The notes to keep unlit for now (ADR-0742 D2): each one a step's growing line (or one queued to
+ * grow) has not reached yet. A note already shown lit, or reached only by history, is never held.
+ */
+export function heldNotes(steps: readonly { to: string; key: string }[], starts: ReadonlyMap<string, number>, now: number,
+  grow: number, shown: ReadonlySet<string>): Set<string> {
+  const held = new Set<string>();
+  for (const { to, key } of steps) {
+    const start = starts.get(key);
+    if (start !== undefined && start + grow > now && !shown.has(to)) held.add(to);
+  }
+  return held;
+}
+
 /** How far a glow's tail reaches back along its step, as a fraction of the step (ADR-0742 D3). */
 const TAIL = 0.35;
 

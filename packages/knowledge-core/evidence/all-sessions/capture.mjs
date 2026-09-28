@@ -174,9 +174,12 @@ try {
   await readNext(covers[62]);
   await page.waitForFunction(([from, to]) => { let part = false; window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}` && o.children[0].visible) part = true; }); return part; }, [covers[60], covers[62]]);
   assert.equal(await drawn(covers[60], covers[62]), 0.5, 'caught growing, short of its later read');
+  const litNow = note => page.evaluate(note => { let lit = null; window.__globe.scene.traverse(o => { if (o.userData?.id === note && o.name.startsWith('knowledge-point:')) lit = o.userData.lit; }); return lit; }, covers[62]);
+  assert.equal(await litNow(), null, 'the new note waits, unlit, for its line');
   await page.screenshot({ path: path.join(here, 'path-growing.png') });
   await page.waitForTimeout(1500);
   assert.equal(await drawn(covers[60], covers[62]), 1, 'then whole');
+  assert.equal(await rgb(await litNow()), await swatch(ids.c), 'and the note lights as the line arrives');
   await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n > 0; });
   await page.screenshot({ path: path.join(here, 'path-glow.png') });
   const heads = await page.evaluate(() => {

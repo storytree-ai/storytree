@@ -84,7 +84,13 @@ let tray: Tray | undefined;
 let build = "";
 /** The runtime slot this app runs from, when it is the app that follows merged main. */
 const slot = slotOf(home.runtime, app.getAppPath());
-const lifecycle = background({ stopDatabase: shutdown, exit: (code) => app.exit(code), relaunch });
+const lifecycle = background({
+  // End every renderer (project polling and live reading) before closing what it reads.
+  stopPages: () => { for (const window of BrowserWindow.getAllWindows()) window.destroy(); },
+  stopDatabase: shutdown,
+  exit: (code) => app.exit(code),
+  relaunch,
+});
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
 if (slot !== undefined && !args.smoke) logTo(path.join(home.dir, "app.log"));
 
@@ -110,7 +116,7 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
   if (args.smoke) {
     setTimeout(() => {
       console.error(`smoke: gave up after ${SMOKE_TIMEOUT_MS / 1000} s`);
-      void shutdown().finally(() => app.exit(1));
+      void lifecycle.quit(1);
     }, SMOKE_TIMEOUT_MS).unref();
   }
   app.whenReady().then(run, (error: unknown) => fail(error));
@@ -240,6 +246,7 @@ function showTray(): void {
 
 /** Bring the window forward, opening it again on the same project if it was closed. */
 function showWindow(): void {
+  if (shutDown !== undefined) return;
   const [open] = BrowserWindow.getAllWindows();
   const window = open ?? openWindow(windowQuery);
   if (window.isMinimized()) window.restore();
@@ -439,8 +446,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
   } catch (error) {
     console.error(`smoke: ${messageOf(error)}`);
   } finally {
-    await shutdown();
-    app.exit(code);
+    await lifecycle.quit(code);
   }
 }
 
@@ -478,7 +484,7 @@ function shutdown(): Promise<void> {
 
 function fail(error: unknown): void {
   console.error(`storytree 0.3: ${messageOf(error)}`);
-  void shutdown().finally(() => app.exit(1));
+  void lifecycle.quit(1);
 }
 
 function messageOf(error: unknown): string {

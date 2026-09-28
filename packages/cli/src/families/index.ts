@@ -14,6 +14,7 @@ import { noticeboard } from "./noticeboard.js";
 import { plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { own } from "./own.js";
+import { settings } from "./settings.js";
 
 export const FAMILIES: readonly Family[] = [
   library,
@@ -29,4 +30,5 @@ export const FAMILIES: readonly Family[] = [
   setupFamily,
   workspace,
   own,
+  settings,
 ];

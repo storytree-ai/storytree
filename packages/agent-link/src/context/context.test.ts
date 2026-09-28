@@ -12,9 +12,10 @@ import { test } from "node:test";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { MARKER_FILE } from "../routing/index.js";
+import { setSetting } from "../settings/settings.js";
 import { withTempDir } from "../testing/folders.js";
 import { testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { claudeCodeTokens, codexTokens, contextCommand, readContext } from "./index.js";
+import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext } from "./index.js";
 
 /** One Claude Code assistant line: a request's usage, as the harness records it. */
 function claudeLine(requestId: string, usage: { input: number; read: number; created: number }, extra: Record<string, unknown> = {}): string {
@@ -90,10 +91,11 @@ test("9.5 a session's reading is worked out when asked, from the transcript last
     await log.append(project, { ...common, session: "S", kind: "session-started", transcript: mine });
     await log.append(project, { ...common, session: "T", kind: "session-started", transcript: theirs });
 
-    const first = await readContext(log, project, "S", { now: new Date("2026-09-28T02:00:00.000Z") });
+    const first = await readContext(log, project, "S", { now: new Date("2026-09-28T02:00:00.000Z"), home: dir });
     assert.deepEqual(first, { session: "S", harness: "claude-code", tokens: 1_100,
       // No record before its one request: all 1,100 tokens are the system prompt and tool list (9.8).
       composition: { injected: 1_100, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 },
+      guidance: { value: 700_000, source: "default", position: "under" },
       at: "2026-09-28T02:00:00.000Z", source: mine });
 
     // The transcript grew with no turn ended and no hook fired: the next ask sees it.
@@ -115,7 +117,7 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
     const transcript = path.join(dir, "S.jsonl");
     writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 2_000, read: 480_000, created: 12_345 })));
     await log.append(project, { session: "S", harness: "claude-code", source: "hook", folder, kind: "session-started", transcript });
-    const locate = { dataDir: testServerDataDir() };
+    const locate = { dataDir: testServerDataDir(), home: dir };
 
     const plain = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "S" }, locate });
     assert.equal(plain.code, 0);
@@ -125,6 +127,7 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
     const json = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "S" }, json: true, locate });
     assert.equal(json.code, 0);
     assert.deepEqual({ ...JSON.parse(json.text), at: "-" }, { session: "S", harness: "claude-code", tokens: 494_345,
+      guidance: { value: 700_000, source: "default", position: "under" },
       composition: { injected: 494_345, grounding: 0, implementation: 0, other: 0, unsorted: [], charsPerToken: 3.8 }, at: "-", source: transcript });
 
     const nothing = await contextCommand({ folder, env: { CLAUDE_CODE_SESSION_ID: "nobody" }, locate });
@@ -135,5 +138,60 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
     const noSession = await contextCommand({ folder, env: {}, locate });
     assert.equal(noSession.code, 0);
     assert.doesNotMatch(noSession.text, /\d/);
+  });
+});
+
+test("9.7 a reading states fresh default or set guidance, including under, at and past it; unusable settings keep the tokens and explain the missing guidance", async () => {
+  await withTempDir(async (home) => {
+    const transcript = path.join(home, "S.jsonl");
+    const lines = [{ n: 1, at: "2026-09-28T02:00:00.000Z", project: "test", session: "S", source: "hook", harness: "codex", kind: "session-started", transcript }] as const;
+    const read = async (tokens: number) => {
+      writeFileSync(transcript, jsonl(codexLine(tokens)));
+      const reading = await contextReading(lines, "S", { home });
+      assert.ok("tokens" in reading);
+      assert.equal(reading.tokens, tokens);
+      return reading;
+    };
+    assert.deepEqual((await read(317_000)).guidance, { value: 700_000, source: "default", position: "under" });
+    setSetting("context-guidance", "400000", home);
+    for (const [tokens, position] of [[317_000, "under"], [400_000, "at"], [450_000, "past"]] as const) {
+      assert.deepEqual((await read(tokens)).guidance, { value: 400_000, source: "set", position });
+    }
+    // A running session sees a settings change on its next reading.
+    setSetting("context-guidance", "500000", home);
+    assert.deepEqual((await read(450_000)).guidance, { value: 500_000, source: "set", position: "under" });
+    const file = path.join(home, "settings.json");
+    for (const contents of ["{", '{"context-guidance":0}']) {
+      writeFileSync(file, contents);
+      const { guidance } = await read(450_000);
+      assert.ok("absent" in guidance);
+      assert.ok(guidance.absent.includes(file));
+      assert.match(guidance.absent, /Invalid settings file/);
+      assert.ok(guidance.absent.length > file.length + "Invalid settings file".length);
+    }
+  });
+});
+
+test("9.7 the context command states guidance and its source, exits 0 under and past it, and includes it in JSON", async () => {
+  await withProject(async (log, project, home) => {
+    writeFileSync(path.join(home, MARKER_FILE), JSON.stringify({ project }));
+    const transcript = path.join(home, "S.jsonl");
+    await log.append(project, { session: "S", harness: "claude-code", source: "hook", folder: home, kind: "session-started", transcript });
+    const options = { folder: home, env: { CLAUDE_CODE_SESSION_ID: "S" }, locate: { dataDir: testServerDataDir(), home } };
+    writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 317_000, read: 0, created: 0 })));
+    const defaults = await contextCommand(options);
+    assert.equal(defaults.code, 0);
+    assert.match(defaults.text, /under.*700,000.*default/i);
+    setSetting("context-guidance", "400000", home);
+    for (const [tokens, position] of [[317_000, "under"], [450_000, "past"]] as const) {
+      writeFileSync(transcript, jsonl(claudeLine("req_2", { input: tokens, read: 0, created: 0 })));
+      const plain = await contextCommand(options);
+      assert.equal(plain.code, 0);
+      assert.ok(plain.text.includes(`${tokens.toLocaleString("en-US")} tokens`));
+      assert.match(plain.text, new RegExp(`${position}.*400,000.*set`, "i"));
+      const json = await contextCommand({ ...options, json: true });
+      assert.equal(json.code, 0);
+      assert.deepEqual(JSON.parse(json.text).guidance, { value: 400_000, source: "set", position });
+    }
   });
 });

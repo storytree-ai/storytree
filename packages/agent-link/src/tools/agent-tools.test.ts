@@ -668,6 +668,8 @@ test("6.22 a test client calls read_context as session S and gets S's reading, w
       assert.equal(first.isError, false);
       assert.deepEqual({ session: first.data.session, tokens: first.data.tokens, source: first.data.source }, { session: "claude-before-clear", tokens: 180_000, source: before });
       assert.match(first.text, /180,000 tokens/);
+      assert.deepEqual(first.data.guidance, { value: 700_000, source: "default", position: "under" });
+      assert.match(first.text, /under.*700,000.*default/i);
 
       // The transcript grows mid-turn, with no hook run: the next call reads it as it now stands.
       appendFileSync(before, usage("req_2", 240_000));

@@ -5,6 +5,7 @@ import type { Line } from "@storytree/agent-link/readings";
 import { liveReading, type LiveReads } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import { sessionRows, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
+import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 
 export interface SessionsReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;
@@ -15,7 +16,9 @@ export interface SessionsReads extends LiveReads {
 export function mountSessionsList(container: HTMLElement, options: {
   project: string;
   reads: SessionsReads;
-  onHighlight(stories: readonly string[] | undefined): void;
+  onHighlight(stories: readonly string[] | undefined, session?: string): void;
+  /** Hears each listed session's wisps (capability 5) whenever the rows are redrawn. */
+  onWisps?(wisps: readonly SessionWisp[]): void;
 }) {
   const host = document.createElement("div");
   container.append(host);
@@ -25,12 +28,14 @@ export function mountSessionsList(container: HTMLElement, options: {
   let lines: Line[] = [];
   let rows: SessionRow[] = [];
   let details: ReadonlyMap<string, SessionDetails> = new Map();
+  let highlighted: string | undefined;
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined}
-    error={error} onHighlight={options.onHighlight} />);
+    error={error} highlighted={highlighted} onHighlight={options.onHighlight} />);
   const refresh = (now: Date): void => {
     if (stopped || tree === undefined) return;
     rows = sessionRows(tree, lines, arcs, now, details);
+    options.onWisps?.(sessionWisps(rows, lines, now));
     draw();
   };
   draw();
@@ -54,6 +59,8 @@ export function mountSessionsList(container: HTMLElement, options: {
   });
   return {
     showDetails(next: ReadonlyMap<string, SessionDetails>) { details = next; refresh(new Date()); },
+    /** Highlight a session's row from its wisp, or none. */
+    hover(session: string | undefined) { highlighted = session; draw(); },
     stop() {
       stopped = true;
       reading.stop();
@@ -64,11 +71,13 @@ export function mountSessionsList(container: HTMLElement, options: {
   };
 }
 
-export function SessionsList({ rows, loading = false, error, onHighlight }: {
+export function SessionsList({ rows, loading = false, error, highlighted, onHighlight }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   error?: string | undefined;
-  onHighlight(stories: readonly string[] | undefined): void;
+  /** The session whose wisp is hovered on the forest. */
+  highlighted?: string | undefined;
+  onHighlight(stories: readonly string[] | undefined, session?: string): void;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [filesOpen, setFilesOpen] = useState<ReadonlySet<string>>(new Set());
@@ -82,12 +91,13 @@ export function SessionsList({ rows, loading = false, error, onHighlight }: {
     }
   };
   visit(rows, 0);
-  const active = visible.find(({ row }) => row.id === (hovered ?? focused))?.row;
+  const active = visible.find(({ row }) => row.id === (hovered ?? focused ?? highlighted))?.row;
   const islands = active?.stories.join("\0");
+  const session = active?.id;
   useEffect(() => {
-    onHighlight(islands ? islands.split("\0") : undefined);
+    onHighlight(islands ? islands.split("\0") : undefined, session);
     return () => onHighlight(undefined);
-  }, [islands, onHighlight]);
+  }, [islands, session, onHighlight]);
   useEffect(() => {
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id), unclaimed: visible.reduce((n, { row }) => n + row.offPlan.length, 0) });
@@ -104,10 +114,11 @@ export function SessionsList({ rows, loading = false, error, onHighlight }: {
     {!loading && rows.length === 0 && <p>No running sessions</p>}
     <ul>
       {visible.map(({ row, depth }) => <li key={row.id} style={{ marginLeft: Math.min(depth, 5) * 14 }}>
-        <div className="session-row" data-session-id={row.id} data-state={row.state} tabIndex={0}
+        <div className="session-row" data-session-id={row.id} data-state={row.state} data-highlighted={row.id === highlighted || undefined} tabIndex={0}
           aria-label={`${row.label} · ${row.agent}${row.needsYou ? " · needs you" : ""}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
+          {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
           <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}`}>{row.label}</span>
           {row.children.length > 0 && <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} ${row.children.length} children of ${row.label}`}

@@ -1,37 +1,53 @@
 /**
- * Capability 5 · Agent capability claims (the forest story): which agent holds which capability
- * right now, as a quiet dot at that capability's tree. It follows
+ * Capability 5 · Agent capability claims (the forest story): each running session with a row in the
+ * sessions list (capability 7) is one wisp orbiting the island of each story it holds a claim in,
+ * in its own colour, the colour its row wears too (ADR-0736, replacing ADR-0730's dots). It follows
  * the agent link's own readings of the log (claims and sessions, through its browser-safe
  * `readings` entry), so the forest and the claim tool always agree.
  *
- * Its shelf: a claim is never a sign of health, so a marker carries neither health nor state and
- * never changes how a tree is drawn. A missing hook never reads as an agent doing nothing
- * (ADR-0626 D4): a holder whose session has written no hook line is never faded as idle.
- * Missing hooks and their fixes are reported by the agent link's setup check. A holder with hook
- * evidence quiet past the quiet time fades; landing, releasing or its window
- * closing takes the marker away.
+ * Its shelf: a claim is never a sign of health, so a wisp carries neither health nor state and
+ * never changes how a tree is drawn, and no session colour is the proven green or the "needs you"
+ * amber. A missing hook never reads as an agent doing nothing (ADR-0626 D4): a holder whose session
+ * has written no hook line is never faded as idle. A holder with hook evidence quiet past the quiet
+ * time fades; landing, releasing or its window closing takes the wisp away. Folded subagents and
+ * lanes orbit only through their parent's wisp (ADR-0736 D4).
  */
-import { claimsFrom, sessionsFrom, type Line } from "@storytree/agent-link/readings";
+import { sessionsFrom, type Line } from "@storytree/agent-link/readings";
+import type { SessionRow } from "../sessions-list/sessions-list.js";
 
-/** One agent's claim, as a marker at the capability it holds. */
-export interface Marker {
-  capability: string;
+/** One session's wisp round one island. */
+export interface SessionWisp {
   session: string;
-  /** Its holder has been quiet past the quiet time: it still holds the capability. */
+  story: string;
+  colour: string;
+  /** Where on its orbit the wisp starts, in degrees, the same on every read. */
+  phase: number;
+  /** Its holder has been quiet past the quiet time: it still holds its claims. */
   faded: boolean;
 }
 
-/** The markers `lines` show at time `now`: one per claim standing, in the order claimed. */
-export function claimMarkers(lines: readonly Line[], now: Date): Marker[] {
-  const sessions = new Map(sessionsFrom(lines, { now }).map((session) => [session.session, session]));
-  // A marker stands at a capability; an increment's claim (ADR-0643) is the arc surface's to show.
-  return claimsFrom(lines, { now }).flatMap((claim): Marker[] => {
-    if (claim.capability === undefined) return [];
-    const hooksNotRunning = sessions.get(claim.session)?.hooksRunning === false;
-    return [{
-      capability: claim.capability,
-      session: claim.session,
-      faded: claim.holder === "idle" && !hooksNotRunning,
-    }];
-  });
+/** The wisps the listed `rows` draw at time `now`: one per row and island, in list order. */
+export function sessionWisps(rows: readonly SessionRow[], lines: readonly Line[], now: Date): SessionWisp[] {
+  const quiet = new Set(sessionsFrom(lines, { now })
+    .filter(session => session.state === "idle" && session.hooksRunning).map(session => session.session));
+  return rows.flatMap(row => row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id),
+    phase: (hashOf(row.id) >>> 8) % 360, faded: quiet.has(row.id) })));
+}
+
+/** Hues a session may wear: clear of the "needs you" amber and of every green (30°–170°). */
+const FIRST_HUE = 170;
+const HUE_SPAN = 220;
+
+/** A session's own colour, the same on every read, shared by its wisps and its row. */
+export function sessionColour(session: string): string {
+  return `hsl(${Math.round(FIRST_HUE + hashOf(session) % HUE_SPAN) % 360}, 80%, 68%)`;
+}
+
+function hashOf(session: string): number {
+  let hash = 2166136261;
+  for (const char of session) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619);
+  // Spread ids that differ only in their last letter (session-1, session-2) across the whole span.
+  hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+  hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35);
+  return (hash ^ (hash >>> 16)) >>> 0;
 }

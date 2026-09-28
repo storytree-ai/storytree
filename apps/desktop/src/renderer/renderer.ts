@@ -10,7 +10,7 @@ import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
-import { claimMarkers, drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
+import { drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -161,10 +161,11 @@ async function showForest(name: string): Promise<void> {
     if (selection?.kind === "note") document.body.dataset.note = selection.id;
     chosen = undefined;
     showPanel();
-  }, core);
+  }, core, session => mine.sessions?.hover(session));
   if (showing !== mine) return view.dispose();
   mine.view = view;
-  mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree, onHighlight: stories => view.highlight(stories) });
+  mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree,
+    onHighlight: (stories, session) => view.highlight(stories, session), onWisps: wisps => view.showWisps(wisps) });
 
   let drawing = Promise.resolve();
   mine.reading = liveReading({
@@ -179,7 +180,6 @@ async function showForest(name: string): Promise<void> {
         if (showing !== mine) return;
         const scene = forestScene(tree, history, workStates(lines));
         view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
-        view.showMarkers(claimMarkers(lines, new Date()));
         core.take(history, news.lines);
         sayWhatWasDrawn(forestDrawn(scene));
         if (!panel.hidden) showPanel();
@@ -188,10 +188,8 @@ async function showForest(name: string): Promise<void> {
         if (showing === mine && document.body.dataset.state !== "ready") showMessage("error", "Something went wrong", messageOf(error));
       });
     },
-    // Once a minute, with no new line, a quiet holder's marker fades (capability 5).
-    onClock: (now) => {
-      if (showing === mine) view.showMarkers(claimMarkers(lines, new Date(now)));
-    },
+    // A quiet holder's wisp fades on the sessions list's own clock (capability 5), not this one.
+    onClock: () => {},
     onError: (error) => {
       if (showing === mine && document.body.dataset.state !== "ready") showMessage("error", "The forest could not be read", messageOf(error));
     },

@@ -5,7 +5,7 @@
  * The flat canvas remains available in the engine; the page mounts only the globe.
  */
 import { createRoot } from "react-dom/client";
-import type { ForestScene, Marker } from "@storytree/forest";
+import type { ForestScene, SessionWisp } from "@storytree/forest";
 import { KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { preloadKit } from "@storytree/forest-world/canvas";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
@@ -16,10 +16,10 @@ import type { ForestMode } from "./planet-navigation.js";
 export interface ForestView {
   /** Draw `scene`, recomputing only the islands that changed since the last one. */
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
-  /** Show which agent holds which capability, each marker over its tree (capability 5). */
-  showMarkers(markers: readonly Marker[]): void;
-  /** Light a session’s claimed islands without changing the selected story. */
-  highlight(stories: readonly string[] | undefined): void;
+  /** Show each running session's wisps orbiting its islands (capability 5). */
+  showWisps(wisps: readonly SessionWisp[]): void;
+  /** Light a session’s claimed islands and swell its wisps, without changing the selected story. */
+  highlight(stories: readonly string[] | undefined, session?: string): void;
   /** Mark `story` selected (undefined for none), as a click would. */
   select(story: string | undefined): void;
   /** Stop drawing and let go of the GPU. */
@@ -31,21 +31,24 @@ interface Drawn {
   mode: ForestMode;
   places: ReadonlyMap<string, number>;
   scene: ForestScene;
-  markers: readonly Marker[];
+  wisps: readonly SessionWisp[];
   selected: string | undefined;
   highlighted: readonly string[] | undefined;
+  highlightedSession: string | undefined;
   viewport: { width: number; height: number } | undefined;
 }
 
 /**
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
+ * `onWispHover` hears the session whose wisp the pointer is over, or undefined when it leaves.
  */
-export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore): Promise<ForestView> {
+export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
+  onWispHover: (session: string | undefined) => void = () => {}): Promise<ForestView> {
   await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {
-    mode: "forest", places: new Map(), scene: { islands: [] }, markers: [], selected: undefined, highlighted: undefined, viewport: undefined,
+    mode: "forest", places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, highlightedSession: undefined, viewport: undefined,
   };
 
   const render = (next: Partial<Drawn>): void => {
@@ -54,8 +57,9 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     container.dataset.view = "globe";
     container.dataset.forestMode = drawn.mode;
     root.render(<>
-      <PlanetView core={core} scene={drawn.scene} places={drawn.places} markers={drawn.markers}
-        selected={drawn.selected} highlighted={drawn.highlighted} onPick={pick} onNote={pickNote} mode={drawn.mode} />
+      <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
+        selected={drawn.selected} highlighted={drawn.highlighted} highlightedSession={drawn.highlightedSession}
+        onPick={pick} onNote={pickNote} onWispHover={onWispHover} mode={drawn.mode} />
       <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
@@ -90,11 +94,11 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       scene = { ...scene, islands: scene.islands.map(island => previous.get(island.story)?.key === island.key ? previous.get(island.story)! : island) };
       render({ scene, places });
     },
-    showMarkers(markers) {
-      render({ markers });
+    showWisps(wisps) {
+      render({ wisps });
     },
-    highlight(stories) {
-      render({ highlighted: stories });
+    highlight(stories, session) {
+      render({ highlighted: stories, highlightedSession: session });
     },
     select(story) {
       selection.story(story);

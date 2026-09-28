@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SessionsList } from "./sessions-list.js";
+import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "idle",
@@ -24,4 +25,12 @@ test("7.1–7.5 rows start folded, show safe words and available total beside an
   assert.match(html, />120K<\/span>/);
   const unavailable = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, totalTokens: undefined }], onHighlight() {} }));
   assert.match(unavailable, /Context total unavailable">—/);
+});
+
+test("5.5 a row wears its session's wisp colour, and a hovered wisp highlights its row", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], highlighted: "parent", onHighlight() {} }));
+  assert.ok(html.includes(`class="session-colour" style="background:${sessionColour("parent")}"`), html);
+  assert.match(html, /data-session-id="parent"[^>]*data-highlighted="true"/);
+  const plain = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
+  assert.doesNotMatch(plain, /data-highlighted/);
 });

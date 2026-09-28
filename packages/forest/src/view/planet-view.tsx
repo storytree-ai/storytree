@@ -2,26 +2,29 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Vector3 } from "three";
-import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type Marker } from "@storytree/forest";
+import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
-import { Claims, Names, Overlay, SelectionRing } from "./island-overlays.js";
+import { Names, Overlay, SelectionRing, Wisps } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 
-export function PlanetView({ core, scene, places, markers, selected, highlighted, onPick, onNote, mode = "forest" }: {
+export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest" }: {
   mode?: ForestMode;
   core: KnowledgeCore;
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
-  markers: readonly Marker[];
+  wisps: readonly SessionWisp[];
   selected: string | undefined;
   highlighted?: readonly string[] | undefined;
+  /** The session whose row or wisp is hovered: its wisps swell. */
+  highlightedSession?: string | undefined;
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined) => void;
   onNote: (note: string) => void;
+  onWispHover: (session: string | undefined) => void;
 }) {
   const layout = useMemo(() => planetLayout(scene, places), [scene, places]);
   const [rotation, setRotation] = useState(() => new Quaternion());
@@ -33,10 +36,10 @@ export function PlanetView({ core, scene, places, markers, selected, highlighted
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       <Names islands={[local]} selected={selected} dimmed={emphasis === "dimmed"} onGlobe />
-      <Claims markers={markers} descriptors={descriptors} occlude />
+      <Wisps wisps={wisps} island={local} descriptors={descriptors} highlighted={highlightedSession} onHover={onWispHover} />
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [markers, selected, highlighted]);
+  }, [wisps, selected, highlighted, highlightedSession, onWispHover]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
     surface={mode === "forest"}
     inside={<KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} />}

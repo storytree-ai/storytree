@@ -13,7 +13,8 @@
  * to write, it hands its input to a copy of itself that it leaves running, and exits.
  *
  * One more, at each prompt (ADR-0636 D1, b2), is the one hook that prints: the project's
- * definitions for the terms the prompt names (definitions.ts), which the harness adds for the agent.
+ * definitions for the terms the prompt names (definitions.ts), and once-per-session advice to
+ * start fresh when a Claude Code session passes its context guidance (context-nudge.ts).
  * The harness waits for it, so it gives up after 2 s and prints nothing.
  *
  * A hook's input is the harness's own JSON on stdin. hookLines() turns it into lines, and knows
@@ -23,9 +24,10 @@
  */
 import type { NewLine } from "../activity/index.js";
 import type { MergeWatch } from "../claims/index.js";
-import { route, type LocateOptions } from "../routing/index.js";
+import { route, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { codexLines } from "./codex.js";
+import { contextNudge } from "./context-nudge.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
@@ -73,6 +75,7 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
 
 /** A prompt the user sent, as both harnesses' prompt hook gives it (UserPromptSubmit). */
 interface Prompted {
+  readonly harness: "claude-code" | "codex";
   readonly session: string;
   readonly folder: string;
   readonly prompt: string;
@@ -81,14 +84,14 @@ interface Prompted {
 /**
  * Run one hook: read its input, and write its lines to the log of the project its folder belongs
  * to, if storytree is running. Never throws. It prints nothing but what a prompt hook adds for the
- * agent (the project's definitions for the prompt's terms), which it returns: the command prints it.
+ * agent (definitions and context advice), which it returns: the command prints it.
  */
 export async function runHook({ argv, input, handOff, merges, locate }: HookInput): Promise<string | undefined> {
   try {
     const [harness = "", ...flags] = argv;
     const parsed = parse(input);
     const asked = promptIn(harness, parsed);
-    if (asked !== undefined) return await withinTime(definitionsFor(asked));
+    if (asked !== undefined) return await withinTime(contextForPrompt(asked));
     const made = hookLines(harness, parsed);
     if (made === undefined || made.lines.length === 0) return;
     const where = route(made.folder, locate);
@@ -98,9 +101,13 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
       return undefined;
     }
     // Only now, with lines to write and somewhere to write them, is the database reached.
-    const { openActivityLog, thisMachine } = await import("../activity/index.js");
+    const [{ openActivityLog, thisMachine }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
-    const log = await openActivityLog(where.url, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) });
+    const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
+    const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
+      await storytree.close();
+      throw error;
+    });
     try {
       for (const line of made.lines) await log.append(where.project, line);
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
@@ -112,6 +119,7 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
       }
     } finally {
       await log.close();
+      await storytree.close();
     }
   } catch {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said.
@@ -124,25 +132,28 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
   if ((harness !== "claude-code" && harness !== "codex") || typeof input !== "object" || input === null) return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, prompt } = input as Record<string, unknown>;
   if (event !== "UserPromptSubmit" || typeof session !== "string" || typeof folder !== "string" || folder === "" || typeof prompt !== "string") return undefined;
-  return { session, folder, prompt };
+  return { harness, session, folder, prompt };
 }
 
 /**
  * What the agent is to be shown for a prompt, as the harness's hook output: the project's
- * definitions for the terms it names, those not yet given to this session. Undefined for none.
+ * definitions for the terms it names and, for Claude Code only, advice once past context guidance.
+ * Undefined for none. Both are remembered separately across this session's prompts.
  */
-async function definitionsFor({ session, folder, prompt }: Prompted): Promise<string | undefined> {
+async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<string | undefined> {
   if (isHarnessNotice(prompt)) return undefined;
   const where = route(folder);
   if (where.status !== "routed") return undefined;
   const { connect } = await import("@storytree/library");
-  const storytree = await connect({ url: where.url });
+  const storytree = await connect(where.library);
   try {
     const library = await storytree.openProject(where.project);
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));
     const fresh = notYetGiven(session, named);
-    if (fresh.length === 0) return undefined;
-    return JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: definitionsContext(fresh) } });
+    const nudge = harness === "claude-code" ? await contextNudge(storytree, where.project, session) : undefined;
+    const context = [...(fresh.length === 0 ? [] : [definitionsContext(fresh)]), ...(nudge === undefined ? [] : [nudge])];
+    if (context.length === 0) return undefined;
+    return JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context.join("\n\n") } });
   } finally {
     await storytree.close();
   }

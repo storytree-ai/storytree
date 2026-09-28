@@ -1,0 +1,89 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/idle-setting
+> node --import tsx scripts/test.mjs "packages/agent-link/src/settings/idle-liveness.test.ts" "packages/cli/src/settings.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:46503 (started in 0.1 s)
+✖ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (166.467595ms)
+✖ 10.10 a running MCP server rereads idle-after for its plan and claim takeover (159.098065ms)
+✖ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (279.857187ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 770.841986
+
+✖ failing tests:
+
+test at packages/agent-link/src/settings/idle-liveness.test.ts:1:732
+✖ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (166.467595ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'live' !== 'idle'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:43:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:17:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'live',
+    expected: 'idle',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/settings/idle-liveness.test.ts:1:3256
+✖ 10.10 a running MCP server rereads idle-after for its plan and claim takeover (159.098065ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /A, idle/. Input:
+  
+  'Story "Idle setting" (story_3d660a94d408): reported not checked, verified not checked\n' +
+    '  Capability "Claimed work" (capability_91645743fd71): reported not checked, verified not checked; held by an unnamed harness A: building\n' +
+    'Sessions: an unnamed harness A, live, hooks not running; Claude Code B, live, hooks not running'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:92:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withAgent (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/agent.ts:71:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:84:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:70:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Story "Idle setting" (story_3d660a94d408): reported not checked, verified not checked\n  Capability "Claimed work" (capability_91645743fd71): reported not checked, verified not checked; held by an unnamed harness A: building\nSessions: an unnamed harness A, live, hooks not running; Claude Code B, live, hooks not running',
+    expected: /A, idle/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/settings.test.ts:1:506
+✖ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (279.857187ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /idle-after.*30m.*default/. Input:
+  
+  'context-guidance: 600000 tokens (default)\n' +
+    '  Type: positive whole number; default: 600000 tokens.\n' +
+    '  Soft guidance for context size in tokens; it does not enforce a hard limit.\n' +
+    '\n' +
+    'library: local (default)\n' +
+    '  Default: local.\n' +
+    "  Where the library lives: `local`, the storytree app's own database on this computer, or `cloudsql`, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email).\n"
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/cli/src/settings.test.ts:25:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "context-guidance: 600000 tokens (default)\n  Type: positive whole number; default: 600000 tokens.\n  Soft guidance for context size in tokens; it does not enforce a hard limit.\n\nlibrary: local (default)\n  Default: local.\n  Where the library lives: `local`, the storytree app's own database on this computer, or `cloudsql`, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email).\n",
+    expected: /idle-after.*30m.*default/,
+    operator: 'match',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

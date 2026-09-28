@@ -1,0 +1,69 @@
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/mickh/code/storytree03-wt/gear-updates/packages/app/src/updates/main-updates.js' imported from /home/mickh/code/storytree03-wt/gear-updates/packages/app/src/updates/main-updates.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///home/mickh/code/storytree03-wt/gear-updates/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:11092)
+    at resolveDirectorySync (file:///home/mickh/code/storytree03-wt/gear-updates/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:12398)
+    at resolveTsPathsSync (file:///home/mickh/code/storytree03-wt/gear-updates/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:13605)
+    at resolve (file:///home/mickh/code/storytree03-wt/gear-updates/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:16832) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/mickh/code/storytree03-wt/gear-updates/packages/app/src/updates/main-updates.js'
+}
+
+Node.js v24.19.0
+✖ packages/app/src/updates/main-updates.test.ts (106.804656ms)
+✖ the gear names and controls an initially closed, light-dismiss menu with help and an enabled update action (1.915725ms)
+✔ the project switcher lists every project, selects the current one and escapes names (0.274501ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171.921685
+
+✖ failing tests:
+
+test at packages/app/src/updates/main-updates.test.ts:1:1
+✖ packages/app/src/updates/main-updates.test.ts (106.804656ms)
+  'test failed'
+
+test at packages/app/src/view/render.test.ts:1:122
+✖ the gear names and controls an initially closed, light-dismiss menu with help and an enabled update action (1.915725ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /<button(?![^>]*disabled)[^>]*data-app-updates[^>]*>Check for updates<\/button>/. Input:
+  
+  '<button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">\n' +
+    '    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">\n' +
+    '      <path d="m9.5 3-.6 2.3-1.7 1L5 5.7 2.5 10l1.7 1.7v2L2.5 15.4 5 19.7l2.2-.6 1.7 1 .6 2.3h5l.6-2.3 1.7-1 2.2.6 2.5-4.3-1.7-1.7v-2l1.7-1.7L19 5.7l-2.2.6-1.7-1L14.5 3z" transform="translate(0 -1)"/>\n' +
+    '      <circle cx="12" cy="12" r="3.2"/>\n' +
+    '    </svg>\n' +
+    '  </button>\n' +
+    '  <section id="app-menu" class="app-menu" popover="auto" aria-label="App menu">\n' +
+    '    <div data-app-switcher></div>\n' +
+    '    <div class="app-menu-actions">\n' +
+    '      <div data-app-help></div>\n' +
+    '      <button type="button" disabled title="Not available yet">Check for updates</button>\n' +
+    '      <button type="button" disabled title="Not available yet">Settings</button>\n' +
+    '    </div>\n' +
+    '  </section>'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/gear-updates/packages/app/src/view/render.test.ts:11:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">\n    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">\n      <path d="m9.5 3-.6 2.3-1.7 1L5 5.7 2.5 10l1.7 1.7v2L2.5 15.4 5 19.7l2.2-.6 1.7 1 .6 2.3h5l.6-2.3 1.7-1 2.2.6 2.5-4.3-1.7-1.7v-2l1.7-1.7L19 5.7l-2.2.6-1.7-1L14.5 3z" transform="translate(0 -1)"/>\n      <circle cx="12" cy="12" r="3.2"/>\n    </svg>\n  </button>\n  <section id="app-menu" class="app-menu" popover="auto" aria-label="App menu">\n    <div data-app-switcher></div>\n    <div class="app-menu-actions">\n      <div data-app-help></div>\n      <button type="button" disabled title="Not available yet">Check for updates</button>\n      <button type="button" disabled title="Not available yet">Settings</button>\n    </div>\n  </section>',
+    expected: /<button(?![^>]*disabled)[^>]*data-app-updates[^>]*>Check for updates<\/button>/,
+    operator: 'match',
+    diff: 'simple'
+  }

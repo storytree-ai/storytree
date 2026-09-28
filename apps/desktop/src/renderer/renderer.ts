@@ -7,17 +7,18 @@
  */
 import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
+import { mountAppMenu } from "@storytree/app/view";
 import { mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
-import { claimMarkers, drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, unclaimedWork, type ForestDrawn } from "@storytree/forest";
+import { drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { openForestView, mountArtifactCard, renderStoryPanel, renderUnclaimed, type ForestView } from "@storytree/forest/view";
-import { renderNoProjects, renderSwitcher } from "../view/view.js";
+import { openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type TreeSpace } from "@storytree/forest/view";
+import { renderNoProjects } from "../view/view.js";
 
 declare global {
   interface Window {
@@ -26,13 +27,22 @@ declare global {
 }
 
 const content = element("content");
-const switcher = element("switcher");
 const params = new URLSearchParams(location.search);
-const help = mountSetupHelp(element("help"), window.storytree);
-window.addEventListener("beforeunload", () => help.stop());
+const appMenu = mountAppMenu(element("app-menu-host"), {
+  background: content,
+  checkForUpdates: (action) => window.storytree.checkForUpdates(action),
+  chooseProject: async (name) => { await window.storytree.chooseProject(name); },
+  onChosen: () => following?.refresh(),
+  onError: (error) => {
+    showMessage("error", "The project could not be selected", messageOf(error));
+    void following?.refresh(true);
+  },
+  mountHelp: (host, returnFocus, onOpen) => mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen }),
+});
+window.addEventListener("beforeunload", () => appMenu.stop());
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; card: (() => void) | undefined } | undefined;
+let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined } | undefined;
 let current: string | undefined;
 let following: ReturnType<typeof followProjects> | undefined;
 
@@ -56,18 +66,7 @@ async function open(): Promise<void> {
 
 /** Redraw the picker when the list changes; only replace the surface when its project changes. */
 async function show({ current: name, projects }: ProjectSelection): Promise<void> {
-  switcher.innerHTML = projects.length === 0 ? "" : renderSwitcher(projects, projects.includes(name ?? "") ? name : undefined);
-  const select = switcher.querySelector("select");
-  if (select !== null) {
-    if (!projects.includes(name ?? "")) select.selectedIndex = -1;
-    select.addEventListener("change", () => {
-      void window.storytree.chooseProject(select.value).then(() => following?.refresh())
-        .catch((error: unknown) => {
-          showMessage("error", "The project could not be selected", messageOf(error));
-          void following?.refresh(true);
-        });
-    });
-  }
+  appMenu.update({ projects, current: name });
   if (name === undefined) {
     current = undefined;
     stopShowing();
@@ -85,7 +84,7 @@ async function show({ current: name, projects }: ProjectSelection): Promise<void
   delete document.body.dataset.drew;
   delete document.body.dataset.selected;
   if (!projects.includes(name)) {
-    return showMessage("missing", `There is no project called “${name}”`, "Pick one of the projects in the switcher above.");
+    return showMessage("missing", `There is no project called “${name}”`, "Pick a project from the gear menu in the top-right corner.");
   }
   document.title = `${name} · storytree 0.3`;
   await showForest(name);
@@ -102,11 +101,9 @@ async function showForest(name: string): Promise<void> {
   const panel = document.createElement("aside");
   panel.className = "story-panel";
   panel.hidden = true;
-  const unclaimed = document.createElement("aside");
-  unclaimed.className = "unclaimed";
-  content.replaceChildren(holder, panel, unclaimed);
+  content.replaceChildren(holder, panel);
   document.body.dataset.surface = "forest";
-  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, card: undefined };
+  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined, tree: undefined };
   showing = mine;
   mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
   const history: Change[] = [];
@@ -121,6 +118,7 @@ async function showForest(name: string): Promise<void> {
   /** The drill-down for the selected story node, or none (capability 4), with one capability shown below its diagram. */
   const showPanel = (): void => {
     if (document.body.dataset.note !== undefined) {
+      mine.tree?.close();
       panel.hidden = false;
       mine.card ??= mountArtifactCard(panel, core, () => mine.view?.select(undefined));
       return;
@@ -130,7 +128,10 @@ async function showForest(name: string): Promise<void> {
     const story = document.body.dataset.selected;
     const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, workStates(lines), history);
     panel.hidden = drilled === undefined;
-    if (story === undefined || drilled === undefined) return panel.replaceChildren();
+    if (story === undefined || drilled === undefined) {
+      mine.tree?.close();
+      return panel.replaceChildren();
+    }
     const selected = selectedCapability(drilled, chosen);
     chosen = selected;
     const open = new Set([...panel.querySelectorAll<HTMLElement>("details[open]")].map((node) => node.closest<HTMLElement>("[data-capability-id]")?.dataset.capabilityId));
@@ -151,10 +152,24 @@ async function showForest(name: string): Promise<void> {
         choose();
       });
     }
+    // The tree's own space (ADR-0743): opened from the panel, redrawn with it while open.
+    const openTree = (): void => mine.tree?.show(drilled, selected);
+    panel.querySelector("[data-open-tree]")?.addEventListener("click", openTree);
+    panel.querySelector(".panel-diagram")?.addEventListener("click", (event) => {
+      if ((event.target as Element).closest("[data-capability-id]") === null) openTree();
+    });
+    if (mine.tree?.open === true) openTree();
     panel.querySelector(".panel-close")?.addEventListener("click", () => {
       mine.view?.select(undefined);
     });
   };
+  mine.tree = mountTreeSpace(content, {
+    choose: (id) => {
+      chosen = id;
+      showPanel();
+    },
+    closed: () => panel.querySelector<HTMLButtonElement>("[data-open-tree]")?.focus(),
+  });
   const core = createKnowledgeCore(name);
   const view = await openForestView(holder, (selection) => {
     delete document.body.dataset.selected;
@@ -163,9 +178,13 @@ async function showForest(name: string): Promise<void> {
     if (selection?.kind === "note") document.body.dataset.note = selection.id;
     chosen = undefined;
     showPanel();
-  }, core);
+  }, core, session => mine.sessions?.hover(session));
   if (showing !== mine) return view.dispose();
   mine.view = view;
+  mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree,
+    onHighlight: (stories, session) => view.highlight(stories, session), onWisps: wisps => view.showWisps(wisps),
+    onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
+  core.onSelect(session => mine.sessions?.select(session));
 
   let drawing = Promise.resolve();
   mine.reading = liveReading({
@@ -180,21 +199,16 @@ async function showForest(name: string): Promise<void> {
         if (showing !== mine) return;
         const scene = forestScene(tree, history, workStates(lines));
         view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
-        view.showMarkers(claimMarkers(lines, new Date()));
         core.take(history, news.lines);
-        const work = unclaimedWork(lines);
-        unclaimed.innerHTML = renderUnclaimed(work, unclaimed.querySelector("details")?.open === true);
-        sayWhatWasDrawn({ ...forestDrawn(scene), unclaimed: work.count });
+        sayWhatWasDrawn(forestDrawn(scene));
         if (!panel.hidden) showPanel();
         setState("ready");
       }).catch((error: unknown) => {
         if (showing === mine && document.body.dataset.state !== "ready") showMessage("error", "Something went wrong", messageOf(error));
       });
     },
-    // Once a minute, with no new line, a quiet holder's marker fades (capability 5).
-    onClock: (now) => {
-      if (showing === mine) view.showMarkers(claimMarkers(lines, new Date(now)));
-    },
+    // A quiet holder's wisp fades on the sessions list's own clock (capability 5), not this one.
+    onClock: () => {},
     onError: (error) => {
       if (showing === mine && document.body.dataset.state !== "ready") showMessage("error", "The forest could not be read", messageOf(error));
     },
@@ -203,8 +217,10 @@ async function showForest(name: string): Promise<void> {
 
 function stopShowing(): void {
   showing?.card?.();
+  showing?.tree?.stop();
   showing?.arcs?.stop();
   showing?.reading?.stop();
+  showing?.sessions?.stop();
   showing?.view?.dispose();
   showing = undefined;
   delete document.body.dataset.surface;
@@ -216,7 +232,7 @@ function stopShowing(): void {
  * capabilities it drew, by id, with its own fields added. The smoke check judges the surface on
  * show by it.
  */
-function sayWhatWasDrawn(drawn: ForestDrawn & { unclaimed: number }): void {
+function sayWhatWasDrawn(drawn: ForestDrawn): void {
   // Each mounted surface contributes its own reading to the page census.
   document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"), ...drawn });
 }

@@ -6,7 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { BuiltCommand, storytree } from "./testing/cli.js";
+import { assertExitCode, BuiltCommand, storytree } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 before(async () => {
@@ -16,7 +16,7 @@ before(async () => {
     stdin: { contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(e => { console.error(e.message); process.exitCode = 1; });', resolveDir: fileURLToPath(new URL("../../app-setup", import.meta.url)) },
     outfile: path.join(command.dir, "storytree-deliver.mjs"), bundle: true, platform: "node", format: "esm", target: "node24",
     banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' },
-    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector"],
+    external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "@huggingface/transformers"],
   });
   writeFileSync(path.join(command.dir, "storytree-setup.mjs"), 'console.log(JSON.stringify(process.argv.slice(2)));');
 });
@@ -67,7 +67,7 @@ else process.exit(1);
 test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged and disconnects one without the other", async (t) => {
   const u = user(t);
   const first = await u.run(["connect", "--claude", "--codex"]);
-  assert.equal(first.code, 0, first.stderr);
+  assertExitCode(first, 0);
   assert.match(first.stdout, /Claude Code: tools connected; hooks not verified/);
   assert.match(first.stdout, /Codex: tools connected; hooks not verified/);
   assert.match(first.stdout, /Start a new agent session in the folder/);
@@ -77,18 +77,18 @@ test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged a
   assert.equal(JSON.parse(claude).mcpServers.storytree.command, u.node, "registration uses delivery's bundled Node, not the invoking runtime");
   assert.match(codex, /# keep my settings/);
   const second = await u.run(["connect", "--claude", "--codex"]);
-  assert.equal(second.code, 0, second.stderr);
+  assertExitCode(second, 0);
   assert.match(second.stdout, /already connected/);
   assert.equal(readFileSync(u.settings, "utf8"), claude);
   assert.equal(readFileSync(path.join(u.codex, "config.toml"), "utf8"), codex);
   const removed = await u.run(["disconnect", "claude-code"]);
-  assert.equal(removed.code, 0, removed.stderr);
+  assertExitCode(removed, 0);
   assert.match(removed.stdout, /Claude Code: tools disconnected/);
   assert.deepEqual(JSON.parse(readFileSync(u.settings, "utf8")), { theme: "kept", mcpServers: { other: { command: "keep" } } });
   assert.equal(readFileSync(path.join(u.codex, "config.toml"), "utf8"), codex);
-  assert.equal((await u.run(["disconnect", "codex"])).code, 0);
+  assertExitCode(await u.run(["disconnect", "codex"]), 0, "setup disconnect codex");
   const onlyCodex = await u.run(["connect", "--codex"]);
-  assert.equal(onlyCodex.code, 0, onlyCodex.stderr);
+  assertExitCode(onlyCodex, 0);
   assert.doesNotMatch(onlyCodex.stdout, /Claude Code/);
   assert.equal(JSON.parse(readFileSync(u.settings, "utf8")).mcpServers.storytree, undefined);
   assert.equal(existsSync(path.join(u.dir, ".storytree.json")), false);
@@ -99,37 +99,37 @@ test("2.2 / 2.3: partial connection is nonzero, preserves a conflict and still c
   const previous = JSON.stringify({ mcpServers: { storytree: { command: "storytree-02" } } });
   writeFileSync(u.settings, previous);
   const result = await u.run(["connect", "--claude", "--codex"]);
-  assert.equal(result.code, 1);
+  assertExitCode(result, 1);
   assert.match(result.stderr, /Claude Code: tools not connected/);
   assert.match(result.stderr, /Codex: tools connected; hooks not verified/);
   assert.equal(readFileSync(u.settings, "utf8"), previous);
-  assert.equal((await u.run(["disconnect", "claude-code"])).code, 1);
+  assertExitCode(await u.run(["disconnect", "claude-code"]), 1, "setup disconnect claude-code");
 });
 
 test("2.1 / 2.2: explicit selection, a readable delivery record and installed tools are required", async (t) => {
   const u = user(t);
   for (const verb of ["install", "remove"]) {
     const hooks = await u.run([verb]);
-    assert.equal(hooks.code, 0, hooks.stderr);
+    assertExitCode(hooks, 0);
     assert.deepEqual(JSON.parse(hooks.stdout), [verb], "existing hook command still receives its own arguments");
   }
   for (const args of [["connect"], ["connect", "--claud"], ["disconnect", "both"]]) {
-    assert.equal((await u.run(args)).code, 2, args.join(" "));
+    assertExitCode(await u.run(args), 2, `setup ${args.join(" ")}`);
   }
   rmSync(u.record);
   const missing = await u.run(["connect", "--claude"]);
-  assert.equal(missing.code, 1);
+  assertExitCode(missing, 1);
   assert.match(missing.stderr, /delivery.json.*[Rr]e-run.*installer/);
   writeFileSync(u.record, '{"schema":99}');
-  assert.equal((await u.run(["connect", "--claude"])).code, 1);
+  assertExitCode(await u.run(["connect", "--claude"]), 1, "setup connect --claude with invalid delivery record");
   writeFileSync(u.record, JSON.stringify({ schema: 1, installDir: u.dir, tools: { node: u.node, mcp: u.mcp } }));
   rmSync(path.join(u.bin, process.platform === "win32" ? "claude.cmd" : "claude"));
   const noHarness = await u.run(["connect", "--claude"]);
-  assert.equal(noHarness.code, 1);
+  assertExitCode(noHarness, 1);
   assert.match(noHarness.stderr, /Install Claude Code, sign in/);
   rmSync(u.mcp);
   const absent = await u.run(["connect", "--claude"]);
-  assert.equal(absent.code, 1);
+  assertExitCode(absent, 1);
   assert.match(absent.stderr, /restore its bundled Node and tool server/);
   assert.equal(JSON.parse(readFileSync(u.settings, "utf8")).mcpServers.storytree, undefined);
 });

@@ -12,6 +12,11 @@
 // - No package reaches into another story's files: not by a relative path into its folder, and not
 //   by a subpath of `@storytree/<story>` that its package.json does not export. A shared engine's
 //   files are no story's, so they are not covered.
+// - No workspace packages depend on each other in a cycle, not even through a devDependency. pnpm
+//   links each workspace dependency into the dependent's node_modules, as a directory junction on
+//   Windows, and git walks a junction as an ordinary folder, so a cycle is a folder loop: the
+//   desktop app's `git clean` of a reused worktree then never finishes, and nor does the session's
+//   start (0.2 met it in 2026-08, 0.3 on 2026-09-28).
 //
 // The stories live only in the library (ADR-0641), which CI cannot read, so their ids are declared
 // here: a story added to the library is added to STORIES with its package, in the same change.
@@ -20,9 +25,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "knowledge-core", "librarian", "library", "own"];
+export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "knowledge-core", "librarian", "library", "processes"];
 // app-setup: story_b91056a06337 (The app setup).
-// own: story_9abd84ab493f (What did I leave running?).
+// processes: story_9abd84ab493f (Process ledger).
 
 /** Packages that belong to no story and hold no story's code (ADR-0649 D1). */
 export const SHARED_ENGINES = ["forest-world", "local-postgres"];
@@ -84,7 +89,34 @@ export function boundaryProblems(root, { stories = STORIES, sharedEngines = SHAR
       }
     }
   }
+  for (const cycle of dependencyCycles(root, packages)) {
+    problems.push(`these packages depend on each other in a cycle: ${cycle.join(" → ")}; pnpm links it into a folder loop that git clean never leaves, so drop one of its edges`);
+  }
   return problems;
+}
+
+/** Each cycle among the workspace packages' dependencies of every kind, once, as names from and back to its least. */
+function dependencyCycles(root, packages) {
+  const deps = new Map();
+  for (const dir of packages) {
+    const manifest = JSON.parse(readFileSync(path.join(root, dir, "package.json"), "utf8"));
+    const named = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"].flatMap((field) => Object.keys(manifest[field] ?? {}));
+    deps.set(manifest.name, named);
+  }
+  const cycles = new Map();
+  const visit = (name, trail) => {
+    const at = trail.indexOf(name);
+    if (at >= 0) {
+      const loop = trail.slice(at);
+      const least = loop.indexOf([...loop].sort()[0]);
+      const cycle = [...loop.slice(least), ...loop.slice(0, least)];
+      cycles.set(cycle.join(" "), [...cycle, cycle[0]]);
+      return;
+    }
+    for (const next of deps.get(name) ?? []) if (deps.has(next)) visit(next, [...trail, name]);
+  };
+  for (const name of deps.keys()) visit(name, []);
+  return [...cycles.values()];
 }
 
 /** The story whose files `specifier`, imported from `file` in package `dir`, reaches into; else undefined. */

@@ -1,13 +1,16 @@
-/** Names, claims and selection use the same drawing on flat ground and on a globe plate. */
+/** Names, wisps and selection use the same drawing on flat ground and on a globe plate. */
 import { Html } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
-import { useState, type ComponentProps } from "react";
-import { DoubleSide } from "three";
-import type { Island, Marker } from "@storytree/forest";
-import { GROUND_PER_WORLD_UNIT, islandReach, parcelSpots, type Descriptor3D } from "@storytree/forest-world";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useRef, useState, type ComponentProps } from "react";
+import { DoubleSide, type Group } from "three";
+import { PLANET_RADIUS, type Island, type SessionWisp } from "@storytree/forest";
+import { globeOccluder } from "@storytree/forest-world/planet";
+import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
+import { WispBody, WISP_LIFT } from "@storytree/forest-world/canvas";
 
 const NAME_HEIGHT = 30;
-const MARKER_HEIGHT = 24;
+/** Names on the globe hide behind the sphere only: one exact test each, not a raycast of every pine. */
+const GLOBE_OCCLUDER = [{ current: globeOccluder(PLANET_RADIUS) }];
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
 export function Overlay(props: ComponentProps<typeof Html>) {
@@ -20,12 +23,12 @@ export function Overlay(props: ComponentProps<typeof Html>) {
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
 
 /** Each story's name over its island, facing the viewer as the camera pans and zooms (3.4). */
-export function Names({ islands, selected, onGlobe = false }: { islands: readonly Island[]; selected: string | undefined; onGlobe?: boolean }) {
+export function Names({ islands, selected, onGlobe = false, dimmed = false }: { islands: readonly Island[]; selected: string | undefined; onGlobe?: boolean; dimmed?: boolean }) {
   return islands.map((island) => {
     const { x, z } = centreOf(island);
     return (
-      <Overlay occlude={onGlobe} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
-        <div className={`forest-label${onGlobe ? " planet-label" : ""}${island.story === selected ? " selected" : ""}`} data-story-id={island.story}>
+      <Overlay occlude={onGlobe ? GLOBE_OCCLUDER : false} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
+        <div className={`forest-label${onGlobe ? " planet-label" : ""}${island.story === selected ? " selected" : ""}`} data-story-id={island.story} style={{ opacity: dimmed ? 0.24 : 1 }}>
           {island.title}
         </div>
       </Overlay>
@@ -33,38 +36,67 @@ export function Names({ islands, selected, onGlobe = false }: { islands: readonl
   });
 }
 
-/** A quiet dot over each claimed capability's tree (capability 5). */
-export function Claims({ markers, descriptors, occlude = false }: { markers: readonly Marker[]; descriptors: readonly Descriptor3D[]; occlude?: boolean }) {
-  const spots = parcelSpots(descriptors);
-  return markers.map((marker) => {
-    const spot = spots.get(marker.capability);
-    if (spot === undefined) return null;
-    return (
-      <Overlay occlude={occlude} key={`${marker.capability}:${marker.session}`} position={[spot.x, MARKER_HEIGHT, spot.z]} center zIndexRange={[30, 20]} style={{ pointerEvents: "none" }}>
-        <div
-          className="forest-claim-dot"
-          data-capability-id={marker.capability}
-          role="img"
-          aria-label={marker.faded ? "Claimed capability, holder is idle" : "Claimed capability"}
-          title={marker.faded ? "quiet past the quiet time: it still holds this capability" : ""}
-          style={{ width: 8, height: 8, borderRadius: "50%", boxSizing: "border-box",
-            background: "#e2e8e5", border: "1px solid rgb(24 40 32 / 0.7)",
-            boxShadow: "0 1px 3px rgb(0 0 0 / 0.45)", opacity: marker.faded ? 0.45 : 1, pointerEvents: "none" }}
-        />
-      </Overlay>
-    );
+/** 0.2's claim wisps went once round their island every nine seconds (ADR-0212). */
+const ORBIT_SECONDS = 9;
+/** Just outside the island's reach, so the wisp circles the shore rather than cutting the trees. */
+const ORBIT_MARGIN = 6;
+/** A touch larger than the engine's own sprite, so a session reads at globe distance. */
+const WISP_SIZE = 1.4;
+
+/**
+ * Each session's wisp orbiting `island` (capability 5, ADR-0736): the engine's wisp body in the
+ * session's colour. Hovering one names its session through `onHover`; `highlighted` swells it.
+ */
+export function Wisps({ wisps, island, descriptors, highlighted, onHover }: {
+  wisps: readonly SessionWisp[];
+  island: Island;
+  descriptors: readonly Descriptor3D[];
+  highlighted: string | undefined;
+  onHover(session: string | undefined): void;
+}) {
+  const orbiting = wisps.filter(wisp => wisp.story === island.story);
+  const groups = useRef<(Group | null)[]>([]);
+  const centre = centreOf(island);
+  const reach = islandReach(descriptors, new Map([[island.story, centre]])).get(island.story) ?? 20;
+  const radius = reach + ORBIT_MARGIN;
+  useFrame(state => {
+    if (orbiting.length === 0) return;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const turn = still ? 0 : (performance.now() / 1000 / ORBIT_SECONDS) * Math.PI * 2;
+    orbiting.forEach((wisp, index) => {
+      const angle = turn + (wisp.phase * Math.PI) / 180;
+      const group = groups.current[index];
+      if (group === null || group === undefined) return;
+      group.position.set(centre.x + Math.cos(angle) * radius, WISP_LIFT, centre.z + Math.sin(angle) * radius);
+      // Local +X follows the tangent; the Blender flame's -X tail trails behind it.
+      group.rotation.y = -angle - Math.PI / 2;
+    });
+    // The canvases draw on demand, so an orbit asks for its next frame.
+    if (!still) state.invalidate();
+  });
+  return orbiting.map((wisp, index) => {
+    const lit = wisp.session === highlighted;
+    return <group key={wisp.session} ref={group => { groups.current[index] = group; }} userData={{ sessionWisp: wisp.session }}>
+      <WispBody colour={wisp.colour} opacity={wisp.faded && !lit ? 0.45 : 1} scale={lit ? WISP_SIZE * 1.6 : WISP_SIZE} />
+      <mesh userData={{ sessionWisp: wisp.session }}
+        onPointerOver={event => { event.stopPropagation(); onHover(wisp.session); }}
+        onPointerOut={() => onHover(undefined)}>
+        <sphereGeometry args={[7, 8, 8]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>;
   });
 }
 
 /** A ring on the water round the selected island (3.3). */
-export function SelectionRing({ island, descriptors, onGlobe = false }: { island: Island | undefined; descriptors: readonly Descriptor3D[]; onGlobe?: boolean }) {
+export function SelectionRing({ island, descriptors, onGlobe = false, emphasis = false }: { island: Island | undefined; descriptors: readonly Descriptor3D[]; onGlobe?: boolean; emphasis?: boolean }) {
   if (island === undefined) return null;
   const centre = centreOf(island);
   const reach = islandReach(descriptors, new Map([[island.story, centre]])).get(island.story) ?? 20;
   return (
-    <mesh raycast={() => {}} position={[centre.x, 0.4, centre.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
+    <mesh name={emphasis ? `session-highlight:${island.story}` : ""} raycast={() => {}} position={[centre.x, 0.4, centre.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={5}>
       <ringGeometry args={[reach + 3, reach + 5, 96]} />
-      <meshBasicMaterial color="#ffd75e" side={DoubleSide} depthTest={onGlobe} transparent opacity={0.9} />
+      <meshBasicMaterial color={emphasis ? "#edf4ee" : "#ffd75e"} side={DoubleSide} depthTest={onGlobe} transparent opacity={0.9} />
     </mesh>
   );
 }

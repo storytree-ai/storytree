@@ -1,0 +1,19 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/pg-cleanup
+> node --import tsx scripts/test.mjs "--test-name-pattern=cleanup" "packages/library/src/project/cloud-connection.test.ts" "packages/library/src/testing/pg.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:36201 (started in 0.1 s)
+✔ 8.1 robustness, offline: the live proof's cleanup drops a project database the borrowed role owns, over the user's own connection, even while the project is still open (260.15197ms)
+✔ 8.1 robustness, offline: cleanup still drops the database when a backend the user cannot terminate disconnects (86.643998ms)
+✔ database cleanup propagates errors other than a refusal to terminate a backend (1.453782ms)
+✔ database cleanup propagates a failed fallback instead of leaving a database silently or retrying forever (0.275161ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 571.161583
+test Postgres: stopped (0.1 s)

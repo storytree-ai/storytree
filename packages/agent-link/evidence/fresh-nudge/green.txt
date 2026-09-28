@@ -1,0 +1,49 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/fresh-nudge
+> node --import tsx scripts/test.mjs "packages/agent-link/src/hooks/hooks.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:41069 (started in 0.1 s)
+✔ 3.1 recorded Claude Code hook inputs (a start, a file edit, a shell command, an end) make four lines on that session, carrying the file path, the command and the machine's name (521.26503ms)
+✔ 3.2 recorded Codex hook inputs make the same four lines, with the edited files read out of its patch text (547.475371ms)
+✔ 3.3 with storytree stopped, with garbage input, or outside a storytree project, the command exits cleanly in under half a second and writes nothing (1272.051449ms)
+✔ 3.4 it runs on Windows without a Unix shell, and it never prints anything the agent would see, even when storytree cannot be reached (4219.807935ms)
+✔ 3.5 recorded inputs for starting a subagent, for a storytree tool call inside it and for one by the orchestrator make three lines: the subagent's id, type and task, and who asked for each call, by the call's id, for Claude Code and Codex alike (532.19144ms)
+✔ 3.6 recorded inputs from before a shell command, after one that failed, and at the end of a turn make three lines: the command started, and finished, under the call's id, and the turn ended; for Codex, which waits for its hooks, the hook hands its line to one in the background (645.799043ms)
+✔ 3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed (703.896902ms)
+▶ 9.9 past context guidance, the Claude Code prompt hook advises handing off and starting fresh once per session; it never refuses a prompt, and Codex or absent readings get no advice
+  ✔ under and at the default add none; past it adds advice once, alongside definitions (670.861346ms)
+  ✔ a changed setting is read afresh and a fresh session gets its own advice (375.428766ms)
+  ✔ Codex past guidance still gets definitions without advice (174.160548ms)
+  ✔ no reading, an unreadable transcript, stopped storytree, and unreadable settings add none (508.846299ms)
+✔ 9.9 past context guidance, the Claude Code prompt hook advises handing off and starting fresh once per session; it never refuses a prompt, and Codex or absent readings get no advice (1808.925876ms)
+ℹ claude-code default: (no additional context)
+ℹ claude-code default: (no additional context)
+ℹ claude-code default: [storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):
+- Claim (definition_e3df1b2d1140): Holding a capability while you build it.
+
+[storytree] This session has used 700,001 tokens, past the context guidance of 700,000 tokens. Hand off and start a fresh session at the next safe boundary. This is advice; you decide when to hand off.
+ℹ claude-code default: (no additional context)
+ℹ claude-code default: (no additional context)
+ℹ claude-code default: (no additional context)
+ℹ claude-code changed: (no additional context)
+ℹ claude-code changed: [storytree] This session has used 123,456 tokens, past the context guidance of 123,455 tokens. Hand off and start a fresh session at the next safe boundary. This is advice; you decide when to hand off.
+ℹ claude-code changed: (no additional context)
+ℹ codex codex: [storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):
+- Claim (definition_e3df1b2d1140): Holding a capability while you build it.
+ℹ claude-code unrecorded: (no additional context)
+ℹ claude-code missing: (no additional context)
+ℹ claude-code missing: (no additional context)
+ℹ claude-code missing: (no additional context)
+ℹ claude-code missing: [storytree] This session has used 900,000 tokens, past the context guidance of 123,455 tokens. Hand off and start a fresh session at the next safe boundary. This is advice; you decide when to hand off.
+✔ 3.8 the status line shows what this session holds, how many other agents are working, and a warning when another is editing a file it edited; with storytree stopped it says so, and outside a project it shows nothing (516.563107ms)
+✔ 3.12 recorded Claude Code and Codex hook inputs record on their session the transcript the harness named, the latest one recorded being the session's: a `claude -p` run's transcript under an unrelated project directory, and a session moved into worktree B whose transcript is under folder A's, are read from exactly that path, with no folder searched (450.286739ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11475.725511
+test Postgres: stopped (0.1 s)

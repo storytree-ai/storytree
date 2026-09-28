@@ -14,7 +14,7 @@
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
 import { openActivityLog, readClaims, route, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
-import type { Library, Storytree, WriteOptions } from "@storytree/library";
+import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
 import { Refusal, render, type Answer } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
@@ -61,6 +61,8 @@ export interface Verb {
 /** A family of verbs: `storytree <name> <verb>`. */
 export interface Family {
   readonly name: string;
+  /** Former names it still answers to, left out of the families list. */
+  readonly aliases?: readonly string[];
   readonly summary: string;
   readonly verbs: readonly Verb[];
   /** Families within it: `storytree arc increment <verb>`. */
@@ -103,7 +105,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
 async function dispatch(argv: readonly string[], context: Context): Promise<Answer> {
   const [first, ...rest] = argv;
   if (first === undefined || first === "--help" || first === "-h" || first === "help") return families();
-  const family = FAMILIES.find((candidate) => candidate.name === first);
+  const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
   if (family === undefined) {
     throw new Refusal(`storytree has no "${first}"`, { code: 2, next: [{ command: "storytree", why: "the families it has" }] });
   }
@@ -163,7 +165,7 @@ class Opened {
 
   async claims(): Promise<Claim[]> {
     const where = this.#routed();
-    const log = await openActivityLog(where.url);
+    const log = await openActivityLog(await this.#server());
     try {
       return await readClaims(log, where.project);
     } finally {
@@ -181,19 +183,25 @@ class Opened {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
-    const log = await (this.#log ??= openActivityLog(where.url));
+    const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree)));
     return { log, library, project: where.project, folder: this.#cwd, ...caller };
   }
 
   async #open(): Promise<Library> {
     const where = this.#routed();
-    const { connect } = await import("@storytree/library");
-    this.#storytree = connect({ url: where.url });
-    return (await this.#storytree).openProject(where.project);
+    return (await this.#server()).openProject(where.project);
   }
 
-  /** The project and storytree's address, or the refusal saying why there are none. */
-  #routed(): { project: string; url: string } {
+  /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
+  #server(): Promise<Storytree> {
+    return (this.#storytree ??= (async () => {
+      const { connect } = await import("@storytree/library");
+      return connect(this.#routed().library);
+    })());
+  }
+
+  /** The project and where its library is, or the refusal saying why there are none. */
+  #routed(): { project: string; library: ConnectOptions } {
     const where = route(this.#cwd);
     if (where.status === "not-a-project") {
       throw new Refusal(`${where.message}: no .storytree.json in ${this.#cwd} or any folder above it`, {

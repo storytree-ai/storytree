@@ -1,4 +1,4 @@
-import { DoubleSide, Mesh, Quaternion, ShaderMaterial, SphereGeometry, Vector3 } from 'three';
+import { DoubleSide, Mesh, Object3D, Quaternion, ShaderMaterial, Sphere, SphereGeometry, Vector3, type Intersection, type Raycaster } from 'three';
 import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 import { landHeightRange } from '../land-relief.js';
 import { SHORE_DIP } from '../shore-fall.js';
@@ -69,4 +69,24 @@ export function createPlanetSurface(radius: number) {
   }));
   surface.name = 'planet:shell';
   return surface;
+}
+
+/**
+ * What hides a name behind the globe: the sea sphere as an exact ray-vs-sphere test, no triangles.
+ * An `Html` label given `occlude` alone raycasts the WHOLE scene (every plate's ground and pines)
+ * once per label per frame; measured 2026-09-28, that was 84% of a drag frame, at 8 fps.
+ * The globe turns about its centre, so the sphere stays at the world origin whatever the turn.
+ */
+export function globeOccluder(radius: number): Object3D {
+  const occluder = new Object3D();
+  occluder.name = 'planet:occluder';
+  const sphere = new Sphere(new Vector3(), radius);
+  const point = new Vector3();
+  occluder.raycast = (raycaster: Raycaster, intersects: Intersection[]) => {
+    if (raycaster.ray.intersectSphere(sphere, point) === null) return;
+    const distance = raycaster.ray.origin.distanceTo(point);
+    if (distance < raycaster.near || distance > raycaster.far) return;
+    intersects.push({ distance, point: point.clone(), object: occluder });
+  };
+  return occluder;
 }

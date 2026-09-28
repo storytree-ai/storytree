@@ -623,6 +623,42 @@ test("8.1 robustness, offline: the live proof's cleanup drops a project database
   }
 });
 
+test("8.1 robustness, offline: cleanup still drops the database when a backend the user cannot terminate disconnects", async () => {
+  const run = uniqueProjectName();
+  const user = `${run}-owner`;
+  const other = `${run}-other`;
+  const database = `storytree_${run}`;
+  try {
+    await createTestRole(user, { createdb: true });
+    await createTestRole(other, { createdb: false });
+    await withTestClientAs(user, (client) => client.query(`CREATE DATABASE "${database}"`));
+    await withTestClientAs(other, async (backend) => {
+      await withTestClientAs(user, async (owner) => {
+        let refusals = 0;
+        await dropTestDatabases([database], {
+          query: async (sql) => {
+            try {
+              return await owner.query(sql);
+            } catch (error) {
+              assert.equal(codeOf(error), "42501");
+              assert.equal((error as { routine: string }).routine, "TerminateOtherDBBackends");
+              refusals++;
+              // Hold the otherwise timing-dependent backend until Postgres has refused to end it.
+              await backend.end();
+              throw error;
+            }
+          },
+        });
+        assert.equal(refusals, 1, "the server refused to terminate the other role's backend");
+      });
+    }, database);
+    assert.deepEqual(await databasesContaining(run), [], "cleanup really dropped the database");
+  } finally {
+    await dropTestDatabases([database]);
+    await dropTestRoles([user, other]);
+  }
+});
+
 /** A fake connector, and what it was asked. */
 interface FakeGoogle {
   /** Makes the connector: what connect() is handed as its seam. */

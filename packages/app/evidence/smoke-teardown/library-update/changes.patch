@@ -1,0 +1,29 @@
+--- old/library/The app/capability 1/contract_4f42289786f0/title
++++ new/library/The app/capability 1/contract_4f42289786f0/title
+@@ -1 +1 @@
+-1.7 · Closing the window leaves the app and its database running; the tray's Quit, or asking the app to quit from outside (`storytree app quit`), stops them: it stops the database once, and the app exits only after it has stopped.
++1.7 · Closing the window leaves the app and its database running; the tray's Quit, or asking the app to quit from outside (`storytree app quit`), stops them: it stops the database once, and the app exits only after it has stopped. Quitting, including smoke teardown and restarting into an update, stops the page's polling before closing the library, without logging a closed-library error.
+
+--- old/library/The app/capability 1/definition_1be250107f9f/meaning
++++ new/library/The app/capability 1/definition_1be250107f9f/meaning
+@@ -4,3 +4,8 @@
+   stopped. Opening the app again, clicking the icon or choosing Open brings the window back, opened
+   again on the project it first showed if it was closed. The policy is `background` and `TRAY_MENU`
+   in `packages/app` (`src/lifecycle/`); `apps/desktop` wires them to Electron.
++- **As built** (`increment_8202fb90e611`): `background` stops the pages before stopping the
++  database. Desktop destroys its windows, ending project polling and live reading, before the
++  page-read connections and library close. Smoke completion, timeout and startup failure use
++  the same quit path as the tray and update restart. An activation during shutdown cannot open
++  a new page. Closing a window normally still leaves the app and its database running.
+
+--- old/library/The app/capability 1/definition_b5284f2d8f14/meaning
++++ new/library/The app/capability 1/definition_b5284f2d8f14/meaning
+@@ -2,3 +2,8 @@
+   (`packages/local-postgres/src/local-postgres.test.ts`), and 4 to 6 by the agent link's 1.4, 1.5
+   and 8.3. Those tests carry their own packages' numbering, so `pnpm seed:library` leaves these
+   contracts not checked. Contract 7 is proven red→green in `packages/app`, so the seed judges it.
++  `packages/app/src/lifecycle/background.test.ts` runs the real project follower across a
++  deliberately slow database stop: it fails on the logged closed-library error before the fix,
++  then proves no further poll starts and exit remains 0. The existing quit/restart tests stay green.
++  `packages/app/evidence/smoke-teardown/` retains red and green output and a complete native
++  `pnpm desktop:smoke` log from the restored real snapshot, with census and teardown both passing.

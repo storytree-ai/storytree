@@ -1,0 +1,58 @@
+✖ 1.7 smoke teardown stops page polling before closing the library, without logging a closed-library error (4.629316ms)
+✔ 1.7 closing the window leaves the app and its database running, and the tray's Quit is the one way to stop them (0.950945ms)
+✔ 1.7 a start that arrives while the app is quitting is not lost: once the database has stopped, the app opens again with its window (0.239745ms)
+✔ 1.7 restarting into an update stops the database once, and the new build shows its window only if it was showing or the app was started again meanwhile (0.319366ms)
+✔ 1.7 asking the app to quit from outside stops it as the tray's Quit does: the database once, then exit, and it does not open again (0.206742ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.03849
+
+✖ failing tests:
+
+test at packages/app/src/lifecycle/background.test.ts:1:282
+✖ 1.7 smoke teardown stops page polling before closing the library, without logging a closed-library error (4.629316ms)
+  AssertionError [ERR_ASSERTION]: successful smoke teardown must not log a closed-library error
+  + actual - expected
+  
+  + [
+  +   Error: the library is not open
+  +       at Object.read (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.test.ts:21:31)
+  +       at refresh (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/projects/follow.ts:21:23)
+  +       at <anonymous> (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/projects/follow.ts:33:51)
+  +       at MockTimers.tick (node:internal/test_runner/mock/mock_timers:705:7)
+  +       at stopDatabase (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.test.ts:37:21)
+  +       at stop (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.ts:64:18)
+  +       at Object.quit (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.ts:74:25)
+  +       at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.test.ts:42:13)
+  +       at async Test.run (node:internal/test_runner/test:1389:7)
+  +       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.test.ts:43:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [
+      Error: the library is not open
+          at Object.read (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.test.ts:21:31)
+          at refresh (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/projects/follow.ts:21:23)
+          at <anonymous> (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/projects/follow.ts:33:51)
+          at MockTimers.tick (node:internal/test_runner/mock/mock_timers:705:7)
+          at stopDatabase (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.test.ts:37:21)
+          at stop (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.ts:64:18)
+          at Object.quit (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.ts:74:25)
+          at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/smoke-teardown/packages/app/src/lifecycle/background.test.ts:42:13)
+          at async Test.run (node:internal/test_runner/test:1389:7)
+          at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+    ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

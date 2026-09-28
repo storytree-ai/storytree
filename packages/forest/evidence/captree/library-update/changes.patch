@@ -1,0 +1,63 @@
+--- old/library/The forest/capability 4/capability_f0ffead428df/description
++++ new/library/The forest/capability 4/capability_f0ffead428df/description
+@@ -1 +1 @@
+-Clicking a story node opens a panel that explains the story in plain words: its sentences, and a small diagram of how its capabilities connect, each pointing at the ones it builds on, including any in other stories, named with their story and marked if not yet landed. Clicking one of the story's own capabilities in the diagram shows it below: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
++Clicking a story node opens a panel that explains the story in plain words: its sentences, and its capability tree, each capability pointing at the ones it builds on, including any in other stories, named with their story and marked if not yet landed. The tree opens in a space of its own over the forest, where it is drawn at a readable size and the user drags it around and zooms it instead of it shrinking to fit; each capability's card names its work state in words on a coloured strip, with the agent's report and storytree's as labelled marks (ADR-0743). Clicking one of the story's own capabilities, in the panel or in the tree's space, shows it below the panel's tree: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
+
+--- old/library/The forest/capability 4/contract_0968031ceff0/title
++++ new/library/The forest/capability 4/contract_0968031ceff0/title
+@@ -1 +1 @@
+-4.8 · Each of the story's capabilities is a box you can click, marked when selected and tinted by the agent's reported health; another story's capability is in the diagram but cannot be clicked.
++4.8 · Each of the story's capabilities is a card you can click, marked when selected and tinted by the agent's reported health; another story's capability is in the tree but cannot be clicked.
+
+--- old/library/The forest/capability 4/ADD contract under capability_f0ffead428df/title
++++ new/library/The forest/capability 4/ADD contract under capability_f0ffead428df/title
+@@ -0,0 +1 @@
++4.9 · The capability tree is a graph of fixed-size cards: each capability sits above the ones it builds on, and another story's capability sits one row below the capability that builds on it, not in one row with every other outside capability.
+
+--- old/library/The forest/capability 4/ADD contract under capability_f0ffead428df/title
++++ new/library/The forest/capability 4/ADD contract under capability_f0ffead428df/title
+@@ -0,0 +1 @@
++4.10 · Each card has a strip across its top naming its work state in words (planned, in progress, landed; "not landed yet" for another story's), coloured by that state, and the agent's report and storytree's as marks labelled "the agent reports" and "storytree saw", storytree's only where something wrote it.
+
+--- old/library/The forest/capability 4/definition_d706c4dfe91c/meaning
++++ new/library/The forest/capability 4/definition_d706c4dfe91c/meaning
+@@ -8,9 +8,19 @@
+   chosen)` picks the one shown below the diagram: the one clicked, else the first in build order
+   not yet landed, else the first. The page (`packages/forest/src/view/story-panel.ts`) draws it as
+-  a panel over the forest's right side: the story's sentences, then the diagram as boxes in rows by
+-  build depth (foundations at the top, so a deep story stays readable in the narrow panel), each of
+-  the story's own boxes a button tinted by the agent's reported health and dashed until it lands,
+-  another story's box muted and not a button; then the selected capability, with its contracts
+-  folded until asked for. No front cover shows in the panel (ADR-0659 D4). Clicking a story node
+-  opens it, the × or empty space closes it, and the live reading keeps it current, holding the
+-  selected capability.
++  a panel over the forest's right side: the story's sentences, then an "Open the capability tree"
++  button over a preview of the tree scaled to the panel, then the selected capability, with its
++  contracts folded until asked for. No front cover shows in the panel (ADR-0659 D4). Clicking a
++  story node opens it, the × or empty space closes it, and the live reading keeps it current,
++  holding the selected capability.
++  The tree (ADR-0743) is `layoutTree(panel)` in `packages/forest` (`drill-down/tree-layout.ts`),
++  ported from 0.2's `layoutSubdag`: dagre, bottom to top, so what a capability builds on sits below
++  it and another story's capability sits beside what builds on it; every own card 208 × 94 and every
++  other story's 164 × 62, never shrunk. Each card (`renderTree`) carries 0.2's status strip naming
++  its work state in words, coloured as the arc surface colours it (planned grey, in progress amber,
++  landed green), its title, and the marks "the agent reports" and "storytree saw" (ADR-0630);
++  another story's card is muted, names its story, and is not a button (ADR-0659 D3, D5).
++  `mountTreeSpace` (`view/tree-space.ts`) opens it in its own layer over the forest, beside the
++  panel, which narrows while it is open: drag pans, the wheel or a pinch zooms about the pointer,
++  with no scroll bars and a pan bounded so the tree stays in reach; it opens centred on the story's
++  own cards, keeps its place while the live reading redraws, and Escape, × or the panel closing
++  closes it. Clicking a card there chooses the panel's capability as clicking it in the panel does.
+
+--- old/library/The forest/capability 4/definition_4e3a12837741/meaning
++++ new/library/The forest/capability 4/definition_4e3a12837741/meaning
+@@ -1,4 +1,5 @@
+-- **Leaves out (vs 0.2), by the owner's decisions:** the pannable sub-map of 0.2's story panel
+-  (part of a 5,624-line studio component), with its ancestor and descendant highlighting, and its
+-  session dock (ADR-0635, c5). The panel's library drawer is the artifact browser he cut from the MVP
+-  (ADR-0625 D4).
++- **Leaves out (vs 0.2), by the owner's decisions:** the ancestor and descendant highlighting of
++  0.2's story-panel sub-map, and its session dock (ADR-0635, c5). The pannable sub-map itself and
++  its status-strip cards were brought back, in a space of their own, by ADR-0743. The panel's
++  library drawer is the artifact browser he cut from the MVP (ADR-0625 D4).

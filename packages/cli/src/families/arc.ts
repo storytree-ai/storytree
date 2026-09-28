@@ -19,12 +19,12 @@ import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
 
-/** The given flags among `names`, each as the library field it names (`--end-state` is `endState`). */
-function given(args: Args, names: readonly string[]): Record<string, unknown> {
-  const fields: Record<string, unknown> = {};
+/** The given flags among `names`, each as the library field it names (`--end-state` is `endState`), kept as the text given (`--pr 132` is "132", not a number). */
+function given(args: Args, names: readonly string[]): Record<string, string> {
+  const fields: Record<string, string> = {};
   for (const name of names) {
     const value = args.text(name);
-    if (value !== undefined) fields[name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())] = valueOf(value);
+    if (value !== undefined) fields[name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())] = value;
   }
   return fields;
 }

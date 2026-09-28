@@ -1,0 +1,77 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/top-bars
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/arcs-open.png"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/top-bars/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/arcs-open.png"
+
+built dist
+Debugger listening on ws://127.0.0.1:38541/053219d7-1717-44d2-a86e-db956bbc85ad
+For help, see: https://nodejs.org/learn/getting-started/debugging
+
+DevTools listening on ws://127.0.0.1:35857/devtools/browser/1fd84f21-626f-44d4-9cfb-15108247ecb3
+Debugger attached.
+Debugger ending on ws://127.0.0.1:38541/053219d7-1717-44d2-a86e-db956bbc85ad
+For help, see: https://nodejs.org/learn/getting-started/debugging
+Postgres: listening on 127.0.0.1:37823 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:37823/postgres
+storytree 0.3: development build e482964 from /home/mickh/code/storytree03-wt/top-bars (does not update itself)
+[727886:0928/194115.070088:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x2b3400191000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+smoke: screenshot /home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/arcs-open.png (1120x860)
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+What did I leave running?
+Forest
+Library
+Arcs
+▴
+Active
+Parked
+Closed
+quiet
+The app's window: one gear in the corner, no title bar
+2 landed · 2 open
+quiet
+Running sessions on the forest: quiet claims and a context list
+3 landed · 5 open
+quiet
+Storytree 0.3 arc surface: planned, in progress and landed, per project
+5 landed · 1 open
+quiet
+An agent link settings surface users configure
+2 landed · 4 open
+quiet
+Hosted library: local by default, Google Cloud SQL as the option, then we move onto it
+4 open
+quiet
+Storytree 0.3 to first users: one-command install and first run, and trusted-circle users
+10 landed · 3 open
+quiet
+Storytree 0.3 cutover: 0.3 builds itself, 0.2 goes read-only
+11 landed · 2 open
+The app's window: one gear in the corner, no title bar
+
+Owner-directed 2026-09-28 (to session 5081745b, verbatim): "Maybe we put a gear icon top right corner. Can we make the context guidance cover the nudge as well - should be one setting. Gear top right corner can also have a check for updates surface, that updates and reboots the app. Also while we doing frontend feedback, can we make the arc surface menu bar that you click to expand a full bar or something prettier, atm it looks ugly being this small drawer in the top centre of the window. We can also move the project selector, help, etc into the gear, dont think we need a title bar that says storytree 0.3 - the window in windows already says this. Can you add these increments or fresh arcs".
+
+The app's window loses its own title bar (apps/desktop/src/renderer/index.html: header.app-bar with "storytree 0.3", the project switcher and the help button). One gear in the top-right corner holds what the bar held: the project switcher (the app story's, capability 2), help (the app setup's surface, mountSetupHelp), a check for updates that updates and restarts the app now (the app story's capability 4, Updates, which today only polls merged main every 3 minutes, apps/desktop/src/main/main.ts:67), and the settings panel (the agent link's Settings, capability 10, on arc_748792ea3487). The Windows title bar already names the app.
+
+Package ownership (ADR-0649): the gear is the app story's (packages/app); each item in it is mounted by the story that owns it; the desktop frame only mounts. Visual units go through frontend-builder: geometry and behaviour red to green, then a captured look the owner accepts, never self-accepted.
+
+
+Nothing is waiting on you here
+
+"Blocked" comes only from waits on other work.
+
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

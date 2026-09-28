@@ -1,0 +1,19 @@
+▶ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in
+  ✔ 2.1 [cloud-sql] save creates a record; saving the same id again replaces it; each save appends one history entry (15688.6094ms)
+  ✔ 2.2 [cloud-sql] edit changes only the fields it names; every other field keeps its stored value (4694.5834ms)
+  ✔ 2.3 [cloud-sql] edit merges onto what is stored now, so racing edits of different fields all survive (5915.9547ms)
+  ✔ 2.4 [cloud-sql] edit of a missing record returns null and creates nothing (8119.5266ms)
+  ✔ 2.5 [cloud-sql] get of a missing record returns null and never throws (11596.8431ms)
+  ✔ 2.6 [cloud-sql] list(type) returns only that type's current records, ordered by id, and [] when there are none (8616.2336ms)
+  ✔ 2.7 [cloud-sql] retire removes the record from get and list, keeps the reason in history, and is a harmless no-op when repeated or missing (5621.5706ms)
+  ✔ 2.8 [cloud-sql] history returns every change in order with strictly increasing seq; it filters by id and by since (15750.5811ms)
+  ✔ 2.9 [cloud-sql] a validate check sees the merged result, and if it throws nothing is written (7622.3539ms)
+✔ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (83628.9357ms)
+ℹ tests 9
+ℹ suites 1
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 86350.8841

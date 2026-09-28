@@ -1,0 +1,51 @@
+--- old/library/The arc surface/capability 3/capability_d077e76e50d7/description
++++ new/library/The arc surface/capability 3/capability_d077e76e50d7/description
+@@ -1 +1 @@
+-Over the forest, one read-only top drawer leaves the forest usable below and lists root arcs as dense two-line lanes (state chip and title, then small bars and count), with a bar for each increment, finished work first, each bar coloured by its work state, a count of what landed and what is open (never a percentage), and a chip with the lane's state and who is on it; Active, Parked and Closed each show their own arcs. It stays current while it is open: about every two seconds it asks for what changed in the library and the agent log, which the app carries to it, and it re-checks the clock once a minute, so an agent that goes quiet turns idle without any new record.
++A full-width top bar beside the app gear opens one read-only drawer over the forest. The bar labels the project and reserves its top strip so the forest controls remain reachable. The drawer leaves the forest usable below and lists root arcs as dense two-line lanes (state chip and title, then small bars and count), with a bar for each increment, finished work first, each bar coloured by its work state, a count of what landed and what is open (never a percentage), and a chip with the lane's state and who is on it; Active, Parked and Closed each show their own arcs. It stays current while it is open: about every two seconds it asks for what changed in the library and the agent log, which the app carries to it, and it re-checks the clock once a minute, so an agent that goes quiet turns idle without any new record.
+
+--- old/library/The arc surface/capability 3/contract_f64050164f89/title
++++ new/library/The arc surface/capability 3/contract_f64050164f89/title
+@@ -1 +1 @@
+-3.1 · A centered top-edge handle opens the drawer over the surface on show; the forest stays visible and receives input below. The handle or Escape closes it. No action writes library data, and it carries no Library switch or artifact links. While its first read is on the way it says so, and a read that fails says so rather than drawing an empty board.
++3.1 · A full-width top bar labeled Arcs and the project spans the window from its left edge up to the app’s top-right gear. Clicking either end opens or closes the drawer; the bar also works from the keyboard and Escape closes it, returning focus to the bar. The forest and its controls remain below the top strip and receive input below the closed bar or open drawer. The gear stays reachable at wide and narrow window sizes. No action writes library data, and it carries no Library switch or artifact links. While its first read is on the way it says so, and a read that fails says so rather than drawing an empty board.
+
+--- old/library/The arc surface/capability 3/definition_d40b09a10211/meaning
++++ new/library/The arc surface/capability 3/definition_d40b09a10211/meaning
+@@ -1,6 +1,10 @@
+ - **As built (top drawer, ADR-0660 D1–D3):** `boardView` and `watchBoard` keep their
+   existing state and live-reading rules. `mountArcSurface` from the `/view` subpath draws a
+-  nonmodal, half-height top drawer with a centered handle. The forest remains usable below.
++  nonmodal, half-height drawer below a 60 px full-width top bar. The bar leaves the app’s
++  top-right gear its existing corner, with a 12 px gutter, and labels Arcs and the project.
++  The mount reserves the strip above the forest and its controls; removing it releases that
++  space. The forest remains usable below. The bar uses the forest controls’ existing palette.
++  Its static project label preserves the rule that closing the drawer stops its reading.
+   Root lanes use chip/title then bars/count; a fixed gutter caret reveals queued chips.
+   The viewer’s open/closed state, scope and selected arc persist per project in localStorage
+   under Electron’s existing userData home, with safe defaults if storage is unavailable or
+
+--- old/library/The arc surface/capability 3/definition_d7bec65ac642/meaning
++++ new/library/The arc surface/capability 3/definition_d7bec65ac642/meaning
+@@ -1,4 +1,4 @@
+-- **Proved in the app:** the existing Postgres-backed test uses `pageReads` and a stand-in
++- **Earlier drawer proof (before the full-width bar):** the existing Postgres-backed test uses `pageReads` and a stand-in
+   clock. The headless Chromium acceptance reuses the actual desktop renderer and isolated
+   Postgres, restoring the supplied forest snapshot and adding explicit fixture arcs (the
+   snapshot predates plan cutover and contains no arcs). It asserts top-edge/half-height
+@@ -6,3 +6,15 @@
+   live claim and clock-only idle, failed-read retry, preserved reading/folds/scroll, all-scope
+   smoke, live settlement, read-only UI and persisted open/scope/selection across fresh
+   contexts. Evidence: `packages/arc-surface/evidence/drawer-shape/README.md`.
++
++- **Full-width bar proof:** `render.test.ts` pins the accessible open/close state and escaped
++  project label. `packages/arc-surface/evidence/arc-bar/capture.mjs` restores the supplied
++  2026-09-28 real snapshot, without fixture arcs, and measures the bar at 1440 and 360 px:
++  it reaches from the left edge to 12 px before the gear. It checks both-end toggle clicks,
++  keyboard activation and Escape focus, forest controls and pointer input below the strip,
++  pointer input below the open drawer, gear access, saved scope/open and closed state,
++  read-only library history and the forest census. Red geometry records the old tab at x=682.
++  `electron-capture.mjs` drives `pnpm desktop:smoke` for the closed and open views of the same
++  snapshot restored into a throwaway home. Both native captures pass the all-scope arc smoke
++  and forest census. Evidence: `packages/arc-surface/evidence/arc-bar/README.md`.
++  Appearance remains for the owner to accept.

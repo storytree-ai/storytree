@@ -1,6 +1,7 @@
 /**
  * The storytree 0.3 desktop app's main process. It starts the app's own Postgres on its data
- * directory (~/.storytree/0.3/pgdata) through local-postgres, connects the library through its
+ * directory (~/.storytree/0.3/pgdata) through local-postgres, or, when the user's library setting
+ * names a Cloud SQL instance, starts none and uses the instance; connects the library through its
  * public API, opens the project asked for (`--project <name>`, else `storytree` if there is one,
  * else the first), and shows it. It answers the page's questions (bridge.ts) through
  * @storytree/app's pageReads: the projects, a project's tree, and the library's changes and the
@@ -34,10 +35,10 @@ import {
   BACKUP_EVERY_MS,
   background,
   backUp,
-  buildApp,
   buildLabel,
   electronIn,
   launchToRecord,
+  openAppLibrary,
   pageReads,
   projectSelection,
   refreshOwnHealth,
@@ -46,12 +47,12 @@ import {
   slotSha,
   smokeProblems,
   TRAY_MENU,
-  updateToMain,
+  mainUpdates,
   type Launch,
   type PageReads,
-  type RunningBuild,
 } from "@storytree/app";
 import { setupHelpActions } from "@storytree/app-setup";
+import { settingsActions, SETTINGS_CHANNELS } from "@storytree/agent-link/settings";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
 import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
 
@@ -63,8 +64,6 @@ import { followReleases } from "./releases.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();
-/** How often the app that follows merged main checks whether main has moved. */
-const UPDATE_EVERY_MS = 3 * 60_000;
 /** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 
@@ -76,6 +75,7 @@ let storytree: Storytree | undefined;
 let reads: PageReads | undefined;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
+let updates: ReturnType<typeof mainUpdates> | undefined;
 /** What the window was opened with, so it can be opened again after it is closed. */
 let windowQuery: { project?: string; problem?: string } = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
@@ -84,7 +84,13 @@ let tray: Tray | undefined;
 let build = "";
 /** The runtime slot this app runs from, when it is the app that follows merged main. */
 const slot = slotOf(home.runtime, app.getAppPath());
-const lifecycle = background({ stopDatabase: shutdown, exit: (code) => app.exit(code), relaunch });
+const lifecycle = background({
+  // End every renderer (project polling and live reading) before closing what it reads.
+  stopPages: () => { for (const window of BrowserWindow.getAllWindows()) window.destroy(); },
+  stopDatabase: shutdown,
+  exit: (code) => app.exit(code),
+  relaunch,
+});
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
 if (slot !== undefined && !args.smoke) logTo(path.join(home.dir, "app.log"));
 
@@ -110,13 +116,16 @@ if (!args.smoke && !app.requestSingleInstanceLock()) {
   if (args.smoke) {
     setTimeout(() => {
       console.error(`smoke: gave up after ${SMOKE_TIMEOUT_MS / 1000} s`);
-      void shutdown().finally(() => app.exit(1));
+      void lifecycle.quit(1);
     }, SMOKE_TIMEOUT_MS).unref();
   }
   app.whenReady().then(run, (error: unknown) => fail(error));
 }
 
 async function run(): Promise<void> {
+  const settings = settingsActions(home.dir);
+  ipcMain.handle(SETTINGS_CHANNELS.readSettings, () => settings.readSettings());
+  ipcMain.handle(SETTINGS_CHANNELS.saveSetting, (_event, name: unknown, values: unknown) => settings.saveSetting(name, values));
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,
@@ -135,6 +144,7 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.arcView, (_event, name: unknown, id: unknown) => open().arcView(name, id));
   ipcMain.handle(CHANNELS.waitHolds, (_event, name: unknown, id: unknown) => open().waitHolds(name, id));
   ipcMain.handle(CHANNELS.heldOnQuestion, (_event, name: unknown, id: unknown) => open().heldOnQuestion(name, id));
+  ipcMain.handle(CHANNELS.contextReadings, (_event, name: unknown, sessions: unknown) => open().contextReadings(name, sessions));
 
   ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));
   ipcMain.handle(CHANNELS.projectSelection, () => projects?.read() ?? { projects: [], current: undefined });
@@ -151,9 +161,16 @@ async function run(): Promise<void> {
   let problem: string | undefined;
   let project: string | undefined;
   try {
-    postgres = await start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) });
-    storytree = await connect({ url: postgres.url });
-    reads = pageReads({ storytree, serverUrl: postgres.url });
+    // Where the library lives is the user's library setting: this app's own Postgres (the default),
+    // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
+    const opened = await openAppLibrary({
+      home: home.dir,
+      startLocal: () => start({ dataDir: home.pgdata, owner: APP_OWNER, bin: postgresBinaries(), log: (message) => console.log(`Postgres: ${message}`) }),
+      connect,
+    });
+    ({ storytree, postgres } = opened);
+    console.log(`library: ${opened.where}`);
+    reads = pageReads({ storytree });
     projects = projectSelection({ listProjects: () => open().listProjects(), file: path.join(home.dir, "project-choice.json") });
     project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();
@@ -166,6 +183,24 @@ async function run(): Promise<void> {
     console.error(problem);
   }
   build = await whichBuild();
+  const dir = slot === undefined ? undefined : path.join(home.runtime, slot);
+  const running = slot === undefined || dir === undefined ? undefined : { slot, dir, sha: await slotSha(dir) };
+  updates = mainUpdates({
+    runtimeDir: home.runtime, runningBuild: build,
+    ...(running === undefined ? {} : { running }),
+    prepare: async () => {
+      if (running !== undefined && storytree !== undefined) {
+        await refreshOwnHealth({ running, home: home.dir, log: line => console.log(line) });
+      }
+    },
+    canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
+    restart: next => lifecycle.restart(
+      { execPath: electronIn(next.dir), args: [appDirIn(next.dir)] },
+      BrowserWindow.getAllWindows().some(window => window.isVisible()),
+    ),
+    log: line => console.log(line),
+  });
+  ipcMain.handle(CHANNELS.checkForUpdates, (_event, action: unknown) => updates!.request(action));
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };
   if (args.smoke) await smoke(openWindow(windowQuery), project);
@@ -174,56 +209,12 @@ async function run(): Promise<void> {
     showTray();
     addStartMenuShortcut();
     void keepBackups();
-    void followMain();
+    updates.start();
     followReleases({
       restart: lifecycle.restart,
       canRestart: async () => shutDown === undefined && (postgres === undefined || !(await seedWriting(postgres.url))),
     }, home.dir);
   }
-}
-
-/**
- * When the app runs from one of the runtime's slots, follow merged main: check every few minutes,
- * and when main has moved and its new commit has built beside this one, restart into it, with the
- * window shown only if it is showing now. A failed build is logged and tried again at the next
- * check; the running app is untouched. The app run from anywhere else (a checkout, `pnpm desktop`)
- * never updates itself.
- */
-async function followMain(): Promise<void> {
-  if (slot === undefined) return;
-  const dir = path.join(home.runtime, slot);
-  const running: RunningBuild = { slot, dir, sha: await slotSha(dir) };
-  console.log(`updates: following merged main from slot ${slot} (${running.sha.slice(0, 7)})`);
-  // The new slot is running and the window is open. Check its health in this background task
-  // before polling for another update, including the gap before the child takes the writing lock.
-  if (storytree !== undefined) await refreshOwnHealth({ running, home: home.dir, log: (line) => console.log(line) });
-  if (shutDown !== undefined) return;
-  let checking = false;
-  /** A new build waiting to be restarted into, while a seed writes the library. */
-  let ready: RunningBuild | undefined;
-  const check = async (): Promise<void> => {
-    if (checking || shutDown !== undefined) return;
-    checking = true;
-    try {
-      const next = ready ?? (await updateToMain({ runtimeDir: home.runtime, running, build: buildApp }));
-      if (next === undefined) return;
-      // Restarting stops the database, so it waits while a seed is writing into it.
-      if (postgres !== undefined && (await seedWriting(postgres.url))) {
-        if (ready === undefined) console.log(`updates: main ${next.sha.slice(0, 7)} is built in slot ${next.slot}; restarting once the seed writing the library has finished`);
-        ready = next;
-        return;
-      }
-      console.log(`updates: main moved to ${next.sha.slice(0, 7)}; restarting into slot ${next.slot}`);
-      const showing = BrowserWindow.getAllWindows().some((window) => window.isVisible());
-      void lifecycle.restart({ execPath: electronIn(next.dir), args: [appDirIn(next.dir)] }, showing);
-    } catch (error) {
-      console.error(`updates: ${messageOf(error)}`);
-    } finally {
-      checking = false;
-    }
-  };
-  setInterval(() => void check(), UPDATE_EVERY_MS).unref();
-  void check();
 }
 
 /**
@@ -256,6 +247,7 @@ function showTray(): void {
 
 /** Bring the window forward, opening it again on the same project if it was closed. */
 function showWindow(): void {
+  if (shutDown !== undefined) return;
   const [open] = BrowserWindow.getAllWindows();
   const window = open ?? openWindow(windowQuery);
   if (window.isMinimized()) window.restore();
@@ -455,8 +447,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
   } catch (error) {
     console.error(`smoke: ${messageOf(error)}`);
   } finally {
-    await shutdown();
-    app.exit(code);
+    await lifecycle.quit(code);
   }
 }
 
@@ -480,6 +471,7 @@ function drewText(tree: AnnotatedTree, drew: string | undefined): string {
 
 /** Close the library and stop Postgres. Safe to call more than once. */
 function shutdown(): Promise<void> {
+  updates?.stop();
   shutDown ??= (async () => {
     await reads?.close().catch((error: unknown) => console.error(`closing the projects: ${messageOf(error)}`));
     reads = undefined;
@@ -493,7 +485,7 @@ function shutdown(): Promise<void> {
 
 function fail(error: unknown): void {
   console.error(`storytree 0.3: ${messageOf(error)}`);
-  void shutdown().finally(() => app.exit(1));
+  void lifecycle.quit(1);
 }
 
 function messageOf(error: unknown): string {

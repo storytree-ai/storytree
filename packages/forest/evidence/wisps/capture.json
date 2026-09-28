@@ -1,0 +1,63 @@
+{
+  "browser": "148.0.7778.96",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "wisps": [
+    {
+      "session": "wisps-builder",
+      "story": "story_a93c6fb1a257",
+      "colour": "ef826c",
+      "opacity": 1,
+      "shellOpacity": 0.62,
+      "scale": 1.4,
+      "front": true
+    },
+    {
+      "session": "wisps-builder",
+      "story": "story_deee4230348c",
+      "colour": "ef826c",
+      "opacity": 1,
+      "shellOpacity": 0.62,
+      "scale": 1.4,
+      "front": true
+    },
+    {
+      "session": "wisps-builder",
+      "story": "story_f9fb5136c28f",
+      "colour": "ef826c",
+      "opacity": 1,
+      "shellOpacity": 0.62,
+      "scale": 1.4,
+      "front": true
+    },
+    {
+      "session": "wisps-quiet",
+      "story": "story_cec2df1b2320",
+      "colour": "8d6cef",
+      "opacity": 0.45,
+      "shellOpacity": 0.279,
+      "scale": 1.4,
+      "front": true
+    },
+    {
+      "session": "wisps-reviewer",
+      "story": "story_deee4230348c",
+      "colour": "6cb4ef",
+      "opacity": 1,
+      "shellOpacity": 0.62,
+      "scale": 1.4,
+      "front": true
+    }
+  ],
+  "errors": [],
+  "assertions": [
+    "one wisp per listed session and island",
+    "folded lane and ended session draw none",
+    "wisp colour equals row colour",
+    "all wisps share one core and shell geometry",
+    "quiet holder fades on both model layers",
+    "claim dots gone",
+    "row hover swells its wisps",
+    "wisp hover highlights its row and leaving clears it",
+    "reduced motion holds wisps still; otherwise they orbit"
+  ]
+}

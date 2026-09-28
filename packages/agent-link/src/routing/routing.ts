@@ -15,6 +15,10 @@
  *   `postgres@127.0.0.1:<port>`, trusting local connections. A record whose process has ended is a
  *   crashed app's leftover, and counts as not running: its address is never tried, so nothing
  *   waits on it.
+ * - Unless the user's `library` setting (capability 10, ADR-0734/0735) names a Google Cloud SQL
+ *   instance: then a project routes to that instance and the account to sign in as, whatever the
+ *   app's local database is doing, and no local address is looked up at all. What a routed project
+ *   carries is the library's own connect() options, so every caller reaches the same place.
  *
  * Everything here but setting a folder up is synchronous and touches only the file system, so an
  * answer, "not running" included, comes back in milliseconds.
@@ -23,7 +27,9 @@ import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { Storytree } from "@storytree/library";
+import type { ConnectOptions, Storytree } from "@storytree/library";
+
+import { readLibrary } from "../settings/settings.js";
 
 import { recordProjectChoice } from "./project-choice.js";
 
@@ -50,6 +56,11 @@ export interface SetUpOptions {
 
 export interface LocateOptions {
   /**
+   * The storytree home whose settings.json says where the library lives. By default the folder
+   * holding `dataDir` when one is given, else STORYTREE_HOME, else ~/.storytree/0.3.
+   */
+  readonly home?: string;
+  /**
    * The app's Postgres data directory, beside which its owner record is kept. By default
    * `<storytree home>/pgdata`, the home being STORYTREE_HOME when set, else ~/.storytree/0.3.
    */
@@ -61,7 +72,7 @@ export type StorytreeAddress = { running: true; url: string } | { running: false
 
 /** Where an agent's activity in a folder goes. */
 export type Route =
-  | { status: "routed"; project: string; folder: string; url: string }
+  | { status: "routed"; project: string; folder: string; library: ConnectOptions }
   | { status: "not-a-project"; message: string }
   | { status: "not-running"; project: string; message: string };
 
@@ -113,15 +124,33 @@ export function locateStorytree(options: LocateOptions = {}): StorytreeAddress {
 }
 
 /**
+ * Where the library is, as the user's `library` setting says: the Cloud SQL instance it names, or
+ * the running app's local database. The settings file is read fresh, and an invalid one is thrown
+ * as it is, naming the file: it is never read as local.
+ */
+export function locateLibrary(options: LocateOptions = {}): { found: true; connect: ConnectOptions } | { found: false; message: string } {
+  const home = options.home ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
+  const setting = readLibrary(home);
+  if (setting.location === "cloudsql") return { found: true, connect: { cloudSql: { instance: setting.instance, user: setting.user } } };
+  const local = locateStorytree({ dataDir: options.dataDir ?? path.join(home, "pgdata") });
+  return local.running ? { found: true, connect: { url: local.url } } : { found: false, message: local.message };
+}
+
+/** `library` with a deadline on each new local handshake; a Cloud SQL instance keeps its own bound. */
+export function withConnectTimeout(library: ConnectOptions, connectTimeoutMs: number): ConnectOptions {
+  return library.url === undefined ? library : { ...library, connectTimeoutMs };
+}
+
+/**
  * Where an agent's activity in `from` goes: the project it belongs to on the running storytree, or
  * why nowhere. A folder that is not a project is that whatever storytree's state.
  */
 export function route(from: string, options: LocateOptions = {}): Route {
   const found = findProject(from);
   if (found.project === undefined) return { status: "not-a-project", message: found.message };
-  const address = locateStorytree(options);
-  if (!address.running) return { status: "not-running", project: found.project, message: address.message };
-  return { status: "routed", project: found.project, folder: found.folder, url: address.url };
+  const library = locateLibrary(options);
+  if (!library.found) return { status: "not-running", project: found.project, message: library.message };
+  return { status: "routed", project: found.project, folder: found.folder, library: library.connect };
 }
 
 /** The storytree 0.3 home: STORYTREE_HOME, else ~/.storytree/0.3, where the desktop app keeps its Postgres. */

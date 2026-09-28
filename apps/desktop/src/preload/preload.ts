@@ -3,10 +3,14 @@
  * bridge, and nothing else. The page runs sandboxed, with no Node and no Electron.
  */
 import { contextBridge, ipcRenderer } from "electron";
+import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/agent-link/view";
 
 import { CHANNELS, type StorytreeBridge } from "../bridge.js";
 
-const bridge: StorytreeBridge = {
+const bridge: StorytreeBridge & SettingsBridge = {
+  readSettings: () => ipcRenderer.invoke(SETTINGS_CHANNELS.readSettings),
+  saveSetting: (name, values) => ipcRenderer.invoke(SETTINGS_CHANNELS.saveSetting, name, values),
+  checkForUpdates: (action) => ipcRenderer.invoke(CHANNELS.checkForUpdates, action) as ReturnType<StorytreeBridge["checkForUpdates"]>,
   readSetupLicense: () => ipcRenderer.invoke(CHANNELS.readSetupLicense) as ReturnType<StorytreeBridge["readSetupLicense"]>,
   checkSetupFolder: () => ipcRenderer.invoke(CHANNELS.checkSetupFolder) as ReturnType<StorytreeBridge["checkSetupFolder"]>,
   openFeedbackDraft: (draft) => ipcRenderer.invoke(CHANNELS.openFeedbackDraft, draft) as ReturnType<StorytreeBridge["openFeedbackDraft"]>,
@@ -14,6 +18,7 @@ const bridge: StorytreeBridge = {
   arcView: (name, id) => ipcRenderer.invoke(CHANNELS.arcView, name, id) as ReturnType<StorytreeBridge["arcView"]>,
   waitHolds: (name, id) => ipcRenderer.invoke(CHANNELS.waitHolds, name, id) as ReturnType<StorytreeBridge["waitHolds"]>,
   heldOnQuestion: (name, id) => ipcRenderer.invoke(CHANNELS.heldOnQuestion, name, id) as ReturnType<StorytreeBridge["heldOnQuestion"]>,
+  contextReadings: (name, sessions) => ipcRenderer.invoke(CHANNELS.contextReadings, name, sessions) as ReturnType<StorytreeBridge["contextReadings"]>,
 
   listProjects: () => ipcRenderer.invoke(CHANNELS.listProjects) as Promise<string[]>,
   projectSelection: () => ipcRenderer.invoke(CHANNELS.projectSelection) as ReturnType<StorytreeBridge["projectSelection"]>,

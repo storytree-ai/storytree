@@ -3,7 +3,7 @@ import { watchBoard, type BoardState } from "../board/live-board.js";
 import type { BoardScope } from "../board/board.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
-import { escape, renderBoard } from "./render.js";
+import { renderBoard, renderHandle } from "./render.js";
 import { readPreferences, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { open(): void; close(): void; stop(): void }
@@ -11,7 +11,7 @@ export interface ArcSurface { open(): void; close(): void; stop(): void }
 export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
-  root.innerHTML = `<button type="button" class="arc-handle" data-open-arcs aria-label="Open arc surface" aria-expanded="false" aria-controls="arc-drawer" title="Open arcs"><span aria-hidden="true">━ ▾</span></button><section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" hidden><header class="arc-header"><h2>Arcs <small>${escape(options.project)}</small></h2><button type="button" class="arc-handle" data-close-arcs aria-label="Close arc surface" aria-expanded="true" aria-controls="arc-drawer" title="Close arcs"><span aria-hidden="true">━ ▴</span></button></header><div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
+  root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" hidden>${renderHandle(options.project, true)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
   host.append(root);
   const launch = root.querySelector<HTMLButtonElement>("[data-open-arcs]")!;
   const drawer = root.querySelector<HTMLElement>(".arc-overlay")!;

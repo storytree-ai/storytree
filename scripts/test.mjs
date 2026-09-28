@@ -38,9 +38,13 @@
 // starts, with the release to install instead (scripts/node-runtime.mjs): under it, a test file now
 // and then dies at its first connection to Postgres, which reads as a flaky test.
 //
+// No unit can hang the run (scripts/unit-run.mjs): a test fails at 60 s, a unit's process tree is
+// killed at 3 min and its row names the tests still running, and the run goes on to the next unit.
+// Each row gives the unit's time, and each unit's time is added to the machine's history
+// (test-timings.jsonl in STORYTREE_HOME, default ~/.storytree/0.3), for limits learned later.
+//
 // Logs: .pgtest/pg.log (the server, last run) and .pgtest/tools.log (initdb and pg_ctl).
 
-import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,6 +53,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { planRun, readWorkspace, resultsTable, scopeFor, scopeLine, unitGlobs } from "./test-scope.mjs";
+import { recordTimings, runUnit, unitReason } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const work = path.join(root, ".pgtest");
@@ -149,32 +154,38 @@ async function main() {
 
 /** Run the named files, or each unit in turn past any failure, then print and record the table. */
 async function runTests(env, units) {
-  if (units === undefined) return runNodeTest(env, []);
+  if (units === undefined) return (await runNodeTest(env, [])).code;
   const results = Object.fromEntries(units.map((unit) => [unit, "not run"]));
+  const reasons = {};
+  const timings = {};
   for (const unit of units) {
     if (interrupted) break;
     console.log(`\n=== ${unit} ===`);
-    const code = await runNodeTest(env, unitGlobs(unit));
-    results[unit] = interrupted ? "not run" : code === 0 ? "pass" : "fail"; // Ctrl-C cut it short
+    const run = await runNodeTest(env, unitGlobs(unit));
+    if (interrupted) break; // Ctrl-C cut it short: it stays NOT RUN
+    results[unit] = run.code === 0 ? "pass" : "fail";
+    reasons[unit] = unitReason(run, root);
+    timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut };
+    if (run.timedOut) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
   }
   writeRecord(results);
-  console.log(`\n${resultsTable(results)}`);
+  try {
+    recordTimings(timings);
+  } catch (error) {
+    console.log(`test harness: could not add this run's times to the timing history: ${error.message}`);
+  }
+  console.log(`\n${resultsTable(results, { reasons })}`);
   return Object.values(results).every((result) => result === "pass") ? 0 : 1;
 }
 
-function runNodeTest(env, files) {
-  return new Promise((resolve, reject) => {
-    child = spawn(process.execPath, ["--import", "tsx", "--test", ...testArgs, ...files], {
-      cwd: root,
-      env,
-      stdio: "inherit",
-    });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      child = undefined;
-      resolve(code ?? 1);
-    });
-  });
+async function runNodeTest(env, files) {
+  try {
+    // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
+    // ranked search is tested with a fake embedder, and everything else ranks by words.
+    return await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, onSpawn: (spawned) => (child = spawned) });
+  } finally {
+    child = undefined;
+  }
 }
 
 /** The last recorded result of each unit, or undefined if this checkout has none. */

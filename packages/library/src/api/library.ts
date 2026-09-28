@@ -9,8 +9,9 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { DecisionNumberPlan, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Related, RelatedOptions } from "../knowledge/index.js";
+import type { DecisionNumberPlan, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Ranked, RankOptions, Related, RelatedOptions } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
+import type { Pool } from "pg";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { KnowledgeKind } from "../schema/types.js";
@@ -56,7 +57,15 @@ export interface Storytree {
    * restore can never overwrite live edits.
    */
   restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
-  /** Close this connection and every library opened through it. */
+  /**
+   * A database of the caller's own called `name`, beside the projects on the same server, local or
+   * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, borrowing a
+   * creator role where the user may not create databases; never listed as a project; closed with
+   * this connection. The one pool the library hands out, and never to a project's database: the
+   * agent activity log keeps its lines here, so it reaches the cloud wherever the library does.
+   */
+  ownDatabase(name: string): Promise<Pool>;
+  /** Close this connection, every library opened through it, and its own databases. */
   close(): Promise<void>;
 }
 
@@ -213,6 +222,12 @@ export interface Library {
   editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null>;
   /** The live artifacts holding every word of `query`, ignoring case, in creation order. */
   search(query: string): Promise<Note[]>;
+  /**
+   * The live artifacts ranked by how close their meaning is to `query`, best first, ten unless
+   * `limit` says (capability 14, ADR-0732). With no embedding model to hand it gives search()'s
+   * word matches instead, and says why.
+   */
+  rank(query: string, options?: RankOptions): Promise<Ranked>;
   /** The live artifacts linking to artifact `noteId`, in creation order. */
   relatedNotes(noteId: string): Promise<Note[]>;
   /**
@@ -306,6 +321,10 @@ class ServerHandle implements Storytree {
 
   restore(name: string, snapshot: ProjectSnapshot): Promise<void> {
     return this.#server.restore(name, snapshot);
+  }
+
+  ownDatabase(name: string): Promise<Pool> {
+    return this.#server.ownDatabase(name);
   }
 
   close(): Promise<void> {
@@ -502,6 +521,10 @@ class LibraryHandle implements Library {
 
   search(query: string): Promise<Note[]> {
     return this.#project.knowledge.search(query);
+  }
+
+  rank(query: string, options?: RankOptions): Promise<Ranked> {
+    return this.#project.knowledge.rank(query, options);
   }
 
   relatedNotes(noteId: string): Promise<Note[]> {

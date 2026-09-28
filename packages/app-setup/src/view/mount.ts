@@ -5,20 +5,22 @@ import { guide, recoveryRequest } from "./guide.js";
 const SEEN = "storytree:setup:guide-seen:v1";
 
 /** A single help surface survives empty/error states and project switching in the thin frame. */
-export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge): { open(): void; stop(): void } {
-  const entry = document.createElement("div");
-  entry.className = "setup-help";
-  entry.innerHTML = `<button type="button" aria-controls="setup-help-panel" aria-expanded="false">Help</button>`;
-  host.append(entry);
-  const launch = entry.querySelector("button")!;
+export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, options: { returnFocus?: HTMLElement; embedded?: boolean; onOpen?: () => void } = {}): { open(): void; close(): void; stop(): void } {
+  const entry = options.embedded ? null : document.createElement("div");
+  if (entry) {
+    entry.className = "setup-help";
+    entry.innerHTML = `<button type="button" aria-controls="setup-help-panel" aria-expanded="false">Help</button>`;
+    host.append(entry);
+  }
+  const launch = entry?.querySelector("button");
   const panel = document.createElement("section");
   panel.id = "setup-help-panel";
-  panel.className = "setup-help setup-help-panel";
-  panel.setAttribute("role", "dialog");
+  panel.className = `setup-help setup-help-panel${options.embedded ? " setup-help-embedded" : ""}`;
+  if (!options.embedded) panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-labelledby", "setup-help-title");
   panel.hidden = true;
   panel.innerHTML = `
-    <header><h2 id="setup-help-title" tabindex="-1">Help with storytree</h2><button type="button" data-close-help aria-label="Close help">Close</button></header>
+    <header><h2 id="setup-help-title" tabindex="-1">Help with storytree</h2>${options.embedded ? "" : '<button type="button" data-close-help aria-label="Close help">Close</button>'}</header>
     <nav class="setup-help-nav" aria-label="Help pages">
       <button type="button" data-page="guide" aria-pressed="true">First-run guide</button>
       <button type="button" data-page="license" aria-pressed="false">License</button>
@@ -46,7 +48,8 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge): { op
       </form>
       <p data-feedback-status role="status"></p>
     </div>`;
-  document.body.append(panel);
+  (options.embedded ? host : document.body).append(panel);
+  let stopped = false;
   const get = <T extends HTMLElement = HTMLElement>(selector: string) => panel.querySelector<T>(selector)!;
   const checkStatus = get("[data-check-status]");
   const licenseStatus = get("[data-license-status]");
@@ -135,25 +138,29 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge): { op
   for (const button of panel.querySelectorAll<HTMLButtonElement>("[data-page]")) button.addEventListener("click", () => page(button.dataset.page!));
   get("[data-feedback]").addEventListener("click", () => { page("feedback"); get<HTMLInputElement>("[name=title]").focus(); });
   function open(): void {
-    if (!panel.hidden) return;
-    panel.hidden = false; launch.setAttribute("aria-expanded", "true");
+    if (stopped || !panel.hidden) return;
+    panel.hidden = false; launch?.setAttribute("aria-expanded", "true");
     get("#setup-help-title").focus();
   }
   function close(): void {
-    panel.hidden = true; launch.setAttribute("aria-expanded", "false");
+    if (panel.hidden) return;
+    panel.hidden = true; launch?.setAttribute("aria-expanded", "false");
     try { localStorage.setItem(SEEN, "yes"); } catch { /* Help remains usable without preference storage. */ }
-    launch.focus();
+    if (!options.embedded) (options.returnFocus ?? launch)?.focus();
   }
   function key(event: KeyboardEvent): void {
     if (event.key === "Escape" && !panel.hidden) {
       event.preventDefault(); event.stopImmediatePropagation(); close();
     }
   }
-  launch.addEventListener("click", () => { if (panel.hidden) open(); else close(); });
-  get("[data-close-help]").addEventListener("click", close);
-  document.addEventListener("keydown", key, true);
+  launch?.addEventListener("click", () => { if (panel.hidden) open(); else close(); });
+  panel.querySelector("[data-close-help]")?.addEventListener("click", close);
+  if (!options.embedded) document.addEventListener("keydown", key, true);
   let seen = false;
   try { seen = localStorage.getItem(SEEN) === "yes"; } catch { /* First launch offers the guide. */ }
-  if (!seen) open();
-  return { open, stop() { document.removeEventListener("keydown", key, true); entry.remove(); panel.remove(); } };
+  if (!seen) {
+    if (options.embedded) queueMicrotask(() => { if (!stopped) (options.onOpen ?? open)(); });
+    else open();
+  }
+  return { open, close, stop() { stopped = true; document.removeEventListener("keydown", key, true); entry?.remove(); panel.remove(); } };
 }

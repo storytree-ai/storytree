@@ -35,6 +35,8 @@ await build({
     "cloudflare:sockets",
     // The library's Cloud SQL path (capability 8) loads this lazily; the app only reaches a local Postgres.
     "@google-cloud/cloud-sql-connector",
+    // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
+    "@huggingface/transformers",
   ],
 });
 
@@ -61,6 +63,7 @@ await build({
 
 cpSync(fileURLToPath(import.meta.resolve("@storytree/arc-surface/view/styles.css")), path.join(dist, "renderer", "arc-surface.css"));
 cpSync(fileURLToPath(import.meta.resolve("@storytree/app-setup/view/styles.css")), path.join(dist, "renderer", "app-setup.css"));
+cpSync(fileURLToPath(import.meta.resolve("@storytree/forest/view/styles.css")), path.join(dist, "renderer", "forest.css"));
 cpSync(path.join(here, "..", "..", "LICENSE"), path.join(dist, "LICENSE"));
 
 for (const file of ["index.html", "styles.css"]) {

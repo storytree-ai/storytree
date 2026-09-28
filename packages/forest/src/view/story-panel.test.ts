@@ -77,6 +77,23 @@ test("4.8 each of the story's capabilities is a box you can click, marked when s
   assert.doesNotMatch(away, /data-capability-id|role=|tabindex|aria-pressed/, "another story's capability is context, not a surface (ADR-0659 D3)");
 });
 
+test("4.10 each card has a strip naming its work state in words, and the agent's report and storytree's as labelled marks", () => {
+  const html = renderStoryPanel({ ...panel, capabilities: [{ ...line("base", "landed", "passing"), verified: "failing" }, line("next", "in-progress", "failing")] }, "next");
+  const base = box(html, "The base");
+  assert.match(base, /class="card-strip"/);
+  assert.match(base, /<text class="card-status"[^>]*>landed<\/text>/);
+  assert.match(base, /\bstate-landed\b/, "the strip is coloured by the work state");
+  assert.match(base, /the agent reports: passing/);
+  assert.match(base, /storytree saw: failing/);
+  const next = box(html, "The next");
+  assert.match(next, /<text class="card-status"[^>]*>in progress<\/text>/);
+  assert.match(next, /\bstate-in-progress\b/);
+  assert.match(next, /the agent reports: failing/);
+  assert.doesNotMatch(next, /storytree saw/, "storytree's mark only where something wrote it");
+  const away = box(html, "Story t · The away");
+  assert.match(away, /<text class="card-status"[^>]*>not landed yet<\/text>/);
+});
+
 test("4.8 a story with no capabilities shows its sentences and nothing below", () => {
   const html = renderStoryPanel({ ...panel, capabilities: [], arrows: [] }, undefined);
   assert.match(html, /What s is\. Why\./);

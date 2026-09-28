@@ -133,14 +133,6 @@ export function renderNoProjects(): string {
   ].join("\n");
 }
 
-/** The project switcher: every project, the one shown selected. */
-export function renderSwitcher(projects: readonly string[], current: string | undefined): string {
-  const options = projects
-    .map((name) => `<option value="${escape(name)}"${name === current ? " selected" : ""}>${escape(name)}</option>`)
-    .join("");
-  return `<label class="switcher">Project <select id="project">${options}</select></label>`;
-}
-
 // --- the view model ---------------------------------------------------------------------------
 
 function storyView(story: AnnotatedStory): StoryView {

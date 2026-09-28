@@ -31,7 +31,9 @@ import pg from "pg";
 
 import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { buildBins } from "../bins/build.js";
+import { readContext } from "../context/index.js";
 import { MARKER_FILE } from "../routing/index.js";
+import { readSettings, setSetting } from "../settings/settings.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
@@ -137,9 +139,9 @@ async function linesAnywhereFor(session: string): Promise<number> {
   }
 }
 
-/** The line's own fields, without the number and time the log gives it. */
-function written(line: Line): Omit<Line, "seq" | "at"> {
-  const { seq: _seq, at: _at, ...rest } = line;
+/** The line's own fields, without the number and time the log gives it, nor the transcript every line carries (3.12 pins that). */
+function written(line: Line): Omit<Line, "seq" | "at" | "transcript"> {
+  const { seq: _seq, at: _at, transcript: _transcript, ...rest } = line;
   return rest;
 }
 
@@ -341,7 +343,7 @@ function prompted(harness: "claude-code" | "codex", folder: string, prompt: stri
   return JSON.stringify({ ...JSON.parse(recorded(harness, "user-prompt-submit", folder)), prompt, session_id: session });
 }
 
-test("3.7 at each prompt, the project's definitions for the terms it names are added for the agent: whole words in any case or plural, at most five, longest first, each once a session; a harness's own notice gets none, and with storytree stopped nothing is printed", async () => {
+test("3.7 at each prompt, every matching project definition is added for the agent: whole words in any case or plural, longest first, each once a session, meanings cut to 200 characters; a harness's own notice gets none, and with storytree stopped nothing is printed", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });
   try {
@@ -350,7 +352,8 @@ test("3.7 at each prompt, the project's definitions for the terms it names are a
     const claim = await define("Claim", "Holding a capability while you build it.\nA second agent is refused.");
     const quiet = await define("Quiet time", "How long a session may say nothing before it reads as idle.");
     await define("Id", "Too short to look for.");
-    await define("Front cover", "A decision that is the way into a story's knowledge.");
+    const frontMeaning = "A decision that is the way into a story's knowledge. ".repeat(5);
+    const front = await define("Front cover", frontMeaning);
     await withTempDir(async (dir) => {
       const folder = projectFolder(dir, project);
       const home = storytreeHome(dir, true);
@@ -379,9 +382,99 @@ test("3.7 at each prompt, the project's definitions for the terms it names are a
       const named = await ask("codex", "Each arc, story, capability, contract, increment and front cover", "cx-1");
       assert.deepEqual(
         named?.split("\n").slice(1).map((line) => line.split(" (")[0]),
-        ["- Front cover", "- Capability", "- Increment", "- Contract", "- Story"],
-        "at most five, the longest terms first",
+        ["- Front cover", "- Capability", "- Increment", "- Contract", "- Story", "- Arc"],
+        "every matching definition, the longest terms first",
       );
+      assert.equal(named?.split("\n")[1], `- Front cover (${front.id}): ${frontMeaning.slice(0, 199)}…`, "meanings cut to 200 characters");
+      assert.equal(await ask("codex", "Each arc, story, capability, contract, increment and front cover", "cx-1"), undefined, "all six remembered for the session");
+    });
+  } finally {
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
+test("9.9 past context guidance, the Claude Code prompt hook advises handing off and starting fresh once per session; it never refuses a prompt, and Codex or absent readings get no advice", async (t) => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(project);
+    await library.defineTerm({ term: "Claim", meaning: "Holding a capability while you build it." });
+    await withTempDir(async (dir) => {
+      const folder = projectFolder(dir, project);
+      const home = storytreeHome(dir, true);
+      const transcript = path.join(dir, "session.jsonl");
+      const writeTokens = (tokens: number, harness: "claude-code" | "codex" = "claude-code") => writeFileSync(transcript, JSON.stringify(harness === "codex"
+        ? { type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: tokens } } } }
+        : { type: "assistant", requestId: "request-1", message: { model: "claude-opus-5-5", usage: { input_tokens: 1, cache_read_input_tokens: tokens - 1, cache_creation_input_tokens: 0 } } }) + "\n");
+      const start = async (session: string, harness: "claude-code" | "codex" = "claude-code") => {
+        const input = { ...JSON.parse(recorded(harness, "session-start-startup", folder)), session_id: `${project}-${session}`, transcript_path: transcript };
+        const ran = await runHook(harness, JSON.stringify(input), home);
+        assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" });
+      };
+      const ask = async (session: string, harness: "claude-code" | "codex" = "claude-code", prompt = "Continue", where = home) => {
+        const input = { ...JSON.parse(prompted(harness, folder, prompt, `${project}-${session}`)), transcript_path: transcript };
+        const ran = await runHook(harness, JSON.stringify(input), where);
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" }, "the prompt is never refused");
+        const context = addedContext(ran);
+        if (context !== undefined) assert.deepEqual(JSON.parse(ran.stdout), { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context } }, "only advice, no blocking decision");
+        t.diagnostic(`${harness} ${session}: ${context ?? "(no additional context)"}`);
+        return context;
+      };
+      const advice = (context: string | undefined, tokens: number, guidance: number) => {
+        assert.match(context ?? "", /hand off/i);
+        assert.match(context ?? "", /fresh session/i);
+        assert.ok(context?.includes(tokens.toLocaleString("en-US")), "names tokens used");
+        assert.ok(context?.includes(guidance.toLocaleString("en-US")), "names current guidance");
+      };
+
+      await t.test("under and at the default add none; past it adds advice once, alongside definitions", async () => {
+        const guidance = readSettings(home)["context-guidance"].value;
+        await start("default");
+        writeTokens(guidance - 1);
+        assert.equal(await ask("default"), undefined);
+        writeTokens(guidance);
+        assert.equal(await ask("default"), undefined);
+        writeTokens(guidance + 1);
+        const context = await ask("default", "claude-code", "Continue with the claim");
+        advice(context, guidance + 1, guidance);
+        assert.match(context!, /Claim .*Holding a capability/);
+        assert.equal(await ask("default", "claude-code", "Continue with the claim"), undefined, "remembered across separate hook processes");
+        writeTokens(guidance - 1);
+        assert.equal(await ask("default"), undefined);
+        writeTokens(guidance + 2);
+        assert.equal(await ask("default"), undefined, "crossing again does not repeat advice");
+      });
+      await t.test("a changed setting is read afresh and a fresh session gets its own advice", async () => {
+        setSetting("context-guidance", "123456", home);
+        await start("changed");
+        writeTokens(123_456);
+        assert.equal(await ask("changed"), undefined);
+        setSetting("context-guidance", "123455", home);
+        advice(await ask("changed"), 123_456, 123_455);
+        assert.equal(await ask("changed"), undefined);
+      });
+      await t.test("Codex past guidance still gets definitions without advice", async () => {
+        writeTokens(900_000, "codex");
+        await start("codex", "codex");
+        const context = await ask("codex", "codex", "Continue with the claim");
+        assert.match(context ?? "", /Claim .*Holding a capability/);
+        assert.doesNotMatch(context!, /hand off|fresh session/i);
+      });
+      await t.test("no reading, an unreadable transcript, stopped storytree, and unreadable settings add none", async () => {
+        writeTokens(900_000);
+        assert.equal(await ask("unrecorded"), undefined);
+        await start("missing");
+        rmSync(transcript);
+        assert.equal(await ask("missing"), undefined);
+        writeTokens(900_000);
+        assert.equal(await ask("missing", "claude-code", "Continue", storytreeHome(path.join(dir, "stopped"), false)), undefined);
+        writeFileSync(path.join(home, "settings.json"), "{ broken");
+        assert.equal(await ask("missing"), undefined);
+        rmSync(path.join(home, "settings.json"));
+        setSetting("context-guidance", "123455", home);
+        advice(await ask("missing"), 900_000, 123_455);
+      });
     });
   } finally {
     await storytree.close();
@@ -429,6 +522,62 @@ test("3.8 the status line shows what this session holds, how many other agents a
   } finally {
     await log.close();
     await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.12 recorded Claude Code and Codex hook inputs record on their session the transcript the harness named, the latest one recorded being the session's: a `claude -p` run's transcript under an unrelated project directory, and a session moved into worktree B whose transcript is under folder A's, are read from exactly that path, with no folder searched", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      // Worktree B is the project folder the session now works in; its transcripts sit elsewhere.
+      const worktreeB = projectFolder(dir, project);
+      const usage = (tokens: number) => `${JSON.stringify({ type: "assistant", requestId: `req_${tokens}`, message: { model: "claude-opus-5-5", usage: { input_tokens: tokens, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } })}
+`;
+      const transcriptIn = (folder: string, name: string, text: string): string => {
+        mkdirSync(folder, { recursive: true });
+        const file = path.join(folder, name);
+        writeFileSync(file, text);
+        return file;
+      };
+      const hookWith = async (harness: "claude-code" | "codex", name: string, transcript: string, session?: string) => {
+        const input = { ...JSON.parse(recorded(harness, name, worktreeB)), transcript_path: transcript, ...(session === undefined ? {} : { session_id: session }) };
+        const ran = await runHook(harness, JSON.stringify(input), home);
+        assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, name);
+      };
+
+      // A `claude -p` run: its transcript is under a project directory unrelated to its folder.
+      const batch = transcriptIn(path.join(dir, "claude", "projects", "C--elsewhere-main-checkout"), "batch.jsonl", usage(21_000));
+      await hookWith("claude-code", "session-start-startup", batch, "batch-session");
+      const batchReading = await readContext(log, project, "batch-session");
+      assert.deepEqual({ tokens: "tokens" in batchReading ? batchReading.tokens : undefined, source: batchReading.source }, { tokens: 21_000, source: batch });
+
+      // A session that started in folder A and moved into worktree B: the transcript stays under A's directory.
+      const fromA = transcriptIn(path.join(dir, "claude", "projects", "C--work-folder-A"), "moved.jsonl", usage(43_000));
+      await hookWith("claude-code", "post-tool-use-bash", fromA, "moved-session");
+      // Another session, more recently active and working in B too, is never read for it.
+      const other = transcriptIn(path.join(dir, "claude", "projects", "C--work-folder-B"), "other.jsonl", usage(99_000));
+      await hookWith("claude-code", "post-tool-use-write", other, "other-session");
+      const moved = await readContext(log, project, "moved-session");
+      assert.equal("tokens" in moved && moved.tokens, 43_000);
+      assert.equal(moved.source, fromA);
+
+      // The latest transcript recorded for a session is its transcript.
+      const later = transcriptIn(path.join(dir, "claude", "projects", "C--work-folder-A"), "later.jsonl", usage(7_000));
+      await hookWith("claude-code", "session-end", later, "moved-session");
+      assert.equal((await readContext(log, project, "moved-session")).source, later);
+
+      // Codex names its rollout the same way.
+      const rollout = transcriptIn(path.join(dir, "codex", "sessions"), "rollout.jsonl", `${JSON.stringify({ type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: 12_348 } } } })}
+`);
+      await hookWith("codex", "post-tool-use-bash", rollout, "codex-session");
+      const codex = await readContext(log, project, "codex-session");
+      assert.deepEqual({ harness: codex.harness, tokens: "tokens" in codex ? codex.tokens : undefined, source: codex.source }, { harness: "codex", tokens: 12_348, source: rollout });
+    });
+  } finally {
+    await log.close();
     await dropTestProjects([project]);
   }
 });

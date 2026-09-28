@@ -1,0 +1,116 @@
+{
+  "420": {
+    "edges": [
+      {
+        "id": "short",
+        "slotLeft": 299,
+        "slotWidth": 59,
+        "totalRight": 400
+      },
+      {
+        "id": "limit-1",
+        "slotLeft": 299,
+        "slotWidth": 59,
+        "totalRight": 400
+      },
+      {
+        "id": "limit-2",
+        "slotLeft": 299,
+        "slotWidth": 59,
+        "totalRight": 400
+      },
+      {
+        "id": "badges",
+        "slotLeft": 299,
+        "slotWidth": 59,
+        "totalRight": 400
+      },
+      {
+        "id": "needs",
+        "slotLeft": 299,
+        "slotWidth": 59,
+        "totalRight": 400
+      }
+    ],
+    "clipped": [],
+    "legend": [
+      {
+        "group": "injected",
+        "text": "Injected",
+        "colour": "rgb(141, 151, 148)"
+      },
+      {
+        "group": "grounding",
+        "text": "Grounding",
+        "colour": "rgb(92, 159, 214)"
+      },
+      {
+        "group": "implementation",
+        "text": "Implementation",
+        "colour": "rgb(224, 168, 74)"
+      },
+      {
+        "group": "other",
+        "text": "Other",
+        "colour": "rgb(86, 98, 96)"
+      }
+    ]
+  },
+  "1440": {
+    "edges": [
+      {
+        "id": "short",
+        "slotLeft": 358,
+        "slotWidth": 120,
+        "totalRight": 524
+      },
+      {
+        "id": "limit-1",
+        "slotLeft": 358,
+        "slotWidth": 120,
+        "totalRight": 524
+      },
+      {
+        "id": "limit-2",
+        "slotLeft": 358,
+        "slotWidth": 120,
+        "totalRight": 524
+      },
+      {
+        "id": "badges",
+        "slotLeft": 358,
+        "slotWidth": 120,
+        "totalRight": 524
+      },
+      {
+        "id": "needs",
+        "slotLeft": 358,
+        "slotWidth": 120,
+        "totalRight": 524
+      }
+    ],
+    "clipped": [],
+    "legend": [
+      {
+        "group": "injected",
+        "text": "Injected",
+        "colour": "rgb(141, 151, 148)"
+      },
+      {
+        "group": "grounding",
+        "text": "Grounding",
+        "colour": "rgb(92, 159, 214)"
+      },
+      {
+        "group": "implementation",
+        "text": "Implementation",
+        "colour": "rgb(224, 168, 74)"
+      },
+      {
+        "group": "other",
+        "text": "Other",
+        "colour": "rgb(86, 98, 96)"
+      }
+    ]
+  }
+}

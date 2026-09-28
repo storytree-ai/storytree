@@ -11,6 +11,7 @@
 import type { Pool, PoolClient } from "pg";
 
 import { HealthRecord } from "../health/health-record.js";
+import type { EmbedderSource } from "../knowledge/embedding.js";
 import { Knowledge } from "../knowledge/knowledge.js";
 import { SchemaRecords } from "../schema/records.js";
 import { PgTransactions, WRITE_LOCK } from "../transactions/pg.js";
@@ -18,6 +19,7 @@ import type { Transactions } from "../transactions/types.js";
 import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
+import { PgVectors } from "./embeddings.js";
 import { cannotCreateDatabases, ConnectionError, isInsufficientPrivilege } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, projectDatabase } from "./names.js";
 import { upgradeMemories } from "./memory-upgrade.js";
@@ -59,7 +61,13 @@ export interface Storytree {
   snapshot(name: string): Promise<ProjectSnapshot>;
   /** Restore a snapshot into the project called `name`, only if it holds no record and no history (1.7, 1.8). */
   restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
-  /** Close this connection and every project opened through it. */
+  /**
+   * A database of the caller's own called `name`, beside the projects on the same server, local or
+   * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, never listed
+   * as a project, and closed with this connection. A project's database is never handed out.
+   */
+  ownDatabase(name: string): Promise<Pool>;
+  /** Close this connection, every project opened through it, and its own databases. */
   close(): Promise<void>;
 }
 
@@ -91,23 +99,29 @@ export interface Project {
  * Connect to a Postgres server. Nothing touches the server until a call needs it. A Cloud SQL
  * instance is signed in to and looked up first, so a missing or bad Google sign-in, or an instance
  * the account cannot use, is refused here with a ConnectionError saying what to fix. `seams` is
- * internal: tests hand the cloud path a fake connector through it.
+ * internal: tests hand the cloud path a fake connector through it, and ranked search a fake embedder.
  */
-export async function connect(options: ConnectOptions, seams: CloudSqlSeams = {}): Promise<Storytree> {
-  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs));
+export async function connect(options: ConnectOptions, seams: ProjectSeams = {}): Promise<Storytree> {
+  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs), seams.embedder);
   if (options.url !== undefined) {
     throw new ConnectionError("config", "Give connect() either a url or a cloudSql instance, not both.");
   }
-  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams));
+  return new ServerConnection(await cloudSqlServer(options.cloudSql, seams), seams.embedder);
 }
+
+/** What tests may hand connect() in place of the real thing: the Cloud SQL connector, and the embedder. */
+export type ProjectSeams = CloudSqlSeams & { readonly embedder?: EmbedderSource };
 
 class ServerConnection implements Storytree {
   readonly #server: ServerAccess;
   readonly #projects = new Set<ProjectLibrary>();
+  readonly #own = new Map<string, Promise<Pool>>();
+  readonly #embedder: EmbedderSource | undefined;
   #closed = false;
 
-  constructor(server: ServerAccess) {
+  constructor(server: ServerAccess, embedder?: EmbedderSource) {
     this.#server = server;
+    this.#embedder = embedder;
   }
 
   async openProject(name: string): Promise<Project> {
@@ -122,12 +136,29 @@ class ServerConnection implements Storytree {
         await pool.end();
         throw error;
       }
-      const project = new ProjectLibrary(name, pool, () => this.#projects.delete(project));
+      const project = new ProjectLibrary(name, pool, () => this.#projects.delete(project), this.#embedder);
       this.#projects.add(project);
       return project;
     } catch (error) {
       throw this.#server.explain(error);
     }
+  }
+
+  ownDatabase(name: string): Promise<Pool> {
+    if (name.startsWith(PROJECT_DATABASE_PREFIX) || name === "" || name === "postgres") {
+      return Promise.reject(new Error(`"${name}" is not a database of its own to hand out: it is a project's, or the server's.`));
+    }
+    let pool = this.#own.get(name);
+    if (pool === undefined) {
+      pool = this.#createDatabaseIfMissing(name).then(
+        () => this.#server.pool(name),
+        (error: unknown) => Promise.reject(this.#server.explain(error)),
+      );
+      // A failed opening is forgotten, so the next ask tries again.
+      pool.catch(() => this.#own.delete(name));
+      this.#own.set(name, pool);
+    }
+    return pool;
   }
 
   async listProjects(): Promise<string[]> {
@@ -167,6 +198,8 @@ class ServerConnection implements Storytree {
     this.#closed = true;
     try {
       await Promise.all([...this.#projects].map((project) => project.close()));
+      const own = await Promise.allSettled(this.#own.values());
+      await Promise.all(own.map((opened) => (opened.status === "fulfilled" && !opened.value.ended ? opened.value.end() : undefined)));
       await this.#server.admin.end();
     } finally {
       this.#server.close();
@@ -232,14 +265,14 @@ class ProjectLibrary implements Project {
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
-  constructor(name: string, pool: Pool, forget: () => void) {
+  constructor(name: string, pool: Pool, forget: () => void, embedder?: EmbedderSource) {
     this.name = name;
     this.pool = pool;
     this.transactions = new PgTransactions(pool);
     this.records = new SchemaRecords(this.transactions);
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records);
-    this.knowledge = new Knowledge(this.records, name);
+    this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work);
     this.#forget = forget;
   }

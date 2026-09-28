@@ -1,0 +1,13 @@
+✔ 1.7 smoke teardown stops page polling before closing the library, without logging a closed-library error (2.452254ms)
+✔ 1.7 closing the window leaves the app and its database running, and the tray's Quit is the one way to stop them (0.496883ms)
+✔ 1.7 a start that arrives while the app is quitting is not lost: once the database has stopped, the app opens again with its window (0.304888ms)
+✔ 1.7 restarting into an update stops the database once, and the new build shows its window only if it was showing or the app was started again meanwhile (0.423273ms)
+✔ 1.7 asking the app to quit from outside stops it as the tray's Quit does: the database once, then exit, and it does not open again (0.219567ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 168.385755

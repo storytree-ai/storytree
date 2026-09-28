@@ -30,15 +30,22 @@ type Found = Extract<NewLine, { kind: "note-read" }>["found"];
 export function registerNoteTools(define: Define): void {
   define(
     "search_notes",
-    "Search the project's artifacts (decisions, definitions and other artifact kinds) for words; you see each match's spine. Open one to read it whole.",
-    z.object({ query: z.string().describe("Words the artifact holds, in any case") }),
-    async ({ query }, call) => {
-      const notes = await call.library.search(query);
+    "Search the project's artifacts (decisions, definitions and other artifact kinds): the ones closest in meaning to your question, best first; you see each one's spine. Ask in plain words. Open one to read it whole.",
+    z.object({
+      query: z.string().min(1).describe("What you want to know, in plain words"),
+      limit: z.number().int().min(1).optional().describe("How many to give back; 10 unless given"),
+    }),
+    async ({ query, limit }, call) => {
+      const ranked = await call.library.rank(query, limit === undefined ? {} : { limit });
+      const notes = ranked.hits.map(({ note }) => note);
       await recordReads(call, notes.map((note) => ({ note: note.id, found: "search", read: "peek" })));
-      if (notes.length === 0) return { text: `No artifact holds ${quoted(query)}.`, data: { notes: [] } };
+      const heading = ranked.by === "meaning"
+        ? `closest in meaning to ${quoted(query)}:`
+        : `ranked by words: ${ranked.why}; the artifacts holding every word of ${quoted(query)}:`;
+      if (notes.length === 0) return { text: `${heading}\n(none)`, data: { by: ranked.by, notes: [] } };
       return {
-        text: [`${notes.length} artifact${notes.length === 1 ? "" : "s"} hold ${quoted(query)}:`, ...notes.map(spineLine)].join("\n"),
-        data: { notes: notes.map(spineData) },
+        text: [heading, ...notes.map(spineLine)].join("\n"),
+        data: { by: ranked.by, notes: notes.map(spineData) },
       };
     },
   );

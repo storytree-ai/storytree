@@ -1,0 +1,65 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/top-bars
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-settings.png"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/top-bars/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-settings.png"
+
+built dist
+Debugger listening on ws://127.0.0.1:44133/6c194bbd-ba43-4f9c-b2bb-2a59ca32511d
+For help, see: https://nodejs.org/learn/getting-started/debugging
+
+DevTools listening on ws://127.0.0.1:40065/devtools/browser/a17928d0-0274-4d38-93ef-4e4fdebeeeef
+Debugger attached.
+Debugger ending on ws://127.0.0.1:44133/6c194bbd-ba43-4f9c-b2bb-2a59ca32511d
+For help, see: https://nodejs.org/learn/getting-started/debugging
+Postgres: listening on 127.0.0.1:44929 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:44929/postgres
+storytree 0.3: development build e482964 from /home/mickh/code/storytree03-wt/top-bars (does not update itself)
+[728275:0928/194135.259585:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x196400190400]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+smoke: screenshot /home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-settings.png (1120x860)
+App
+Close ×
+Projects
+Settings
+Updates
+Help
+Settings
+
+Yours on this computer · all projects
+
+Context guidance
+
+Soft guidance for context size in tokens; it does not enforce a hard limit.
+
+tokens
+default
+Save
+Library
+
+Where the library lives: local, the storytree app's own database on this computer, or cloudsql, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email).
+
+On this computer
+Google Cloud SQL
+default
+Save
+The library
+The agent link
+The app
+The forest
+The arc surface
+The command line
+The librarian
+The knowledge core
+The app setup
+What did I leave running?
+Forest
+Library
+Arcs
+▾
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

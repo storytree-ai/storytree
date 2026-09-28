@@ -1,0 +1,127 @@
+Captured from: flock /tmp/storytree-heavy.lock pnpm gate
+Typecheck, scope, skipped-case reasons and final result tables; per-test pass lines omitted.
+
+> storytree@ gate /home/mickh/code/storytree03-wt/fresh-nudge
+> node scripts/gate.mjs
+
+
+=== typecheck ===
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/fresh-nudge
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/forest-world typecheck$ tsc -p .
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/own typecheck: Done
+packages/library typecheck: Done
+packages/forest-world typecheck: Done
+packages/librarian typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/app-setup typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+packages/forest typecheck$ tsc -p .
+packages/forest typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+=== test ===
+scope: full — everything — packages/agent-link/src/hooks/definitions.ts changed in @storytree/agent-link, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, packages/own, scripts
+test Postgres: listening on 127.0.0.1:43727 (started in 0.1 s)
+
+Not exercised (existing optional proofs):
+﹣ 2.5 lines two machines write for one project, each through its own library connection, are both read back from either, in order (Cloud SQL, live) (0.326577ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER — owner-gated
+﹣ 8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83) (0.19012ms) # Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it
+﹣ 1.1 / 1.3 / 1.4 / 1.6 under pwsh: PowerShell delivery selects Windows architecture, reuses, retries, preserves failures and persists PATH (3.136554ms) # pwsh unavailable here; Windows CI runs this proof
+﹣ 8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in (0.657043ms) # live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated
+
+results:
+  PASS    apps/desktop — 1.5 s
+  PASS    packages/agent-link — 12.9 s
+  PASS    packages/app — 2.7 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.7 s
+  PASS    packages/cli — 8.9 s
+  PASS    packages/forest — 1.6 s
+  PASS    packages/forest-world — 10.1 s
+  PASS    packages/knowledge-core — 0.7 s
+  PASS    packages/librarian — 1.2 s
+  PASS    packages/library — 11.0 s
+  PASS    packages/local-postgres — 3.5 s
+  PASS    packages/own — 0.8 s
+  PASS    scripts — 4.8 s
+test Postgres: stopped (0.1 s)
+
+results:
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits
+
+The lane-required direct commands also exited 0 under the shared lock.
+
+flock /tmp/storytree-heavy.lock pnpm typecheck
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/fresh-nudge
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/forest-world typecheck$ tsc -p .
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/own typecheck: Done
+packages/library typecheck: Done
+packages/forest-world typecheck: Done
+packages/librarian typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/app-setup typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/cli typecheck: Done
+packages/arc-surface typecheck: Done
+packages/forest typecheck$ tsc -p .
+packages/forest typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+flock /tmp/storytree-heavy.lock pnpm test
+scope: full — everything — packages/agent-link/src/hooks/definitions.ts changed in @storytree/agent-link, which the test harness and scripts/ run on
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/library, packages/local-postgres, packages/own, scripts
+results:
+  PASS    apps/desktop — 1.4 s
+  PASS    packages/agent-link — 12.8 s
+  PASS    packages/app — 2.6 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.6 s
+  PASS    packages/cli — 8.7 s
+  PASS    packages/forest — 1.7 s
+  PASS    packages/forest-world — 10.1 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    packages/librarian — 1.1 s
+  PASS    packages/library — 10.7 s
+  PASS    packages/local-postgres — 3.4 s
+  PASS    packages/own — 0.7 s
+  PASS    scripts — 4.8 s
+test Postgres: stopped (0.1 s)

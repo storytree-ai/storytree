@@ -1,0 +1,18 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: one full-width app bar
+
+0 !== 1
+
+    at <anonymous> (/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/capture.mjs:59:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: 1,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

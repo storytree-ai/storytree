@@ -24,7 +24,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { machineState, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
+import { ghState, machineState, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -43,6 +43,15 @@ before(async () => {
 after(() => {
   rmSync(bins, { recursive: true, force: true });
 });
+
+/**
+ * What gh and the machine answer, for tests about something else: asking this machine's own gh,
+ * Claude Code and Codex is slow, differs between machines, and once hung the suite (2026-09-28).
+ */
+const ANSWERED = {
+  gh: async () => "signed in" as const,
+  machine: async () => ({ claude: "signed in", codex: "signed in", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const,
+};
 
 /** The user's own settings, which the setup check must leave as they are. */
 const CLAUDE_SETTINGS = {
@@ -123,7 +132,7 @@ function runsFor(entry: Registered | undefined, tool: string, anchored: boolean)
 test("8.1 in a throwaway home with only the tool server installed, the first session start registers the hooks for Claude Code and for Codex without touching any other setting", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const report = await runSetupCheck({ folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
     assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", statusLine: "installed" });
 
     const claude = readJson(home.claudeSettings);
@@ -163,10 +172,10 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
 test("8.2 a second start changes nothing, and removing storytree takes out exactly what it added", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    await runSetupCheck({ folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
     const first = { claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") };
 
-    const again = await runSetupCheck({ folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    const again = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
     assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", statusLine: "already installed" });
     assert.deepEqual({ claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") }, first, "not a byte changed");
 
@@ -194,8 +203,8 @@ test("8.3 with storytree closed, a session start opens it", async () => {
     writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, port] }));
     assert.equal(locateStorytree({ dataDir }).running, false, "closed to begin with");
     try {
-      const report = await runSetupCheck({ folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
-      assert.deepEqual(report.storytree, { state: "opened", url: testServerUrl() });
+      const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
+      assert.deepEqual(report.storytree, { state: "opened", library: { url: testServerUrl() } });
       assert.deepEqual(locateStorytree({ dataDir }), { running: true, url: testServerUrl() });
     } finally {
       const record = `${dataDir}.owner.json`;
@@ -206,7 +215,7 @@ test("8.3 with storytree closed, a session start opens it", async () => {
     // With nothing saying how to open it, it says so rather than waiting.
     const unopenable = path.join(dir, "no-app");
     mkdirSync(unopenable);
-    const report = await runSetupCheck({ folder: dir, homes: {}, storytreeHome: unopenable, openWaitMs: 20_000 });
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome: unopenable, openWaitMs: 20_000 });
     assert.equal(report.storytree.state, "not running");
   });
 });
@@ -220,7 +229,7 @@ test("opening storytree waits until it accepts connections, not only until it ha
     // The stand-in says where it listens at once, and starts listening only 1.5 s later.
     writeFileSync(path.join(storytreeHome, "app.json"), JSON.stringify({ command: process.execPath, args: [STUB_APP, dataDir, String(port), "1500"] }));
     try {
-      const report = await runSetupCheck({ folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
+      const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
       assert.equal(report.storytree.state, "opened");
       assert.equal(await accepts(port), true, "it accepts a connection the moment it is reported opened");
     } finally {
@@ -284,7 +293,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
     const name = uniqueProjectName();
     const folder = path.join(dir, name);
     mkdirSync(folder);
-    const options = { folder, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed out" as const };
+    const options = { ...ANSWERED, folder, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed out" as const };
     const storytree = await connect({ url: testServerUrl() });
     try {
       const report = await runSetupCheck(options);
@@ -318,7 +327,7 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
-    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } };
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
       await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
         const check = async () => {
@@ -416,7 +425,7 @@ test("8.7 a status line of the user's own is kept: storytree's is installed only
     const home = throwawayHome(dir);
     const theirs = { type: "command", command: "echo my own line" };
     writeFileSync(home.claudeSettings, `${JSON.stringify({ ...CLAUDE_SETTINGS, statusLine: theirs }, null, 2)}\n`);
-    const report = await runSetupCheck({ folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
     assert.equal(report.hooks?.statusLine, "the user's own kept");
     assert.deepEqual(readJson(home.claudeSettings).statusLine, theirs, "theirs, untouched");
     assert.equal(removeHooks(home.homes).statusLine, "none");
@@ -429,7 +438,7 @@ test("8.8 with gh missing, or signed out, the check says so and names the fix; s
     const home = throwawayHome(dir);
     const said = async (gh: GhState): Promise<string> => {
       let text = "";
-      const setup = { homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => gh };
+      const setup = { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => gh };
       await withAgent(dir, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (agent) => {
         text = (await agent.call("check_setup")).text;
       });
@@ -450,7 +459,7 @@ test("8.9 in a throwaway home, the first start puts a storytree command on the p
     mkdirSync(bin, { recursive: true });
     const command = { path: bin, home: dir };
     const hook: HookCommand = { node: process.execPath, script: hookScript };
-    const start = () => runSetupCheck({ folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, command });
+    const start = () => runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, command });
     const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
 
     assert.equal((await start()).command, "installed");
@@ -555,5 +564,23 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     for (const name of ["agent-cli", "git", "node"]) {
       assert.equal(ready.lines.find((each) => each.check === name)?.state, "ok", `${name}: ${JSON.stringify(ready.lines)}`);
     }
+  });
+});
+
+test("8.11 a tool that exits while something it started still holds its output is not waited on (regression: gh auth status's tzutil, 2026-09-28)", { timeout: 30_000 }, async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    // `gh auth status` answers signed in, leaving behind a process that keeps its output open for 20s.
+    if (process.platform === "win32") {
+      writeFileSync(path.join(bin, "gh.cmd"), `@echo off\r\nstart "" /b "%SystemRoot%\\System32\\PING.EXE" -n 20 127.0.0.1\r\nexit /b 0\r\n`);
+    } else {
+      writeFileSync(path.join(bin, "gh"), "#!/bin/sh\n/bin/sleep 20 &\nexit 0\n");
+      chmodSync(path.join(bin, "gh"), 0o755);
+    }
+
+    const started = Date.now();
+    assert.equal(await ghState({ path: bin, waitMs: 10_000 }), "signed in");
+    assert.ok(Date.now() - started < 10_000, `answered when gh exited, not at the deadline: ${Date.now() - started}ms`);
   });
 });

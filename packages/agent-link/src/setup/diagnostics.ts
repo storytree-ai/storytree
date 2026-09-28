@@ -48,7 +48,9 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
 
   lines.push(gh === "signed in"
     ? { check: "gh", state: "ok", message: "GitHub's gh command is signed in." }
-    : { check: "gh", state: "needs-attention", message: `GitHub's gh command is ${gh === "missing" ? "not installed" : "not signed in"}, so a claim will not end when its pull request merges.`, fix: gh === "missing" ? "Install gh from https://cli.github.com and run `gh auth login`." : "Run `gh auth login`." });
+    : gh === "not answering"
+      ? { check: "gh", state: "needs-attention", message: "GitHub's gh command did not answer whether it is signed in, so a claim may not end when its pull request merges.", fix: "Run `gh auth status` to see what it is waiting on, then run the setup check again." }
+      : { check: "gh", state: "needs-attention", message: `GitHub's gh command is ${gh === "missing" ? "not installed" : "not signed in"}, so a claim will not end when its pull request merges.`, fix: gh === "missing" ? "Install gh from https://cli.github.com and run `gh auth login`." : "Run `gh auth login`." });
   lines.push(...machineLines(machine));
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }

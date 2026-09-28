@@ -18,14 +18,15 @@ Plan first.
 - When only the owner can decide, \`raise_question\` on the arc instead of only asking in chat, holding the increments that need the answer. \`settle_question\` with the answer, in the owner's own words; \`retire_question\` one that was wrong to ask.
 
 Claim, and open the knowledge you need.
-- \`claim\` the increment you drive: that starts it. \`claim\` a capability, with a one-line reason, before you touch it. If another session holds it, or it waits on other work, pick other work: nobody queues.
+- \`claim\` the increment you drive: that starts it. \`claim\` a capability before you touch it. Your reason names your session in the sessions list: 40 characters or fewer. If another session holds it, or it waits on other work, pick other work: nobody queues.
 - To start work in its own workspace, call \`make_workspace\` before claiming it. Claude Code gets a claimed worktree and instructions to enter it. For Codex, it checks availability and returns ref and name: call the desktop app’s create_worktree with those exact arguments, then \`attach_workspace\` with the returned folder, ref, name and your reason. Use that directory explicitly; creation does not change your cwd. If the app returns a folder with a registration error, attach it; do not create another. The app owns the folder, including after a refusal.
-- \`open\` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. \`search_notes\` finds artifacts by their words.
+- \`open\` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. \`search_notes\` finds the artifacts closest in meaning to a question.
 
 Red, then green, then landed.
 - Write a contract's test first, run it, see it fail, and \`report\` it red.
 - Make it pass, and \`report\` it green.
 - When its contracts pass, \`land\` the capability: your claim on it ends. If you stop before then, \`release\` it.
+- At an increment boundary, \`read_context\` says how many tokens your context holds; judge whether to take on more.
 - When the increment is done, \`close_increment\` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with \`park_increment\` and its outcome.
 
 Record what you learned.

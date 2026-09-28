@@ -1,0 +1,41 @@
+{
+  "snapshot": "/home/mickh/storytree-lanes/snapshots/2026-09-28T07-26-00-491Z.json",
+  "records": 1628,
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "gearBox": {
+    "x": 1392,
+    "y": 12,
+    "width": 36,
+    "height": 36
+  },
+  "menuBox": {
+    "x": 1172,
+    "y": 56,
+    "width": 256,
+    "height": 210
+  },
+  "narrowBox": {
+    "x": 92,
+    "y": 56,
+    "width": 256,
+    "height": 210
+  },
+  "stories": 10,
+  "capabilities": 71,
+  "errors": [],
+  "passed": [
+    "no app bar",
+    "gear geometry",
+    "click toggle",
+    "Escape and focus",
+    "outside dismissal preserves forest pointer input",
+    "project switch changes forest",
+    "failed choice recovers and retries",
+    "help opens and returns focus",
+    "smoke census",
+    "narrow viewport"
+  ]
+}

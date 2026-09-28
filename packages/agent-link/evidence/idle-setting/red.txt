@@ -1,0 +1,233 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/idle-setting
+> node --import tsx scripts/test.mjs "packages/agent-link/src/settings/settings.test.ts" "packages/agent-link/src/settings/panel.test.ts" "packages/agent-link/src/settings/idle-liveness.test.ts" "packages/agent-link/src/view/settings.test.ts" "packages/cli/src/settings.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/idle-setting/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:46529 (started in 0.1 s)
+✖ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (282.967726ms)
+✖ 10.7 the panel reads every setting and writes through the CLI's writers (6.078488ms)
+✖ 10.8 refusal crosses IPC as the exact writer reason and preserves saved bytes (1.412416ms)
+✖ 10.1 without a settings file, context guidance reads as 600,000 tokens with its type and meaning (3.15056ms)
+✖ 10.4 invalid settings are reported on read and set, and their bytes are preserved (3.451433ms)
+✔ 10.4 an unreadable settings path is reported and a set does not replace it (0.670966ms)
+✔ 10.3 unknown names and values that are not positive whole numbers are refused without changing the file (1.130439ms)
+✖ 10.10 idle-after defaults to 30 minutes and accepts positive durations without losing other settings (0.424306ms)
+✖ 10.10 invalid idle durations are refused with a reason and leave the file byte for byte (0.653393ms)
+✔ 10.5 the library is local by default, set to a Cloud SQL instance, and set back to local (1.315121ms)
+✔ 10.6 a library setting that is not local or a well-written Cloud SQL instance and account is refused, the file untouched (1.276888ms)
+✖ 10.7 the panel renders every reading with its value, source, meaning and labelled control (3.335332ms)
+✖ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (285.187516ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 4
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 698.62644
+
+✖ failing tests:
+
+test at packages/agent-link/src/settings/idle-liveness.test.ts:1:532
+✖ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (282.967726ms)
+  Error: Unknown setting "idle-after". Available settings: context-guidance, library.
+      at refuse (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.ts:101:9)
+      at checkName (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.ts:106:5)
+      at setSetting (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.ts:70:3)
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:38:7)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/idle-liveness.test.ts:13:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at packages/agent-link/src/settings/panel.test.ts:1:268
+✖ 10.7 the panel reads every setting and writes through the CLI's writers (6.078488ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/panel.test.ts:18:12)
+      at async withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/panel.test.ts:11:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/settings/panel.test.ts:1:1184
+✖ 10.8 refusal crosses IPC as the exact writer reason and preserves saved bytes (1.412416ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /idle-after.*positive duration/i. Input:
+  
+  'Unknown setting "idle-after". Available settings: context-guidance, library.'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/panel.test.ts:42:14)
+      at async withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/panel.test.ts:28:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Unknown setting "idle-after". Available settings: context-guidance, library.',
+    expected: /idle-after.*positive duration/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/settings/settings.test.ts:1:376
+✖ 10.1 without a settings file, context guidance reads as 600,000 tokens with its type and meaning (3.15056ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  700000 !== 600000
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:16:12)
+      at withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:11:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 700000,
+    expected: 600000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/settings/settings.test.ts:1:1106
+✖ 10.4 invalid settings are reported on read and set, and their bytes are preserved (3.451433ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  700000 !== 600000
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:49:12)
+      at withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:28:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 700000,
+    expected: 600000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/settings/settings.test.ts:1:4002
+✖ 10.10 idle-after defaults to 30 minutes and accepts positive durations without losing other settings (0.424306ms)
+  TypeError: Cannot read properties of undefined (reading 'value')
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:98:26)
+      at withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:96:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at packages/agent-link/src/settings/settings.test.ts:1:4771
+✖ 10.10 invalid idle durations are refused with a reason and leave the file byte for byte (0.653393ms)
+  AssertionError [ERR_ASSERTION]: soon
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:119:14)
+      at withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:114:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: Unknown setting "idle-after". Available settings: context-guidance, library.
+        at refuse (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.ts:101:9)
+        at checkName (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.ts:106:5)
+        at Module.setSetting (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.ts:70:3)
+        at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:119:37)
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:119:14)
+        at withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:18)
+        at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/settings/settings.test.ts:114:9)
+        at Test.runInAsyncScope (node:async_hooks:227:14),
+    expected: /idle-after.*positive duration/i,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/view/settings.test.ts:1:205
+✖ 10.7 the panel renders every reading with its value, source, meaning and labelled control (3.335332ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /value="600000"/. Input:
+  
+  '<form class="settings-row" data-setting="context-guidance" novalidate>\n' +
+    '      <div class="settings-description"><label for="setting-0">Context guidance</label><p id="setting-0-meaning">Soft guidance for context size in tokens; it does not enforce a hard limit.</p></div>\n' +
+    '      <div class="settings-value"><div class="settings-number"><input id="setting-0" name="value" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="700000" aria-describedby="setting-0-meaning setting-0-source setting-0-error"><span>tokens</span></div><span id="setting-0-source" class="settings-source" data-source="default">default</span></div>\n' +
+    '      \n' +
+    '      <div class="settings-save"><p id="setting-0-error" class="settings-error" role="alert"></p><span class="settings-saved" role="status"></span><button type="submit" disabled>Save</button></div>\n' +
+    '    </form><form class="settings-row" data-setting="library" novalidate>\n' +
+    '      <div class="settings-description"><label for="setting-1">Library</label><p id="setting-1-meaning">Where the library lives: <code>local</code>, the storytree app&#39;s own database on this computer, or <code>cloudsql</code>, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account&#39;s email).</p></div>\n' +
+    '      <div class="settings-value"><select id="setting-1" name="value" aria-describedby="setting-1-meaning setting-1-source setting-1-error">\n' +
+    '          <option value="local" selected>On this computer</option>\n' +
+    '          <option value="cloudsql">Google Cloud SQL</option>\n' +
+    '        </select><span id="setting-1-source" class="settings-source" data-source="default">default</span></div>\n' +
+    '      <div class="settings-cloud" hidden>\n' +
+    '      <label>Instance connection name<input name="instance" autocomplete="off" spellcheck="false" placeholder="project:region:instance" value=""></label>\n' +
+    '      <label>Google account email<input name="user" type="text" inputmode="email" autocomplete="off" spellcheck="false" placeholder="you@example.com" value=""></label>\n' +
+    '      <p>Library location takes effect when storytree next opens.</p>\n' +
+    '    </div>\n' +
+    '      <div class="settings-save"><p id="setting-1-error" class="settings-error" role="alert"></p><span class="settings-saved" role="status"></span><button type="submit" disabled>Save</button></div>\n' +
+    '    </form>'
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/view/settings.test.ts:12:12)
+      at withTempDir (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/agent-link/src/view/settings.test.ts:8:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<form class="settings-row" data-setting="context-guidance" novalidate>\n      <div class="settings-description"><label for="setting-0">Context guidance</label><p id="setting-0-meaning">Soft guidance for context size in tokens; it does not enforce a hard limit.</p></div>\n      <div class="settings-value"><div class="settings-number"><input id="setting-0" name="value" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="700000" aria-describedby="setting-0-meaning setting-0-source setting-0-error"><span>tokens</span></div><span id="setting-0-source" class="settings-source" data-source="default">default</span></div>\n      \n      <div class="settings-save"><p id="setting-0-error" class="settings-error" role="alert"></p><span class="settings-saved" role="status"></span><button type="submit" disabled>Save</button></div>\n    </form><form class="settings-row" data-setting="library" novalidate>\n      <div class="settings-description"><label for="setting-1">Library</label><p id="setting-1-meaning">Where the library lives: <code>local</code>, the storytree app&#39;s own database on this computer, or <code>cloudsql</code>, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account&#39;s email).</p></div>\n      <div class="settings-value"><select id="setting-1" name="value" aria-describedby="setting-1-meaning setting-1-source setting-1-error">\n          <option value="local" selected>On this computer</option>\n          <option value="cloudsql">Google Cloud SQL</option>\n        </select><span id="setting-1-source" class="settings-source" data-source="default">default</span></div>\n      <div class="settings-cloud" hidden>\n      <label>Instance connection name<input name="instance" autocomplete="off" spellcheck="false" placeholder="project:region:instance" value=""></label>\n      <label>Google account email<input name="user" type="text" inputmode="email" autocomplete="off" spellcheck="false" placeholder="you@example.com" value=""></label>\n      <p>Library location takes effect when storytree next opens.</p>\n    </div>\n      <div class="settings-save"><p id="setting-1-error" class="settings-error" role="alert"></p><span class="settings-saved" role="status"></span><button type="submit" disabled>Save</button></div>\n    </form>',
+    expected: /value="600000"/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/cli/src/settings.test.ts:1:506
+✖ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (285.187516ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /context-guidance.*600000.*default/. Input:
+  
+  'context-guidance: 700000 tokens (default)\n' +
+    '  Type: positive whole number; default: 700000 tokens.\n' +
+    '  Soft guidance for context size in tokens; it does not enforce a hard limit.\n' +
+    '\n' +
+    'library: local (default)\n' +
+    '  Default: local.\n' +
+    "  Where the library lives: `local`, the storytree app's own database on this computer, or `cloudsql`, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email).\n"
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/idle-setting/packages/cli/src/settings.test.ts:24:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "context-guidance: 700000 tokens (default)\n  Type: positive whole number; default: 700000 tokens.\n  Soft guidance for context size in tokens; it does not enforce a hard limit.\n\nlibrary: local (default)\n  Default: local.\n  Where the library lives: `local`, the storytree app's own database on this computer, or `cloudsql`, a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email).\n",
+    expected: /context-guidance.*600000.*default/,
+    operator: 'match',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

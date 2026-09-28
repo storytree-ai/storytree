@@ -13,14 +13,14 @@ const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex",
       totalTokens: undefined, stories: [], children: [] },
   ] };
 
-test("7.1–7.5 rows start folded, show safe words and available total beside an empty slot", () => {
+test("7.1–7.5 rows start folded, show safe words and available total beside its bar", () => {
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
   assert.match(html, /Build &lt;signup&gt;/);
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, />\+1<\/button>/);
   assert.doesNotMatch(html, /data-session-id="child"/);
   assert.match(html, /class="session-needs-you">needs you/);
-  assert.match(html, /class="session-context-slot" aria-hidden="true"><\/span>/);
+  assert.match(html, /class="session-context-slot" title="120,000 tokens"/);
   assert.match(html, /120,000 context tokens/);
   assert.match(html, />120K<\/span>/);
   const unavailable = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, totalTokens: undefined }], onHighlight() {} }));

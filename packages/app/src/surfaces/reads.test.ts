@@ -78,7 +78,8 @@ test("3.4 the page can ask the app for a story's or capability's shelf of front 
 
 test("3.5 the page can ask the app for the context readings of sessions in the project on show, each read from the transcript its hooks named", async () => {
   const shown = uniqueProjectName();
-  await withApp([shown], async ({ log, reads }) => {
+  await withApp([shown], async ({ storytree, log, reads }) => {
+    await storytree.openProject(shown);
     const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
     try {
       const transcript = path.join(folder, "A.jsonl");

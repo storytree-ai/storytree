@@ -12,9 +12,7 @@
  * - A harness's own notice, sent to the agent as if it were a prompt, gets none: 0.2's markers, in
  *   the first 400 characters.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { notYetGivenIds } from "./given-once.js";
 
 /** A definition, as the library holds it. */
 export interface Definition {
@@ -66,25 +64,8 @@ export function definitionsContext(definitions: readonly Definition[]): string {
  * could not be a file name keeps nothing, so every definition is new to it.
  */
 export function notYetGiven(session: string, definitions: readonly Definition[]): Definition[] {
-  if (!/^[A-Za-z0-9._-]+$/.test(session)) return [...definitions];
-  const folder = path.join(tmpdir(), "storytree-definitions");
-  const file = path.join(folder, `${session}.json`);
-  const given = new Set<string>(readGiven(file));
-  const fresh = definitions.filter((definition) => !given.has(definition.id));
-  if (fresh.length > 0) {
-    mkdirSync(folder, { recursive: true });
-    writeFileSync(file, JSON.stringify([...given, ...fresh.map((definition) => definition.id)]));
-  }
-  return fresh;
-}
-
-function readGiven(file: string): string[] {
-  try {
-    const ids: unknown = JSON.parse(readFileSync(file, "utf8"));
-    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
+  const fresh = new Set(notYetGivenIds(session, definitions.map(({ id }) => id), "definitions"));
+  return definitions.filter(({ id }) => fresh.has(id));
 }
 
 /** Lower case, with `-`, `_` and every run of spaces read as one space. */

@@ -471,13 +471,10 @@ test("9.9 past context guidance, the Claude Code prompt hook advises handing off
         assert.equal(await ask("missing", "claude-code", "Continue", storytreeHome(path.join(dir, "stopped"), false)), undefined);
         writeFileSync(path.join(home, "settings.json"), "{ broken");
         assert.equal(await ask("missing"), undefined);
-        setSettingAfterRepair();
-        advice(await ask("missing"), 900_000, 123_455);
-      });
-      function setSettingAfterRepair() {
         rmSync(path.join(home, "settings.json"));
         setSetting("context-guidance", "123455", home);
-      }
+        advice(await ask("missing"), 900_000, 123_455);
+      });
     });
   } finally {
     await storytree.close();

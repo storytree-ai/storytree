@@ -7,16 +7,18 @@ import type { Descriptor3D } from "@storytree/forest-world";
 import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
+import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { Claims, Names, Overlay, SelectionRing } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 
-export function PlanetView({ core, scene, places, markers, selected, onPick, onNote, mode = "forest" }: {
+export function PlanetView({ core, scene, places, markers, selected, highlighted, onPick, onNote, mode = "forest" }: {
   mode?: ForestMode;
   core: KnowledgeCore;
   scene: ForestScene;
   places: ReadonlyMap<string, number>;
   markers: readonly Marker[];
   selected: string | undefined;
+  highlighted?: readonly string[] | undefined;
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined) => void;
   onNote: (note: string) => void;
@@ -26,12 +28,15 @@ export function PlanetView({ core, scene, places, markers, selected, onPick, onN
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[]) => {
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
+    const emphasis = highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
-      <Names islands={[local]} selected={selected} onGlobe />
+      <SessionIslandEmphasis emphasis={emphasis} />
+      {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
+      <Names islands={[local]} selected={selected} dimmed={emphasis === "dimmed"} onGlobe />
       <Claims markers={markers} descriptors={descriptors} occlude />
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [markers, selected]);
+  }, [markers, selected, highlighted]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
     surface={mode === "forest"}
     inside={<KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} />}

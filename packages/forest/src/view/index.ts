@@ -4,4 +4,4 @@
 // This entry needs React and a browser; the package's main entry stays plain logic.
 export { openForestView, mountArtifactCard, type ForestView } from "./forest-view.js";
 export { renderStoryPanel } from "./story-panel.js";
-export { renderUnclaimed } from "./unclaimed-list.js";
+export { mountSessionsList, type SessionsReads } from "./sessions-list.js";

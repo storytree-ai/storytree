@@ -1,6 +1,6 @@
 /**
  * Capability 5 · Agent capability claims (the forest story): which agent holds which capability
- * right now, with its reason, as a marker at that capability's tree. The agent log's lines are
+ * right now, as a quiet dot at that capability's tree. The agent log's lines are
  * written out here as the app hands them to the page, with a stand-in clock, so no database is
  * needed.
  */
@@ -31,10 +31,11 @@ const a = { session: "A", harness: "claude-code" } as const;
 const hook = (minutes: number, log: Log) => log.add(minutes, { kind: "session-started", ...a, source: "hook" });
 const at = (minutes: number) => new Date(START + minutes * MINUTE);
 
-test("5.1 a claim shows a marker at its capability, naming the agent and its reason", () => {
+// Replace the former label assertion with the quiet marker reading; Chromium checks its drawing.
+test("5.1 a claim supplies a quiet dot at its capability's tree", () => {
   const log = hook(0, new Log()).add(1, { kind: "claimed", ...a, source: "tool", capability: "email_form", reason: "building the email form" });
   assert.deepEqual(claimMarkers(log.lines, at(2)), [
-    { capability: "email_form", session: "A", text: "Claude Code: building the email form", faded: false, hooksNotRunning: false },
+    { capability: "email_form", session: "A", faded: false },
   ]);
 });
 
@@ -46,11 +47,13 @@ test("5.2 after the quiet time with no new line the marker fades, and when the c
   assert.deepEqual(claimMarkers(log.lines, at(41)), []);
 });
 
-test("5.3 a session seen only through its tool calls is flagged hooks not running", () => {
+test("5.3 a hookless holder's dot stays unfaded even past the quiet time", () => {
   const log = new Log().add(1, { kind: "claimed", session: "B", harness: "codex", source: "tool", capability: "email_form", reason: "fixing the form" });
-  const [marker] = claimMarkers(log.lines, at(2));
-  assert.equal(marker?.hooksNotRunning, true);
-  assert.equal(marker?.faded, false, "flagged, never shown as idle");
+  for (const minutes of [2, 60]) {
+    assert.deepEqual(claimMarkers(log.lines, at(minutes)), [
+      { capability: "email_form", session: "B", faded: false },
+    ], "missing hooks are diagnosed by setup, never drawn as idle or a warning on the map");
+  }
 });
 
 test("5.4 none of this changes how a capability's state is drawn", () => {

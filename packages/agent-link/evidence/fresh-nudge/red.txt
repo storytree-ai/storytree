@@ -1,0 +1,109 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/fresh-nudge
+> node --import tsx scripts/test.mjs "--test-name-pattern=9.9 past context guidance" "packages/agent-link/src/hooks/hooks.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/fresh-nudge/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:39381 (started in 0.1 s)
+▶ 9.9 past context guidance, the Claude Code prompt hook advises handing off and starting fresh once per session; it never refuses a prompt, and Codex or absent readings get no advice
+  ✖ under and at the default add none; past it adds advice once, alongside definitions (392.294011ms)
+  ✖ a changed setting is read afresh and a fresh session gets its own advice (261.399038ms)
+  ✔ Codex past guidance still gets definitions without advice (181.071265ms)
+  ✖ no reading, an unreadable transcript, stopped storytree, and unreadable settings add none (399.012646ms)
+✖ 9.9 past context guidance, the Claude Code prompt hook advises handing off and starting fresh once per session; it never refuses a prompt, and Codex or absent readings get no advice (1540.307615ms)
+ℹ claude-code default: (no additional context)
+ℹ claude-code default: (no additional context)
+ℹ claude-code default: [storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):
+- Claim (definition_c1ac138012ee): Holding a capability while you build it.
+ℹ claude-code changed: (no additional context)
+ℹ claude-code changed: (no additional context)
+ℹ codex codex: [storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):
+- Claim (definition_c1ac138012ee): Holding a capability while you build it.
+ℹ claude-code unrecorded: (no additional context)
+ℹ claude-code missing: (no additional context)
+ℹ claude-code missing: (no additional context)
+ℹ claude-code missing: (no additional context)
+ℹ claude-code missing: (no additional context)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 1
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1799.229267
+
+✖ failing tests:
+
+test at packages/agent-link/src/hooks/hooks.test.ts:5:3331
+✖ under and at the default add none; past it adds advice once, alongside definitions (392.294011ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hand off/i. Input:
+  
+  "[storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):\n" +
+    '- Claim (definition_c1ac138012ee): Holding a capability while you build it.'
+  
+      at advice (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:425:16)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:440:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:431:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:403:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "[storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):\n- Claim (definition_c1ac138012ee): Holding a capability while you build it.",
+    expected: /hand off/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/hooks/hooks.test.ts:5:4140
+✖ a changed setting is read afresh and a fresh session gets its own advice (261.399038ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hand off/i. Input:
+  
+  ''
+  
+      at advice (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:425:16)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:454:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:448:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:403:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /hand off/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/hooks/hooks.test.ts:5:4818
+✖ no reading, an unreadable transcript, stopped storytree, and unreadable settings add none (399.012646ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /hand off/i. Input:
+  
+  ''
+  
+      at advice (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:425:16)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:475:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:464:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/fresh-nudge/packages/agent-link/src/hooks/hooks.test.ts:403:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /hand off/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

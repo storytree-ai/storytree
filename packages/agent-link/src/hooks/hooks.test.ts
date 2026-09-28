@@ -33,6 +33,7 @@ import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { buildBins } from "../bins/build.js";
 import { readContext } from "../context/index.js";
 import { MARKER_FILE } from "../routing/index.js";
+import { readSettings, setSetting } from "../settings/settings.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
@@ -386,6 +387,97 @@ test("3.7 at each prompt, every matching project definition is added for the age
       );
       assert.equal(named?.split("\n")[1], `- Front cover (${front.id}): ${frontMeaning.slice(0, 199)}…`, "meanings cut to 200 characters");
       assert.equal(await ask("codex", "Each arc, story, capability, contract, increment and front cover", "cx-1"), undefined, "all six remembered for the session");
+    });
+  } finally {
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
+test("9.9 past context guidance, the Claude Code prompt hook advises handing off and starting fresh once per session; it never refuses a prompt, and Codex or absent readings get no advice", async (t) => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(project);
+    await library.defineTerm({ term: "Claim", meaning: "Holding a capability while you build it." });
+    await withTempDir(async (dir) => {
+      const folder = projectFolder(dir, project);
+      const home = storytreeHome(dir, true);
+      const transcript = path.join(dir, "session.jsonl");
+      const writeTokens = (tokens: number, harness: "claude-code" | "codex" = "claude-code") => writeFileSync(transcript, JSON.stringify(harness === "codex"
+        ? { type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: tokens } } } }
+        : { type: "assistant", requestId: "request-1", message: { model: "claude-opus-5-5", usage: { input_tokens: 1, cache_read_input_tokens: tokens - 1, cache_creation_input_tokens: 0 } } }) + "\n");
+      const start = async (session: string, harness: "claude-code" | "codex" = "claude-code") => {
+        const input = { ...JSON.parse(recorded(harness, "session-start-startup", folder)), session_id: `${project}-${session}`, transcript_path: transcript };
+        const ran = await runHook(harness, JSON.stringify(input), home);
+        assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" });
+      };
+      const ask = async (session: string, harness: "claude-code" | "codex" = "claude-code", prompt = "Continue", where = home) => {
+        const input = { ...JSON.parse(prompted(harness, folder, prompt, `${project}-${session}`)), transcript_path: transcript };
+        const ran = await runHook(harness, JSON.stringify(input), where);
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" }, "the prompt is never refused");
+        const context = addedContext(ran);
+        if (context !== undefined) assert.deepEqual(JSON.parse(ran.stdout), { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: context } }, "only advice, no blocking decision");
+        t.diagnostic(`${harness} ${session}: ${context ?? "(no additional context)"}`);
+        return context;
+      };
+      const advice = (context: string | undefined, tokens: number, guidance: number) => {
+        assert.match(context ?? "", /hand off/i);
+        assert.match(context ?? "", /fresh session/i);
+        assert.ok(context?.includes(tokens.toLocaleString("en-US")), "names tokens used");
+        assert.ok(context?.includes(guidance.toLocaleString("en-US")), "names current guidance");
+      };
+
+      await t.test("under and at the default add none; past it adds advice once, alongside definitions", async () => {
+        const guidance = readSettings(home)["context-guidance"].value;
+        await start("default");
+        writeTokens(guidance - 1);
+        assert.equal(await ask("default"), undefined);
+        writeTokens(guidance);
+        assert.equal(await ask("default"), undefined);
+        writeTokens(guidance + 1);
+        const context = await ask("default", "claude-code", "Continue with the claim");
+        advice(context, guidance + 1, guidance);
+        assert.match(context!, /Claim .*Holding a capability/);
+        assert.equal(await ask("default", "claude-code", "Continue with the claim"), undefined, "remembered across separate hook processes");
+        writeTokens(guidance - 1);
+        assert.equal(await ask("default"), undefined);
+        writeTokens(guidance + 2);
+        assert.equal(await ask("default"), undefined, "crossing again does not repeat advice");
+      });
+      await t.test("a changed setting is read afresh and a fresh session gets its own advice", async () => {
+        setSetting("context-guidance", "123456", home);
+        await start("changed");
+        writeTokens(123_456);
+        assert.equal(await ask("changed"), undefined);
+        setSetting("context-guidance", "123455", home);
+        advice(await ask("changed"), 123_456, 123_455);
+        assert.equal(await ask("changed"), undefined);
+      });
+      await t.test("Codex past guidance still gets definitions without advice", async () => {
+        writeTokens(900_000, "codex");
+        await start("codex", "codex");
+        const context = await ask("codex", "codex", "Continue with the claim");
+        assert.match(context ?? "", /Claim .*Holding a capability/);
+        assert.doesNotMatch(context!, /hand off|fresh session/i);
+      });
+      await t.test("no reading, an unreadable transcript, stopped storytree, and unreadable settings add none", async () => {
+        writeTokens(900_000);
+        assert.equal(await ask("unrecorded"), undefined);
+        await start("missing");
+        rmSync(transcript);
+        assert.equal(await ask("missing"), undefined);
+        writeTokens(900_000);
+        assert.equal(await ask("missing", "claude-code", "Continue", storytreeHome(path.join(dir, "stopped"), false)), undefined);
+        writeFileSync(path.join(home, "settings.json"), "{ broken");
+        assert.equal(await ask("missing"), undefined);
+        setSettingAfterRepair();
+        advice(await ask("missing"), 900_000, 123_455);
+      });
+      function setSettingAfterRepair() {
+        rmSync(path.join(home, "settings.json"));
+        setSetting("context-guidance", "123455", home);
+      }
     });
   } finally {
     await storytree.close();

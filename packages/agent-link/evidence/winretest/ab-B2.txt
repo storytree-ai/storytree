@@ -1,0 +1,8 @@
+[system] {"type": "system", "subtype": "hook_started", "hook_id": "71050f0e-e82d-415f-9ea1-abbf6834169e", "hook_name": "SessionStart:startup", "hook_event": "SessionStart"}
+[system] {"type": "system", "subtype": "hook_response", "hook_id": "71050f0e-e82d-415f-9ea1-abbf6834169e", "hook_name": "SessionStart:startup", "hook_event": "SessionStart", "output": "{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"storytree: This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project \\\"retest-2-ab-b2\\\" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on. Ask this first, before you create, 
+ASSISTANT: I haven't created hello.txt yet. This folder isn't set up as a storytree project, and a setup hook asked me to check with you before doing anything else.
+
+Do you want storytree set up here? It would use the project name **retest-2-ab-b2** unless you pick another (lower-case letters, digits and hyphens only). Or I can skip it.
+
+Once you answer, I'll create hello.txt containing "hi".
+[result] success turns=1 denials=[]

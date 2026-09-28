@@ -1,0 +1,12 @@
+A1 hooks=1 first=[TOOL Write: {"file_path": "C:\\Users\\mickh\\Retest 2 AB A1\]
+B1 hooks=1 first=[ASSISTANT: Before I create the file: this folder isn't set u]
+A2 hooks=1 first=[TOOL Write: {"file_path": "C:\\Users\\mickh\\Retest 2 AB A2\]
+B2 hooks=1 first=[ASSISTANT: I haven't created hello.txt yet. This folder isn']
+A3 hooks=1 first=[TOOL Write: {"file_path": "C:\\Users\\mickh\\Retest 2 AB A3\]
+B3 hooks=1 first=[ASSISTANT: Before I create the file, one quick question: thi]
+ab-A1.txt: writes=1 tools=1
+ab-A2.txt: writes=1 tools=1
+ab-A3.txt: writes=1 tools=1
+ab-B1.txt: writes=0 tools=0
+ab-B2.txt: writes=0 tools=0
+ab-B3.txt: writes=0 tools=0

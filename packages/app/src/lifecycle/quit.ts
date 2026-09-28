@@ -12,14 +12,14 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { locateStorytree, storytreeHome } from "@storytree/agent-link";
+import { locateApp, storytreeHome } from "@storytree/agent-link";
 
 export type QuitResult = { state: "quit" } | { state: "not running" } | { state: "still running" } | { state: "no record"; message: string };
 
 export interface QuitOptions {
   /** The storytree home: STORYTREE_HOME, else ~/.storytree/0.3. */
   readonly home?: string;
-  /** Whether the app's database is running. By default, the agent link's reading of its owner record. */
+  /** Whether the app is running. By default, the agent link's reading of its owner or launch record (1.11). */
   readonly locate?: () => { running: boolean };
   /** Starts a program, detached. */
   readonly open?: (command: string, args: readonly string[]) => void;
@@ -31,7 +31,7 @@ export interface QuitOptions {
 
 export async function quitApp(options: QuitOptions = {}): Promise<QuitResult> {
   const home = options.home ?? storytreeHome();
-  const locate = options.locate ?? (() => locateStorytree({ dataDir: path.join(home, "pgdata") }));
+  const locate = options.locate ?? (() => locateApp(home));
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const clock = options.clock ?? Date.now;
   if (!locate().running) return { state: "not running" };

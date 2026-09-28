@@ -193,7 +193,12 @@ export function SessionsList({ rows, loading = false, error, highlighted, select
     return next;
   };
   return <aside className="sessions-list" aria-label="Running sessions">
-    <header>Sessions <span>{rows.length}</span></header>
+    <header>
+      <span>Sessions <span className="sessions-count">{rows.length}</span></span>
+      <span className="session-legend" aria-label="Bar colours">
+        {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
+      </span>
+    </header>
     {loading && !error && <p role="status">Reading sessions…</p>}
     {error && <p role="status">{error}</p>}
     {!loading && rows.length === 0 && <p>No running sessions</p>}

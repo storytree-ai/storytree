@@ -111,7 +111,8 @@ interface ActivityRow {
  *
  * The log's database is connected to straight away, which is one connection when it exists. When
  * it does not, Postgres refuses (invalid_catalog_name), and on Windows it sometimes resets the
- * connection before its refusal arrives. Either way the database is made if it is missing, from
+ * connection before its refusal arrives (seen as ECONNRESET, or as EPIPE when the reset beats the
+ * client's first write). Either way the database is made if it is missing, from
  * the server's own, and the log's is tried once more.
  */
 export async function openActivityLog(server: string | Storytree, options: OpenOptions = {}): Promise<ActivityLog> {
@@ -327,7 +328,12 @@ function isMissingDatabase(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "3D000";
 }
 
-/** The connection was reset, as Postgres on Windows sometimes does to one it is refusing. */
+/**
+ * The connection was reset, as Postgres on Windows sometimes does to one it is refusing. A reset
+ * that arrives before the client has written its first message surfaces on that write, as EPIPE
+ * (seen on macOS: the macOS run of storytree-ai/storytree#187), rather than as ECONNRESET.
+ */
 function isConnectionReset(error: unknown): boolean {
-  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "ECONNRESET";
+  const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
+  return code === "ECONNRESET" || code === "EPIPE";
 }

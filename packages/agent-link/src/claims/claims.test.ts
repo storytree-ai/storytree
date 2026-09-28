@@ -374,12 +374,13 @@ test("5.9 a claim on a capability is refused when every open increment naming it
 
     const refused = await claim(as("A"), emailForm, "building the form");
     assert.ok(!refused.ok && refused.refused === "waiting");
+    // Both waits are named; their order is not part of the promise (the two can be parked in one instant).
     assert.deepEqual(
-      refused.waits.map(({ increment, on, reason }) => [increment, on, reason]),
+      refused.waits.map(({ increment, on, reason }) => [increment, on, reason]).sort(),
       [
         [first, design, "the design comes first"],
         [second, design, "the design comes first"],
-      ],
+      ].sort(),
     );
 
     await library.removeWait(second, design);

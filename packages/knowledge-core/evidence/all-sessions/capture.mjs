@@ -108,6 +108,17 @@ try {
   assert.equal(await rgb(litBy.get(reads.c[0]).lit), await swatch(ids.c));
   const shared = [...litBy.values()].filter(dot => dot.shared).map(dot => dot.id).sort();
   assert.deepEqual(shared, covers.slice(10, 14).sort(), 'notes two sessions read are shared');
+  const curves = () => page.evaluate(() => {
+    const found = [];
+    window.__globe.scene.traverse(object => { if (object.name.startsWith('knowledge-trail:')) found.push(object.userData); });
+    return found;
+  });
+  // Every listed session's path draws, one curve per step, in its colour (ADR-0740).
+  const allCurves = await curves();
+  const steps = notes => notes.slice(1).map((note, i) => `${notes[i]}>${note}`);
+  assert.deepEqual(allCurves.map(c => `${c.from}>${c.to}`).sort(),
+    [...steps(reads.a), ...steps(reads.lane), ...steps(reads.b), ...steps(reads.c)].sort(), "one curve per step of each agent's reading order");
+  assert.equal(await rgb(allCurves.find(c => c.from === reads.c[0]).colour), await swatch(ids.c), "a curve wears its session's colour");
   await page.screenshot({ path: path.join(here, 'all-sessions.png') });
 
   // Click a row: the core drills into that session alone, the row marked selected.
@@ -118,6 +129,7 @@ try {
   assert.deepEqual(one.map(dot => dot.id).sort(), [...reads.b].sort(), 'a selection lights that session alone');
   assert.ok(one.every(dot => !dot.shared));
   assert.equal(await rgb(one.find(dot => dot.id === reads.b[0]).lit), await swatch(ids.b), 'its orchestrator wears its colour');
+  assert.equal((await curves()).length, reads.b.length - 1, "a selection draws that session's path alone");
   await page.screenshot({ path: path.join(here, 'one-session.png') });
 
   // Drill into the session with a subagent: the subagent wears a shade of the same hue.

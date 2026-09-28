@@ -284,6 +284,41 @@ export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], sess
   return new Map([...first].map(([note, { colour }]) => [note, { colour, shared: false }]));
 }
 
+/** One step of a session's reading path: from a full read to the same agent's next, never a followed link (ADR-0740). */
+export interface Trail {
+  from: string;
+  to: string;
+  colour: string;
+  seq: number;
+}
+
+/**
+ * The reading paths to draw (ADR-0740), in recorded order: every listed session's in its colour
+ * with none selected, or the selected session's in its agents' colours. Each is the replay's jumps
+ * (a known agent's full reads, one to the next); a peek or an unknown agent draws none, and a
+ * repeated step of the same session draws once.
+ */
+export function trails(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
+  present: ReadonlySet<string>): Trail[] {
+  const drawn = new Map<string, Trail>();
+  const take = (member: string, colourOf: (agent: string) => string, key: string) => {
+    for (const { agent, jumps } of reads.replay(member, present).agents) {
+      for (const { from, to, seq } of jumps) {
+        if (from === undefined || from === to || drawn.has(`${key} ${from} ${to}`)) continue;
+        drawn.set(`${key} ${from} ${to}`, { from, to, colour: colourOf(agent), seq });
+      }
+    }
+  };
+  if (session === undefined) {
+    for (const { session: listed, colour, members } of roster) for (const member of members) take(member, () => colour, listed);
+  } else {
+    const { agents } = reads.replay(session, present);
+    const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
+    take(session, (agent) => colours.get(agent)!, session);
+  }
+  return [...drawn.values()].sort((a, b) => a.seq - b.seq);
+}
+
 interface LiveNote {
   colour: string;
   seq: number;

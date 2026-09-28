@@ -1,0 +1,31 @@
+✔ 4.3 the running slot checks its own build in the background, logs output, and retries failures only at the next update (2105.596625ms)
+✔ 4.3 a check that cannot start is logged without failing app startup (3.72013ms)
+✖ 4.3 with the library on Cloud SQL the app records no own health, since CI is its one writer (ADR-0744) (812.336525ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3448.546406
+
+✖ failing tests:
+
+test at src/updates/build-health.test.ts:11:1999
+✖ 4.3 with the library on Cloud SQL the app records no own health, since CI is its one writer (ADR-0744) (812.336525ms)
+  AssertionError [ERR_ASSERTION]: the check never runs
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/onewriter/packages/app/src/updates/build-health.test.ts:98:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

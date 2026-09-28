@@ -41,6 +41,21 @@ test("4.4 an installed app downloads a newer release, waits for a seed, stops it
   assert.equal(feed.downloads, 1);
 });
 
+test("4.4 a downloaded release waits for a quiet moment, says it is pending, and installs when the user asks", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.2";
+  const launches: Launch[] = [];
+  const updater = feed.updater(async (target) => { launches.push(target); }, async () => true, async () => false);
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(await updater.check(), "waiting");
+  assert.deepEqual(launches, []);
+  assert.deepEqual(updater.request("status"), { phase: "pending", runningBuild: "0.3.1", nextBuild: "0.3.2" });
+  updater.request("install");
+  assert.equal(await updater.check(), "restarting");
+  assert.equal(launches.length, 1);
+  assert.equal(feed.downloads, 1);
+});
+
 test("4.5 a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it", async (t) => {
   const feed = await fixture(t);
   const launches: Launch[] = [];
@@ -91,8 +106,8 @@ async function fixture(t: test.TestContext) {
   const config = path.join(dir, "app-update.yml");
   await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${address.port}`, updaterCacheDirName: "updates" }));
   return Object.assign(state, {
-    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>) {
-      const updater = new ReleaseUpdater({ restart, canRestart }, {
+    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true) {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet }, {
         version: "0.3.1", name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),

@@ -114,6 +114,20 @@ export function registerPlanTools(define: Define): void {
     },
   );
 
+  define(
+    "mark_built",
+    "Say a capability is built, once you consider it built: it is no longer proposed, and its card's word then comes from what storytree verified, never from your report. Or say it is proposed again (built: false).",
+    z.object({ capability: id("capability"), built: z.boolean().describe("true when it is built, false to make it proposed again") }),
+    async ({ capability, built }, { library, writer }) => {
+      const done = await library.setProposed(capability, !built, writer);
+      if (done === null) return { text: `${capability} is not a capability in this project's plan.`, refused: true };
+      return {
+        text: built ? `Capability ${quoted(done.fields.title)} (${capability}) is no longer proposed. Its word now comes from what storytree verified.` : `Capability ${quoted(done.fields.title)} (${capability}) is proposed again.`,
+        data: { id: capability },
+      };
+    },
+  );
+
   define("show_plan", "See the plan: every story, capability and contract with its health, who holds what, and which sessions are about.", z.object({}), async (_args, call) =>
     showPlan(call),
   );

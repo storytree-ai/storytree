@@ -599,8 +599,13 @@ body[data-surface="forest"] main {
 .panel-state {
   color: var(--muted);
   font-size: 0.85rem;
-  font-weight: 400;
+  font-weight: 600;
 }
+
+.panel-state.status-proposed { color: var(--st-proposed); }
+.panel-state.status-healthy { color: var(--st-healthy); }
+.panel-state.status-unhealthy { color: var(--st-unhealthy); }
+.panel-state.status-untested { color: var(--st-untested); }
 
 /* The one capability selected in the diagram, shown below it (ADR-0659 D2). */
 
@@ -785,9 +790,10 @@ main:has(> .tree-space:not([hidden])) > .story-panel {
   color: #fff;
 }
 
-.tree-space-legend .legend-planned { background: var(--work-planned); }
-.tree-space-legend .legend-in-progress { background: var(--work-in-progress); }
-.tree-space-legend .legend-landed { background: var(--work-landed); }
+.tree-space-legend .status-proposed { background: var(--st-proposed); }
+.tree-space-legend .status-healthy { background: var(--st-healthy); }
+.tree-space-legend .status-unhealthy { background: var(--st-unhealthy); }
+.tree-space-legend .status-untested { background: var(--st-untested); }
 
 .tree-space-hint {
   position: absolute;
@@ -849,13 +855,15 @@ main:has(> .tree-space:not([hidden])) > .story-panel {
   max-width: none;
 }
 
-/* A card: its strip names the work state in the arc surface's colours; the story's own cards are
-   buttons, and another story's is muted context, not a button (ADR-0659 D3, D5). */
+/* A card: its strip says its word in 0.2's status colours (ADR-0744: 0.2's studio --st-*, the
+   text-grade stops that carry white text); the story's own cards are buttons, and another story's
+   is muted context, not a button (ADR-0659 D3, D5). */
 
 :root {
-  --work-planned: #8d9498;
-  --work-in-progress: #c4962f;
-  --work-landed: #5b9975;
+  --st-proposed: #9a5a1c;
+  --st-healthy: #2f6b3f;
+  --st-unhealthy: #9f2d22;
+  --st-untested: #6b7280;
 }
 
 :is(.panel-diagram, .tree-space-diagram) .card-bg {
@@ -864,25 +872,29 @@ main:has(> .tree-space:not([hidden])) > .story-panel {
   stroke-width: 1.2;
 }
 
-:is(.panel-diagram, .tree-space-diagram) .box.health-passing .card-bg {
+:is(.panel-diagram, .tree-space-diagram) .box.status-healthy .card-bg {
   stroke: var(--pass-line);
 }
 
-:is(.panel-diagram, .tree-space-diagram) .box.health-failing .card-bg {
+:is(.panel-diagram, .tree-space-diagram) .box.status-unhealthy .card-bg {
   fill: var(--fail-bg);
   stroke: var(--fail-line);
 }
 
 :is(.panel-diagram, .tree-space-diagram) .card-strip {
-  fill: var(--work-planned);
+  fill: var(--st-untested);
 }
 
-:is(.panel-diagram, .tree-space-diagram) .state-in-progress .card-strip {
-  fill: var(--work-in-progress);
+:is(.panel-diagram, .tree-space-diagram) .status-proposed .card-strip {
+  fill: var(--st-proposed);
 }
 
-:is(.panel-diagram, .tree-space-diagram) .state-landed .card-strip {
-  fill: var(--work-landed);
+:is(.panel-diagram, .tree-space-diagram) .status-healthy .card-strip {
+  fill: var(--st-healthy);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .status-unhealthy .card-strip {
+  fill: var(--st-unhealthy);
 }
 
 :is(.panel-diagram, .tree-space-diagram) .card-status {

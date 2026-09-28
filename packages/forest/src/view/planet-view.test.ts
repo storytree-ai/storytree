@@ -13,7 +13,7 @@ test("the globe opens every story with its grove at its permanent place, readabl
   const tree: AnnotatedTree = { arcs: [], stories: [
     { id: "new", title: "A new story", health, capabilities: [] },
     { id: "kept", title: "An older story", health, capabilities: [
-      { id: "cap", title: "Its capability", dependsOn: [], contracts: [], health },
+      { id: "cap", title: "Its capability", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health },
     ] },
   ] };
   const history = ["retired", "kept", "new"].map((id, index): Change => ({

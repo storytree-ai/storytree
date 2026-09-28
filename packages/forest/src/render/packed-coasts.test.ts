@@ -55,7 +55,7 @@ test('1.6 / 3.8 all 36 measured places leave the approved trunk clearance betwee
   for (const ids of [seed, freshSeed, Array.from({ length: 36 }, (_, i) => `synthetic-story-${i + 1}`)]) {
     const shores = ids.map((id, i) => {
       const story = { id, title: id, health, capabilities: Array.from({ length: counts[i % counts.length]! }, (_, c) => ({
-        id: `${id}-cap-${c}`, title: `Capability ${c}`, dependsOn: [], contracts: [], health,
+        id: `${id}-cap-${c}`, title: `Capability ${c}`, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health,
       })) };
       const scene = forestScene({ stories: [story], arcs: [] }, [], workStates([]));
       const coast = clipToCoast(forestDescriptors(scene).filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);

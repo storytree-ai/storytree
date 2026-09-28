@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model: one test per contract 4.1-4.5 in the library story, each run on
+ * Capability 4 · Work model: one test per contract 4.1-4.6 in the library story, each run on
  * BOTH backends, as capabilities 2 and 3 are:
  *
  * - memory: a WorkModel over SchemaRecords over a fresh MemoryTransactions;
@@ -94,7 +94,7 @@ for (const backend of [memory, postgres]) {
     const story = await work.addStory({ title: "Visitor can sign up", description: "By email, with a confirmation link" });
     await assertCreated(transactions, story, "story", { title: "Visitor can sign up", description: "By email, with a confirmation link" });
     const capability = await work.addCapability({ title: "Email form", story: story.id });
-    await assertCreated(transactions, capability, "capability", { title: "Email form", story: story.id });
+    await assertCreated(transactions, capability, "capability", { title: "Email form", story: story.id, proposed: true });
     const contract = await work.addContract({ title: "Rejects a bad email", capability: capability.id });
     await assertCreated(transactions, contract, "contract", { title: "Rejects a bad email", capability: capability.id });
 
@@ -103,7 +103,7 @@ for (const backend of [memory, postgres]) {
       title: "Visitor can sign up",
       description: "By email, with a confirmation link",
       capabilities: [
-        { id: capability.id, title: "Email form", dependsOn: [], contracts: [{ id: contract.id, title: "Rejects a bad email" }] },
+        { id: capability.id, title: "Email form", dependsOn: [], proposed: true, contracts: [{ id: contract.id, title: "Rejects a bad email" }] },
       ],
     };
     assert.deepEqual(
@@ -153,11 +153,12 @@ for (const backend of [memory, postgres]) {
     await records.create("definition", { term: "Delivery", meaning: "Not part of the plan", links: [planned.id] });
     await records.create("health", { node: expiry.id, column: "reported", state: "passing" });
 
-    const leaf = (record: SchemaRecord<"capability">) => ({ id: record.id, title: record.fields.title, dependsOn: [], contracts: [] });
+    const leaf = (record: SchemaRecord<"capability">) => ({ id: record.id, title: record.fields.title, dependsOn: [], proposed: true, contracts: [] });
     const firstNode = {
       id: first.id,
       title: "Capability 0",
       dependsOn: [],
+      proposed: true,
       contracts: contracts.map((record, n) => ({ id: record.id, title: `Contract ${n}` })),
     };
     const linkNode = {
@@ -165,6 +166,7 @@ for (const backend of [memory, postgres]) {
       title: "Confirmation link",
       description: "Sent once the form is valid",
       dependsOn: [at(capabilities, 2).id, first.id],
+      proposed: true,
       contracts: [{ id: expiry.id, title: "The link expires", description: "After 24 hours" }],
     };
     const others = stories.slice(2).map((record) => ({ id: record.id, title: record.fields.title, capabilities: [] }));
@@ -317,9 +319,9 @@ for (const backend of [memory, postgres]) {
 
     // Control: the same writes, naming live records of the right type, go through.
     const moved = await work.editCapability(capability.id, { story: elsewhere.id });
-    assert.deepEqual(moved, { ...capability, fields: { title: "Email form", story: elsewhere.id }, updatedAt: moved?.updatedAt });
+    assert.deepEqual(moved, { ...capability, fields: { title: "Email form", story: elsewhere.id, proposed: true }, updatedAt: moved?.updatedAt });
     const second = await work.addCapability({ title: "Password rules", story: elsewhere.id });
-    await assertCreated(transactions, second, "capability", { title: "Password rules", story: elsewhere.id });
+    await assertCreated(transactions, second, "capability", { title: "Password rules", story: elsewhere.id, proposed: true });
     const covered = await work.addContract({ title: "Refuses a short password", capability: second.id });
     await assertCreated(transactions, covered, "contract", { title: "Refuses a short password", capability: second.id });
     const launch = await work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id] });
@@ -359,11 +361,11 @@ for (const backend of [memory, postgres]) {
 
     // Control: dependencies on live capabilities are kept as given, on a new capability and on an edit.
     const linked = await work.addCapability({ ...link, dependsOn: [form.id, mailer.id] });
-    await assertCreated(transactions, linked, "capability", { ...link, dependsOn: [form.id, mailer.id] });
+    await assertCreated(transactions, linked, "capability", { ...link, dependsOn: [form.id, mailer.id], proposed: true });
     const none = await work.addCapability({ title: "Welcome email", story: story.id, dependsOn: [] });
-    await assertCreated(transactions, none, "capability", { title: "Welcome email", story: story.id, dependsOn: [] });
+    await assertCreated(transactions, none, "capability", { title: "Welcome email", story: story.id, dependsOn: [], proposed: true });
     const edited = await work.editCapability(form.id, { dependsOn: [mailer.id] });
-    assert.deepEqual(edited?.fields, { title: "Email form", story: story.id, dependsOn: [mailer.id] });
+    assert.deepEqual(edited?.fields, { title: "Email form", story: story.id, proposed: true, dependsOn: [mailer.id] });
     // The tree shows each capability's dependencies as stored (these were created too close
     // together for their order to be the point, so they are compared by id).
     const tree = await work.projectTree();
@@ -465,7 +467,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(capability.fields.proposed, true, "born proposed");
 
     assert.equal((await work.setProposed(capability.id, false, { actor: "agent-a" }))?.fields.proposed, false);
-    assert.equal((await records.get(capability.id))?.fields.proposed, false, "stored");
+    assert.equal(((await records.get(capability.id))?.fields as { proposed?: boolean } | undefined)?.proposed, false, "stored");
     assert.equal((await transactions.history({ id: capability.id })).at(-1)?.actor, "agent-a", "with its writer");
     assert.equal((await work.setProposed(capability.id, true))?.fields.proposed, true, "and back on");
 
@@ -475,7 +477,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "nothing written");
 
     await transactions.save({ id: "capability-old", type: "capability", version: 1, fields: { title: "Old one", story: story.id } });
-    assert.equal((await records.get("capability-old"))?.fields.proposed, true, "a capability written before the flag reads proposed");
+    assert.equal(((await records.get("capability-old"))?.fields as { proposed?: boolean } | undefined)?.proposed, true, "a capability written before the flag reads proposed");
   });
 }
 

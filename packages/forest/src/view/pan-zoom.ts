@@ -3,7 +3,8 @@
  * the tree's two spaces: the one inside the story panel and the larger window it pops out into.
  * Drag pans; the wheel, a trackpad pinch or a two-finger pinch zooms about the pointer. There are no
  * scroll bars (0.2's ADR-0502), and the pan is bounded so the tree can never be dragged out of
- * reach. A card pressed and released without a drag is a click, and chooses it.
+ * reach. A card pressed and released without a drag is a click, and chooses it. Both spaces open
+ * with the whole tree fitted in the frame (ADR-0744: the owner found full size too close).
  */
 
 export interface View {
@@ -26,8 +27,8 @@ export interface PanZoom {
   /** Where the tree is now; hand it back to `place` to keep it across a redraw. */
   readonly view: View;
   place(view: View): void;
-  /** Put the middle of the card `selected` (or of all the story's cards) in the middle of the frame, at full size. */
-  centre(selected?: string): void;
+  /** Fit the whole tree in the frame, centred (`fitted`). */
+  fit(): void;
   stop(): void;
 }
 
@@ -40,7 +41,7 @@ const DRAG = 4;
 
 /**
  * Let `frame` move `surface`, which holds the tree's SVG at 1 unit to 1 pixel and may be redrawn;
- * `choose` hears a card clicked or keyed. Place it with `centre` or `place` once the tree is drawn.
+ * `choose` hears a card clicked or keyed. Place it with `fit` or `place` once the tree is drawn.
  */
 export function attachPanZoom(frame: HTMLElement, surface: HTMLElement, choose: (id: string) => void): PanZoom {
   let view: View = { x: 0, y: 0, scale: 1 };
@@ -54,14 +55,8 @@ export function attachPanZoom(frame: HTMLElement, surface: HTMLElement, choose: 
     surface.style.transform = `translate(${view.x.toFixed(1)}px, ${view.y.toFixed(1)}px) scale(${view.scale.toFixed(3)})`;
     surface.dataset.view = JSON.stringify({ x: Math.round(view.x), y: Math.round(view.y), scale: Number(view.scale.toFixed(3)) });
   };
-  const centre = (selected?: string): void => {
-    const cards = [...surface.querySelectorAll<SVGGElement>("[data-capability-id]")].map((card) => {
-      const at = card.transform.baseVal.consolidate()?.matrix;
-      const box = card.querySelector<SVGRectElement>(".card-bg");
-      return { id: card.dataset.capabilityId ?? "", x: at?.e ?? 0, y: at?.f ?? 0, width: box?.width.baseVal.value ?? 0, height: box?.height.baseVal.value ?? 0 };
-    });
-    const point = cards.length === 0 ? { x: size().width / 2, y: size().height / 2 } : focusOf(cards, selected);
-    view = centredOn(point, { width: frame.clientWidth, height: frame.clientHeight });
+  const fit = (): void => {
+    view = fitted(size(), { width: frame.clientWidth, height: frame.clientHeight });
     write();
   };
 
@@ -134,25 +129,21 @@ export function attachPanZoom(frame: HTMLElement, surface: HTMLElement, choose: 
       view = kept;
       write();
     },
-    centre,
+    fit,
     stop() {
       resized.disconnect();
     },
   };
 }
 
-/** The point to open on: the middle of the card `selected`, or else the middle of all the cards. */
-export function focusOf(cards: readonly ({ id: string } & Point & Size)[], selected: string | undefined): Point {
-  const middle = (card: Point & Size): Point => ({ x: card.x + card.width / 2, y: card.y + card.height / 2 });
-  const chosen = cards.find(({ id }) => id === selected);
-  if (chosen !== undefined) return middle(chosen);
-  const all = cards.map(middle);
-  return { x: all.reduce((sum, { x }) => sum + x, 0) / all.length, y: all.reduce((sum, { y }) => sum + y, 0) / all.length };
-}
-
-/** The view, at full size, that puts `point` of the tree in the middle of `frame`. */
-export function centredOn(point: Point, frame: Size): View {
-  return { x: frame.width / 2 - point.x, y: frame.height / 2 - point.y, scale: 1 };
+/**
+ * The view that fits all of `tree` in `frame`, centred: as large as fits, but never above full size,
+ * which is readable already, nor below the least zoom, where a huge tree is centred and panned.
+ */
+export function fitted(tree: Size, frame: Size): View {
+  const fits = tree.width > 0 && tree.height > 0 ? Math.min(frame.width / tree.width, frame.height / tree.height) : 1;
+  const scale = Math.min(1, Math.max(MIN_SCALE, fits));
+  return { x: (frame.width - tree.width * scale) / 2, y: (frame.height - tree.height * scale) / 2, scale };
 }
 
 /** `view` zoomed by `by` about a point of the frame, keeping the point under it where it was. */

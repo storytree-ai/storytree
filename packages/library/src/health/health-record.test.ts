@@ -504,6 +504,7 @@ function withHealth(tree: ProjectTree, healthOf: (id: string) => NodeHealth): An
         ...capability,
         health: healthOf(capability.id),
         contracts: capability.contracts.map((contract) => ({ ...contract, health: healthOf(contract.id) })),
+        status: capabilityStatus(capability.proposed, capability.contracts.map((contract) => healthOf(contract.id).verified.state)),
       })),
     })),
     arcs: tree.arcs,

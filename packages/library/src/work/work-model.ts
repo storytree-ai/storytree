@@ -21,8 +21,8 @@ export type NewStory = FieldsOf<"story">;
  * given, each an existing story; an arc may list none. Parking is capability 10's parkArc.
  */
 export type NewArc = Omit<FieldsOf<"arc">, "parked">;
-/** A new capability's fields: `story` and every `dependsOn` id must name existing records. */
-export type NewCapability = FieldsOf<"capability">;
+/** A new capability's fields: `story` and every `dependsOn` id must name existing records. It is proposed unless told otherwise. */
+export type NewCapability = Omit<FieldsOf<"capability">, "proposed"> & { proposed?: boolean };
 /** A new contract's fields: `capability` must name an existing capability. */
 export type NewContract = FieldsOf<"contract">;
 /** An edit of a capability: some of its fields. A field set to undefined is removed. */
@@ -56,6 +56,8 @@ export interface CapabilityNode {
   description?: string;
   /** The capabilities this one depends on, as stored. */
   dependsOn: string[];
+  /** Whether it is still proposed: on until the agent says it is built (ADR-0744 D2). */
+  proposed: boolean;
   /** The contracts pointing at this capability, in creation order. */
   contracts: ContractNode[];
 }
@@ -108,13 +110,13 @@ export class WorkModel {
   /**
    * Add a capability to a story. The story, and every capability it depends on, must be live
    * records of those types (MissingReferenceError otherwise). A new capability cannot close a
-   * dependency loop, since nothing can depend on it yet.
+   * dependency loop, since nothing can depend on it yet. It is born proposed unless told otherwise.
    */
   addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "story", capability.story, "story");
       await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
-      return this.#records.create("capability", capability, options);
+      return this.#records.create("capability", { ...capability, proposed: capability.proposed ?? true }, options);
     });
   }
 
@@ -133,6 +135,16 @@ export class WorkModel {
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"capability"> | null;
     });
+  }
+
+  /**
+   * Switch capability `id`'s proposed flag (ADR-0744 D2): off when the agent considers it built, on
+   * to say it is not. An edit like any other, so its writer is in the history. Switching it off
+   * makes nothing healthy: the word comes from the verified column (HealthRecord's capabilityStatus).
+   * Null, with nothing written, if `id` is not a live capability.
+   */
+  setProposed(id: string, proposed: boolean, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {
+    return this.editCapability(id, { proposed }, options);
   }
 
   /** Add a contract to a capability, which must be a live capability (MissingReferenceError otherwise). */
@@ -198,6 +210,7 @@ export class WorkModel {
         capabilities: (capabilitiesOf.get(story.id) ?? []).map((capability) => ({
           ...nodeOf(capability),
           dependsOn: [...(capability.fields.dependsOn ?? [])],
+          proposed: capability.fields.proposed,
           contracts: (contractsOf.get(capability.id) ?? []).map(nodeOf),
         })),
       })),

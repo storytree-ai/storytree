@@ -66,7 +66,7 @@ test("4.1 a story whose third capability builds on the first two opens in build 
   assert.deepEqual(panel?.arrows.map(({ from, to }) => `${from} -> ${to}`), ["third -> first", "third -> second"]);
 });
 
-test("4.2 a capability that builds on one in another story points at it, named with that story, and marked until it lands", () => {
+test("4.2 a capability that builds on one in another story points at it, named with that story, with its word and whether it landed", () => {
   const tree: AnnotatedTree = { stories: [story("a", capability("login", ["accounts"])), story("b", capability("accounts", []))], arcs: [] };
   const [before] = drillDown(tree, "a", workStates([]), [])?.arrows ?? [];
   assert.deepEqual(before, { from: "login", to: "accounts", toTitle: "The accounts", toStory: "Story b", landed: false, toStatus: "proposed" });

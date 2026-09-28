@@ -26,7 +26,7 @@ const TREE: AnnotatedTree = {
         {
           id: "cap_c",
           title: "3 · Third",
-          dependsOn: ["cap_b"],
+          dependsOn: ["cap_b"], proposed: true, status: "proposed" as const, 
           health: health(NOT_CHECKED, { state: "failing" }),
           contracts: [
             {
@@ -40,7 +40,7 @@ const TREE: AnnotatedTree = {
           id: "cap_a",
           title: "1 · First",
           description: "The first one",
-          dependsOn: [],
+          dependsOn: [], proposed: true, status: "proposed" as const, 
           health: health({ state: "passing" }, { state: "passing" }),
           contracts: [
             {
@@ -53,7 +53,7 @@ const TREE: AnnotatedTree = {
             },
           ],
         },
-        { id: "cap_b", title: "2 · Second", dependsOn: ["cap_a"], health: health(NOT_CHECKED, NOT_CHECKED), contracts: [] },
+        { id: "cap_b", title: "2 · Second", dependsOn: ["cap_a"], proposed: true, status: "proposed" as const, health: health(NOT_CHECKED, NOT_CHECKED), contracts: [] },
       ],
     },
   ],

@@ -1,9 +1,9 @@
 /**
  * The capability tree's own space (the forest story, capability 4; ADR-0743): a large layer over
  * the forest, beside the story panel, popped out from the tree's space inside the panel, where the
- * tree is drawn at a readable size and moved rather than shrunk (`attachPanZoom`). It opens centred
- * on the story's own capabilities, and keeps where it was while the live reading redraws the same
- * story. Clicking a card chooses it as the panel's does.
+ * tree is moved and zoomed (`attachPanZoom`). It opens with the whole tree fitted in it, as its
+ * "Fit" control puts it back, and keeps where it was while the live reading redraws the same story.
+ * Its legend names the cards' four words (ADR-0744). Clicking a card chooses it as the panel's does.
  */
 import type { StoryPanel } from "@storytree/forest";
 
@@ -27,9 +27,9 @@ export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void
     <header class="tree-space-head">
       <h2></h2>
       <span class="tree-space-legend">
-        <span class="legend-planned">planned</span><span class="legend-in-progress">in progress</span><span class="legend-landed">landed</span>
+        <span class="status-proposed">proposed</span><span class="status-healthy">healthy</span><span class="status-unhealthy">unhealthy</span><span class="status-untested">untested</span>
       </span>
-      <button type="button" class="tree-space-fit">Centre</button>
+      <button type="button" class="tree-space-fit">Fit</button>
       <button type="button" class="tree-space-close" aria-label="Close the capability tree">×</button>
     </header>
     <div class="tree-space-frame">
@@ -51,7 +51,7 @@ export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void
     on.closed();
   };
   space.querySelector(".tree-space-close")?.addEventListener("click", close);
-  space.querySelector(".tree-space-fit")?.addEventListener("click", () => moving.centre());
+  space.querySelector(".tree-space-fit")?.addEventListener("click", () => moving.fit());
   // Escape closes the space before it reaches the forest, which would close the panel too.
   const onKey = (event: KeyboardEvent): void => {
     if (event.key !== "Escape" || space.hidden) return;
@@ -68,7 +68,7 @@ export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void
       const opening = space.hidden || story !== panel.story;
       space.hidden = false;
       story = panel.story;
-      if (opening) moving.centre();
+      if (opening) moving.fit();
       else moving.place(moving.view);
       if (focused) surface.querySelector<SVGGElement>(".selected")?.focus({ preventScroll: true });
     },

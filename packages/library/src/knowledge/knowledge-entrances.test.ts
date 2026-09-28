@@ -93,8 +93,8 @@ for (const backend of [memory, postgres]) {
 
   contract("9.1", "a decision can be the front cover of a story or a capability, and frontCovers lists a node's covers, founding first", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
-    const form = await records.create("capability", { title: "Email form", story: story.id });
-    const login = await records.create("capability", { title: "Login", story: story.id });
+    const form = await records.create("capability", { title: "Email form", story: story.id, proposed: true });
+    const login = await records.create("capability", { title: "Login", story: story.id, proposed: true });
     const contract = await records.create("contract", { title: "Rejects a bad email", capability: form.id });
 
     // The email form's shelf: several covers, written one after another in an order that is not
@@ -157,7 +157,7 @@ for (const backend of [memory, postgres]) {
 
   contract("9.2", "a front cover naming anything but a live story or capability is refused, and nothing is written", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
-    const capability = await records.create("capability", { title: "Email form", story: story.id });
+    const capability = await records.create("capability", { title: "Email form", story: story.id, proposed: true });
     const arc = await records.create("arc", { title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const contract = await records.create("contract", { title: "Rejects a bad email", capability: capability.id });
     const health = await records.create("health", { node: contract.id, column: "reported", state: "passing" });
@@ -217,7 +217,7 @@ for (const backend of [memory, postgres]) {
 
   contract("9.3", "a note linking to a story, capability, contract, arc or health entry is refused, and nothing is written", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
-    const capability = await records.create("capability", { title: "Email form", story: story.id });
+    const capability = await records.create("capability", { title: "Email form", story: story.id, proposed: true });
     const arc = await records.create("arc", { title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
     const contract = await records.create("contract", { title: "Rejects a bad email", capability: capability.id });
     const health = await records.create("health", { node: contract.id, column: "reported", state: "passing" });

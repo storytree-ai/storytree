@@ -9,7 +9,7 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 const now = new Date("2026-09-28T12:00:00Z");
 const health = { reported: { state: "not-checked" }, verified: { state: "not-checked" } } as const;
 const tree: AnnotatedTree = { stories: ["one", "two"].map(id => ({ id, title: id, health,
-  capabilities: [{ id: `cap-${id}`, title: id, dependsOn: [], contracts: [], health }] })), arcs: [] };
+  capabilities: [{ id: `cap-${id}`, title: id, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health }] })), arcs: [] };
 function log(...events: (Partial<Line> & NewLine)[]): Line[] {
   return events.map((event, index) => ({ project: "demo", seq: index + 1, at: now.toISOString(), ...event }));
 }

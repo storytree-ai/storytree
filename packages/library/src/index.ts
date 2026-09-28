@@ -44,6 +44,7 @@ export type {
   AnnotatedContract,
   AnnotatedStory,
   AnnotatedTree,
+  CapabilityStatus,
   HealthColumn,
   HealthColumnName,
   HealthEntry,

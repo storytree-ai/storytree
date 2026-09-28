@@ -1,4 +1,4 @@
-.sessions-list { position:absolute; left:16px; bottom:16px; z-index:45; width:max-content; max-width:calc(100% - 32px); max-height:38%; overflow:auto; box-sizing:border-box; padding:10px 12px; color:#d9dedb; background:rgba(18,24,27,.93); border:1px solid #3d4748; border-radius:8px; font:13px/1.45 system-ui,sans-serif; box-shadow:0 5px 20px #0004; }
+.sessions-list { position:absolute; left:16px; bottom:16px; z-index:45; width:min(470px, calc(100% - 32px)); max-height:38%; overflow:auto; box-sizing:border-box; padding:10px 12px; color:#d9dedb; background:rgba(18,24,27,.93); border:1px solid #3d4748; border-radius:8px; font:13px/1.45 system-ui,sans-serif; box-shadow:0 5px 20px #0004; }
 .sessions-list header { font-size:11px; letter-spacing:.06em; color:#abb4b1; margin-bottom:5px; }
 .sessions-list header span { margin-left:6px; }
 .sessions-list ul { list-style:none; margin:0; padding:0; }
@@ -8,7 +8,7 @@
 .session-colour { width:8px; height:8px; flex-shrink:0; border-radius:50%; }
 .session-row[data-highlighted] .session-colour { box-shadow:0 0 0 2px #ffffff55; }
 .session-row:focus-visible,.sessions-list button:focus-visible { outline:1px solid #d9dedb; outline-offset:2px; }
-.session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:60px; max-width:270px; }
+.session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:60px; }
 .sessions-list button { font:inherit; cursor:pointer; background:none; color:inherit; border:0; border-radius:3px; padding:1px 3px; white-space:nowrap; }
 .session-children-toggle,.session-off-plan { font-size:11px !important; color:#b3bdb9 !important; }
 .session-needs-you { font-size:11px; color:#f2cb83; white-space:nowrap; }
@@ -18,4 +18,4 @@
 .session-evidence ol { padding-left:18px; margin:5px 0; }
 .session-evidence time { display:block; color:#abb4b1; font-size:11px; }
 .session-evidence code { display:block; white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; }
-@media(max-width:600px) { .sessions-list { left:8px; bottom:8px; max-width:calc(100% - 16px); padding:7px; } .session-row { gap:4px; } .session-context-slot { width:32px; margin-left:0; } .session-label { max-width:160px; } }
+@media(max-width:600px) { .sessions-list { left:8px; bottom:8px; width:calc(100% - 16px); padding:7px; } .session-row { gap:4px; } .session-context-slot { width:32px; margin-left:0; } }

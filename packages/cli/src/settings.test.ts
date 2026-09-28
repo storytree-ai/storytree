@@ -1,6 +1,6 @@
 /** Settings' thin front door runs offline, outside a project, with a throwaway home. */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -55,5 +55,14 @@ test("settings 10.2: set persists in the storytree home and show reads it back a
     assert.equal(refused.code, 1, refused.stderr);
     assert.match(refused.stderr, reason);
     assert.equal(readFileSync(file, "utf8"), before);
+  }
+
+  writeFileSync(file, '{"context-guidance":null}');
+  for (const args of [["show"], ["set", "context-guidance", "400000"]]) {
+    const refused = await invoke(["settings", ...args]);
+    assert.equal(refused.code, 1, refused.stderr);
+    assert.match(refused.stderr, /invalid settings file/i);
+    assert.ok(refused.stderr.includes(file), refused.stderr);
+    assert.equal(readFileSync(file, "utf8"), '{"context-guidance":null}');
   }
 });

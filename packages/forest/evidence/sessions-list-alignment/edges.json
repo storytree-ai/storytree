@@ -1,0 +1,54 @@
+{
+  "420": [
+    {
+      "id": "short",
+      "slotLeft": 326,
+      "slotWidth": 32,
+      "totalRight": 400
+    },
+    {
+      "id": "long",
+      "slotLeft": 326,
+      "slotWidth": 32,
+      "totalRight": 400
+    },
+    {
+      "id": "badges",
+      "slotLeft": 326,
+      "slotWidth": 32,
+      "totalRight": 400
+    },
+    {
+      "id": "needs",
+      "slotLeft": 326,
+      "slotWidth": 32,
+      "totalRight": 400
+    }
+  ],
+  "1440": [
+    {
+      "id": "short",
+      "slotLeft": 358,
+      "slotWidth": 65,
+      "totalRight": 469
+    },
+    {
+      "id": "long",
+      "slotLeft": 358,
+      "slotWidth": 65,
+      "totalRight": 469
+    },
+    {
+      "id": "badges",
+      "slotLeft": 358,
+      "slotWidth": 65,
+      "totalRight": 469
+    },
+    {
+      "id": "needs",
+      "slotLeft": 358,
+      "slotWidth": 65,
+      "totalRight": 469
+    }
+  ]
+}

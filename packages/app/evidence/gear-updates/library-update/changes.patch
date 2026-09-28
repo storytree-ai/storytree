@@ -1,0 +1,72 @@
+--- old/library/The app/capability 4/capability_6a0c1b26f586/description
++++ new/library/The app/capability 4/capability_6a0c1b26f586/description
+@@ -1 +1 @@
+-The app keeps itself up to date by itself: on the owner's machine it runs from its own copy of merged main, notices new merges within a few minutes, and rebuilds and restarts itself in the background, so it never runs unmerged work and nobody rebuilds it by hand. Before first users, an installed app does the same from published releases.
++The app keeps itself up to date by itself: on the owner's machine it runs from its own copy of merged main, notices new merges within a few minutes, and rebuilds and restarts itself in the background, so it never runs unmerged work and nobody rebuilds it by hand. Check for updates in the top-right gear asks that same merged-main updater to check now and shows the running build and its progress or failure. A ready build restarts once no seed is writing the library. A checkout explains that it does not update itself. Before first users, an installed app does the same from published releases.
+
+--- old/library/The app/capability 4/definition_7ac5d849c326/meaning
++++ new/library/The app/capability 4/definition_7ac5d849c326/meaning
+@@ -1,4 +1,10 @@
+ - **As built** (`0-3-app-update-is-smooth`): the restart into a new build waits while a seed is
+   writing the app's library (a connection named `storytree-seed`, `seedWriting`), and goes ahead at
+   the first check after it has finished. The app that follows merged main writes what it says to
+   `~/.storytree/0.3/app.log`, so a restart is never silent.
++- **As built** (`increment_520384015d37`): Check for updates is enabled in the top-right gear.
++  The app story owns one merged-main update controller shared by the manual request and automatic
++  checks; the desktop carries its request and status over one IPC call. The menu shows checking,
++  up to date with the running build, building, ready while a library writer delays restart,
++  restarting, a failure with its reason, or that this checkout does not update itself. A failed
++  check leaves the running app alone and can be retried. The three-minute background check stays.
+
+--- old/library/The app/capability 4/definition_a6887ae27c30/meaning
++++ new/library/The app/capability 4/definition_a6887ae27c30/meaning
+@@ -1,2 +1,8 @@
+ - **Proved by** `packages/app/src/updates/follow-main.test.ts`, red→green, against real git with a
+   throwaway origin and a stand-in build.
++  `packages/app/src/updates/main-updates.test.ts` covers an immediate check, sharing an ongoing
++  automatic check, the running build when up to date, building and ready states, waiting for a
++  library seed before one restart, failure and retry, a checkout, and stopping during a build.
++  Red-to-green evidence and menu captures are in `packages/app/evidence/gear-updates/`.
++  Captures use the supplied real library snapshot in an isolated home; update results are
++  simulated test states, without pushing to main to trigger an update. Appearance awaits the owner.
+
+--- old/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
++++ new/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
+@@ -0,0 +1 @@
++4.7 · Check for updates in the gear checks merged main now, using the same updater as the automatic check. Concurrent requests share the work. If no newer build is needed, the menu says the app is up to date and identifies the running build.
+
+--- old/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
++++ new/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
+@@ -0,0 +1 @@
++4.8 · The menu shows when a new build is building, ready or restarting. A ready build updates and restarts the app through the existing lifecycle, waiting while a seed writes the library; waiting neither rebuilds the ready commit nor starts a second restart.
+
+--- old/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
++++ new/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
+@@ -0,0 +1 @@
++4.9 · A failed manual update check or build shows its reason, leaves the running app alone, and can be retried from the gear.
+
+--- old/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
++++ new/library/The app/capability 4/ADD contract under capability_6a0c1b26f586/title
+@@ -0,0 +1 @@
++4.10 · When the app was started from a checkout rather than a runtime slot, Check for updates explains that it does not update itself; the request neither fetches a build nor restarts the app.
+
+--- old/library/The app/capability 2/capability_3c5ed8b3ca70/description
++++ new/library/The app/capability 2/capability_3c5ed8b3ca70/description
+@@ -1 +1 @@
+-The app lists the storytree projects in its database and shows one at a time. A gear in the top-right corner opens a menu whose Project list moves the whole app to another project in place, alongside Help and reserved places for Check for updates and Settings. The forest fills the window with no app bar. This capability also decides which project is on show when the app opens.
++The app lists the storytree projects in its database and shows one at a time. A gear in the top-right corner opens a menu whose Project list moves the whole app to another project in place, alongside Help, Check for updates and a reserved place for Settings. The forest fills the window with no app bar. This capability also decides which project is on show when the app opens.
+
+--- old/library/The app/capability 2/definition_b7178be85573/meaning
++++ new/library/The app/capability 2/definition_b7178be85573/meaning
+@@ -15,3 +15,4 @@
+   The desktop mounts it and app-setup's existing help surface; help returns focus to the gear.
+-  Check for updates and Settings are disabled reserved entries. No app bar occupies the forest's
++  Check for updates opens the app story's update status in the menu. Settings remains a disabled
++  reserved entry. No app bar occupies the forest's
+   top strip; menu dismissal passes outside pointer input through and preserves the smoke census.
+
+--- old/library/The app/capability 2/contract 2.7 (resolve existing ID)/title
++++ new/library/The app/capability 2/contract 2.7 (resolve existing ID)/title
+@@ -1 +1 @@
+-2.7 · Help in the gear menu opens the existing help surface and returns focus to the gear when closed. Check for updates and Settings have reserved, disabled entries until their increments land.
++2.7 · Help in the gear menu opens the existing help surface and returns focus to the gear when closed. Check for updates opens the app story's update status in the menu. Settings has a reserved, disabled entry until its increment lands.

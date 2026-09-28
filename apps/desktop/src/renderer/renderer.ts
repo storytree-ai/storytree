@@ -29,6 +29,7 @@ declare global {
 const content = element("content");
 const params = new URLSearchParams(location.search);
 const appMenu = mountAppMenu(element("app-menu-host"), {
+  checkForUpdates: (action) => window.storytree.checkForUpdates(action),
   chooseProject: async (name) => { await window.storytree.chooseProject(name); },
   onChosen: () => following?.refresh(),
   onError: (error) => {

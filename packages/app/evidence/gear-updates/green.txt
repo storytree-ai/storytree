@@ -1,0 +1,71 @@
+flock /tmp/storytree-heavy.lock pnpm typecheck — exit 0
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/gear-updates
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/forest-world typecheck$ tsc -p .
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/own typecheck: Done
+packages/library typecheck: Done
+packages/forest-world typecheck: Done
+packages/librarian typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app typecheck: Done
+packages/app-setup typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/arc-surface typecheck: Done
+packages/cli typecheck: Done
+packages/forest typecheck$ tsc -p .
+packages/forest typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done
+
+flock /tmp/storytree-heavy.lock pnpm test — exit 0 (scope and final table)
+scope: affected — apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core — changed: apps/desktop, packages/app; their dependents: packages/agent-link, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/knowledge-core, scripts/package-boundaries.test.mjs
+
+results:
+  PASS    apps/desktop — 1.1 s
+  PASS    packages/agent-link — 11.9 s
+  PASS    packages/app — 2.7 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.7 s
+  PASS    packages/cli — 8.9 s
+  PASS    packages/forest — 1.6 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    scripts/package-boundaries.test.mjs — 0.2 s
+test Postgres: stopped (0.1 s)
+
+Focused update/menu tests — exit 0
+✔ 4.1 when merged main moves, the app is built at main's new commit beside the one running, and work not merged to main is never run (121.716163ms)
+✔ 4.2 a build that fails leaves the running app as it is (79.472611ms)
+✔ asking checks now, joins an ongoing automatic check, and reports up to date with the running build (5.508383ms)
+✔ a new build reports building, waits for a library seed, then restarts once without rebuilding (752.637755ms)
+✔ a failed build reports its reason, leaves the running app alone, and can be retried (0.38997ms)
+✔ a checkout explains that it does not update itself and never fetches or restarts (0.126811ms)
+✔ stopping during a build prevents a late restart (0.739904ms)
+✔ background checks remain periodic, wait for the initial health write, and stop with the app (0.928341ms)
+✔ a seed that starts during the restart notice also holds the ready build (1502.733597ms)
+✔ the gear names and controls an initially closed, light-dismiss menu with help and an enabled update action (1.050975ms)
+✔ the project switcher lists every project, selects the current one and escapes names (0.25296ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2390.562668
+
+Guidance: NOT RUN — no agent role or supporting guidance note changed.

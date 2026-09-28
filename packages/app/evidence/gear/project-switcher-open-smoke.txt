@@ -8,11 +8,17 @@
 
 built dist
 
-DevTools listening on ws://127.0.0.1:33619/devtools/browser/f6e3c057-77e7-4549-9454-de146a618fba
-Postgres: listening on 127.0.0.1:35149 (started in 0.1 s)
-storytree 0.3: development build abfb06f from /home/mickh/code/storytree03-wt/gear (does not update itself)
-[530971:0928/175457.130849:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x4640018e600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+DevTools listening on ws://127.0.0.1:37373/devtools/browser/66116770-1408-4bbf-93db-49c1e1e734fd
+Postgres: listening on 127.0.0.1:33135 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:33135/postgres
+storytree 0.3: development build 4b18e32 from /home/mickh/code/storytree03-wt/gear (does not update itself)
+[545240:0928/175918.011712:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x12bc00192200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
 smoke: screenshot /home/mickh/code/storytree03-wt/gear/packages/app/evidence/gear/project-switcher-open.png (1120x860)
+Project
+storytree
+Help
+Check for updates
+Settings
 The library
 The agent link
 The app

@@ -8,10 +8,11 @@
 
 built dist
 
-DevTools listening on ws://127.0.0.1:38009/devtools/browser/b3e4e409-8625-4338-bf3e-68283f0e4e6e
-Postgres: listening on 127.0.0.1:40795 (started in 0.1 s)
-storytree 0.3: development build abfb06f from /home/mickh/code/storytree03-wt/gear (does not update itself)
-[530581:0928/175444.049825:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x3ac400191c00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+DevTools listening on ws://127.0.0.1:46091/devtools/browser/0266f7a2-e508-4a07-85b3-ab1712ec18ca
+Postgres: listening on 127.0.0.1:41369 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:41369/postgres
+storytree 0.3: development build 4b18e32 from /home/mickh/code/storytree03-wt/gear (does not update itself)
+[544813:0928/175905.019741:ERROR:gpu/command_buffer/service/gl_utils.cc:430] [.WebGL-0x1cbc00191c00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
 smoke: screenshot /home/mickh/code/storytree03-wt/gear/packages/app/evidence/gear/menu-closed.png (1120x860)
 The library
 The agent link
@@ -65,3 +66,23 @@ Sessions 0
 No running sessions
 smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
 Postgres: stopped (0.1 s)
+Error occurred in handler for 'storytree:changes-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78632:31)
+    at /home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78475:84
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)
+Error occurred in handler for 'storytree:lines-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78632:31)
+    at /home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78476:82
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)
+Error occurred in handler for 'storytree:changes-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78632:31)
+    at /home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78475:84
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)
+Error occurred in handler for 'storytree:lines-since': Error: the library is not open
+    at open2 (/home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78632:31)
+    at /home/mickh/code/storytree03-wt/gear/apps/desktop/dist/main.cjs:78476:82
+    at Session.<anonymous> (node:electron/js2c/browser_init:1:118190)
+    at Session.emit (node:events:514:28)

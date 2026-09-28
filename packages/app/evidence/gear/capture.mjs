@@ -22,7 +22,7 @@ try {
   const snapshotPath = process.env.GEAR_SNAPSHOT ?? '/home/mickh/storytree-lanes/snapshots/2026-09-28T07-26-00-491Z.json';
   const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
   await store.restore('storytree', snapshot);
-  reads = pageReads({ storytree: store, serverUrl: pg.url });
+  reads = pageReads({ storytree: store });
   const selection = projectSelection({ file: path.join(temporary, 'choice.json'), listProjects: () => store.listProjects() });
   await selection.choose('storytree');
   let failChoice = false;

@@ -7,7 +7,7 @@ App-setup's help accepts a mount-time return-focus target. Project selection sti
 existing service, including its failure recovery and saved-choice rules.
 
 The owner accepts the appearance. These are unedited **Electron `pnpm desktop:smoke`**
-captures of the supplied real snapshot: 1,628 records, 10 stories and 71 capabilities.
+window captures of the supplied real snapshot: 1,628 records, 10 stories and 71 capabilities.
 The independent arc drawer is open because the existing smoke check exercises it.
 
 - [Menu closed](menu-closed.png)
@@ -48,7 +48,9 @@ working X display. On this Mint box, Xvfb was extracted under `/tmp/gear-xvfb` w
 changing system packages; the already-installed Linux Postgres package was temporarily
 linked into desktop's ignored node_modules because desktop declares Windows binaries only.
 `electron-capture.mjs` drives the real command through CDP and leaves capture/verification to
-that command. It waits for the smoke window to become visible before opening either popup.
+that command. For the open project picker, it saves a CDP screenshot of the same smoke
+window: Electron's `capturePage()` omits that popup, even while the native `:open` state is
+true. Both paths capture the actual window without editing pixels. It waits for the smoke window to become visible before opening either popup.
 
 ```sh
 export STORYTREE_HOME=$(mktemp -d)
@@ -61,3 +63,9 @@ DISPLAY=:97 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock \
 Run Electron capture last: the headless renderer route uses the same three image paths.
 The scripts close their browsers, temporary servers and databases. No live store, claim,
 question or decision was written, and no forest or arc-surface file was changed.
+
+**Follow-up for the supervisor.** The native smoke logs record successful census verification
+and exit 0, followed by existing IPC polling during shutdown that reports “the library is not
+open” (for example `menu-closed-smoke.txt`, after its `smoke: project` line). The browser
+interaction run records zero page errors while running. The shutdown race is in desktop's
+main-process lifecycle, outside this lane's fence; retain it as a separate lifecycle follow-up.

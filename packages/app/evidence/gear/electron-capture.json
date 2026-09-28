@@ -1,6 +1,7 @@
 [
   {
     "mode": "menu-closed",
+    "capture": "desktop:smoke capturePage",
     "state": "ready",
     "drew": {
       "sessions": [],
@@ -388,7 +389,76 @@
           "capability": "capability_d401990d9a5e",
           "form": "seedling"
         }
-      ]
+      ],
+      "arcSurface": {
+        "arcs": [
+          "arc_238ac88fdb14",
+          "arc_cfc7db517fae",
+          "arc_895e232031b0",
+          "arc_a365d0653ac9",
+          "arc_748792ea3487",
+          "arc_197b9208adfc",
+          "arc_4461095a1ab3"
+        ],
+        "increments": [
+          "increment_5e6ac23db68f",
+          "increment_1a8ea22a3038",
+          "increment_3ee7bf20a8d4",
+          "increment_5c3f5b33f6ad",
+          "increment_02c57ba72540",
+          "increment_19775abeb4b1",
+          "increment_1bb076ad0f30",
+          "increment_6236a0e8c487",
+          "increment_8d24830b76f1",
+          "increment_c411e66ff4f9",
+          "increment_f29962ab4621",
+          "increment_835b128fcc4a",
+          "increment_b52ee165a7b4",
+          "increment_c527ed04ae20",
+          "increment_71a9ba6a6b73",
+          "increment_6eb06dd00011",
+          "increment_bdc06eae9c0f",
+          "increment_31db1e015047",
+          "increment_5c4411d39cbf",
+          "increment_9aa5452fdfe2",
+          "increment_e8ebbda86367",
+          "increment_ce9f45c6cce8",
+          "increment_46fce9595005",
+          "increment_6125b244ae03",
+          "increment_8296e04a6a21",
+          "increment_cce7dfdccea4",
+          "increment_ce3decdaee66",
+          "increment_205503a91a53",
+          "increment_4745a73cdd64",
+          "increment_655d99c13fc3",
+          "increment_825c287d81d1",
+          "increment_855205112ec0",
+          "increment_e925b9e26499",
+          "increment_fec483abecca",
+          "increment_2228d8d86a66",
+          "increment_1fafaa291b37",
+          "increment_5e8a9522b013",
+          "increment_a9e928fcda8a",
+          "increment_79be6b5a62b6",
+          "increment_300f8ff2ac26",
+          "increment_01aa9291b333",
+          "increment_2abc492c87a8",
+          "increment_43168ad064e7",
+          "increment_ac5e0e98e45e",
+          "increment_bc6346078e4d",
+          "increment_5df7e7b316ab",
+          "increment_6410e1ca66a3",
+          "increment_6d6539d8cf70",
+          "increment_8d245936227b",
+          "increment_3cf05560b3b4",
+          "increment_41944c628454",
+          "increment_d09cccb16f33",
+          "increment_0766f36b99db",
+          "increment_f4fa96dbd3e7",
+          "increment_eefb626958a5"
+        ],
+        "holders": []
+      }
     },
     "menuOpen": false,
     "pickerOpen": false,
@@ -400,6 +470,7 @@
   },
   {
     "mode": "menu-open",
+    "capture": "desktop:smoke capturePage",
     "state": "ready",
     "drew": {
       "sessions": [],
@@ -868,6 +939,7 @@
   },
   {
     "mode": "project-switcher-open",
+    "capture": "CDP screenshot of the same Electron smoke window (includes select popup)",
     "state": "ready",
     "drew": {
       "sessions": [],

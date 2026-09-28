@@ -13,6 +13,7 @@
     "dist": "node build.mjs && node --import tsx dist.mjs"
   },
   "devDependencies": {
+    "@huggingface/transformers": "^4.3.0",
     "@storytree/agent-link": "workspace:*",
     "@storytree/app": "workspace:*",
     "@storytree/app-setup": "workspace:*",
@@ -73,7 +74,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "portable",

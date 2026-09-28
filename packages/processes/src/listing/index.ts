@@ -51,11 +51,11 @@ export async function listRuns(options: InventoryOptions = {}): Promise<Inventor
   const scope = options.scope ?? 'self';
   const checked = ownerSchema.safeParse(options.owner);
   if (scope === 'self' && !checked.success) {
-    throw new Error('storytree own needs a session identity from the calling harness; use storytree own --all for local attribution without a session.');
+    throw new Error('storytree processes needs a session identity from the calling harness; use storytree processes --all for local attribution without a session.');
   }
   const owner = checked.success ? checked.data : undefined;
   if (scope === 'self' && owner?.agent === 'unknown') {
-    throw new Error('storytree own cannot establish the calling agent identity; use storytree own --all for local attribution without stop authority.');
+    throw new Error('storytree processes cannot establish the calling agent identity; use storytree processes --all for local attribution without stop authority.');
   }
   const observation = await observeRuns(options);
   const inspecting = await readProcess(process.pid);

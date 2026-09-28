@@ -84,9 +84,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-      '@storytree/own':
+      '@storytree/processes':
         specifier: workspace:*
-        version: link:../own
+        version: link:../processes
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -199,9 +199,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-      '@storytree/own':
+      '@storytree/processes':
         specifier: workspace:*
-        version: link:../own
+        version: link:../processes
     devDependencies:
       '@storytree/app-setup':
         specifier: workspace:*
@@ -450,7 +450,7 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
-  packages/own:
+  packages/processes:
     dependencies:
       koffi:
         specifier: ^3.3.2

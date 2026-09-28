@@ -79,7 +79,7 @@ const READING_COMMANDS = new Set([
 const READING_GIT = new Set(["log", "show", "diff", "status", "blame", "grep", "ls-files", "rev-parse", "branch", "remote", "fetch", "worktree"]);
 const READING_GH = new Set(["view", "list", "checks", "diff", "status"]);
 /** `storytree` families and verbs that only read the library. */
-const READING_STORYTREE = new Set(["read", "search", "show", "list", "links", "history", "noticeboard", "tree", "context", "own"]);
+const READING_STORYTREE = new Set(["read", "search", "show", "list", "links", "history", "noticeboard", "tree", "context", "processes", "own"]);
 /** An MCP tool's last name part that says it reads. */
 const READING_MCP = /(^|_)(read|search|list|get|open|find|show|query|fetch|notes?|page|text|screenshot|status|context|history)(_|$)/;
 

@@ -7,3 +7,13 @@
 ℹ skipped 0
 ℹ todo 0
 ℹ duration_ms 371.413439
+✔ 10.1 without a settings file, context guidance reads as 700,000 tokens with its type and meaning (1.092265ms)
+✔ settings 10.2: set persists in the storytree home and show reads it back as set (1084.012039ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1455.339202

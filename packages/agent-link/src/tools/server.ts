@@ -134,7 +134,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       if (where.status === "not-a-project") return result({ text: NOT_A_PROJECT_ANSWER });
       const meta = metaOf(context);
       try {
-        const quietMs = options.quietMs ?? idleAfterMs();
+        let quietMs = options.quietMs;
         const { library, log } = await connections.reach(where.library, where.project);
         // What the hooks have written, the one run just before this call included (ADR-0629 D2).
         const { lines } = await log.since(where.project, 0);
@@ -142,7 +142,15 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name });
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder: options.folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
-        return result(await act(args as never, { library, log, project: where.project, caller, writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal }, folder: options.folder, quietMs, agent: agentOf(lines, meta) }));
+        return result(await act(args as never, {
+          library, log, project: where.project, caller,
+          writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal },
+          folder: options.folder,
+          // Read once for this call, only if it needs liveness. Independent context readings
+          // still return tokens and explain unusable settings (9.7), as routing's readLibrary does.
+          get quietMs() { return quietMs ??= idleAfterMs(); },
+          agent: agentOf(lines, meta),
+        }));
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

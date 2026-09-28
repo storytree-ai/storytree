@@ -13,7 +13,8 @@ keeps the 30-minute default; its bridge is outside this lane and the supervisor 
 
 - `red.txt`: original observed failures after pushing red commit `283cd42`.
 - `red-relaunch.txt`: observed session, live-MCP and settings-show failures before the remaining fixes.
-- `green.txt`: contract 10.10 and the offline CLI checks pass, including live-server setting changes.
+- `red-integration.txt`: observed MCP context-reading regression after merging the hosted-library reader.
+- `green.txt`: contract 10.10 and the offline CLI checks pass, including live-server setting changes and independent context readings with unusable settings.
 - `verification.txt`: complete local verification summary and test scope/table.
 - `typecheck.txt`: full workspace typecheck.
 - `test-ratio.txt`: informational report, not a gate.

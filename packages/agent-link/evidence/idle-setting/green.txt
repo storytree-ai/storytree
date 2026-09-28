@@ -3,10 +3,10 @@
 > node --import tsx scripts/test.mjs "packages/agent-link/src/settings/idle-liveness.test.ts" "packages/cli/src/settings.test.ts"
 
 scope: files — the files named on the command line
-test Postgres: listening on 127.0.0.1:44939 (started in 0.1 s)
-✔ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (166.271737ms)
-✔ 10.10 a running MCP server rereads idle-after for its plan and claim takeover (171.500904ms)
-✔ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (2958.862137ms)
+test Postgres: listening on 127.0.0.1:46505 (started in 0.1 s)
+✔ 10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover (155.399326ms)
+✔ 10.10 / 9.7 a running MCP server rereads idle-after without blocking independent context readings (199.783333ms)
+✔ settings 10.1–10.6: the offline CLI shows, persists and refuses invalid changes, the library location included (2953.190111ms)
 ℹ tests 3
 ℹ suites 0
 ℹ pass 3
@@ -14,5 +14,5 @@ test Postgres: listening on 127.0.0.1:44939 (started in 0.1 s)
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 3336.624704
+ℹ duration_ms 3274.016991
 test Postgres: stopped (0.1 s)

@@ -1,9 +1,10 @@
-Local verification after merging origin/main abee7a3 (#194), branch base 8428f82.
+Final local verification against origin/main 41b70ee (#199), after preserving #196's
+context composition, #197's readLibrary, and #198's context nudge while merging main.
 
 PASS: flock /tmp/storytree-heavy.lock pnpm typecheck (full workspace; typecheck.txt).
-PASS: flock /tmp/storytree-heavy.lock pnpm test (full suite).
-PASS: flock /tmp/storytree-heavy.lock pnpm gate, rerun after merge and pnpm install.
-PASS: focused contract 10.10 and offline settings CLI (green.txt).
+PASS: flock /tmp/storytree-heavy.lock pnpm test (all packages and scripts).
+PASS: flock /tmp/storytree-heavy.lock pnpm gate, after merge, reinstall and the MCP integration fix.
+PASS: focused contract 10.10, independent MCP context readings (9.7), and offline CLI (green.txt).
 PASS: browser platform bundle of src/readings.ts (esbuild, 6.2kb, no Node dependency).
 PASS: refreshed headless gear/settings capture using the real writers (capture.txt).
 
@@ -11,16 +12,16 @@ scope: full — everything — packages/agent-link/evidence/idle-setting/README.
 
 results:
   PASS    apps/desktop — 1.4 s
-  PASS    packages/agent-link — 11.7 s
+  PASS    packages/agent-link — 12.8 s
   PASS    packages/app — 2.6 s
   PASS    packages/app-setup — 0.5 s
   PASS    packages/arc-surface — 0.6 s
-  PASS    packages/cli — 8.6 s
+  PASS    packages/cli — 8.9 s
   PASS    packages/forest — 1.6 s
-  PASS    packages/forest-world — 9.7 s
+  PASS    packages/forest-world — 9.5 s
   PASS    packages/knowledge-core — 0.8 s
   PASS    packages/librarian — 1.1 s
-  PASS    packages/library — 11.5 s
+  PASS    packages/library — 10.5 s
   PASS    packages/local-postgres — 3.4 s
   PASS    packages/own — 0.7 s
   PASS    scripts — 4.7 s
@@ -32,8 +33,22 @@ results:
   NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits
 
 The existing live Cloud SQL proof is skipped: no STORYTREE_TEST_CLOUDSQL_INSTANCE/USER
-and no signed-in Google identity. Its offline coverage passes. This lane changes no cloud routing.
-Native desktop smoke and owner appearance acceptance: NOT RUN here; laptop supervisor owns them.
-No generated guidance or standing role/note changed; guidance is NOT RUN, as the gate reports.
-No decision-log/role curation was needed. No live-store record, claim or question was written.
-The forest display retains the 30-minute default; library-update/ assigns the follow-up to the supervisor.
+and no signed-in Google identity. Its offline coverage passes. Native desktop smoke and owner
+appearance acceptance: NOT RUN here; laptop supervisor owns them. Guidance is NOT RUN because
+no generated role or standing note changed. No decision-log or agent-role curation was needed.
+
+Initial CI on 98ffe4e passed the idle-setting tests on all three platforms. Linux's forest
+underlay assertions passed but its process stayed open until the 180-second unit timeout;
+Windows question-retirement coverage received empty stderr. Both affected packages passed a
+fresh local rerun. Linux passed on the CI retry; Windows was cancelled by the subsequent main
+merge. Final CI is the PR's current check run, not this earlier attempt:
+https://github.com/storytree-ai/storytree/actions/runs/36419463057/job/108918422856
+https://github.com/storytree-ai/storytree/actions/runs/36419463057/job/108918422589
+
+The hosted-library integration exposed one regression: eagerly reading idle settings blocked
+read_context before it could return tokens and explain damaged settings. red-integration.txt
+shows it fail; green.txt proves the fix. Idle time is now read lazily once per tool call that
+needs liveness, with no global mutable duration.
+
+No live-store record, claim or question was read or written. The forest display retains the
+30-minute default; library-update/ assigns that follow-up and increment closure to the supervisor.

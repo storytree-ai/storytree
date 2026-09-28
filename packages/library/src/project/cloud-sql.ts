@@ -12,7 +12,7 @@
 import type { Duplex } from "node:stream";
 
 import { ConnectionError, sqlState } from "./connection-error.js";
-import { newPool, type ServerAccess } from "./server.js";
+import { actingAs, newPool, type ServerAccess } from "./server.js";
 
 /** A Cloud SQL instance, and the Google account storytree signs in to it as. */
 export interface CloudSqlConfig {
@@ -92,7 +92,7 @@ export async function cloudSqlServer(config: unknown, seams: CloudSqlSeams = {})
   const timeoutMs = seams.timeoutMs ?? TIMEOUT_MS;
   const connector = await (seams.connector ?? (() => googleConnector(instanceParts(instance).project)))();
   const options = await signIn(connector, instance, user, timeoutMs);
-  const pool = (database: string) => newPool({ ...options, user, database, connectionTimeoutMillis: timeoutMs });
+  const pool = (database: string, role?: string) => newPool({ ...options, user, database, connectionTimeoutMillis: timeoutMs, ...actingAs(role) });
   return {
     kind: "cloud-sql",
     admin: pool(ADMIN_DATABASE),

@@ -153,6 +153,12 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
       const edits = harness === "claude-code" ? ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Agent", "Task"] : ["apply_patch", "Bash", "spawn_agent"];
       for (const tool of edits) assert.ok(runsFor(events.PostToolUse?.[0], tool, anchored), `${harness}: after ${tool}`);
       if (harness === "claude-code") assert.ok(runsFor(events.PostToolUseFailure?.[0], "Bash", anchored), "after a shell command that failed");
+      // Without Git for Windows, Claude Code runs commands with its PowerShell tool instead of Bash.
+      if (harness === "claude-code") {
+        const shellBefore = (events.PreToolUse ?? []).find((entry) => entry.background);
+        for (const [entry, when] of [[shellBefore, "before"], [events.PostToolUse?.[0], "after"], [events.PostToolUseFailure?.[0], "after a failed"]] as const)
+          assert.ok(runsFor(entry, "PowerShell", anchored), `claude-code: ${when} a PowerShell command`);
+      }
 
       // The harness waits for the hook before a storytree tool, so its line is written before the
       // call reaches the tool server; the one before a shell command never makes the agent wait.
@@ -185,11 +191,65 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
     assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", statusLine: "none" }, "and removing again finds nothing");
 
+    // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
+    registerHooks(home.homes, HOOK);
+    const older = readJson(home.claudeSettings);
+    const olderHooks = older.hooks as Record<string, HookEntry[]>;
+    for (const entry of Object.values(olderHooks).flat()) if (entry.matcher !== undefined) entry.matcher = entry.matcher.replace("|PowerShell", "");
+    writeFileSync(home.claudeSettings, `${JSON.stringify(older, null, 2)}\n`);
+    const upgraded = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.equal(upgraded.hooks?.["claude-code"], "registered");
+    assert.ok(runsFor(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code").PostToolUseFailure?.[0], "PowerShell", true), "the older install now hears PowerShell");
+    removeHooks(home.homes);
+
     // A registration from an older install, at another path, is replaced rather than doubled.
     registerHooks(home.homes, { ...HOOK, script: path.join(dir, "old", "storytree-hook.mjs") });
     registerHooks(home.homes, HOOK);
     assert.deepEqual(Object.keys(storytreeHooks(readJson(home.claudeSettings), path.join(dir, "old", "storytree-hook.mjs"), "claude-code")), []);
     assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code")).length, 7);
+  });
+});
+
+/** Run one of storytree's registered hooks as `harness` runs it: Claude Code a program with arguments, Codex a line through this machine's shell. */
+function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"][number], input: string, storytreeHome: string): string {
+  const env = { ...process.env, STORYTREE_HOME: storytreeHome };
+  const [command, args] =
+    harness === "claude-code" ? [hook.command, hook.args ?? []] : process.platform === "win32" ? ["powershell", ["-NoProfile", "-Command", hook.command]] : ["sh", ["-c", hook.command]];
+  const ran = spawnSync(command, args, { input, env, encoding: "utf8", timeout: 10_000 });
+  assert.equal(ran.status, 0, `${harness}: ${ran.stderr}`);
+  return ran.stdout;
+}
+
+test("8.12 at the start of a session in a folder that isn't a storytree project, a hook the harness waits for tells the agent to ask the user whether to set storytree up; in a project, nothing, and nothing is ever set up", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    registerHooks(home.homes, { node: process.execPath, script: hookScript });
+    const stopped = path.join(dir, "stopped-home");
+    mkdirSync(stopped);
+    const fresh = path.join(dir, "new-site");
+    const project = path.join(dir, "site");
+    for (const folder of [fresh, project]) mkdirSync(folder);
+    writeFileSync(path.join(project, MARKER_FILE), `${JSON.stringify({ project: "site" })}\n`);
+
+    for (const [harness, settings] of [["claude-code", home.claudeSettings], ["codex", home.codexHooks]] as const) {
+      const starts = ((readJson(settings).hooks as Record<string, HookEntry[]>).SessionStart ?? []).flatMap((entry) => entry.hooks);
+      // What reaches the agent: the output of the hooks the harness waits for (Claude Code's run in the background print nothing it reads).
+      const told = (folder: string) => {
+        const input = JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: folder });
+        return starts.filter((hook) => hook.async !== true).map((hook) => runRegistered(harness, hook, input, stopped)).filter((out) => out !== "");
+      };
+      const [asked, ...more] = told(fresh);
+      assert.equal(more.length, 0, `${harness}: told once`);
+      const output = JSON.parse(asked ?? "{}") as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } };
+      assert.equal(output.hookSpecificOutput?.hookEventName, "SessionStart", harness);
+      const context = output.hookSpecificOutput?.additionalContext ?? "";
+      assert.ok(context.includes("set_up_project") && context.includes('"new-site"'), `${harness}: ${context}`);
+      assert.deepEqual(told(project), [], `${harness}: nothing in a project`);
+      for (const hook of starts.filter((hook) => hook.async === true)) {
+        assert.equal(runRegistered(harness, hook, JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: fresh }), stopped), "", `${harness}: nothing from the background`);
+      }
+    }
+    assert.equal(existsSync(path.join(fresh, MARKER_FILE)), false, "the folder is not set up");
   });
 });
 

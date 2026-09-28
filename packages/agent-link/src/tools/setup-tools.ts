@@ -10,7 +10,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { findProject, setUpProject } from "../routing/index.js";
+import { askToSetUp, findProject, setUpProject } from "../routing/index.js";
 import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -45,9 +45,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         return result({ text: [...said, "Until storytree is running, carry on without it."].join(" "), data: { ...data, ...unverified } });
       }
       if (report.project.status === "ask") {
-        said.push(
-          `This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project ${quoted(report.project.suggestion)} or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on.`,
-        );
+        said.push(askToSetUp(folder));
         return result({ text: said.join(" "), data: { ...data, ...unverified } });
       }
       said.push(`This folder is storytree project ${quoted(report.project.name)}.`);

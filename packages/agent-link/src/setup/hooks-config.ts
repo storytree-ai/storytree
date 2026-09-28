@@ -9,7 +9,8 @@
  *   background (`async`); the end hook runs before Claude Code exits, the hook before storytree's
  *   own tools before the call is made, so its line is there when the call reaches the tool server
  *   (ADR-0629 D2), and the prompt hook before the prompt reaches the agent, since what it prints is
- *   added for the agent (ADR-0636 D1).
+ *   added for the agent (ADR-0636 D1). Without Git for Windows, Claude Code has no Bash tool and
+ *   runs commands with its PowerShell tool, so each hook that listens for Bash listens for it too.
  * - Codex: `<CODEX_HOME>/hooks.json` (else ~/.codex). Codex runs a hook as one command line through
  *   its shell (PowerShell on Windows, sh elsewhere), so the line is written for the shell of this
  *   machine. Codex has no background hooks, so the ones before each shell command and at the end of
@@ -21,7 +22,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { BACKGROUND, STORYTREE_TOOLS } from "../hooks/index.js";
+import { ASK_SETUP, BACKGROUND, STORYTREE_TOOLS } from "../hooks/index.js";
 
 /** The command a harness runs as storytree's hook: a Node and the built hook script. */
 export interface HookCommand {
@@ -140,13 +141,14 @@ function isStorytreesStatusLine(statusLine: unknown): boolean {
 function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[]> {
   const run = (background: boolean) => ({ type: "command", command: node, args: [script, "claude-code"], ...(background ? { async: true } : {}) });
   return {
-    SessionStart: [{ hooks: [run(true)] }],
+    // The one in the background writes the start; the one it waits for asks the setup question in a folder that isn't a project.
+    SessionStart: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", ASK_SETUP] }] }],
     PreToolUse: [
       { matcher: `${STORYTREE_TOOLS}.*`, hooks: [run(false)] },
-      { matcher: "Bash", hooks: [run(true)] },
+      { matcher: "Bash|PowerShell", hooks: [run(true)] },
     ],
-    PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|Agent|Task", hooks: [run(true)] }],
-    PostToolUseFailure: [{ matcher: "Bash", hooks: [run(true)] }],
+    PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task", hooks: [run(true)] }],
+    PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }],
     Stop: [{ hooks: [run(true)] }],
     UserPromptSubmit: [{ hooks: [run(false)] }],
     SessionEnd: [{ hooks: [run(false)] }],

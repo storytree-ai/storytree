@@ -153,6 +153,26 @@ export function route(from: string, options: LocateOptions = {}): Route {
   return { status: "routed", project: found.project, folder: found.folder, library: library.connect };
 }
 
+/** A project name to suggest for `folder`: its own name, as the library's project-name rule allows. */
+export function suggestedName(folder: string): string {
+  const name = path
+    .basename(path.resolve(folder))
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+/, "")
+    .slice(0, 40)
+    .replace(/-+$/, "");
+  return name === "" ? "my-project" : name;
+}
+
+/**
+ * What the agent is to do in `folder`, which isn't a storytree project yet: ask the user, and set it
+ * up only on their yes (ADR-0626 D5). check_setup says it, and so does the session-start hook.
+ */
+export function askToSetUp(folder: string): string {
+  return `This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project "${suggestedName(folder)}" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on.`;
+}
+
 /** The storytree 0.3 home: STORYTREE_HOME, else ~/.storytree/0.3, where the desktop app keeps its Postgres. */
 export function storytreeHome(): string {
   const home = process.env.STORYTREE_HOME;

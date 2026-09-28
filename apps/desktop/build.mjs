@@ -33,8 +33,11 @@ await build({
     "pg-native",
     "pg-cloudflare",
     "cloudflare:sockets",
-    // The library's Cloud SQL path (capability 8) loads this lazily; the app only reaches a local Postgres.
+    // The library's Cloud SQL path (capability 8) loads these lazily, from node_modules, when the
+    // library setting names a Cloud SQL instance (ADR-0734). Google's auth library stays outside the
+    // bundle too: the connector accepts only its own copy's GoogleAuth.
     "@google-cloud/cloud-sql-connector",
+    "google-auth-library",
     // Ranked search loads the embedding model runtime lazily, from node_modules (native ONNX Runtime).
     "@huggingface/transformers",
   ],

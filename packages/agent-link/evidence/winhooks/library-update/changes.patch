@@ -1,0 +1,12 @@
+--- old/agent link/definition_35218d10655c/meaning
++++ new/agent link/definition_35218d10655c/meaning
+@@ -1,7 +1,8 @@
+ - **As built:** one command, `storytree-hook <harness>` (`claude-code` or `codex`), built into a
+   plain Node script (a 5 KB entry; the database code sits in chunks beside it, loaded only when a
+   line is written), and run with the hook's input on stdin. Claude
+-  Code's edits are its Write, Edit, MultiEdit and NotebookEdit tools and its commands are Bash;
++  Code's edits are its Write, Edit, MultiEdit and NotebookEdit tools and its commands are Bash, or
++  PowerShell on Windows without Git for Windows, where it has no Bash tool;
+   Codex's edits are `apply_patch`, whose patch text names the files (also when the patch runs
+   through the shell), and its commands are Bash. It reaches the database only when the folder is a
+   project on a running storytree, gives up after 2 s, and never runs past 5 s. Where nothing is to

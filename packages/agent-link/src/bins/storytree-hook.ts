@@ -5,7 +5,8 @@
  * at session end, with the hook's input on stdin (capability 3 · Hooks, the agent link story).
  *
  * It always exits 0, and prints only what the prompt hook adds for the agent (the project's
- * definitions for the prompt's terms): whatever happens, the agent it runs beside is untouched. It
+ * definitions for the prompt's terms) and, at session start in a folder that isn't a storytree
+ * project, the setup question for the agent to ask: whatever happens, the agent it runs beside is untouched. It
  * also never outlives DEADLINE_MS, whatever it is waiting on. With `--background` (Codex's hooks
  * before a shell command and at the end of a turn) it hands the writing to a copy of itself that it
  * leaves running, detached and with nothing of the harness's open, and exits at once.

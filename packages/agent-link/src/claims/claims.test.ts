@@ -389,6 +389,16 @@ test("5.9 a claim on a capability is refused when every open increment naming it
   });
 });
 
+test("5.16 a reason longer than 40 characters is refused naming the limit and its length, with nothing written or started; 40 characters is claimed", async () => {
+  await withWorld(async ({ log, project, emailForm, as }) => {
+    const long = "Build the email form and its validation!!";
+    assert.equal(long.length, 41);
+    assert.deepEqual(await claim(as("A"), emailForm, long), { ok: false, refused: "reason-too-long", limit: 40, length: 41 });
+    assert.deepEqual(await readClaims(log, project), []);
+    assert.equal((await claim(as("A"), emailForm, long.slice(0, 40))).ok, true);
+  });
+});
+
 for (const target of ["capability", "active increment"] as const) {
   test(`5.15 cancelling a claim queued for the activity lock leaves no claim (${target})`, async () => {
     await withWorld(async ({ library, log, project, emailForm, as }) => {

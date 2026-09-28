@@ -7,7 +7,7 @@
 import type { Library } from "@storytree/library";
 import { z } from "zod";
 
-import { attachWorkspace, claim, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext, type WorkspaceRefusal } from "../claims/index.js";
+import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, type Claim, type ClaimAnswer, type ClaimContext, type WorkspaceRefusal } from "../claims/index.js";
 import { refusalOf } from "./answers.js";
 import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
 import { quoted } from "./text.js";
@@ -24,7 +24,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
   define(
     "claim",
     "Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
-    z.object({ ...part, reason: z.string().min(1).describe("One line: what you are about to do") }),
+    z.object({ ...part, reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`) }),
     async ({ capability, increment, reason }, call) => {
       const id = capability ?? increment;
       if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { held: false } };
@@ -43,7 +43,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
   define(
     "make_workspace",
     "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work.",
-    z.object({ ...part, reason: z.string().min(1).describe("One line: what you are about to do") }),
+    z.object({ ...part, reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`) }),
     async ({ capability, increment, reason }, call) => {
       const id = capability ?? increment;
       if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { made: false } };
@@ -165,6 +165,8 @@ async function refusalText(library: Library, id: string, answer: Exclude<ClaimAn
     }
     case "unknown-capability":
       return `There is no capability or increment ${id} in this project's plan; plan it first, or find its id with show_plan.`;
+    case "reason-too-long":
+      return `Your reason is ${answer.length} characters; a claim's reason is the session's name in the sessions list, so keep it to ${answer.limit} or fewer and claim again.`;
   }
 }
 

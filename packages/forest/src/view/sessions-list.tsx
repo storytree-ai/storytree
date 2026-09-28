@@ -126,7 +126,7 @@ export function mountSessionsList(container: HTMLElement, options: {
  * session past it fills the bar and its total says how far.
  */
 export const BAR_TOKENS = 1_000_000;
-/** Claude Code's marks (ADR-0557 in 0.2): the context guidance default (ADR-0729) and the line past it. Codex rows are raw. */
+/** Claude Code's marks (ADR-0557 in 0.2): the context guidance default (ADR-0729) and the line past it. Codex rows carry none. */
 const CLAUDE_TICKS = [700_000, 850_000];
 const GROUPS = [["injected", "Injected"], ["grounding", "Grounding"], ["implementation", "Implementation"], ["other", "Other"]] as const;
 

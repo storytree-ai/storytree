@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { claudeCodeComposition, CHARS_PER_TOKEN } from "./index.js";
+import { claudeCodeComposition, codexComposition, CHARS_PER_TOKEN } from "./index.js";
 
 const bytes = (...values: unknown[]): number => values.reduce<number>((sum, value) => sum + Buffer.byteLength(JSON.stringify(value)), 0);
 const tokens = (...values: unknown[]): number => Math.round(bytes(...values) / CHARS_PER_TOKEN);
@@ -60,6 +60,65 @@ test("9.8 a Claude Code reading splits its context into Injected, Grounding, Imp
     implementation: tokens(results[3], results[4], ...calls),
     other: tokens(unknown, prompt, thinking, results[5], orphan, prose),
     unsorted: ["attachment:mystery_label", "tool:mcp__somewhere__do_thing", "tool_result:unmatched"],
+    charsPerToken: CHARS_PER_TOKEN,
+  });
+});
+
+/** A Codex rollout line, in the shapes Codex 0.155 writes: a `type` and a `payload`. */
+const item = (payload: Record<string, unknown>) => ({ type: "response_item", payload });
+const exec = (id: string, source: string) => ({ type: "custom_tool_call", call_id: id, name: "exec", input: source });
+const shell = (command: string): string => `const r = await tools.exec_command({"cmd":${JSON.stringify(command)},"workdir":"C:\\\\w"}); text(r.output);`;
+const output = (id: string, text: string) => ({ type: "custom_tool_call_output", call_id: id, output: [{ type: "input_text", text }] });
+const counted = (input: number) => ({ type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: input } } } });
+
+test("9.8 a Codex reading splits its context into the same four groups: base instructions, developer and harness-added messages Injected, each exec call by what its commands do, each output by its call", () => {
+  const base = "b".repeat(2_000);
+  const developer = { type: "message", role: "developer", content: [{ type: "input_text", text: "<permissions>".repeat(40) }] };
+  const agentsMd = { type: "message", role: "user", content: [{ type: "input_text", text: "# AGENTS.md instructions ".repeat(30) }] };
+  const prompt = { type: "message", role: "user", content: [{ type: "input_text", text: "Split the bars" }] };
+  const reasoning = { type: "reasoning", summary: [], encrypted_content: "e".repeat(600) };
+  const calls = [
+    exec("read", shell("Get-Content -Raw a.ts; rg -n foo src")),
+    exec("test", shell("pnpm test")),
+    exec("patch", "const r = await tools.apply_patch(\"*** Begin Patch\\n*** End Patch\"); text(r);"),
+    exec("script", "text(ALL_TOOLS.length);"),
+  ];
+  // The test cell outlives its call and names its cell; `wait` polls that cell.
+  const wait = { type: "function_call", call_id: "wait", name: "wait", arguments: "{\"cell_id\":\"4\"}" };
+  const outputs = [output("read", "Script completed\n" + "r".repeat(3_000)), output("test", "Script running with cell ID 4\n"), output("patch", "p".repeat(200)), output("script", "12")];
+  const waited = { type: "function_call_output", call_id: "wait", output: "Exit code: 0\n" + "t".repeat(1_500) };
+  const orphan = output("never-called", "o".repeat(300));
+  const answer = { type: "message", role: "assistant", content: [{ type: "output_text", text: "Done: the bars split." }] };
+  const text = jsonl(
+    { type: "session_meta", payload: { id: "s", cli_version: "0.155.0", base_instructions: { text: base } } },
+    { type: "event_msg", payload: { type: "task_started" } },
+    item(developer),
+    item(agentsMd),
+    { type: "world_state", payload: { full: true, state: { current_date: "2026-09-28" } } },
+    { type: "turn_context", payload: { cwd: "C:\\w" } },
+    item(prompt),
+    { type: "event_msg", payload: { type: "item_completed", item: { type: "UserMessage", content: [{ type: "text", text: "Split the bars" }] } } },
+    item(reasoning),
+    ...calls.map(item),
+    // The first request: 15,000 tokens resident, part of it the tool list and world state no line records as sent.
+    counted(15_000),
+    { type: "token_usage_record", payload: { usage: { input_tokens: 15_000 } } },
+    ...outputs.map(item),
+    item(wait),
+    item(waited),
+    item(orphan),
+    item({ type: "mystery_item", body: "m".repeat(100) }),
+    item(answer),
+    counted(18_000),
+  );
+
+  const floor = 15_000 - Math.ceil(bytes(base, developer, agentsMd, prompt, reasoning, ...calls) / CHARS_PER_TOKEN);
+  assert.deepEqual(codexComposition(text), {
+    injected: floor + tokens(base, developer, agentsMd),
+    grounding: tokens(outputs[0]),
+    implementation: tokens(outputs[1], waited, outputs[2], ...calls, wait),
+    other: tokens(prompt, reasoning, outputs[3], orphan, { type: "mystery_item", body: "m".repeat(100) }, answer),
+    unsorted: ["item:mystery_item", "tool:exec:script", "tool_result:unmatched"],
     charsPerToken: CHARS_PER_TOKEN,
   });
 });

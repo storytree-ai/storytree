@@ -16,7 +16,7 @@
 import { readFile } from "node:fs/promises";
 
 import type { ActivityLog, Line } from "../activity/index.js";
-import { claudeCodeComposition, type Composition } from "./composition.js";
+import { claudeCodeComposition, codexComposition, type Composition } from "./composition.js";
 import { contextGuidance, type ContextGuidance } from "./guidance.js";
 import { isCount, isRecord, jsonLines, SYNTHETIC } from "./transcript.js";
 
@@ -38,9 +38,6 @@ export type ContextReading = {
   /** The user's current context guidance and where this count sits, or why it could not be read (9.7). */
   readonly guidance: ContextGuidance;
 } | { readonly absent: string });
-
-/** A Codex rollout's records are not sorted into groups yet: its composition is this absence. */
-export const CODEX_COMPOSITION_ABSENT = "a Codex rollout's composition is not read yet";
 
 /**
  * A Claude Code transcript's figure: its own latest request's `input_tokens` +
@@ -99,8 +96,8 @@ export async function contextReading(lines: readonly Line[], session: string, { 
   }
   const count = harness === "codex" ? codexTokens(text) : claudeCodeTokens(text);
   if ("absent" in count) return { ...who, ...count, at, source: transcript };
-  const composition = harness === "codex" ? undefined : claudeCodeComposition(text);
-  return { ...who, tokens: count.tokens, composition: composition ?? { absent: harness === "codex" ? CODEX_COMPOSITION_ABSENT : "the transcript holds no own request to sort" }, guidance: contextGuidance(count.tokens, home), at, source: transcript };
+  const composition = harness === "codex" ? codexComposition(text) : claudeCodeComposition(text);
+  return { ...who, tokens: count.tokens, composition: composition ?? { absent: "the transcript holds no own request to sort" }, guidance: contextGuidance(count.tokens, home), at, source: transcript };
 }
 
 /** `session`'s reading in `project`, worked out now from what the hooks recorded. */

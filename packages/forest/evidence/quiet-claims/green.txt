@@ -1,0 +1,54 @@
+Focused claims tests (under flock /tmp/storytree-heavy.lock):
+✔ 5.1 a claim supplies a quiet dot at its capability's tree (2.023508ms)
+✔ 5.2 after the quiet time with no new line the marker fades, and when the capability lands it goes (0.334987ms)
+✔ 5.3 a hookless holder's dot stays unfaded even past the quiet time (0.306333ms)
+✔ 5.4 none of this changes how a capability's state is drawn (0.534116ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 152.321167
+
+flock /tmp/storytree-heavy.lock pnpm gate — exit 0
+scope: affected — apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/own — changed: packages/forest; their dependents: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest-world, packages/knowledge-core, packages/librarian, packages/own
+units: apps/desktop, packages/agent-link, packages/app, packages/app-setup, packages/arc-surface, packages/cli, packages/forest, packages/forest-world, packages/knowledge-core, packages/librarian, packages/own, scripts/package-boundaries.test.mjs
+  PASS    apps/desktop
+  PASS    packages/agent-link
+  PASS    packages/app
+  PASS    packages/app-setup
+  PASS    packages/arc-surface
+  PASS    packages/cli
+  PASS    packages/forest
+  PASS    packages/forest-world
+  PASS    packages/knowledge-core
+  PASS    packages/librarian
+  PASS    packages/own
+  PASS    scripts/package-boundaries.test.mjs
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits
+
+Existing setup contract, under the same lock:
+
+> storytree@ test /home/mickh/code/storytree03-wt/quiet-claims
+> node --import tsx scripts/test.mjs "--test-name-pattern=^8[.]5 " "packages/agent-link/src/setup/setup-check.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: listening on 127.0.0.1:38891 (started in 0.1 s)
+✔ 8.5 the agent fires a test of each hook, and the connection shows as verified only when storytree has received every one; until then it names the missing hook and the fix (2734.196404ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3113.133598
+test Postgres: stopped (0.1 s)
+Chromium acceptance: exit 0; complete measurements in capture.json.
+
+pnpm test-ratio all row:
+  all                       41,736           33,057    1.26

@@ -1,0 +1,93 @@
+✖ 5.1 a claim supplies a quiet dot at its capability's tree (3.618952ms)
+✔ 5.2 after the quiet time with no new line the marker fades, and when the capability lands it goes (0.353943ms)
+✖ 5.3 a hookless holder's dot stays unfaded even past the quiet time (0.402485ms)
+✔ 5.4 none of this changes how a capability's state is drawn (0.556257ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.556484
+
+✖ failing tests:
+
+test at packages/forest/src/agent-claims/agent-claims.test.ts:1:780
+✖ 5.1 a claim supplies a quiet dot at its capability's tree (3.618952ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      {
+        capability: 'email_form',
+        faded: false,
+  +     hooksNotRunning: false,
+        session: 'A',
+  +     text: 'Claude Code: building the email form'
+      }
+    ]
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/quiet-claims/packages/forest/src/agent-claims/agent-claims.test.ts:37:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { capability: 'email_form', session: 'A', text: 'Claude Code: building the email form', faded: false, hooksNotRunning: false } ],
+    expected: [ { capability: 'email_form', session: 'A', faded: false } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/forest/src/agent-claims/agent-claims.test.ts:1:1560
+✖ 5.3 a hookless holder's dot stays unfaded even past the quiet time (0.402485ms)
+  AssertionError [ERR_ASSERTION]: missing hooks are diagnosed by setup, never drawn as idle or a warning on the map
+  + actual - expected
+  
+    [
+      {
+        capability: 'email_form',
+        faded: false,
+  +     hooksNotRunning: true,
+        session: 'B',
+  +     text: 'Codex: fixing the form'
+      }
+    ]
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/quiet-claims/packages/forest/src/agent-claims/agent-claims.test.ts:53:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { capability: 'email_form', session: 'B', text: 'Codex: fixing the form', faded: false, hooksNotRunning: true } ],
+    expected: [ { capability: 'email_form', session: 'B', faded: false } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+Built the actual desktop page with scene observation hooks.
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: a quiet claim has no visible text
++ actual - expected
+
++ 'Claude Code: held for the quiet-claims synthetic lane · hooks not running'
+- ''
+
+    at file:///home/mickh/code/storytree03-wt/quiet-claims/packages/forest/evidence/quiet-claims/capture.mjs:89:12 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'Claude Code: held for the quiet-claims synthetic lane · hooks not running',
+  expected: '',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

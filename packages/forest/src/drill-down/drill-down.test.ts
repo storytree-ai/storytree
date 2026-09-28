@@ -20,7 +20,7 @@ function contract(id: string, reported: HealthState, verified?: HealthState): An
 }
 
 /** A capability as the library hands it over: its health rolled up from its contracts (all passing is passing, any failing is failing). `null` for no description. */
-function capability(id: string, dependsOn: string[], contracts: AnnotatedContract[] = [], description: string | null = `What ${id} does. Why it matters.`): AnnotatedCapability {
+function capability(id: string, dependsOn: string[], contracts: AnnotatedContract[] = [], description: string | null = `What ${id} does. Why it matters.`, status: AnnotatedCapability["status"] = "proposed"): AnnotatedCapability {
   const rollUp = (states: HealthState[]): HealthColumn => ({
     state: states.includes("failing") ? "failing" : states.length > 0 && states.every((state) => state === "passing") ? "passing" : "not-checked",
   });
@@ -28,7 +28,7 @@ function capability(id: string, dependsOn: string[], contracts: AnnotatedContrac
     reported: rollUp(contracts.map((each) => each.health.reported.state)),
     verified: rollUp(contracts.map((each) => each.health.verified.state)),
   };
-  return { id, title: `The ${id}`, ...(description === null ? {} : { description }), dependsOn, contracts, health };
+  return { id, title: `The ${id}`, ...(description === null ? {} : { description }), dependsOn, proposed: status === "proposed", contracts, health, status };
 }
 
 function story(id: string, ...capabilities: AnnotatedCapability[]): AnnotatedStory {
@@ -66,10 +66,10 @@ test("4.1 a story whose third capability builds on the first two opens in build 
   assert.deepEqual(panel?.arrows.map(({ from, to }) => `${from} -> ${to}`), ["third -> first", "third -> second"]);
 });
 
-test("4.2 a capability that builds on one in another story points at it, named with that story, and marked until it lands", () => {
+test("4.2 a capability that builds on one in another story points at it, named with that story, with its word and whether it landed", () => {
   const tree: AnnotatedTree = { stories: [story("a", capability("login", ["accounts"])), story("b", capability("accounts", []))], arcs: [] };
   const [before] = drillDown(tree, "a", workStates([]), [])?.arrows ?? [];
-  assert.deepEqual(before, { from: "login", to: "accounts", toTitle: "The accounts", toStory: "Story b", landed: false });
+  assert.deepEqual(before, { from: "login", to: "accounts", toTitle: "The accounts", toStory: "Story b", landed: false, toStatus: "proposed" });
   const [after] = drillDown(tree, "a", workStates(log(claimed("accounts"), landed("accounts"))), [])?.arrows ?? [];
   assert.equal(after?.landed, true);
 });
@@ -119,4 +119,14 @@ test("4.7 the panel shows one capability below its diagram: the one chosen, else
   const empty = drillDown({ stories: [story("e")], arcs: [] }, "e", workStates([]), []);
   assert.ok(empty !== undefined);
   assert.equal(selectedCapability(empty), undefined, "a story with no capabilities selects none");
+});
+
+test("4.10 each capability, and each other story's capability it points at, carries the library's word for it", () => {
+  const tree: AnnotatedTree = {
+    stories: [story("a", capability("login", ["accounts"], [], "Logs in.", "unhealthy")), story("b", capability("accounts", [], [], "Holds accounts.", "healthy"))],
+    arcs: [],
+  };
+  const panel = drillDown(tree, "a", workStates([]), []);
+  assert.equal(panel?.capabilities[0]?.status, "unhealthy");
+  assert.equal(panel?.arrows[0]?.toStatus, "healthy");
 });

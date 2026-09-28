@@ -5,18 +5,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { bounded, centredOn, focusOf } from "./pan-zoom.js";
+import { bounded, fitted } from "./pan-zoom.js";
 
-const cards = [
-  { id: "a", x: 0, y: 0, width: 200, height: 100 },
-  { id: "b", x: 400, y: 200, width: 200, height: 100 },
-];
-
-test("4.11 the panel's space opens on the selected card, the larger window on the middle of the story's cards", () => {
-  assert.deepEqual(focusOf(cards, "b"), { x: 500, y: 250 });
-  assert.deepEqual(focusOf(cards, undefined), { x: 300, y: 150 });
-  assert.deepEqual(focusOf(cards, "gone"), { x: 300, y: 150 });
-  assert.deepEqual(centredOn({ x: 500, y: 250 }, { width: 400, height: 360 }), { x: -300, y: -70, scale: 1 }, "at full size, the card in the middle of the frame");
+test("4.11 both spaces open with the whole tree fitted in the frame and centred, never larger than full size nor smaller than the least zoom", () => {
+  assert.deepEqual(fitted({ width: 1000, height: 400 }, { width: 500, height: 400 }), { x: 0, y: 100, scale: 0.5 }, "a wide tree: its width fills the frame, centred top to bottom");
+  assert.deepEqual(fitted({ width: 300, height: 1200 }, { width: 400, height: 600 }), { x: 125, y: 0, scale: 0.5 }, "a tall tree: its height fills the frame, centred side to side");
+  assert.deepEqual(fitted({ width: 200, height: 100 }, { width: 400, height: 300 }), { x: 100, y: 100, scale: 1 }, "a small tree stays at full size, centred");
+  assert.deepEqual(fitted({ width: 10000, height: 100 }, { width: 400, height: 300 }), { x: -1300, y: 135, scale: 0.3 }, "a huge tree stops at the least zoom, its middle in the middle");
 });
 
 test("4.11 however far it is dragged, some of the tree stays in the space", () => {

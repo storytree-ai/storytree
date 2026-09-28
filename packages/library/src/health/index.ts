@@ -1,9 +1,10 @@
-export { HealthRecord } from "./health-record.js";
+export { capabilityStatus, HealthRecord } from "./health-record.js";
 export type {
   AnnotatedCapability,
   AnnotatedContract,
   AnnotatedStory,
   AnnotatedTree,
+  CapabilityStatus,
   HealthColumn,
   HealthColumnName,
   HealthEntry,

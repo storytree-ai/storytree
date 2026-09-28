@@ -28,7 +28,7 @@ function scene(sizes: number[], lines: NewLine[] = [], contracts = 0): ForestSce
     capabilities: Array.from({ length: size }, (_, c): AnnotatedCapability => ({
       id: `cap_${s}_${c}`,
       title: `Cap ${s}.${c}`,
-      dependsOn: [],
+      dependsOn: [], proposed: true, status: "proposed" as const, 
       contracts: Array.from({ length: contracts }, (_, k) => ({ id: `con_${s}_${c}_${k}`, title: `Contract ${k}`, health: NO_HEALTH })),
       health: NO_HEALTH,
     })),

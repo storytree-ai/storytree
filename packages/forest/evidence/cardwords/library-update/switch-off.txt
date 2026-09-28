@@ -1,0 +1,91 @@
+# Capabilities to switch proposed OFF after the merge (ADR-0744 D2) — for the supervisor
+#
+# Source: the read-only snapshot 2026-09-28T21-35-29-644Z.json (70 live capabilities). The brief's
+# rule is "those whose arc-surface state is landed"; the arc surface reads landed from the agent
+# activity log, which a snapshot does not carry, so the lists below use the snapshot's own evidence.
+# Switch each with the merged command line (it records you as the writer):
+#   pnpm storytree capability built <capability>
+# Switching off makes nothing healthy: the card then says healthy / unhealthy / untested from
+# storytree's verified column alone.
+
+## A. Named in the touches of a closed, landed increment (21): switch off
+
+capability_07c95281a87e  1 · Project routing  (The agent link)
+capability_10e1dea84e5b  3 · Hooks  (The agent link)
+capability_11fe600afeda  6 · Agent tools (the MCP server)  (The agent link)
+capability_199d7af33d32  8 · Setup check  (The agent link)
+capability_dbef625bdd09  9 · Context readings  (The agent link)
+capability_2902dfd80083  10 · Settings  (The agent link)
+capability_076723ee3066  1 · Lifecycle  (The app)
+capability_3c5ed8b3ca70  2 · Storytree projects  (The app)
+capability_7789d00d3390  3 · Surfaces  (The app)
+capability_d077e76e50d7  3 · Arc surface  (The arc surface)
+capability_053416712f7c  8 · Doctor  (The command line)
+capability_8419d8d4cdae  9 · Friction and re-steers  (The command line)
+capability_f0ffead428df  4 · Drill-down  (The forest)
+capability_efa4328b624c  5 · Agent capability claims  (The forest)
+capability_6133809a4139  7 · Running sessions  (The forest)
+capability_e8f28605e711  3 · Reads by session and agent  (The knowledge core)
+capability_062b84e5c6b0  4 · Look inside and inspect an artifact  (The knowledge core)
+capability_d8451645c169  5 · Queues  (The librarian)
+capability_5e0362aae607  1 · Project libraries  (The library)
+capability_baaeecb42577  6 · Knowledge artifacts  (The library)
+capability_556e276756c9  14 · Ranked search  (The library)
+
+## B. Not in touches, but a closed, landed increment's text names them and their description says "As built" (11): switch off
+
+capability_01dc27eec57f  2 · Connect an agent  (The app setup)
+capability_418c90ffcd4c  5 · Send feedback  (The app setup)
+capability_47e1fb495a56  3 · First-run guide  (The app setup)
+capability_790ee7f22546  1 · Get storytree  (The app setup)
+capability_fc05f276586f  4 · Read the license  (The app setup)
+capability_6a0c1b26f586  4 · Updates  (The app)
+capability_611029207d9a  3 · See what remains  (Process ledger)
+capability_77a22d55c99e  2 · Keep sight of unfinished runs  (Process ledger)
+capability_a3e608293417  1 · Record who started each run  (Process ledger)
+capability_d401990d9a5e  5 · Finish with an honest inventory  (Process ledger)
+capability_f3a301d328cd  4 · Stop the work I own  (Process ledger)
+
+## C. No landed evidence in the snapshot (38): check the live arc surface first
+# Most of these were built before increments carried touches (for example 3 · Data schema and
+# 1 · Front door, whose contracts storytree has verified passing). Switch off each one the live
+# arc surface shows landed; leave the rest proposed.
+
+capability_13b04e769a4b  9 · Knowledge entrances  (The library)
+capability_18edee1c0154  7 · Instructions  (the habits card)
+capability_33812c1d778b  1 · Story nodes  (The forest)
+capability_36bcae448803  3 · Catalogue  (The librarian)
+capability_389fd5e3722d  6 · Rounds  (The librarian)
+capability_396a53756a5c  1 · Work states  (The arc surface)
+capability_3c32df358d67  2 · Who wrote it  (The command line)
+capability_53fd994f7b4c  4 · Graduation  (The librarian)
+capability_562b2527ebca  6 · Decisions  (The command line)
+capability_56dfc9b9c3cf  7 · Board, read only  (The command line)
+capability_5a80222c88c4  2 · Library transactions  (The library)
+capability_5f1ce148e63a  12 · Owner questions  (The library)
+capability_62c8006ef894  2 · Agents on the board  (The arc surface)
+capability_7077da59ee64  5 · Claims  (The agent link)
+capability_75d059640d9d  7 · Library API  (The library)
+capability_7889e605384c  2 · Earlier decisions beside their replacements  (The knowledge core)
+capability_78d6e026f902  13 · Decision log  (The library)
+capability_7b7421be1a1b  1 · Front door  (The command line)
+capability_81ad90bacdbc  4 · Arcs and increments  (The command line)
+capability_8595861a88df  2 · Capability tree  (The forest)
+capability_8c01238b7f31  11 · Workspace  (The command line)
+capability_8ffc78a4bad2  3 · Story node render  (The forest)
+capability_a19bf216935b  1 · Links  (The librarian)
+capability_a1d4fadbec3e  3 · Data schema  (The library)
+capability_a7f068502213  10 · Work in flight  (The library)
+capability_a954e1eb16f6  8 · Cloud connection  (GCP)
+capability_ab59a8461dd7  3 · Library  (The command line)
+capability_b7a12a2b7273  2 · Decision log  (The librarian)
+capability_b91cd36a9783  4 · Sessions  (The agent link)
+capability_bfc6fa737f09  5 · Questions  (The command line)
+capability_c72570081c61  1 · Knowledge under its shelves  (The knowledge core)
+capability_d632ff0454c0  11 · Waits  (The library)
+capability_dd486ffa5b02  4 · Work model  (The library)
+capability_ee7d649bbc20  5 · Briefing  (The arc surface)
+capability_f1d66d700591  2 · Agent activity log  (The agent link)
+capability_f27ac2abb10b  5 · Health record  (The library)
+capability_f874f7de8110  10 · Plan view  (The command line)
+capability_fa8ea39882fe  4 · Waits  (The arc surface)

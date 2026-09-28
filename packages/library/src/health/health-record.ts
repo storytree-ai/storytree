@@ -68,10 +68,18 @@ export interface AnnotatedContract extends ContractNode {
   health: NodeHealth;
 }
 
-/** A capability in the annotated tree, with its health rolled up from its contracts. */
+/**
+ * A capability's word, as its card says it (ADR-0744): `proposed` while its flag is on; once the
+ * agent switches it off, `healthy` when every contract is verified passing, `unhealthy` when any
+ * is verified failing, and `untested` otherwise. Only storytree's verified column counts.
+ */
+export type CapabilityStatus = "proposed" | "healthy" | "unhealthy" | "untested";
+
+/** A capability in the annotated tree, with its health rolled up from its contracts, and its word. */
 export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
   contracts: AnnotatedContract[];
   health: NodeHealth;
+  status: CapabilityStatus;
 }
 
 /** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
@@ -169,7 +177,8 @@ export class HealthRecord {
         const capabilities = story.capabilities.map((capability) => {
           const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) }));
           const health = rolledUp(contracts.map((contract) => contract.health));
-          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health };
+          const status = capabilityStatus(capability.proposed, contracts.map((contract) => contract.health.verified.state));
+          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status };
         });
         const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)));
         return { ...story, capabilities, health };
@@ -247,6 +256,17 @@ function rollUp(states: readonly HealthState[]): HealthColumn {
   if (states.includes("failing")) return { state: "failing" };
   if (states.length > 0 && states.every((state) => state === "passing")) return { state: "passing" };
   return { state: "not-checked" };
+}
+
+/**
+ * The word for a capability (ADR-0744 D1, D3), from its proposed flag and its contracts' verified
+ * states: proposed while the flag is on, whatever its health; then the verified roll-up in 0.2's
+ * words. The agent's reported column plays no part, so it never turns a card healthy.
+ */
+export function capabilityStatus(proposed: boolean, verified: readonly HealthState[]): CapabilityStatus {
+  if (proposed) return "proposed";
+  const { state } = rollUp(verified);
+  return state === "passing" ? "healthy" : state === "failing" ? "unhealthy" : "untested";
 }
 
 /** An entry: a health record's fields, and when they were written. `by` and `note` only when there is one. */

@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.2 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.3 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -40,5 +40,27 @@ test("10.2 an unknown story says so", async () => {
 
     assert.equal(ran.code, 1);
     assert.match(ran.stderr, /no story "story_nosuchstory"/);
+  });
+});
+
+test("10.3 `capability built` switches a capability's proposed flag off, `capability proposed` back on, each with its writer; an unknown capability says so", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "Email form", story: story.id });
+
+    const built = await world.run(["capability", "built", capability.id]);
+    assert.equal(built.code, 0, built.stderr);
+    assert.match(built.stdout, /no longer proposed/);
+    assert.equal(((await library.get(capability.id))?.fields as { proposed?: boolean } | undefined)?.proposed, false);
+    assert.match((await library.history({ id: capability.id })).at(-1)?.actor ?? "", /^person:/, "the switch carries its writer");
+
+    const again = await world.run(["capability", "proposed", capability.id]);
+    assert.equal(again.code, 0, again.stderr);
+    assert.equal(((await library.get(capability.id))?.fields as { proposed?: boolean } | undefined)?.proposed, true);
+
+    const unknown = await world.run(["capability", "built", "capability_000000000000"]);
+    assert.equal(unknown.code, 1);
+    assert.match(unknown.stderr, /no capability "capability_000000000000"/);
   });
 });

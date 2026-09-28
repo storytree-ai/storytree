@@ -11,7 +11,7 @@ const health = { reported: { state: "not-checked" as const }, verified: { state:
 function story(index: number, capabilities = 0): AnnotatedStory {
   return { id: `story_${index}`, title: `Story ${index}`, health,
     capabilities: Array.from({ length: capabilities }, (_, c) => ({
-      id: `cap_${index}_${c}`, title: `Capability ${c}`, health, dependsOn: [], contracts: [],
+      id: `cap_${index}_${c}`, title: `Capability ${c}`, health, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [],
     })),
   };
 }

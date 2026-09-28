@@ -20,7 +20,7 @@ const NO_HEALTH = { reported: { state: "not-checked" as const }, verified: { sta
 
 /** A project: three stories, the first with two capabilities, the second with one, the third with none yet. */
 function project(): { tree: AnnotatedTree; history: Change[] } {
-  const capability = (id: string): AnnotatedCapability => ({ id, title: `The ${id}`, dependsOn: [], contracts: [], health: NO_HEALTH });
+  const capability = (id: string): AnnotatedCapability => ({ id, title: `The ${id}`, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health: NO_HEALTH });
   const story = (id: string, title: string, ...capabilities: AnnotatedCapability[]): AnnotatedStory => ({ id, title, capabilities, health: NO_HEALTH });
   const stories = [
     story("story_1", "Visitor can sign up", capability("cap_1a"), capability("cap_1b")),

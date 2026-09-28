@@ -14,7 +14,7 @@
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
 import type { PartState, WorkStates } from "@storytree/arc-surface";
-import type { AnnotatedContract, AnnotatedTree, Change, HealthColumn, HealthState } from "@storytree/library";
+import type { AnnotatedContract, AnnotatedTree, CapabilityStatus, Change, HealthColumn, HealthState } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 
@@ -40,8 +40,10 @@ export interface CapabilityLine {
   reported: HealthState;
   /** Storytree's own column, only where something wrote it for one of its contracts. */
   verified?: HealthState;
-  /** Where it stands, by the arc surface's work states. */
+  /** Where it stands, by the arc surface's work states: for choosing which to show, not for its card. */
   state: PartState;
+  /** Its word, as the library gives it: proposed, healthy, unhealthy or untested (ADR-0744). */
+  status: CapabilityStatus;
   contracts: ContractLine[];
 }
 
@@ -55,6 +57,8 @@ export interface Arrow {
   toStory?: string;
   /** Whether the capability pointed at has landed. */
   landed: boolean;
+  /** The word for the capability pointed at, as the library gives it (ADR-0744). */
+  toStatus: CapabilityStatus;
 }
 
 /** The panel for one story. */
@@ -94,6 +98,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates
         reported: capability.health.reported.state,
         ...(seen.length === 0 ? {} : { verified: capability.health.verified.state }),
         state,
+        status: capability.status,
         contracts,
       },
     ];
@@ -108,6 +113,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates
         toTitle: target?.capability.title ?? to,
         ...(target === undefined || target.owner.id === story ? {} : { toStory: target.owner.title }),
         landed: states.part(to) === "landed",
+        toStatus: target?.capability.status ?? "untested",
       };
     }),
   );

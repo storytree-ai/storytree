@@ -1,0 +1,237 @@
+[
+  {
+    "shot": "panel",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_7b7421be1a1b",
+    "detailWord": "proposed",
+    "panel": {
+      "frame": {
+        "width": 423,
+        "height": 350
+      },
+      "tree": {
+        "width": 3057,
+        "height": 500
+      },
+      "view": {
+        "x": -247,
+        "y": 100,
+        "scale": 0.3
+      },
+      "shown": {
+        "width": 917,
+        "height": 150
+      },
+      "wholeTreeInFrame": false
+    },
+    "panelWords": {
+      "proposed": 27
+    },
+    "treeOpen": false,
+    "window": null,
+    "legend": [
+      "proposed",
+      "healthy",
+      "unhealthy",
+      "untested"
+    ],
+    "fitButton": "Fit"
+  },
+  {
+    "shot": "window",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_7b7421be1a1b",
+    "detailWord": "proposed",
+    "panel": {
+      "frame": {
+        "width": 295,
+        "height": 350
+      },
+      "tree": {
+        "width": 3057,
+        "height": 500
+      },
+      "view": {
+        "x": -247,
+        "y": 100,
+        "scale": 0.3
+      },
+      "shown": {
+        "width": 917,
+        "height": 150
+      },
+      "wholeTreeInFrame": false
+    },
+    "panelWords": {
+      "proposed": 27
+    },
+    "treeOpen": true,
+    "window": {
+      "frame": {
+        "width": 730,
+        "height": 689
+      },
+      "tree": {
+        "width": 3057,
+        "height": 500
+      },
+      "view": {
+        "x": -94,
+        "y": 270,
+        "scale": 0.3
+      },
+      "shown": {
+        "width": 917,
+        "height": 150
+      },
+      "wholeTreeInFrame": false
+    },
+    "legend": [
+      "proposed",
+      "healthy",
+      "unhealthy",
+      "untested"
+    ],
+    "fitButton": "Fit"
+  },
+  {
+    "shot": "words",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_7b7421be1a1b",
+    "detailWord": "healthy",
+    "panel": {
+      "frame": {
+        "width": 295,
+        "height": 350
+      },
+      "tree": {
+        "width": 3057,
+        "height": 500
+      },
+      "view": {
+        "x": -247,
+        "y": 100,
+        "scale": 0.3
+      },
+      "shown": {
+        "width": 917,
+        "height": 150
+      },
+      "wholeTreeInFrame": false
+    },
+    "panelWords": {
+      "healthy": 1,
+      "unhealthy": 1,
+      "untested": 1,
+      "proposed": 24
+    },
+    "treeOpen": true,
+    "window": {
+      "frame": {
+        "width": 730,
+        "height": 689
+      },
+      "tree": {
+        "width": 3057,
+        "height": 500
+      },
+      "view": {
+        "x": -94,
+        "y": 270,
+        "scale": 0.3
+      },
+      "shown": {
+        "width": 917,
+        "height": 150
+      },
+      "wholeTreeInFrame": false
+    },
+    "legend": [
+      "proposed",
+      "healthy",
+      "unhealthy",
+      "untested"
+    ],
+    "fitButton": "Fit"
+  },
+  {
+    "shot": "words-close",
+    "capture": "CDP screenshot of the pnpm desktop:smoke Electron window",
+    "viewport": {
+      "width": 1120,
+      "height": 860
+    },
+    "selectedStory": "story_f9fb5136c28f",
+    "selectedCapability": "capability_7b7421be1a1b",
+    "detailWord": "healthy",
+    "panel": {
+      "frame": {
+        "width": 295,
+        "height": 350
+      },
+      "tree": {
+        "width": 3057,
+        "height": 500
+      },
+      "view": {
+        "x": -247,
+        "y": 100,
+        "scale": 0.3
+      },
+      "shown": {
+        "width": 917,
+        "height": 150
+      },
+      "wholeTreeInFrame": false
+    },
+    "panelWords": {
+      "healthy": 1,
+      "unhealthy": 1,
+      "untested": 1,
+      "proposed": 24
+    },
+    "treeOpen": true,
+    "window": {
+      "frame": {
+        "width": 730,
+        "height": 689
+      },
+      "tree": {
+        "width": 3057,
+        "height": 500
+      },
+      "view": {
+        "x": -587,
+        "y": 221,
+        "scale": 0.547
+      },
+      "shown": {
+        "width": 1672,
+        "height": 274
+      },
+      "wholeTreeInFrame": false
+    },
+    "legend": [
+      "proposed",
+      "healthy",
+      "unhealthy",
+      "untested"
+    ],
+    "fitButton": "Fit"
+  }
+]

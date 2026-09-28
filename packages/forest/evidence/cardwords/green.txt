@@ -1,0 +1,22 @@
+# green(cardwords): pnpm test (full scope), run 1 then --rerun-failed after fixing the expected lists
+scope: full — everything — packages/agent-link/src/tools/agent-tools.test.ts changed in @storytree/agent-link, which the test harness and scripts/ run on
+  PASS    apps/desktop — 1.6 s
+  FAIL    packages/agent-link — 13.7 s
+  PASS    packages/app — 2.8 s
+  PASS    packages/app-setup — 0.5 s
+  PASS    packages/arc-surface — 0.7 s
+  FAIL    packages/cli — 9.6 s
+  PASS    packages/forest — 1.8 s
+  PASS    packages/forest-world — 10.0 s
+  PASS    packages/knowledge-core — 0.8 s
+  PASS    packages/librarian — 1.2 s
+  FAIL    packages/library — 11.5 s
+  PASS    packages/local-postgres — 3.5 s
+  PASS    packages/processes — 0.9 s
+  PASS    scripts — 4.7 s
+# --rerun-failed (runs 2-3): agent-link and library PASS
+/tmp/cardwords-test-2.log:  PASS    packages/agent-link — 13.6 s
+/tmp/cardwords-test-2.log:  FAIL    packages/library — 11.0 s
+/tmp/cardwords-test-3.log:  PASS    packages/library — 10.7 s
+# run 4, with ~/.local/bin off PATH (this box holds a stale storytree launcher there that 8.5's setup finds and rewrites; CI has none):
+  PASS    packages/cli — 8.5 s

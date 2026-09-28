@@ -7,8 +7,7 @@
  */
 import dagre from "@dagrejs/dagre";
 
-import type { HealthState } from "@storytree/library";
-import type { PartState } from "@storytree/arc-surface";
+import type { CapabilityStatus, HealthState } from "@storytree/library";
 
 import type { StoryPanel } from "./drill-down.js";
 
@@ -25,9 +24,8 @@ export interface Card {
   own: boolean;
   /** The title of its story, when it is another story's. */
   story?: string;
-  /** Its work state, for the story's own; another story's is known only as landed or not. */
-  state?: PartState;
-  landed: boolean;
+  /** Its word, which its strip says (ADR-0744). */
+  status: CapabilityStatus;
   /** The agent's report and storytree's own column, for the story's own (storytree's only where written). */
   reported?: HealthState;
   verified?: HealthState;
@@ -66,15 +64,14 @@ export function layoutTree(panel: StoryPanel): TreeLayout {
       id: line.id,
       title: line.title,
       own: true,
-      state: line.state,
-      landed: line.state === "landed",
+      status: line.status,
       reported: line.reported,
       ...(line.verified === undefined ? {} : { verified: line.verified }),
     });
   }
   for (const arrow of panel.arrows) {
     if (cards.has(arrow.to)) continue;
-    cards.set(arrow.to, { id: arrow.to, title: arrow.toTitle, own: false, ...(arrow.toStory === undefined ? {} : { story: arrow.toStory }), landed: arrow.landed });
+    cards.set(arrow.to, { id: arrow.to, title: arrow.toTitle, own: false, ...(arrow.toStory === undefined ? {} : { story: arrow.toStory }), status: arrow.toStatus });
   }
 
   const graph = new dagre.graphlib.Graph();

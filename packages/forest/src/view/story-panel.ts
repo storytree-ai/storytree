@@ -9,7 +9,6 @@ import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type St
 import type { HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
-const STATE = { planned: "planned", "in-progress": "in progress", landed: "landed" } as const;
 
 /** The panel's HTML, with `selected` shown below the diagram, if it is one of the story's capabilities. */
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined): string {
@@ -42,7 +41,7 @@ function capability(line: CapabilityLine): string {
         .join("")}</ul>`;
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
-      <h3>${text(line.title)} <span class="panel-state">${STATE[line.state]}</span></h3>
+      <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.status}</span></h3>
       <p>${text(line.description)}</p>
       <p class="panel-health">
         ${badge("the agent reports", line.reported)}
@@ -58,9 +57,9 @@ function badge(who: string, state: HealthState): string {
 
 /**
  * The diagram: the capability tree as 0.2 drew it (ADR-0743), laid out by `layoutTree`: one card
- * per capability, what it builds on below it, each card with a strip across its top naming its work
- * state in words and coloured to match the arc surface, and the agent's report and storytree's as
- * labelled marks (ADR-0630). In the panel it has its own framed space, where it is drawn at a
+ * per capability, what it builds on below it, each card with a strip across its top saying its word
+ * (proposed, healthy, unhealthy or untested, ADR-0744) in 0.2's colours, and the agent's report and
+ * storytree's as labelled marks (ADR-0630). In the panel it has its own framed space, where it is drawn at a
  * readable size and pans and zooms (`attachPanZoom`); a pop-out icon in the frame's corner, outside
  * the frame so pressing it starts no drag, opens the same tree in a larger window (`mountTreeSpace`).
  * The story's own cards are buttons, and `selected` is marked; another story's card is muted, names
@@ -96,19 +95,12 @@ export function renderTree(panel: StoryPanel, selected: string | undefined, kind
     </svg>`;
 }
 
-/** One card: a status strip naming its state, its title (and story, if another's), and its health marks. */
+/** One card: a strip saying its word, its title (and story, if another's), and its health marks. */
 function cardOf(card: Card, selected: boolean): string {
   const { width: W, height: H } = card;
   const S = card.own ? CARD.strip : OUTSIDE_CARD.strip;
-  const status = card.state === undefined ? (card.landed ? "landed" : "not landed yet") : STATE[card.state];
   const title = card.own ? card.title : `${card.story ?? ""} · ${card.title}`;
-  const classes = [
-    "box",
-    `state-${card.state ?? (card.landed ? "landed" : "planned")}`,
-    ...(card.landed ? [] : ["pending"]),
-    ...(card.own ? [`health-${card.reported ?? "not-checked"}`] : ["elsewhere"]),
-    ...(selected ? ["selected"] : []),
-  ];
+  const classes = ["box", `status-${card.status}`, ...(card.own ? [] : ["elsewhere"]), ...(selected ? ["selected"] : [])];
   const pressable = card.own ? ` data-capability-id="${attribute(card.id)}" role="button" tabindex="0" aria-pressed="${selected}"` : "";
   const lines = [...(card.own ? [] : [{ words: card.story ?? "", kind: "card-story" }]), ...wrap(card.title, card.own ? 28 : 24, card.own ? 2 : 1).map((words) => ({ words, kind: "card-title" }))];
   const marks = [
@@ -116,10 +108,10 @@ function cardOf(card: Card, selected: boolean): string {
     ...(card.verified === undefined ? [] : [mark("storytree saw", card.verified)]),
   ];
   return `<g class="${classes.join(" ")}"${pressable} transform="translate(${card.x.toFixed(1)} ${card.y.toFixed(1)})">
-      <title>${text(title)}${card.landed ? "" : " (not landed yet)"}</title>
+      <title>${text(title)}</title>
       <rect class="card-bg" width="${W}" height="${H}" rx="7" />
       <path class="card-strip" d="M 0 ${S} L 0 7 Q 0 0 7 0 L ${W - 7} 0 Q ${W} 0 ${W} 7 L ${W} ${S} Z" />
-      <text class="card-status" x="8" y="${S - 5}">${status}</text>
+      <text class="card-status" x="8" y="${S - 5}">${card.status}</text>
       ${lines.map(({ words, kind }, index) => `<text class="${kind}" x="${W / 2}" y="${S + (card.own ? 17 : 15) + index * 15}">${text(words)}</text>`).join("")}
       ${marks.map((each, index) => each.replace("<text ", `<text x="8" y="${H - 8 - (marks.length - 1 - index) * 14}" `)).join("")}
     </g>`;

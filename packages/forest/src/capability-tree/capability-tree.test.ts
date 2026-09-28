@@ -16,7 +16,7 @@ import { grove } from "./capability-tree.js";
 
 function capability(id: string, reported: HealthState, dependsOn: string[] = []): AnnotatedCapability {
   const health = { reported: { state: reported }, verified: { state: "not-checked" as const } };
-  return { id, title: `The ${id}`, dependsOn, contracts: [], health };
+  return { id, title: `The ${id}`, dependsOn, proposed: true, status: "proposed" as const, contracts: [], health };
 }
 
 function story(...capabilities: AnnotatedCapability[]): AnnotatedStory {

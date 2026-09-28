@@ -90,7 +90,7 @@ type TableType = "arc" | "story" | "capability" | "contract" | "health" | "decis
 const MINIMAL: { readonly [T in TableType]: FieldsOf<T> } = {
   arc: { title: "Launch v1", intent: "Ship sign-up", endState: "Visitors can sign up" },
   story: { title: "Visitor can sign up" },
-  capability: { title: "Email form", story: "story-1" },
+  capability: { title: "Email form", story: "story-1", proposed: true },
   contract: { title: "Rejects a bad email", capability: "capability-1" },
   health: { node: "contract-1", column: "reported", state: "not-checked" },
   decision: { title: "Use Mailgun", text: "Its API is the simplest", status: "accepted" },
@@ -106,6 +106,7 @@ const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
     story: "story-1",
     description: "The form and its checks",
     dependsOn: ["capability-0"],
+    proposed: false,
   },
   contract: { title: "Rejects a bad email", capability: "capability-1", description: "An address with no @ is refused" },
   health: { node: "contract-1", column: "verified", state: "failing", by: "storytree", note: "2 of 3 cases fail" },
@@ -121,7 +122,7 @@ const FULL: { readonly [T in TableType]: FieldsOf<T> } = {
 const EMPTIEST: { readonly [T in TableType]: FieldsOf<T> } = {
   arc: { title: "A", description: "", stories: [], intent: "I", endState: "E" },
   story: { title: "S", description: "" },
-  capability: { title: "C", story: "", description: "", dependsOn: [""] },
+  capability: { title: "C", story: "", description: "", dependsOn: [""], proposed: false },
   contract: { title: "K", capability: "", description: "" },
   health: { node: "", column: "verified", state: "passing", by: "", note: "" },
   decision: { title: "D", text: "T", links: [], status: "accepted" },

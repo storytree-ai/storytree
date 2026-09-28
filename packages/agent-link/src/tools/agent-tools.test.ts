@@ -47,6 +47,7 @@ const TOOLS = [
   "list_all_runs",
   "list_own_runs",
   "make_workspace",
+  "mark_built",
   "open",
   "park_arc",
   "park_increment",
@@ -431,6 +432,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["ready_increment", { increment: "increment_000000000000" }],
         ["close_increment", { increment: "increment_000000000000", disposition: "landed", pr: "#1" }],
         ["park_arc", { arc: "arc_000000000000", parked: true }],
+        ["mark_built", { capability: "capability_000000000000", built: true }],
         ["set_wait", { waiter: "increment_000000000000", on: "increment_000000000001", reason: "it comes first" }],
         ["clear_wait", { waiter: "increment_000000000000", on: "increment_000000000001" }],
         ["record_friction", { title: "Slow", description: "Slow", statement: "Slow", evidence: "`pnpm test` took 9 s", impact: "Slow" }],
@@ -732,6 +734,28 @@ test("6.9 it parks an increment, readies it, starts it by claiming it, and close
       assert.equal((await library.arcView(arc))?.state, "parked");
       assert.equal((await agent.call("park_arc", { arc, parked: false })).isError, false);
       assert.equal((await library.arcView(arc))?.state, "active");
+    });
+  });
+});
+
+test("6.23 mark_built switches a capability's proposed flag off when the agent considers it built, and back on, with the session as its writer; anything but a capability is refused", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { story, capability } = await planned(agent);
+      const proposed = async (): Promise<boolean | undefined> => ((await library.get(capability))?.fields as { proposed?: boolean } | undefined)?.proposed;
+      assert.equal(await proposed(), true, "planned proposed");
+
+      const built = await agent.call("mark_built", { capability, built: true });
+      assert.equal(built.isError, false, built.text);
+      assert.match(built.text, /no longer proposed/);
+      assert.equal(await proposed(), false);
+      assert.equal((await library.history({ id: capability })).at(-1)?.actor, "session:claude-1");
+
+      assert.equal((await agent.call("mark_built", { capability, built: false })).isError, false);
+      assert.equal(await proposed(), true);
+
+      const refused = await agent.call("mark_built", { capability: story, built: true });
+      assert.match(refused.text, /not a capability/);
     });
   });
 });

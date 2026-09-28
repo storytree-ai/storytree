@@ -12,7 +12,7 @@ import { plateTransform } from '../../../forest-world/src/planet/planet.js';
 import { buildPlanetPathways } from '../../../forest-world/src/planet/pathways.js';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
-const capability = (id: string, dependsOn: string[]) => ({ id, title: id, dependsOn, contracts: [], health });
+const capability = (id: string, dependsOn: string[]) => ({ id, title: id, dependsOn, proposed: true, status: "proposed" as const, contracts: [], health });
 const tree = { arcs: [], stories: [
   { id: 'a', title: 'A', health, capabilities: [capability('a1', []), capability('a2', ['a1'])] },
   { id: 'b', title: 'B', health, capabilities: [capability('b1', ['a1']), capability('b2', ['b1', 'a2'])] },

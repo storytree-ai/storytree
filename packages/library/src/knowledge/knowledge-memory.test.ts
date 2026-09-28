@@ -125,7 +125,7 @@ for (const backend of [memory, postgres]) {
     await laterThan(definition);
     const pricing = await knowledge.defineTerm({ term: "Delivery", meaning: "The pricing page needs a rewrite" });
     await records.create("story", { title: "Mailgun webhook", description: "Verified domain events" });
-    await records.create("capability", { title: "Mailgun webhook receiver", story: story.id });
+    await records.create("capability", { title: "Mailgun webhook receiver", story: story.id, proposed: true });
     await records.create("arc", { title: "Mailgun migration", intent: "An intent", endState: "An end state" });
 
     const searches: [query: string, found: Note[]][] = [
@@ -266,7 +266,7 @@ for (const backend of [memory, postgres]) {
     // editNote edits notes only: a story, a capability, a retired or missing note is not changed
     // through it; it returns null and writes nothing. A field the note's kind does not have, or an
     // edit that would leave it invalid, is refused by the schema check, naming the field.
-    const capability = await records.create("capability", { title: "Email form", story: story.id });
+    const capability = await records.create("capability", { title: "Email form", story: story.id, proposed: true });
     const dropped = await knowledge.defineTerm({ term: "Delivery", meaning: "Dropped" });
     await records.retire(dropped.id, "written by mistake");
     const before = await transactions.history();

@@ -31,6 +31,14 @@ export const UPGRADES: readonly UpgradeStep[] = [
     name: "decision-status",
     up: (fields) => ({ ...fields, status: "accepted" }),
   },
+  {
+    // Capability 4 (ADR-0744 D2): a capability carries a proposed flag, on until the agent says it
+    // is built. One written before had no flag, and nobody had said so, so it reads proposed.
+    type: "capability",
+    from: 1,
+    name: "capability-proposed",
+    up: (fields) => ({ ...fields, proposed: true }),
+  },
 ];
 
 /** The schema the library runs on. */

@@ -1,0 +1,144 @@
+--- old/library/The forest/capability 4/capability_f0ffead428df/description
++++ new/library/The forest/capability 4/capability_f0ffead428df/description
+@@ -1 +1 @@
+-Clicking a story node opens a panel that explains the story in plain words: its sentences, and its capability tree, each capability pointing at the ones it builds on, including any in other stories, named with their story and marked if not yet landed. The tree has a space of its own inside the panel, where it is drawn at a readable size and the user drags it around and zooms it instead of it shrinking to fit; an icon in that space's corner opens the same tree in a larger window over the forest. Each capability's card names its work state in words on a coloured strip, with the agent's report and storytree's as labelled marks (ADR-0743). Clicking one of the story's own capabilities, in the panel's tree or in the larger window, shows it below the panel's tree: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
++Clicking a story node opens a panel that explains the story in plain words: its sentences, and its capability tree, each capability pointing at the ones it builds on, including any in other stories, named with their story. The tree has a space of its own inside the panel, where the user drags it around and zooms it; it opens zoomed out to fit the whole tree, as far as the least zoom allows, and an icon in that space's corner opens the same tree in a larger window over the forest, which opens fitted too. Each capability's card says proposed, healthy, unhealthy or untested on a strip coloured as 0.2 coloured those words, with the agent's report and storytree's as labelled marks (ADR-0743, ADR-0744). Clicking one of the story's own capabilities, in the panel's tree or in the larger window, shows it below the panel's tree: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
+
+--- old/library/The forest/capability 4/contract_543b7b61443b/title
++++ new/library/The forest/capability 4/contract_543b7b61443b/title
+@@ -1 +1 @@
+-4.2 · A capability that builds on a capability in another story shows an arrow to it, named with that story, and marked if it has not landed yet.
++4.2 · A capability that builds on a capability in another story shows an arrow to it, named with that story, and that capability's card says its word.
+
+--- old/library/The forest/capability 4/contract_c3568825a0bf/title
++++ new/library/The forest/capability 4/contract_c3568825a0bf/title
+@@ -1 +1 @@
+-4.6 · The panel shows the story's sentences and its diagram, and below the diagram only the capability selected: its sentences, its health as the agent reports it, and its contracts folded until asked for. No front cover shows in it.
++4.6 · The panel shows the story's sentences and its diagram, and below the diagram only the capability selected: its word, its sentences, its health as the agent reports it, and its contracts folded until asked for. No front cover shows in it.
+
+--- old/library/The forest/capability 4/contract_0968031ceff0/title
++++ new/library/The forest/capability 4/contract_0968031ceff0/title
+@@ -1 +1 @@
+-4.8 · Each of the story's capabilities is a card you can click, marked when selected and tinted by the agent's reported health; another story's capability is in the tree but cannot be clicked.
++4.8 · Each of the story's capabilities is a card you can click, marked when selected and tinted by its word (a healthy card edged green, an unhealthy one red), never by the agent's report; another story's capability is in the tree but cannot be clicked.
+
+--- old/library/The forest/capability 4/contract_1bf0d07cb453/title
++++ new/library/The forest/capability 4/contract_1bf0d07cb453/title
+@@ -1 +1 @@
+-4.10 · Each card has a strip across its top naming its work state in words (planned, in progress, landed; "not landed yet" for another story's), coloured by that state, and the agent's report and storytree's as marks labelled "the agent reports" and "storytree saw", storytree's only where something wrote it.
++4.10 · Each card, another story's too, has a strip across its top saying its word, proposed, healthy, unhealthy or untested (ADR-0744), coloured as 0.2 coloured it (proposed amber, healthy green, unhealthy red, untested grey), and the agent's report and storytree's as marks labelled "the agent reports" and "storytree saw", storytree's only where something wrote it. The work state (planned, in progress, landed) is not on the card.
+
+--- old/library/The forest/capability 4/contract_6514cef07b0b/title
++++ new/library/The forest/capability 4/contract_6514cef07b0b/title
+@@ -1 +1 @@
+-4.11 · The capability tree has its own space inside the panel, drawn at full size and moved by dragging and zooming, with no scroll bars and never out of reach; it opens on the selected capability, and an icon in its corner, labelled "Open in a larger window", opens the tree's larger window.
++4.11 · The capability tree has its own space inside the panel, moved by dragging and zooming, with no scroll bars and never out of reach. It, and the larger window, open with the whole tree fitted in the frame and centred, never above full size nor below the least zoom; the larger window's "Fit" puts that view back. An icon in the panel space's corner, labelled "Open in a larger window", opens the larger window.
+
+--- old/library/The forest/capability 4/definition_d706c4dfe91c/meaning
++++ new/library/The forest/capability 4/definition_d706c4dfe91c/meaning
+@@ -1,29 +1,32 @@
+-- **As built:** `drillDown(tree, story, states, history)` in `packages/forest`, a pure function of
+-  what the page already holds: the story's sentences, its capabilities in the grove's build order
+-  with their sentences (or "no description yet"), work state and the agent's reported health, and
+-  their contracts with the agent's trail in words ("red, then green", "green only"), read from the
+-  health saves in the library's change history. Storytree's own column is carried only where an
+-  entry was written. The diagram's arrows point from each capability to those it builds on; one in
+-  another story is named with that story and marked until it lands. `selectedCapability(panel,
+-  chosen)` picks the one shown below the diagram: the one clicked, else the first in build order
+-  not yet landed, else the first. The page (`packages/forest/src/view/story-panel.ts`) draws it as
+-  a panel over the forest's right side: the story's sentences, then the tree in a framed space of
+-  its own (22rem high, the panel's width) with a pop-out icon in its corner, then the selected
+-  capability, with its contracts folded until asked for. No front cover shows in the panel
+-  (ADR-0659 D4). Clicking a story node opens it, the × or empty space closes it, and the live
+-  reading keeps it current, holding the selected capability and where its tree was moved to.
+-  The tree (ADR-0743) is `layoutTree(panel)` in `packages/forest` (`drill-down/tree-layout.ts`),
+-  ported from 0.2's `layoutSubdag`: dagre, bottom to top, so what a capability builds on sits below
+-  it and another story's capability sits beside what builds on it; every own card 208 × 94 and every
+-  other story's 164 × 62, never shrunk. Each card (`renderTree`) carries 0.2's status strip naming
+-  its work state in words, coloured as the arc surface colours it (planned grey, in progress amber,
+-  landed green), its title, and the marks "the agent reports" and "storytree saw" (ADR-0630);
+-  another story's card is muted, names its story, and is not a button (ADR-0659 D3, D5).
+-  Both spaces move the tree with `attachPanZoom` (`view/pan-zoom.ts`): drag pans, the wheel or a
+-  pinch zooms about the pointer, with no scroll bars and a pan bounded so the tree stays in reach,
+-  and a card pressed and released without a drag is a click that chooses it. The panel's space
+-  opens at full size centred on the selected capability. Its pop-out icon ("Open in a larger
+-  window") opens `mountTreeSpace` (`view/tree-space.ts`), a layer over the forest beside the panel,
+-  which narrows while it is open; that opens centred on the story's own cards, keeps its place
+-  while the live reading redraws, and Escape, × or the panel closing closes it. Clicking a card
+-  there chooses the panel's capability as clicking it in the panel does.
++- **As built:** `drillDown(tree, story, states, history)` in `packages/forest`, a pure function of
++  what the page already holds: the story's sentences, its capabilities in the grove's build order
++  with their sentences (or "no description yet"), work state (for choosing the one shown), word
++  (the library's `status`, ADR-0744) and the agent's reported health, and
++  their contracts with the agent's trail in words ("red, then green", "green only"), read from the
++  health saves in the library's change history. Storytree's own column is carried only where an
++  entry was written. The diagram's arrows point from each capability to those it builds on; one in
++  another story is named with that story and carries its word. `selectedCapability(panel,
++  chosen)` picks the one shown below the diagram: the one clicked, else the first in build order
++  not yet landed, else the first. The page (`packages/forest/src/view/story-panel.ts`) draws it as
++  a panel over the forest's right side: the story's sentences, then the tree in a framed space of
++  its own (22rem high, the panel's width) with a pop-out icon in its corner, then the selected
++  capability, with its contracts folded until asked for. No front cover shows in the panel
++  (ADR-0659 D4). Clicking a story node opens it, the × or empty space closes it, and the live
++  reading keeps it current, holding the selected capability and where its tree was moved to.
++  The tree (ADR-0743) is `layoutTree(panel)` in `packages/forest` (`drill-down/tree-layout.ts`),
++  ported from 0.2's `layoutSubdag`: dagre, bottom to top, so what a capability builds on sits below
++  it and another story's capability sits beside what builds on it; every own card 208 × 94 and every
++  other story's 164 × 62. Each card (`renderTree`) carries 0.2's status strip saying its word
++  (proposed amber, healthy green, unhealthy red, untested grey: 0.2's studio `--st-*` colours) and
++  is tinted by it, never by the agent's report; then its title, and the marks "the agent reports"
++  and "storytree saw" (ADR-0630); the work state is not on the card (ADR-0744);
++  another story's card is muted, names its story, and is not a button (ADR-0659 D3, D5).
++  Both spaces move the tree with `attachPanZoom` (`view/pan-zoom.ts`): drag pans, the wheel or a
++  pinch zooms about the pointer, with no scroll bars and a pan bounded so the tree stays in reach,
++  and a card pressed and released without a drag is a click that chooses it. Both spaces open with
++  the whole tree fitted and centred (`fitted`: never above full size, never below the least zoom,
++  0.3), and keep where they were moved to while the live reading redraws. The panel's pop-out icon
++  ("Open in a larger window") opens `mountTreeSpace` (`view/tree-space.ts`), a layer over the
++  forest beside the panel, which narrows while it is open; its legend names the four words, its
++  "Fit" control puts the fitted view back, and Escape, × or the panel closing closes it. Clicking a card
++  there chooses the panel's capability as clicking it in the panel does.
+
+--- old/library/The library/capability 4/capability_dd486ffa5b02/description
++++ new/library/The library/capability 4/capability_dd486ffa5b02/description
+@@ -1 +1 @@
+-The library holds each project's plan of work: arcs (initiatives), stories (what a user can do), capabilities (the parts that make a story work) and contracts (single testable promises). Capabilities and contracts point at their parent. Stories belong to the project directly, and an arc *may* list the stories it grows, though a research arc may list none. The library refuses broken structure.
++The library holds each project's plan of work: arcs (initiatives), stories (what a user can do), capabilities (the parts that make a story work) and contracts (single testable promises). Capabilities and contracts point at their parent. Stories belong to the project directly, and an arc *may* list the stories it grows, though a research arc may list none. The library refuses broken structure. A capability carries a proposed flag, on from its birth until the agent says it is built (`setProposed`, ADR-0744 D2); switching it says nothing about health, and a capability written before the flag reads proposed.
+
+--- old/library/The library/capability 4/ADD contract under capability_dd486ffa5b02/title
++++ new/library/The library/capability 4/ADD contract under capability_dd486ffa5b02/title
+@@ -0,0 +1 @@
++4.6 · A capability is born proposed. The agent switches the flag off, and back on, and history names the writer; only a live capability has the flag, and a capability written before the flag reads proposed.
+
+--- old/library/The library/capability 5/capability_f27ac2abb10b/description
++++ new/library/The library/capability 5/capability_f27ac2abb10b/description
+@@ -1 +1 @@
+-Every story, capability and contract has a health record with two separate columns: what the agent **reported**, and what storytree **verified** by seeing it for itself. Each column is one of three states: `passing`, `failing` or `not-checked`. A missing entry always reads as `not-checked`, never as `passing`.
++Every story, capability and contract has a health record with two separate columns: what the agent **reported**, and what storytree **verified** by seeing it for itself. Each column is one of three states: `passing`, `failing` or `not-checked`. A missing entry always reads as `not-checked`, never as `passing`. A capability also has a word, as its card says it (ADR-0744 D1, D3): `proposed` while its flag is on; once the agent switches it off, `healthy` when every contract is verified passing, `unhealthy` when any is verified failing, and `untested` otherwise. Only the verified column counts: the agent's report never makes a capability healthy.
+
+--- old/library/The library/capability 5/ADD contract under capability_f27ac2abb10b/title
++++ new/library/The library/capability 5/ADD contract under capability_f27ac2abb10b/title
+@@ -0,0 +1 @@
++5.6 · A capability's word is proposed while its flag is on, even with every contract verified passing. Once the flag is off, it is healthy when every contract is verified passing, unhealthy when any is verified failing, and untested when any has no verified result or it has no contracts; reported passing alone reads untested.
+
+--- old/library/The command line/capability 10/capability_f874f7de8110/description (append a sentence to the first paragraph; the snapshot's full text is 214 characters)
++++ new/library/The command line/capability 10/capability_f874f7de8110/description
+@@ @@
+ `storytree tree` prints the plan as an indented tree: stories, capabilities and contracts, each with the health its agent reported (labelled as the agent's) and any claim on it. Name a story to see only that story.
++`storytree capability built <capability>` says a capability is built, so it is no longer proposed, and `storytree capability proposed <capability>` says it is proposed again (ADR-0744 D2); both call the library's `setProposed`.
+
+--- old/library/The command line/capability 10/ADD contract under capability_f874f7de8110/title
++++ new/library/The command line/capability 10/ADD contract under capability_f874f7de8110/title
+@@ -0,0 +1 @@
++10.3 · `capability built` switches a capability's proposed flag off and `capability proposed` back on, each with its writer; an unknown capability says so.
+
+--- old/library/The agent link/capability 6/capability_11fe600afeda/description
++++ new/library/The agent link/capability 6/capability_11fe600afeda/description
+@@ -1 +1 @@
+-The toolbox the agent calls, served as an MCP server: plan work (arc, story, capability, contract), see the plan and who is on what, claim or release a capability, report a contract red or green, report a capability landed, and search, read and write artifacts (plus list and add a node's front covers, once the library has them). Each tool is a thin wrapper over the library API and the claims above that answers in a short plain sentence the agent can act on, and every artifact read is logged in the agent activity log (ADR-0624); a new artifact with no place named goes onto the claimed capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's default link).
++The toolbox the agent calls, served as an MCP server: plan work (arc, story, capability, contract), see the plan and who is on what, claim or release a capability, report a contract red or green, report a capability landed, say a capability is built so it is no longer proposed (`mark_built`, ADR-0744 D2), and search, read and write artifacts (plus list and add a node's front covers, once the library has them). Each tool is a thin wrapper over the library API and the claims above that answers in a short plain sentence the agent can act on, and every artifact read is logged in the agent activity log (ADR-0624); a new artifact with no place named goes onto the claimed capability's shelf of front covers (ADR-0627 D4, which redirected ADR-0624's default link).
+
+--- old/library/The agent link/capability 6/ADD contract under capability_11fe600afeda/title
++++ new/library/The agent link/capability 6/ADD contract under capability_11fe600afeda/title
+@@ -0,0 +1 @@
++6.23 · `mark_built` switches a capability's proposed flag off once the agent considers it built, and back on (built: false), with the session as its writer; anything but a capability gets a readable refusal.

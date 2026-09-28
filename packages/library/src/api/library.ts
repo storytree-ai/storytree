@@ -112,6 +112,12 @@ export interface Library {
    * (DependencyLoopError). Null, with nothing written, if `id` is not a live capability.
    */
   editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null>;
+  /**
+   * Switch a capability's proposed flag: off when the agent considers it built, on again to say it
+   * is not (ADR-0744 D2). It makes nothing healthy by itself. Null, with nothing written, if `id` is
+   * not a live capability.
+   */
+  setProposed(id: string, proposed: boolean, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null>;
   /** Add a contract to a capability, which must be a live capability. */
   addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">>;
   /**
@@ -375,6 +381,10 @@ class LibraryHandle implements Library {
 
   addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#project.work.addCapability(capability, options);
+  }
+
+  setProposed(id: string, proposed: boolean, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {
+    return this.#project.work.setProposed(id, proposed, options);
   }
 
   editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {

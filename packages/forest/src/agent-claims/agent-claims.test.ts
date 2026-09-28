@@ -19,8 +19,8 @@ const START = Date.UTC(2026, 8, 27, 12);
 const MINUTE = 60_000;
 const health = { reported: { state: "not-checked" }, verified: { state: "not-checked" } } as const;
 const tree: AnnotatedTree = { arcs: [], stories: [
-  { id: "signup", title: "Sign-up", health, capabilities: ["email_form", "password"].map(id => ({ id, title: id, dependsOn: [], contracts: [], health })) },
-  { id: "billing", title: "Billing", health, capabilities: [{ id: "invoice", title: "invoice", dependsOn: [], contracts: [], health }] },
+  { id: "signup", title: "Sign-up", health, capabilities: ["email_form", "password"].map(id => ({ id, title: id, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health })) },
+  { id: "billing", title: "Billing", health, capabilities: [{ id: "invoice", title: "invoice", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health }] },
 ] };
 
 /** A project's agent log, each line written `at` minutes after the start. */

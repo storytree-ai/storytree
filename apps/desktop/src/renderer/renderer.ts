@@ -157,7 +157,7 @@ async function showForest(name: string): Promise<void> {
         showPanel();
         panel.querySelector<SVGGElement>(".panel-diagram .selected")?.focus({ preventScroll: true });
       });
-      if (kept === undefined) moving.centre(selected);
+      if (kept === undefined) moving.fit();
       else moving.place(kept);
       inPanel = { story: drilled.story, moving };
     }

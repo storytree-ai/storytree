@@ -11,7 +11,7 @@ import type { CapabilityLine, StoryPanel } from "./drill-down.js";
 import { CARD, layoutTree, OUTSIDE_CARD } from "./tree-layout.js";
 
 function line(id: string): CapabilityLine {
-  return { id, title: `The ${id}`, description: "", reported: "not-checked", state: "planned", contracts: [] };
+  return { id, title: `The ${id}`, description: "", reported: "not-checked", state: "planned", status: "proposed", contracts: [] };
 }
 
 // a ← b ← c inside the story; a builds on x and c on y, both in another story.
@@ -21,10 +21,10 @@ const panel: StoryPanel = {
   description: "",
   capabilities: [line("a"), line("b"), line("c")],
   arrows: [
-    { from: "b", to: "a", toTitle: "The a", landed: false },
-    { from: "c", to: "b", toTitle: "The b", landed: false },
-    { from: "a", to: "x", toTitle: "The x", toStory: "Story t", landed: true },
-    { from: "c", to: "y", toTitle: "The y", toStory: "Story t", landed: false },
+    { from: "b", to: "a", toTitle: "The a", landed: false, toStatus: "proposed" },
+    { from: "c", to: "b", toTitle: "The b", landed: false, toStatus: "proposed" },
+    { from: "a", to: "x", toTitle: "The x", toStory: "Story t", landed: true, toStatus: "proposed" },
+    { from: "c", to: "y", toTitle: "The y", toStory: "Story t", landed: false, toStatus: "proposed" },
   ],
 };
 

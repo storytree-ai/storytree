@@ -126,12 +126,17 @@ export const RECORD_SCHEMAS = {
       description: z.string().optional(),
     })
     .strict(),
+  /**
+   * A capability. `proposed` is on until the agent says it is built (ADR-0744 D2), required from
+   * version 2 (an older capability is upgraded, ./upgrades.ts, and reads proposed).
+   */
   capability: z
     .object({
       title: nonEmpty,
       story: z.string(),
       description: z.string().optional(),
       dependsOn: ids.optional(),
+      proposed: z.boolean(),
     })
     .strict(),
   contract: z
@@ -394,7 +399,7 @@ export const RECORD_SCHEMAS = {
 export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   arc: 2,
   story: 1,
-  capability: 1,
+  capability: 2,
   contract: 1,
   health: 1,
   decision: 2,

@@ -11,7 +11,7 @@ import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, NodeHealth } f
 import { smokeProblems } from "./smoke.js";
 
 const HEALTH: NodeHealth = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
-const capability = (id: string, title: string): AnnotatedCapability => ({ id, title, dependsOn: [], contracts: [], health: HEALTH });
+const capability = (id: string, title: string): AnnotatedCapability => ({ id, title, dependsOn: [], proposed: true, contracts: [], health: HEALTH, status: "proposed" });
 const story = (id: string, title: string, capabilities: AnnotatedCapability[]): AnnotatedStory => ({ id, title, capabilities, health: HEALTH });
 
 /** A project of two stories: the first with two capabilities, the second with one. */

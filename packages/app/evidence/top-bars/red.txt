@@ -1,0 +1,62 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/top-bars
+> node --import tsx scripts/test.mjs "packages/app/src/view/render.test.ts" "packages/arc-surface/src/view/render.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/top-bars/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:40271 (started in 0.1 s)
+✖ 2.6–2.8 the app bar holds only the gear and opens a sectioned overlay (1.791603ms)
+✔ the project switcher lists every project, selects the current one and escapes names (0.330367ms)
+✔ 3/4 drawer rows hide queued chips until their blocker's caret opens, with downstream +N (1.732801ms)
+✔ 3/5 question list gives reading cost; opening swaps in the reading and back restores the list (0.559813ms)
+✖ 3.1 the arc bar omits the project and exposes open/close to keyboard users (1.462609ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 161.875886
+
+✖ failing tests:
+
+test at packages/app/src/view/render.test.ts:1:122
+✖ 2.6–2.8 the app bar holds only the gear and opens a sectioned overlay (1.791603ms)
+  AssertionError [ERR_ASSERTION]: the gear has its own app bar
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/top-bars/packages/app/src/view/render.test.ts:9:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/arc-surface/src/view/render.test.ts:1:1972
+✖ 3.1 the arc bar omits the project and exposes open/close to keyboard users (1.462609ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /project|team/. Input:
+  
+  '<button type="button" class="arc-handle" data-open-arcs aria-label="Open arc surface" aria-expanded="false" aria-controls="arc-drawer" title="Open arcs"><span class="arc-handle-label">Arcs</span><span class="arc-handle-project">A &lt;project&gt; &amp; &quot;team&quot;</span><span class="arc-handle-caret" aria-hidden="true">▾</span></button>'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/top-bars/packages/arc-surface/src/view/render.test.ts:51:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<button type="button" class="arc-handle" data-open-arcs aria-label="Open arc surface" aria-expanded="false" aria-controls="arc-drawer" title="Open arcs"><span class="arc-handle-label">Arcs</span><span class="arc-handle-project">A &lt;project&gt; &amp; &quot;team&quot;</span><span class="arc-handle-caret" aria-hidden="true">▾</span></button>',
+    expected: /project|team/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

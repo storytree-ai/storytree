@@ -7,6 +7,8 @@ harness-notice, stopped-app and session-ledger assertions remain.
 
 - [red.txt](red.txt): the pushed red commit `17158bf` fails because the sixth term, Arc, is missing.
 - [green.txt](green.txt): the same contract passes after removing the cap constant and slice.
+- [verification.txt](verification.txt): typecheck output, full-suite scope and PASS table,
+  existing live Cloud SQL skips, and the test-ratio report after merging current main.
 - [library-update/](library-update/): pending field patch and supervisor checklist.
 
 Both focused runs used the shared heavy-work lock:

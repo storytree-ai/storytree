@@ -91,7 +91,11 @@ Its POSIX group/PID fallback and Windows taskkill tree shortcut checked only the
 replaced under approved 4.2–4.4, not removed as unused behavior. No “did not last” exclusion is
 claimed. The supplied draft records successful historic stops and a larger owner measurement.
 
-The sibling CLI/MCP listing files were absent from origin/main at build time. Per the lane's
+The sibling inventory API landed in #154 and was merged into this branch; its CLI/MCP front-door files are still absent from origin/main. Per the lane's
 explicit dependency rule, no new front-door family or cross-lane file is invented here. The
 supervisor's integration follow-up must mount `storytree own stop <run…>` and `stop_own_run` over
 this exported function, preserving failures and coverage.
+
+Integration must also align listing stop offers with the stopping API’s subagent boundary: the
+listing API currently labels same-session siblings as self, while stop refuses another named
+subagent’s runs. Never treat an offered action as authority; stop always revalidates.

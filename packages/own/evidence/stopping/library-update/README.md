@@ -18,6 +18,8 @@ differs, apply that append to the capability description without replacing other
       registered membership; broader containment/automatic descendant capture is not built.
 - [ ] Keep the CLI/MCP stop integration follow-up if listing's front doors remain absent from main.
       This lane is fenced out of creating that sibling family or modifying listing internals.
+- [ ] Align listing stop offers with the stop API’s named-subagent boundary: same-session
+      sibling rows currently look self-owned in listing but stop correctly refuses them.
 - [ ] Close increment `increment_5df7e7b316ab` with the merged PR and release the supervisor-held claim.
       `/tmp/own-stop-close.md` contains the landing evidence; no successor is started by this lane.
 

@@ -14,11 +14,11 @@ packages/local-postgres typecheck$ tsc -p .
 packages/local-postgres typecheck: Done
 packages/library typecheck: Done
 packages/agent-link typecheck$ tsc -p .
-packages/forest typecheck$ tsc -p .
 packages/librarian typecheck$ tsc -p .
+packages/forest typecheck$ tsc -p .
 packages/forest-world typecheck$ tsc -p .
-packages/agent-link typecheck: Done
 packages/librarian typecheck: Done
+packages/agent-link typecheck: Done
 packages/forest typecheck: Done
 packages/forest-world typecheck: Done
 packages/app typecheck$ tsc -p .
@@ -39,46 +39,51 @@ apps/desktop typecheck: Done
 === test ===
 scope: affected — packages/own — changed: packages/own
 units: packages/own, scripts/package-boundaries.test.mjs
-test Postgres: listening on 127.0.0.1:43915 (started in 0.1 s)
+test Postgres: listening on 127.0.0.1:39071 (started in 0.1 s)
 
 === packages/own ===
-✔ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (67.422434ms)
-✔ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (159.36935ms)
-✔ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (31.493506ms)
-✔ 1.5: absent owner and failed registration report an untracked launch instead of guessing (31.028511ms)
-✔ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (10.49329ms)
-✔ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (39.90297ms)
-✔ 2.3/2.4 native observation identifies one live process lifetime consistently (9.338242ms)
-✔ 2.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE (29.877391ms)
-✔ 2.3 invalid process identifiers remain uncertain (0.301894ms)
-✔ 2.3 Linux distinguishes absent processes from unreadable or malformed evidence (0.481937ms)
-✔ 2.3/2.4 Linux uses exact boot and start ticks even with spaces and parentheses in command (0.401284ms)
-✔ 4.1/4.6: every explicit target gets a refusal with its owner; malformed and unknown targets receive no signal (30.625875ms)
-✔ 4.2: gone, reused, foreign-machine and uncertain lifetimes never authorize a signal (42.070235ms)
-✔ 4.1/4.3: parent delegation covers linked descendants, but excludes conflicting owners and never grants a subagent its siblings (37.325826ms)
-✔ 4.3: a conflicting registration for the same process lifetime prevents signalling it (12.777978ms)
-✔ 4.4/4.5: root exit cannot hide a surviving child; both phases are verified and unsuccessful records remain (26.286817ms)
-✔ 4.4/4.5: probe failure after delivery prevents forced signalling and a stopped verdict (14.905877ms)
-✔ 4.3/4.6: late registrations and unreadable inventory stay explicit; a mixed batch cannot report success (16.470485ms)
-✔ 4.2/4.4 native: stale identity leaves the actual process alive; registered detached child is force-stopped even after root exits (169.41018ms)
-✔ 4.4 native: a cooperative process exits in the polite phase, while another owner stays live (98.065571ms)
-✔ 4.3: a conflicting registration appearing between deliveries prevents the next child signal (22.446398ms)
-ℹ tests 21
+✔ 1.1/1.2/1.4: Claude, Codex and session-bound manual launches durably keep separate owners in one folder (68.501739ms)
+✔ 1.3/2.1/2.2: a detached launch survives its launcher and old session evidence; request timeout is explicit (180.778185ms)
+✔ 1.3/2.1: explicitly linked subagent work remains owned after its parent run exits (73.909707ms)
+✔ 1.5: absent owner and failed registration report an untracked launch instead of guessing (31.213361ms)
+✔ 2.3/2.5: uncertainty and unreadable records remain visible beside readable siblings (10.366662ms)
+✔ 1.1/2.4: launch time precedes observation, and the spawned child exiting overrides a reused PID reading (43.709483ms)
+✔ 3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime (40.670983ms)
+✔ 3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline (7.30106ms)
+✔ 3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal (3.857469ms)
+✔ 3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle (2.986412ms)
+✔ 3.1: the inventory observes a real owned process live and then gone through the native probe (18.817148ms)
+✔ 2.3/2.4 native observation identifies one live process lifetime consistently (7.602894ms)
+✔ 2.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE (37.622053ms)
+✔ 2.3 invalid process identifiers remain uncertain (0.300712ms)
+✔ 2.3 Linux distinguishes absent processes from unreadable or malformed evidence (0.475875ms)
+✔ 2.3/2.4 Linux uses exact boot and start ticks even with spaces and parentheses in command (0.405151ms)
+✔ 4.1/4.6: every explicit target gets a refusal with its owner; malformed and unknown targets receive no signal (31.264478ms)
+✔ 4.2: gone, reused, foreign-machine and uncertain lifetimes never authorize a signal (37.74707ms)
+✔ 4.1/4.3: parent delegation covers linked descendants, but excludes conflicting owners and never grants a subagent its siblings (43.427608ms)
+✔ 4.3: a conflicting registration for the same process lifetime prevents signalling it (13.635751ms)
+✔ 4.4/4.5: root exit cannot hide a surviving child; both phases are verified and unsuccessful records remain (18.774407ms)
+✔ 4.4/4.5: probe failure after delivery prevents forced signalling and a stopped verdict (12.672708ms)
+✔ 4.3/4.6: late registrations and unreadable inventory stay explicit; a mixed batch cannot report success (17.714671ms)
+✔ 4.2/4.4 native: stale identity leaves the actual process alive; registered detached child is force-stopped even after root exits (168.969651ms)
+✔ 4.4 native: a cooperative process exits in the polite phase, while another owner stays live (104.644828ms)
+✔ 4.3: a conflicting registration appearing between deliveries prevents the next child signal (22.097238ms)
+ℹ tests 26
 ℹ suites 0
-ℹ pass 21
+ℹ pass 26
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 637.423388
+ℹ duration_ms 660.911256
 
 === scripts/package-boundaries.test.mjs ===
-✔ this repo keeps every story in its own package, behind a thin frame and front door (38.939787ms)
-✔ the planted trees start from one that keeps the rules (2.503895ms)
-✔ a story with no package is refused, and so is a package that is neither a story's nor declared (2.349692ms)
-✔ a story's code in the frame or the front door is refused (2.474679ms)
-✔ story code the frame still holds passes only while it is declared, and its declaration only while it is there (4.204572ms)
-✔ a package reaching into another story's files is refused, by relative path or by a subpath it does not export (2.354902ms)
+✔ this repo keeps every story in its own package, behind a thin frame and front door (41.521291ms)
+✔ the planted trees start from one that keeps the rules (2.645533ms)
+✔ a story with no package is refused, and so is a package that is neither a story's nor declared (2.484387ms)
+✔ a story's code in the frame or the front door is refused (2.628841ms)
+✔ story code the frame still holds passes only while it is declared, and its declaration only while it is there (4.471697ms)
+✔ a package reaching into another story's files is refused, by relative path or by a subpath it does not export (2.183765ms)
 ℹ tests 6
 ℹ suites 0
 ℹ pass 6
@@ -86,7 +91,7 @@ test Postgres: listening on 127.0.0.1:43915 (started in 0.1 s)
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 130.667837
+ℹ duration_ms 138.063633
 
 results:
   PASS    packages/own

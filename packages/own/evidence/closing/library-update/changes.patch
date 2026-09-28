@@ -1,0 +1,12 @@
+--- old/What did I leave running?/capability 5/capability_d401990d9a5e/description
++++ new/What did I leave running?/capability 5/capability_d401990d9a5e/description
+@@ -1 +1,9 @@
+ The session can clear records of work confirmed gone without hiding work that may still be running. Its closing check distinguishes an empty observed inventory from an incomplete observation, so a tidy record cannot become a false claim that the computer is idle.
++
++As built: `@storytree/own/closing` and `@storytree/own` export `clearOwned({ owner, home?, knownGaps? })`, `readClosing({ home?, owner?, knownGaps?, shared? })` and `renderClosing(reading)`. Clear removes only the caller session/harness's records, with named subagents limited to their own records; delegated sessions' records are untouched. Original lifetimes and all registered descendants must be confirmed gone. Live, unknown and foreign records remain; unreadable records and known gaps prevent unproved child clearance. Removal failures are reported separately from successful removals.
++
++Clear rereads records and child membership after probing and before unlinking. Changed, disappearing, reparented or newly registered children retain the affected parent; only this call's confirmed removals may shrink its previously observed membership. It preserves request evidence and gap records, never signals processes, and changes neither claims, sessions nor increments.
++
++The closing reading reuses the listing API in all-session scope, irrespective of the caller, session end or released claims. Its status is `empty`, `remaining` or `incomplete`. Live/unknown rows stay visible; persisted read/registration gaps and caller-carried gaps whose persistence failed make it incomplete and name missing evidence separately. An empty verdict says “no tracked session work remains on this machine”, with the launch coverage and an explicit remote-machine limit. Shared work remains separately visible and is never stopped automatically.
++
++These are point-in-time observations, without a launch interlock. Only explicitly registered descendants are covered; neither whole-machine idleness nor remote clearance is claimed. Evidence: `packages/own/evidence/closing/README.md`, `red.txt`, `red-membership.txt`, `green.txt`, `gate.txt`, and the PR's three native CI checks. CLI/MCP wiring is the own-doors follow-up; its callers must pass unpersisted `knownGaps` and preserve incomplete results.

@@ -1,0 +1,33 @@
+✔ 5.1: clear removes only caller records whose original lifetime and registered descendants are gone (45.49101ms)
+✔ 5.2: live, unknown and foreign records remain; a named subagent cannot clear its siblings (11.72809ms)
+✔ 5.2/5.4: unreadable records and known registration gaps survive clear and prevent unproved child clearance (3.564722ms)
+✔ 5.2: failed removals are reported and never counted as cleared (2.069812ms)
+✔ 5.1/5.2: clear rereads ownership and child membership after probing, before removing a record (3.736449ms)
+✖ 5.1/5.2: a child disappearing or being reparented during a probe cannot make its parent clearable (4.334635ms)
+✔ 5.3: the closing reading still names live and unknown work belonging to old and other sessions (4.35368ms)
+✔ 5.4: empty observations with persisted, unreadable or caller-carried missing evidence are incomplete (6.042208ms)
+✔ 5.5: an empty or confirmed-gone inventory has bounded local coverage and leaves shared work alone (2.117383ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 280.338135
+
+✖ failing tests:
+
+test at packages/own/src/closing/closing.test.ts:1:5876
+✖ 5.1/5.2: a child disappearing or being reparented during a probe cannot make its parent clearable (4.334635ms)
+  AssertionError [ERR_ASSERTION]: remove
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/own-close/packages/own/src/closing/closing.test.ts:140:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

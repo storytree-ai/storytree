@@ -48,4 +48,12 @@ test("settings 10.2: set persists in the storytree home and show reads it back a
     assert.match(refused.stderr, /usage: storytree settings/);
     assert.equal(readSettings(home)["context-guidance"].value, 400_000);
   }
+
+  const before = readFileSync(file, "utf8");
+  for (const [name, value, reason] of [["quiet-time", "1", /unknown setting/i], ["context-guidance", "-1", /positive whole number/i]] as const) {
+    const refused = await invoke(["settings", "set", name, value]);
+    assert.equal(refused.code, 1, refused.stderr);
+    assert.match(refused.stderr, reason);
+    assert.equal(readFileSync(file, "utf8"), before);
+  }
 });

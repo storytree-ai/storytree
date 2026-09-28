@@ -19,12 +19,12 @@ import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
 
-/** The given flags among `names`, each as the library field it names (`--end-state` is `endState`). */
-function given(args: Args, names: readonly string[]): Record<string, unknown> {
-  const fields: Record<string, unknown> = {};
+/** The given flags among `names`, each as the library field it names (`--end-state` is `endState`), kept as the text given (`--pr 132` is "132", not a number). */
+function given(args: Args, names: readonly string[]): Record<string, string> {
+  const fields: Record<string, string> = {};
   for (const name of names) {
     const value = args.text(name);
-    if (value !== undefined) fields[name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())] = valueOf(value);
+    if (value !== undefined) fields[name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())] = value;
   }
   return fields;
 }
@@ -40,14 +40,9 @@ function listOf(args: Args, name: string): string[] | undefined {
 const ARC_FIELDS = ["title", "intent", "end-state", "description"] as const;
 const INCREMENT_FIELDS = ["title", "objective", "body"] as const;
 
-/** An increment's close, as given: its outcome, every field kept as text (`--pr 132` is "132", not a number). */
+/** An increment's close, as given: its outcome. */
 function closeOf(args: Args): { disposition: never; pr?: string; note?: string; date?: string } {
-  const fields: Record<string, string> = {};
-  for (const name of ["disposition", "pr", "note", "date"]) {
-    const value = args.text(name);
-    if (value !== undefined) fields[name] = value;
-  }
-  return fields as never;
+  return given(args, ["disposition", "pr", "note", "date"]) as never;
 }
 
 /** Why an open increment cannot start yet: the blockers holding it, and the owner's questions it is held on. */

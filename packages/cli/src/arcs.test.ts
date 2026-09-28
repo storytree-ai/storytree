@@ -60,9 +60,11 @@ test("4.1 an arc with no intent is refused", async () => {
 test("4.2 a close with no pull request needs a note", async () => {
   await inWorld(command, async (world) => {
     const arc = await anArc(world);
-    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Email form", "--objective", "Build it", "--body", "The form, then its checks"]);
+    // A title that reads as a number is kept as the text given.
+    const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "2027", "--objective", "Build it", "--body", "The form, then its checks"]);
     assert.equal(parked.code, 0, parked.stderr);
     const increment = idIn(parked.stdout, "increment");
+    assert.equal((await (await world.library()).arcView(arc))?.increments[0]?.fields.title, "2027");
 
     const bare = await world.run(["arc", "increment", "close", increment, "--disposition", "withdrawn"]);
     assert.equal(bare.code, 1);

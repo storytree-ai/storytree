@@ -9,8 +9,8 @@ export { changedIslands, forestDrawn, forestScene, PLACE_WIDTH, storyAt } from "
 export type { ForestDrawn, ForestScene, Island, PlacedTree } from "./render/forest-scene.js";
 export { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down/drill-down.js";
 export type { Arrow, CapabilityLine, ContractLine, StoryPanel } from "./drill-down/drill-down.js";
-export { claimMarkers } from "./agent-claims/agent-claims.js";
-export type { Marker } from "./agent-claims/agent-claims.js";
+export { sessionColour, sessionWisps } from "./agent-claims/agent-claims.js";
+export type { SessionWisp } from "./agent-claims/agent-claims.js";
 export { unclaimedWork } from "./unclaimed-work/unclaimed-work.js";
 export type { UnclaimedEntry, UnclaimedWork } from "./unclaimed-work/unclaimed-work.js";
 export { edgeMarkers, openingTurn, turnToIsland, type EdgeMarker, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";

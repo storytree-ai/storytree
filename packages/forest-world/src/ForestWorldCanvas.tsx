@@ -1344,10 +1344,29 @@ function CaveArch({ cave }: { cave: InstanceDescriptor }) {
 
 function WispSprite({ wisp }: { wisp: InstanceDescriptor }) {
   const { x, y, z } = wisp.transform;
+  return <WispBody position={[x, y + WISP_LIFT, z]} />;
+}
+
+/** How far above the ground a wisp floats, in ground units. */
+export const WISP_LIFT = 20;
+
+/**
+ * A wisp's glowing body: the engine's own sprites and a host's session wisps (ADR-0736) share this
+ * one drawing, tinted by `colour` and dimmed by `opacity`.
+ */
+export function WispBody({ position = [0, 0, 0], colour, opacity = 1, scale = 1, name = '' }: {
+  position?: [number, number, number];
+  colour?: string;
+  opacity?: number;
+  scale?: number;
+  name?: string;
+}) {
   return (
-    <mesh position={[x, y + 20, z]}>
+    <mesh position={position} scale={scale} name={name}>
       <sphereGeometry args={[2.2, 12, 12]} />
-      <meshStandardMaterial color="#ffe9a8" emissive="#ffd75e" emissiveIntensity={1.4} />
+      {/* A tinted body glows less, so its colour survives instead of washing to white. */}
+      <meshStandardMaterial color={colour ?? '#ffe9a8'} emissive={colour ?? '#ffd75e'} emissiveIntensity={colour === undefined ? 1.4 : 0.55}
+        transparent={opacity < 1} opacity={opacity} />
     </mesh>
   );
 }

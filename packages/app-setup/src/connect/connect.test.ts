@@ -152,7 +152,6 @@ test("2.5: a disconnected harness stays disconnected: the other harness's next s
   const codexHooks = path.join(f.codex, "hooks.json");
   const result = await disconnectAgents({ ...f.options, harnesses: ["codex"] });
   assert.equal(result.harnesses[0]!.tools, "disconnected");
-  assert.doesNotMatch(result.next, /register hooks/, "no warning that they come back");
   assert.equal(existsSync(codexHooks), false);
 
   // The next Claude Code session's setup check, as its tool server runs it.

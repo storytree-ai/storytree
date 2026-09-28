@@ -1,0 +1,41 @@
+
+> storytree@ desktop:smoke /home/mickh/code/storytree03-wt/top-bars
+> pnpm --filter @storytree/desktop smoke "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-projects.png"
+
+
+> @storytree/desktop@0.3.0 smoke /home/mickh/code/storytree03-wt/top-bars/apps/desktop
+> node build.mjs && electron . --smoke --screenshot smoke.png "--project" "storytree" "--remote-debugging-port=0" "--inspect=0" "--no-sandbox" "--use-gl=angle" "--use-angle=swiftshader" "--enable-unsafe-swiftshader" "--screenshot" "/home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-projects.png"
+
+built dist
+Debugger listening on ws://127.0.0.1:39165/a546ddd3-9ec0-48f5-96c1-68fa43dde360
+For help, see: https://nodejs.org/learn/getting-started/debugging
+
+DevTools listening on ws://127.0.0.1:36131/devtools/browser/99ed7ac6-a40f-4ce2-8cde-478d5aaf6fef
+Debugger attached.
+Debugger ending on ws://127.0.0.1:39165/a546ddd3-9ec0-48f5-96c1-68fa43dde360
+For help, see: https://nodejs.org/learn/getting-started/debugging
+Postgres: listening on 127.0.0.1:35661 (started in 0.1 s)
+library: postgres://postgres@127.0.0.1:35661/postgres
+storytree 0.3: development build e482964 from /home/mickh/code/storytree03-wt/top-bars (does not update itself)
+smoke: screenshot /home/mickh/code/storytree03-wt/top-bars/packages/app/evidence/top-bars/overlay-projects.png (1120x860)
+App
+Close ×
+Projects
+Settings
+Updates
+Help
+Projects
+
+Choose the project to show in the forest.
+
+Project
+storytree
+Forest
+Library
+Arcs
+▾
+Sessions 0
+
+No running sessions
+smoke: project "storytree": the forest drew story "The library", story "The agent link", story "The app", story "The forest", story "The arc surface", story "The command line", story "The librarian", story "The knowledge core", story "The app setup", story "What did I leave running?" and all 71 capabilities
+Postgres: stopped (0.1 s)

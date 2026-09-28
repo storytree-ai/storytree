@@ -1,43 +1,36 @@
-// Mounted with the view so callers need no asset-copy or CSS-loader configuration.
+// Mounted with the view; the palette is shared with the existing forest controls.
 export const appMenuStyles = `
-/* Use the forest's existing controls palette; leave the rest of the top edge free. */
-.app-menu-mount {
-  position: fixed;
-  z-index: 7;
-  top: 12px;
-  right: 12px;
-}
-.app-gear {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid #485159;
-  border-radius: 8px;
-  background: #101418;
-  color: #eceae3;
-  cursor: pointer;
-}
+:root:has(.app-menu-mount) { --app-bar-height: 48px; }
+body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
+.app-bar { position: fixed; inset: 0 0 auto; height: var(--app-bar-height); z-index: 7; display: flex; align-items: center; justify-content: end; padding: 0 12px; background: #101418; border-bottom: 1px solid #485159; }
+.app-gear { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #eceae3; cursor: pointer; }
 .app-gear:hover, .app-gear[aria-expanded="true"] { background: #262a2f; }
 .app-gear:focus-visible, .app-menu :focus-visible { outline: 2px solid #a9b0ba; outline-offset: 2px; }
 .app-menu {
-  position: fixed;
-  inset: 56px 12px auto auto;
-  width: min(256px, calc(100vw - 24px));
-  max-height: calc(100dvh - 68px);
-  margin: 0;
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid #485159;
-  border-radius: 10px;
-  background: #101418;
-  color: #eceae3;
-  color-scheme: dark;
-  font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
-  box-shadow: 0 8px 30px rgb(0 0 0 / .25);
+  position: fixed; inset: var(--app-bar-height) 0 0; width: 100%; height: calc(100dvh - var(--app-bar-height)); max-width: none; max-height: none; margin: 0; padding: 32px; border: 0;
+  background: rgb(0 0 0 / .25); color: #eceae3; color-scheme: dark; font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+  --bg: #101418; --surface: #101418; --text: #eceae3; --muted: #a9b0ba; --line: #485159; --row-hover: #262a2f; --code-bg: #262a2f;
 }
 .app-menu::backdrop { background: transparent; pointer-events: none; }
+.app-menu, .app-menu * { box-sizing: border-box; }
+.app-menu-window { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden; border: 1px solid #485159; border-radius: 12px; background: #101418; box-shadow: 0 8px 30px rgb(0 0 0 / .25); }
+.app-menu-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid #485159; }
+.app-menu-header h1 { margin: 0; font: 600 16px/1.5 "Segoe UI", system-ui, sans-serif; }
+.app-menu button { font: inherit; }
+.app-menu-header button, [data-app-updates] { border: 1px solid #485159; border-radius: 6px; padding: 7px 12px; background: transparent; color: #eceae3; cursor: pointer; }
+.app-menu-header button span { margin-left: 12px; }
+.app-menu button:hover { background: #262a2f; }
+.app-menu button:disabled { color: #a9b0ba; opacity: .6; cursor: default; background: transparent; }
+.app-menu-body { display: flex; flex: 1; min-height: 0; }
+.app-menu-sections { display: flex; flex-direction: column; flex: 0 0 200px; gap: 4px; padding: 20px 12px; border-right: 1px solid #485159; overflow: auto; }
+.app-menu-sections button { border: 0; border-radius: 6px; padding: 10px 14px; background: transparent; color: #a9b0ba; text-align: left; cursor: pointer; }
+.app-menu-sections button[aria-pressed="true"] { color: #eceae3; background: #262a2f; }
+.app-menu-content { flex: 1; min-width: 0; overflow: auto; overscroll-behavior: contain; padding: 28px 32px; }
+.app-menu-content > section { max-width: 880px; margin: 0 auto; }
+.app-menu-content h2 { margin: 0; font-size: 22px; font-weight: 600; }
+.app-menu-content h2:focus { outline: none; }
+.app-section-description { color: #a9b0ba; margin: 6px 0 28px; }
+.app-project { max-width: 480px; }
 .app-project { display: grid; gap: 5px; color: #a9b0ba; font-size: 12px; }
 .app-project select {
   width: 100%;
@@ -63,24 +56,18 @@ export const appMenuStyles = `
 }
 .app-project option { padding: 6px; border-radius: 4px; overflow-wrap: anywhere; }
 .app-project option:hover, .app-project option:checked { background: #262a2f; }
-.app-menu-actions { margin-top: 12px; padding-top: 6px; border-top: 1px solid #485159; }
-.app-menu-actions button {
-  display: block;
-  width: 100%;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: #eceae3;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-.app-menu-actions button:hover { background: #262a2f; }
-.app-menu-actions button:disabled { color: #a9b0ba; opacity: .6; cursor: default; background: transparent; }
+.app-project-error { max-width: 480px; padding-left: 12px; border-left: 2px solid #a9b0ba; overflow-wrap: anywhere; }
 .app-no-projects { margin: 0; color: #a9b0ba; }
-.app-update-status { margin: 0 10px 8px; font-size: 12px; overflow-wrap: anywhere; }
+.app-update-status { margin: 24px 0 0; overflow-wrap: anywhere; }
 .app-update-status strong, .app-update-status span { display: block; }
 .app-update-status strong { font-weight: 600; color: #eceae3; }
-.app-update-status span { margin-top: 3px; color: #a9b0ba; }
+.app-update-status span { margin-top: 6px; color: #a9b0ba; }
+@media (max-width: 700px) {
+  .app-menu { padding: 12px; }
+  .app-menu-header { padding: 12px 16px; }
+  .app-menu-body { flex-direction: column; }
+  .app-menu-sections { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; gap: 2px; padding: 8px; border-right: 0; border-bottom: 1px solid #485159; }
+  .app-menu-sections button { padding: 8px 10px; }
+  .app-menu-content { padding: 20px 16px; }
+}
 `;

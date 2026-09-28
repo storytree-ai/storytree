@@ -1,0 +1,31 @@
+
+> storytree@ typecheck /home/mickh/code/storytree03-wt/top-bars
+> pnpm -r typecheck
+
+Scope: 13 of 14 workspace projects
+packages/forest-world typecheck$ tsc -p .
+packages/library typecheck$ tsc -p .
+packages/local-postgres typecheck$ tsc -p .
+packages/own typecheck$ tsc -p .
+packages/local-postgres typecheck: Done
+packages/own typecheck: Done
+packages/library typecheck: Done
+packages/forest-world typecheck: Done
+packages/librarian typecheck$ tsc -p .
+packages/librarian typecheck: Done
+packages/agent-link typecheck$ tsc -p .
+packages/agent-link typecheck: Done
+packages/app typecheck$ tsc -p .
+packages/knowledge-core typecheck$ tsc -p .
+packages/app-setup typecheck$ tsc -p .
+packages/app-setup typecheck: Done
+packages/app typecheck: Done
+packages/knowledge-core typecheck: Done
+packages/arc-surface typecheck$ tsc -p .
+packages/cli typecheck$ tsc -p .
+packages/arc-surface typecheck: Done
+packages/cli typecheck: Done
+packages/forest typecheck$ tsc -p .
+packages/forest typecheck: Done
+apps/desktop typecheck$ tsc -p .
+apps/desktop typecheck: Done

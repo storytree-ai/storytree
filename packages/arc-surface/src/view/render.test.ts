@@ -41,14 +41,15 @@ test("3/5 question list gives reading cost; opening swaps in the reading and bac
   assert.equal(renderBoard(board, "build", "removed-question"), list);
 });
 
-// Arc surface contract 3.1: the bar names its project and exposes its toggle state.
-test("3.1 the arc bar labels the project safely and exposes open/close to keyboard users", () => {
+// Arc surface contract 3.1: the bar is dedicated to arcs and exposes its toggle state.
+test("3.1 the arc bar omits the project and exposes open/close to keyboard users", () => {
   const closed = renderHandle('A <project> & "team"', false);
   assert.match(closed, /<button[^>]*type="button"/);
   assert.match(closed, /aria-label="Open arc surface"/);
   assert.match(closed, /aria-expanded="false" aria-controls="arc-drawer"/);
   assert.match(closed, />Arcs<\/span>/);
-  assert.match(closed, /A &lt;project&gt; &amp; &quot;team&quot;/);
+  assert.doesNotMatch(closed, /project|team/);
+  assert.doesNotMatch(renderHandle("storytree", true), /storytree/);
   const open = renderHandle("storytree", true);
   assert.match(open, /aria-label="Close arc surface"/);
   assert.match(open, /aria-expanded="true" aria-controls="arc-drawer"/);

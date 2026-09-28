@@ -6,32 +6,40 @@ import { settingsStyles } from "./styles.js";
 
 export { SETTINGS_CHANNELS, type SettingsBridge } from "../settings/bridge.js";
 
-/** Capability 10 owns its panel; the app menu only mounts it and supplies the desktop bridge. */
-export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options: { returnFocus: HTMLElement }) {
+/** Capability 10 owns its panel; the app surface only mounts it and supplies the desktop bridge. */
+export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options: { returnFocus: HTMLElement; embedded?: boolean }) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(settingsStyles);
   document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-  const launch = document.createElement("button");
-  launch.type = "button";
-  launch.textContent = "Settings";
-  launch.setAttribute("aria-haspopup", "dialog");
-  launch.setAttribute("aria-controls", "settings-panel");
-  host.append(launch);
-  const panel = document.createElement("dialog");
+  const launch = options.embedded ? null : document.createElement("button");
+  if (launch) {
+    launch.type = "button";
+    launch.textContent = "Settings";
+    launch.setAttribute("aria-haspopup", "dialog");
+    launch.setAttribute("aria-controls", "settings-panel");
+    host.append(launch);
+  }
+  const dialog = options.embedded ? null : document.createElement("dialog");
+  const panel = dialog ?? document.createElement("section");
   panel.id = "settings-panel";
-  panel.className = "settings-panel";
+  panel.className = `settings-panel${options.embedded ? " settings-panel-embedded" : ""}`;
   panel.setAttribute("aria-labelledby", "settings-title");
-  panel.innerHTML = `<header><div><h2 id="settings-title" tabindex="-1">Settings</h2><p>Yours on this computer · all projects</p></div><button type="button" data-close aria-label="Close settings">Close</button></header>
+  panel.hidden = !!options.embedded;
+  panel.innerHTML = `<header><div><h2 id="settings-title" tabindex="-1">Settings</h2><p>Yours on this computer · all projects</p></div>${options.embedded ? "" : '<button type="button" data-close aria-label="Close settings">Close</button>'}</header>
     <p data-loading role="status">Reading settings…</p><p data-read-error role="alert" hidden></p><button type="button" data-retry hidden>Retry</button><div data-settings></div>`;
-  document.body.append(panel);
+  (options.embedded ? host : document.body).append(panel);
   const get = <T extends HTMLElement = HTMLElement>(selector: string) => panel.querySelector<T>(selector)!;
   const rows = get("[data-settings]");
   let generation = 0;
   let stopped = false;
-  function close(): void { generation++; panel.close(); }
-  panel.addEventListener("close", () => options.returnFocus.focus());
-  panel.addEventListener("cancel", () => { generation++; });
-  panel.addEventListener("keydown", (event) => {
+  function close(): void {
+    generation++;
+    if (dialog) dialog.close();
+    else panel.hidden = true;
+  }
+  dialog?.addEventListener("close", () => options.returnFocus.focus());
+  dialog?.addEventListener("cancel", () => { generation++; });
+  dialog?.addEventListener("keydown", (event) => {
     if (event.key !== "Tab") return;
     const focusable = [...panel.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled)")]
       .filter((node) => node.getClientRects().length > 0);
@@ -42,7 +50,7 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
       event.preventDefault(); first?.focus();
     }
   });
-  get("[data-close]").addEventListener("click", close);
+  panel.querySelector("[data-close]")?.addEventListener("click", close);
   async function read(): Promise<void> {
     const mine = ++generation;
     rows.replaceChildren();
@@ -118,16 +126,17 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
     });
   }
   function open(): void {
-    if (stopped || panel.open) return;
-    panel.showModal();
+    if (stopped || (dialog ? dialog.open : !panel.hidden)) return;
+    if (dialog) dialog.showModal();
+    else panel.hidden = false;
     get("#settings-title").focus();
     void read();
   }
-  launch.addEventListener("click", open);
+  launch?.addEventListener("click", open);
   get("[data-retry]").addEventListener("click", () => { void read(); });
-  return { open, stop(): void {
+  return { open, close, stop(): void {
     stopped = true; generation++;
-    panel.remove(); launch.remove();
+    panel.remove(); launch?.remove();
     document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);
   } };
 }

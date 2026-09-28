@@ -1,0 +1,156 @@
+--- old/library/The app/capability 2/capability_3c5ed8b3ca70/description
++++ new/library/The app/capability 2/capability_3c5ed8b3ca70/description
+@@ -1 +1 @@
+-The app lists the storytree projects in its database and shows one at a time. A gear in the top-right corner opens a menu whose Project list moves the whole app to another project in place, alongside Help, Check for updates and a reserved place for Settings. The forest fills the window with no app bar. This capability also decides which project is on show when the app opens.
++The app lists the storytree projects in its database and shows one at a time. Its always-visible, full-width top app bar holds only a gear at the right. The gear opens a large centred overlay with Projects, Settings, Updates and Help sections. Projects moves the whole app to another project in place; Settings mounts the agent link's per-user panel, Updates mounts the app's existing update status, and Help mounts app-setup's existing help surface. The separate arcs-only bar sits below the app bar and the forest starts below both. This capability also decides which project is on show when the app opens.
+
+--- old/library/The app/capability 2/contract_8bb3b4cd424d/title
++++ new/library/The app/capability 2/contract_8bb3b4cd424d/title
+@@ -1 +1 @@
+-2.1 · The Project list inside the gear menu lists every project, with the one on show selected. Choosing another project switches the forest and closes the menu; a failed choice can be retried.
++2.1 · Projects in the gear overlay lists every project, with the one on show selected. Choosing another project switches the forest and closes the overlay; a failed choice shows its reason inside Projects and leaves the list available for retry.
+
+--- old/library/The app/capability 2/contract_7fe3a26af563/title
++++ new/library/The app/capability 2/contract_7fe3a26af563/title
+@@ -1 +1 @@
+-2.6 · One gear in the top-right corner opens and closes the app menu. Clicking the gear again, pressing Escape or clicking outside dismisses it. Escape returns keyboard focus to the gear.
++2.6 · The gear opens a full-size centred overlay below the always-visible app bar, with space around it at wide and narrow window sizes. Clicking the gear again, pressing Escape, the Close button or clicking the backdrop closes it and returns keyboard focus to the gear. While open, keyboard focus stays within the overlay and its reachable gear, and the app behind it is inert; dismissal does not also activate the forest or close the arc drawer.
+
+--- old/library/The app/capability 2/contract_896cc49b26c7/title
++++ new/library/The app/capability 2/contract_896cc49b26c7/title
+@@ -1 +1 @@
+-2.7 · Help in the gear menu opens the existing help surface and returns focus to the gear when closed. Check for updates opens the app story's update status in the menu. Settings has a reserved, disabled entry until its increment lands.
++2.7 · The gear overlay has Projects, Settings, Updates and Help sections. The app owns the overlay frame, project switcher and existing Check for updates surface; the agent link mounts its existing per-user Settings panel; app-setup mounts its existing Help surface, including its first-run offer. Settings and updates retain their existing reader, writer and action behaviour. The section navigation has room to grow as settings are added.
+
+--- old/library/The app/capability 2/contract_fcc253dba4c2/title
++++ new/library/The app/capability 2/contract_fcc253dba4c2/title
+@@ -1 +1 @@
+-2.8 · The forest fills the window with no app bar; the gear leaves the top strip to its left free. Pointer input outside the gear and its open menu reaches the forest, including the click that dismisses the menu. The existing data-state and data-drew smoke readings remain valid.
++2.8 · An always-visible full-width 48 px app bar holds only a 36 px gear at the right. A separate full-width 48 px arcs-only bar sits directly below it, with no project name. The forest and its controls start below both bars at 96 px, and the arc drawer opens below them. With the overlay closed, the forest receives pointer input below the bars or open drawer. The backdrop click that closes the overlay is consumed; subsequent forest input works. The existing data-state and data-drew smoke readings remain valid.
+
+--- old/library/The app/capability 2/definition_b7178be85573/meaning
++++ new/library/The app/capability 2/definition_b7178be85573/meaning
+@@ -10,9 +10,15 @@
+   leaves the forest alone when the list and choice are unchanged. The empty page explains how to
+   start Claude Code or Codex in a folder and say yes. The discovery-only inference and
+   batch-ordering limitation from PR #121 have been replaced by the explicit setup record.
+-  The app story now mounts `mountAppMenu` through `@storytree/app/view`: one top-right gear,
+-  a native light-dismiss popover and the project switcher moved from the desktop view.
+-  The desktop mounts it and app-setup's existing help surface; help returns focus to the gear.
+-  Check for updates opens the app story's update status in the menu. Settings remains a disabled
+-  reserved entry. No app bar occupies the forest's
+-  top strip; menu dismissal passes outside pointer input through and preserves the smoke census.
++  The app story mounts `mountAppMenu` through `@storytree/app/view`: a full-width 48 px app
++  bar with only a 36 px gear at the right, above the arc surface's separate 48 px arcs-only bar.
++  The forest and its controls start below both bars. The gear opens a large centred overlay
++  beneath its still-reachable app bar, with 32 px outer margins at wide widths and 12 px at
++  narrow widths. Its side list becomes a compact row in a narrow window. Projects, Settings,
++  Updates and Help each occupy a section: the app mounts the existing project switcher and
++  update status, the agent link mounts its existing settings panel, and app-setup mounts its
++  existing Help surface, including the first-run offer. The owning stories retain their
++  existing backend behaviour. Gear, Escape, Close and backdrop dismiss the overlay and return
++  focus to the gear. The shared frame keeps focus within its content and gear and makes the
++  background inert; the dismissing backdrop click is consumed. Project choice closes the
++  overlay on success and shows a retryable failure inside Projects. The forest smoke census is preserved.
+
+--- old/library/The app/capability 2/definition_4d85e83c5135/meaning
++++ new/library/The app/capability 2/definition_4d85e83c5135/meaning
+@@ -7,9 +7,14 @@
+   polls, picker recovery and reopening, last back-to-back setup, later picker precedence, last setup
+   while the window is closed, and explicit launch precedence. It checks empty guidance in the page;
+   there is no prose-wording unit test. Mint's headless browser proof passed with no page errors;
+-  the gear increment additionally runs native Electron smoke under a temporary X display.
+-  `packages/app/evidence/gear/capture.mjs` restores the supplied real snapshot and checks
+-  gear/menu geometry, click/Escape/outside dismissal, forest input, Help and return focus,
+-  project switching and failure recovery, narrow-window fit and the data-state/data-drew census.
+-  `electron-capture.mjs` drives `pnpm desktop:smoke` for the three menu states. Captures, red proof
+-  and measured results are in `packages/app/evidence/gear/`; appearance awaits the owner's review.
++  earlier gear captures in `packages/app/evidence/gear/` document the superseded dropdown.
++  The current geometry and overlay proof is `packages/app/evidence/top-bars/capture.mjs`:
++  it restores the supplied real snapshot and checks bar order/heights, gear-only app bar,
++  arcs-only second bar, drawer placement, all four dismissal routes, focus containment and
++  restoration, inert background and consumed backdrop click, later forest input, all four
++  mounted sections, project choice and recovery, unchanged settings save and updates action,
++  Help, narrow-window fit and the data-state/data-drew census. App view and arc render tests
++  pin the corresponding rendered controls. `electron-capture.mjs` drives `pnpm desktop:smoke`
++  against the same snapshot in a throwaway home. Evidence, red/green proof and closed-bar,
++  open-drawer, four-section and narrow-window captures are in `packages/app/evidence/top-bars/`.
++  Appearance, including the remounted updates and settings surfaces, awaits the owner's review.
+
+--- old/library/The arc surface/capability 3/capability_d077e76e50d7/description
++++ new/library/The arc surface/capability 3/capability_d077e76e50d7/description
+@@ -1 +1 @@
+-A full-width top bar beside the app gear opens one read-only drawer over the forest. The bar labels the project and reserves its top strip so the forest controls remain reachable. The drawer leaves the forest usable below and lists root arcs as dense two-line lanes (state chip and title, then small bars and count), with a bar for each increment, finished work first, each bar coloured by its work state, a count of what landed and what is open (never a percentage), and a chip with the lane's state and who is on it; Active, Parked and Closed each show their own arcs. It stays current while it is open: about every two seconds it asks for what changed in the library and the agent log, which the app carries to it, and it re-checks the clock once a minute, so an agent that goes quiet turns idle without any new record.
++A full-width arcs-only bar sits below the app story's separate gear-only app bar and opens one read-only drawer over the forest. The bar carries no project name. Both bars reserve their space above the forest so its controls remain reachable, and the drawer opens below them. The drawer leaves the forest usable below and lists root arcs as dense two-line lanes (state chip and title, then small bars and count), with a bar for each increment, finished work first, each bar coloured by its work state, a count of what landed and what is open (never a percentage), and a chip with the lane's state and who is on it; Active, Parked and Closed each show their own arcs. It stays current while it is open: about every two seconds it asks for what changed in the library and the agent log, which the app carries to it, and it re-checks the clock once a minute, so an agent that goes quiet turns idle without any new record.
+
+--- old/library/The arc surface/capability 3/contract_f64050164f89/title
++++ new/library/The arc surface/capability 3/contract_f64050164f89/title
+@@ -1 +1 @@
+-3.1 · A full-width top bar labeled Arcs and the project spans the window from its left edge up to the app’s top-right gear. Clicking either end opens or closes the drawer; the bar also works from the keyboard and Escape closes it, returning focus to the bar. The forest and its controls remain below the top strip and receive input below the closed bar or open drawer. The gear stays reachable at wide and narrow window sizes. No action writes library data, and it carries no Library switch or artifact links. While its first read is on the way it says so, and a read that fails says so rather than drawing an empty board.
++3.1 · A full-width 48 px bar labeled Arcs sits directly below the app's separate 48 px gear-only bar, spans the whole window and carries no project name. Clicking either end opens or closes the drawer below both bars; the bar also works from the keyboard and Escape closes it, returning focus to the bar. The forest and its controls remain below both bars and receive input below the closed bar or open drawer while the app overlay is closed. The gear remains reachable above the arc bar and open drawer at wide and narrow window sizes. No action writes library data, and it carries no Library switch or artifact links. While its first read is on the way it says so, and a read that fails says so rather than drawing an empty board.
+
+--- old/library/The arc surface/capability 3/definition_d40b09a10211/meaning
++++ new/library/The arc surface/capability 3/definition_d40b09a10211/meaning
+@@ -1,10 +1,11 @@
+ - **As built (top drawer, ADR-0660 D1–D3):** `boardView` and `watchBoard` keep their
+   existing state and live-reading rules. `mountArcSurface` from the `/view` subpath draws a
+-  nonmodal, half-height drawer below a 60 px full-width top bar. The bar leaves the app’s
+-  top-right gear its existing corner, with a 12 px gutter, and labels Arcs and the project.
+-  The mount reserves the strip above the forest and its controls; removing it releases that
+-  space. The forest remains usable below. The bar uses the forest controls’ existing palette.
+-  Its static project label preserves the rule that closing the drawer stops its reading.
++  nonmodal, half-height drawer below two full-width 48 px bars. The app owns the upper,
++  gear-only bar; the arc surface owns the lower, arcs-only bar with no project name. The
++  drawer starts at 96 px, below both bars, leaving the gear visible above it. The mounts
++  reserve their space above the forest and its controls; removing them releases that space.
++  The forest remains usable below. The bar uses the forest controls' existing palette.
++  Closing the drawer still stops its reading; only its placement and label have changed.
+   Root lanes use chip/title then bars/count; a fixed gutter caret reveals queued chips.
+   The viewer’s open/closed state, scope and selected arc persist per project in localStorage
+   under Electron’s existing userData home, with safe defaults if storage is unavailable or
+
+--- old/library/The arc surface/capability 3/definition_d7bec65ac642/meaning
++++ new/library/The arc surface/capability 3/definition_d7bec65ac642/meaning
+@@ -7,14 +7,16 @@
+   smoke, live settlement, read-only UI and persisted open/scope/selection across fresh
+   contexts. Evidence: `packages/arc-surface/evidence/drawer-shape/README.md`.
+ 
+-- **Full-width bar proof:** `render.test.ts` pins the accessible open/close state and escaped
+-  project label. `packages/arc-surface/evidence/arc-bar/capture.mjs` restores the supplied
+-  2026-09-28 real snapshot, without fixture arcs, and measures the bar at 1440 and 360 px:
+-  it reaches from the left edge to 12 px before the gear. It checks both-end toggle clicks,
+-  keyboard activation and Escape focus, forest controls and pointer input below the strip,
+-  pointer input below the open drawer, gear access, saved scope/open and closed state,
+-  read-only library history and the forest census. Red geometry records the old tab at x=682.
+-  `electron-capture.mjs` drives `pnpm desktop:smoke` for the closed and open views of the same
+-  snapshot restored into a throwaway home. Both native captures pass the all-scope arc smoke
+-  and forest census. Evidence: `packages/arc-surface/evidence/arc-bar/README.md`.
+-  Appearance remains for the owner to accept.
++- **Earlier full-width bar proof:** `packages/arc-surface/evidence/arc-bar/` documents the
++  previous project-labeled bar beside the gear. Its capture and native smoke covered both-end
++  toggle, keyboard and Escape focus, forest input, saved scope/open state, read-only history
++  and the forest census. Its 60 px bar, project label and corner-gear geometry are superseded.
++
++- **Current two-bar proof:** `render.test.ts` pins the arcs-only bar with no project label.
++  `packages/app/evidence/top-bars/capture.mjs` restores the supplied real snapshot and measures
++  the full-width 48 px app bar followed by the full-width 48 px arc bar, the forest starting at
++  96 px and the unchanged drawer opening below the bars. It checks wide and narrow geometry,
++  gear reachability, forest input below the bars and drawer, and preserved smoke readings.
++  `electron-capture.mjs` drives `pnpm desktop:smoke` for the closed bars and open drawer as well
++  as each overlay section. Evidence: `packages/app/evidence/top-bars/`. Appearance remains for
++  the owner to accept.
+
+--- old/library/The agent link/capability 10/contract 10.9 under capability_2902dfd80083 (resolve ID from applied settings-panel patch)/title
++++ new/library/The agent link/capability 10/contract 10.9 under capability_2902dfd80083 (resolve ID from applied settings-panel patch)/title
+@@ -1 +1 @@
+-10.9 · The Settings panel keeps keyboard focus inside it; Close or Escape returns focus to the gear. It fits a narrow window without horizontal scrolling. A failed read shows its reason and Retry, never fabricated defaults; a transport failure leaves Save available for retry.
++10.9 · The Settings panel is mounted inside the app's shared overlay, whose focus loop includes its sections and the reachable gear. Close or Escape closes the overlay and returns focus to the gear. Settings fits a narrow window without horizontal scrolling. A failed read shows its reason and Retry, never fabricated defaults; a transport failure leaves Save available for retry.
+
+--- old/library/The agent link/capability 10/capability_2902dfd80083/description
++++ new/library/The agent link/capability 10/capability_2902dfd80083/description
+@@ -3,4 +3,4 @@
+ Second setting (ADR-0734 D1, 2026-09-28): `library`, where the library lives, `local` by default or `cloudsql` with the Cloud SQL instance's connection name (project:region:instance) and the Google account to sign in as: `storytree settings set library cloudsql <instance> <user>`, or `storytree settings set library local`. Stored in the same file as `{ "location": "cloudsql", "instance": …, "user": … }`. Routing (capability 1) reads it to say where a project's library is; the app (the app story's lifecycle) reads it to decide whether to start its local Postgres at all.
+ 
+ 
+-As built: Settings in the app’s gear mounts the agent link’s panel through @storytree/agent-link/view. It lists every reading with its value, meaning and default or set-by-you source, and saves through capability 10’s existing writers over desktop IPC. Context guidance uses a numeric text field; Library offers local or Cloud SQL with its instance and account fields. Refusals appear inline verbatim; a read failure offers Retry, and closing returns keyboard focus to the gear. Evidence and owner-review captures: packages/agent-link/evidence/settings-panel/. Appearance awaits the owner’s acceptance.
++As built: Settings in the app's shared gear overlay mounts the agent link's panel through @storytree/agent-link/view. It lists every reading with its value, meaning and default or set-by-you source, and saves through capability 10's existing writers over desktop IPC. Context guidance uses a numeric text field; Library offers local or Cloud SQL with its instance and account fields. Refusals appear inline verbatim; a read failure offers Retry. The app's overlay owns dismissal and the shared focus loop, including its sections and gear; closing returns keyboard focus to the gear. The reader, writer and update-on-next-open semantics are unchanged. Earlier panel evidence: packages/agent-link/evidence/settings-panel/. Current owner-review captures: packages/app/evidence/top-bars/. Appearance awaits the owner's acceptance.

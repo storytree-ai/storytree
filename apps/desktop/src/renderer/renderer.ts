@@ -29,6 +29,7 @@ declare global {
 const content = element("content");
 const params = new URLSearchParams(location.search);
 const appMenu = mountAppMenu(element("app-menu-host"), {
+  background: content,
   checkForUpdates: (action) => window.storytree.checkForUpdates(action),
   chooseProject: async (name) => { await window.storytree.chooseProject(name); },
   onChosen: () => following?.refresh(),
@@ -36,7 +37,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
     showMessage("error", "The project could not be selected", messageOf(error));
     void following?.refresh(true);
   },
-  mountHelp: (host, returnFocus) => mountSetupHelp(host, window.storytree, { returnFocus }),
+  mountHelp: (host, returnFocus, onOpen) => mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen }),
 });
 window.addEventListener("beforeunload", () => appMenu.stop());
 

@@ -5,12 +5,13 @@ import { appMenuStyles } from "./styles.js";
 import { mountUpdates } from "./updates.js";
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
-/** A nonmodal menu; the browser handles click, Escape, outside dismissal and return focus. */
+/** The app owns the bars' top edge and overlay frame; each story mounts its own content. */
 export function mountAppMenu(host: HTMLElement, options: {
+  background: HTMLElement;
   chooseProject(name: string): Promise<void>;
   onChosen(): void | Promise<void>;
   onError(error: unknown): void;
-  mountHelp(host: HTMLElement, returnFocus: HTMLElement): { stop(): void };
+  mountHelp(host: HTMLElement, returnFocus: HTMLElement, onOpen: () => void): { open(): void; close(): void; stop(): void };
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
 }) {
   const sheet = new CSSStyleSheet();
@@ -21,26 +22,68 @@ export function mountAppMenu(host: HTMLElement, options: {
   const gear = host.querySelector<HTMLButtonElement>(".app-gear")!;
   const menu = host.querySelector<HTMLElement>("#app-menu")!;
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
-  const helpHost = menu.querySelector<HTMLElement>("[data-app-help]")!;
-  const help = options.mountHelp(helpHost, gear);
-  const settingsHost = menu.querySelector<HTMLElement>("[data-app-settings]")!;
+  const projectError = menu.querySelector<HTMLElement>("[data-app-project-error]")!;
   const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge }) | null;
-  const settings = mountSettings(settingsHost, {
+  const settings = mountSettings(menu.querySelector<HTMLElement>("[data-app-settings]")!, {
     readSettings: () => desktop!.storytree.readSettings(),
     saveSetting: (name, values) => desktop!.storytree.saveSetting(name, values),
-  }, { returnFocus: gear });
-  // Dismiss the popover before opening the modal, so its focus return cannot steal dialog focus.
-  settingsHost.addEventListener("click", () => menu.hidePopover(), { capture: true });
+  }, { returnFocus: gear, embedded: true });
+  const help = options.mountHelp(menu.querySelector<HTMLElement>("[data-app-help]")!, gear, () => {
+    selectSection("help");
+    menu.showPopover();
+  });
   const updates = mountUpdates(menu, options.checkForUpdates);
+  let section = "projects";
+  let stopped = false;
+  const wasInert = options.background.inert;
+  function selectSection(next: string): void {
+    if (stopped) return;
+    if (section !== next) {
+      if (section === "settings") settings.close();
+      if (section === "help") help.close();
+    }
+    section = next;
+    for (const panel of menu.querySelectorAll<HTMLElement>(".app-menu-content > section")) panel.hidden = panel.id !== `app-${next}`;
+    for (const button of menu.querySelectorAll<HTMLElement>("[data-app-section]")) button.setAttribute("aria-pressed", String(button.dataset.appSection === next));
+    if (next === "settings") settings.open();
+    else if (next === "help") help.open();
+  }
+  function close(): void { menu.hidePopover(); }
   const expanded = (event: ToggleEvent) => {
-    gear.setAttribute("aria-expanded", String(event.newState === "open"));
-    // A busy update disables its button, which can leave focus on the page. Restore the
-    // opener on dismissal without stealing focus from another control clicked outside.
-    if (event.newState === "closed" && document.activeElement === document.body) gear.focus();
+    const open = event.newState === "open";
+    gear.setAttribute("aria-expanded", String(open));
+    options.background.inert = open || wasInert;
+    if (open) selectSection(section);
+    else {
+      if (section === "settings") settings.close();
+      if (section === "help") help.close();
+      gear.focus();
+    }
   };
   menu.addEventListener("beforetoggle", expanded);
-  // Help owns its separate panel. Its mount returns focus to the gear when that panel closes.
-  helpHost.addEventListener("click", () => menu.hidePopover());
+  menu.querySelector("[data-app-close]")!.addEventListener("click", close);
+  menu.addEventListener("click", (event) => { if (event.target === menu) close(); });
+  for (const button of menu.querySelectorAll<HTMLButtonElement>("[data-app-section]")) {
+    button.addEventListener("click", () => selectSection(button.dataset.appSection!));
+  }
+  // Keep the always-visible gear in the focus loop. Escape must not also close the arc drawer.
+  const key = (event: KeyboardEvent) => {
+    if (!menu.matches(":popover-open")) return;
+    if (event.key === "Escape") {
+      event.stopImmediatePropagation();
+      if (menu.querySelector("select:open")) return; // Let the native picker consume its own Escape.
+      event.preventDefault(); close();
+    }
+    if (event.key !== "Tab") return;
+    const controls = [gear, ...menu.querySelectorAll<HTMLElement>("button:not(:disabled), select:not(:disabled), input:not(:disabled), textarea:not(:disabled), summary, a[href]")]
+      .filter((node) => node.getClientRects().length > 0);
+    if (event.shiftKey && document.activeElement === controls[0]) {
+      event.preventDefault(); controls.at(-1)?.focus();
+    } else if (!event.shiftKey && document.activeElement === controls.at(-1)) {
+      event.preventDefault(); gear.focus();
+    }
+  };
+  document.addEventListener("keydown", key, true);
 
   return {
     update({ projects, current }: ProjectSelection): void {
@@ -50,17 +93,23 @@ export function mountAppMenu(host: HTMLElement, options: {
       if (!projects.includes(current ?? "")) select.selectedIndex = -1;
       select.addEventListener("change", () => {
         select.disabled = true;
+        projectError.hidden = true;
         void options.chooseProject(select.value).then(async () => {
-          menu.hidePopover();
+          close();
           gear.focus();
           await options.onChosen();
-        }).catch(options.onError).finally(() => { select.disabled = false; });
+        }).catch((error: unknown) => {
+          projectError.textContent = `Couldn’t switch project: ${error instanceof Error ? error.message : String(error)}`;
+          projectError.hidden = false;
+          options.onError(error);
+        }).finally(() => { select.disabled = false; });
       });
     },
     stop(): void {
-      updates.stop();
-      help.stop();
-      settings.stop();
+      stopped = true;
+      updates.stop(); help.stop(); settings.stop();
+      options.background.inert = wasInert;
+      document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);
       menu.removeEventListener("beforetoggle", expanded);
       host.replaceChildren();

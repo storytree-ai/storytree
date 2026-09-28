@@ -6,9 +6,11 @@ import path from 'node:path';
 import test from 'node:test';
 import { launchOwned, localMachine, readProcess, type RunOwner, type RunRecord } from '../index.js';
 import * as listing from './index.js';
+import { stopOwned } from '../stopping/index.js';
 
 const owner: RunOwner = { session: 'parent', harness: 'codex' };
 const now = new Date('2026-09-28T01:00:00.000Z');
+let nextPid = 12345;
 async function ledger(t: { after(fn: () => Promise<void>): void }) {
   const home = await mkdtemp(path.join(tmpdir(), 'own-listing-'));
   t.after(() => rm(home, { recursive: true, force: true }));
@@ -16,7 +18,7 @@ async function ledger(t: { after(fn: () => Promise<void>): void }) {
   return home;
 }
 function record(overrides: Partial<RunRecord> = {}): RunRecord {
-  const pid = 12345;
+  const pid = nextPid++;
   return { version: 1, id: randomUUID(), owner, machine: localMachine(), command: 'node',
     args: ['server with spaces.mjs'], folder: process.cwd(), startedAt: '2026-09-28T00:00:00.000Z',
     pid, birth: { state: 'live', identity: { pid, platform: process.platform, boot: 'boot', started: 'start' } }, ...overrides };
@@ -51,6 +53,34 @@ test('3.1/3.3: self inventory keeps lifetime, request and owner findings separat
   assert.match(listing.renderInventory(result), /ended without reporting|launch identity unavailable/);
   await assert.rejects(listing.listRuns({ home }), /session identity.*--all/s);
   await assert.rejects(listing.listRuns({ home, owner: { session: ' ' } }), /session identity/);
+});
+
+test('3.5/4.1: every offered stop uses stopping authority, including named siblings and conflicting registrations', async t => {
+  const home = await ledger(t);
+  const own = record({ owner: { ...owner, agent: { subagent: 'builder' } } });
+  const sibling = record({ owner: { ...owner, agent: { subagent: 'reviewer' } } });
+  const parent = record();
+  const delegated = record({ owner: { session: 'delegated', harness: 'codex', parentSession: owner.session } });
+  const grandchild = record({ owner: { session: 'grandchild', harness: 'codex', parentSession: 'delegated' } });
+  const conflict = record();
+  const stranger = record({ pid: conflict.pid, birth: conflict.birth, owner: { session: 'stranger', harness: 'codex' } });
+  await save(home, own, sibling, parent, delegated, grandchild, conflict, stranger);
+  for (const caller of [owner, own.owner, { ...owner, agent: 'unknown' as const }]) {
+    const reading = await listing.listRuns({ home, owner: caller, scope: 'all',
+      probe: async identity => ({ state: 'live', identity }),
+      stopAction: run => ({ command: `storytree own stop ${run}`, tool: 'stop_own_run', arguments: { runs: [run] } }),
+    });
+    const stopped = await stopOwned({ home, owner: caller, targets: reading.rows.map(row => row.run.id) }, {
+      probe: async () => ({ state: 'gone' }), signal: async () => { throw new Error('must not signal'); },
+    });
+    for (const row of reading.rows) {
+      assert.equal(row.stop.available, stopped.targets.find(target => target.target === row.run.id)?.status !== 'refused',
+        `${JSON.stringify(caller)} offered ${row.run.id} outside stopping authority`);
+    }
+    const self = await listing.listRuns({ home, owner: caller });
+    if (typeof caller.agent === 'object') assert.deepEqual(self.rows.map(row => row.run.id), [own.id]);
+    if (caller.agent === 'unknown') assert.equal(self.rows.length, 0);
+  }
 });
 
 test('3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline', async t => {

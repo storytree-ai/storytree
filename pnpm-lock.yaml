@@ -72,6 +72,9 @@ importers:
 
   packages/agent-link:
     dependencies:
+      '@storytree/own':
+        specifier: workspace:*
+        version: link:../own
       '@modelcontextprotocol/server':
         specifier: ^2.1.0
         version: 2.1.0
@@ -184,6 +187,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@storytree/own':
+        specifier: workspace:*
+        version: link:../own
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link

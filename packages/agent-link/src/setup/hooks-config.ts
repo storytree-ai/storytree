@@ -58,6 +58,8 @@ export interface HooksReport {
   readonly "claude-code": HookRegistration;
   readonly codex: HookRegistration;
   readonly statusLine: StatusLineInstall;
+  /** The hook scripts of another build that registering replaced, by harness: present only when it replaced one. */
+  readonly replaced?: { readonly [harness in Harness]?: readonly string[] };
 }
 
 export interface RemovalReport {
@@ -100,10 +102,14 @@ export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
     } catch {
       continue;
     }
-    // A Claude Code argument is the path alone; a Codex command line holds it, perhaps quoted.
-    for (const text of strings) for (const found of text.matchAll(/(?:^|['"\s])((?:[A-Za-z]:)?[\\/][^'"]*?storytree-hook\.mjs)/g)) scripts.push(found[1]!);
+    scripts.push(...scriptsIn(strings));
   }
   return scripts;
+}
+
+/** The hook script paths in `strings`: a Claude Code argument is the path alone; a Codex command line holds it, perhaps quoted. */
+function scriptsIn(strings: readonly unknown[]): string[] {
+  return strings.flatMap((text) => typeof text !== "string" ? [] : [...text.matchAll(/(?:^|['"\s])((?:[A-Za-z]:)?[\\/][^'"]*?storytree-hook\.mjs)/g)].map((found) => found[1]!));
 }
 
 /**
@@ -111,10 +117,14 @@ export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
  * of them, and install storytree's status line in Claude Code where the user has none of their own.
  */
 export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set()): HooksReport {
+  const claude = disconnected.has("claude-code") ? { registration: "disconnected" as const, replaced: [] } : register(homes.claude, "settings.json", claudeEntries(hook), hook.script);
+  const codex = disconnected.has("codex") ? { registration: "disconnected" as const, replaced: [] } : register(homes.codex, "hooks.json", codexEntries(hook), hook.script);
+  const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}) };
   return {
-    "claude-code": disconnected.has("claude-code") ? "disconnected" : register(homes.claude, "settings.json", claudeEntries(hook)),
-    codex: disconnected.has("codex") ? "disconnected" : register(homes.codex, "hooks.json", codexEntries(hook)),
+    "claude-code": claude.registration,
+    codex: codex.registration,
     statusLine: disconnected.has("claude-code") ? "not here" : installStatusLine(homes.claude, hook),
+    ...(Object.keys(replaced).length > 0 ? { replaced } : {}),
   };
 }
 
@@ -237,21 +247,26 @@ function codexEntries({ node, script }: HookCommand): Record<string, HookEntry[]
   };
 }
 
-function register(home: string | undefined, file: string, entries: Record<string, HookEntry[]>): HookRegistration {
-  if (home === undefined || !isFolder(home)) return "not here";
+/** Register `entries` in `home`'s `file`, saying which other builds' hook scripts it replaced there. */
+function register(home: string | undefined, file: string, entries: Record<string, HookEntry[]>, script: string): { registration: HookRegistration; replaced: string[] } {
+  if (home === undefined || !isFolder(home)) return { registration: "not here", replaced: [] };
   const settingsFile = path.join(home, file);
   const settings = readSettings(settingsFile);
   const hooks = { ...(settings.hooks ?? {}) };
+  const replaced = new Set<string>();
   let changed = false;
   for (const [event, wanted] of Object.entries(entries)) {
     const current = hooks[event] ?? [];
     if (isDeepStrictEqual(current.filter(isStorytrees), wanted)) continue;
+    for (const entry of current.filter(isStorytrees)) {
+      for (const each of entry.hooks ?? []) for (const found of scriptsIn([each.command, ...(Array.isArray(each.args) ? each.args : [])])) if (found !== script) replaced.add(found);
+    }
     hooks[event] = [...current.filter((entry) => !isStorytrees(entry)), ...wanted];
     changed = true;
   }
-  if (!changed) return "already registered";
+  if (!changed) return { registration: "already registered", replaced: [] };
   writeSettings(settingsFile, { ...settings, hooks });
-  return "registered";
+  return { registration: "registered", replaced: [...replaced] };
 }
 
 function remove(home: string | undefined, file: string): "removed" | "none" {

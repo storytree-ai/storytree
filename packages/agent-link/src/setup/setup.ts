@@ -11,6 +11,7 @@
  * The tool server runs this at its start, and again whenever the agent calls check_setup; the
  * agent's part (firing each hook to verify it) goes through check_setup's answer.
  */
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { findProject, storytreeHome, suggestedName } from "../routing/index.js";
@@ -64,6 +65,8 @@ export interface SetupReport {
   readonly hooks: HooksReport | undefined;
   /** The project the folder is set up as, or the name to suggest when asking the user. */
   readonly project: { status: "set up"; name: string } | { status: "ask"; suggestion: string };
+  /** Whether Codex's config.toml has storytree's tool server; undefined without a Codex home here, or with Codex disconnected. */
+  readonly codexServer: { readonly state: "registered" | "missing"; readonly config: string } | undefined;
   /** What putting the `storytree` command on the path found; undefined when there was nothing to put there. */
   readonly command: CommandInstall | undefined;
   /** Whether `gh` is there and signed in, for release on merge. */
@@ -82,13 +85,33 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   });
   // A harness the user disconnected gets no hooks back until they connect it again (app-setup's connect).
   const disconnected = disconnectedHarnesses(options.storytreeHome ?? storytreeHome());
-  const hooks = options.hook === undefined ? undefined : registerHooks(options.homes ?? defaultHomes(), options.hook, disconnected);
+  const homes = options.homes ?? defaultHomes();
+  const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected);
+  const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex);
   const found = findProject(options.folder);
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
   const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"));
-  const [gh, machine, archives] = await Promise.all([(options.gh ?? ghState)(), (options.machine ?? machineState)(), readAppRecords(options.appPlaces)]);
-  const report = { storytree, hooks, project, command, gh, machine, archives };
+  const [gh, machine, archives] = await Promise.all([(options.gh ?? ghState)(), (options.machine ?? (() => machineState(homes.codex === undefined ? {} : { codexHome: homes.codex })))(), readAppRecords(options.appPlaces)]);
+  const report = { storytree, hooks, codexServer, project, command, gh, machine, archives };
   return { ...report, lines: setupLines(report) };
 }
 
+
+/** Whether Codex's config.toml in `home` registers storytree's tool server, where Codex has a home here. */
+function codexServerState(home: string | undefined): SetupReport["codexServer"] {
+  if (home === undefined) return undefined;
+  try {
+    if (!statSync(home).isDirectory()) return undefined;
+  } catch {
+    return undefined;
+  }
+  const config = path.join(home, "config.toml");
+  let text = "";
+  try {
+    text = readFileSync(config, "utf8");
+  } catch {
+    // No config yet: no server either.
+  }
+  return { state: /^\s*\[\s*mcp_servers\s*\.\s*(?:storytree|"storytree")\s*\]/m.test(text) ? "registered" : "missing", config };
+}

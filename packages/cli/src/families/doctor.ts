@@ -1,7 +1,7 @@
 /**
  * Capability 8 · Doctor (the command line story): run storytree's setup check from a terminal, the same one
  * every agent session start runs: is storytree running, are the hooks registered and last seen
- * firing, is this folder a project, is `storytree` on the path, is `gh` signed in, is Claude Code or
+ * firing, does Codex have storytree's tool server, is this folder a project, is `storytree` on the path, is `gh` signed in, is Claude Code or
  * Codex signed in, and are git and a usable Node there (ADR-0716). It fixes what the
  * check fixes by itself and names the fix for the rest, and it sets a folder up as a project only
  * when you tell it to.
@@ -42,8 +42,11 @@ function hooksSaid(report: SetupReport): string[] {
   }
   const said = (Object.keys(HARNESSES) as (keyof typeof HARNESSES)[]).map((harness) => {
     const state = report.hooks![harness];
-    return `Hooks for ${HARNESSES[harness]}: ${state === "registered" ? "registered now" : state === "already registered" ? "registered" : state === "disconnected" ? "none, since you disconnected it (`storytree setup connect` connects it again)" : "not installed on this machine"}.`;
+    const replaced = report.hooks!.replaced?.[harness] ?? [];
+    return `Hooks for ${HARNESSES[harness]}: ${state === "registered" ? `registered now${replaced.length > 0 ? `, replacing another build's hooks, which ran ${replaced.join(" and ")}` : ""}` : state === "already registered" ? "registered" : state === "disconnected" ? "none, since you disconnected it (`storytree setup connect` connects it again)" : "not installed on this machine"}.`;
   });
+  const server = report.lines.find((line) => line.check === "codex-server" && line.fix !== undefined);
+  if (server !== undefined) said.push(`${server.message} Fix: ${server.fix}`);
   const statusLine = report.hooks.statusLine;
   if (statusLine === "installed") said.push("Claude Code status line: storytree's installed now; it shows from the next session.");
   if (statusLine === "the user's own kept") said.push("Claude Code status line: yours is kept; storytree never replaces it.");

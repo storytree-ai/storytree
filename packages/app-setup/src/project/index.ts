@@ -20,6 +20,8 @@ export interface AddProjectOptions {
   readonly home?: string;
   /** How to reach the library. By default, the running app's (opened when it is closed). */
   readonly open?: (home: string) => Promise<Storytree>;
+  /** A library already open, such as the app's own: used, and left open. */
+  readonly library?: Storytree;
 }
 
 export function projectFolder(folder: string): ProjectFolder {
@@ -40,7 +42,7 @@ export async function addProject(folder: string, name: string, options: AddProje
   const current = projectFolder(folder);
   if ("project" in current) return { status: "already a project", ...current };
   const home = options.home ?? storytreeHome();
-  const storytree = await (options.open ?? openLibrary)(home);
+  const storytree = options.library ?? await (options.open ?? openLibrary)(home);
   try {
     mkdirSync(current.folder, { recursive: true });
     await setUpProject({ folder: current.folder, project: name, storytree, storytreeHome: home });
@@ -49,6 +51,15 @@ export async function addProject(folder: string, name: string, options: AddProje
     if (error instanceof Error && error.name === "ProjectNameError") return { status: "name refused", folder: current.folder, message: error.message };
     throw error;
   } finally {
-    await storytree.close();
+    if (options.library === undefined) await storytree.close();
+  }
+}
+
+/** `name`, or the first of `name-2`, `name-3`… that is no project yet, within the project-name length. */
+export function unusedName(name: string, taken: readonly string[]): string {
+  for (let n = 1; ; n++) {
+    const suffix = n === 1 ? "" : `-${n}`;
+    const candidate = `${name.slice(0, 40 - suffix.length).replace(/-+$/, "")}${suffix}`;
+    if (!taken.includes(candidate)) return candidate;
   }
 }

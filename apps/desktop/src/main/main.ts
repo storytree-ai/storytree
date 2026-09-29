@@ -149,9 +149,14 @@ async function run(): Promise<void> {
     },
     openExternal: (url) => shell.openExternal(url),
     copyText: async (text) => { clipboard.writeText(text); },
+    library: () => {
+      if (storytree === undefined) throw new Error("The library is not open");
+      return storytree;
+    },
   });
   ipcMain.handle(CHANNELS.readSetupLicense, () => help.readSetupLicense());
   ipcMain.handle(CHANNELS.checkSetupFolder, () => help.checkSetupFolder());
+  ipcMain.handle(CHANNELS.addProject, () => help.addProject());
   ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));
   ipcMain.handle(CHANNELS.copyHelpText, (_event, text: string) => help.copyHelpText(text));
 

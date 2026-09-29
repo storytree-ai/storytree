@@ -58,3 +58,6 @@
   box-shadow: none;
   overflow: visible;
 }
+.setup-add-project { margin-top: .75rem; }
+.setup-add-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
+.setup-add-project-status:empty { display: none; }

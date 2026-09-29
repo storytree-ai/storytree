@@ -46,6 +46,7 @@ export const CHANNELS = {
   checkForUpdates: "storytree:check-for-updates",
   readSetupLicense: "storytree:read-setup-license",
   checkSetupFolder: "storytree:check-setup-folder",
+  addProject: "storytree:add-project",
   openFeedbackDraft: "storytree:open-feedback-draft",
   copyHelpText: "storytree:copy-help-text",
   listProjects: "storytree:list-projects",

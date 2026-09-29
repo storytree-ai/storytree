@@ -106,14 +106,15 @@ test("8.1 with storytree closed, it opens it", async () => {
   });
 });
 
-test("8.2 with `gh` signed out, it names `gh auth login`", async () => {
+test("8.2 with `gh` signed out, it notes what gh is for and names no fix for it", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
 
     const ran = await world.run(["doctor"], user.env);
 
     assert.equal(ran.code, 0, ran.stderr);
-    assert.match(ran.stdout, /gh auth login/);
+    assert.match(ran.stdout, /gh command is not (signed in|installed)\. storytree works without it/);
+    assert.doesNotMatch(ran.stdout, /gh auth login/);
   });
 });
 

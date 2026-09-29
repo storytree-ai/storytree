@@ -12,12 +12,15 @@ test("2.6–2.8 the app bar holds only the gear and opens a sectioned overlay", 
   assert.match(html, /id="app-menu"[^>]*popover="auto"/);
   assert.match(html, /role="dialog"[^>]*aria-modal="true"/);
   assert.match(html, /aria-label="Close app menu"/);
-  for (const section of ["projects", "settings", "updates", "help"]) {
-    assert.match(html, new RegExp(`data-app-section="${section}"`));
-    assert.match(html, new RegExp(`id="app-${section}"`));
-  }
+  const sections = [...html.matchAll(/data-app-section="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(sections, ["projects", "sessions", "library", "surfaces", "updates", "help"], "no catch-all Settings tab");
+  for (const section of sections) assert.match(html, new RegExp(`id="app-${section}"`));
+  assert.doesNotMatch(html, /<h1/, "the tab on show is the heading");
+  assert.match(html, /role="dialog"[^>]*aria-label="App menu"/);
+  assert.match(html, /id="app-sessions"[^>]*>\s*<div data-app-settings="sessions">/);
+  assert.match(html, /id="app-library"[^>]*>\s*<div data-app-settings="library">/);
+  assert.match(html, /id="app-surfaces"[^>]*>\s*<div data-app-surfaces>/);
   assert.match(html, /data-app-help/);
-  assert.match(html, /data-app-settings/);
   assert.match(html, /<button(?![^>]*disabled)[^>]*data-app-updates[^>]*>Check for updates<\/button>/);
   assert.match(html, /role="status"[^>]*aria-live="polite"/);
 });

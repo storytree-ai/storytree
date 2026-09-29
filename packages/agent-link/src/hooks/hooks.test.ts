@@ -19,7 +19,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer, type AddressInfo } from "node:net";
+import { connect as connectTcp, createServer, type AddressInfo } from "node:net";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -34,6 +34,7 @@ import { buildBins } from "../bins/build.js";
 import { readContext } from "../context/index.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { readSettings, setSetting } from "../settings/settings.js";
+import { registerHooks } from "../setup/hooks-config.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
@@ -701,4 +702,50 @@ test("3.16 every line a hook writes records the git branch its folder is on, bes
       ["session-ended", undefined],
     ]);
   });
+});
+
+test("3.17 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", async () => {
+  const project = uniqueProjectName();
+  const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as { port: number };
+  // A store that answers only after 1.6 s: every connection is passed on to the test Postgres late.
+  const slow = createServer((client) => {
+    client.pause();
+    setTimeout(() => {
+      const upstream = connectTcp(owner.port, "127.0.0.1", () => {
+        client.pipe(upstream).pipe(client);
+        client.resume();
+      });
+      upstream.on("error", () => client.destroy());
+      client.on("error", () => upstream.destroy());
+    }, 1_600);
+  });
+  await new Promise<void>((resolve) => slow.listen(0, "127.0.0.1", resolve));
+  try {
+    await withTempDir(async (dir) => {
+      const folder = projectFolder(dir, project);
+      const home = path.join(dir, "slow-home");
+      mkdirSync(home);
+      writeFileSync(path.join(home, "pgdata.owner.json"), JSON.stringify({ ...owner, port: (slow.address() as AddressInfo).port }));
+      const claude = path.join(dir, "claude-home");
+      mkdirSync(claude);
+      registerHooks({ claude }, { node: process.execPath, script: hook });
+      const settings = JSON.parse(readFileSync(path.join(claude, "settings.json"), "utf8")) as { hooks: { SessionEnd: { hooks: { command: string; args: string[] }[] }[] } };
+      const { command, args } = settings.hooks.SessionEnd[0]!.hooks[0]!;
+
+      // Run as Claude Code runs it, and cut short at 1.5 s as Claude Code does (2.1.284: AbortSignal.timeout(1500)).
+      const child = spawn(command, args, { env: { ...process.env, STORYTREE_HOME: home }, stdio: ["pipe", "ignore", "ignore"], shell: false });
+      const cut = setTimeout(() => child.kill("SIGKILL"), 1_500);
+      await new Promise<void>((resolve) => {
+        child.on("exit", () => resolve());
+        child.stdin.end(recorded("claude-code", "session-end", folder));
+      });
+      clearTimeout(cut);
+
+      const deadline = Date.now() + 8_000;
+      while (!(await linesOf(project)).some((line) => line.kind === "session-ended") && Date.now() < deadline) await sleep(100);
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["session-ended"]);
+    });
+  } finally {
+    slow.close();
+  }
 });

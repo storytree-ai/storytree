@@ -1,0 +1,6 @@
+0.3.272.0
+.storytree.json
+I created `C:\Users\mickh\PF Project Folder\hello.txt`, which contains the word `hi`.
+rc=0 
+.storytree.json
+hello.txt

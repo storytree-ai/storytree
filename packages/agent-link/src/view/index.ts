@@ -1,13 +1,17 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import type { SettingsBridge } from "../settings/bridge.js";
-import { renderSettings } from "./render.js";
+import { renderSettings, SETTING_GROUPS } from "./render.js";
+import type { SettingGroup } from "../settings/settings.js";
 import { settingsStyles } from "./styles.js";
 
 export { SETTINGS_CHANNELS, type SettingsBridge } from "../settings/bridge.js";
 
-/** Capability 10 owns its panel; the app surface only mounts it and supplies the desktop bridge. */
-export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options: { returnFocus: HTMLElement; embedded?: boolean }) {
+/**
+ * Capability 10 owns its panel; the app surface only mounts it and supplies the desktop bridge.
+ * Given a group, the panel is that group's tab: its heading, and only the settings that declare it.
+ */
+export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options: { returnFocus: HTMLElement; embedded?: boolean; group?: SettingGroup }) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(settingsStyles);
   document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
@@ -21,11 +25,13 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
   }
   const dialog = options.embedded ? null : document.createElement("dialog");
   const panel = dialog ?? document.createElement("section");
-  panel.id = "settings-panel";
+  const key = options.group === undefined ? "" : `-${options.group}`;
+  const heading = options.group === undefined ? { title: "Settings", description: "Yours on this computer · all projects" } : SETTING_GROUPS[options.group];
+  panel.id = `settings-panel${key}`;
   panel.className = `settings-panel${options.embedded ? " settings-panel-embedded" : ""}`;
-  panel.setAttribute("aria-labelledby", "settings-title");
+  panel.setAttribute("aria-labelledby", `settings-title${key}`);
   panel.hidden = !!options.embedded;
-  panel.innerHTML = `<header><div><h2 id="settings-title" tabindex="-1">Settings</h2><p>Yours on this computer · all projects</p></div>${options.embedded ? "" : '<button type="button" data-close aria-label="Close settings">Close</button>'}</header>
+  panel.innerHTML = `<header><div><h2 id="settings-title${key}" data-settings-title tabindex="-1">${heading.title}</h2><p>${heading.description}</p></div>${options.embedded ? "" : '<button type="button" data-close aria-label="Close settings">Close</button>'}</header>
     <p data-loading role="status">Reading settings…</p><p data-read-error role="alert" hidden></p><button type="button" data-retry hidden>Retry</button><div data-settings></div>`;
   (options.embedded ? host : document.body).append(panel);
   const get = <T extends HTMLElement = HTMLElement>(selector: string) => panel.querySelector<T>(selector)!;
@@ -44,7 +50,7 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
     const focusable = [...panel.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled)")]
       .filter((node) => node.getClientRects().length > 0);
     const first = focusable[0], last = focusable.at(-1);
-    if (event.shiftKey && (document.activeElement === first || document.activeElement === get("#settings-title"))) {
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === get("[data-settings-title]"))) {
       event.preventDefault(); last?.focus();
     } else if (!event.shiftKey && document.activeElement === last) {
       event.preventDefault(); first?.focus();
@@ -61,7 +67,7 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
       const result = await bridge.readSettings();
       if (stopped || mine !== generation) return;
       if (!result.ok) throw new Error(result.error);
-      rows.innerHTML = renderSettings(result.value);
+      rows.innerHTML = renderSettings(result.value, options.group);
       for (const form of rows.querySelectorAll<HTMLFormElement>("form")) bind(form);
     } catch (error) {
       if (stopped || mine !== generation) return;
@@ -129,7 +135,7 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
     if (stopped || (dialog ? dialog.open : !panel.hidden)) return;
     if (dialog) dialog.showModal();
     else panel.hidden = false;
-    get("#settings-title").focus();
+    get("[data-settings-title]").focus();
     void read();
   }
   launch?.addEventListener("click", open);

@@ -6,16 +6,18 @@ export function renderAppMenu(): string {
       <circle cx="12" cy="12" r="3.2"/>
     </svg>
   </button></header>
-  <div id="app-menu" popover="auto" class="app-menu" role="dialog" aria-modal="true" aria-labelledby="app-menu-title">
+  <div id="app-menu" popover="auto" class="app-menu" role="dialog" aria-modal="true" aria-label="App menu">
     <div class="app-menu-window">
-      <header class="app-menu-header"><h1 id="app-menu-title">App</h1><button type="button" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button></header>
+      <header class="app-menu-header"><button type="button" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button></header>
       <div class="app-menu-body">
         <nav class="app-menu-sections" aria-label="App sections">
-          ${["Projects", "Settings", "Updates", "Help"].map((label) => `<button type="button" data-app-section="${label.toLowerCase()}" aria-controls="app-${label.toLowerCase()}" aria-pressed="${label === "Projects"}">${label}</button>`).join("")}
+          ${["Projects", "Sessions", "Library", "Surfaces", "Updates", "Help"].map((label) => `<button type="button" data-app-section="${label.toLowerCase()}" aria-controls="app-${label.toLowerCase()}" aria-pressed="${label === "Projects"}">${label}</button>`).join("")}
         </nav>
         <div class="app-menu-content">
           <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Choose the project to show in the forest, or add a folder as a new one.</p><div data-app-switcher></div><p class="app-project-error" data-app-project-error role="alert" hidden></p><div data-app-add-project></div></section>
-          <section id="app-settings" aria-label="Settings" hidden><div data-app-settings></div><div data-app-surfaces></div></section>
+          <section id="app-sessions" aria-label="Sessions" hidden><div data-app-settings="sessions"></div></section>
+          <section id="app-library" aria-label="Library" hidden><div data-app-settings="library"></div></section>
+          <section id="app-surfaces" aria-label="Surfaces" hidden><div data-app-surfaces></div></section>
           <section id="app-updates" aria-labelledby="app-updates-title" hidden><h2 id="app-updates-title" tabindex="-1">Updates</h2><p class="app-section-description">Keep storytree up to date.</p><button type="button" data-app-updates aria-describedby="app-update-status">Check for updates</button><div id="app-update-status" class="app-update-status" role="status" aria-live="polite" aria-atomic="true" hidden></div></section>
           <section id="app-help" aria-label="Help" hidden><div data-app-help></div></section>
         </div>

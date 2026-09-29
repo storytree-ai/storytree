@@ -30,10 +30,13 @@ export function mountAppMenu(host: HTMLElement, options: {
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
   const projectError = menu.querySelector<HTMLElement>("[data-app-project-error]")!;
   const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge & SurfacesBridge }) | null;
-  const settings = mountSettings(menu.querySelector<HTMLElement>("[data-app-settings]")!, {
+  const bridge: SettingsBridge = {
     readSettings: () => desktop!.storytree.readSettings(),
     saveSetting: (name, values) => desktop!.storytree.saveSetting(name, values),
-  }, { returnFocus: gear, embedded: true });
+  };
+  // The agent link offers its settings by group; each group is its own tab.
+  const sessions = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="sessions"]')!, bridge, { returnFocus: gear, embedded: true, group: "sessions" });
+  const library = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="library"]')!, bridge, { returnFocus: gear, embedded: true, group: "library" });
   const surfaces = mountSurfaces(menu.querySelector<HTMLElement>("[data-app-surfaces]")!, {
     readSurfaces: () => desktop!.storytree.readSurfaces(),
     saveSurface: (words) => desktop!.storytree.saveSurface(words),
@@ -55,17 +58,14 @@ export function mountAppMenu(host: HTMLElement, options: {
   let section = "projects";
   let stopped = false;
   const wasInert = options.background.inert;
+  const tabs: Record<string, { open(): void; close(): void }> = { sessions, library, surfaces, help };
   function selectSection(next: string): void {
     if (stopped) return;
-    if (section !== next) {
-      if (section === "settings") { settings.close(); surfaces.close(); }
-      if (section === "help") help.close();
-    }
+    if (section !== next) tabs[section]?.close();
     section = next;
     for (const panel of menu.querySelectorAll<HTMLElement>(".app-menu-content > section")) panel.hidden = panel.id !== `app-${next}`;
     for (const button of menu.querySelectorAll<HTMLElement>("[data-app-section]")) button.setAttribute("aria-pressed", String(button.dataset.appSection === next));
-    if (next === "settings") { settings.open(); surfaces.open(); }
-    else if (next === "help") help.open();
+    tabs[next]?.open();
   }
   function close(): void { menu.hidePopover(); }
   const expanded = (event: ToggleEvent) => {
@@ -74,8 +74,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     options.background.inert = open || wasInert;
     if (open) selectSection(section);
     else {
-      if (section === "settings") { settings.close(); surfaces.close(); }
-      if (section === "help") help.close();
+      tabs[section]?.close();
       gear.focus();
     }
   };
@@ -126,7 +125,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); help.stop(); settings.stop(); surfaces.stop(); addProject?.stop();
+      updates.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

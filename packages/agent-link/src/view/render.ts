@@ -1,8 +1,16 @@
 import type { PanelReadings } from "../settings/bridge.js";
+import type { SettingGroup } from "../settings/settings.js";
 
-export function renderSettings(readings: PanelReadings): string {
-  return Object.values(readings).map((reading, index) => {
-    const id = `setting-${index}`;
+/** Each group's tab heading and the line beneath it; a setting joins a tab by declaring its group. */
+export const SETTING_GROUPS: Readonly<Record<SettingGroup, { readonly title: string; readonly description: string }>> = {
+  sessions: { title: "Sessions", description: "How sessions are guided and listed. Yours on this computer, for all projects." },
+  library: { title: "Library", description: "Where the library lives. Yours on this computer, for all projects." },
+};
+
+/** The rows of one group's settings, or of every setting when no group is given. */
+export function renderSettings(readings: PanelReadings, group?: SettingGroup): string {
+  return Object.values(readings).filter((reading) => group === undefined || reading.group === group).map((reading, index) => {
+    const id = `setting-${group ?? "all"}-${index}`;
     const title = "label" in reading ? reading.label : reading.name.charAt(0).toUpperCase() + reading.name.slice(1).replaceAll("-", " ");
     const library = "location" in reading;
     const control = library

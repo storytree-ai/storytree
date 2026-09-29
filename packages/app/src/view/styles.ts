@@ -16,8 +16,7 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-menu::backdrop { background: transparent; pointer-events: none; }
 .app-menu, .app-menu * { box-sizing: border-box; }
 .app-menu-window { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden; border: 1px solid #485159; border-radius: 12px; background: #101418; box-shadow: 0 8px 30px rgb(0 0 0 / .25); }
-.app-menu-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid #485159; }
-.app-menu-header h1 { margin: 0; font: 600 16px/1.5 "Segoe UI", system-ui, sans-serif; }
+.app-menu-header { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 16px 24px; border-bottom: 1px solid #485159; }
 .app-menu button { font: inherit; }
 .app-menu-header button, [data-app-updates] { border: 1px solid #485159; border-radius: 6px; padding: 7px 12px; background: transparent; color: #eceae3; cursor: pointer; }
 .app-menu-header button span { margin-left: 12px; }
@@ -64,7 +63,6 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-update-status strong, .app-update-status span { display: block; }
 .app-update-status strong { font-weight: 600; color: #eceae3; }
 .app-update-status span { margin-top: 6px; color: #a9b0ba; }
-.surfaces { margin-top: 40px; padding-top: 28px; border-top: 1px solid #485159; }
 .surfaces code { font: inherit; }
 .surfaces-status { min-height: 1.5em; margin: -16px 0 8px; color: #a9b0ba; font-size: 12px; }
 .surface { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px 28px; padding: 18px 0; border-top: 1px solid #485159; }

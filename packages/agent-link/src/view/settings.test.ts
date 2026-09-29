@@ -26,3 +26,14 @@ test("10.7 the panel renders every reading with its value, source, meaning and l
     assert.doesNotMatch(more, /<img/);
   });
 });
+
+test("10.7 each settings tab shows the settings that declare its group, and a new one joins by its group alone", async () => {
+  await withTempDir((home) => {
+    const readings = readSettings(home);
+    const names = (html: string) => [...html.matchAll(/data-setting="([^"]+)"/g)].map((match) => match[1]);
+    assert.deepEqual(names(renderSettings(readings, "sessions")), ["context-guidance", "idle-after", "leave-after"]);
+    assert.deepEqual(names(renderSettings(readings, "library")), ["library"]);
+    const quiet = { ...readings["context-guidance"], name: "quiet-after" };
+    assert.deepEqual(names(renderSettings({ ...readings, "quiet-after": quiet }, "sessions")).at(-1), "quiet-after");
+  });
+});

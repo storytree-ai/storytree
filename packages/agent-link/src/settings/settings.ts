@@ -5,8 +5,12 @@ import path from "node:path";
 
 import { storytreeHome } from "../routing/index.js";
 
+/** The gear menu tab a setting shows under (the agent link's settings view offers its rows by group). */
+export type SettingGroup = "sessions" | "library";
+
 const contextGuidance = {
   name: "context-guidance",
+  group: "sessions",
   type: "positive whole number",
   unit: "tokens",
   default: 600_000,
@@ -15,6 +19,7 @@ const contextGuidance = {
 
 const idleAfter = {
   name: "idle-after",
+  group: "sessions",
   label: "Time before a quiet claim can be taken over",
   type: "duration",
   unit: "",
@@ -24,6 +29,7 @@ const idleAfter = {
 
 const leaveAfter = {
   name: "leave-after",
+  group: "sessions",
   label: "Time before a finished session leaves the list",
   type: "duration",
   unit: "",
@@ -33,6 +39,7 @@ const leaveAfter = {
 
 const library = {
   name: "library",
+  group: "library",
   default: "local",
   meaning:
     "Where the library lives: `local`, the storytree app's own database on this computer, or `cloudsql`, " +
@@ -41,6 +48,7 @@ const library = {
 
 interface ContextGuidanceReading {
   readonly name: "context-guidance";
+  readonly group: "sessions";
   readonly type: "positive whole number";
   readonly unit: "tokens";
   readonly default: number;
@@ -51,6 +59,7 @@ interface ContextGuidanceReading {
 
 interface IdleReading {
   readonly name: "idle-after" | "leave-after";
+  readonly group: "sessions";
   readonly label: string;
   readonly type: "duration";
   readonly unit: "";
@@ -67,6 +76,7 @@ export type LibraryLocation = { readonly location: "local" } | { readonly locati
 
 export type LibraryReading = LibraryLocation & {
   readonly name: "library";
+  readonly group: "library";
   readonly default: "local";
   readonly meaning: string;
   readonly source: "default" | "set";

@@ -15,7 +15,7 @@ export function renderAppMenu(): string {
         </nav>
         <div class="app-menu-content">
           <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Choose the project to show in the forest.</p><div data-app-switcher></div><p class="app-project-error" data-app-project-error role="alert" hidden></p></section>
-          <section id="app-settings" aria-label="Settings" hidden><div data-app-settings></div></section>
+          <section id="app-settings" aria-label="Settings" hidden><div data-app-settings></div><div data-app-surfaces></div></section>
           <section id="app-updates" aria-labelledby="app-updates-title" hidden><h2 id="app-updates-title" tabindex="-1">Updates</h2><p class="app-section-description">Keep storytree up to date.</p><button type="button" data-app-updates aria-describedby="app-update-status">Check for updates</button><div id="app-update-status" class="app-update-status" role="status" aria-live="polite" aria-atomic="true" hidden></div></section>
           <section id="app-help" aria-label="Help" hidden><div data-app-help></div></section>
         </div>

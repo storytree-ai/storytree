@@ -18,7 +18,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { attachPanZoom, openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
+import { attachPanZoom, openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
 import { renderNoProjects } from "../view/view.js";
 
 declare global {
@@ -34,6 +34,8 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   checkForUpdates: (action) => window.storytree.checkForUpdates(action),
   chooseProject: async (name) => { await window.storytree.chooseProject(name); },
   onChosen: () => following?.refresh(),
+  // A surface switched or set in the Surfaces menu shows at once: the project is drawn again.
+  onSurfacesChanged: () => { if (current !== undefined && showing !== undefined) void redraw(current); },
   onError: (error) => {
     showMessage("error", "The project could not be selected", messageOf(error));
     void following?.refresh(true);
@@ -133,7 +135,7 @@ async function showForest(name: string): Promise<void> {
       inPanel?.moving.stop();
       inPanel = undefined;
       panel.hidden = false;
-      mine.card ??= mountArtifactCard(panel, core, () => mine.view?.select(undefined));
+      mine.card ??= mountLibraryPanel(panel, core, () => mine.view?.select(undefined));
       return;
     }
     mine.card?.();
@@ -230,6 +232,15 @@ async function showForest(name: string): Promise<void> {
       if (showing === mine && document.body.dataset.state !== "ready") showMessage("error", "The forest could not be read", messageOf(error));
     },
   });
+}
+
+/** Draw project `name` again from the start, as the surfaces now say. */
+async function redraw(name: string): Promise<void> {
+  stopShowing();
+  setState("loading");
+  delete document.body.dataset.drew;
+  delete document.body.dataset.selected;
+  await showForest(name).catch((error: unknown) => showMessage("error", "Something went wrong", messageOf(error)));
 }
 
 function stopShowing(): void {

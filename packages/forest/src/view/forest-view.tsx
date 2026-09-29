@@ -62,7 +62,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     root.render(<>
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
         selected={drawn.selected} highlighted={drawn.highlighted} highlightedSession={drawn.highlightedSession}
-        onPick={pick} onNote={pickNote} onWispHover={onWispHover} mode={drawn.mode} framing={globeFraming(opening)} />
+        onPick={pick} onNote={pickNote} onWispHover={onWispHover} mode={drawn.mode} framing={globeFraming(opening)} library={library} />
       {library && <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
@@ -116,8 +116,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
 }
 
-/** Mount the knowledge core's existing card in the slot also used by the story panel. */
-export function mountArtifactCard(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {
+/** Mount the Library panel, the knowledge core's card for the note picked, in the slot the story panel also uses. */
+export function mountLibraryPanel(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {
   const root = createRoot(container);
   root.render(<KnowledgeNoteCard core={core} onClose={onClose} />);
   return () => root.unmount();

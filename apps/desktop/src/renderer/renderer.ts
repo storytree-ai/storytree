@@ -176,7 +176,7 @@ async function showForest(name: string): Promise<void> {
     },
     closed: () => panel.querySelector<HTMLButtonElement>("[data-open-tree]")?.focus(),
   });
-  const core = createKnowledgeCore(name);
+  const core = createKnowledgeCore(name, { reads: window.storytree });
   const view = await openForestView(holder, (selection) => {
     delete document.body.dataset.selected;
     delete document.body.dataset.note;

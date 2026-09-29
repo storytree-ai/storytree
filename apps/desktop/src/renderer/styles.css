@@ -460,6 +460,25 @@ body[data-surface="forest"] main {
   border-radius: 50%;
 }
 
+.core-window {
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #485159;
+}
+
+.core-window h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.core-window-files {
+  margin: 0.3rem 0;
+  padding-left: 1.1rem;
+  color: #cfd6e4;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
 .core-card {
   margin-top: 0.8rem;
   padding-top: 0.6rem;

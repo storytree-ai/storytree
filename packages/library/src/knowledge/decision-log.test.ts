@@ -12,6 +12,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { byCreation } from "../creation-order.js";
 import { connect } from "../project/index.js";
 import { SchemaError, SchemaRecords } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
@@ -347,8 +348,10 @@ for (const backend of [memory, postgres]) {
     const open = await knowledge.recordDecision({ ...DECIDE, title: "Queue the mail", status: "proposed" });
     await knowledge.composeStatement(open.id, "Mail waits in a queue.");
     const views = await knowledge.decisions();
-    assert.deepEqual(views, await Promise.all([old.id, next.id, open.id].map((id) => knowledge.decision(id))));
-    assert.deepEqual(views.map(({ status }) => status), ["superseded", "accepted", "proposed"]);
+    const records = [old, next, open].sort(byCreation);
+    assert.deepEqual(views, await Promise.all(records.map(({ id }) => knowledge.decision(id))), "oldest first, each as decision(id) reads it");
+    const status = Object.fromEntries(views.map((view) => [view.record.id, view.status]));
+    assert.deepEqual(status, { [old.id]: "superseded", [next.id]: "accepted", [open.id]: "proposed" });
   });
 
   contract("13.3", "status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one", async ({ knowledge, records, transactions }) => {

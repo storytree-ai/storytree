@@ -159,7 +159,7 @@ test("6.3 land and worklist use the calling session's start, including resumed a
     assert.notEqual(quiet.isError, true);
     assert.doesNotMatch(JSON.stringify(quiet.content), /Next:/);
     const quietWork = await call(client, "worklist", { memoryFolders: [] });
-    assert.deepEqual(quietWork.structuredContent!.worklist, { graduation: [] });
+    assert.deepEqual(quietWork.structuredContent!.worklist, { graduation: [], friction: [] });
     await library.defineTerm({ term: "Round", meaning: "A librarian's pass" });
     await setTimeout(5);
     await log.append(library.name, { session: "curator", harness: "codex", source: "hook", kind: "session-started", how: "resume" });

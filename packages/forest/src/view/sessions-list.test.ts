@@ -69,3 +69,24 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
   assert.equal(isSessionRows([{ id: "parent" }]), false);
   assert.equal(isSessionRows({ rows: [row] }), false);
 });
+
+test("7.8 one expander per row, counting its children; expanded, a row lists its worktrees' full paths, its window's files (gone ones muted) and then its children", () => {
+  const busy: SessionRow = { ...row, worktrees: ["/home/me/code/app/.claude/worktrees/one", "/home/me/code/app/.claude/worktrees/two"] };
+  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], onHighlight() {} }));
+  assert.equal(folded.match(/<button/g)?.length, 2, "every row has one expander, a childless one too");
+  assert.doesNotMatch(folded, /session-detail/);
+  const files = new Map([["parent", { files: [{ path: "src/a.ts", resident: true }, { path: "src/b.ts", resident: false }] }]]);
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]), files, onHighlight() {} }));
+  const parentRow = html.match(/data-session-id="parent".*?<\/div>/s)?.[0] ?? "";
+  assert.equal(parentRow.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");
+  assert.match(parentRow, />\+1<\/button>/);
+  assert.match(html, /aria-expanded="true"/);
+  const detail = html.match(/class="session-detail".*?<\/div>/s)?.[0] ?? "";
+  assert.ok(detail.includes("/home/me/code/app/.claude/worktrees/one") && detail.indexOf("worktrees/one") < detail.indexOf("worktrees/two"), detail);
+  assert.match(detail, /<li[^>]*>src\/a\.ts<\/li>/);
+  assert.match(detail, /<li[^>]*data-resident="no"[^>]*>src\/b\.ts<\/li>/);
+  assert.ok(html.indexOf("session-detail") < html.indexOf('data-session-id="child"'), "children follow the detail");
+  const unread = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]),
+    files: new Map([["parent", { absent: "no hook has named this session's transcript" }]]), onHighlight() {} }));
+  assert.match(unread, /no hook has named this session&#x27;s transcript/);
+});

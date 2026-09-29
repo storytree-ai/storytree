@@ -665,3 +665,22 @@ test("8.11 a tool that exits while something it started still holds its output i
     assert.ok(Date.now() - started < 10_000, `answered when gh exited, not at the deadline: ${Date.now() - started}ms`);
   });
 });
+
+test("8.13 the check says whether storytree can read which sessions the Claude desktop app and Codex keep and have archived; where it cannot, it says sessions here leave the list after the leave-after time instead, and never makes that a fix (ADR-0754 D4)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const options = { ...ANSWERED, folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const };
+    const absent = await runSetupCheck({ ...options, appPlaces: { claudeSessions: path.join(dir, "no-claude"), codexState: path.join(dir, "no-codex", "state_5.sqlite") } });
+    const line = absent.lines.find((each) => each.check === "archives");
+    assert.deepEqual({ state: line?.state, fix: line?.fix }, { state: "note", fix: undefined });
+    assert.match(line?.message ?? "", /leave-after/);
+
+    const sessions = path.join(dir, "Claude", "claude-code-sessions", "account", "org");
+    mkdirSync(sessions, { recursive: true });
+    writeFileSync(path.join(sessions, "local_1.json"), JSON.stringify({ cliSessionId: "one", isArchived: true }));
+    const read = await runSetupCheck({ ...options, appPlaces: { claudeSessions: path.dirname(path.dirname(sessions)), codexState: path.join(dir, "no-codex", "state_5.sqlite") } });
+    const readLine = read.lines.find((each) => each.check === "archives");
+    assert.equal(readLine?.state, "ok");
+    assert.match(readLine?.message ?? "", /Claude desktop app.*1 session/);
+  });
+});

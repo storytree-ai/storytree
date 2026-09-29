@@ -24,7 +24,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { ghState, machineState, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
+import { ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -539,6 +539,30 @@ test("8.9 in a throwaway home, the first start puts a storytree command on the p
     assert.equal((await start()).command, "another storytree kept");
     assert.equal(removeCommand(command), "none");
     assert.equal(readFileSync(file, "utf8"), "a storytree of the user's own\n", "theirs, untouched");
+  });
+});
+
+test("8.9 storytree's own command in a folder outside the home is never touched: the command goes into the home's folder, and removing takes out only that one (regression: launcher.test rewrote developers' real command, 2026-09-29)", async () => {
+  await withTempDir(async (dir) => {
+    const home = path.join(dir, "home");
+    const bin = path.join(home, ".local", "bin");
+    const elsewhere = path.join(dir, "elsewhere", "bin");
+    for (const folder of [bin, elsewhere]) mkdirSync(folder, { recursive: true });
+    const name = process.platform === "win32" ? "storytree.cmd" : "storytree";
+    // Another home's install of storytree, left by the setup check under a different HOME.
+    const theirs = path.join(elsewhere, name);
+    const hook: HookCommand = { node: process.execPath, script: hookScript };
+    putCommandOnPath({ path: elsewhere, home: path.dirname(elsewhere) }, hook.node, path.join(dir, "an older storytree.mjs"));
+    const before = readFileSync(theirs, "utf8");
+    const command = { path: [bin, elsewhere].join(path.delimiter), home };
+
+    assert.equal(putCommandOnPath(command, hook.node, path.join(path.dirname(hookScript), "storytree.mjs")), "installed");
+    assert.ok(existsSync(path.join(bin, name)), "put in the home's folder");
+    assert.equal(readFileSync(theirs, "utf8"), before, "the one outside the home, untouched");
+
+    assert.equal(removeCommand(command), "removed");
+    assert.equal(existsSync(path.join(bin, name)), false);
+    assert.equal(readFileSync(theirs, "utf8"), before, "and still there after removing");
   });
 });
 

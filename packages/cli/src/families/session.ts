@@ -1,9 +1,10 @@
 /**
+ * `storytree session list [--all] [--json]`: the running sessions, as the app's list shows them.
  * `storytree session close-out --safe yes|no --why <text>` (ADR-0758 D2): the calling agent session
- * records whether it is safe to close, and why. A front door only: the agent link writes the line
- * and counts the session's own running work.
+ * records whether it is safe to close, and why. A front door only: the agent link reads the
+ * sessions, writes the line and counts the session's own running work.
  */
-import { closeOut } from "@storytree/agent-link";
+import { closeOut, sessionsListing } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -31,8 +32,21 @@ const close: Verb = {
   },
 };
 
+const list: Verb = {
+  name: "list",
+  usage: "session list [--all] [--json]",
+  summary: "the running sessions, as the app's list shows them: --all adds the hidden ones",
+  switches: ["all", "json"],
+  async act(args, context) {
+    const { log, project } = await context.activityContext();
+    const json = args.has("json");
+    const text = await sessionsListing(log, project, { all: args.has("all"), json });
+    return json ? { text } : { text, next: [{ command: "storytree session list --all", why: "the hidden sessions too" }] };
+  },
+};
+
 export const session: Family = {
   name: "session",
-  summary: "close out this agent session (the agent link's)",
-  verbs: [close],
+  summary: "list the running sessions, or close out this one (the agent link's)",
+  verbs: [list, close],
 };

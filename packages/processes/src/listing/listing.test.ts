@@ -172,3 +172,13 @@ test('3.1: the inventory observes a real owned process live and then gone throug
   assert.equal(inventory.rows[0]?.process.state, 'gone');
   assert.equal(inventory.rows[0]?.endedWithoutReport, true);
 });
+
+test('the shared app row advises only commands the app family has', () => {
+  for (const running of [true, false]) {
+    const row = listing.appDatabaseWork(running);
+    assert.equal(row.state, 'unknown');
+    assert.match(row.reason, running ? /database running/ : /database not running/);
+    assert.match(row.reason, /storytree app quit/);
+    assert.doesNotMatch(row.reason, /storytree app status/);
+  }
+});

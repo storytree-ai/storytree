@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, coreScene, curvePoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, windowView, type CoreInput } from "./look-inside.js";
+import { agentPaths, arcKey, arrived, coreScene, curvePoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, ringArcs, SIZE_LABELS, windowView, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -289,6 +289,34 @@ test("4.15 a newly read note stays unlit until the growing line into it arrives;
   assert.deepEqual([...heldNotes(steps, starts, 2000, grow, new Set())], ["c"], "b lights the moment its line arrives");
   assert.deepEqual([...heldNotes(steps, starts, 1500, grow, new Set(["c"]))], ["b"], "a note already lit stays lit");
   assert.deepEqual([...heldNotes(steps, starts, 3000, grow, new Set())], [], "every line has arrived");
+});
+
+test("4.17 a note several listed sessions read shows each: its dot in the latest reader's colour, one ring arc per session in arrival order, each arc once that session's line arrives", () => {
+  const history = project();
+  const [a, b, c] = ["hsl(200, 80%, 68%)", "hsl(300, 80%, 68%)", "hsl(100, 80%, 68%)"];
+  const roster = [
+    { session: "a", label: "Signup", colour: a, members: ["a"] },
+    { session: "b", label: "Billing", colour: b, members: ["b"] },
+    { session: "c", label: "Search", colour: c, members: ["c"] },
+  ];
+  const lines = [read("b", "deep", "whole", "orchestrator"), read("a", "deep", "whole", "orchestrator"), read("c", "deep", "peek", "orchestrator"),
+    read("b", "deep", "whole", "orchestrator"), read("c", "cover", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const all = lighting(reads, roster, undefined, new Set(known.notes.keys()));
+  assert.deepEqual([all.get("deep")!.colour, ringArcs(all.get("deep")!)], [b, [b, a, c]], "b reached it first and read it last");
+  assert.deepEqual([all.get("cover")!.colour, ringArcs(all.get("cover")!)], [c, []], "one reader, no ring");
+
+  const drawn = (held: string[]) => {
+    const lit = arrived(all, new Set(held)).get("deep");
+    return lit === undefined ? undefined : [lit.colour, ringArcs(lit)];
+  };
+  assert.deepEqual(drawn([arcKey("deep", a)]), [b, [b, c]], "a's arc waits for a's line");
+  assert.deepEqual(drawn([arcKey("deep", b)]), [c, [a, c]], "the dot wears the latest reader whose line has arrived");
+  assert.deepEqual(drawn([arcKey("deep", a), arcKey("deep", b)]), [c, []]);
+  assert.equal(drawn([arcKey("deep", a), arcKey("deep", b), arcKey("deep", c)]), undefined, "no line has arrived: unlit");
+
+  const note = coreScene(input(history, lines, { roster })).notes.find(({ id }) => id === "deep")!;
+  assert.deepEqual([note.colour, note.arcs], [b, [b, a, c]], "the inside view draws the same ring");
 });
 
 test("4.5 looking inside keeps failure attention and the flat forest one click away, and returning restores the globe and selection", () => {

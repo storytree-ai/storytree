@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Line, NewLine } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import { sessionRoster, sessionRows } from "./sessions-list.js";
+import { sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -99,4 +99,13 @@ test("the knowledge core's roster is exactly the listed rows, each with its chil
     { session: "off", label: "Tidy", colour: sessionColour("off"), members: ["off"] },
     { session: "quiet", label: "Codex", colour: sessionColour("quiet"), members: ["quiet"] },
   ]);
+});
+
+test("7.8 a row's files are its window's opened files, each once in the order first opened, those no longer in the window marked; no reading says why", () => {
+  const open = (id: string, resident: boolean, kind: "file" | "note" = "file") => ({ kind, id, call: id, tool: "Read", resident, inViewFrom: [] });
+  const files = windowFiles({ session: "parent", at: now.toISOString(), inView: [], compactions: 1,
+    opens: [open("a.ts", false), open("note_0123456789ab", true, "note"), open("b.ts", true), open("a.ts", true), open("c.ts", false)] });
+  assert.deepEqual(files, { files: [{ path: "a.ts", resident: true }, { path: "b.ts", resident: true }, { path: "c.ts", resident: false }] });
+  assert.deepEqual(windowFiles({ session: "parent", at: now.toISOString(), absent: "no hook has named this session's transcript" }),
+    { absent: "no hook has named this session's transcript" });
 });

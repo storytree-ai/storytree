@@ -1,0 +1,20 @@
+✖ 3.4 Add project: the picked folder becomes a project under its own name (kept apart from an existing one of that name) and is shown; a folder already a project is simply selected; cancelling does nothing (1.38722ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 464.309015
+
+✖ failing tests:
+
+test at packages/app-setup/src/help/add-project.test.ts:1:358
+✖ 3.4 Add project: the picked folder becomes a project under its own name (kept apart from an existing one of that name) and is shown; a folder already a project is simply selected; cancelling does nothing (1.38722ms)
+  TypeError: actions.addProject is not a function
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/projfolder-2/packages/app-setup/src/help/add-project.test.ts:26:30)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)

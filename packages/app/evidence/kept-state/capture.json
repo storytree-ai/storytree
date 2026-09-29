@@ -1,0 +1,110 @@
+{
+  "shots": [
+    {
+      "shot": "0-first-launch-fresh",
+      "state": "ready",
+      "fresh": null,
+      "freshness": null,
+      "canvas": 1,
+      "islands": [
+        "Pay",
+        "Settings",
+        "Sign up"
+      ],
+      "arcState": "ready",
+      "arcStatus": "",
+      "lanes": [
+        "arc_ae1d56f39ed2"
+      ],
+      "sessionsFresh": null,
+      "sessions": [
+        "s1"
+      ]
+    },
+    {
+      "shot": "1-next-launch-kept-state",
+      "state": "loading",
+      "fresh": "no",
+      "freshness": "Showing the forest as last read. Refreshing…",
+      "canvas": 1,
+      "islands": [
+        "Pay",
+        "Settings",
+        "Sign up"
+      ],
+      "arcState": "refreshing",
+      "arcStatus": "Showing the arcs as last read. Refreshing…",
+      "lanes": [
+        "arc_ae1d56f39ed2"
+      ],
+      "sessionsFresh": "no",
+      "sessions": [
+        "s1"
+      ]
+    },
+    {
+      "shot": "1b-next-launch-kept-forest",
+      "state": "loading",
+      "fresh": "no",
+      "freshness": "Showing the forest as last read. Refreshing…",
+      "canvas": 1,
+      "islands": [
+        "Pay",
+        "Settings",
+        "Sign up"
+      ],
+      "arcState": "refreshing",
+      "arcStatus": "Showing the arcs as last read. Refreshing…",
+      "lanes": [
+        "arc_ae1d56f39ed2"
+      ],
+      "sessionsFresh": "no",
+      "sessions": [
+        "s1"
+      ]
+    },
+    {
+      "shot": "2-refresh-failing-keeps-kept-state",
+      "state": "loading",
+      "fresh": "no",
+      "freshness": "The forest could not be read: timeout exceeded when trying to connect. Showing it as last read; retrying…",
+      "canvas": 1,
+      "islands": [
+        "Pay",
+        "Settings",
+        "Sign up"
+      ],
+      "arcState": "error",
+      "arcStatus": "Arcs could not be read: timeout exceeded when trying to connect. Retrying…",
+      "lanes": [
+        "arc_ae1d56f39ed2"
+      ],
+      "sessionsFresh": "no",
+      "sessions": [
+        "s1"
+      ]
+    },
+    {
+      "shot": "3-library-back-fresh",
+      "state": "ready",
+      "fresh": null,
+      "freshness": null,
+      "canvas": 1,
+      "islands": [
+        "Pay",
+        "Settings",
+        "Sign up"
+      ],
+      "arcState": "ready",
+      "arcStatus": "",
+      "lanes": [
+        "arc_ae1d56f39ed2"
+      ],
+      "sessionsFresh": null,
+      "sessions": [
+        "s1"
+      ]
+    }
+  ],
+  "browser": "148.0.7778.96"
+}

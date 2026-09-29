@@ -3,7 +3,8 @@
  * draws the project on show as its 3D forest (the forest story, capability 3), kept current by the
  * arc surface's live reading (@storytree/arc-surface). `data-state` on the body says where it got to
  * (loading, ready, empty, missing, error), and `data-drew` what the forest drew, both of which the
- * smoke check reads. `data-selected` names the story node a click selected.
+ * smoke check reads. `data-fresh="no"` marks a forest drawn from the tree kept at the last start,
+ * shown while the state is still loading. `data-selected` names the story node a click selected.
  */
 import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
@@ -12,7 +13,7 @@ import { mountAppMenu } from "@storytree/app/view";
 import { mountAddProject, mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
-import { drillDown, forestDrawn, forestScene, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
+import { drillDown, forestDrawn, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -206,6 +207,19 @@ async function showForest(name: string): Promise<void> {
     onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
   core.onSelect(session => mine.sessions?.select(session));
 
+  // The tree this project last drew, at once and marked as not yet fresh, while the first read runs.
+  // The page stays "loading" until that read lands; a failure meanwhile keeps the kept forest on show.
+  const kept = keptTree(name);
+  const last = kept.read();
+  if (last !== undefined) {
+    view.show(forestScene(last, history, workStates(lines)), new Map(storyNodes(last, history).map(node => [node.id, node.place])));
+    showFreshness("Showing the forest as last read. Refreshing…");
+  }
+  const failed = (heading: string, error: unknown): void => {
+    if (showing !== mine || document.body.dataset.state === "ready") return;
+    if (document.body.dataset.fresh === "no") showFreshness(`${heading}: ${messageOf(error)}. Showing it as last read; retrying…`);
+    else showMessage("error", heading, messageOf(error));
+  };
   let drawing = Promise.resolve();
   mine.reading = liveReading({
     project: name,
@@ -222,16 +236,14 @@ async function showForest(name: string): Promise<void> {
         core.take(history, news.lines);
         sayWhatWasDrawn(forestDrawn(scene));
         if (!panel.hidden) showPanel();
+        kept.write(tree);
+        showFreshness(undefined);
         setState("ready");
-      }).catch((error: unknown) => {
-        if (showing === mine && document.body.dataset.state !== "ready") showMessage("error", "Something went wrong", messageOf(error));
-      });
+      }).catch((error: unknown) => failed("Something went wrong", error));
     },
     // A quiet holder's wisp fades on the sessions list's own clock (capability 5), not this one.
     onClock: () => {},
-    onError: (error) => {
-      if (showing === mine && document.body.dataset.state !== "ready") showMessage("error", "The forest could not be read", messageOf(error));
-    },
+    onError: (error) => failed("The forest could not be read", error),
   });
 }
 
@@ -252,8 +264,27 @@ function stopShowing(): void {
   showing?.sessions?.stop();
   showing?.view?.dispose();
   showing = undefined;
+  showFreshness(undefined);
   delete document.body.dataset.surface;
   delete document.body.dataset.note;
+}
+
+/** Mark the forest on show as the one last read, with why (`data-fresh="no"`), or clear the mark. */
+function showFreshness(text: string | undefined): void {
+  let mark = document.getElementById("freshness");
+  if (text === undefined) {
+    mark?.remove();
+    delete document.body.dataset.fresh;
+    return;
+  }
+  if (mark === null) {
+    mark = document.createElement("p");
+    mark.id = "freshness";
+    mark.setAttribute("role", "status");
+    content.append(mark);
+  }
+  mark.textContent = text;
+  document.body.dataset.fresh = "no";
 }
 
 /**

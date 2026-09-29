@@ -26,7 +26,6 @@ const close: Verb = {
     const counted = running === undefined ? "Your own running work could not be counted, so a yes will show as needing the owner." : running === 0 ? "Nothing of yours is running here." : `${running} run${running === 1 ? "" : "s"} of yours still ${running === 1 ? "runs" : "run"} here: stop ${running === 1 ? "it" : "them"} (storytree processes) and close out again.`;
     return {
       text: `Closed out: ${safe === "yes" ? "safe to close" : "not safe to close"} (${why}). ${counted}`,
-      next: [{ command: "storytree processes", why: "what of yours still runs here" }],
     };
   },
 };

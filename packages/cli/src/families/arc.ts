@@ -90,13 +90,7 @@ const show: Verb = {
       lines.push(`  - ${how}  ${increment.id}  ${increment.fields.title}`);
       if (outcome?.note !== undefined) lines.push(`      ${outcome.note}`);
     }
-    return {
-      text: lines.join("\n"),
-      next: [
-        { command: `storytree arc increment new --arc ${arc.id} --title <t> --objective <o> --body <text|@file>`, why: "park work on it" },
-        { command: `storytree question new --arc ${arc.id} …`, why: "ask the owner something" },
-      ],
-    };
+    return { text: lines.join("\n") };
   },
 };
 
@@ -232,6 +226,7 @@ const increment: Family = {
   name: "increment",
   summary: "the increments of an arc's work",
   verbs: [incrementNew, incrementAdd, incrementClose, incrementEdit, ...waiting("arc increment", "increment")],
+  guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
 };
 
 const list: Verb = {
@@ -257,4 +252,5 @@ export const arcs: Family = {
   summary: "arcs, and the increments of their work",
   verbs: [show, list, create, edit, parking("park"), parking("unpark"), ...waiting("arc", "arc")],
   families: [increment],
+  guesses: { read: "arc show <arc>", get: "arc show <arc>", open: "arc show <arc>" },
 };

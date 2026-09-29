@@ -21,7 +21,6 @@ function switching(name: "built" | "proposed"): Verb {
         text: name === "built"
           ? `Capability ${id} (${done.fields.title}) is no longer proposed. Its word now comes from what storytree verified.`
           : `Capability ${id} (${done.fields.title}) is proposed again.`,
-        next: [{ command: "storytree tree", why: "see the plan" }],
       };
     },
   };

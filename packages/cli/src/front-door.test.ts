@@ -84,3 +84,35 @@ test("1.6 `--help` after a command prints its usage and summary, and runs nothin
     assert.match(ran.stdout, /raise a question for the owner/);
   });
 });
+
+test("1.7 a command it does not have answers with the real command for that job, or the nearest one", async () => {
+  await inWorld(command, async (world) => {
+    const asked: [readonly string[], RegExp][] = [
+      [["library", "show", "x"], /storytree library read <id>/],
+      [["question", "show", "x"], /storytree library read <id>/],
+      [["arc", "increment", "show", "x"], /storytree library read <id>/],
+      [["claim", "x"], /storytree workspace <increment\b/],
+      [["board"], /storytree noticeboard/],
+      [["library", "serch", "mailer"], /storytree library search <words…>/],
+      [["questoin", "list"], /storytree question\b/],
+    ];
+    for (const [argv, answer] of asked) {
+      // In a folder that is no project: the refusal needs no library.
+      const ran = await storytree(command.script, argv, { cwd: world.elsewhere, home: world.home });
+
+      assert.equal(ran.code, 2, `${argv.join(" ")}: ${ran.stderr}`);
+      assert.match(ran.stderr, answer, argv.join(" "));
+    }
+  });
+});
+
+test("1.8 an answer's next: offers only what opens a record it just named", async () => {
+  await inWorld(command, async (world) => {
+    const term = await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
+
+    const ran = await world.run(["library", "read", term.id]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.doesNotMatch(ran.stdout, /library history/);
+  });
+});

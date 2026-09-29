@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Hooks, contract 3.17 (ADR-0758 D4): when a Claude Code turn ends in a storytree
+ * Capability 3 · Hooks, contract 3.17 (ADR-0758 D4): when a Claude Code or Codex turn ends in a storytree
  * project on a branch whose work has reached main, and the session has not closed out, the Stop
  * hook asks it to, once. Real git in a throwaway repository with an origin beside it; the close-out
  * is written to the real log on the Postgres `pnpm test` provides.
@@ -27,8 +27,8 @@ test("3.17 a turn that ends with its branch merged and no close-out is asked, on
     git(site, "commit", "-m", "first");
     git(site, "remote", "add", "origin", origin);
     git(site, "push", "-q", "origin", "main");
-    const stop = (session: string, extra: Record<string, unknown> = {}) =>
-      runHook({ argv: ["claude-code", CLOSE_OUT_REMINDER], input: JSON.stringify({ hook_event_name: "Stop", session_id: session, cwd: site, ...extra }) });
+    const stop = (session: string, extra: Record<string, unknown> = {}, harness = "claude-code") =>
+      runHook({ argv: [harness, CLOSE_OUT_REMINDER], input: JSON.stringify({ hook_event_name: "Stop", session_id: session, cwd: site, ...extra }) });
     const [asked, again, caused, done] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 
     assert.equal(await stop(asked), undefined, "on main: nothing to close out");
@@ -43,6 +43,8 @@ test("3.17 a turn that ends with its branch merged and no close-out is asked, on
     assert.match(reminder.reason ?? "", /fix-login/);
     assert.match(reminder.reason ?? "", /storytree session close-out --safe yes\|no --why/);
     assert.equal(await stop(asked), undefined, "asked once per session");
+    const codex = JSON.parse((await stop(randomUUID(), {}, "codex")) ?? "{}") as { decision?: string };
+    assert.equal(codex.decision, "block", "a Codex session is asked the same way");
     assert.equal(await stop(again, { stop_hook_active: true }), undefined, "never again for the turn the reminder itself caused");
 
     const log = await openActivityLog(testServerUrl());

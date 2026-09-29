@@ -16,6 +16,8 @@
  *   its shell (PowerShell on Windows, sh elsewhere), so the line is written for the shell of this
  *   machine. Codex has no background hooks, so the ones before each shell command and at the end of
  *   each turn pass `--background`: the hook hands its writing to a copy of itself and exits (hooks.ts).
+ *   A second end-of-turn hook runs in the foreground, since Codex reads a Stop hook's block as
+ *   Claude Code does: it may ask the agent to close out (ADR-0758 D4).
  *   Codex runs a newly added hook only after the user approves it once (ADR-0626 D4).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -207,7 +209,8 @@ function codexEntries({ node, script }: HookCommand): Record<string, HookEntry[]
       { matcher: "^Bash$", hooks: [run(10, true)] },
     ],
     PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: [run(10)] }],
-    Stop: [{ hooks: [run(10, true)] }],
+    // As in Claude Code: the turn's line in the background, then a foreground check whose block Codex reads (ADR-0758 D4).
+    Stop: [{ hooks: [run(10, true)] }, { hooks: [{ type: "command", command: `${line} ${CLOSE_OUT_REMINDER}`, timeout: 10 }] }],
     UserPromptSubmit: [{ hooks: [run(10)] }],
     SessionEnd: [{ hooks: [run(3)] }],
   };

@@ -8,9 +8,9 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "idle",
-  needsYou: true, totalTokens: 120_000, stories: ["signup"], children: [
+  needsYou: true, totalTokens: 120_000, stories: ["signup"], worktrees: [], children: [
     { id: "child", label: "Read the library", agent: "Subagent", state: "observed", needsYou: false,
-      totalTokens: undefined, stories: [], children: [] },
+      totalTokens: undefined, stories: [], worktrees: [], children: [] },
   ] };
 
 test("7.1–7.5 rows start folded, show safe words and available total beside its bar", () => {

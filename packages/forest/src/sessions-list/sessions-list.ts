@@ -29,20 +29,28 @@ export interface SessionRow {
   /** What those tokens are made of, when the reading could tell. */
   composition?: ContextGroups | undefined;
   stories: string[];
+  /** Every folder the session has worked in, oldest first (ADR-0749 D2); none for an observed subagent. */
+  worktrees: string[];
   children: SessionRow[];
 }
 
+/** The longest a row's name runs, as a claim reason is held (ADR-0737 D2). */
+const LABEL_LIMIT = 40;
+
+/**
+ * One row per session that has not ended, claimed or not (ADR-0749 D1), each judged idle by
+ * `quietMs`, the user's idle-after setting (the 30-minute default when the caller has none).
+ */
 export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: readonly ArcView[], now: Date,
-  details: ReadonlyMap<string, SessionDetails> = new Map()): SessionRow[] {
-  const sessions = sessionsFrom(lines, { now });
+  details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number): SessionRow[] {
+  const judged = quietMs === undefined ? { now } : { now, quietMs };
+  const sessions = sessionsFrom(lines, judged);
   const ended = new Set(sessions.filter(session => session.state === "ended").map(session => session.session));
-  const claims = claimsFrom(lines, { now });
+  const claims = claimsFrom(lines, judged);
   const increments = arcs.flatMap(arc => arc.increments);
   const storyOf = new Map(tree.stories.flatMap(story => [[story.id, story.id], ...story.capabilities.map(cap => [cap.id, story.id])] as [string, string][]));
   const rows = new Map<string, SessionRow>();
   const parents = new Map<string, string>();
-  /** Sessions that earn a row of their own: they hold a claim. Unclaimed work earns none (ADR-0737 D1). */
-  const listed = new Set<string>();
   for (const session of sessions) {
     if (session.state === "ended") continue;
     const own = claims.filter(claim => claim.session === session.session);
@@ -51,14 +59,13 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     for (const increment of heldIncrements) for (const id of increment.fields.touches ?? []) held.add(id);
     const question = arcs.some(arc => arc.questions.some(q => q.fields.lifecycle === "open") &&
       arc.increments.some(inc => inc.fields.status !== "closed" && (heldIncrements.includes(inc) || inc.fields.touches?.some(id => held.has(id)))));
-    if (own.length > 0) listed.add(session.session);
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
     rows.set(session.session, { id: session.session,
-      label: own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title || session.label,
+      label: own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title || workingIn(session.label, lines, session.session, session.worktrees),
       agent: session.label, state: session.state, needsYou: question,
       totalTokens: contextTotal(detail), composition: detail?.composition,
-      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], children: [] });
+      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees, children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
@@ -66,7 +73,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
       agent: line.type ?? "Subagent", state: "observed", needsYou: false,
-      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], children: [] });
+      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
   const roots: SessionRow[] = [];
@@ -87,8 +94,19 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     row.stories = [...new Set([...row.stories, ...row.children.flatMap(child => child.stories)])];
   }
   for (const row of roots) includeChildren(row);
-  const earnsRow = (row: SessionRow): boolean => listed.has(row.id) || row.children.some(earnsRow);
-  return roots.filter(earnsRow);
+  return roots;
+}
+
+/**
+ * An unclaimed session's name: its harness and what it works in, the branch its latest claim was
+ * taken on, or else the last folder it worked in, held to the label limit. Never an off-plan label.
+ */
+function workingIn(harness: string, lines: readonly Line[], session: string, worktrees: readonly string[]): string {
+  const branch = lines.filter(line => line.session === session && line.kind === "claimed" && line.branch !== undefined)
+    .sort((a, b) => a.seq - b.seq).at(-1);
+  const place = branch?.kind === "claimed" ? branch.branch : worktrees.at(-1)?.split(/[\\/]/).filter(Boolean).at(-1);
+  const label = place === undefined ? harness : `${harness} · ${place}`;
+  return label.length > LABEL_LIMIT ? `${label.slice(0, LABEL_LIMIT - 1)}…` : label;
 }
 
 /** The knowledge core's roster (ADR-0738 D2): each listed row, in its own colour, with every child session under it. */

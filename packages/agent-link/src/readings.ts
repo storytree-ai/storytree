@@ -27,8 +27,10 @@ export interface Session {
   harness?: string;
   /** The harness as people call it: "Claude Code", "Codex". */
   label: string;
-  /** The folder it works in. */
+  /** The folder it started in: its start line's, or else its first line's. */
   folder?: string;
+  /** Every folder its lines name, in the order it first worked in each: one session may work in many worktrees (ADR-0749 D2). */
+  worktrees: string[];
   /** When its first line was written. */
   startedAt: string;
   /** When its latest line was written. */
@@ -68,12 +70,14 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     const latest = own.at(-1)!;
     const harness = own.find((line) => line.harness !== undefined)?.harness;
     const folder = (own.find((line) => line.kind === "session-started" && line.folder !== undefined) ?? own.find((line) => line.folder !== undefined))?.folder;
+    const worktrees = [...new Set(own.flatMap((line) => (line.folder === undefined ? [] : [line.folder])))];
     const state: SessionState = latest.kind === "session-ended" ? "ended" : isQuiet(own, now, quietMs) ? "idle" : "live";
     return {
       session,
       ...(harness === undefined ? {} : { harness }),
       label: labelOf(harness),
       ...(folder === undefined ? {} : { folder }),
+      worktrees,
       startedAt: first.at,
       lastSeenAt: latest.at,
       state,

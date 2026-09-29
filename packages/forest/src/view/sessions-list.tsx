@@ -14,6 +14,8 @@ export interface SessionsReads extends LiveReads {
   arcView(project: string, id: string): Promise<ArcView | null>;
   /** The agent link's context readings (9.5, 9.8) for these sessions, read now; the rows' bars and totals. */
   contextReadings?(project: string, sessions: readonly string[]): Promise<readonly ContextReading[]>;
+  /** The user's idle-after setting in milliseconds; without it the list judges idleness by the 30-minute default. */
+  idleAfterMs?(): Promise<number>;
 }
 
 /** How often the listed sessions' context readings are asked for again. */
@@ -52,6 +54,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   let rows: SessionRow[] = [];
   let details: ReadonlyMap<string, SessionDetails> = new Map();
   let readings: ReadonlyMap<string, SessionDetails> = new Map();
+  let quietMs: number | undefined;
   let askedAt = -Infinity;
   let asking = false;
   let highlighted: string | undefined;
@@ -68,6 +71,9 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (ask === undefined || asking || Date.now() - askedAt < READING_EVERY_MS || rows.length === 0) return;
     asking = true;
     askedAt = Date.now();
+    options.reads.idleAfterMs?.().then(ms => { quietMs = ms; }, () => {
+      // An unreadable setting keeps the last one read; the next ask tries again.
+    });
     ask.call(options.reads, options.project, everyId(rows)).then(answers => {
       readings = new Map(answers.map(reading => [reading.session, detailsOf(reading)]));
     }, () => {
@@ -79,8 +85,8 @@ export function mountSessionsList(container: HTMLElement, options: {
   };
   const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined) return;
-    rows = sessionRows(tree, lines, arcs, now, merged());
-    options.onWisps?.(sessionWisps(rows, lines, now));
+    rows = sessionRows(tree, lines, arcs, now, merged(), quietMs);
+    options.onWisps?.(sessionWisps(rows, lines, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
     if (ask) askReadings();
@@ -213,7 +219,9 @@ export function SessionsList({ rows, loading = false, error, highlighted, select
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
           {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
-          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}`}>{row.label}</span>
+          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.join("\n")}` : ""}`}>{row.label}</span>
+          {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.join("\n")}
+            aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
           {row.children.length > 0 && <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} ${row.children.length} children of ${row.label}`}
             onClick={event => { event.stopPropagation(); setExpanded(toggle(expanded, row.id)); }}>+{row.children.length}</button>}

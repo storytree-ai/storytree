@@ -27,8 +27,8 @@ export interface SessionWisp {
 }
 
 /** The wisps the listed `rows` draw at time `now`: one per row and island, in list order. */
-export function sessionWisps(rows: readonly SessionRow[], lines: readonly Line[], now: Date): SessionWisp[] {
-  const quiet = new Set(sessionsFrom(lines, { now })
+export function sessionWisps(rows: readonly SessionRow[], lines: readonly Line[], now: Date, quietMs?: number): SessionWisp[] {
+  const quiet = new Set(sessionsFrom(lines, quietMs === undefined ? { now } : { now, quietMs })
     .filter(session => session.state === "idle" && session.hooksRunning).map(session => session.session));
   return rows.flatMap(row => row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id),
     phase: (hashOf(row.id) >>> 8) % 360, faded: quiet.has(row.id) })));

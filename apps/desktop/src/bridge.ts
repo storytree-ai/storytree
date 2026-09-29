@@ -19,6 +19,8 @@ export interface StorytreeBridge extends SetupHelpBridge {
   heldOnQuestion(name: string, id: string): Promise<string[]>;
   /** Each named session's context reading in a project, read now. Refused for a name that is not a project. */
   contextReadings(name: string, sessions: readonly string[]): Promise<ContextReading[]>;
+  /** The user's idle-after setting in milliseconds, read now. */
+  idleAfterMs(): Promise<number>;
   /** A project's tree, with every node's health. Refused for a name that is not a project. */
   projectTree(name: string): Promise<AnnotatedTree>;
   /**
@@ -51,6 +53,7 @@ export const CHANNELS = {
   waitHolds: "storytree:wait-holds",
   heldOnQuestion: "storytree:held-on-question",
   contextReadings: "storytree:context-readings",
+  idleAfterMs: "storytree:idle-after-ms",
   projectTree: "storytree:project-tree",
   changesSince: "storytree:changes-since",
   linesSince: "storytree:lines-since",

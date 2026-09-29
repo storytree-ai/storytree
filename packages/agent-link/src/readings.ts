@@ -28,6 +28,26 @@ export const LONGEST_COMMAND_MS = 12 * 60 * 60 * 1000;
  */
 export type SessionState = "working" | "waiting" | "ended" | "gone";
 
+/**
+ * How long a session with no open work stays listed once quiet, counted from its last line or
+ * from when its work resolved, whichever is later: 12 hours (ADR-0754 D4). Node readers pass the
+ * user's leave-after setting.
+ */
+export const LEAVE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Whether the running-sessions list shows a session (ADR-0754 D4): listed; done (shown dimmed: a
+ * session the Claude or Codex app keeps, whose work has resolved and which has ended or been quiet
+ * past the leave-after time, until it is archived there); or hidden.
+ */
+export type Listing = "listed" | "done" | "hidden";
+
+/** The apps that keep their own record of sessions, and can archive them. */
+export type SessionApp = "claude-desktop" | "codex";
+
+/** Branches that are a project's main line, never a session's own work. */
+const MAIN_BRANCHES = new Set(["main", "master"]);
+
 /** One agent window, as the activity log shows it. */
 export interface Session {
   /** The harness's own id for the session. */
@@ -47,6 +67,16 @@ export interface Session {
   state: SessionState;
   /** False while no hook of this session has written a line: it is flagged "hooks not running". */
   hooksRunning: boolean;
+  /** Every branch other than the main line its lines name, in the order it first worked on each (ADR-0754 D4). */
+  branches: string[];
+  /** Those of its branches that still hold open work: not merged, still ahead of the main line, and not deleted. */
+  openWork: string[];
+  /** The app that keeps this session in its own record, when one does. */
+  app?: SessionApp;
+  /** Whether that app has it archived. */
+  archived: boolean;
+  /** Whether the running-sessions list shows it. */
+  listing: Listing;
 }
 
 export interface SessionOptions {
@@ -54,6 +84,8 @@ export interface SessionOptions {
   readonly now?: Date;
   /** How long a session whose hooks report no turns may be quiet before it reads as waiting. By default, QUIET_MS in browser readings; the per-user setting in Node readers. */
   readonly quietMs?: number;
+  /** How long a session with no open work stays listed once quiet. By default, LEAVE_MS in browser readings; the per-user leave-after setting in Node readers. */
+  readonly leaveMs?: number;
 }
 
 /** The harnesses people know by another name than their id. */
@@ -68,11 +100,17 @@ export function labelOf(harness: string | undefined): string {
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {
   const now = (options.now ?? new Date()).getTime();
   const quietMs = options.quietMs ?? QUIET_MS;
+  const leaveMs = options.leaveMs ?? LEAVE_MS;
   const bySession = new Map<string, Line[]>();
+  // What lines written by other sessions say about a branch, and about a session the apps keep: the latest of each.
+  const branchStates = new Map<string, Line & { kind: "branch-state" }>();
+  const appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
     const own = bySession.get(line.session);
     if (own === undefined) bySession.set(line.session, [line]);
     else own.push(line);
+    if (line.kind === "branch-state") branchStates.set(line.of, line);
+    else if (line.kind === "session-archived" || line.kind === "session-unarchived") appRecords.set(line.of, line);
   }
   return [...bySession.entries()].map(([session, own]) => {
     const first = own[0]!;
@@ -82,6 +120,16 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     const worktrees = [...new Set(own.flatMap((line) => (line.folder === undefined ? [] : [line.folder])))];
     const state: SessionState = latest.kind === "session-ended" ? "ended"
       : now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone" : (turnState(own, now) ?? (isQuiet(own, now, quietMs) ? "waiting" : "working"));
+    // A merged line names the claim's branch, not its writer's.
+    const branches = [...new Set(own.flatMap((line) => (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch) ? [] : [line.branch])))];
+    const openWork = branches.filter((branch) => branchStates.get(branch)?.open !== false);
+    const record = appRecords.get(session);
+    const archived = record?.kind === "session-archived";
+    const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(branchStates.get(branch)?.at ?? latest.at)));
+    const settled = state === "ended" || now - settledSince > leaveMs;
+    const listing: Listing = openWork.length > 0 ? "listed"
+      : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
+      : settled ? "hidden" : "listed";
     return {
       session,
       ...(harness === undefined ? {} : { harness }),
@@ -92,6 +140,11 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
       lastSeenAt: latest.at,
       state,
       hooksRunning: own.some((line) => line.source === "hook"),
+      branches,
+      openWork,
+      ...(record === undefined ? {} : { app: record.app }),
+      archived,
+      listing,
     };
   });
 }

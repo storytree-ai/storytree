@@ -13,7 +13,7 @@
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import { openActivityLog, readClaims, route, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
+import { currentBranch, openActivityLog, readClaims, route, thisMachine, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
 import { Refusal, render, type Answer } from "./answer.js";
@@ -183,7 +183,9 @@ class Opened {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
-    const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree)));
+    const machine = thisMachine();
+    // Lines written from a terminal name its machine and its folder's branch, as a hook's do (ADR-0754 D4).
+    const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));
     return { log, library, project: where.project, folder: this.#cwd, ...caller };
   }
 

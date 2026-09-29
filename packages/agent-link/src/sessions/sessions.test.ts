@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import { openActivityLog, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { LONGEST_COMMAND_MS, QUIET_MS, readSessions } from "./index.js";
+import { LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, readSessions } from "./index.js";
 
 /** Run `body` with the log open on the test server and a fresh project to write in. */
 async function withProject(body: (log: ActivityLog, project: string) => Promise<void>): Promise<void> {
@@ -42,6 +42,10 @@ test('4.1 a start line makes a live session labelled "Claude Code", with its fol
         lastSeenAt: edit.at,
         state: "working",
         hooksRunning: true,
+        branches: [],
+        openWork: [],
+        archived: false,
+        listing: "listed",
       },
     ]);
   });
@@ -155,5 +159,52 @@ test("4.8 working comes from turn state (ADR-0754 D5): a prompt makes its sessio
     const finished = await log.append(project, { ...CLAUDE, kind: "command-run", command: "pnpm test", call: "call-bg" });
     const [done] = await readSessions(log, project, { now: after(finished, 1_000) });
     assert.equal(done?.state, "waiting", "waiting once the background command finishes");
+  });
+});
+
+test("4.9 who is listed (ADR-0754 D4): a session holding unmerged work stays listed whatever its end; once its work resolves it leaves on its end line or after the leave-after quiet time, counted from the resolution; a desktop session shows done instead, and leaves only when archived", async () => {
+  await withProject(async (log, project) => {
+    const observer = { session: "observer", harness: "claude-code", source: "hook", folder: "/work/site", branch: "main" } as const;
+    const listing = async (session: string, now: Date) => (await readSessions(log, project, { now })).find((one) => one.session === session);
+
+    // A terminal session that worked on a branch and ended: its work is open, so it stays.
+    const terminal = { ...CLAUDE, session: "terminal", folder: "/work/site/.claude/worktrees/fix", branch: "claude/fix" } as const;
+    await log.append(project, { ...terminal, kind: "file-edited", files: ["a.ts"] });
+    const ended = await log.append(project, { ...terminal, kind: "session-ended", reason: "other" });
+    const open = await listing("terminal", after(ended, 2 * LEAVE_MS));
+    assert.deepEqual(open?.openWork, ["claude/fix"]);
+    assert.equal(open?.listing, "listed", "open work keeps it listed long after its end");
+    // A merged line names the claim's branch, not the observer's: it adds no work to the observer.
+    await log.append(project, { ...observer, kind: "merged", increment: "inc-1", holder: "terminal", branch: "claude/other", pr: 7 });
+    assert.deepEqual((await listing("observer", after(ended, 1_000)))?.branches, []);
+    await log.append(project, { ...observer, kind: "branch-state", of: "claude/fix", open: false, how: "merged", pr: 12 });
+    assert.equal((await listing("terminal", after(ended, 1_000)))?.listing, "hidden", "resolved and ended: gone at once");
+
+    // A terminal session that never branched and never ended leaves after the leave-after quiet time.
+    const quiet = { ...CLAUDE, session: "quiet", branch: "main" } as const;
+    const last = await log.append(project, { ...quiet, kind: "session-started", how: "startup" });
+    assert.deepEqual((await listing("quiet", after(last, LEAVE_MS)))?.listing, "listed");
+    assert.deepEqual((await listing("quiet", after(last, LEAVE_MS + 1)))?.listing, "hidden");
+    assert.equal((await readSessions(log, project, { now: after(last, 60 * 60 * 1000 + 1), leaveMs: 60 * 60 * 1000 })).find((one) => one.session === "quiet")?.listing, "hidden", "a leave-after of one hour");
+
+    // The quiet time counts from the resolution when that came after the session's last line.
+    const late = { ...CLAUDE, session: "late", folder: "/work/site/.claude/worktrees/late", branch: "claude/late" } as const;
+    const worked = await log.append(project, { ...late, kind: "turn-ended" });
+    const resolved = await log.append(project, { ...observer, kind: "branch-state", of: "claude/late", open: false, how: "not-ahead" });
+    assert.equal((await listing("late", after(worked, LEAVE_MS + 1)))?.listing, "listed", "resolved only later");
+    assert.equal((await listing("late", after(resolved, LEAVE_MS + 1)))?.listing, "hidden");
+    await log.append(project, { ...observer, kind: "branch-state", of: "claude/late", open: true, how: "ahead" });
+    assert.equal((await listing("late", after(resolved, LEAVE_MS + 1)))?.listing, "listed", "reopened work is open again");
+
+    // A desktop session: its end line does not remove it; resolved and settled it shows done until archived.
+    const desktop = { ...CLAUDE, session: "desktop", branch: "main" } as const;
+    await log.append(project, { ...observer, kind: "session-unarchived", of: "desktop", app: "claude-desktop" });
+    const desktopEnd = await log.append(project, { ...desktop, kind: "session-ended", reason: "other" });
+    const done = await listing("desktop", after(desktopEnd, 1_000));
+    assert.deepEqual({ app: done?.app, archived: done?.archived, listing: done?.listing }, { app: "claude-desktop", archived: false, listing: "done" });
+    await log.append(project, { ...observer, kind: "session-archived", of: "desktop", app: "claude-desktop" });
+    assert.equal((await listing("desktop", after(desktopEnd, 1_000)))?.listing, "hidden", "archived: removed at once");
+    await log.append(project, { ...observer, kind: "session-unarchived", of: "desktop", app: "claude-desktop" });
+    assert.equal((await listing("desktop", after(desktopEnd, 1_000)))?.listing, "done", "un-archived: back");
   });
 });

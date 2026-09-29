@@ -1,6 +1,7 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
 import { claimsFrom, sessionsFrom, type Line, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
+import type { SessionWindow } from "@storytree/agent-link";
 import type { RosterEntry } from "@storytree/knowledge-core";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
@@ -124,4 +125,15 @@ export function sessionRoster(rows: readonly SessionRow[]): RosterEntry[] {
 function contextTotal(detail: SessionDetails | undefined): number | undefined {
   const total = detail?.totalTokens;
   return total !== undefined && Number.isFinite(total) && total >= 0 ? total : undefined;
+}
+
+/** A row's files, as its expansion lists them (7.8): each once, in the order first opened; or why there are none. */
+export type SessionFiles = { files: { path: string; resident: boolean }[] } | { absent: string };
+
+/** The files in a session's window reading (agent link 9.10), a file resident if any of its opens still is. */
+export function windowFiles(window: SessionWindow): SessionFiles {
+  if ("absent" in window) return { absent: window.absent };
+  const files = new Map<string, boolean>();
+  for (const open of window.opens) if (open.kind === "file") files.set(open.id, (files.get(open.id) ?? false) || open.resident);
+  return { files: [...files].map(([path, resident]) => ({ path, resident })) };
 }

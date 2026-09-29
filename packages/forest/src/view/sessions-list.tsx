@@ -1,12 +1,12 @@
 /** The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ContextReading } from "@storytree/agent-link";
+import type { ContextReading, SessionWindow } from "@storytree/agent-link";
 import type { Line } from "@storytree/agent-link/readings";
 import { liveReading, pageKept, type LiveReads } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
-import { sessionRoster, sessionRows, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
+import { sessionRoster, sessionRows, windowFiles, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 
 export interface SessionsReads extends LiveReads {
@@ -14,6 +14,8 @@ export interface SessionsReads extends LiveReads {
   arcView(project: string, id: string): Promise<ArcView | null>;
   /** The agent link's context readings (9.5, 9.8) for these sessions, read now; the rows' bars and totals. */
   contextReadings?(project: string, sessions: readonly string[]): Promise<readonly ContextReading[]>;
+  /** A session's window (agent link 9.10), read when its row is expanded: the files its expansion lists. */
+  windowReading?(project: string, session: string): Promise<SessionWindow>;
   /** The user's idle-after setting in milliseconds; without it the list judges idleness by the 30-minute default. */
   idleAfterMs?(): Promise<number>;
 }
@@ -69,19 +71,41 @@ export function mountSessionsList(container: HTMLElement, options: {
   let asking = false;
   let highlighted: string | undefined;
   let selected: string | undefined;
+  let expanded: ReadonlySet<string> = new Set();
+  let files: ReadonlyMap<string, SessionFiles> = new Map();
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
     error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
+    expanded={expanded} files={files} onToggle={toggle}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
     .map(id => [id, { ...details.get(id), ...readings.get(id) }]));
+  /** Read an expanded row's files; a failed read says so and the next ask tries again. */
+  const askFiles = (session: string): void => {
+    const read = options.reads.windowReading;
+    if (read === undefined) return;
+    read.call(options.reads, options.project, session).then(window => windowFiles(window),
+      () => ({ absent: "the window could not be read" })).then(answer => {
+      if (stopped || !expanded.has(session)) return;
+      files = new Map([...files, [session, answer]]);
+      draw();
+    });
+  };
+  const toggle = (session: string): void => {
+    const next = new Set(expanded);
+    if (next.delete(session)) files = new Map([...files].filter(([id]) => id !== session));
+    else { next.add(session); askFiles(session); }
+    expanded = next;
+    draw();
+  };
   const askReadings = (): void => {
     const ask = options.reads.contextReadings;
     if (ask === undefined || asking || Date.now() - askedAt < READING_EVERY_MS || rows.length === 0) return;
     asking = true;
     askedAt = Date.now();
+    for (const session of expanded) askFiles(session);
     options.reads.idleAfterMs?.().then(ms => { quietMs = ms; }, () => {
       // An unreadable setting keeps the last one read; the next ask tries again.
     });
@@ -168,7 +192,27 @@ function ContextBar({ row }: { row: SessionRow }) {
   </span>;
 }
 
-export function SessionsList({ rows, loading = false, refreshing = false, error, highlighted, selected, onHighlight, onSelect }: {
+function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
+  const next = new Set(set);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  return next;
+}
+
+/** An expanded row's detail (7.8): the full path of each worktree, then the files in its window. */
+function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
+  return <div className="session-detail">
+    {row.worktrees.length > 0 && <ul className="session-detail-worktrees" aria-label="Worktrees">
+      {row.worktrees.map(path => <li key={path}>{path}</li>)}</ul>}
+    {files === undefined ? <p className="session-detail-note">Reading files…</p>
+      : "absent" in files ? <p className="session-detail-note">No files: {files.absent}</p>
+      : files.files.length === 0 ? <p className="session-detail-note">No files opened</p>
+      : <ul className="session-detail-files" aria-label="Files in its window">
+        {files.files.map(file => <li key={file.path} data-resident={file.resident ? undefined : "no"}
+          title={file.resident ? file.path : `${file.path}\nNo longer in its window`}>{file.path}</li>)}</ul>}
+  </div>;
+}
+
+export function SessionsList({ rows, loading = false, refreshing = false, error, highlighted, selected, onHighlight, onSelect, files, ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   /** The rows are the ones last kept, drawn before this start's first read lands. */
@@ -180,8 +224,15 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   selected?: string | undefined;
   onHighlight(stories: readonly string[] | undefined, session?: string): void;
   onSelect?(session: string | undefined): void;
+  /** The expanded rows, when the caller keeps them; otherwise the list keeps its own. */
+  expanded?: ReadonlySet<string>;
+  onToggle?(session: string): void;
+  /** Each expanded row's files, once read (7.8). */
+  files?: ReadonlyMap<string, SessionFiles>;
 }) {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
+  const expanded = control.expanded ?? own;
+  const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
   const visible: { row: SessionRow; depth: number }[] = [];
@@ -206,11 +257,6 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id) });
   });
-  const toggle = (set: ReadonlySet<string>, id: string): ReadonlySet<string> => {
-    const next = new Set(set);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  };
   return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
     <header>
       <span>Sessions <span className="sessions-count">{rows.length}</span></span>
@@ -236,14 +282,16 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.join("\n")}` : ""}`}>{row.label}</span>
           {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.join("\n")}
             aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
-          {row.children.length > 0 && <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
-            aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} ${row.children.length} children of ${row.label}`}
-            onClick={event => { event.stopPropagation(); setExpanded(toggle(expanded, row.id)); }}>+{row.children.length}</button>}
+          {/* One expander per row (7.8): its detail and, behind the same "+N", its children (7.2). */}
+          <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
+            aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
+            onClick={event => { event.stopPropagation(); onToggle(row.id); }}>{row.children.length > 0 ? `+${row.children.length}` : ""}</button>
           {row.needsYou && <span className="session-needs-you">needs you</span>}
           <ContextBar row={row} />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
             {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
         </div>
+        {expanded.has(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
       </li>)}
     </ul>
   </aside>;

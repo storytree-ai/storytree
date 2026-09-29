@@ -80,7 +80,9 @@ function toolLine(common: Pick<NewLine, "session" | "harness" | "source" | "fold
 function commandStartedLine(common: Pick<NewLine, "session" | "harness" | "source" | "folder">, input: Record<string, unknown>): NewLine | undefined {
   const { tool_name: tool, tool_input: toolInput, tool_use_id: call } = input;
   if (!isText(tool) || !RUNS_COMMAND.has(tool) || !isRecord(toolInput) || typeof toolInput.command !== "string" || !isText(call)) return undefined;
-  return { ...common, kind: "command-started", command: toolInput.command, call };
+  // Claude Code's own limit on a command, where its environment (which the hook shares) sets one: the line keeps the command running until then.
+  const limitMs = Number(process.env.BASH_MAX_TIMEOUT_MS);
+  return { ...common, kind: "command-started", command: toolInput.command, call, ...(Number.isSafeInteger(limitMs) && limitMs > 0 ? { limitMs } : {}) };
 }
 
 function isText(value: unknown): value is string {

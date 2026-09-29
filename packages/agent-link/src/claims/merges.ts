@@ -21,7 +21,7 @@ import path from "node:path";
 import type { ActivityLog, Line } from "../activity/index.js";
 export { currentBranch } from "../activity/branch.js";
 import { ask } from "../setup/machine.js";
-import { claimsFrom, readClaims } from "./claims.js";
+import { claimsFrom, readClaims, type Claim } from "./claims.js";
 
 /** A merged pull request, as GitHub reports it. */
 export interface MergedPull {
@@ -122,4 +122,13 @@ export function due(project: string, everyMs: number): boolean {
     // Unable to mark it: it is asked about again next time, which is only slower.
   }
   return true;
+}
+
+/**
+ * Who holds what, for a reader that shows it (the board): GitHub is asked first, whenever it is
+ * read, not only in a minute no hook has taken, so a claim whose branch has merged is never shown.
+ */
+export async function boardClaims(context: MergeContext, watch: MergeWatch = {}): Promise<Claim[]> {
+  await endMergedClaims(context, { ...watch, everyMs: 0 }).catch(() => []);
+  return readClaims(context.log, context.project);
 }

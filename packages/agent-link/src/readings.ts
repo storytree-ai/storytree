@@ -21,6 +21,14 @@ export const COMMAND_KINDS = ["command-started", "command-run", "turn-ended", "s
 export const LONGEST_COMMAND_MS = 12 * 60 * 60 * 1000;
 
 /**
+ * Claude Code's own limit on a shell command it waits for: 10 minutes, unless BASH_MAX_TIMEOUT_MS
+ * sets another, which its hook then records on the command's line. Claude Code ends the command by
+ * then, so one with no finish line past it was cut off with its turn (an interrupt or an API error
+ * writes neither the finish nor the turn's end), never still running.
+ */
+export const CLAUDE_CODE_COMMAND_MS = 10 * 60 * 1000;
+
+/**
  * Working from a prompt until its turn ends, or while a command it started runs; waiting otherwise
  * (ADR-0754 D5). Ended once its end line arrives; gone when no line has come for longer than a
  * command may run (LONGEST_COMMAND_MS) and none said it ended: it stopped reporting, as a window
@@ -222,18 +230,25 @@ export function isQuiet(own: readonly Line[], now: number, quietMs: number): boo
  * Whether a session, by its own lines `own` (oldest first), has a command still running at `now`.
  * Only its command-started, command-run, turn-ended, session-started and session-ended lines count,
  * so `own` may hold just those (COMMAND_KINDS). A command is running when it
- * started, has no finish line under its call's id, and was not closed since by the end of
- * its turn (unless that turn left background tasks running) or of its session, or by a restart. The finish line may be written before the start line
+ * started, has no finish line under its call's id, was not closed since by the end of
+ * its turn (unless that turn left background tasks running) or of its session, or by a restart,
+ * and is within its harness's limit on a command (CLAUDE_CODE_COMMAND_MS, else LONGEST_COMMAND_MS;
+ * LONGEST_COMMAND_MS for one its turn left running in the background). The finish line may be written before the start line
  * (each is written by its own hook process), so a finish anywhere closes it.
  */
 export function commandRunning(own: readonly Line[], now: number): boolean {
   const finished = new Set(own.flatMap((line) => (line.kind === "command-run" && line.call !== undefined ? [line.call] : [])));
-  let running: number[] = [];
+  let running: { startedAt: number; until: number }[] = []; // each running command, and when its limit passes
   for (const line of own) {
-    if (line.kind === "command-started" && !finished.has(line.call)) running.push(Date.parse(line.at));
-    else if ((line.kind === "turn-ended" && !(line.background !== undefined && line.background > 0)) || line.kind === "session-started" || line.kind === "session-ended") running = [];
+    if (line.kind === "command-started" && !finished.has(line.call)) {
+      const startedAt = Date.parse(line.at);
+      running.push({ startedAt, until: startedAt + (line.limitMs ?? (line.harness === "claude-code" ? CLAUDE_CODE_COMMAND_MS : LONGEST_COMMAND_MS)) });
+    } else if (line.kind === "turn-ended" && line.background !== undefined && line.background > 0) {
+      // Left running in the background, a command is past its harness's limit on one it waits for.
+      running = running.map(({ startedAt }) => ({ startedAt, until: startedAt + LONGEST_COMMAND_MS }));
+    } else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") running = [];
   }
-  return running.some((startedAt) => now - startedAt <= LONGEST_COMMAND_MS);
+  return running.some(({ until }) => now <= until);
 }
 
 /** A capability, or an increment (ADR-0643 D1), held by a session, as the log shows it. */

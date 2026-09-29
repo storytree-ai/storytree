@@ -10,7 +10,7 @@ export { ACTIVITY_DATABASE, currentBranch, lineText, NEW_LINE, openActivityLog, 
 export type { ActivityLog, Agent, Line, LineKind, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { closeOut, labelOf, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
-export { attachWorkspace, attributeFrom, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, readAttribution, readClaim, readClaims, release } from "./claims/index.js";
+export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, readAttribution, readClaim, readClaims, release } from "./claims/index.js";
 export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, ReleaseAnswer, ClaimedWorkspace, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
 export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER } from "./tools/index.js";
 export type { AgentToolOptions, AgentTools, ToolExtension, ToolCall, DefineTool, ToolAnswer } from "./tools/index.js";

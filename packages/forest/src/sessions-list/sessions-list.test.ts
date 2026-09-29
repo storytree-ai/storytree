@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Line, NewLine } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import { sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
+import { atWork, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -23,7 +23,7 @@ const arc = { arc: { id: "arc", fields: { title: "Build" } }, state: "active",
 
 test("one row per non-ended claiming session, plain idle, reason and held islands follow standing claims", () => {
   const lines = log(claimed("cap-one", "Build signup"), claimed("cap-two", "Build signup"),
-    { ...off, kind: "claimed", increment: "tidy", reason: "", at: "2026-09-28T10:00:00Z" },
+    { ...off, kind: "claimed", increment: "tidy", reason: "", at: "2026-09-28T11:00:00Z" },
     { ...child, kind: "session-ended" },
     { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });
   const rows = sessionRows(tree, lines, [], now);
@@ -108,4 +108,21 @@ test("7.8 a row's files are its window's opened files, each once in the order fi
   assert.deepEqual(files, { files: [{ path: "a.ts", resident: true }, { path: "b.ts", resident: true }, { path: "c.ts", resident: false }] });
   assert.deepEqual(windowFiles({ session: "parent", at: now.toISOString(), absent: "no hook has named this session's transcript" }),
     { absent: "no hook has named this session's transcript" });
+});
+
+test("7.9-7.11 the header counts sessions at work; quiet sessions that never closed out fold as idle; a close-out that needs you says why; a verified one is gone (ADR-0758)", () => {
+  const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
+  const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
+  const lines = log(
+    { ...hook("busy"), kind: "prompt-submitted", at: minutes(50) },
+    { ...hook("asking"), kind: "prompt-submitted", at: minutes(12) }, { ...hook("asking"), kind: "turn-ended", at: minutes(10) },
+    { ...hook("idle"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("idle"), kind: "turn-ended", at: minutes(45) },
+    { ...hook("unsure"), branch: "fix-login", kind: "file-edited", files: ["a.ts"], at: minutes(20) },
+    { ...hook("unsure"), branch: "fix-login", kind: "closed-out", safe: true, why: "all merged", running: 0, at: minutes(19) },
+    { ...hook("done"), branch: "main", kind: "closed-out", safe: true, why: "all merged", running: 0, at: minutes(5) });
+  const rows = sessionRows(tree, lines, [], now);
+  assert.deepEqual(rows.map(row => [row.id, row.idle]), [["busy", false], ["asking", false], ["idle", true], ["unsure", false]], "a verified close-out leaves at once");
+  assert.equal(atWork(rows), 3, "working, waiting for you, and needing you count; idle does not");
+  const unsure = rows.find(row => row.id === "unsure");
+  assert.deepEqual({ needsYou: unsure?.needsYou, why: unsure?.needsYouWhy }, { needsYou: true, why: "says safe, but fix-login is unmerged" });
 });

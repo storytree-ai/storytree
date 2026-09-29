@@ -15,7 +15,7 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-test("session close-out from an agent's shell records its yes or no and why; the list then reads it", async () => {
+test("11.7 session close-out from an agent's shell records its yes or no and why; the list then reads it", async () => {
   await inWorld(command, async (world) => {
     assert.equal((await world.run(["session", "close-out", "--safe", "yes", "--why", "done"])).code, 1, "a person's shell has no session to close out");
     assert.equal((await world.run(["session", "close-out", "--safe", "maybe", "--why", "done"], { CLAUDE_CODE_SESSION_ID: "claude-9" })).code, 2);

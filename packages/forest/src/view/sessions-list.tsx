@@ -1,12 +1,12 @@
 /** The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
-import React, { useEffect, useState } from "react";
+import React, { Fragment, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading, SessionWindow } from "@storytree/agent-link";
 import type { Line } from "@storytree/agent-link/readings";
 import { liveReading, pageKept, type LiveReads } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
-import { sessionRoster, sessionRows, windowFiles, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
+import { atWork, sessionRoster, sessionRows, windowFiles, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 
 export interface SessionsReads extends LiveReads {
@@ -218,6 +218,13 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
   </div>;
 }
 
+/** The one row the quiet sessions fold into (ADR-0758 D5): "N idle", opening to list them. None when there are none. */
+function IdleFold({ count, open, onToggle }: { count: number; open: boolean; onToggle(): void }) {
+  if (count === 0) return null;
+  return <li><button type="button" className="session-idle-fold" aria-expanded={open}
+    aria-label={`${open ? "Hide" : "Show"} ${count} idle session${count === 1 ? "" : "s"}`} onClick={onToggle}>{count} idle</button></li>;
+}
+
 export function SessionsList({ rows, loading = false, refreshing = false, error, highlighted, selected, onHighlight, onSelect, files, ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
@@ -241,6 +248,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
+  const [idleOpen, setIdleOpen] = useState(false);
   const visible: { row: SessionRow; depth: number }[] = [];
   /** Each row's top-level session: a click on a child selects its parent, whose reads it shares. */
   const rootOf = new Map<string, string>();
@@ -251,7 +259,11 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
       if (expanded.has(row.id)) visit(row.children, depth + 1, top ?? row.id);
     }
   };
-  visit(rows, 0);
+  // Sessions at work first; the quiet ones fold into one "N idle" row, shown under it when opened (ADR-0758 D5).
+  const idle = rows.filter(row => row.idle);
+  visit(rows.filter(row => !row.idle), 0);
+  const atWorkCount = visible.length;
+  if (idleOpen) visit(idle, 0);
   const active = visible.find(({ row }) => row.id === (hovered ?? focused ?? highlighted))?.row;
   const islands = active?.stories.join("\0");
   const session = active?.id;
@@ -265,7 +277,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   });
   return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
     <header>
-      <span>Sessions <span className="sessions-count">{rows.length}</span></span>
+      <span>Sessions <span className="sessions-count" title="Working, waiting for you, or needing you">{atWork(rows)}</span></span>
       <span className="session-legend" aria-label="Bar colours">
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
       </span>
@@ -275,13 +287,15 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     {error && <p role="status">{error}</p>}
     {!loading && rows.length === 0 && <p>No running sessions</p>}
     <ul>
-      {visible.map(({ row, depth }) => <li key={row.id} style={{ marginLeft: Math.min(depth, 5) * 14 }}>
-        <div className="session-row" data-session-id={row.id} data-state={row.state} data-highlighted={row.id === highlighted || undefined}
+      {visible.map(({ row, depth }, index) => <Fragment key={row.id}>
+      {index === atWorkCount && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
+      <li style={{ marginLeft: Math.min(depth, 5) * 14 }}>
+        <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined} data-highlighted={row.id === highlighted || undefined}
           data-selected={row.id === selected || undefined} tabIndex={0}
           onClick={() => { const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); }}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
             event.preventDefault(); const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); } }}
-          aria-label={`${row.label} · ${row.agent}${row.needsYou ? " · needs you" : ""}`}
+          aria-label={`${row.label} · ${row.agent}${row.needsYou ? ` · needs you${row.needsYouWhy === undefined ? "" : `: ${row.needsYouWhy}`}` : ""}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
           {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
@@ -292,13 +306,15 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
             onClick={event => { event.stopPropagation(); onToggle(row.id); }}>{row.children.length > 0 ? `+${row.children.length}` : ""}</button>
-          {row.needsYou && <span className="session-needs-you">needs you</span>}
+          {row.needsYou && <span className="session-needs-you" title={row.needsYouWhy}>needs you</span>}
           <ContextBar row={row} />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
             {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
         </div>
+        {row.needsYouWhy !== undefined && <p className="session-why">{row.needsYouWhy}</p>}
         {expanded.has(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
-      </li>)}
+      </li></Fragment>)}
+      {atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
     </ul>
   </aside>;
 }

@@ -27,8 +27,8 @@ const leaveAfter = {
   label: "Time before a finished session leaves the list",
   type: "duration",
   unit: "",
-  default: "12h",
-  meaning: "A session that holds no unmerged work leaves the running-sessions list once it has been quiet this long, counted from its last activity or from when its work was merged, whichever is later; a session the Claude or Codex app keeps shows as done until you archive it there instead. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 2h. Default: 12 hours.",
+  default: "1h",
+  meaning: "A session that holds no unmerged work and has not closed out leaves the running-sessions list once it has been quiet this long, counted from its last activity or from when its work was merged, whichever is later; a session the Claude or Codex app keeps shows as done until you archive it there instead. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 2h. Default: 1 hour.",
 } as const;
 
 const library = {

@@ -30,10 +30,10 @@ export type SessionState = "working" | "waiting" | "ended" | "gone";
 
 /**
  * How long a session with no open work stays listed once quiet, counted from its last line or
- * from when its work resolved, whichever is later: 12 hours (ADR-0754 D4). Node readers pass the
- * user's leave-after setting.
+ * from when its work resolved, whichever is later: 1 hour (ADR-0754 D4, ADR-0758 D5). Node readers
+ * pass the user's leave-after setting.
  */
-export const LEAVE_MS = 12 * 60 * 60 * 1000;
+export const LEAVE_MS = 60 * 60 * 1000;
 
 /**
  * Whether the running-sessions list shows a session (ADR-0754 D4): listed; done (shown dimmed: a

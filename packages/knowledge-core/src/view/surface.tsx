@@ -7,11 +7,11 @@
  */
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { Line } from "@storytree/agent-link";
+import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge } from "../ghosts/ghosts.js";
-import { coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, type CoreInput, type Point, type RosterEntry, type SizeBy } from "../look-inside/look-inside.js";
+import { coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, windowView, type CoreInput, type Point, type RosterEntry, type SizeBy } from "../look-inside/look-inside.js";
 import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -20,6 +20,13 @@ import { CoreInside, CorePanel, NoteCard } from "./drawing.js";
 
 /** How fast the replay steps, one read a step. */
 const REPLAY_STEP_MS = 700;
+/** How often the selected session's window is read again, as often as the sessions list's bars. */
+const WINDOW_EVERY_MS = 10_000;
+
+/** The one read the core makes beyond what it is handed: a session's window (agent link 9.10), from the host. */
+export interface CoreReads {
+  windowReading(project: string, session: string): Promise<SessionWindow>;
+}
 
 interface State {
   history: readonly Change[];
@@ -34,6 +41,8 @@ interface State {
   playing: boolean;
   hidden: ReadonlySet<string>;
   pinned: string | undefined;
+  /** The selected session's window, once read. */
+  window: SessionWindow | undefined;
 }
 
 /** One project's knowledge core: its inputs, its controls, and a subscription for the pieces. */
@@ -61,15 +70,24 @@ interface Store extends KnowledgeCore {
   stop(): void;
 }
 
-/** A knowledge core for `project`. */
-export function createKnowledgeCore(project: string): KnowledgeCore {
+/** A knowledge core for `project`; with `reads`, a selected session's window is drawn too (ADR-0746 D1). */
+export function createKnowledgeCore(project: string, { reads: host }: { reads?: CoreReads } = {}): KnowledgeCore {
   const reads = new ReadRecord(project);
   const listeners = new Set<() => void>();
   const selections = new Set<(session: string | undefined) => void>();
   let state: State = {
-    history: [], version: 0, session: undefined, roster: [], sizeBy: "visits", step: Infinity, playing: false, hidden: new Set(), pinned: undefined,
+    history: [], version: 0, session: undefined, roster: [], sizeBy: "visits", step: Infinity, playing: false, hidden: new Set(), pinned: undefined, window: undefined,
   };
   let timer: ReturnType<typeof setInterval> | undefined;
+  let windowTimer: ReturnType<typeof setInterval> | undefined;
+  /** Read the selected session's window; an answer for a session no longer selected is dropped. */
+  const readWindow = (session: string): void => {
+    host?.windowReading(project, session).then((window) => {
+      if (state.session === session) store.set({ window });
+    }, () => {
+      // A failed read leaves the window as it was; the next one tries again.
+    });
+  };
   const store: Store = {
     reads,
     pin: pinned => store.set({ pinned }),
@@ -77,7 +95,13 @@ export function createKnowledgeCore(project: string): KnowledgeCore {
     select(session) {
       if (session === state.session) return;
       store.stop();
-      store.set({ session, step: Infinity, playing: false, hidden: new Set() });
+      if (windowTimer !== undefined) clearInterval(windowTimer);
+      windowTimer = undefined;
+      store.set({ session, step: Infinity, playing: false, hidden: new Set(), window: undefined });
+      if (session !== undefined && host !== undefined) {
+        readWindow(session);
+        windowTimer = setInterval(() => readWindow(session), WINDOW_EVERY_MS);
+      }
       for (const listener of selections) listener(session);
     },
     onSelect(listener) {
@@ -115,6 +139,7 @@ export function createKnowledgeCore(project: string): KnowledgeCore {
     },
     dispose() {
       store.stop();
+      if (windowTimer !== undefined) clearInterval(windowTimer);
       listeners.clear();
       selections.clear();
     },
@@ -216,7 +241,7 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
   return card === undefined ? null : <NoteCard card={card} onClose={onClose} />;
 }
 
-/** Knowledge under the globe's islands, without story text, ghosts or replay: faint, or lit by the running sessions' reads (ADR-0738). */
+/** Knowledge under the globe's islands, without story text, ghosts or replay: faint, or lit by the running sessions' reads (ADR-0738), with a selected session's window (ADR-0746 D1). */
 export function KnowledgeGlobePoints({ core, spots, radius }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
 }) {
@@ -231,5 +256,8 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
     [store.reads, state.version, state.roster, state.session, known]);
   const replays = useMemo(() => agentPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     [store.reads, state.version, state.roster, state.session, known]);
-  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} trails={paths} paths={replays} />;
+  // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).
+  const window = useMemo(() => state.session === undefined || state.window === undefined ? undefined : windowView(state.window, new Set(known.notes.keys())),
+    [state.session, state.window, known]);
+  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} trails={paths} paths={replays} window={window} />;
 }

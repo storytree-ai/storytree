@@ -1,4 +1,5 @@
 /** Capability 4's founding book (E1, V1, S1): the core's picture, a pinned note's card, and replay frames. */
+import type { SessionWindow } from "@storytree/agent-link";
 import type { Change, RecordEnvelope } from "@storytree/library";
 
 import { linksOf, type Knowledge } from "../ghosts/ghosts.js";
@@ -219,6 +220,50 @@ export function pinnedLinks(id: string | undefined, knowledge: Knowledge): Link[
     .sort(compare)
     .map((from): Link => ({ kind: "link", from, to: id }));
   return [...out, ...into];
+}
+
+/** A note opened while an earlier note's result, which held its id, was still in view (ADR-0746 D1): never a followed link. */
+export interface InViewLink {
+  kind: "in-view";
+  from: string;
+  to: string;
+}
+
+/** What a selected session's window shows in the core: the notes and files it holds now, and its in-view links. */
+export interface WindowView {
+  /** Present notes whose opened read is in the window now. */
+  notes: Set<string>;
+  /** Files whose opened read is in the window now, in the order opened. */
+  files: string[];
+  links: InViewLink[];
+  /** Why there is no window to show, when there is none. */
+  status: string | undefined;
+}
+
+/**
+ * A session's window as the core draws it (4.16). A link joins a note to one opened after it only
+ * when the open's reading names that note's result as in view and holding the id; a search's result
+ * joins nothing, and a note no longer in the library is left out.
+ */
+export function windowView(window: SessionWindow, present: ReadonlySet<string>): WindowView {
+  if ("absent" in window) return { notes: new Set(), files: [], links: [], status: `No window: ${window.absent}` };
+  const notes = new Set<string>();
+  const files: string[] = [];
+  const links = new Map<string, InViewLink>();
+  for (const open of window.opens) {
+    if (open.kind === "file") {
+      if (open.resident && !files.includes(open.id)) files.push(open.id);
+      continue;
+    }
+    if (!present.has(open.id)) continue;
+    if (open.resident) notes.add(open.id);
+    for (const { opened } of open.inViewFrom) {
+      for (const { kind, id: from } of opened) {
+        if (kind === "note" && from !== open.id && present.has(from)) links.set(`${from}>${open.id}`, { kind: "in-view", from, to: open.id });
+      }
+    }
+  }
+  return { notes, files, links: [...links.values()], status: undefined };
 }
 
 /** The replay after `step` of its steps, one read a step, in recorded order across the visible agents. */

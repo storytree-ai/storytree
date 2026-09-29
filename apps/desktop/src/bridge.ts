@@ -2,7 +2,7 @@
  * What the preload script hands the page, as `window.storytree`: these functions and nothing else.
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
-import type { ContextReading, LinesSince } from "@storytree/agent-link";
+import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
 import type { ProjectSelection, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { AnnotatedTree, ArcView, Hold, Changes, Note, SchemaRecord } from "@storytree/library";
@@ -19,6 +19,8 @@ export interface StorytreeBridge extends SetupHelpBridge {
   heldOnQuestion(name: string, id: string): Promise<string[]>;
   /** Each named session's context reading in a project, read now. Refused for a name that is not a project. */
   contextReadings(name: string, sessions: readonly string[]): Promise<ContextReading[]>;
+  /** A session's window in a project (agent link 9.10), read now. Refused for a name that is not a project. */
+  windowReading(name: string, session: string): Promise<SessionWindow>;
   /** A project's tree, with every node's health. Refused for a name that is not a project. */
   projectTree(name: string): Promise<AnnotatedTree>;
   /**
@@ -51,6 +53,7 @@ export const CHANNELS = {
   waitHolds: "storytree:wait-holds",
   heldOnQuestion: "storytree:held-on-question",
   contextReadings: "storytree:context-readings",
+  windowReading: "storytree:window-reading",
   projectTree: "storytree:project-tree",
   changesSince: "storytree:changes-since",
   linesSince: "storytree:lines-since",

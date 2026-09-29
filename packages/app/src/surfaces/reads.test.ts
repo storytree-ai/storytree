@@ -99,6 +99,29 @@ test("3.5 the page can ask the app for the context readings of sessions in the p
   });
 });
 
+test("3.6 the page can ask the app for a session's window (agent link 9.10), read at that moment from the transcript its hooks named; a session with none named reads as an absence", async () => {
+  const shown = uniqueProjectName();
+  await withApp([shown], async ({ storytree, log, reads }) => {
+    await storytree.openProject(shown);
+    const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
+    try {
+      const transcript = path.join(folder, "A.jsonl");
+      writeFileSync(transcript, [
+        { type: "assistant", message: { content: [{ type: "tool_use", id: "c1", name: "mcp__storytree__open", input: { id: "decision_000000000001" } }] } },
+        { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "c1", content: "Claims" }] } },
+      ].map((record) => JSON.stringify(record)).join("\n"));
+      await log.append(shown, { session: "A", harness: "claude-code", source: "hook", kind: "session-started", transcript });
+
+      const window = await reads.windowReading(shown, "A");
+      assert.deepEqual("opens" in window && window.opens.map(({ id, resident }) => [id, resident]), [["decision_000000000001", true]]);
+      const none = await reads.windowReading(shown, "B");
+      assert.deepEqual("absent" in none && none.absent, "no hook has named this session's transcript");
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
 // --- helpers ---------------------------------------------------------------------------------
 
 interface App {

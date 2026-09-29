@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, coreScene, curvePoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, type CoreInput } from "./look-inside.js";
+import { agentPaths, coreScene, curvePoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, SIZE_LABELS, windowView, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -300,4 +300,31 @@ test("4.5 looking inside keeps failure attention and the flat forest one click a
   assert.equal(toForest(inside).mode, "forest", "the flat forest is one step from inside");
   const back = returnToGlobe({ ...inside, pinned: "deep" });
   assert.deepEqual(back, globe, "islands, sea and the selection come back; the pin is let go");
+});
+
+test("4.16 a selected session's window marks the notes and files it holds now, and joins a note to one opened while its result was in view, never as a followed link", () => {
+  const open = (id: string, call: string, from: { call: string; opened: string[] }[] = [], resident = true) => ({
+    kind: "note" as const, id, call, tool: "mcp__storytree__open", resident,
+    inViewFrom: from.map(({ call, opened }) => ({ call, tool: "mcp__storytree__open", opened: opened.map((note) => ({ kind: "note" as const, id: note })) })),
+  });
+  const view = windowView({
+    session: "S", at: "-", compactions: 1, inView: [],
+    opens: [
+      open("cover", "c1", [{ call: "search", opened: [] }]),
+      open("deep", "c2", [{ call: "search", opened: [] }, { call: "c1", opened: ["cover"] }]),
+      // Opened before the compaction: its read left the window, and the link out of it stays.
+      open("old", "c0", [], false),
+      open("new", "c3", [{ call: "c0", opened: ["old"] }]),
+      open("gone-from-the-library", "c4", [{ call: "c1", opened: ["cover"] }]),
+      { kind: "file", id: "src/claims/merges.ts", call: "c5", tool: "Read", resident: true, inViewFrom: [{ call: "c2", tool: "mcp__storytree__open", opened: [{ kind: "note", id: "deep" }] }] },
+    ],
+  }, new Set(["cover", "deep", "old", "new", "loose"]));
+
+  assert.deepEqual([...view.notes].sort(), ["cover", "deep", "new"]);
+  assert.deepEqual(view.files, ["src/claims/merges.ts"]);
+  assert.deepEqual(view.links, [{ kind: "in-view", from: "cover", to: "deep" }, { kind: "in-view", from: "old", to: "new" }]);
+  assert.equal(view.status, undefined);
+
+  const none = windowView({ session: "S", at: "-", absent: "no hook has named this session's transcript" }, new Set());
+  assert.deepEqual(none, { notes: new Set(), files: [], links: [], status: "No window: no hook has named this session's transcript" });
 });

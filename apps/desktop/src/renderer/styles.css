@@ -1017,3 +1017,17 @@ main:has(> .tree-space:not([hidden])) > .story-panel {
   background: rgba(18, 24, 27, 0.9);
   border: 1px solid #b5771980;
 }
+
+/* Why the first read failed, over the forest while the reading keeps trying. */
+#read-error {
+  position: absolute;
+  z-index: 46;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(32rem, calc(100% - 2rem));
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  background: rgba(18, 24, 27, 0.9);
+  text-align: center;
+}

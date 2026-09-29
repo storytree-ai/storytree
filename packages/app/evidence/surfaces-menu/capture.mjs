@@ -53,7 +53,11 @@ try {
     try { localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'); } catch { /* about:blank has no storage */ }
   }, Object.keys(bridge));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
-  const ready = () => page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+  const ready = () => page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 }).catch(async (error) => {
+    const state = await page.evaluate(() => ({ state: document.body.dataset.state, text: document.body.innerText.slice(0, 400) }));
+    throw new Error(`the page did not get ready: ${JSON.stringify(state)}; page errors: ${JSON.stringify(errors)}`, { cause: error });
+  });
   await ready();
   const tree = await reads.projectTree('storytree');
   const frame = () => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));

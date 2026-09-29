@@ -1,5 +1,5 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
-import { claimsFrom, sessionsFrom, type Line, type SessionState } from "@storytree/agent-link/readings";
+import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -28,6 +28,13 @@ export interface SessionRow {
   /** A subagent start alone does not tell us whether the subagent is still running. */
   state: SessionState | "observed";
   needsYou: boolean;
+  /** Why it needs you, when its close-out says so (ADR-0758 D3): its own why, or where a yes disagrees with the facts. */
+  needsYouWhy?: string;
+  /**
+   * Folded into the list's "N idle" row, and not counted (ADR-0758 D1, D5): neither working, nor
+   * waiting for you (a turn ended within the idle-after time), nor needing you.
+   */
+  idle: boolean;
   totalTokens: number | undefined;
   /** What those tokens are made of, when the reading could tell. */
   composition?: ContextGroups | undefined;
@@ -51,8 +58,10 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number): SessionRow[] {
   const judged = quietMs === undefined ? { now } : { now, quietMs };
   const sessions = sessionsFrom(lines, judged);
-  // A session that stopped reporting (gone) is hidden as an ended one is, though never read as ended.
-  const ended = new Set(sessions.filter(session => session.state === "ended" || session.state === "gone").map(session => session.session));
+  // Who is listed is the agent link's reading (ADR-0754 D4, ADR-0758 D3): a verified close-out, or an ended or
+  // silent session with no open work, is hidden.
+  const ended = new Set(sessions.filter(session => session.listing === "hidden").map(session => session.session));
+  const quiet = quietMs ?? QUIET_MS;
   const claims = claimsFrom(lines, judged);
   const increments = arcs.flatMap(arc => arc.increments);
   const storyOf = new Map(tree.stories.flatMap(story => [[story.id, story.id], ...story.capabilities.map(cap => [cap.id, story.id])] as [string, string][]));
@@ -70,7 +79,9 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
     rows.set(session.session, { id: session.session,
       label: own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title || workingIn(session.label, lines, session.session, session.worktrees),
-      agent: session.label, state: session.state, needsYou: question,
+      agent: session.label, state: session.state, needsYou: question || session.closeOut?.needsYou !== undefined,
+      ...(session.closeOut?.needsYou === undefined ? {} : { needsYouWhy: session.closeOut.needsYou }),
+      idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees, children: [] });
   }
@@ -79,7 +90,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (line.kind !== "subagent-started" || ended.has(line.subagent) || !rows.has(line.session)) continue;
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
-      agent: line.type ?? "Subagent", state: "observed", needsYou: false,
+      agent: line.type ?? "Subagent", state: "observed", needsYou: false, idle: false,
       totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
@@ -101,7 +112,13 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     row.stories = [...new Set([...row.stories, ...row.children.flatMap(child => child.stories)])];
   }
   for (const row of roots) includeChildren(row);
+  for (const row of roots) row.idle &&= !row.needsYou && !row.children.some(child => child.state === "working");
   return roots;
+}
+
+/** How many listed sessions are at work, as the list's header counts them (ADR-0758 D1): every row not folded as idle. */
+export function atWork(rows: readonly SessionRow[]): number {
+  return rows.filter(row => !row.idle).length;
 }
 
 /**

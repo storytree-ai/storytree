@@ -18,9 +18,11 @@ export interface BoardAgents {
   onArc(increments: readonly ArcWork[]): BoardAgent[];
 }
 
-export function agentsOnBoard(lines: readonly Line[], now: Date = new Date()): BoardAgents {
-  const sessions = new Map(sessionsFrom(lines, { now }).map((session) => [session.session, session]));
-  const all = claimsFrom(lines, { now }).map((claim): BoardAgent => {
+/** `quietMs` is the user's idle-after setting; without it the readings' 30-minute default applies. */
+export function agentsOnBoard(lines: readonly Line[], now: Date = new Date(), quietMs?: number): BoardAgents {
+  const judged = quietMs === undefined ? { now } : { now, quietMs };
+  const sessions = new Map(sessionsFrom(lines, judged).map((session) => [session.session, session]));
+  const all = claimsFrom(lines, judged).map((claim): BoardAgent => {
     // A claim is itself a session line, so every claim has a session reading.
     const session = sessions.get(claim.session)!;
     const quietMinutes = Math.max(0, Math.floor((now.getTime() - Date.parse(session.lastSeenAt)) / 60_000));

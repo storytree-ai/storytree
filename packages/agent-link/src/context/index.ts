@@ -4,3 +4,5 @@ export { CHARS_PER_TOKEN, callGroup, claudeCodeComposition, codexComposition, re
 export type { Composition, CompositionGroup } from "./composition.js";
 export { contextCommand } from "./command.js";
 export type { ContextCommandAnswer, ContextCommandOptions } from "./command.js";
+export { claudeCodeWindow, codexWindow } from "./window.js";
+export type { Arrival, WindowOpen, WindowReading, WindowTarget } from "./window.js";

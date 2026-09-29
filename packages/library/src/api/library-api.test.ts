@@ -59,6 +59,7 @@ const LIBRARY_API = [
   "addWait",
   "removeWait",
   "waitHolds",
+  "holds",
   "raiseQuestion",
   "settleQuestion",
   "questions",

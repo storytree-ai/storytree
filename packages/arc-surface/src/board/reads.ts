@@ -1,4 +1,4 @@
-import type { AnnotatedTree, ArcView, Hold } from "@storytree/library";
+import type { AnnotatedTree, ArcView, Holds } from "@storytree/library";
 import type { LiveReads } from "../live-reading/live-reading.js";
 import type { BoardSnapshot } from "./board.js";
 
@@ -6,17 +6,15 @@ import type { BoardSnapshot } from "./board.js";
 export interface BoardReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;
   arcView(project: string, id: string): Promise<ArcView | null>;
-  waitHolds(project: string, id: string): Promise<Hold[]>;
-  heldOnQuestion(project: string, id: string): Promise<string[]>;
+  /** Every hold on the project's live work in one reading: one ask per refresh, never one per arc or increment. */
+  holds(project: string): Promise<Holds>;
 }
 export async function readBoard(project: string, reads: BoardReads): Promise<BoardSnapshot> {
   const tree = await reads.projectTree(project);
-  const views = await Promise.all(tree.arcs.map(({ id }) => reads.arcView(project, id)));
-  const arcs = views.filter((view): view is ArcView => view !== null);
-  const increments = arcs.flatMap(({ increments }) => increments);
-  const [waits, heldOn] = await Promise.all([
-    Promise.all([...arcs.map(({ arc }) => arc.id), ...increments.map(({ id }) => id)].map(async (id) => [id, await reads.waitHolds(project, id)] as const)),
-    Promise.all(increments.map(async ({ id }) => [id, await reads.heldOnQuestion(project, id)] as const)),
+  const [views, { waits, heldOn }] = await Promise.all([
+    Promise.all(tree.arcs.map(({ id }) => reads.arcView(project, id))),
+    reads.holds(project),
   ]);
-  return { arcs, waits: Object.fromEntries(waits), heldOn: Object.fromEntries(heldOn) };
+  const arcs = views.filter((view): view is ArcView => view !== null);
+  return { arcs, waits: { ...waits }, heldOn: { ...heldOn } };
 }

@@ -59,7 +59,7 @@ try {
   });
   await context.addInitScript(() => {
     try { localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'); } catch { /* about:blank has no storage */ }
-    window.storytree = Object.fromEntries(['projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'].map(name => [name, (...args) => window.bridge(name, args)]));
+    window.storytree = Object.fromEntries(['projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds'].map(name => [name, (...args) => window.bridge(name, args)]));
   });
   context.on('page', page => page.on('pageerror', error => errors.push(error.stack ?? String(error))));
   let page = await context.newPage();

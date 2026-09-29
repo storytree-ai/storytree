@@ -27,6 +27,7 @@ export type {
   ContractEdit,
   Disposition,
   Hold,
+  Holds,
   NewQuestion,
   QuestionLease,
   Settlement,

@@ -21,6 +21,8 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   contextReadings(name: string, sessions: readonly string[]): Promise<ContextReading[]>;
   /** The user's idle-after setting in milliseconds, read now. */
   idleAfterMs(): Promise<number>;
+  /** The user's leave-after setting in milliseconds, read now. */
+  leaveAfterMs(): Promise<number>;
   /** A session's window in a project (agent link 9.10), read now. Refused for a name that is not a project. */
   windowReading(name: string, session: string): Promise<SessionWindow>;
   /** A project's tree, with every node's health. Refused for a name that is not a project. */
@@ -56,6 +58,7 @@ export const CHANNELS = {
   holds: "storytree:holds",
   contextReadings: "storytree:context-readings",
   idleAfterMs: "storytree:idle-after-ms",
+  leaveAfterMs: "storytree:leave-after-ms",
   windowReading: "storytree:window-reading",
   projectTree: "storytree:project-tree",
   changesSince: "storytree:changes-since",

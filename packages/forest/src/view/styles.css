@@ -30,6 +30,7 @@
 .sessions-list .session-detail-note { margin:2px 0; font-size:11px; }
 .session-needs-you { font-size:11px; color:#f2cb83; white-space:nowrap; }
 .sessions-list .session-why { margin:0 0 2px 16px; font-size:11px; color:#f2cb83; overflow-wrap:anywhere; }
+.sessions-list .session-unmerged { margin:0 0 2px 16px; font-size:11px; color:#e8a07a; overflow-wrap:anywhere; }
 .session-row[data-idle] { opacity:.6; }
 .session-idle-fold { font:inherit; font-size:11px; color:#b3bdb9; background:none; border:0; padding:2px 0 2px 16px; cursor:pointer; }
 .session-idle-fold::before { content:"▸ "; }

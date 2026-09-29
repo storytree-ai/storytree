@@ -134,7 +134,7 @@ test("7.12 a session holding unmerged work is marked with its branches; the list
     { ...hook("holding"), branch: "fix-login", kind: "file-edited", files: ["a.ts"], at: hours(5) },
     { ...hook("quiet"), kind: "prompt-submitted", at: hours(2) }, { ...hook("quiet"), kind: "turn-ended", at: hours(2) },
     { ...hook("desk"), kind: "prompt-submitted", at: hours(3) }, { ...hook("desk"), kind: "turn-ended", at: hours(3) },
-    { ...hook("reader"), kind: "session-unarchived", of: "desk", app: "claude-desktop", at: hours(3) });
+    { ...hook("reader"), kind: "session-unarchived", of: "desk", app: "claude-desktop", at: hours(4) });
   const rows = sessionRows(tree, lines, [], now);
   assert.deepEqual(rows.map(row => [row.id, row.idle, row.unmerged]), [["holding", true, ["fix-login"]], ["desk", true, []]],
     "two hours quiet leaves at the 1-hour default; unmerged work stays, marked; the finished desktop window folds");

@@ -43,6 +43,8 @@ export interface SessionRow {
   stories: string[];
   /** Every folder the session has worked in, oldest first (ADR-0749 D2); none for an observed subagent. */
   worktrees: string[];
+  /** Its branches that still hold unmerged work (ADR-0754 D4): a session that has not cleaned up, marked so it can be looked into. */
+  unmerged: string[];
   children: SessionRow[];
 }
 
@@ -52,12 +54,13 @@ const LABEL_LIMIT = 40;
 /**
  * One row per session that has not ended, claimed or not (ADR-0749 D1), each working or waiting by
  * its turns (ADR-0754 D5); one whose hooks report no turns is judged by `quietMs`, the user's
- * idle-after setting (the 30-minute default when the caller has none).
+ * idle-after setting (the 30-minute default when the caller has none). A quiet session leaves by `leaveMs`,
+ * the user's leave-after setting (the 1-hour default when the caller has none).
  */
 export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: readonly ArcView[], now: Date,
-  details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number): SessionRow[] {
+  details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number, leaveMs?: number): SessionRow[] {
   const judged = quietMs === undefined ? { now } : { now, quietMs };
-  const sessions = sessionsFrom(lines, judged);
+  const sessions = sessionsFrom(lines, leaveMs === undefined ? judged : { ...judged, leaveMs });
   // Who is listed is the agent link's reading (ADR-0754 D4, ADR-0758 D3): a verified close-out, or an ended or
   // silent session with no open work, is hidden.
   const ended = new Set(sessions.filter(session => session.listing === "hidden").map(session => session.session));
@@ -83,7 +86,8 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
       ...(session.closeOut?.needsYou === undefined ? {} : { needsYouWhy: session.closeOut.needsYou }),
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
-      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees, children: [] });
+      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees,
+      unmerged: session.openWork, children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
@@ -91,7 +95,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
       agent: line.type ?? "Subagent", state: "observed", needsYou: false, idle: false,
-      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], children: [] });
+      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], unmerged: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
   const roots: SessionRow[] = [];

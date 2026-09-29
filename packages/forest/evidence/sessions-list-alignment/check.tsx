@@ -14,7 +14,7 @@ import type { SessionRow } from "../../src/sessions-list/sessions-list.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(path.join(here, "../../src/view/styles.css"), "utf8");
 const base = { agent: "Claude Code", state: "active", needsYou: false, totalTokens: undefined,
-  stories: [], children: [] } as unknown as SessionRow;
+  stories: [], unmerged: [], children: [] } as unknown as SessionRow;
 // ADR-0737 D2: a claim's reason is held to 40 characters; these are the widest ordinary names at that limit.
 const atLimit = ["Make workspace for the Wisps with Mowgli", "Line up the sessions-list context bar ok"];
 const rows: SessionRow[] = [

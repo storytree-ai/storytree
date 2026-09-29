@@ -1,0 +1,3 @@
+I created `C:\Users\mickh\Not A Project\hello.txt`, and it contains `hi`.
+rc=0 
+hello.txt

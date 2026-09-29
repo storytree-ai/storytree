@@ -1,0 +1,131 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Call story ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\PF Project Folder
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0ed29-af3c-71c3-913a-b2e6f90e1782
+--------
+user
+Call storytree's check_setup and verify the hooks exactly as it asks (a file edit and a command), call check_setup 
+again, and report exactly which hook events it says are verified and which are not. Do not install any software or 
+sign in to anything.
+hook: SessionStart
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+IÔÇÖll find StorytreeÔÇÖs setup check, follow its file-edit and command instructions, then run it again and report the 
+hook results.
+
+hook: PreToolUse
+hook: PreToolUse Completed
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Force -Name 
+AGENTS.md,.storytree-check -ErrorAction SilentlyContinue' in C:\Users\mickh\PF Project Folder
+ exited 1 in 192ms:
+hook: PostToolUse
+hook: PostToolUse Completed
+apply patch
+patch: completed
+C:\Users\mickh\PF Project Folder\.storytree-check
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'echo storytree-check' in C:\Users\mickh\PF 
+Project Folder
+ succeeded in 205ms:
+storytree-check
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+hook: PreToolUse
+hook: PreToolUse Completed
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+codex
+Called `check_setup`, wrote `storytree-check` to `.storytree-check`, ran `echo storytree-check`, then called 
+`check_setup` again.
+
+Storytree reports these hook events verified:
+
+- Session start
+- A Storytree tool call
+- A file edit
+- A command
+
+Not verified: **none** (`verified: true`, `missing: []`).
+
+No software was installed and no sign-in was performed.
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+hook: Stop
+hook: Stop Completed
+tokens used
+27,961
+Called `check_setup`, wrote `storytree-check` to `.storytree-check`, ran `echo storytree-check`, then called `check_setup` again.
+
+Storytree reports these hook events verified:
+
+- Session start
+- A Storytree tool call
+- A file edit
+- A command
+
+Not verified: **none** (`verified: true`, `missing: []`).
+
+No software was installed and no sign-in was performed.

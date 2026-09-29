@@ -1,0 +1,18 @@
+All four hook events are now verified.
+
+**First check:** it reported `"verified": false`. It had received the session start and the storytree tool call, but two events were missing:
+- file edit
+- command
+
+**What I did, as it asked:**
+- Wrote `storytree-check` into a new file, `.storytree-check`, in the project folder using the **Write** tool, to fire the file-edit hook. That file is still there.
+- Ran `echo storytree-check` using the **PowerShell** tool, to fire the command hook.
+
+**Second check:** `"verified": true` with nothing missing. It says storytree has received this session's:
+- start
+- storytree tool call
+- file edit
+- command
+
+Nothing was installed. The check also noted that `gh`, `git` and Node are not installed. It said storytree works without them: only workspaces need git, and only a claim ending by itself when its pull request merges needs `gh`.
+rc=0

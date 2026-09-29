@@ -5,17 +5,25 @@
 //   --test-timeout      a test that never ends fails at TEST_LIMIT_MS, and node names it;
 //   the unit deadline   past UNIT_LIMIT_MS the unit's whole process tree is killed, and the tests
 //                       still running are named (test-running-reporter.mjs records them).
-// The limits are about three times the worst seen anywhere on 2026-09-28 (117 CI jobs on Linux,
-// macOS and Windows x64: slowest test 22.4 s, slowest unit 62.5 s). A test that needs longer
-// passes its own `timeout` option; raising a limit here needs measurements (ADR-0731 D3).
+// TEST_LIMIT_MS is about three times the slowest test seen anywhere on 2026-09-28 (117 CI jobs on
+// Linux, macOS and Windows x64: 22.4 s); a test that needs longer passes its own `timeout` option.
+// Each unit's deadline is learned from this machine's history (unitLimit, ADR-0785):
+// twice its slowest recent pass, doubled after each kill since it last passed, or what an agent set
+// for it here with a reason. UNIT_LIMIT_MS is the deadline until a unit has enough history.
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const TEST_LIMIT_MS = 60_000;
 export const UNIT_LIMIT_MS = 180_000;
+export const UNIT_LIMIT_FLOOR_MS = 60_000;
+export const UNIT_LIMIT_CEILING_MS = 900_000;
+const LEARN_FROM_PASSES = 5; // fewer passes than this on this machine: the fixed deadline
+const RECENT_PASSES = 20;
+const defaultHome = () => process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3");
+const limitsFile = (home) => path.join(home, "test-limits.json");
 
 const tsx = import.meta.resolve("tsx"); // from here, so a unit whose cwd is elsewhere still finds it
 const reporter = fileURLToPath(new URL("./test-running-reporter.mjs", import.meta.url));
@@ -131,20 +139,83 @@ function stillRunning(runningFile) {
   return result;
 }
 
-/** A unit's row note in the results table: its time, and on a timeout what was still running. */
-export function unitReason({ ms, timedOut, running = [], unitLimitMs }, root) {
+/**
+ * A unit's deadline on this machine and where it came from: what an agent set for it here, else
+ * twice its slowest recent pass once it has enough, else UNIT_LIMIT_MS; then doubled for each kill
+ * since it last passed (a killed run never enters the passes, so without this it could never
+ * recover), never over UNIT_LIMIT_CEILING_MS.
+ */
+export function unitLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
+  const rows = readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.unit === unit && row.platform === platform && row.arch === arch);
+  const set = readLimits(home)[unit];
+  const passes = rows.filter((row) => row.result === "pass").slice(-RECENT_PASSES);
+  let ms = UNIT_LIMIT_MS;
+  let source = "default";
+  if (set) [ms, source] = [set.ms, `set: ${set.reason}`];
+  else if (passes.length >= LEARN_FROM_PASSES) [ms, source] = [Math.max(UNIT_LIMIT_FLOOR_MS, Math.ceil((2 * Math.max(...passes.map((row) => row.ms))) / 1000) * 1000), "learned"];
+  const lastPass = rows.findLastIndex((row) => row.result === "pass");
+  const kills = rows.slice(lastPass + 1).filter((row) => row.timedOut).length;
+  if (kills === 0) return { ms, source };
+  return { ms: Math.min(UNIT_LIMIT_CEILING_MS, ms * 2 ** kills), source: `${source}, grown after ${kills} kill${kills === 1 ? "" : "s"}` };
+}
+
+/** Set a unit's deadline on this machine, with the reason any later run shows beside it. */
+export function setUnitLimit(unit, ms, { reason, home = defaultHome() }) {
+  if (!reason?.trim()) throw new Error("a unit's deadline is set with a reason, shown on every run it applies to");
+  if (!(ms > 0)) throw new Error(`a deadline is a positive time, not ${ms}`);
+  writeLimits(home, { ...readLimits(home), [unit]: { ms, reason: reason.trim(), at: new Date().toISOString() } });
+}
+
+/** Clear a set deadline, so the unit's is learned again. */
+export function clearUnitLimit(unit, { home = defaultHome() } = {}) {
+  const { [unit]: _, ...rest } = readLimits(home);
+  writeLimits(home, rest);
+}
+
+function readLimits(home) {
+  try {
+    return JSON.parse(readFileSync(limitsFile(home), "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeLimits(home, limits) {
+  mkdirSync(home, { recursive: true });
+  writeFileSync(limitsFile(home), `${JSON.stringify(limits, null, 2)}\n`);
+}
+
+function readJsonLines(file) {
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  return text.split("\n").flatMap((line) => {
+    try {
+      return line.trim() ? [JSON.parse(line)] : [];
+    } catch {
+      return []; // a line cut short by a run that died mid-write
+    }
+  });
+}
+
+/** A unit's row note in the results table: its time and deadline, and on a timeout what was still running. */
+export function unitReason({ ms, timedOut, running = [], unitLimitMs, limitSource }, root) {
   const took = `${(ms / 1000).toFixed(1)} s`;
-  if (!timedOut) return took;
+  const limit = `limit ${unitLimitMs / 1000} s${limitSource ? `, ${limitSource}` : ""}`;
+  if (!timedOut) return limitSource ? `${took} (${limit})` : took;
   const named = running.map(({ file, name }) => {
     const shown = file ? path.relative(root, file).replaceAll("\\", "/") : "(unknown file)";
     return name === undefined ? `${shown} (outside any test)` : `${shown} › ${name}`;
   });
   const what = named.length > 0 ? `still running: ${named.join("; ")}` : "no test had started or all had ended; a file may be stuck loading";
-  return `timed out after ${took} (limit ${unitLimitMs / 1000} s), killed; ${what}`;
+  return `timed out after ${took} (${limit}), killed; ${what}`;
 }
 
-/** Add this run's unit times to the machine's history, for limits learned from it later. */
-export function recordTimings(units, { home = process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3") } = {}) {
+/** Add this run's unit times to the machine's history, which unitLimit learns each deadline from. */
+export function recordTimings(units, { home = defaultHome() } = {}) {
   const at = new Date().toISOString();
   const lines = Object.entries(units).map(([unit, { result, ms, timedOut = false }]) =>
     JSON.stringify({ at, platform: process.platform, arch: process.arch, unit, result, ms, timedOut }),

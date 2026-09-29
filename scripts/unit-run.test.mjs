@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { recordTimings, runUnit, unitReason } from "./unit-run.mjs";
+import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
 function fixture(t, files) {
   const root = mkdtempSync(path.join(tmpdir(), "unit-run-"));
@@ -139,4 +139,57 @@ test("each unit's time is added to the machine's timing history, outside the che
   ]);
   assert.equal(lines[0].platform, process.platform);
   assert.equal(lines[0].arch, process.arch);
+});
+
+// increment_1fafaa291b37: each unit's deadline is learned from this machine's history, grows again
+// after a kill, and any agent can set it with a reason.
+function history(t, rows = []) {
+  const home = mkdtempSync(path.join(tmpdir(), "unit-run-limits-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const at = "2026-09-29T00:00:00.000Z";
+  const lines = rows.map(([unit, result, ms, timedOut = false]) => JSON.stringify({ at, platform: "win32", arch: "arm64", unit, result, ms, timedOut }));
+  if (lines.length > 0) writeFileSync(path.join(home, "test-timings.jsonl"), `${lines.join("\n")}\n`);
+  return home;
+}
+const machine = { platform: "win32", arch: "arm64" };
+const passes = (unit, ...ms) => ms.map((each) => [unit, "pass", each]);
+
+test("a unit with too little history on this machine keeps the fixed deadline", (t) => {
+  const home = history(t, [...passes("cli", 40_000, 50_000), ...passes("forest", 1_000, 1_000, 1_000, 1_000, 1_000)]);
+  assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: UNIT_LIMIT_MS, source: "default" });
+  assert.equal(unitLimit("forest", { home, platform: "linux", arch: "x64" }).source, "default", "another machine's times are not this one's");
+});
+
+test("with enough passes, a unit's deadline is twice its slowest recent pass, never under the floor", (t) => {
+  const home = history(t, [...passes("agent-link", 60_000, 165_000, 61_000, 70_000, 90_000), ...passes("arc-surface", 2_000, 18_000, 2_000, 2_500, 3_000)]);
+  assert.deepEqual(unitLimit("agent-link", { home, ...machine }), { ms: 330_000, source: "learned" });
+  assert.deepEqual(unitLimit("arc-surface", { home, ...machine }), { ms: UNIT_LIMIT_FLOOR_MS, source: "learned" });
+});
+
+test("only recent passes count, so a unit that got faster gets a tighter deadline", (t) => {
+  const home = history(t, [...passes("cli", 115_000), ...Array.from({ length: 20 }, () => ["cli", "pass", 40_000])]);
+  assert.equal(unitLimit("cli", { home, ...machine }).ms, 80_000);
+});
+
+test("each kill since the unit last passed doubles its next deadline, up to the ceiling", (t) => {
+  const home = history(t, [...passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000), ["cli", "fail", 100_000, true]]);
+  assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: 200_000, source: "learned, grown after 1 kill" });
+  const stuck = history(t, Array.from({ length: 6 }, () => ["cli", "fail", 180_000, true]));
+  assert.deepEqual(unitLimit("cli", { home: stuck, ...machine }), { ms: UNIT_LIMIT_CEILING_MS, source: "default, grown after 6 kills" });
+  const healed = history(t, [...passes("cli", 50_000, 50_000, 50_000, 50_000), ["cli", "fail", 100_000, true], ["cli", "pass", 150_000]]);
+  assert.deepEqual(unitLimit("cli", { home: healed, ...machine }), { ms: 300_000, source: "learned" }, "a pass after the kill joins the history and the growth ends");
+});
+
+test("any agent can set a unit's deadline on this machine with a reason, and clear it", (t) => {
+  const home = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
+  assert.throws(() => setUnitLimit("cli", 300_000, { home, reason: " " }), /reason/);
+  setUnitLimit("cli", 300_000, { home, reason: "two gates at once on this laptop" });
+  assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: 300_000, source: "set: two gates at once on this laptop" });
+  clearUnitLimit("cli", { home });
+  assert.equal(unitLimit("cli", { home, ...machine }).source, "learned");
+});
+
+test("a unit's row gives its time, its deadline and where the deadline came from", () => {
+  assert.equal(unitReason({ ms: 12_345, timedOut: false, unitLimitMs: 80_000, limitSource: "learned" }, "/"), "12.3 s (limit 80 s, learned)");
+  assert.match(unitReason({ ms: 80_100, timedOut: true, running: [], unitLimitMs: 80_000, limitSource: "learned" }, "/"), /timed out after 80\.1 s \(limit 80 s, learned\), killed/);
 });

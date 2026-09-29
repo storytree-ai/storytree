@@ -9,6 +9,8 @@ export interface CommandResult {
   file: string;
   pathEntry: string;
   conflict?: string;
+  /** storytree launchers elsewhere on PATH that pointed at another build and now run this one. */
+  replaced?: string[];
 }
 
 export function installCommand(options: { home: string; tools: InstalledTools; searchPath: string; platform?: NodeJS.Platform; pathExt?: string }): CommandResult {
@@ -39,11 +41,14 @@ export function installCommand(options: { home: string; tools: InstalledTools; s
     : `#!/bin/sh\n# ${marker}\nexec ${quote(options.tools.node)} ${quote(options.tools.cli)} "$@"\n`;
   const targets = [...new Set([...ours, file])];
   const same = targets.every((target) => existsSync(target) && readFileSync(target, "utf8") === command);
+  const replaced: string[] = [];
   mkdirSync(pathEntry, { recursive: true });
   for (const target of targets) {
     if (existsSync(target) && readFileSync(target, "utf8") === command) continue;
+    // Our own launchers earlier on PATH would shadow this one, so they are repointed, and said so.
+    if (target !== file) replaced.push(target);
     writeFileSync(target, command);
     if (!windows) chmodSync(target, 0o755);
   }
-  return { status: same ? "already installed" : "installed", file, pathEntry };
+  return { status: same ? "already installed" : "installed", file, pathEntry, replaced };
 }

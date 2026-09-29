@@ -42,7 +42,8 @@ From a terminal, use `storytree setup connect --claude`, `--codex`, or both swit
 their existing hook/command meaning.
 
 The CLI forwards to app-setup's bundled `storytree-deliver.mjs` helper. It reads the schema-1
-`delivery.json` from the current storytree home and calls these same connection functions
+`delivery.json` from the current storytree home (when `finish` has not yet written it, the
+`node` and `storytree-mcp.mjs` installed beside the helper) and calls these same connection functions
 with `tools.node` and `tools.mcp`. No project or running app is needed for these commands.
 Failure for any selected agent exits nonzero while reporting each result. Missing or
 invalid delivery metadata names the installer as the recovery path. This adds no second

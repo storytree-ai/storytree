@@ -21,7 +21,8 @@ only after startup succeeds. Schema 1 holds `installDir` and `tools` with absolu
 Connection and harness consent belong to capability 2. After successful delivery the
 one-liner prompts for Claude Code, Codex, both, or skip, then invokes the installed
 `tools.node tools.cli setup connect` with the chosen switches. The CLI delegates to the
-bundled app-setup helper, which reads `delivery.json` and reuses `connectAgents`.
+bundled app-setup helper, which reads `delivery.json` (or, before `finish` has written it,
+the tools beside the helper itself) and reuses `connectAgents`.
 Registration reports tools connected separately from hooks not verified and directs the
 user to start a session in their folder.
 
@@ -38,6 +39,8 @@ delivery's own `inspect` and `finish` operations do not write harness settings.
 Delivery owns `~/.storytree/0.3/bin/storytree.cmd`, recognizes the agent-link's 0.3 launcher
 marker, and adds its directory to the per-user Windows PATH. Unrelated commands anywhere on
 the supplied PATH cause a named conflict; the user can run the bundled Node/CLI explicitly.
+A marked launcher elsewhere on PATH (a source build's, say) would shadow this one, so it is
+repointed at this installation and named in the result's `replaced`, which the one-liner prints.
 PowerShell owns registry PATH persistence and Explorer notification; no global Node or tool
 installation occurs. Node patch versions and both hashes are pinned in `runtime.ts`.
 

@@ -72,6 +72,8 @@ export interface OpenOptions {
   readonly connectTimeoutMs?: number;
   /** The machine this log is written from: every line it adds that names no machine names this one. By default, none. */
   readonly machine?: string;
+  /** The git branch a folder on this machine is on (ADR-0754 D4): every line it adds that names a folder and no branch names this one. By default, none. */
+  readonly branchOf?: (folder: string) => string | undefined;
 }
 
 /** This machine's name, as lines record it: its host name, trimmed; undefined when it has none. */
@@ -131,7 +133,7 @@ export async function openActivityLog(server: string | Storytree, options: OpenO
   if (typeof server !== "string") {
     const pool = await server.ownDatabase(ACTIVITY_DATABASE);
     await applySchema(pool);
-    return new PgActivityLog(pool, options.machine, false);
+    return new PgActivityLog(pool, options.machine, false, options.branchOf);
   }
   return openAtUrl(new URL(server), options);
 }
@@ -141,7 +143,7 @@ async function openAtUrl(server: URL, options: OpenOptions): Promise<ActivityLog
   const first = newPool(databaseUrl(server, ACTIVITY_DATABASE), timeout);
   try {
     await applySchema(first);
-    return new PgActivityLog(first, options.machine);
+    return new PgActivityLog(first, options.machine, true, options.branchOf);
   } catch (error) {
     await first.end();
     if (!isMissingDatabase(error) && !isConnectionReset(error)) throw error;
@@ -154,12 +156,13 @@ async function openAtUrl(server: URL, options: OpenOptions): Promise<ActivityLog
     await pool.end();
     throw error;
   }
-  return new PgActivityLog(pool, options.machine);
+  return new PgActivityLog(pool, options.machine, true, options.branchOf);
 }
 
 class PgActivityLog implements ActivityLog {
   readonly #pool: Pool;
   readonly #machine: string | undefined;
+  readonly #branchOf: ((folder: string) => string | undefined) | undefined;
   #closing: Promise<void> | undefined;
 
   readonly #ownsPool: boolean;
@@ -167,9 +170,10 @@ class PgActivityLog implements ActivityLog {
   /** `ownsPool` false: the pool is a library connection's, which ends it. */
   readonly transcripts: TranscriptRecords;
 
-  constructor(pool: Pool, machine: string | undefined, ownsPool = true) {
+  constructor(pool: Pool, machine: string | undefined, ownsPool = true, branchOf?: (folder: string) => string | undefined) {
     this.#pool = pool;
     this.#machine = machine;
+    this.#branchOf = branchOf;
     this.#ownsPool = ownsPool;
     this.transcripts = new PgTranscriptRecords(pool);
   }
@@ -219,9 +223,11 @@ class PgActivityLog implements ActivityLog {
     );
   }
 
-  /** `line`, naming this log's machine when it names none. */
+  /** `line`, naming this log's machine when it names none, and its folder's branch when it names a folder and no branch. */
   #stamped(line: NewLine): NewLine {
-    return line.machine !== undefined || this.#machine === undefined ? line : { ...line, machine: this.#machine };
+    const machine = line.machine !== undefined || this.#machine === undefined ? line : { ...line, machine: this.#machine };
+    const branch = line.branch !== undefined || line.folder === undefined ? undefined : this.#branchOf?.(line.folder);
+    return branch === undefined ? machine : { ...machine, branch };
   }
 
   close(): Promise<void> {

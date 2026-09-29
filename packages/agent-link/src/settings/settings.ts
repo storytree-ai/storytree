@@ -22,6 +22,15 @@ const idleAfter = {
   meaning: "Another session may take over a claim whose holder has had no activity and no command running for this time; a session whose hooks do not report its turns also reads as waiting after it. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 10m. Default: 30 minutes.",
 } as const;
 
+const leaveAfter = {
+  name: "leave-after",
+  label: "Time before a finished session leaves the list",
+  type: "duration",
+  unit: "",
+  default: "12h",
+  meaning: "A session that holds no unmerged work leaves the running-sessions list once it has been quiet this long, counted from its last activity or from when its work was merged, whichever is later; a session the Claude or Codex app keeps shows as done until you archive it there instead. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 2h. Default: 12 hours.",
+} as const;
+
 const library = {
   name: "library",
   default: "local",
@@ -41,7 +50,7 @@ interface ContextGuidanceReading {
 }
 
 interface IdleReading {
-  readonly name: "idle-after";
+  readonly name: "idle-after" | "leave-after";
   readonly label: string;
   readonly type: "duration";
   readonly unit: "";
@@ -66,6 +75,7 @@ export type LibraryReading = LibraryLocation & {
 export interface SettingsReading {
   readonly "context-guidance": ContextGuidanceReading;
   readonly "idle-after": IdleReading;
+  readonly "leave-after": IdleReading;
   readonly library: LibraryReading;
 }
 
@@ -78,6 +88,7 @@ export type SurfaceChoices = Readonly<Record<string, Readonly<Record<string, boo
 interface Stored {
   "context-guidance"?: number;
   "idle-after"?: string;
+  "leave-after"?: string;
   library?: LibraryLocation;
   surfaces?: SurfaceChoices;
 }
@@ -96,6 +107,11 @@ export function readSettings(home: string = storytreeHome()): SettingsReading {
       ...idleAfter,
       value: stored["idle-after"] ?? idleAfter.default,
       source: stored["idle-after"] === undefined ? "default" : "set",
+    },
+    "leave-after": {
+      ...leaveAfter,
+      value: stored["leave-after"] ?? leaveAfter.default,
+      source: stored["leave-after"] === undefined ? "default" : "set",
     },
     library: { ...library, ...(stored.library ?? { location: "local" }), source: stored.library === undefined ? "default" : "set" },
   };
@@ -131,8 +147,8 @@ export function readLibrary(home: string = storytreeHome()): LibraryLocation {
 export function setSetting(name: string, value: string, home: string = storytreeHome()): SettingReading {
   checkName(name);
   if (name === library.name) return refuse("Set the library with `storytree settings set library local`, or `… library cloudsql <instance> <user>`.");
-  if (name === idleAfter.name) {
-    checkedDuration(value);
+  if (name === idleAfter.name || name === leaveAfter.name) {
+    checkedDuration(value, name);
     write(home, { ...readStored(home), [name]: value });
     return readSettings(home)[name];
   }
@@ -181,9 +197,9 @@ function refuse(message: string): never {
   throw new Error(message);
 }
 
-function checkName(name: string): asserts name is "context-guidance" | "idle-after" | "library" {
-  if (name !== contextGuidance.name && name !== idleAfter.name && name !== library.name) {
-    refuse(`Unknown setting ${JSON.stringify(name)}. Available settings: ${contextGuidance.name}, ${idleAfter.name}, ${library.name}.`);
+function checkName(name: string): asserts name is "context-guidance" | "idle-after" | "leave-after" | "library" {
+  if (name !== contextGuidance.name && name !== idleAfter.name && name !== leaveAfter.name && name !== library.name) {
+    refuse(`Unknown setting ${JSON.stringify(name)}. Available settings: ${contextGuidance.name}, ${idleAfter.name}, ${leaveAfter.name}, ${library.name}.`);
   }
 }
 
@@ -192,12 +208,17 @@ export function idleAfterMs(home?: string): number {
   return checkedDuration(readSettings(home)["idle-after"].value);
 }
 
-function checkedDuration(value: unknown): number {
+/** The current leave-after duration in milliseconds (ADR-0754 D4); read afresh so a running reader sees changes. */
+export function leaveAfterMs(home?: string): number {
+  return checkedDuration(readSettings(home)["leave-after"].value, leaveAfter.name);
+}
+
+function checkedDuration(value: unknown, name: string = idleAfter.name): number {
   const match = typeof value === "string" ? /^(\d+)(s|m|h|d)$/.exec(value) : null;
   const units: Record<string, number> = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 };
   const ms = match === null ? NaN : Number(match[1]) * units[match[2]!]!;
   if (!Number.isSafeInteger(ms) || ms <= 0) {
-    refuse("idle-after must be a positive duration in whole seconds (s), minutes (m), hours (h) or days (d), such as 10m, within the safe millisecond range.");
+    refuse(`${name} must be a positive duration in whole seconds (s), minutes (m), hours (h) or days (d), such as 10m, within the safe millisecond range.`);
   }
   return ms;
 }
@@ -273,8 +294,8 @@ function readStored(home: string): Stored {
       }
       checkName(name);
       if (name === "library") settings.library = checkedLibrary(value);
-      else if (name === "idle-after") {
-        checkedDuration(value);
+      else if (name === "idle-after" || name === "leave-after") {
+        checkedDuration(value, name);
         settings[name] = value as string;
       }
       else settings[name] = checkedGuidance(value);

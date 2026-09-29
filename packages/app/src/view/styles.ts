@@ -64,7 +64,32 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-update-status strong, .app-update-status span { display: block; }
 .app-update-status strong { font-weight: 600; color: #eceae3; }
 .app-update-status span { margin-top: 6px; color: #a9b0ba; }
+.surfaces { margin-top: 40px; padding-top: 28px; border-top: 1px solid #485159; }
+.surfaces code { font: inherit; }
+.surfaces-status { min-height: 1.5em; margin: -16px 0 8px; color: #a9b0ba; font-size: 12px; }
+.surface { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px 28px; padding: 18px 0; border-top: 1px solid #485159; }
+.surface h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.surface-text p { margin: 4px 0 0; color: #a9b0ba; overflow-wrap: anywhere; }
+.surface-state { text-align: right; }
+.surface-fixed { color: #a9b0ba; font-size: 12px; }
+.surface-toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.surface-toggle input { appearance: none; position: relative; width: 38px; height: 22px; margin: 0; border: 1px solid #485159; border-radius: 11px; background: #262a2f; cursor: pointer; }
+.surface-toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #a9b0ba; transition: left .12s; }
+.surface-toggle input:checked { background: #3d5a50; border-color: #7dbdab; }
+.surface-toggle input:checked::after { left: 19px; background: #eceae3; }
+.surface-toggle span { min-width: 2em; color: #a9b0ba; font-size: 12px; text-align: left; }
+.surface-setting { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 205px; gap: 4px 28px; align-items: center; padding: 10px 0 0 16px; border-left: 2px solid #262a2f; }
+.surface-setting label { font-weight: 600; }
+.surface-setting select { grid-row: 1 / span 2; grid-column: 2; border: 1px solid #485159; border-radius: 6px; padding: 7px 10px; background: #101418; color: #eceae3; font: inherit; }
+.surface-setting select:disabled { opacity: .5; }
+.surface-setting p { margin: 0; color: #a9b0ba; font-size: 12px; }
+.surface-group { border-top: 1px solid #485159; }
+.surface-group > .surface:first-child { border-top: 0; }
+.surface[data-within] { margin-left: 24px; border-top-style: dashed; }
 @media (max-width: 700px) {
+  .surface, .surface-setting { grid-template-columns: minmax(0, 1fr); }
+  .surface-state { text-align: left; }
+  .surface-setting select { grid-row: auto; grid-column: auto; }
   .app-menu { padding: 12px; }
   .app-menu-header { padding: 12px 16px; }
   .app-menu-body { flex-direction: column; }

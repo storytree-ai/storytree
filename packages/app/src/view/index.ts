@@ -1,7 +1,9 @@
 import { mountSettings, type SettingsBridge } from "@storytree/agent-link/view";
 import type { ProjectSelection } from "../projects/selection.js";
+import type { SurfacesBridge } from "../surfaces/bridge.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";
 import { appMenuStyles } from "./styles.js";
+import { mountSurfaces } from "./surfaces.js";
 import { mountUpdates } from "./updates.js";
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
@@ -13,6 +15,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   onError(error: unknown): void;
   mountHelp(host: HTMLElement, returnFocus: HTMLElement, onOpen: () => void): { open(): void; close(): void; stop(): void };
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
+  /** Hears a surface switched or set in the Surfaces menu, saved already, for the frame to apply. */
+  onSurfacesChanged(): void;
 }) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(appMenuStyles);
@@ -23,11 +27,15 @@ export function mountAppMenu(host: HTMLElement, options: {
   const menu = host.querySelector<HTMLElement>("#app-menu")!;
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
   const projectError = menu.querySelector<HTMLElement>("[data-app-project-error]")!;
-  const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge }) | null;
+  const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge & SurfacesBridge }) | null;
   const settings = mountSettings(menu.querySelector<HTMLElement>("[data-app-settings]")!, {
     readSettings: () => desktop!.storytree.readSettings(),
     saveSetting: (name, values) => desktop!.storytree.saveSetting(name, values),
   }, { returnFocus: gear, embedded: true });
+  const surfaces = mountSurfaces(menu.querySelector<HTMLElement>("[data-app-surfaces]")!, {
+    readSurfaces: () => desktop!.storytree.readSurfaces(),
+    saveSurface: (words) => desktop!.storytree.saveSurface(words),
+  }, options.onSurfacesChanged);
   const help = options.mountHelp(menu.querySelector<HTMLElement>("[data-app-help]")!, gear, () => {
     selectSection("help");
     menu.showPopover();
@@ -42,13 +50,13 @@ export function mountAppMenu(host: HTMLElement, options: {
   function selectSection(next: string): void {
     if (stopped) return;
     if (section !== next) {
-      if (section === "settings") settings.close();
+      if (section === "settings") { settings.close(); surfaces.close(); }
       if (section === "help") help.close();
     }
     section = next;
     for (const panel of menu.querySelectorAll<HTMLElement>(".app-menu-content > section")) panel.hidden = panel.id !== `app-${next}`;
     for (const button of menu.querySelectorAll<HTMLElement>("[data-app-section]")) button.setAttribute("aria-pressed", String(button.dataset.appSection === next));
-    if (next === "settings") settings.open();
+    if (next === "settings") { settings.open(); surfaces.open(); }
     else if (next === "help") help.open();
   }
   function close(): void { menu.hidePopover(); }
@@ -58,7 +66,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     options.background.inert = open || wasInert;
     if (open) selectSection(section);
     else {
-      if (section === "settings") settings.close();
+      if (section === "settings") { settings.close(); surfaces.close(); }
       if (section === "help") help.close();
       gear.focus();
     }
@@ -110,7 +118,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); help.stop(); settings.stop();
+      updates.stop(); help.stop(); settings.stop(); surfaces.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

@@ -116,8 +116,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
 }
 
-/** Mount the knowledge core's existing card in the slot also used by the story panel. */
-export function mountArtifactCard(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {
+/** Mount the Library panel, the knowledge core's card for the note picked, in the slot the story panel also uses. */
+export function mountLibraryPanel(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {
   const root = createRoot(container);
   root.render(<KnowledgeNoteCard core={core} onClose={onClose} />);
   return () => root.unmount();

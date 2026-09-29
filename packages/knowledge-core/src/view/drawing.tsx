@@ -231,11 +231,11 @@ export function CorePanel({ scene, counts, sessions, roster, session, sizeBy, fr
 
 /** One summary card, shared by the globe's right-hand slot and the inspection panel. */
 export function NoteCard({ card, onClose }: { card: Card; onClose: () => void }) {
-  return <section className="core-card" aria-label="Pinned artifact">
+  return <section className="core-card" aria-label="Library panel">
     <p className="core-card-kind">{card.kind}</p>
     <header>
       <h3>{card.title}</h3>
-      <button type="button" className="panel-close" aria-label="Close artifact" onClick={onClose}>×</button>
+      <button type="button" className="panel-close" aria-label="Close the library panel" onClick={onClose}>×</button>
     </header>
     <p className="core-card-text">{card.summary ?? card.text}</p>
   </section>;

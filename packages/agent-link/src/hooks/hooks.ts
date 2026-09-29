@@ -25,7 +25,7 @@
  */
 import type { NewLine } from "../activity/index.js";
 import type { MergeWatch } from "../claims/index.js";
-import { askToSetUp, findProject, route, withConnectTimeout, type LocateOptions } from "../routing/index.js";
+import { askToSetUp, findProject, route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { codexLines } from "./codex.js";
 import { contextNudge } from "./context-nudge.js";
@@ -102,7 +102,7 @@ interface Prompted {
 
 /**
  * Run one hook: read its input, and write its lines to the log of the project its folder belongs
- * to, if storytree is running. Never throws. It prints nothing but what a prompt hook adds for the
+ * to; while storytree cannot be reached they wait on this machine for the next hook (queue.ts). Never throws. It prints nothing but what a prompt hook adds for the
  * agent (definitions and context advice), which it returns: the command prints it.
  */
 export async function runHook({ argv, input, handOff, merges, locate }: HookInput): Promise<string | undefined> {
@@ -119,7 +119,14 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     const made = hookLines(harness, parsed);
     if (made === undefined || made.lines.length === 0) return;
     const where = route(made.folder, locate);
-    if (where.status !== "routed") return;
+    if (where.status === "not-a-project") return;
+    // Storytree cannot be reached: the lines wait on this machine for the next hook that reaches it.
+    const home = storytreeHome();
+    const { enqueue, uploadQueued } = await import("./queue.js");
+    if (where.status === "not-running") {
+      enqueue(home, where.project, made.lines);
+      return;
+    }
     if (flags.includes(BACKGROUND) && handOff !== undefined) {
       await handOff(harness, input);
       return undefined;
@@ -127,13 +134,27 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     // Only now, with lines to write and somewhere to write them, is the database reached.
     const [{ openActivityLog, thisMachine }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
-    const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
-    const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
-      await storytree.close();
-      throw error;
-    });
+    let opened;
     try {
-      for (const line of made.lines) await log.append(where.project, line);
+      const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
+      const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
+        await storytree.close();
+        throw error;
+      });
+      opened = { storytree, log };
+    } catch {
+      enqueue(home, where.project, made.lines);
+      return;
+    }
+    const { storytree, log } = opened;
+    let written = 0;
+    try {
+      // Lines that waited go first, so the log keeps each session's lines in the order they happened.
+      await uploadQueued(home, log);
+      for (const line of made.lines) {
+        await log.append(where.project, line);
+        written += 1;
+      }
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
       // call, which the harness waits for and which looks for itself.
       const [first] = made.lines;
@@ -146,6 +167,9 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
           await shipTranscript(log, where.project, first.session, first.transcript);
         }
       }
+    } catch {
+      // The log went away mid-hook: what it did not take waits for the next hook.
+      enqueue(home, where.project, made.lines.slice(written));
     } finally {
       await log.close();
       await storytree.close();

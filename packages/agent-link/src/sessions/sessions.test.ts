@@ -98,7 +98,7 @@ test("4.5 a command that started 40 minutes ago and has not finished keeps its s
     const [running] = await readSessions(log, project, { now: after(started, 40 * 60 * 1000) });
     assert.equal(running?.state, "live", "live while its command runs");
     const [abandoned] = await readSessions(log, project, { now: after(started, LONGEST_COMMAND_MS + 1) });
-    assert.equal(abandoned?.state, "idle", "a command older than the longest a command may run died with its window");
+    assert.equal(abandoned?.state, "gone", "a command older than the longest a command may run died with its window, and the silent session with it (4.7)");
 
     const finished = await log.append(project, { ...CLAUDE, kind: "command-run", command: "npm run build", call: "call-1" });
     const [done] = await readSessions(log, project, { now: after(finished, QUIET_MS + 1) });
@@ -120,5 +120,15 @@ test("4.6 a session is its harness id, not a folder: one whose lines name two wo
     const [session] = await readSessions(log, project, { now: after(edit, 1_000) });
     assert.equal(session?.folder, "/work/site", "the folder it started in");
     assert.deepEqual(session?.worktrees, ["/work/site", "/work/site/.claude/worktrees/fix"]);
+  });
+});
+
+test("4.7 a session silent for longer than a command may run has stopped reporting: it reads as gone, never as ended, since no end line said so (ADR-0749)", async () => {
+  await withProject(async (log, project) => {
+    const start = await log.append(project, { ...CLAUDE, kind: "session-started", how: "startup" });
+    const [idle] = await readSessions(log, project, { now: after(start, LONGEST_COMMAND_MS) });
+    assert.equal(idle?.state, "idle", "idle up to the limit");
+    const [gone] = await readSessions(log, project, { now: after(start, LONGEST_COMMAND_MS + 1) });
+    assert.equal(gone?.state, "gone", "gone past it");
   });
 });

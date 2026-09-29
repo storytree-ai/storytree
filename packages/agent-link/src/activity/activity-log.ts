@@ -32,7 +32,7 @@ export const ACTIVITY_DATABASE = "storytree-activity";
 /** The agent activity log on one Postgres server: one log per project, only ever added to. */
 export interface ActivityLog {
   /** Add a line to `project`'s log, and return it as the log keeps it. A line that is not one the log knows is refused. */
-  append(project: string, line: NewLine): Promise<Line>;
+  append(project: string, line: NewLine, options?: AppendOptions): Promise<Line>;
   /** `project`'s lines after `cursor`, oldest first, and the cursor to pass next time. Start from 0. */
   since(project: string, cursor: number): Promise<LinesSince>;
   /**
@@ -45,6 +45,14 @@ export interface ActivityLog {
   readonly transcripts: TranscriptRecords;
   /** Close the log's connections. */
   close(): Promise<void>;
+}
+
+/** How a line written earlier elsewhere, and only now reaching the log, is added (a hook's queued line). */
+export interface AppendOptions {
+  /** When it was written, rather than now: an ISO 8601 time. */
+  readonly at?: string;
+  /** Add it only if the project has no line exactly like it, at that time: an upload tried twice adds it once. */
+  readonly once?: boolean;
 }
 
 /** One project's log, as a locked write sees it. */
@@ -166,10 +174,11 @@ class PgActivityLog implements ActivityLog {
     this.transcripts = new PgTranscriptRecords(pool);
   }
 
-  async append(project: string, line: NewLine): Promise<Line> {
+  async append(project: string, line: NewLine, options: AppendOptions = {}): Promise<Line> {
     assertProject(project);
     const parsed = parseLine(this.#stamped(line));
-    return this.#write(project, (client) => insert(client, project, parsed));
+    if (options.at !== undefined && Number.isNaN(Date.parse(options.at))) throw new RangeError(`a line's time must be an ISO 8601 time, not ${JSON.stringify(options.at)}`);
+    return this.#write(project, (client) => insert(client, project, parsed, options));
   }
 
   async since(project: string, cursor: number): Promise<LinesSince> {
@@ -253,17 +262,28 @@ function parseLine(line: NewLine): NewLine {
 }
 
 /** Add `line` to `project`'s log on `client`, inside a transaction holding the project's lock. */
-async function insert(client: PoolClient, project: string, line: NewLine): Promise<Line> {
+async function insert(client: PoolClient, project: string, line: NewLine, { at, once = false }: AppendOptions = {}): Promise<Line> {
   // A cause is an earlier line of this project's log: a dangling one is refused, never healed (0.2 inc-74).
   if (line.causedBy !== undefined) {
     const { rowCount } = await client.query("SELECT 1 FROM activity WHERE project = $1 AND seq = $2", [project, line.causedBy]);
     if (rowCount === 0) throw new Error(`the activity log refused a line: its cause, line ${line.causedBy}, is not a line of ${project}'s log`);
   }
   const { session, harness, source, kind, folder, ...detail } = line;
+  const values = [project, session, harness ?? null, source, kind, folder ?? null, JSON.stringify(detail), at ?? null];
+  if (once && at !== undefined) {
+    // The same line at the same time is the same line: the project's lock is held, so no other upload slips between.
+    const { rows: same } = await client.query<ActivityRow>(
+      `SELECT seq, project, at, ${COLUMNS.join(", ")}, detail FROM activity
+        WHERE project = $1 AND session = $2 AND harness IS NOT DISTINCT FROM $3 AND source = $4 AND kind = $5
+          AND folder IS NOT DISTINCT FROM $6 AND detail = $7::jsonb AND at = $8 LIMIT 1`,
+      values,
+    );
+    if (same[0] !== undefined) return lineOf(same[0]);
+  }
   const { rows } = await client.query<{ seq: string; at: Date }>(
-    `INSERT INTO activity (project, session, harness, source, kind, folder, detail)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb) RETURNING seq, at`,
-    [project, session, harness ?? null, source, kind, folder ?? null, JSON.stringify(detail)],
+    `INSERT INTO activity (project, session, harness, source, kind, folder, detail, at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, coalesce($8::timestamptz, now())) RETURNING seq, at`,
+    values,
   );
   const row = rows[0]!;
   return { ...line, seq: Number(row.seq), project, at: row.at.toISOString() } as Line;

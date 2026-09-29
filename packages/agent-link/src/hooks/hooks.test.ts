@@ -595,6 +595,36 @@ test("3.12 recorded Claude Code and Codex hook inputs record on their session th
   }
 });
 
+test("3.14 lines a hook writes while storytree cannot be reached wait on this machine; the next hook that reaches it uploads them first, at their own times and in order, exactly once", async () => {
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, false);
+      const folder = projectFolder(dir, project);
+      const session = `${project}-queued`;
+      const hookRun = async (name: string) => {
+        const input = { ...JSON.parse(recorded("claude-code", name, folder)), session_id: session };
+        const ran = await runHook("claude-code", JSON.stringify(input), home);
+        assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, name);
+      };
+      await hookRun("session-start-startup");
+      await hookRun("post-tool-use-bash");
+      assert.equal(await linesAnywhereFor(session), 0, "nothing reaches the log while storytree is stopped");
+      const back = new Date();
+
+      copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json")); // storytree is back
+      await hookRun("stop");
+      await hookRun("stop");
+      const lines = await linesOf(project);
+      assert.deepEqual(lines.map((line) => line.kind), ["session-started", "command-run", "turn-ended", "turn-ended"], "the waiting lines first, in order, once");
+      assert.ok(Date.parse(lines[1]!.at) < back.getTime(), "each at the time its hook wrote it");
+      assert.equal(lines[0]!.machine, MACHINE);
+    });
+  } finally {
+    await dropTestProjects([project]);
+  }
+});
+
 test("3.13 each hook streams its session's new transcript records, and each subagent's under its parent, into the shared log, secrets scrubbed, from where the last hook left off and never twice (ADR-0749 D3, D4)", async () => {
   const project = uniqueProjectName();
   const log = await openActivityLog(testServerUrl());

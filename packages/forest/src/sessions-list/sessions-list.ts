@@ -49,14 +49,15 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number): SessionRow[] {
   const judged = quietMs === undefined ? { now } : { now, quietMs };
   const sessions = sessionsFrom(lines, judged);
-  const ended = new Set(sessions.filter(session => session.state === "ended").map(session => session.session));
+  // A session that stopped reporting (gone) is hidden as an ended one is, though never read as ended.
+  const ended = new Set(sessions.filter(session => session.state === "ended" || session.state === "gone").map(session => session.session));
   const claims = claimsFrom(lines, judged);
   const increments = arcs.flatMap(arc => arc.increments);
   const storyOf = new Map(tree.stories.flatMap(story => [[story.id, story.id], ...story.capabilities.map(cap => [cap.id, story.id])] as [string, string][]));
   const rows = new Map<string, SessionRow>();
   const parents = new Map<string, string>();
   for (const session of sessions) {
-    if (session.state === "ended") continue;
+    if (ended.has(session.session)) continue;
     const own = claims.filter(claim => claim.session === session.session);
     const heldIncrements = increments.filter(inc => own.some(claim => claim.increment === inc.id));
     const held = new Set(own.flatMap(claim => claim.capability ? [claim.capability] : []));

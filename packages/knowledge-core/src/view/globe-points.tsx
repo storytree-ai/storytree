@@ -7,7 +7,8 @@ import { AdditiveBlending, Color } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { curvePoint, glowAt, growthPlan, heldNotes, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { SessionRing } from "./ring.js";
+import { arcKey, arrived, curvePoint, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
@@ -24,7 +25,7 @@ const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
 export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
-  /** Notes a running session read, in its colour; a shared one gets a halo (ADR-0738). */
+  /** Notes a running session read, in its latest reader's colour, with every session that read it (ADR-0738, ADR-0754 D2). */
   lit?: ReadonlyMap<string, Lighting>;
   /** Each session's reading path, one curve per step, from the earlier read to the later (ADR-0740). */
   trails?: readonly Trail[];
@@ -51,20 +52,20 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
     growth.current = { starts: new Map([...growth.current.starts, ...plan.starts]), busy: plan.busy };
     return growth.current.starts;
   }, [trails]);
-  // A newly read note lights only when the line growing into it arrives (ADR-0742 D2).
+  // A newly read note lights, and each session's arc on it appears, only when that session's line into it arrives (ADR-0742 D2, ADR-0754 D2).
   const shown = useRef<ReadonlySet<string>>(new Set());
-  const [, arrived] = useState(0);
+  const [, arrive] = useState(0);
   const now = performance.now();
-  const held = heldNotes(trails.map(trail => ({ to: trail.to, key: trailKey(trail) })), starts, now, GROW_MS, shown.current);
-  const showing = held.size === 0 ? lit : new Map([...lit].filter(([note]) => !held.has(note)));
-  useEffect(() => { shown.current = new Set(showing.keys()); });
+  const held = heldNotes(trails.map(trail => ({ to: arcKey(trail.to, trail.colour), key: trailKey(trail) })), starts, now, GROW_MS, shown.current);
+  const showing = arrived(lit, held);
+  useEffect(() => { shown.current = new Set([...showing].flatMap(([note, { readers }]) => readers.map(({ colour }) => arcKey(note, colour)))); });
   useEffect(() => {
     const next = Math.min(...trails.flatMap(trail => {
       const start = starts.get(trailKey(trail));
       return start !== undefined && start + GROW_MS > now ? [start + GROW_MS] : [];
     }));
     if (!Number.isFinite(next)) return;
-    const timer = setTimeout(() => arrived(tick => tick + 1), next - performance.now() + 16);
+    const timer = setTimeout(() => arrive(tick => tick + 1), next - performance.now() + 16);
     return () => clearTimeout(timer);
   });
   return <group name="knowledge-points">
@@ -85,7 +86,7 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
     {points.map(point => <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
-        lit: showing.get(point.id)?.colour ?? null, shared: showing.get(point.id)?.shared ?? false }}>
+        lit: showing.get(point.id)?.colour ?? null, arcs: showing.has(point.id) ? ringArcs(showing.get(point.id)!) : [] }}>
       <sphereGeometry args={[radius * (showing.has(point.id) ? 0.009 : 0.006), 12, 8]} />
       <meshBasicMaterial color={showing.get(point.id)?.colour ?? "#a5c5d1"} transparent opacity={showing.has(point.id) ? 1 : lit.size > 0 ? 0.3 : 0.52} depthWrite={false} />
       {window?.notes.has(point.id) === true && <Billboard name={`knowledge-window:${point.id}`}>
@@ -94,10 +95,8 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
           <meshBasicMaterial color={IN_VIEW} transparent opacity={0.9} depthWrite={false} />
         </mesh>
       </Billboard>}
-      {showing.get(point.id)?.shared && <mesh raycast={noRaycast}>
-        <sphereGeometry args={[radius * 0.017, 12, 8]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.22} depthWrite={false} />
-      </mesh>}
+      {showing.has(point.id) && ringArcs(showing.get(point.id)!).length > 0 && <SessionRing name={`knowledge-arcs:${point.id}`}
+        arcs={ringArcs(showing.get(point.id)!)} radius={radius * 0.0125} tube={radius * 0.0016} />}
     </mesh>)}
   </group>;
 }

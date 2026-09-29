@@ -63,8 +63,8 @@ export interface DrawnNote {
   agent: string | undefined;
   /** With no session selected: the colour of the latest listed session to read it. */
   colour: string | undefined;
-  /** With no session selected: read by more than one listed session. */
-  shared: boolean;
+  /** With no session selected: the ring's arcs, one colour per listed session that read it in arrival order, when more than one did (ADR-0754 D2). */
+  arcs: string[];
 }
 
 export interface CoreScene {
@@ -170,7 +170,7 @@ export function coreScene(input: CoreInput): CoreScene {
     return {
       id, title: titleOf(knowledge, id), at: point, depth: placement?.depth, ghost: knowledge.ghosts.has(id), loop: placement?.loop,
       size: 1 + Math.sqrt(count), tone: agent !== undefined || lit !== undefined ? "lit" : reached.has(id) ? "reached" : "grey", agent,
-      colour: lit?.colour, shared: (lit?.sessions.size ?? 0) > 1,
+      colour: lit?.colour, arcs: lit === undefined ? [] : ringArcs(lightingOf(lit)),
     };
   });
   return { entrances, notes, sizeLabel: SIZE_LABELS[sizeBy], status: reads.status() };
@@ -300,22 +300,47 @@ export function legend(agents: readonly AgentReplay[], colour?: string): LegendE
     }));
 }
 
-/** A lit note's colour, and whether more than one listed session read it. */
+/** A lit note's dot colour, and who read it: each reader's colour, in the order they first reached it, with its latest read. */
 export interface Lighting {
   colour: string;
-  shared: boolean;
+  readers: readonly { colour: string; last: number }[];
+}
+
+/** The ring around a note several listed sessions read: one arc per session, in arrival order (ADR-0754 D2); none for one reader. */
+export function ringArcs(lighting: Lighting): string[] {
+  return lighting.readers.length > 1 ? lighting.readers.map(({ colour }) => colour) : [];
+}
+
+/** A note's arc for one reader colour, the key a growing line holds it by (ADR-0754 D2). */
+export const arcKey = (note: string, colour: string): string => `${note} ${colour}`;
+
+/**
+ * What is drawn now (ADR-0742 D2, ADR-0754 D2): each reader's arc only once its line into the note
+ * has arrived (`held` names the arcs still waiting), the dot in the latest arrived reader's colour,
+ * and a note none of whose lines has arrived stays unlit.
+ */
+export function arrived(lit: ReadonlyMap<string, Lighting>, held: ReadonlySet<string>): Map<string, Lighting> {
+  if (held.size === 0) return new Map(lit);
+  const shown = new Map<string, Lighting>();
+  for (const [note, lighting] of lit) {
+    const readers = lighting.readers.filter(({ colour }) => !held.has(arcKey(note, colour)));
+    if (readers.length === 0) continue;
+    const latest = readers.reduce((a, b) => (b.last > a.last ? b : a));
+    shown.set(note, { colour: latest.colour, readers });
+  }
+  return shown;
 }
 
 /**
- * Which notes light, and in what colour (ADR-0738). With no session selected: every listed
- * session's reads since it started, each note in its latest reader's colour, shared when more than
- * one read it. With one selected: that session's whole reads, each note in the colour of the agent
- * that first read it, a listed session's agents in shades of its colour.
+ * Which notes light, and in what colour (ADR-0738, ADR-0754 D2). With no session selected: every
+ * listed session's reads since it started, each note in its latest reader's colour, with every
+ * session that read it. With one selected: that session's whole reads, each note in the colour of
+ * the agent that first read it, a listed session's agents in shades of its colour.
  */
 export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
   present: ReadonlySet<string>): Map<string, Lighting> {
   if (session === undefined) {
-    return new Map([...liveReads(reads, roster, present)].map(([note, { colour, sessions }]) => [note, { colour, shared: sessions.size > 1 }]));
+    return new Map([...liveReads(reads, roster, present)].map(([note, live]) => [note, lightingOf(live)]));
   }
   const { agents } = reads.replay(session, present);
   const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
@@ -326,7 +351,7 @@ export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], sess
       if (seen === undefined || seq < seen.seq) first.set(note, { colour: colours.get(agent)!, seq });
     }
   }
-  return new Map([...first].map(([note, { colour }]) => [note, { colour, shared: false }]));
+  return new Map([...first].map(([note, { colour, seq }]) => [note, { colour, readers: [{ colour, last: seq }] }]));
 }
 
 /** One step of a session's reading path: from a full read to the same agent's next, never a followed link (ADR-0740). */
@@ -454,27 +479,33 @@ export function tailSpan(t: number): [number, number] {
 interface LiveNote {
   colour: string;
   seq: number;
-  sessions: Set<string>;
+  /** Each listed session that read it, in the order it first did, with its colour and latest read. */
+  readers: Map<string, { colour: string; first: number; last: number }>;
 }
 
-/** Every listed session's reads since it started, no fade: each note in its latest reader's colour (ADR-0738 D1-D3). */
+/** Every listed session's reads since it started, no fade: each note in its latest reader's colour, with all its readers (ADR-0738 D1-D2, ADR-0754 D2). */
 function liveReads(reads: ReadRecord, roster: readonly RosterEntry[], present: ReadonlySet<string>): Map<string, LiveNote> {
   const live = new Map<string, LiveNote>();
   for (const { session, colour, members } of roster) {
     for (const member of members) {
       for (const { lit } of reads.replay(member, present).agents) {
         for (const { note, seq } of lit) {
-          const seen = live.get(note);
-          if (seen === undefined) live.set(note, { colour, seq, sessions: new Set([session]) });
-          else {
-            seen.sessions.add(session);
-            if (seq > seen.seq) Object.assign(seen, { colour, seq });
-          }
+          const seen = live.get(note) ?? live.set(note, { colour, seq, readers: new Map() }).get(note)!;
+          if (seq > seen.seq) Object.assign(seen, { colour, seq });
+          const reader = seen.readers.get(session);
+          if (reader === undefined) seen.readers.set(session, { colour, first: seq, last: seq });
+          else Object.assign(reader, { first: Math.min(reader.first, seq), last: Math.max(reader.last, seq) });
         }
       }
     }
   }
+  // A session's members are read one after another, so arrival order is sorted in at the end.
+  for (const seen of live.values()) seen.readers = new Map([...seen.readers].sort(([, a], [, b]) => a.first - b.first));
   return live;
+}
+
+function lightingOf({ colour, readers }: LiveNote): Lighting {
+  return { colour, readers: [...readers.values()].map(({ colour: reader, last }) => ({ colour: reader, last })) };
 }
 
 function titlesOf(changes: readonly Change[]): Map<string, string> {

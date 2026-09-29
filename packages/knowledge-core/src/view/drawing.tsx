@@ -15,6 +15,7 @@ import { useThree } from "@react-three/fiber";
 import React, { useEffect, useMemo } from "react";
 import { Quaternion, Raycaster, Vector2, Vector3, type Object3D } from "three";
 
+import { SessionRing } from "./ring.js";
 import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, RosterEntry, SizeBy } from "../look-inside/look-inside.js";
 
 /** Grey for a note the session never reached, pale for one it did (ADR-0647 V1, the prototype's version 4 greys). */
@@ -81,10 +82,7 @@ function Note({ note, ball, colour, pinned }: { note: DrawnNote; ball: number; c
       <sphereGeometry args={[size * 1.7, 12, 8]} />
       <meshBasicMaterial color={LOOP} wireframe />
     </mesh>}
-    {note.shared && <mesh>
-      <sphereGeometry args={[size * 2, 16, 12]} />
-      <meshBasicMaterial color="#ffffff" transparent opacity={0.22} depthWrite={false} />
-    </mesh>}
+    {note.arcs.length > 0 && <SessionRing name={`note-arcs:${note.id}`} arcs={note.arcs} radius={size * 1.9} tube={size * 0.22} />}
     {pinned && <mesh>
       <sphereGeometry args={[size * 1.5, 16, 12]} />
       <meshBasicMaterial color="#ffffff" wireframe />
@@ -197,7 +195,7 @@ export function CorePanel({ scene, counts, sessions, roster, session, sizeBy, fr
           </button>
         </li>)}
       </ul>
-      <p className="core-note">Each running session lights what it has read since it started, in its colour. A haloed note was read by more than one.</p>
+      <p className="core-note">Each running session lights what it has read since it started, in its colour. A note more than one read wears a ring, one arc in each reader's colour.</p>
     </>}
     <div className="core-row" role="group" aria-label="Size by">
       Size by{" "}

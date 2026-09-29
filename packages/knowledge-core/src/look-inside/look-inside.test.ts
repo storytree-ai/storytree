@@ -155,9 +155,9 @@ test("4.7 with no session selected, every listed session lights what it read in 
   const lines = [read("a", "deep", "whole", "orchestrator"), read("a-child", "new", "peek"), read("b", "cover", "whole", "orchestrator"),
     read("b", "deep", "peek", { subagent: "h1" }), read("z", "loose", "whole", "orchestrator")];
   const notes = new Map(coreScene(input(history, lines, { roster })).notes.map((note) => [note.id, note]));
-  assert.deepEqual([notes.get("cover")!.tone, notes.get("cover")!.colour, notes.get("cover")!.shared], ["lit", "hsl(300, 80%, 68%)", false]);
+  assert.deepEqual([notes.get("cover")!.tone, notes.get("cover")!.colour, notes.get("cover")!.arcs], ["lit", "hsl(300, 80%, 68%)", []]);
   assert.deepEqual([notes.get("new")!.tone, notes.get("new")!.colour], ["lit", "hsl(200, 80%, 68%)"], "a child's reads wear its parent's colour");
-  assert.equal(notes.get("deep")!.shared, true, "read by two listed sessions");
+  assert.equal(notes.get("deep")!.arcs.length, 2, "read by two listed sessions");
   assert.equal(notes.get("deep")!.colour, "hsl(300, 80%, 68%)", "a shared note wears its latest reader's colour");
   assert.equal(notes.get("loose")!.tone, "grey", "a session with no row lights nothing");
   assert.equal(notes.get("old")!.tone, "grey");
@@ -191,7 +191,8 @@ test("4.9 the globe's dots light as the core does: every listed session with non
   const { reads, knowledge: known } = input(history, lines);
   const present = new Set(known.notes.keys());
   const all = lighting(reads, roster, undefined, present);
-  assert.deepEqual([...all].sort(), [["cover", { colour: "hsl(300, 80%, 68%)", shared: false }], ["deep", { colour: "hsl(300, 80%, 68%)", shared: true }]]);
+  assert.deepEqual([...all].map(([note, lit]) => [note, lit.colour, ringArcs(lit)]).sort(),
+    [["cover", "hsl(300, 80%, 68%)", []], ["deep", "hsl(300, 80%, 68%)", ["hsl(200, 80%, 68%)", "hsl(300, 80%, 68%)"]]]);
   const one = lighting(reads, roster, "b", present);
   assert.equal(one.get("cover")!.colour, "hsl(300, 80%, 68%)", "b's orchestrator wears b's colour");
   assert.match(one.get("deep")!.colour, /^hsl\(300, 80%, \d+%\)$/);

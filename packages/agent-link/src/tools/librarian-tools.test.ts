@@ -103,10 +103,10 @@ test("6.4 the shared server lists and calls every librarian verb, attributes wri
       return result.structuredContent as Record<string, unknown>;
     }
     const listed = await call(client, "worklist", { memoryFolders: [memory], tools: names });
-    const work = listed.structuredContent!.worklist as { graduation: { file: string }[]; rest: { friction: { id: string }[]; processes: { tools: string[] } } };
+    const work = listed.structuredContent!.worklist as { graduation: { file: string }[]; friction: { id: string }[]; rest: { processes: { tools: string[] } } };
     assert.deepEqual(work.graduation.map((item) => item.file), [kept, durable]);
-    assert.ok(work.rest.friction.some((item) => item.id === friction.id));
-    assert.ok(!work.rest.friction.some((item) => item.id === own.id));
+    assert.ok(work.friction.some((item) => item.id === friction.id));
+    assert.ok(!work.friction.some((item) => item.id === own.id));
     assert.deepEqual(work.rest.processes.tools, names);
     await write("link", { from: narrowing.id, to: first.id });
     assert.deepEqual((await fields(library, narrowing.id)).links, [first.id]);
@@ -159,7 +159,7 @@ test("6.3 land and worklist use the calling session's start, including resumed a
     assert.notEqual(quiet.isError, true);
     assert.doesNotMatch(JSON.stringify(quiet.content), /Next:/);
     const quietWork = await call(client, "worklist", { memoryFolders: [] });
-    assert.deepEqual(quietWork.structuredContent!.worklist, { graduation: [] });
+    assert.deepEqual(quietWork.structuredContent!.worklist, { graduation: [], friction: [] });
     await library.defineTerm({ term: "Round", meaning: "A librarian's pass" });
     await setTimeout(5);
     await log.append(library.name, { session: "curator", harness: "codex", source: "hook", kind: "session-started", how: "resume" });

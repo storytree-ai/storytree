@@ -1,6 +1,7 @@
 /**
  * Capability 6 · Rounds (the librarian story): when the librarian's pass runs, and what it looks
- * at. Graduation is due at every landing, because only this session knows what it learned; the
+ * at. Graduation is due at every landing, because only this session knows what it learned, and so is
+ * the friction drain, because every session files friction and no curated write marks it; the
  * rest is due when the library's change feed since the session started shows a write to a curated
  * kind, and when there is no start to read from, since the trigger fires when unsure (0.2's
  * `pre-merge-librarian-pass`). The worklist gathers each capability's list into one report.
@@ -39,6 +40,8 @@ export interface WorklistOptions {
 export interface Worklist {
   /** Graduation (4): memories new, changed or lapsed. Always there. */
   readonly graduation: MemoryItem[];
+  /** Queues (5): the friction drain. Always there, since filing friction is not a curated write. */
+  readonly friction: SchemaRecord<"friction">[];
   /** The rest, when the trigger fired. */
   readonly rest?: {
     /** Links (1): accepted decisions on no shelf that nothing rests on. */
@@ -53,8 +56,6 @@ export interface Worklist {
     readonly processes?: ProcessGaps;
     /** Queues (5): open questions whose review lease has lapsed, longest lapsed first. */
     readonly questions: SchemaRecord<"question">[];
-    /** Queues (5): the friction drain. */
-    readonly friction: SchemaRecord<"friction">[];
   };
 }
 
@@ -65,12 +66,14 @@ export async function roundDue(library: Library, { since }: { since?: number }):
   return { graduation: true, rest: changes.some((change) => CURATED.includes(change.type)) };
 }
 
-/** Gather the worklist: graduation's list always, the rest when the trigger fired. */
+/** Gather the worklist: graduation's list and the friction drain always, the rest when the trigger fired. */
 export async function worklist(library: Library, options: WorklistOptions): Promise<Worklist> {
   const graduation = await memoryWorklist(options.memoryFolders ?? [], options.now === undefined ? {} : { now: options.now });
-  if (!(await roundDue(library, options)).rest) return { graduation };
+  const friction = await frictionDrain(library, options.branch === undefined ? {} : { branch: options.branch });
+  if (!(await roundDue(library, options)).rest) return { graduation, friction };
   return {
     graduation,
+    friction,
     rest: {
       links: await unrestedDecisions(library),
       related: await relatedUnlinked(library, options.since ?? 0),
@@ -78,7 +81,6 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
       catalogue: await newNotes(library, options.since ?? 0),
       ...(options.tools === undefined ? {} : { processes: await processGaps(library, options.tools) }),
       questions: await openQuestions(library, options.now),
-      friction: await frictionDrain(library, options.branch === undefined ? {} : { branch: options.branch }),
     },
   };
 }

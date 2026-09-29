@@ -71,6 +71,46 @@ test("9.1 friction with vague evidence is refused; concrete evidence is captured
   });
 });
 
+test("9.5 `friction route` records the librarian's route and reason; a tool route with no remedy is refused and writes nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const note = await recordFriction(library, { title: "Slow mail", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: TimeoutError", impact: "Readers cannot join" });
+    const history = await library.history();
+    const homeless = await world.run(["friction", "route", note.id, "--to", "tool", "--reason", "Needs a retry"]);
+    assert.equal(homeless.code, 1);
+    assert.match(homeless.stderr, /live increment whose remedies names/);
+    assert.deepEqual(await library.history(), history, "refusal writes nothing");
+
+    const routed = await world.run(["friction", "route", note.id, "--to", "tool", "--reason", "Retry landed", "--discharged-by", "storytree-ai/storytree#9"]);
+    assert.equal(routed.code, 0, routed.stderr);
+    const saved = (await library.list("friction"))[0]!;
+    assert.equal(saved.fields.route, "tool");
+    assert.equal(saved.fields.routeReason, "Retry landed");
+    assert.equal(saved.fields.dischargedBy, "storytree-ai/storytree#9");
+    assert.equal((await library.history({ id: note.id })).at(-1)?.actor, `person:${userInfo().username}`);
+  });
+});
+
+test("9.6 `friction drain` lists the unrouted reports other branches filed, most recurrences first", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    execFileSync("git", ["init", "-b", "fix/mail", world.folder], { stdio: "ignore" });
+    const fields = { description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Wait" };
+    const provenance = (branch: string) => ({ branch, date: "2026-09-29", source: "retro" as const });
+    const older = await library.writeKnowledge("friction", { ...fields, title: "Older", provenance: provenance("another/branch") });
+    const recurring = await library.writeKnowledge("friction", { ...fields, title: "Recurring", provenance: provenance("another/branch") });
+    await library.editNote(recurring.id, { reinforcedBy: [{ date: "2026-09-29", branch: "third/branch", evidence: "#8: again" }] });
+    await library.writeKnowledge("friction", { ...fields, title: "Mine", provenance: provenance("fix/mail") });
+    const routed = await library.writeKnowledge("friction", { ...fields, title: "Routed", provenance: provenance("another/branch") });
+    await library.editNote(routed.id, { route: "nothing", routeReason: "Passed" });
+
+    const drained = await world.run(["friction", "drain"]);
+    assert.equal(drained.code, 0, drained.stderr);
+    const listed = drained.stdout.split("\n").filter((line) => line.includes("friction_"));
+    assert.deepEqual(listed.map((line) => line.match(/friction_[0-9a-f]+/)![0]), [recurring.id, older.id]);
+  });
+});
+
 test("9.2 a re-steer whose evidence is a paraphrase is refused; the quote and self-report stay apart", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

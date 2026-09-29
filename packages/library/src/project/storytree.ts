@@ -339,7 +339,7 @@ async function tablesCurrent(pool: Pool, name: string): Promise<boolean> {
         throw error;
       },
     );
-    if (version === undefined || Number(version) < PROJECT_SCHEMA.length) return false;
+    if (!(Number(version) >= PROJECT_SCHEMA.length)) return false; // none recorded, or older
     const { convertible, warnings } = await pendingMemories(client, name, false);
     if (convertible.length > 0) return false;
     for (const warning of warnings) console.warn(warning);

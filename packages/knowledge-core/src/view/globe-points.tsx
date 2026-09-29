@@ -1,6 +1,6 @@
 import type { GlobePoint } from "../shelves/positions.js";
 import type { RecordEnvelope } from "@storytree/library";
-import { Billboard, Line } from "@react-three/drei";
+import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdditiveBlending, Color } from "three";
@@ -8,7 +8,7 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { SessionRing } from "./ring.js";
-import { arcKey, arrived, curvePoint, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { arcKey, arrived, curvePoint, fillAt, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
@@ -18,6 +18,13 @@ const IN_VIEW = "#f4ecd8";
 /** How long a new step's line takes to grow, and each step of a glow's loop, and its rest between loops (ADR-0742). */
 const GROW_MS = 900;
 const GLOW = { step: 900, pause: 1200 };
+/** A traversal step's faint fill: how long it takes to run from the earlier note to the later, and its rest (ADR-0756). */
+const FILL = { run: 1600, pause: 900 };
+
+/** How a selected session's note is drawn (ADR-0756): a compacted read lighter, a glimpse faintest. */
+const noteState = (window: WindowView | undefined, id: string): "in-window" | "faded" | "glimpsed" | null =>
+  window?.notes.has(id) ? "in-window" : window?.faded.has(id) ? "faded" : window?.glimpsed.has(id) ? "glimpsed" : null;
+const lighter = (colour: string): string => `#${new Color(colour).lerp(new Color("#ffffff"), 0.55).getHexString()}`;
 
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
@@ -31,8 +38,8 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
   trails?: readonly Trail[];
   /** Each drawn agent's path, replayed by a looping glow (ADR-0742). */
   paths?: readonly AgentPath[];
-  /** The selected session's window: a warm white ring on each note it holds now, and dotted warm white in-view lines (ADR-0746 D1). */
-  window?: WindowView | undefined;
+  /** The selected session's window, in its colour: a warm white ring on each note it holds now, compacted reads lighter, glimpses faint (ADR-0756). */
+  window?: (WindowView & { colour: string }) | undefined;
 }) {
   const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
   // Steps already read when the view first had any are history and never grow (ADR-0742 D4).
@@ -72,23 +79,22 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
     {trails.map(trail => {
       const from = at.get(trail.from), to = at.get(trail.to);
       return from === undefined || to === undefined ? null
-        : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} />;
-    })}
-    {window?.links.map(({ from, to }) => {
-      const a = at.get(from), b = at.get(to);
-      // Straight, dotted and headless, so it never reads as a reading path's curve or a followed link (ADR-0740 D3).
-      return a === undefined || b === undefined ? null : <group key={`${from}>${to}`} name={`knowledge-in-view:${from}>${to}`} userData={{ from, to, kind: "in-view" }}>
-        <Line points={[[a.x, a.y, a.z], [b.x, b.y, b.z]]} color={IN_VIEW} lineWidth={1.2} transparent opacity={0.8} depthWrite={false}
-          dashed dashSize={radius * 0.006} gapSize={radius * 0.01} raycast={noRaycast} />
-      </group>;
+        : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} radius={radius} />;
     })}
     {!reducedMotion() && paths.map(path => <PathGlow key={path.mover} path={path} at={at} starts={starts} />)}
-    {points.map(point => <mesh key={point.id} name={`knowledge-point:${point.id}`}
+    {points.map(point => {
+      const state = noteState(window, point.id);
+      const lighting = showing.get(point.id);
+      // An open read wears its reader's colour, or the session's; a compacted one is lighter; a glimpse is the session's, faint (ADR-0756).
+      const colour = state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? "#a5c5d1" : window!.colour);
+      const opacity = state === "glimpsed" && lighting === undefined ? 0.4 : state === "faded" ? 0.8 : lighting !== undefined || state === "in-window" ? 1 : lit.size > 0 ? 0.3 : 0.52;
+      const size = (lighting !== undefined && state !== "faded") || state === "in-window" ? 0.009 : state === "faded" ? 0.0075 : 0.006;
+      return <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
       userData={{ id: point.id, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
-        lit: showing.get(point.id)?.colour ?? null, arcs: showing.has(point.id) ? ringArcs(showing.get(point.id)!) : [] }}>
-      <sphereGeometry args={[radius * (showing.has(point.id) ? 0.009 : 0.006), 12, 8]} />
-      <meshBasicMaterial color={showing.get(point.id)?.colour ?? "#a5c5d1"} transparent opacity={showing.has(point.id) ? 1 : lit.size > 0 ? 0.3 : 0.52} depthWrite={false} />
+        lit: lighting?.colour ?? null, arcs: lighting !== undefined ? ringArcs(lighting) : [], window: state, colour, opacity }}>
+      <sphereGeometry args={[radius * size, 12, 8]} />
+      <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
       {window?.notes.has(point.id) === true && <Billboard name={`knowledge-window:${point.id}`}>
         <mesh raycast={noRaycast}>
           <torusGeometry args={[radius * 0.015, radius * 0.0022, 8, 28]} />
@@ -97,7 +103,8 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
       </Billboard>}
       {showing.has(point.id) && ringArcs(showing.get(point.id)!).length > 0 && <SessionRing name={`knowledge-arcs:${point.id}`}
         arcs={ringArcs(showing.get(point.id)!)} radius={radius * 0.0125} tube={radius * 0.0016} />}
-    </mesh>)}
+    </mesh>;
+    })}
   </group>;
 }
 
@@ -107,42 +114,81 @@ const sample = (from: Point, to: Point, end: number): number[] =>
 
 /**
  * One step of a reading path: a quadratic Bezier bowed away from the globe's centre, so it never
- * lies along a stored link, fading from dim at the earlier read to full colour at the later one,
- * with no arrowhead (ADR-0740 D1, D3; ADR-0742 D5). A new step grows from its earlier read to its
- * later one, starting at `grow` (ADR-0742 D2); before then it is not drawn.
+ * cuts through the globe, with no arrowhead (ADR-0740 D1; ADR-0742 D5). A new step grows from its
+ * earlier read to its later one, starting at `grow` (ADR-0742 D2); before then it is not drawn.
+ *
+ * A log's reading path fades from dim at the earlier read to full colour at the later one. A
+ * selected session's traversal step (ADR-0756) is one colour, solid along a stored link and dotted
+ * for a jump, lighter when a read it touches was compacted out; once grown, a faint fill runs along
+ * it from the earlier note to the later, like a progress bar, then rests and runs again.
  */
-function TrailCurve({ trail, from, to, grow }: { trail: Trail; from: Point; to: Point; grow: number | undefined }) {
+function TrailCurve({ trail, from, to, grow, radius }: { trail: Trail; from: Point; to: Point; grow: number | undefined; radius: number }) {
   const invalidate = useThree(state => state.invalidate);
   const size = useThree(state => state.size);
-  const line = useMemo(() => lineOf(1.6, false), []);
+  const { step } = trail;
+  const line = useMemo(() => {
+    const made = lineOf(1.6, false);
+    if (step?.edge === "dotted") Object.assign(made.material, { dashed: true, dashSize: radius * 0.007, gapSize: radius * 0.007 });
+    if (step?.faded) made.material.opacity = 0.45;
+    return made;
+  }, [step?.edge, step?.faded, radius]);
+  const fill = useMemo(() => step === undefined || reducedMotion() ? undefined : lineOf(3, true), [step === undefined]);
   useEffect(() => () => { line.geometry.dispose(); line.material.dispose(); }, [line]);
-  useEffect(() => { line.material.resolution.set(size.width, size.height); }, [line, size]);
+  useEffect(() => () => { fill?.geometry.dispose(); fill?.material.dispose(); }, [fill]);
+  useEffect(() => {
+    line.material.resolution.set(size.width, size.height);
+    fill?.material.resolution.set(size.width, size.height);
+  }, [line, fill, size]);
   const colours = useMemo(() => {
     const full = new Color(trail.colour);
+    if (step !== undefined) {
+      const drawn = step.faded ? full.lerp(new Color("#ffffff"), 0.55) : full;
+      return Array.from({ length: STEPS + 1 }, () => drawn.toArray()).flat();
+    }
     const dim = full.clone().multiplyScalar(0.25);
     return Array.from({ length: STEPS + 1 }, (_, index) => dim.clone().lerp(full, index / STEPS).toArray()).flat();
-  }, [trail.colour]);
-  // Drawn to `end` of the way along; the colours stay dim-to-bright over what is drawn.
+  }, [trail.colour, step?.faded]);
+  // Faint: additive, so a quarter of a lightened colour only brightens the line it runs along.
+  const fillColours = useMemo(() => {
+    const faint = new Color(trail.colour).lerp(new Color("#ffffff"), 0.5).multiplyScalar(step?.faded ? 0.12 : 0.25);
+    return Array.from({ length: STEPS + 1 }, () => faint.toArray()).flat();
+  }, [trail.colour, step?.faded]);
+  // Drawn to `end` of the way along; a log path's colours stay dim-to-bright over what is drawn.
   const draw = (end: number) => {
     line.geometry.setPositions(sample(from, to, end));
     line.geometry.setColors(colours);
+    if (step?.edge === "dotted") line.computeLineDistances();
     line.visible = end > 0;
   };
   const done = useRef(false);
+  const began = useRef(performance.now());
   useEffect(() => {
     done.current = grow === undefined;
     draw(grow === undefined ? 1 : 0);
     invalidate();
   }, [line, from, to, colours, grow]);
   useFrame(() => {
-    if (done.current || grow === undefined) return;
-    const progress = Math.min(1, Math.max(0, (performance.now() - grow) / GROW_MS));
-    draw(progress * progress * (3 - 2 * progress));
-    if (progress >= 1) done.current = true;
+    const now = performance.now();
+    if (!done.current && grow !== undefined) {
+      const progress = Math.min(1, Math.max(0, (now - grow) / GROW_MS));
+      draw(progress * progress * (3 - 2 * progress));
+      if (progress >= 1) { done.current = true; began.current = now; }
+      invalidate();
+    }
+    if (fill === undefined) return;
+    const run = done.current ? fillAt(now - began.current, FILL) : undefined;
+    fill.visible = run !== undefined && run > 0;
+    if (fill.visible) {
+      fill.geometry.setPositions(sample(from, to, run!));
+      fill.geometry.setColors(fillColours);
+    }
+    fill.userData = { fill: run ?? null };
     invalidate();
   });
-  return <group name={`knowledge-trail:${trail.from}>${trail.to}`} userData={{ from: trail.from, to: trail.to, colour: trail.colour }}>
+  return <group name={`knowledge-trail:${trail.from}>${trail.to}`}
+    userData={{ from: trail.from, to: trail.to, colour: trail.colour, seq: trail.seq, edge: step?.edge ?? null, faded: step?.faded ?? false }}>
     <primitive object={line} />
+    {fill !== undefined && <primitive object={fill} name={`knowledge-fill:${trail.from}>${trail.to}`} />}
   </group>;
 }
 

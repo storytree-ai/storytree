@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, arcKey, arrived, coreScene, curvePoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, ringArcs, SIZE_LABELS, windowView, type CoreInput } from "./look-inside.js";
+import { agentPaths, arcKey, arrived, coreScene, curvePoint, fillAt, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, ringArcs, SIZE_LABELS, windowView, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -331,29 +331,42 @@ test("4.5 looking inside keeps failure attention and the flat forest one click a
   assert.deepEqual(back, globe, "islands, sea and the selection come back; the pin is let go");
 });
 
-test("4.16 a selected session's window marks the notes and files it holds now, and joins a note to one opened while its result was in view, never as a followed link", () => {
-  const open = (id: string, call: string, from: { call: string; opened: string[] }[] = [], resident = true) => ({
-    kind: "note" as const, id, call, tool: "mcp__storytree__open", resident,
-    inViewFrom: from.map(({ call, opened }) => ({ call, tool: "mcp__storytree__open", opened: opened.map((note) => ({ kind: "note" as const, id: note })) })),
-  });
+test("4.16 a selected session's window draws one step per move in reading order, solid where a stored link joins the notes and dotted where none does; a compacted read fades with its steps, and a glimpsed note is tinted with no line", () => {
+  const open = (id: string, resident = true, kind: "note" | "file" = "note") => ({ kind, id, call: `open ${id}`, tool: "mcp__storytree__open", resident });
+  const links = new Set(["old>linked", "deep>last"]);
+  const joined = (a: string, b: string) => links.has(`${a}>${b}`) || links.has(`${b}>${a}`);
   const view = windowView({
-    session: "S", at: "-", compactions: 1, inView: [], glimpses: [],
+    session: "S", at: "-", compactions: 1, inView: [], glimpses: ["hit", "gone-from-the-library"],
     opens: [
-      open("cover", "c1", [{ call: "search", opened: [] }]),
-      open("deep", "c2", [{ call: "search", opened: [] }, { call: "c1", opened: ["cover"] }]),
-      // Opened before the compaction: its read left the window, and the link out of it stays.
-      open("old", "c0", [], false),
-      open("new", "c3", [{ call: "c0", opened: ["old"] }]),
-      open("gone-from-the-library", "c4", [{ call: "c1", opened: ["cover"] }]),
-      { kind: "file", id: "src/claims/merges.ts", call: "c5", tool: "Read", resident: true, inViewFrom: [{ call: "c2", tool: "mcp__storytree__open", opened: [{ kind: "note", id: "deep" }] }] },
+      // Opened before the compaction: its read left the window.
+      open("old", false),
+      open("linked"),
+      // A file read between two notes does not break the chain; files are not drawn on the globe.
+      open("src/claims/merges.ts", true, "file"),
+      open("deep"),
+      open("gone-from-the-library"),
+      open("last"),
+      open("deep"),
+      open("last"),
     ],
-  }, new Set(["cover", "deep", "old", "new", "loose"]));
+  }, new Set(["old", "linked", "deep", "last", "hit"]), joined);
 
-  assert.deepEqual([...view.notes].sort(), ["cover", "deep", "new"]);
+  assert.deepEqual(view.steps, [
+    { from: "old", to: "linked", edge: "solid", faded: true },
+    { from: "linked", to: "deep", edge: "dotted", faded: false },
+    { from: "deep", to: "last", edge: "solid", faded: false },
+    { from: "last", to: "deep", edge: "solid", faded: false },
+  ], "a step taken twice draws once, and a note gone from the library is stepped over");
+  assert.deepEqual([...view.notes], ["linked", "deep", "last"]);
+  assert.deepEqual([...view.faded], ["old"]);
+  assert.deepEqual([...view.glimpsed], ["hit"]);
   assert.deepEqual(view.files, ["src/claims/merges.ts"]);
-  assert.deepEqual(view.links, [{ kind: "in-view", from: "cover", to: "deep" }, { kind: "in-view", from: "old", to: "new" }]);
   assert.equal(view.status, undefined);
 
-  const none = windowView({ session: "S", at: "-", absent: "no hook has named this session's transcript" }, new Set());
-  assert.deepEqual(none, { notes: new Set(), files: [], links: [], status: "No window: no hook has named this session's transcript" });
+  const none = windowView({ session: "S", at: "-", absent: "no hook has named this session's transcript" }, new Set(), joined);
+  assert.deepEqual(none, { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], status: "No window: no hook has named this session's transcript" });
+
+  // Direction: a faint fill runs along each step from its earlier note to its later one, rests, then runs again.
+  const timing = { run: 1000, pause: 500 };
+  assert.deepEqual([0, 250, 999, 1200, 1750].map((ms) => fillAt(ms, timing)), [0, 0.25, 0.999, undefined, 0.25]);
 });

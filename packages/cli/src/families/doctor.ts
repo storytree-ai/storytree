@@ -65,14 +65,8 @@ function commandSaid(report: SetupReport): string[] {
 }
 
 function ghSaid(report: SetupReport): string[] {
-  switch (report.gh) {
-    case "signed out":
-      return ["GitHub's gh is not signed in, so a claim will not end when its pull request merges. Fix: run `gh auth login`."];
-    case "missing":
-      return ["GitHub's gh is not installed, so a claim will not end when its pull request merges. Fix: install it from https://cli.github.com, then run `gh auth login`."];
-    default:
-      return ["GitHub's gh: signed in."];
-  }
+  const line = report.lines.find((each) => each.check === "gh");
+  return report.gh === "signed in" || line === undefined ? ["GitHub's gh: signed in."] : [line.message];
 }
 
 /** The agent CLI, git and Node lines, as the setup check words them. */

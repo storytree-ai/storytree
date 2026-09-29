@@ -4,7 +4,8 @@ import type { SetupReport } from "./setup.js";
 
 export interface SetupLine {
   readonly check: "storytree" | "hooks" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "project";
-  readonly state: "ok" | "fixed" | "needs-attention" | "skipped";
+  /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
+  readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
   readonly fix?: string;
 }
@@ -56,11 +57,10 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
       lines.push({ check: "command", state: "skipped", message: "No command installation was requested." });
   }
 
+  const ghNow = gh === "not answering" ? "did not answer whether it is signed in" : gh === "missing" ? "is not installed" : "is not signed in";
   lines.push(gh === "signed in"
     ? { check: "gh", state: "ok", message: "GitHub's gh command is signed in." }
-    : gh === "not answering"
-      ? { check: "gh", state: "needs-attention", message: "GitHub's gh command did not answer whether it is signed in, so a claim may not end when its pull request merges.", fix: "Run `gh auth status` to see what it is waiting on, then run the setup check again." }
-      : { check: "gh", state: "needs-attention", message: `GitHub's gh command is ${gh === "missing" ? "not installed" : "not signed in"}, so a claim will not end when its pull request merges.`, fix: gh === "missing" ? "Install gh from https://cli.github.com and run `gh auth login`." : "Run `gh auth login`." });
+    : { check: "gh", state: "note", message: `GitHub's gh command ${ghNow}. storytree works without it: only a claim ending by itself when its pull request merges needs it.` });
   lines.push(...machineLines(machine));
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
@@ -89,18 +89,18 @@ function machineLines(machine: MachineState): SetupLine[] {
           : "Install Claude Code (https://claude.com/claude-code) or Codex (https://developers.openai.com/codex), sign in, then run the setup check again.",
       }];
 
+  // git and Node are optional for a user: a note, never a fix (owner, 2026-09-29, question_bb3efa1e3191).
   lines.push(machine.git === "present"
     ? { check: "git", state: "ok", message: "git is installed." }
-    : { check: "git", state: "needs-attention", message: machine.git === "missing" ? "git is not installed." : `git did not answer within ${seconds}.`, fix: "Install git from https://git-scm.com, then run the setup check again." });
+    : { check: "git", state: "note", message: `${machine.git === "missing" ? "git is not installed" : `git did not answer within ${seconds}`}. storytree works without it: only workspaces need it.` });
 
   const { node } = machine;
   lines.push(node.state === "ok"
     ? { check: "node", state: "ok", message: `Node ${node.version} is installed.` }
     : {
         check: "node",
-        state: "needs-attention",
-        message: node.state === "old" ? `Node ${node.version} is older than storytree needs.` : node.state === "missing" ? "Node is not installed." : `Node did not answer within ${seconds}.`,
-        fix: `Install Node ${NODE_FLOOR} or later from https://nodejs.org, then run the setup check again.`,
+        state: "note",
+        message: `${node.state === "old" ? `The Node on the path, ${node.version}, is older than ${NODE_FLOOR}` : node.state === "missing" ? "There is no Node on the path" : `Node did not answer within ${seconds}`}. storytree runs on its own Node, so it does not need one.`,
       });
   return lines;
 }

@@ -1,0 +1,23 @@
+scope: full — everything — packages/agent-link/evidence/optional-tools/red.txt changed in @storytree/agent-link, which the test harness and scripts/ run on
+✔ ⚠⚠ A FAILING CRITERION IS DRAWN TOO, on its own island, and is NEVER counted as a signature (13.5174ms)
+✔ a malformed token FAILS where it can be named, not as a silent black reference (0.0972ms)
+✔ the gate runs typecheck and scoped tests, and explains guidance NOT RUN without failing (618.5202ms)
+✔ interruption leaves the current and remaining checks NOT RUN and exits nonzero (269.137ms)
+✔ the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun the failures (0.4038ms)
+  PASS    apps/desktop — 5.3 s
+  PASS    packages/agent-link — 47.4 s
+  PASS    packages/app — 5.0 s
+  PASS    packages/app-setup — 1.4 s
+  PASS    packages/arc-surface — 1.8 s
+  PASS    packages/cli — 36.3 s
+  PASS    packages/forest — 2.2 s
+  PASS    packages/forest-world — 12.5 s
+  PASS    packages/knowledge-core — 1.2 s
+  PASS    packages/librarian — 4.1 s
+  PASS    packages/library — 34.5 s
+  PASS    packages/local-postgres — 22.6 s
+  PASS    packages/processes — 1.4 s
+  PASS    scripts — 6.3 s
+  PASS    typecheck
+  PASS    test
+  NOT RUN check:guidance — no role or note change detected; use --guidance for library-only edits

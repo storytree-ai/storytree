@@ -361,7 +361,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
       assert.equal(report.lines.find((line) => line.check === "hooks")?.state, "fixed");
       assert.match(report.lines.find((line) => line.check === "transcripts")?.message ?? "", /secrets.*scrubbed.*best-effort.*180 days/is,
         "the check says transcripts leave the machine, and that the scrub is best-effort (ADR-0749 D4)");
-      assert.match(report.lines.find((line) => line.check === "gh")?.fix ?? "", /gh auth login/);
+      assert.deepEqual(noteOf(report.lines, "gh"), { state: "note", fix: undefined }, "gh is never a fix (owner, question_bb3efa1e3191)");
       assert.match(report.lines.find((line) => line.check === "project")?.fix ?? "", /only.*yes/i);
       assert.equal(existsSync(path.join(folder, MARKER_FILE)), false);
       assert.equal((await storytree.listProjects()).includes(name), false);
@@ -374,7 +374,7 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
 
       const stopped = await runSetupCheck({ ...options, storytreeHome: path.join(dir, "not-running") });
       assert.match(stopped.lines.find((line) => line.check === "storytree")?.fix ?? "", /open the storytree app/i);
-      assert.match(stopped.lines.find((line) => line.check === "gh")?.fix ?? "", /gh auth login/, "one failure does not hide another fix");
+      assert.deepEqual(noteOf(stopped.lines, "gh"), { state: "note", fix: undefined });
     } finally {
       await storytree.close();
       await dropTestProjects([name]);
@@ -495,7 +495,7 @@ test("8.7 a status line of the user's own is kept: storytree's is installed only
   });
 });
 
-test("8.8 with gh missing, or signed out, the check says so and names the fix; signed in, it says nothing about it", async () => {
+test("8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const said = async (gh: GhState): Promise<string> => {
@@ -506,11 +506,11 @@ test("8.8 with gh missing, or signed out, the check says so and names the fix; s
       });
       return text;
     };
-    const missing = await said("missing");
-    assert.match(missing, /gh/);
-    assert.match(missing, /cli\.github\.com/, `names where to get it: ${missing}`);
-    assert.match(await said("signed out"), /gh auth login/);
-    assert.doesNotMatch(await said("signed in"), /\bgh\b/);
+    // Owner, 2026-09-29 (question_bb3efa1e3191): "dont list them as fixes".
+    for (const gh of ["missing", "signed out", "signed in"] as const) {
+      const text = await said(gh);
+      assert.doesNotMatch(text, /\bgh\b/, `${gh}: ${text}`);
+    }
   });
 });
 
@@ -601,6 +601,12 @@ test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes
   });
 });
 
+/** A line's state and fix, to pin that an optional tool is a note and never a fix. */
+function noteOf(lines: readonly { check: string; state: string; fix?: string }[], check: string) {
+  const line = lines.find((each) => each.check === check);
+  return { state: line?.state, fix: line?.fix };
+}
+
 /**
  * A command named `name` in `bin` that answers each argument line in `answers` with its output and
  * exit code, and waits without end for any other: a shell script on macOS and Linux, a batch file on
@@ -617,7 +623,7 @@ function fakeTool(bin: string, name: string, answers: Record<string, { out?: str
   }
 }
 
-test("8.11 the check says whether Claude Code or Codex is installed and signed in, and whether git and a Node of at least 24 are present, naming each fix; a tool that does not answer is never waited on", async () => {
+test("8.11 the check says whether Claude Code or Codex is installed and signed in, naming its fix, and notes a missing git or Node without making either a fix; a tool that does not answer is never waited on", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const bin = path.join(dir, "bin");
@@ -636,11 +642,9 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     assert.match(line("agent-cli")?.message ?? "", /Claude Code is installed and not signed in/);
     assert.match(line("agent-cli")?.message ?? "", /Codex did not answer/);
     assert.match(line("agent-cli")?.fix ?? "", /claude auth login/);
-    assert.equal(line("git")?.state, "needs-attention");
-    assert.match(line("git")?.fix ?? "", /git-scm\.com/);
-    assert.equal(line("node")?.state, "needs-attention");
-    assert.match(line("node")?.message ?? "", /v20\.11\.0/);
-    assert.match(line("node")?.fix ?? "", /Node 24/);
+    // Owner, 2026-09-29 (question_bb3efa1e3191): "dont list them as fixes". storytree runs on its own Node.
+    assert.deepEqual(noteOf(report.lines, "git"), { state: "note", fix: undefined });
+    assert.deepEqual(noteOf(report.lines, "node"), { state: "note", fix: undefined });
 
     // Claude Code signed in, git and Node 24 there: nothing to fix, and Codex is not needed as well.
     fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 0 } });

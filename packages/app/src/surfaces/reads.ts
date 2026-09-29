@@ -3,13 +3,13 @@
  * sandboxed and cannot reach the database, so every read a surface makes comes through here: the
  * projects, a project's tree, the two the live reading asks for (ADR-0634 D3), the library's
  * changes and the agent activity log's new lines since a point, and the two the forest's shelves
- * ask for, a node's front covers and the notes that link to a note. The live reading, which decides when
+ * ask for, a node's front covers and the notes that link to a note, and the knowledge core's session window. The live reading, which decides when
  * to ask, is the arc surface's; the app only answers.
  *
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { contextReading, idleAfterMs, openActivityLog, type ActivityLog, type ContextReading, type LinesSince } from "@storytree/agent-link";
+import { contextReading, idleAfterMs, openActivityLog, sessionWindow, type ActivityLog, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Hold, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -33,6 +33,8 @@ export interface PageReads {
   contextReadings(project: unknown, sessions: unknown): Promise<ContextReading[]>;
   /** The user's idle-after setting in milliseconds (agent link 10), read now: how long a session may be quiet before the list shows it idle. */
   idleAfterMs(): Promise<number>;
+  /** A session's window in a project (agent link 9.10), read now from the transcript its hooks named. */
+  windowReading(project: unknown, session: unknown): Promise<SessionWindow>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;
 }
@@ -100,6 +102,12 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       return Promise.all(sessions.map((session: string) => contextReading(lines, session)));
     },
     idleAfterMs: async () => idleAfterMs(),
+    windowReading: async (name, session) => {
+      const known = await project(name);
+      if (typeof session !== "string") throw new Error("session must be a session id");
+      const { lines } = await (await activityLog()).since(known, 0);
+      return sessionWindow(lines, session);
+    },
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];
       libraries.clear();

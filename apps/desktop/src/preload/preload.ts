@@ -20,6 +20,7 @@ const bridge: StorytreeBridge & SettingsBridge = {
   heldOnQuestion: (name, id) => ipcRenderer.invoke(CHANNELS.heldOnQuestion, name, id) as ReturnType<StorytreeBridge["heldOnQuestion"]>,
   contextReadings: (name, sessions) => ipcRenderer.invoke(CHANNELS.contextReadings, name, sessions) as ReturnType<StorytreeBridge["contextReadings"]>,
   idleAfterMs: () => ipcRenderer.invoke(CHANNELS.idleAfterMs) as Promise<number>,
+  windowReading: (name, session) => ipcRenderer.invoke(CHANNELS.windowReading, name, session) as ReturnType<StorytreeBridge["windowReading"]>,
 
   listProjects: () => ipcRenderer.invoke(CHANNELS.listProjects) as Promise<string[]>,
   projectSelection: () => ipcRenderer.invoke(CHANNELS.projectSelection) as ReturnType<StorytreeBridge["projectSelection"]>,

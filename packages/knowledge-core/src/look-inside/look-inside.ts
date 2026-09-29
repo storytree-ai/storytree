@@ -32,6 +32,8 @@ export interface CoreInput {
   frame?: ReplayFrame;
   /** The running sessions the host lists, lit together while no session is selected (ADR-0738). */
   roster?: readonly RosterEntry[];
+  /** Each listed session's reads from its window, by session id, lit with no session selected (ADR-0754 D1). */
+  windowed?: ReadonlyMap<string, AgentReplay>;
 }
 
 /** One listed running session: its colour, and the session ids (its own and its children's) whose reads wear it. */
@@ -355,7 +357,7 @@ export function arrived(lit: ReadonlyMap<string, Lighting>, held: ReadonlySet<st
  * the agent that first read it, a listed session's agents in shades of its colour.
  */
 export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>): Map<string, Lighting> {
+  present: ReadonlySet<string>, _windowed: ReadonlyMap<string, AgentReplay> = new Map()): Map<string, Lighting> {
   if (session === undefined) {
     return new Map([...liveReads(reads, roster, present)].map(([note, live]) => [note, lightingOf(live)]));
   }
@@ -390,7 +392,7 @@ export interface Trail {
  * repeated step of the same session draws once.
  */
 export function trails(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>): Trail[] {
+  present: ReadonlySet<string>, _windowed: ReadonlyMap<string, AgentReplay> = new Map()): Trail[] {
   const drawn = new Map<string, Trail>();
   for (const { listed, member, replay, colour } of drawnAgents(reads, roster, session, present)) {
     for (const { from, to, seq } of replay.jumps) {
@@ -417,7 +419,7 @@ export interface AgentPath {
  * an unknown agent or an unlisted session has none.
  */
 export function agentPaths(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>): AgentPath[] {
+  present: ReadonlySet<string>, _windowed: ReadonlyMap<string, AgentReplay> = new Map()): AgentPath[] {
   return drawnAgents(reads, roster, session, present).flatMap(({ member, replay, colour }) => {
     const note = replay.lit.filter(({ read }) => read === "whole").at(-1)?.note;
     if (!replay.known || note === undefined) return [];
@@ -557,3 +559,14 @@ function titleOf(knowledge: Knowledge, id: string): string {
 }
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** Each listed session's window as a replay (stub). */
+export function windowReplays(_windows: ReadonlyMap<string, SessionWindow>, _present: ReadonlySet<string>,
+  _stamps: ReadonlyMap<string, readonly number[]> = new Map()): Map<string, AgentReplay> {
+  return new Map();
+}
+
+/** Stamps for a session's opens (stub). */
+export function stampOpens(_previous: readonly number[] | undefined, _count: number, clock: number): { stamps: number[]; clock: number } {
+  return { stamps: [], clock };
+}

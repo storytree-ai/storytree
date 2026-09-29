@@ -623,6 +623,26 @@ test("6.7 each read names the agent that made it, as the harness revealed it: a 
   });
 });
 
+test("6.24 a call a hook saw writes its tool-called and note-read lines naming that hook's tool-requested line as their cause; a call no hook saw names none (ADR-0746 D2)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const note = await library.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
+    const request = await log.append(project, { session: "claude-1", harness: "claude-code", source: "hook", folder, kind: "tool-requested", tool: "open", call: "toolu_seen", agent: "orchestrator" });
+
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      await agent.call("open", { id: note.id }, { "claudecode/toolUseId": "toolu_seen" });
+      await agent.call("open", { id: note.id }, { "claudecode/toolUseId": "toolu_no_hook_saw" });
+    });
+
+    const written = (await log.since(project, request.seq)).lines.filter((line) => line.kind === "tool-called" || line.kind === "note-read");
+    assert.deepEqual(written.map(({ kind, causedBy }) => [kind, causedBy]), [
+      ["tool-called", request.seq],
+      ["note-read", request.seq],
+      ["tool-called", undefined],
+      ["note-read", undefined],
+    ]);
+  });
+});
+
 test("6.8 after Claude Code's /clear, which gives the window a new session id the tool server never sees, each call is recorded on the new session its hook named; a call no hook saw keeps the id the server was started with", async () => {
   await withProject(async ({ folder, project, log }) => {
     // check_setup finds storytree through a storytree home: here, one saying where the test Postgres listens.

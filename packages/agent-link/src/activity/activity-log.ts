@@ -247,6 +247,11 @@ function parseLine(line: NewLine): NewLine {
 
 /** Add `line` to `project`'s log on `client`, inside a transaction holding the project's lock. */
 async function insert(client: PoolClient, project: string, line: NewLine): Promise<Line> {
+  // A cause is an earlier line of this project's log: a dangling one is refused, never healed (0.2 inc-74).
+  if (line.causedBy !== undefined) {
+    const { rowCount } = await client.query("SELECT 1 FROM activity WHERE project = $1 AND seq = $2", [project, line.causedBy]);
+    if (rowCount === 0) throw new Error(`the activity log refused a line: its cause, line ${line.causedBy}, is not a line of ${project}'s log`);
+  }
   const { session, harness, source, kind, folder, ...detail } = line;
   const { rows } = await client.query<{ seq: string; at: Date }>(
     `INSERT INTO activity (project, session, harness, source, kind, folder, detail)

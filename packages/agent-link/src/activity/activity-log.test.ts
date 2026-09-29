@@ -162,6 +162,24 @@ async function firstConnectionReset(): Promise<{ url: string; close(): Promise<v
   };
 }
 
+test("2.6 a line may name the earlier line of its own project's log that caused it, and reads back naming it; one naming a line its project's log does not hold is refused, and nothing is written", async () => {
+  const site = uniqueProjectName();
+  const app = uniqueProjectName();
+  await withLog(async (log) => {
+    const request = await log.append(app, { session: "s1", source: "hook", kind: "tool-requested", tool: "open", call: "c1", agent: "orchestrator" });
+    const elsewhere = await log.append(site, { session: "s2", source: "hook", kind: "session-started" });
+    const called = await log.append(app, { session: "s1", source: "tool", kind: "tool-called", tool: "open", causedBy: request.seq });
+    assert.equal((await log.since(app, request.seq)).lines[0]?.causedBy, request.seq);
+    assert.equal(called.causedBy, request.seq);
+
+    for (const causedBy of [elsewhere.seq, called.seq + 1_000_000]) {
+      await assert.rejects(log.append(app, { session: "s1", source: "tool", kind: "tool-called", tool: "open", causedBy }), /cause/);
+      await assert.rejects(log.locked(app, (locked) => locked.append({ session: "s1", source: "tool", kind: "tool-called", tool: "open", causedBy })), /cause/);
+    }
+    assert.deepEqual((await log.since(app, called.seq)).lines, [], "a refused line is never written");
+  });
+});
+
 test("the log opens even when Postgres on Windows resets its first connection, as it did the first time the log was opened in a fresh cluster (regression: the Windows run of storytree-ai/storytree#11)", async () => {
   const project = uniqueProjectName();
   const server = await firstConnectionReset();

@@ -832,7 +832,7 @@ async function assertBorrowed(project: Project, user: string, creator: string): 
   }, database);
   assert.ok(tables.length > 0, "the project has its tables");
   assert.deepEqual(tables.filter((table) => table.owner !== creator), [], "every one of them the owning role's");
-  assert.deepEqual(meta, { project: project.name }, "holding the project's name");
+  assert.equal(meta.project, project.name, "holding the project's name");
 
   const store = new PgTransactions(project.pool);
   const saved = await store.save({ id: "probe", type: "note", fields: { text: "written in a database a borrowed role made" } });

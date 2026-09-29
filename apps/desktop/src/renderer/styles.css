@@ -1001,3 +1001,19 @@ main:has(> .tree-space:not([hidden])) > .story-panel {
   content: "⚠ ";
   color: #a61b1b;
 }
+
+/* The forest on show is the one kept from the last start, until this start's first read lands. */
+#freshness {
+  position: absolute;
+  z-index: 46;
+  bottom: 1rem;
+  right: 1rem;
+  max-width: min(32rem, calc(100% - 2rem));
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #d9dedb;
+  background: rgba(18, 24, 27, 0.9);
+  border: 1px solid #b5771980;
+}

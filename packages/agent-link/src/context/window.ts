@@ -38,6 +38,8 @@ export type WindowReading = {
   readonly inView: readonly Arrival[];
   /** Every opening in the transcript, in order. */
   readonly opens: readonly WindowOpen[];
+  /** Notes named in a result in the window now but never opened, in the order first named: search hits, shelf spines, linked titles. */
+  readonly glimpses: readonly string[];
   /** How many compactions the transcript records. */
   readonly compactions: number;
 };
@@ -49,6 +51,7 @@ type Step =
   | { readonly kind: "boundary"; readonly kept: ReadonlySet<number> };
 
 const NOTE_ID = /\b[a-z]+_[0-9a-f]{12}\b/;
+const NOTE_IDS = new RegExp(NOTE_ID.source, "g");
 const LIBRARY_READ = new RegExp(`storytree\\s+library\\s+read\\s+(${NOTE_ID.source})`, "g");
 const FILE_READERS = /(?:^|[|;&(]\s*|\s)(?:cat|head|tail|less|more)((?:\s+[^\s|;&>]+)+)/g;
 const SED_PRINT = /(?:^|[|;&(]\s*|\s)sed\s+-n\s+(?:'[^']*'|"[^"]*"|\S+)\s+([^\s|;&>]+)/g;
@@ -102,13 +105,17 @@ function fold(steps: readonly Step[]): WindowReading {
   });
   const end = steps.length;
   const resultOf = new Map(results.map((result) => [result.id, result]));
+  const resident = results.filter(({ at }) => inViewAt(at, end));
+  const everOpened = new Set(opened.filter(({ target }) => target.kind === "note").map(({ target }) => target.id));
+  const glimpses = new Set(resident.flatMap(({ text }) => text.match(NOTE_IDS) ?? []).filter((id) => !everOpened.has(id)));
   return {
-    inView: results.filter(({ at }) => inViewAt(at, end)).map(({ id }) => arrivalOf(id)),
+    inView: resident.map(({ id }) => arrivalOf(id)),
     opens: opened.map(({ at, target, arrival }) => {
       const brought = resultOf.get(arrival.call);
       const seen = results.filter((result) => inViewAt(result.at, at) && result.text.includes(target.id)).map(({ id }) => arrivalOf(id));
       return { ...target, call: arrival.call, tool: arrival.tool, resident: brought !== undefined && inViewAt(brought.at, end), inViewFrom: seen };
     }),
+    glimpses: [...glimpses],
     compactions: boundaries.length,
   };
 }

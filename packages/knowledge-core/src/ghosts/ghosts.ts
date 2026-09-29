@@ -126,6 +126,21 @@ export function linksOf(record: RecordEnvelope): string[] {
   return stringsIn(record.fields.links);
 }
 
+/**
+ * Whether a stored reference joins two notes, either way round: one's `links`, `supersedes` or
+ * `frontCoverOf` names the other. Only what is stored joins them, never a neighbour they share.
+ */
+export function storedEdges({ notes }: Knowledge): (a: string, b: string) => boolean {
+  const joined = new Set<string>();
+  for (const note of notes.values()) {
+    const cover = coverOf(note);
+    for (const to of [...linksOf(note), ...stringsIn(note.fields.supersedes), ...(cover === undefined ? [] : [cover])]) {
+      if (to !== note.id) joined.add(`${note.id}>${to}`).add(`${to}>${note.id}`);
+    }
+  }
+  return (a, b) => joined.has(`${a}>${b}`);
+}
+
 function stringsIn(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }

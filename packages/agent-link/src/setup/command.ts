@@ -9,6 +9,7 @@
  * - It goes into the first folder on the PATH that is inside the user's home and can be written
  *   (such as ~/.local/bin, or npm's folder on Windows), so nothing outside their home is touched and
  *   no setting of theirs is changed. With no such folder, it is put nowhere and the check says so.
+ *   Storytree's own launcher outside the home (another home's install) is left alone by install and remove.
  * - It is recognised as storytree's by a marker line inside it. A `storytree` anywhere on the path
  *   that is not storytree's is the user's own, and is kept: storytree neither replaces nor shadows it.
  */
@@ -39,7 +40,8 @@ const FILE = process.platform === "win32" ? "storytree.cmd" : "storytree";
 export function putCommandOnPath(where: CommandPath, node: string, target: string): CommandInstall {
   const launcher = launcherFor(node, target);
   const found = onPath(where).map((folder) => path.join(folder, FILE)).filter((file) => existsSync(file));
-  const ours = found.filter(isOurs);
+  // Storytree's own launcher outside this home (another home's install) is not this user's to rewrite.
+  const ours = found.filter((file) => isOurs(file) && inside(path.dirname(file), where.home));
   if (found.some((file) => !isOurs(file))) return "another storytree kept";
   if (ours.length > 0) {
     const [file] = ours;
@@ -57,7 +59,7 @@ export function putCommandOnPath(where: CommandPath, node: string, target: strin
 export function removeCommand(where: CommandPath): "removed" | "none" {
   const ours = onPath(where)
     .map((folder) => path.join(folder, FILE))
-    .filter((file) => existsSync(file) && isOurs(file));
+    .filter((file) => existsSync(file) && isOurs(file) && inside(path.dirname(file), where.home));
   for (const file of ours) rmSync(file, { force: true });
   return ours.length > 0 ? "removed" : "none";
 }

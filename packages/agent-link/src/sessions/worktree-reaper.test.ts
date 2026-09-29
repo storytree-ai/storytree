@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Sessions, contract 4.13: the hooks reap a merged worktree once every session that
+ * Capability 4 · Sessions, contract 4.18: the hooks reap a merged worktree once every session that
  * worked in it has left (ADR-0790), on a real git repository and the real activity log on the
  * Postgres `pnpm test` provides.
  */
@@ -13,7 +13,7 @@ import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { reapWorktrees } from "./index.js";
 
-test("4.13 a clean worktree whose head is in main, and whose sessions have all closed out or been archived, is removed with its branch; a dirty, unmerged, locked, unknown, still-used, protected or hook-running one stays", async () => {
+test("4.18 a clean worktree whose head is in main, and whose sessions have all closed out or been archived, is removed with its branch; a dirty, unmerged, locked, unknown, still-used, protected or hook-running one stays", async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();
   try {
@@ -21,7 +21,8 @@ test("4.13 a clean worktree whose head is in main, and whose sessions have all c
       const repo = path.join(dir, "site");
       git(dir, "init", "-q", "-b", "main", repo);
       writeFileSync(path.join(repo, "a.txt"), "a\n");
-      git(repo, "add", "a.txt");
+      writeFileSync(path.join(repo, ".gitignore"), "node_modules/\n");
+      git(repo, "add", "a.txt", ".gitignore");
       git(repo, "commit", "-q", "-m", "first");
       const trees = path.join(repo, ".claude", "worktrees");
       const tree = (name: string) => {
@@ -60,7 +61,7 @@ test("4.13 a clean worktree whose head is in main, and whose sessions have all c
       const emptied: string[] = [];
       const reaped = await reapWorktrees(
         { log, project, folder: running, session: "observer", harness: "claude-code", source: "hook" },
-        { everyMs: 0, protect: [path.join(guarded, "packages", "agent-link", "dist", "storytree-hook.mjs")], empty: (trash) => { emptied.push(trash); rmSync(trash, { recursive: true, force: true }); } },
+        { everyMs: 0, budgetMs: 60_000, protect: [path.join(guarded, "packages", "agent-link", "dist", "storytree-hook.mjs")], empty: (trash) => { emptied.push(trash); rmSync(trash, { recursive: true, force: true }); } },
       );
 
       assert.deepEqual([...reaped].sort(), [archived, merged].sort());

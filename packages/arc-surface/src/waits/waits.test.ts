@@ -19,8 +19,8 @@ test("4.1 and 4.3 queued arcs live under their blockers, released waits return t
 test("4.2 arrows mean a real chain; branching queues are sets, retaining hidden depth and other waits", () => {
   const chain = arcQueues([arc("A", [], "quiet"), arc("B", ["A"]), arc("C", ["B", "elsewhere"])])[0]!;
   assert.deepEqual(queueRun(chain), { shape: "chain", chips: [
-    { id: "B", title: "Arc B", hidden: 0, otherWaits: 0, reasons: ["after A"] },
-    { id: "C", title: "Arc C", hidden: 0, otherWaits: 1, reasons: ["after B", "after elsewhere"] },
+    { id: "B", title: "Arc B", hidden: 0, otherWaits: 0, reasons: ["after A"], waitsOn: [] },
+    { id: "C", title: "Arc C", hidden: 0, otherWaits: 1, reasons: ["after B", "after elsewhere"], waitsOn: [] },
   ] });
   const branching = arcQueues([arc("A", [], "quiet"), arc("B", ["A"]), arc("C", ["A"]), arc("D", ["B"])])[0]!;
   assert.equal(queueRun(branching).shape, "set");

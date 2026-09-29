@@ -15,6 +15,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   onError(error: unknown): void;
   mountHelp(host: HTMLElement, returnFocus: HTMLElement, onOpen: () => void): { open(): void; close(): void; stop(): void };
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
+  /** The app setup's Add project control; it reports the project added, which is then shown. */
+  mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void };
   /** Hears a surface switched or set in the Surfaces menu, saved already, for the frame to apply. */
   onSurfacesChanged(): void;
 }) {
@@ -39,6 +41,12 @@ export function mountAppMenu(host: HTMLElement, options: {
   const help = options.mountHelp(menu.querySelector<HTMLElement>("[data-app-help]")!, gear, () => {
     selectSection("help");
     menu.showPopover();
+  });
+  const addProject = options.mountAddProject?.(menu.querySelector<HTMLElement>("[data-app-add-project]")!, async (project) => {
+    await options.chooseProject(project);
+    close();
+    gear.focus();
+    await options.onChosen();
   });
   const updates = mountUpdates(menu, options.checkForUpdates, (waiting) => {
     gear.toggleAttribute("data-update-pending", waiting);
@@ -118,7 +126,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); help.stop(); settings.stop(); surfaces.stop();
+      updates.stop(); help.stop(); settings.stop(); surfaces.stop(); addProject?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

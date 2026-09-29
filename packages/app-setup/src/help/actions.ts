@@ -1,4 +1,6 @@
 import { runSetupCheck } from "@storytree/agent-link";
+import type { Storytree } from "@storytree/library";
+import { addProject, projectFolder, unusedName } from "../project/index.js";
 import type { SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "./feedback.js";
 import { readShippedLicense } from "./license.js";
@@ -10,6 +12,8 @@ export function setupHelpActions(options: {
   chooseFolder(): Promise<string | undefined>;
   openExternal(url: string): Promise<void>;
   copyText(text: string): Promise<void>;
+  /** The app's open library, which Add project writes to. */
+  library(): Storytree;
 }): SetupHelpBridge {
   return {
     readSetupLicense: () => readShippedLicense(options.licenseFile),
@@ -19,6 +23,17 @@ export function setupHelpActions(options: {
       // With no hook command supplied this is a diagnostic, not a second hook installer.
       // The returned fixes direct the user to their installed agent session for recovery.
       return (await runSetupCheck({ folder, storytreeHome: options.storytreeHome, openWaitMs: 2_000 })).lines;
+    },
+    async addProject() {
+      const folder = await options.chooseFolder();
+      if (folder === undefined) return null;
+      const found = projectFolder(folder);
+      if ("project" in found) return { status: "already a project", project: found.project, folder: found.folder };
+      // The folder's own name, unless a project has it already: a second folder never joins it silently.
+      const library = options.library();
+      const added = await addProject(found.folder, unusedName(found.suggestion, await library.listProjects()), { home: options.storytreeHome, library });
+      if (added.status === "name refused") throw new Error(added.message);
+      return added;
     },
     openFeedbackDraft: (draft) => openFeedbackDraft(draft, options.openExternal),
     async copyHelpText(text) {

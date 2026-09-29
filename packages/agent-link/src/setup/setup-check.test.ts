@@ -215,7 +215,8 @@ function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"
   const env = { ...process.env, STORYTREE_HOME: storytreeHome };
   const [command, args] =
     harness === "claude-code" ? [hook.command, hook.args ?? []] : process.platform === "win32" ? ["powershell", ["-NoProfile", "-Command", hook.command]] : ["sh", ["-c", hook.command]];
-  const ran = spawnSync(command, args, { input, env, encoding: "utf8", timeout: 10_000 });
+  // A cold Windows PowerShell and Node can take most of 10 s on CI; a hang still fails.
+  const ran = spawnSync(command, args, { input, env, encoding: "utf8", timeout: 60_000 });
   assert.equal(ran.status, 0, `${harness}: ${ran.stderr}`);
   return ran.stdout;
 }

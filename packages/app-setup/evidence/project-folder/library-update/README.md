@@ -14,3 +14,10 @@ record is authoritative: read it first and apply the meaning below, keeping ids,
 - [ ] Close increment_03faf35c540d from `/tmp/projfolder-close-increment_03faf35c540d.md`.
 
 No library, plan, decision, question or claim was written by this lane.
+
+## Increment 2 — Add project from the app (increment_14f177725450)
+
+- [ ] Re-pin app setup 3.3 (`contract_cb66224c8e6b`) to the text in changes.md: a second project comes from Add project (or the terminal, or asking the agent), not from a second setup question.
+- [ ] Add app setup 3.4 on capability 3 · First-run guide (`capability_47e1fb495a56`), or on the capability the supervisor judges owns project adding. Its test is `packages/app-setup/src/help/add-project.test.ts`; its picture is `../capture.mjs`'s three PNGs.
+- [ ] 3.1 (`contract_772540383861`) keeps its meaning.
+- [ ] Close increment_14f177725450 from `/tmp/projfolder-close-increment_14f177725450.md`.

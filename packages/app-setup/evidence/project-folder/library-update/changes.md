@@ -20,3 +20,11 @@
 
 **1.7** (new, capability `capability_790ee7f22546`):
 > 1.7 · After connecting the agents, the one-line command asks for the project folder: Enter takes the folder it was run from (from the home folder or a drive root, Enter skips instead), a typed path is created if missing, and S skips, saying how to add a project later. The suggested name is the folder's and editable; a refused name is asked again. The chosen folder becomes a project exactly as the setup check's yes makes one (marker, library project, the app's project choice), and the app shows it (ADR-0752 D1).
+
+## The app setup · capability 3 · First-run guide (increment 2)
+
+**3.3** (`contract_cb66224c8e6b`), title becomes:
+> 3.3 · The guide says how to add a project three ways (the app's Add project, `storytree doctor --set-up <name>` in a terminal, or asking the agent in the folder); a project added any of these ways appears in the running app and both forests are selectable.
+
+**3.4** (new):
+> 3.4 · Add project in the app's Projects section opens the native folder picker; the chosen folder becomes a project under its own name (a name already taken by another project gets `-2`, `-3`…, so a second folder never joins an existing project silently), set up as the installer's folder step sets one up, and is shown. A folder already in a project is simply selected; cancelling the picker changes nothing (ADR-0752 D2).

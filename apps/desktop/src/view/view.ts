@@ -127,7 +127,7 @@ export function renderNoProjects(): string {
     `<div class="empty">`,
     `<h1>No projects yet</h1>`,
     `<p>This app shows the projects in storytree 0.3's local library, and it has none yet.</p>`,
-    `<p>Start Claude Code or Codex in your project folder, and say yes when it asks to set up storytree.</p>`,
+    `<p>Add a folder as a project from the gear menu: Projects → Add project…, or run <code>storytree doctor --set-up &lt;name&gt;</code> in the folder.</p>`,
     `<p>Your project will appear here automatically.</p>`,
     `</div>`,
   ].join("\n");

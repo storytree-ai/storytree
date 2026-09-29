@@ -10,7 +10,24 @@ record health with" and passes without recording anything.
 | File | What it makes |
 | --- | --- |
 | [`main.tf`](main.tf) | A sign-in route in the existing `github-actions` pool that accepts **only this repository, only on main**; the service account `storytree-ci-health` (Cloud SQL Client + Cloud SQL Instance User, nothing else); its database user on `storytree-pg`. |
-| [`grants.sql`](grants.sql) | Lets that database user act as the role that owns the library's database. Read its header: why table grants alone do not work, and what that costs. |
+| [`grants.sql`](grants.sql) | Lets that database user write health records in the storytree project's database and nothing else, enforced by the database (ADR-0747). Its header says exactly what it grants and why. |
+
+## What the account can and cannot do
+
+It **can** sign in to the instance, open the project `storytree`, read its plan and history, and
+add or replace **health** records (a contract's verified test result) with their history entries.
+
+It **cannot** write any other kind of record (a story, a decision, an increment…), change a record
+of another kind into health or back, delete anything, create, alter or drop a table, take on the
+role that owns the database, or read or write any other project's records (Postgres lets every
+account connect to a database by default, but no table of any project is granted to it). Row-level security on `record`
+and `record_event` enforces the record rule; it is enabled, not forced, so the owner's own accounts
+(the laptop, the Mint box, the app), which act as the owning role, are unaffected.
+
+It opens the project only while the project's tables are current: storytree then touches no table.
+When a newer storytree has added a table, the owner's next open (the app, after its update) brings
+the tables up to date; until then CI's open is refused with `tables need to be set up or upgraded,
+which only the role that owns its database … may do`, and nothing is recorded.
 
 ## What to run, in order
 
@@ -28,10 +45,17 @@ terraform apply
 It keeps its own state (`ci-health-0.3` in the bucket 0.2's infra uses) and changes nothing of 0.2's.
 
 **2. Let it into the library.** Open the instance `storytree-pg` in the Cloud Console, **Cloud SQL
-Studio**, database `postgres`, signed in as the `postgres` user (or the account that created the
-library's owning role), and run [`grants.sql`](grants.sql). Its last query must show one row with
-`may_act = true`. If it says `permission denied to grant role`, the account you are signed in as
-did not create that role: sign in as the one that did.
+Studio**, database **`storytree_storytree`**, signed in as **your own Google account** (IAM
+database authentication: the account the storytree app uses, which may act as the database's
+owning role), and run [`grants.sql`](grants.sql). It first takes on that role, so everything it
+grants is granted by the owner; if it says `… may not act as …`, you are signed in as an account
+that may not (the `postgres` user, say): sign in as your own. Its last query must show one row with
+`may_connect`, `reads`, `writes_record`, `writes_history` and `rls` true, and `may_act_as_owner`,
+`may_create` and `forced` false.
+
+Before step 4, open the project once with a storytree that has ADR-0747 (the app after its update,
+or `pnpm storytree arc list` from a current checkout): that open records the tables' version, which
+CI's open reads to know it need not touch them.
 
 **3. Check the sign-in route before trusting it** (optional, read-only):
 
@@ -67,10 +91,29 @@ short-lived token, exchanged each run.
 If it fails: a red **Sign in to Google** step means step 4's variables do not match Terraform's
 outputs, or the sign-in route refused the run (a run not on main always is). Past that, the check
 says what to fix in its own words: `did not let … in as a database user` means step 1's database
-user is missing; `must be owner` or `permission denied` means step 2 has not run.
+user is missing; `permission denied` means step 2 has not run; `tables need to be set up or
+upgraded` means the owner's storytree has not opened the project since its tables last changed
+(open it once, as step 2 says, and run the workflow again).
+
+To check what the account may do at any time, run grants.sql's last query on its own (it changes
+nothing).
 
 ## Undoing it
 
-Unset the three variables (the workflow goes back to recording nothing), then `terraform destroy`
-here. The role grant goes with the database user; to take it back without destroying anything:
-`REVOKE <owning role> FROM "storytree-ci-health@storytree-498613.iam";`.
+Unset the three variables (the workflow goes back to recording nothing). To take its rights back
+without destroying anything, in `storytree_storytree` as your own account:
+
+```sql
+SET ROLE storytree_creator;  -- or whichever role owns storytree_storytree
+REVOKE ALL ON library_meta, record, record_event FROM "storytree-ci-health@storytree-498613.iam";
+REVOKE ALL ON SEQUENCE record_event_seq_seq FROM "storytree-ci-health@storytree-498613.iam";
+REVOKE ALL ON SCHEMA public FROM "storytree-ci-health@storytree-498613.iam";
+REVOKE CONNECT ON DATABASE storytree_storytree FROM "storytree-ci-health@storytree-498613.iam";
+DROP POLICY ci_health_read ON record; DROP POLICY ci_health_insert ON record; DROP POLICY ci_health_update ON record;
+DROP POLICY ci_health_read ON record_event; DROP POLICY ci_health_insert ON record_event;
+RESET ROLE;
+```
+
+Row-level security can stay enabled: it binds no account but CI's. Then `terraform destroy` here
+removes the database user and the identity (Postgres refuses to drop a user that still holds
+grants, so revoke first).

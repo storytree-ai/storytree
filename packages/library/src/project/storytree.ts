@@ -7,6 +7,10 @@
  * A server user that may not create databases (as a Cloud SQL IAM user may not, and cannot be let
  * to) borrows a role granted to it that may, for the CREATE DATABASE alone. With none to borrow,
  * opening a new project is refused with the two lines that grant one.
+ *
+ * Setting a project's tables up, or upgrading them, is its owner's alone. Opening a project whose
+ * tables are current does neither, so an account let only read or write some rows (CI's health
+ * account, ADR-0747) opens it too; one whose tables are behind is refused saying who may.
  */
 import type { Pool, PoolClient } from "pg";
 
@@ -20,9 +24,9 @@ import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { PgVectors } from "./embeddings.js";
-import { cannotCreateDatabases, ConnectionError, isInsufficientPrivilege } from "./connection-error.js";
+import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, projectDatabase } from "./names.js";
-import { upgradeMemories } from "./memory-upgrade.js";
+import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
 import { localServer, type ServerAccess } from "./server.js";
@@ -131,7 +135,7 @@ class ServerConnection implements Storytree {
       await this.#createDatabaseIfMissing(database);
       const pool = this.#server.pool(database, await this.#owningRole(database));
       try {
-        await applySchema(pool, name);
+        await openTables(pool, name);
       } catch (error) {
         await pool.end();
         throw error;
@@ -302,7 +306,52 @@ class ProjectLibrary implements Project {
 }
 
 /**
- * Apply the project schema in one transaction and record the project's name. Opens of one project
+ * Set the project's tables up, or bring them up to date, unless they are current already: then
+ * nothing is written, and no owner's rights are needed (contract 1.10). When they are behind and
+ * the account may not change them, say so and who may (1.11).
+ */
+async function openTables(pool: Pool, name: string): Promise<void> {
+  if (await tablesCurrent(pool, name)) return;
+  try {
+    await applySchema(pool, name);
+  } catch (error) {
+    if (!isInsufficientPrivilege(error)) throw error;
+    const { rows } = await pool.query<{ account: string; owner: string }>(
+      "SELECT session_user AS account, pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = current_database()",
+    );
+    const [found] = rows;
+    throw found === undefined ? error : cannotSetUpProject(name, found.account, found.owner, error);
+  }
+}
+
+/**
+ * Whether the project's tables hold every statement of the schema, as the version its last setup
+ * recorded says, and no memory is waiting to be converted. Read only: the memories that cannot be
+ * converted are reported here, as a setup reports them.
+ */
+async function tablesCurrent(pool: Pool, name: string): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    const version = await client.query<{ value: string }>("SELECT value FROM library_meta WHERE key = 'schema'").then(
+      ({ rows }) => rows[0]?.value,
+      (error: unknown) => {
+        if (sqlState(error) === "42P01") return undefined; // undefined_table: a new project, not set up yet
+        throw error;
+      },
+    );
+    if (version === undefined || Number(version) < PROJECT_SCHEMA.length) return false;
+    const { convertible, warnings } = await pendingMemories(client, name, false);
+    if (convertible.length > 0) return false;
+    for (const warning of warnings) console.warn(warning);
+    return true;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Apply the project schema in one transaction and record the project's name, and how much of the
+ * schema it now holds: the version the next open reads to know it is current. Opens of one project
  * can race (two processes, or two first opens), so they take turns on an advisory lock: two
  * concurrent CREATE TABLE IF NOT EXISTS can otherwise collide.
  */
@@ -320,6 +369,12 @@ async function applySchema(pool: Pool, name: string): Promise<void> {
     await client.query(
       "INSERT INTO library_meta (key, value) VALUES ('project', $1) ON CONFLICT (key) DO NOTHING",
       [name],
+    );
+    // Never lowered: an older storytree opening a project a newer one set up leaves its version.
+    await client.query(
+      `INSERT INTO library_meta (key, value) VALUES ('schema', $1) ON CONFLICT (key)
+         DO UPDATE SET value = excluded.value WHERE library_meta.value::int < excluded.value::int`,
+      [String(PROJECT_SCHEMA.length)],
     );
     const warnings = await upgradeMemories(client, name);
     await client.query("COMMIT");

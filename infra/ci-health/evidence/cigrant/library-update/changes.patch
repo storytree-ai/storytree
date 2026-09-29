@@ -1,0 +1,34 @@
+--- old/library/The library/capability 1/capability_5e0362aae607/description
++++ new/library/The library/capability 1/capability_5e0362aae607/description
+@@ -1 +1 @@
+-Each project gets its own library, a separate database on one Postgres server, created the first time the project is opened, with its tables set up automatically. Storytree can list the projects on the server, and nothing written in one project can ever show up in another.
++Each project gets its own library, a separate database on one Postgres server, created the first time the project is opened, with its tables set up automatically, and brought up to date by the next open after storytree adds to them. Opening a project whose tables are already current touches no table, so an account let only read, or write a few kinds of record, can open it too. Storytree can list the projects on the server, and nothing written in one project can ever show up in another.
+
+--- old/library/The library/capability 1/ADD contract under capability_5e0362aae607/title
++++ new/library/The library/capability 1/ADD contract under capability_5e0362aae607/title
+@@ -0,0 +1 @@
++1.10 · Opening a project whose tables are current runs no table setup and writes nothing, so an account that may only read its tables (not their owner, no right to create in its schema) opens it and reads its records.
+
+--- old/library/The library/capability 1/ADD contract under capability_5e0362aae607/title
++++ new/library/The library/capability 1/ADD contract under capability_5e0362aae607/title
+@@ -0,0 +1 @@
++1.11 · Opening a project whose tables are not current, as an account that may not set them up, is refused with a ConnectionError (`project-owner`) naming the project and the account and saying that only the role owning its database may set them up; its owner's next open sets them up as before.
+
+--- old/library/The library/capability 8/ADD contract under capability_a954e1eb16f6/title
++++ new/library/The library/capability 8/ADD contract under capability_a954e1eb16f6/title
+@@ -0,0 +1 @@
++8.4 · An account granted exactly infra/ci-health/grants.sql (CI's health account, ADR-0747) opens the project, records a contract's verified health, and is refused any other kind of record (a new one is refused by row-level security; one it may not change is not there for it to change) and any change to the tables; the owner's accounts are unaffected and read what it recorded.
+
+--- old/library/The library/capability 5/definition_0c86fce863cf/meaning
++++ new/library/The library/capability 5/definition_0c86fce863cf/meaning
+@@ (append at the end) @@
++- **As built** (ADR-0747, `increment_cc0dcbbd2600`): CI's health account may write only health
++  records, and the database enforces it. `infra/ci-health/grants.sql` grants no role: CONNECT,
++  USAGE on the schema, SELECT on `library_meta`, `record`, `record_event`, INSERT/UPDATE on
++  `record`, INSERT on `record_event` and its sequence, with row-level security (enabled, not forced,
++  so the owning role, which the laptop, the Mint box and the app act as, is unaffected) letting its
++  writes through only for `type = 'health'`, and history only for a health record not filed under
++  another kind's id. `embedding` is not granted: a health write never touches it. It works because
++  an open of a current project applies no schema (library_meta `schema` = the schema's statement
++  count, written by the owner's setup; contract 1.10). Proved against a real Postgres by
++  `packages/library/src/project/ci-health.test.ts` (8.4), which runs grants.sql as written.

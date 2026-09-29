@@ -10,19 +10,8 @@ const KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 
 /** Unclassified records stay intact, and are reported on every open until resolved. */
 export async function upgradeMemories(client: PoolClient, project: string): Promise<string[]> {
-  const { rows } = await client.query<{ record: RecordEnvelope }>(`
-    SELECT jsonb_build_object('id', id, 'type', type, 'version', version, 'fields', fields,
-      'createdAt', created_at, 'updatedAt', updated_at) AS record
-    FROM record WHERE type = 'memory' ORDER BY id COLLATE "C" FOR UPDATE`);
-  const warnings: string[] = [];
-  for (const { record } of rows) {
-    record.createdAt = new Date(record.createdAt).toISOString();
-    record.updatedAt = new Date(record.updatedAt).toISOString();
-    const converted = classify(record);
-    if (converted === undefined) {
-      warnings.push(`Project ${project}: memory ${record.id} was not converted: its text does not unambiguously supply a supported artifact kind and its required fields. The record and history are preserved; read its original text with library.history({ id: "${record.id}" }) and classify it before replacing it.`);
-      continue;
-    }
+  const { convertible, warnings } = await pendingMemories(client, project, true);
+  for (const { record, converted } of convertible) {
     const updatedAt = new Date().toISOString();
     const next = { ...record, ...converted, updatedAt };
     await client.query(
@@ -34,6 +23,38 @@ export async function upgradeMemories(client: PoolClient, project: string): Prom
       [record.id, next.type, next.version, JSON.stringify(next.fields), updatedAt]);
   }
   return warnings;
+}
+
+/** A memory whose text says which artifact it is, and that artifact. */
+type Convertible = { record: RecordEnvelope; converted: Pick<RecordEnvelope, "type" | "version" | "fields"> };
+
+/**
+ * The memories still to convert, and a warning for each that cannot be, read without writing: an
+ * open that finds none to convert needs no write, and so no owner's rights (contract 1.10). With
+ * `lock`, the rows stay locked for the conversion that follows.
+ */
+export async function pendingMemories(
+  client: PoolClient,
+  project: string,
+  lock: boolean,
+): Promise<{ convertible: Convertible[]; warnings: string[] }> {
+  const { rows } = await client.query<{ record: RecordEnvelope }>(`
+    SELECT jsonb_build_object('id', id, 'type', type, 'version', version, 'fields', fields,
+      'createdAt', created_at, 'updatedAt', updated_at) AS record
+    FROM record WHERE type = 'memory' ORDER BY id COLLATE "C"${lock ? " FOR UPDATE" : ""}`);
+  const convertible: Convertible[] = [];
+  const warnings: string[] = [];
+  for (const { record } of rows) {
+    record.createdAt = new Date(record.createdAt).toISOString();
+    record.updatedAt = new Date(record.updatedAt).toISOString();
+    const converted = classify(record);
+    if (converted === undefined) {
+      warnings.push(`Project ${project}: memory ${record.id} was not converted: its text does not unambiguously supply a supported artifact kind and its required fields. The record and history are preserved; read its original text with library.history({ id: "${record.id}" }) and classify it before replacing it.`);
+    } else {
+      convertible.push({ record, converted });
+    }
+  }
+  return { convertible, warnings };
 }
 
 /** Only explicit labels or a fully specified JSON artifact are evidence of kind; never guess from prose. */

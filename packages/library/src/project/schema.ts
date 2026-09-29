@@ -1,7 +1,9 @@
 /**
- * A project library's tables, as an ORDERED list of idempotent statements. Every openProject
- * applies the whole list, in order, in one transaction, so a new project gets every table and an
- * existing one gets whatever was added since it was last opened.
+ * A project library's tables, as an ORDERED list of idempotent statements. An openProject that
+ * finds the project behind (library_meta's `schema`, the list's length when it was last applied, is
+ * short of it) applies the whole list, in order, in one transaction, so a new project gets every
+ * table and an existing one gets whatever was added since it was last opened. One that finds it
+ * current applies nothing (ADR-0747).
  *
  * Later capabilities APPEND to this list. A statement already here is never edited or reordered,
  * because existing projects have already run it: to change a table, append an idempotent ALTER.

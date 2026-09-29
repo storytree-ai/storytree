@@ -17,6 +17,8 @@ export type ConnectionProblem =
   | "database-user"
   /** A new project's database cannot be made: the server's user may not create databases, nor take on a role that may. */
   | "create-database"
+  /** The project's tables need setting up or upgrading, and the account may not: only the role that owns its database may. */
+  | "project-owner"
   /** The server did not answer in time. */
   | "timeout";
 
@@ -62,6 +64,22 @@ export function cannotCreateDatabases(server: "postgres" | "cloud-sql", user: st
     `${whose} cannot create databases, and storytree keeps one database per project. Run these two lines once, ` +
       `${grantor}, to give it a role that can: \`CREATE ROLE ${CREATOR_ROLE} NOLOGIN CREATEDB;\` ` +
       `\`GRANT ${CREATOR_ROLE} TO ${role};\` Storytree then borrows that role to create each project's database.`,
+    cause,
+  );
+}
+
+/**
+ * The refusal to open project `project` as `account`: its tables need setting up or upgrading,
+ * which Postgres allows only to `owner`, the role that owns its database, and the account is not
+ * it and may not act as it (ADR-0747: an account let only write some rows, as CI's health account
+ * is, opens only a project whose tables are current).
+ */
+export function cannotSetUpProject(project: string, account: string, owner: string, cause: unknown): ConnectionError {
+  return new ConnectionError(
+    "project-owner",
+    `Project "${project}"'s tables need to be set up or upgraded, which only the role that owns its database ` +
+      `(${quoteIdentifier(owner)}) may do, and ${quoteIdentifier(account)} is not it and may not act as it. ` +
+      `Open the project once as its owner (the storytree app, or any account that may act as that role), then try again.`,
     cause,
   );
 }

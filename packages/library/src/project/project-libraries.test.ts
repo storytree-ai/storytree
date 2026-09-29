@@ -110,6 +110,9 @@ test("1.2 reopening while a record write is in flight does not deadlock (PR 75 m
   const name = uniqueProjectName();
   await withStorytree([databaseOf(name)], async (storytree) => {
     const project = await storytree.openProject(name);
+    // A current project's reopen writes nothing and takes no lock (1.10); one whose tables are
+    // behind sets them up, under the locks this is about.
+    await project.pool.query("DELETE FROM library_meta WHERE key = 'schema'");
     const later = await connect({ url: testServerUrl() });
     try {
       await withTestClient(async (writer) => {
@@ -189,7 +192,7 @@ test("1.4 a record saved in one project cannot be read from another", async () =
     const values = async (project: Project) => (await project.pool.query<{ value: string }>(probe)).rows.map((row) => row.value);
     assert.deepEqual(await values(siteLibrary), ["saved in site"], "site reads its own record");
     assert.deepEqual(await values(appLibrary), [], "app cannot read site's record");
-    assert.deepEqual(await metaOf(databaseOf(app)), { project: app }, "app's database holds only its own records");
+    assert.equal((await metaOf(databaseOf(app)))["isolation-probe"], undefined, "app's database holds only its own records");
     // Each library is its own database, not a view onto a shared one.
     assert.equal(await connectedDatabase(siteLibrary), databaseOf(site));
     assert.equal(await connectedDatabase(appLibrary), databaseOf(app));

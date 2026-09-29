@@ -53,13 +53,16 @@ test("8.4 CI's health account (grants.sql) records a contract's verified health 
 
     // Anything but health is refused, and leaves nothing behind.
     await assert.rejects(recorder.addStory({ title: "Refunds", description: "Written by CI?" }), /row-level security/);
-    await assert.rejects(recorder.editStory(story.id, { title: "Renamed by CI" }), /row-level security/);
+    // Rows it may not change are not there for it to change: the edit finds no story, and a plain
+    // UPDATE changes no row.
+    assert.equal(await recorder.editStory(story.id, { title: "Renamed by CI" }), null);
+    assert.equal((await asCi("UPDATE record SET fields = '{}' WHERE id = $1", [story.id])).rowCount, 0);
     await assert.rejects(
       asCi("INSERT INTO record_event (record_id, type, action, record) VALUES ($1, 'health', 'updated', '{}')", [story.id]),
       /row-level security/,
       "no history entry under another record's id, even one that says it is health",
     );
-    assert.equal((await onLaptop.projectTree()).stories.map((each) => each.title).join(), "Checkout");
+    assert.deepEqual((await onLaptop.projectTree()).stories.map((each) => [each.title, each.description]), [["Checkout", "Paying for an order."]]);
     // No change to the tables, and no way out of the rule.
     for (const ddl of [
       "CREATE INDEX IF NOT EXISTS record_updated_idx ON record (updated_at)",

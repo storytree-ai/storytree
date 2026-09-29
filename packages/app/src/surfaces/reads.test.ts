@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { openActivityLog, type ActivityLog } from "@storytree/agent-link";
+import { openActivityLog, shipTranscript, type ActivityLog } from "@storytree/agent-link";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
@@ -76,49 +76,49 @@ test("3.4 the page can ask the app for a story's or capability's shelf of front 
   });
 });
 
-test("3.5 the page can ask the app for the context readings of sessions in the project on show, each read from the transcript its hooks named", async () => {
+/** A session that ran on another machine: its transcript streamed into the shared log there, and its file out of this app's reach. */
+async function ranElsewhere(log: ActivityLog, project: string, session: string, records: readonly unknown[]): Promise<string> {
+  const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
+  const transcript = path.join(folder, `${session}.jsonl`);
+  try {
+    writeFileSync(transcript, records.map((record) => `${JSON.stringify(record)}\n`).join(""));
+    await log.append(project, { session, harness: "claude-code", source: "hook", kind: "session-started", transcript });
+    await shipTranscript(log, project, session, transcript);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+  return transcript;
+}
+
+test("3.5 the page can ask the app for the context readings of sessions in the project on show, each parsed from the transcript records in the shared log, with no access to the machine the session ran on (ADR-0749 D3)", async () => {
   const shown = uniqueProjectName();
   await withApp([shown], async ({ storytree, log, reads }) => {
     await storytree.openProject(shown);
-    const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
-    try {
-      const transcript = path.join(folder, "A.jsonl");
-      writeFileSync(transcript, `${JSON.stringify({ type: "assistant", requestId: "r1",
-        message: { model: "claude-opus-5-5", usage: { input_tokens: 100, cache_read_input_tokens: 200_000, cache_creation_input_tokens: 0 } } })}\n`);
-      await log.append(shown, { session: "A", harness: "claude-code", source: "hook", kind: "session-started", transcript });
-      await log.append(shown, { session: "B", harness: "codex", source: "hook", kind: "session-started" });
+    await ranElsewhere(log, shown, "A", [{ type: "assistant", requestId: "r1",
+      message: { model: "claude-opus-5-5", usage: { input_tokens: 100, cache_read_input_tokens: 200_000, cache_creation_input_tokens: 0 } } }]);
+    await log.append(shown, { session: "B", harness: "codex", source: "hook", kind: "session-started" });
 
-      const [a, b] = await reads.contextReadings(shown, ["A", "B"]);
-      assert.equal(a?.session, "A");
-      assert.equal(a !== undefined && "tokens" in a && a.tokens, 200_100);
-      assert.deepEqual(b && "absent" in b && [b.session, b.absent], ["B", "no hook has named this session's transcript"]);
-      await assert.rejects(reads.contextReadings(uniqueProjectName(), ["A"]), /there is no project called/);
-    } finally {
-      rmSync(folder, { recursive: true, force: true });
-    }
+    const [a, b] = await reads.contextReadings(shown, ["A", "B"]);
+    assert.equal(a?.session, "A");
+    assert.equal(a !== undefined && "tokens" in a && a.tokens, 200_100);
+    assert.deepEqual(b && "absent" in b && [b.session, b.absent], ["B", "no hook has named this session's transcript"]);
+    await assert.rejects(reads.contextReadings(uniqueProjectName(), ["A"]), /there is no project called/);
   });
 });
 
-test("3.6 the page can ask the app for a session's window (agent link 9.10), read at that moment from the transcript its hooks named; a session with none named reads as an absence", async () => {
+test("3.6 the page can ask the app for a session's window (agent link 9.10), parsed from the transcript records in the shared log, with no access to the machine the session ran on; a session with none named reads as an absence", async () => {
   const shown = uniqueProjectName();
   await withApp([shown], async ({ storytree, log, reads }) => {
     await storytree.openProject(shown);
-    const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
-    try {
-      const transcript = path.join(folder, "A.jsonl");
-      writeFileSync(transcript, [
-        { type: "assistant", message: { content: [{ type: "tool_use", id: "c1", name: "mcp__storytree__open", input: { id: "decision_000000000001" } }] } },
-        { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "c1", content: "Claims" }] } },
-      ].map((record) => JSON.stringify(record)).join("\n"));
-      await log.append(shown, { session: "A", harness: "claude-code", source: "hook", kind: "session-started", transcript });
+    await ranElsewhere(log, shown, "A", [
+      { type: "assistant", message: { content: [{ type: "tool_use", id: "c1", name: "mcp__storytree__open", input: { id: "decision_000000000001" } }] } },
+      { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "c1", content: "Claims" }] } },
+    ]);
 
-      const window = await reads.windowReading(shown, "A");
-      assert.deepEqual("opens" in window && window.opens.map(({ id, resident }) => [id, resident]), [["decision_000000000001", true]]);
-      const none = await reads.windowReading(shown, "B");
-      assert.deepEqual("absent" in none && none.absent, "no hook has named this session's transcript");
-    } finally {
-      rmSync(folder, { recursive: true, force: true });
-    }
+    const window = await reads.windowReading(shown, "A");
+    assert.deepEqual("opens" in window && window.opens.map(({ id, resident }) => [id, resident]), [["decision_000000000001", true]]);
+    const none = await reads.windowReading(shown, "B");
+    assert.deepEqual("absent" in none && none.absent, "no hook has named this session's transcript");
   });
 });
 

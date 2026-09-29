@@ -594,3 +594,41 @@ test("3.12 recorded Claude Code and Codex hook inputs record on their session th
     await dropTestProjects([project]);
   }
 });
+
+test("3.13 each hook streams its session's new transcript records, and each subagent's under its parent, into the shared log, secrets scrubbed, from where the last hook left off and never twice (ADR-0749 D3, D4)", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      const folder = projectFolder(dir, project);
+      const session = `${project}-streamed`;
+      const transcript = path.join(dir, "claude", `${session}.jsonl`);
+      mkdirSync(path.join(dir, "claude", session, "subagents"), { recursive: true });
+      // A fake key built at run time, so no scanner mistakes this file for a leak.
+      const key = `sk-${"ant-api03-"}${"x".repeat(40)}`;
+      const first = JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "c1", content: `ANTHROPIC_API_KEY=${key}` }] } });
+      const second = JSON.stringify({ type: "assistant", requestId: "r2", message: { model: "claude-opus-5-5", usage: { input_tokens: 5 } } });
+      const child = JSON.stringify({ type: "assistant", isSidechain: true, message: { content: "reading" } });
+      writeFileSync(transcript, `${first}\n${second.slice(0, 10)}`); // the second record is still being written
+      writeFileSync(path.join(dir, "claude", session, "subagents", "agent-a1b2.jsonl"), `${child}\n`);
+      const hookRun = async () => {
+        const input = { ...JSON.parse(recorded("claude-code", "post-tool-use-bash", folder)), session_id: session, transcript_path: transcript };
+        const ran = await runHook("claude-code", JSON.stringify(input), home);
+        assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" });
+      };
+      await hookRun();
+      const scrubbed = first.replace(key, "[scrubbed: API key]");
+      assert.equal(await log.transcripts.text(project, session), scrubbed, "only whole records, the key stored as its marker");
+      assert.equal(await log.transcripts.text(project, session, "a1b2"), child, "a subagent's transcript is stored under its parent session, by its id");
+
+      writeFileSync(transcript, `${first}\n${second}\n`);
+      await hookRun();
+      await hookRun();
+      assert.equal(await log.transcripts.text(project, session), `${scrubbed}\n${second}`, "the next hook ships only what is new, once");
+    });
+  } finally {
+    await log.close();
+    await dropTestProjects([project]);
+  }
+});

@@ -77,6 +77,7 @@ try {
   assert.deepEqual(await tabs(), ['Projects', 'Sessions', 'Library', 'Surfaces', 'Updates', 'Help']);
   assert.equal(await page.locator('#app-menu h1').count(), 0, 'no App title: the tab on show is the heading');
   assert.equal(await page.getByRole('dialog', { name: 'App menu' }).count(), 1, 'the dialog keeps its accessible name');
+  assert.equal(await page.locator('#app-menu nav').getByRole('button', { name: 'Close app menu' }).count(), 1, 'Close ends the tab row, with no strip of its own');
 
   await tab('Sessions');
   assert.deepEqual(await rows(), ['context-guidance', 'idle-after', 'leave-after']);
@@ -84,6 +85,7 @@ try {
 
   await tab('Library');
   assert.deepEqual(await rows(), ['library']);
+  assert.equal(await page.locator('[data-setting="library"] label').first().textContent(), 'Where the library lives');
   await shoot('2-library', { rows: await rows() });
   await page.locator('[data-setting="library"] select').selectOption('cloudsql');
   await page.locator('[data-setting="library"] .settings-cloud').waitFor();
@@ -94,6 +96,8 @@ try {
   assert.ok(switches.includes('sessions') && switches.includes('library'), 'the Sessions and Library switches stay under Surfaces');
   await shoot('4-surfaces', { switches });
 
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#app-menu').evaluate((menu) => menu.matches(':popover-open')), false, 'Escape still closes the menu');
   assert.equal(existsSync(path.join(temporary, 'settings.json')), false, 'looking through the tabs saves nothing');
   record.pageErrors = errors;
   assert.deepEqual(errors, []);

@@ -4,6 +4,11 @@ The owner, 2026-09-29: "i dislike have a setting menu that holds everything … 
 a sessions menu. We should also have a Library menu, and then a surfaces menu." Tabs, in order:
 Projects · Sessions · Library · Surfaces · Updates · Help; no visible "App" title.
 
+Re-captured 2026-09-29 after the owner's "B, move close and rename the setting": Close now ends the
+tab row (the foot of the column; the far end of the row on a narrow window), so no strip holds it
+alone, and the Library tab's setting reads "Where the library lives". The capture also asserts both,
+and that Escape still closes the menu.
+
 Unedited headless-Chromium screenshots of the **real desktop renderer bundle** (`apps/desktop/dist`,
 1440 × 960), its real settings and surfaces actions on a throwaway home, and the snapshot named in
 [capture.json](capture.json) restored into a throwaway Postgres. `capture.mjs` asserts the tab order,

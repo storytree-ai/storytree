@@ -177,8 +177,7 @@ function isStorytreesStatusLine(statusLine: unknown): boolean {
 function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[]> {
   const run = (background: boolean) => ({ type: "command", command: node, args: [script, "claude-code"], ...(background ? { async: true } : {}) });
   return {
-    // The one in the background writes the start; the one it waits for asks the setup question in a folder that isn't a project.
-    SessionStart: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", ASK_SETUP] }] }],
+    SessionStart: [{ hooks: [run(true)] }],
     PreToolUse: [
       { matcher: `${STORYTREE_TOOLS}.*`, hooks: [run(false)] },
       { matcher: "Bash|PowerShell", hooks: [run(true)] },
@@ -295,6 +294,8 @@ function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): 
       (settings.hooks !== undefined && (settings.hooks === null || Array.isArray(settings.hooks) || typeof settings.hooks !== "object"))) throw new Error(`Repair ${file} before removing hooks.`);
   const entries = harness === "claude-code" ? claudeEntries(hook) : codexEntries(hook);
   const wanted = Object.values(entries).flatMap((groups) => groups.flatMap((group) => group.hooks ?? []));
+  // The asking start hook an install before ADR-0752 registered goes too.
+  if (harness === "claude-code") wanted.push({ type: "command", command: hook.node, args: [hook.script, "claude-code", ASK_SETUP] });
   let removed = false;
   const hooks: Record<string, HookEntry[]> = {};
   for (const [event, groups] of Object.entries(settings.hooks ?? {})) {

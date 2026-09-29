@@ -1,15 +1,15 @@
 /**
  * Capability 8 · Setup check (the agent link story): the user installs only the storytree tool
  * server, and every session start checks storytree's setup and fixes whatever is missing on the
- * spot: it opens storytree if it is closed, registers the hooks if they are missing, and, in a
- * folder that isn't a project yet, has the agent ask the user whether to set one up. Nothing is
- * created without that yes (ADR-0626 D5). It also puts the `storytree` command on the user's path,
+ * spot: it opens storytree if it is closed, registers the hooks if they are missing, and says
+ * whether the folder is a project. Nothing is created unless the user asks: the installer's folder
+ * step, the app's Add project, `storytree doctor --set-up`, or the user asking their agent
+ * (ADR-0626 D5, ADR-0752). It also puts the `storytree` command on the user's path,
  * and looks for GitHub's `gh`, signed in, which a claim's release on merge needs (ADR-0643 D1, D3),
  * and for what a first run needs on the machine: Claude Code or Codex signed in, git and Node (ADR-0716).
  *
  * The tool server runs this at its start, and again whenever the agent calls check_setup; the
- * agent's part (asking the user, and firing each hook to verify it) goes through check_setup's
- * answer.
+ * agent's part (firing each hook to verify it) goes through check_setup's answer.
  */
 import path from "node:path";
 

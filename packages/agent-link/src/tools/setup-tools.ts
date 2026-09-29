@@ -1,7 +1,7 @@
 /**
  * The setup check's two tools (capability 8): `check_setup`, which checks and fixes the setup on
- * the spot and says what the agent must do (ask the user, or fire a hook), and `set_up_project`,
- * which the agent calls only once the user has said yes. Unlike the other tools they work in a
+ * the spot and says what the agent must do (fire a hook), and `set_up_project`, which the agent
+ * calls only when the user asks for storytree in this folder (ADR-0752 D2). Unlike the other tools they work in a
  * folder that is not a project yet, and open storytree when it is closed.
  */
 import { existsSync, rmSync } from "node:fs";
@@ -10,7 +10,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { askToSetUp, findProject, setUpProject } from "../routing/index.js";
+import { findProject, notAProjectYet, setUpProject } from "../routing/index.js";
 import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -46,7 +46,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         return result({ text: [...said, "Until storytree is running, carry on without it."].join(" "), data: { ...data, ...unverified } });
       }
       if (report.project.status === "ask") {
-        said.push(askToSetUp(folder));
+        said.push(notAProjectYet(folder));
         return result({ text: said.join(" "), data: { ...data, ...unverified } });
       }
       said.push(`This folder is storytree project ${quoted(report.project.name)}.`);
@@ -80,7 +80,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
     "set_up_project",
     {
       description:
-        "Set this folder up as a storytree project, under the name the user chose. Call it only after the user has said yes: storytree never sets a folder up by itself.",
+        "Set this folder up as a storytree project, under the name the user chose. Call it only when the user has asked for storytree in this folder: storytree never sets a folder up by itself.",
       inputSchema: z.object({ name: z.string().describe("The project's name: lower-case letters, digits and single hyphens") }),
     },
     (async ({ name }: { name: string }, context: ServerContext): Promise<CallToolResult> => {

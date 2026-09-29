@@ -6,6 +6,7 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
+import { addProject, projectFolder } from "../project/index.js";
 import { verifyPayload, type Architecture } from "./payload.js";
 
 interface DeliveryOptions {
@@ -56,7 +57,7 @@ export async function waitForApp(home: string, timeoutMs = 90_000): Promise<void
   throw new Error(`The app did not come up within ${timeoutMs / 1000} seconds. Open the app to read its error, then retry the delivery command.`);
 }
 
-/** Delivery touches only its own command and record. It never creates a project or configures a harness. */
+/** Finishing touches only delivery's own command and record. It never creates a project or configures a harness. */
 export async function finishDelivery(options: DeliveryOptions, effects = { launch, waitForApp }) {
   const tools = verifyPayload(options.installDir, options.arch, options.platform);
   await effects.launch(tools.app);
@@ -76,6 +77,15 @@ export async function finishDelivery(options: DeliveryOptions, effects = { launc
 export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<void> {
   if (args[0] === "connect" || args[0] === "disconnect") {
     process.stdout.write(await runInstalledConnection(args[0], args.slice(1)) + "\n");
+    return;
+  }
+  // The installer's project folder step (ADR-0752 D1): what the folder is, then setting it up on the user's choice.
+  if (args[0] === "project" && args.length === 2) {
+    process.stdout.write(JSON.stringify(projectFolder(args[1]!)) + "\n");
+    return;
+  }
+  if (args[0] === "add-project" && args.length === 3) {
+    process.stdout.write(JSON.stringify(await addProject(args[1]!, args[2]!)) + "\n");
     return;
   }
   const [action, installDir, arch] = args;

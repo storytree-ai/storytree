@@ -72,6 +72,24 @@ test("7.2 an idle claim reads idle", async () => {
   });
 });
 
+test("7.4 `noticeboard log` shows the latest activity-log lines, each naming the line that caused it, or saying its cause was not recorded (ADR-0746 D2)", async () => {
+  await inWorld(command, async (world) => {
+    await withClaimable(world, async (_increment, log) => {
+      const hook = { session: "claude-1", harness: "claude-code", source: "hook" } as const;
+      const request = await log.append(world.project, { ...hook, kind: "tool-requested", tool: "open", call: "toolu_1", agent: "orchestrator" });
+      const caused = await log.append(world.project, { ...hook, source: "tool", kind: "tool-called", tool: "open", causedBy: request.seq });
+      const unknown = await log.append(world.project, { ...hook, source: "tool", kind: "tool-called", tool: "search_notes" });
+
+      const ran = await world.run(["noticeboard", "log"]);
+
+      assert.equal(ran.code, 0, ran.stderr);
+      const lineOf = (seq: number) => ran.stdout.split(/\r?\n/).find((one) => one.includes(`#${seq} `));
+      assert.match(lineOf(caused.seq) ?? ran.stdout, new RegExp(`caused by #${request.seq}\\b`));
+      assert.match(lineOf(unknown.seq) ?? ran.stdout, /cause not recorded/);
+    });
+  });
+});
+
 test("7.3 `noticeboard <id>` names the holder, or \"nobody\"", async () => {
   await inWorld(command, async (world) => {
     await withClaimable(world, async (increment, log) => {

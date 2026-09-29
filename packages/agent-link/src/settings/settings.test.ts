@@ -110,10 +110,10 @@ test("10.10 idle-after defaults to 30 minutes and accepts positive durations wit
   });
 });
 
-test("10.11 leave-after defaults to 12 hours and accepts positive durations; one that is not a duration is refused and the file is left byte for byte (ADR-0754 D4)", async () => {
+test("10.11 leave-after defaults to 1 hour and accepts positive durations; one that is not a duration is refused and the file is left byte for byte (ADR-0754 D4, ADR-0758 D5)", async () => {
   await withTempDir((home) => {
     const initial = agentLink.readSettings(home)["leave-after"];
-    assert.deepEqual({ value: initial.value, default: initial.default, type: initial.type, source: initial.source }, { value: "12h", default: "12h", type: "duration", source: "default" });
+    assert.deepEqual({ value: initial.value, default: initial.default, type: initial.type, source: initial.source }, { value: "1h", default: "1h", type: "duration", source: "default" });
     assert.equal(agentLink.setSetting("leave-after", "2h", home).value, "2h");
     assert.equal(agentLink.readSettings(home)["leave-after"].source, "set");
     assert.equal(agentLink.leaveAfterMs(home), 2 * 3_600_000);

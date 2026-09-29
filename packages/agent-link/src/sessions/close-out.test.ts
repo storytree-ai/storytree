@@ -34,7 +34,7 @@ function after(line: Line, ms: number): Date {
 
 const CLAUDE = { session: "claude-1", harness: "claude-code", source: "hook", folder: "/work/site", branch: "main" } as const;
 
-test("4.10 closing out records whether the session says it is safe to close, and why, and the session carries it", async () => {
+test("4.11 closing out records whether the session says it is safe to close, and why, and the session carries it", async () => {
   await withProject(async (log, project, home) => {
     await log.append(project, { ...CLAUDE, kind: "prompt-submitted" });
     const { line } = await closeOut({ log, project, session: "claude-1", harness: "claude-code", folder: "/work/site", branch: "main" }, { safe: false, why: "the look question waits on the owner" }, { home });
@@ -44,7 +44,7 @@ test("4.10 closing out records whether the session says it is safe to close, and
   });
 });
 
-test("4.11 a yes is checked, never trusted: it leaves the list at once when its branches are resolved and nothing of its own runs; otherwise it stays and needs you, naming the disagreement; a no stays with its why; a later prompt voids it", async () => {
+test("4.12 a yes is checked, never trusted: it leaves the list at once when its branches are resolved and nothing of its own runs; otherwise it stays and needs you, naming the disagreement; a no stays with its why; a later prompt voids it", async () => {
   await withProject(async (log, project, home) => {
     const observer = { session: "observer", harness: "claude-code", source: "hook", folder: "/work/site", branch: "main" } as const;
     const who = (session: string, branch: string) => ({ log, project, session, harness: "claude-code", folder: `/work/site/.claude/worktrees/${branch}`, branch });

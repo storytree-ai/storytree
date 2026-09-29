@@ -85,6 +85,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * says (ADR-0754 D5). With none left running, no command it started in that turn still runs.
    */
   z.object({ ...common, kind: z.literal("turn-ended"), background: z.number().int().nonnegative().optional() }).strict(),
+  /**
+   * The session ended its work, saying whether it is safe to close and why (ADR-0758 D2). `running`
+   * is how many of its own runs still ran on its machine, counted by the command that wrote the line,
+   * never by the agent; absent when that reading was incomplete.
+   */
+  z.object({ ...common, kind: z.literal("closed-out"), safe: z.boolean(), why: z.string().min(1), running: z.number().int().nonnegative().optional() }).strict(),
   /** A hook saw an agent ask for one of storytree's tools, before the call reached the tool server: the call's id, as the harness names it, and the agent asking. */
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),

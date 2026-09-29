@@ -662,3 +662,23 @@ test("3.13 each hook streams its session's new transcript records, and each suba
     await dropTestProjects([project]);
   }
 });
+
+test("3.15 recorded prompt inputs make a prompt line on their session, for Claude Code and Codex alike, and a Claude Code turn that ends with background tasks still running writes its end line with how many (ADR-0754 D5)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    for (const harness of ["claude-code", "codex"] as const) {
+      const ran = await runHook(harness, recorded(harness, "user-prompt-submit", folder), home);
+      assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" }, harness);
+    }
+    const stop = { ...JSON.parse(recorded("claude-code", "stop", folder)), background_tasks: [{ id: "b1", type: "shell" }] };
+    await runHook("claude-code", JSON.stringify(stop), home);
+    const common = { project, source: "hook", folder, machine: MACHINE } as const;
+    assert.deepEqual((await linesOf(project)).map(written), [
+      { ...common, session: "f0451558-ef9c-4014-b2cd-1edeb2de7682", harness: "claude-code", kind: "prompt-submitted" },
+      { ...common, session: "01a0de50-e5be-7731-8e02-d411fd8845fe", harness: "codex", kind: "prompt-submitted" },
+      { ...common, session: "b4f8eff5-05ab-4ef2-b070-78375e2a5deb", harness: "claude-code", kind: "turn-ended", background: 1 },
+    ]);
+  });
+});

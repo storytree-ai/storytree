@@ -23,17 +23,20 @@ export function watchBoard({ project, reads, timers, kept, onState }: WatchBoard
   let scope: BoardScope = "active";
   let stopped = false;
   let error: string | undefined;
+  let quietMs: number | undefined;
   const draw = () => {
     if (stopped) return;
-    const board = snapshot ? { board: boardView(snapshot, lines, new Date(now), scope) } : {};
+    const board = snapshot ? { board: boardView(snapshot, lines, new Date(now), scope, quietMs) } : {};
     onState(error ? { status: "error", ...board, error } : !snapshot ? { status: "loading" } : { status: fresh ? "ready" : "refreshing", ...board });
   };
   draw();
   const reading = liveReading({ project, reads, ...(timers ? { timers } : {}),
     onNews: async (news) => {
-      const next = await readBoard(project, reads);
+      const [next, idleAfter] = await Promise.all([readBoard(project, reads),
+        // An unreadable setting keeps the last one read; the next news tries again.
+        reads.idleAfterMs?.().catch(() => undefined)]);
       if (stopped) return;
-      snapshot = next; fresh = true; kept?.write(next);
+      snapshot = next; fresh = true; kept?.write(next); quietMs = idleAfter ?? quietMs;
       lines = [...lines, ...news.lines]; now = timers?.now() ?? Date.now(); error = undefined; draw();
     },
     onClock: (at) => { now = at; draw(); },

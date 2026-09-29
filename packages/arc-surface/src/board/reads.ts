@@ -8,6 +8,8 @@ export interface BoardReads extends LiveReads {
   arcView(project: string, id: string): Promise<ArcView | null>;
   /** Every hold on the project's live work in one reading: one ask per refresh, never one per arc or increment. */
   holds(project: string): Promise<Holds>;
+  /** The user's idle-after setting in milliseconds, read now; without it a holder reads idle after 30 minutes. */
+  idleAfterMs?(): Promise<number>;
 }
 export async function readBoard(project: string, reads: BoardReads): Promise<BoardSnapshot> {
   const tree = await reads.projectTree(project);

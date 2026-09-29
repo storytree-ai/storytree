@@ -35,7 +35,7 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
     let state: BoardState | undefined;
     let fail = true;
     const ticks = new Map<number, () => void>();
-    const watcher = watchBoard({ project, reads: { ...reads, arcView: async (p: string, id: string) => { if (fail) throw new Error("read unavailable"); return reads.arcView(p, id); } },
+    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, arcView: async (p: string, id: string) => { if (fail) throw new Error("read unavailable"); return reads.arcView(p, id); } },
       timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } }, onState: (next) => { state = next; } });
     stop = watcher.stop;
     assert.equal(state?.status, "loading");

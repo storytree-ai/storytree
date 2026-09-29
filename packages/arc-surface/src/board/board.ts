@@ -41,8 +41,8 @@ export interface BoardView {
 const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, claimed: 2, idle: 3, quiet: 4, parked: 5, closed: 6 };
 const time = (at: string) => Date.parse(at) || 0;
 
-export function boardView(snapshot: BoardSnapshot, lines: readonly Line[], now: Date, scope: BoardScope = "active"): BoardView {
-  const agents = agentsOnBoard(lines, now);
+export function boardView(snapshot: BoardSnapshot, lines: readonly Line[], now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
+  const agents = agentsOnBoard(lines, now, quietMs);
   const names = snapshot.arcs.flatMap(({ arc, increments }): WorkName[] => [
     { id: arc.id, title: arc.fields.title },
     ...increments.map((increment) => ({ id: increment.id, title: increment.fields.title, arc: { id: arc.id, title: arc.fields.title } })),

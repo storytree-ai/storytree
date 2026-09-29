@@ -39,9 +39,15 @@
 // and then dies at its first connection to Postgres, which reads as a flaky test.
 //
 // No unit can hang the run (scripts/unit-run.mjs): a test fails at 60 s, a unit's process tree is
-// killed at 3 min and its row names the tests still running, and the run goes on to the next unit.
-// Each row gives the unit's time, and each unit's time is added to the machine's history
-// (test-timings.jsonl in STORYTREE_HOME, default ~/.storytree/0.3), for limits learned later.
+// killed at its deadline and its row names the tests still running, and the run goes on to the next
+// unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
+// default ~/.storytree/0.3), and its deadline is learned from that history: twice its slowest recent
+// pass, 3 min until it has five, doubled after each kill since it last passed, at most 15 min. Each
+// row gives the unit's time, its deadline and where the deadline came from. Any agent may set a
+// unit's deadline on this machine, and clear it again:
+//
+//   pnpm test -- --set-limit=cli=300 --reason="two gates at once on this laptop"
+//   pnpm test -- --clear-limit=cli
 //
 // Logs: .pgtest/pg.log (the server, last run) and .pgtest/tools.log (initdb and pg_ctl).
 
@@ -53,7 +59,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { planRun, readWorkspace, resultsTable, scopeFor, scopeLine, unitGlobs } from "./test-scope.mjs";
-import { recordTimings, runUnit, unitReason } from "./unit-run.mjs";
+import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const work = path.join(root, ".pgtest");
@@ -62,7 +68,7 @@ const serverLog = path.join(work, "pg.log");
 const toolLog = path.join(work, "tools.log");
 const recordFile = path.join(work, "last-run.json");
 
-const flags = { full: false, scope: false, rerunFailed: false, only: [] };
+const flags = { full: false, scope: false, rerunFailed: false, only: [], setLimit: undefined, clearLimit: undefined, reason: undefined };
 const testArgs = [];
 for (const arg of process.argv.slice(2)) {
   if (arg === "--") continue;
@@ -70,6 +76,9 @@ for (const arg of process.argv.slice(2)) {
   else if (arg === "--scope") flags.scope = true;
   else if (arg === "--rerun-failed") flags.rerunFailed = true;
   else if (arg.startsWith("--only=")) flags.only.push(...arg.slice("--only=".length).split(",").filter(Boolean));
+  else if (arg.startsWith("--set-limit=")) flags.setLimit = arg.slice("--set-limit=".length);
+  else if (arg.startsWith("--clear-limit=")) flags.clearLimit = arg.slice("--clear-limit=".length);
+  else if (arg.startsWith("--reason=")) flags.reason = arg.slice("--reason=".length);
   else testArgs.push(arg);
 }
 const namedFiles = testArgs.some((arg) => !arg.startsWith("-"));
@@ -101,6 +110,7 @@ async function main() {
     console.error(`test harness: ${refusal}`);
     return 1;
   }
+  if (flags.setLimit !== undefined || flags.clearLimit !== undefined) return changeLimit();
   let units;
   if (namedFiles) {
     console.log("scope: files — the files named on the command line");
@@ -161,7 +171,7 @@ async function runTests(env, units) {
   for (const unit of units) {
     if (interrupted) break;
     console.log(`\n=== ${unit} ===`);
-    const run = await runNodeTest(env, unitGlobs(unit));
+    const run = await runNodeTest(env, unitGlobs(unit), unit);
     if (interrupted) break; // Ctrl-C cut it short: it stays NOT RUN
     results[unit] = run.code === 0 ? "pass" : "fail";
     reasons[unit] = unitReason(run, root);
@@ -178,14 +188,42 @@ async function runTests(env, units) {
   return Object.values(results).every((result) => result === "pass") ? 0 : 1;
 }
 
-async function runNodeTest(env, files) {
+async function runNodeTest(env, files, unit) {
+  const limit = unit === undefined ? { ms: UNIT_LIMIT_MS, source: "default" } : unitLimit(unit);
   try {
     // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
     // ranked search is tested with a fake embedder, and everything else ranks by words.
-    return await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, onSpawn: (spawned) => (child = spawned) });
+    const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, unitLimitMs: limit.ms, onSpawn: (spawned) => (child = spawned) });
+    return { ...run, limitSource: limit.source };
   } finally {
     child = undefined;
   }
+}
+
+/** --set-limit=<unit>=<seconds> --reason=… or --clear-limit=<unit>: change a unit's deadline on this machine. */
+function changeLimit() {
+  const [name, seconds] = flags.setLimit !== undefined ? flags.setLimit.split("=") : [flags.clearLimit];
+  let unit;
+  try {
+    [unit] = planRun({ root, workspace: readWorkspace(root), decision: { mode: "full" }, flags: { only: [name] } }).units;
+  } catch (error) {
+    console.error(`test harness: ${error.message}`);
+    return 1;
+  }
+  if (unit === undefined) {
+    console.error(`test harness: ${name} has no tests, so no deadline`);
+    return 1;
+  }
+  try {
+    if (flags.clearLimit !== undefined) clearUnitLimit(unit);
+    else setUnitLimit(unit, Number(seconds) * 1000, { reason: flags.reason });
+  } catch (error) {
+    console.error(`test harness: ${error.message}`);
+    return 1;
+  }
+  const { ms, source } = unitLimit(unit);
+  console.log(`${unit}: deadline ${ms / 1000} s on this machine (${source})`);
+  return 0;
 }
 
 /** The last recorded result of each unit, or undefined if this checkout has none. */

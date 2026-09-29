@@ -9,7 +9,7 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { idleAfterMs, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
+import { idleAfterMs, leaveAfterMs, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Holds, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -33,6 +33,8 @@ export interface PageReads {
   contextReadings(project: unknown, sessions: unknown): Promise<ContextReading[]>;
   /** The user's idle-after setting in milliseconds (agent link 10), read now: how long a session may be quiet before the list shows it idle. */
   idleAfterMs(): Promise<number>;
+  /** The user's leave-after setting in milliseconds (agent link 10), read now: how long a quiet session with no unmerged work stays listed. */
+  leaveAfterMs(): Promise<number>;
   /** A session's window in a project (agent link 9.10), parsed now from the transcript records in the shared log. */
   windowReading(project: unknown, session: unknown): Promise<SessionWindow>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
@@ -106,6 +108,7 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session, { cache: transcripts })));
     },
     idleAfterMs: async () => idleAfterMs(),
+    leaveAfterMs: async () => leaveAfterMs(),
     windowReading: async (name, session) => {
       const known = await project(name);
       if (typeof session !== "string") throw new Error("session must be a session id");

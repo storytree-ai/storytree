@@ -18,6 +18,8 @@ export interface SessionsReads extends LiveReads {
   windowReading?(project: string, session: string): Promise<SessionWindow>;
   /** The user's idle-after setting in milliseconds; without it the list judges idleness by the 30-minute default. */
   idleAfterMs?(): Promise<number>;
+  /** The user's leave-after setting in milliseconds; without it a quiet session leaves the list by the 1-hour default. */
+  leaveAfterMs?(): Promise<number>;
 }
 
 /** How often the listed sessions' context readings are asked for again. */
@@ -36,7 +38,7 @@ function detailsOf(reading: ContextReading): SessionDetails {
 export function isSessionRows(value: unknown): value is SessionRow[] {
   return Array.isArray(value) && value.every((row: Partial<SessionRow> | null) => typeof row === "object" && row !== null
     && typeof row.id === "string" && typeof row.label === "string" && typeof row.agent === "string" && typeof row.state === "string"
-    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && isSessionRows(row.children));
+    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && Array.isArray(row.unmerged) && isSessionRows(row.children));
 }
 
 function everyId(rows: readonly SessionRow[]): string[] {
@@ -67,6 +69,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   let details: ReadonlyMap<string, SessionDetails> = new Map();
   let readings: ReadonlyMap<string, SessionDetails> = new Map();
   let quietMs: number | undefined;
+  let leaveMs: number | undefined;
   let askedAt = -Infinity;
   let asking = false;
   let highlighted: string | undefined;
@@ -109,6 +112,9 @@ export function mountSessionsList(container: HTMLElement, options: {
     options.reads.idleAfterMs?.().then(ms => { quietMs = ms; }, () => {
       // An unreadable setting keeps the last one read; the next ask tries again.
     });
+    options.reads.leaveAfterMs?.().then(ms => { leaveMs = ms; }, () => {
+      // As idle-after: the last one read stands until the next ask.
+    });
     ask.call(options.reads, options.project, everyId(rows)).then(answers => {
       readings = new Map(answers.map(reading => [reading.session, detailsOf(reading)]));
     }, () => {
@@ -120,7 +126,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   };
   const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined) return;
-    rows = sessionRows(tree, lines, arcs, now, merged(), quietMs);
+    rows = sessionRows(tree, lines, arcs, now, merged(), quietMs, leaveMs);
     kept.write(rows);
     options.onWisps?.(sessionWisps(rows, lines, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
@@ -295,7 +301,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           onClick={() => { const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); }}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
             event.preventDefault(); const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); } }}
-          aria-label={`${row.label} · ${row.agent}${row.needsYou ? ` · needs you${row.needsYouWhy === undefined ? "" : `: ${row.needsYouWhy}`}` : ""}`}
+          aria-label={`${row.label} · ${row.agent}${row.needsYou ? ` · needs you${row.needsYouWhy === undefined ? "" : `: ${row.needsYouWhy}`}` : ""}${row.unmerged.length > 0 ? ` · holding unmerged work: ${row.unmerged.join(", ")}` : ""}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
           {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
@@ -312,6 +318,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
             {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
         </div>
         {row.needsYouWhy !== undefined && <p className="session-why">{row.needsYouWhy}</p>}
+        {row.unmerged.length > 0 && <p className="session-unmerged">{`Holding unmerged work: ${row.unmerged.join(", ")}`}</p>}
         {expanded.has(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
       </li></Fragment>)}
       {atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}

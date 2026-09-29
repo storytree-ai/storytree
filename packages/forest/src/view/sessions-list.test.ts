@@ -8,9 +8,9 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
-  needsYou: true, idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], children: [
+  needsYou: true, idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], unmerged: [], children: [
     { id: "child", label: "Read the library", agent: "Subagent", state: "observed", needsYou: false, idle: false,
-      totalTokens: undefined, stories: [], worktrees: [], children: [] },
+      totalTokens: undefined, stories: [], worktrees: [], unmerged: [], children: [] },
   ] };
 
 test("7.1–7.5 rows start folded, show safe words and available total beside its bar", () => {
@@ -91,4 +91,11 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   const unread = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]),
     files: new Map([["parent", { absent: "no hook has named this session's transcript" }]]), onHighlight() {} }));
   assert.match(unread, /no hook has named this session&#x27;s transcript/);
+});
+
+test("7.12 a row holding unmerged work says so under it, naming its branches; a row without says nothing (ADR-0754 D4)", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], unmerged: ["fix-login", "tidy-readme"] }], onHighlight() {} }));
+  assert.match(html, /class="session-unmerged">Holding unmerged work: fix-login, tidy-readme</);
+  assert.match(html, /aria-label="[^"]* · holding unmerged work: fix-login, tidy-readme"/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} })), /unmerged/i);
 });

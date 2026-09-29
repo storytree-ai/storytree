@@ -30,7 +30,7 @@ test("1.5 waiting on you precedes queued, held, open; proposals do not await app
   assert.equal(incrementState(open, { waits }).color, "yellow");
 });
 
-test("1.6 the arc reads closed/parked, waiting, blocked, claimed, idle, quiet in that order", () => {
+test("1.6 the arc reads closed/parked, waiting, blocked, queued, claimed, idle, ready, quiet in that order", () => {
   const all = { openQuestions: 1, waits, claims: [held, { ...held, holder: "live" as const }] };
   assert.equal(arcState("closed", all), "closed");
   assert.equal(arcState("parked", all), "parked");
@@ -39,4 +39,17 @@ test("1.6 the arc reads closed/parked, waiting, blocked, claimed, idle, quiet in
   assert.equal(arcState("active", { claims: all.claims }), "claimed");
   assert.equal(arcState("active", { claims: [held] }), "idle");
   assert.equal(arcState("active"), "quiet");
+});
+
+test("1.6 the arc rolls up its open increments: every one held reads queued, any free and unclaimed reads ready", () => {
+  const reading = (facts: Parameters<typeof incrementState>[1]) => incrementState(open, facts);
+  const queued = reading({ waits }), ownerHeld = reading({ heldOn: ["q"] }), free = reading({}), claimed = reading({ claim: held });
+  const landed = incrementState({ ...open, status: "closed", outcome: { date: "2026-09-27", disposition: "landed" } });
+  assert.equal(arcState("active", { increments: [landed, queued, ownerHeld] }), "queued");
+  assert.equal(arcState("active", { increments: [queued], claims: [{ ...held, holder: "live" }] }), "queued", "queued sorts above claimed");
+  assert.equal(arcState("active", { increments: [queued], waits }), "blocked");
+  assert.equal(arcState("active", { increments: [queued], openQuestions: 1 }), "waiting");
+  assert.equal(arcState("active", { increments: [queued, free, free] }), "ready");
+  assert.equal(arcState("active", { increments: [free, claimed], claims: [{ ...held, holder: "live" }] }), "claimed");
+  assert.equal(arcState("active", { increments: [landed] }), "quiet", "nothing open is not work to take");
 });

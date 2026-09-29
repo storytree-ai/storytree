@@ -45,3 +45,18 @@ test("3.3 lanes sort waiting, blocked, claimed, idle, quiet then recent activity
   assert.deepEqual(boardView(snapshot, lines, now, "parked").lanes.map(({ id }) => id), ["parked"]);
   assert.deepEqual(boardView(snapshot, lines, now, "closed").lanes.map(({ id }) => id), ["closed"]);
 });
+
+test("3.3 a lane whose open work all waits reads queued, ranks with blocked and names what it waits on; free work reads ready · N to take", () => {
+  const work = (id: string, arcId: string, at = "2026-09-20") => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "ready" }, at);
+  const ready = arc("ready", "active", "2026-09-20"); ready.increments.push(work("r1", "ready"), work("r2", "ready"));
+  const queued = arc("queued", "active", "2026-09-20"); queued.increments.push(work("q1", "queued"));
+  const claimed = arc("claimed"); claimed.increments.push(work("c1", "claimed", "2026-09-27"));
+  const snapshot: BoardSnapshot = { arcs: [ready, claimed, queued, arc("blocked", "active", "2026-09-19")], heldOn: {},
+    waits: { blocked: [{ on: "missing", reason: "needs it", forGood: true }], q1: [{ on: "r1", reason: "needs r1", forGood: false }] } };
+  const lines = [{ seq: 1, project: "p", session: "s", harness: "codex", source: "hook" as const, kind: "claimed" as const, increment: "c1", reason: "building", at: "2026-09-27T00:40:00Z" }];
+  const board = boardView(snapshot, lines, new Date("2026-09-27T00:42:00Z"));
+  assert.deepEqual(board.lanes.map(({ id, state }) => [id, state]), [["queued", "queued"], ["blocked", "blocked"], ["claimed", "claimed"], ["ready", "ready"]]);
+  const lane = (id: string) => board.lanes.find((lane) => lane.id === id)!;
+  assert.equal(lane("ready").chip, "ready · 2 to take");
+  assert.deepEqual(lane("queued").waits.map(({ title, arc }) => [title, arc?.title]), [["Build r1", "ready"]]);
+});

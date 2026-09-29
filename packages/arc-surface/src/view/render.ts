@@ -25,6 +25,13 @@ function laneText(lane: Lane): string {
   return [lane.count, ...lane.agents.map(agentText), ...lane.waits.map(waitText),
     ...lane.holdsUp.map((work) => `Holds up ${workText(work)}: ${work.reason}`)].join("\n");
 }
+/** A queued lane names its first blocker on its own line, and how many others (ADR-0760 D1). */
+function renderWaitsOn(lane: Lane): string {
+  const [first, ...rest] = lane.state === "queued" ? lane.waits : [];
+  if (!first) return "";
+  const text = `waits on ${first.title}${first.arc ? ` · ${first.arc.title}` : ""}`;
+  return `<span class="arc-waits-on" title="${escape(lane.waits.map(waitText).join("\n"))}">${escape(text)}</span>${rest.length ? `<span class="arc-other-waits">+${rest.length} other wait${rest.length === 1 ? "" : "s"}</span>` : ""}`;
+}
 function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, selected: string | undefined, expanded: ReadonlySet<string>): string {
   const lane = lanes.get(queue.arc.id)!;
   const open = expanded.has(lane.id);
@@ -33,14 +40,14 @@ function renderQueue(queue: ArcQueue, lanes: ReadonlyMap<string, Lane>, selected
     const behind = run.shape === "chain" && index > 0 ? run.chips[index - 1]!.title : lane.title;
     const queued = lanes.get(chip.id)!;
     const title = [queued.title, laneText(queued), ...queued.bars.map(barText)].join("\n");
-    return `${index ? `<span aria-hidden="true">${run.shape === "chain" ? "→" : "·"}</span>` : ""}<button type="button" class="arc-queue-chip" data-arc-id="${escape(chip.id)}" data-arc-select="${escape(chip.id)}" aria-pressed="${selected === chip.id}" aria-label="${escape(`${chip.title} — queued behind ${behind}${chip.hidden ? `, holds up ${chip.hidden} more` : ""}`)}" title="${escape(title)}"><span class="arc-queue-title">${escape(chip.title)}</span>${chip.hidden ? `<span class="arc-queue-more">+${chip.hidden}</span>` : ""}</button>${chip.otherWaits ? `<span class="arc-other-waits">+${chip.otherWaits} other wait${chip.otherWaits === 1 ? "" : "s"}</span>` : ""}`;
+    return `${index ? `<span aria-hidden="true">${run.shape === "chain" ? "→" : "·"}</span>` : ""}<button type="button" class="arc-queue-chip" data-arc-id="${escape(chip.id)}" data-arc-select="${escape(chip.id)}" aria-pressed="${selected === chip.id}" aria-label="${escape(`${chip.title} — queued behind ${behind}${chip.waitsOn.length ? `, waits on ${chip.waitsOn.join(", ")}` : ""}${chip.hidden ? `, holds up ${chip.hidden} more` : ""}`)}" title="${escape(title)}"><span class="arc-queue-title">${escape(chip.title)}</span>${chip.hidden ? `<span class="arc-queue-more">+${chip.hidden}</span>` : ""}</button>${chip.otherWaits ? `<span class="arc-other-waits">+${chip.otherWaits} other wait${chip.otherWaits === 1 ? "" : "s"}</span>` : ""}`;
   });
   const queueLabel = `${open ? "Hide" : "Show"} ${queue.queued.length} arc${queue.queued.length === 1 ? "" : "s"} queued behind ${lane.title}`;
   return `<section class="arc-row" data-arc-id="${escape(lane.id)}"><div class="arc-lane-line">
     <span class="arc-caret-slot">${queue.queued.length ? `<button type="button" class="arc-caret" data-arc-queue="${escape(lane.id)}" aria-expanded="${open}" aria-controls="arc-queue-${escape(lane.id)}" aria-label="${escape(queueLabel)}" title="${escape(queueLabel)}"><span aria-hidden="true">${open ? "▾" : "▸"}</span></button>` : ""}</span>
     <button type="button" class="arc-lane" data-arc-select="${escape(lane.id)}" aria-pressed="${selected === lane.id}">
       <span class="arc-lane-head"><span class="arc-chip arc-state-${lane.state}" title="${escape(laneText(lane))}">${escape(lane.chip)}</span><span class="arc-title" title="${escape(lane.title)}">${escape(lane.title)}</span></span>
-      <span class="arc-track"><span class="arc-bars" aria-label="Increments">${lane.bars.map(renderBar).join("")}</span><span class="arc-count">${escape(lane.count)}</span></span>
+      <span class="arc-track"><span class="arc-bars" aria-label="Increments">${lane.bars.map(renderBar).join("")}</span><span class="arc-count">${escape(lane.count)}</span>${renderWaitsOn(lane)}</span>
     </button></div>${open && queue.queued.length ? `<div class="arc-queue" id="arc-queue-${escape(lane.id)}" data-queue-shape="${run.shape}"><span aria-hidden="true">→</span>${chips.join("")}</div>` : ""}</section>`;
 }
 function renderQuestionItem(question: QuestionReading): string {

@@ -38,7 +38,7 @@ export interface BoardView {
   queues: ArcQueue[];
   selected: string | undefined;
 }
-const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, claimed: 2, idle: 3, quiet: 4, parked: 5, closed: 6 };
+const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, queued: 1, claimed: 2, idle: 3, ready: 4, quiet: 5, parked: 6, closed: 7 };
 const time = (at: string) => Date.parse(at) || 0;
 
 export function boardView(snapshot: BoardSnapshot, lines: readonly Line[], now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
@@ -51,7 +51,6 @@ export function boardView(snapshot: BoardSnapshot, lines: readonly Line[], now: 
   const lanes = snapshot.arcs.filter(({ state }) => state === scope).map((view): Lane => {
     const { arc, increments, questions } = view;
     const holders = agents.onArc(increments);
-    const state = arcState(view.state, { openQuestions: questions.filter(({ fields }) => fields.lifecycle === "open").length, waits: snapshot.waits[arc.id] ?? [], claims: holders });
     const ordered = [...increments].sort((a, b) => {
       const aClosed = a.fields.status === "closed", bClosed = b.fields.status === "closed";
       if (aClosed !== bClosed) return aClosed ? -1 : 1;
@@ -65,6 +64,7 @@ export function boardView(snapshot: BoardSnapshot, lines: readonly Line[], now: 
         reading: incrementState(increment.fields, { waits: snapshot.waits[increment.id] ?? [], heldOn: snapshot.heldOn[increment.id] ?? [], ...(claim ? { claim } : {}) }),
         agents: agents.onArc([increment]), waits: waits.on(increment.id), holdsUp: waits.heldUpBy(increment.id) };
     });
+    const state = arcState(view.state, { openQuestions: questions.filter(({ fields }) => fields.lifecycle === "open").length, waits: snapshot.waits[arc.id] ?? [], claims: holders, increments: bars.map(({ reading }) => reading) });
     const landed = bars.filter(({ reading }) => reading.state === "landed").length;
     const failed = bars.filter(({ reading }) => reading.state === "not-completed").length;
     const open = bars.length - landed - failed;
@@ -72,8 +72,12 @@ export function boardView(snapshot: BoardSnapshot, lines: readonly Line[], now: 
     const work = new Set(increments.flatMap((increment) => [increment.id, ...(increment.fields.touches ?? [])]));
     const workLines = lines.filter((line) => ("increment" in line && work.has(line.increment ?? "")) || ("capability" in line && work.has(line.capability ?? "")));
     const lastActivity = Math.max(time(arc.updatedAt), ...increments.map((i) => time(i.updatedAt)), ...questions.map((q) => time(q.updatedAt)), ...holders.map((h) => time(h.lastSeenAt)), ...workLines.map((line) => time(line.at)));
-    const chip = state === "idle" ? `idle · ${Math.min(...holders.map(({ quietMinutes }) => quietMinutes))} min` : state;
-    return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, count, lastActivity, waits: waits.on(arc.id), holdsUp: waits.heldUpBy(arc.id) };
+    const chip = state === "idle" ? `idle · ${Math.min(...holders.map(({ quietMinutes }) => quietMinutes))} min`
+      : state === "ready" ? `ready · ${bars.filter(({ reading }) => reading.state === "open").length} to take` : state;
+    // A queued lane names what its increments wait on, once per blocker (ADR-0760 D1).
+    const laneWaits = state !== "queued" ? waits.on(arc.id)
+      : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];
+    return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, count, lastActivity, waits: laneWaits, holdsUp: waits.heldUpBy(arc.id) };
   }).sort((a, b) => rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
   return { scope, lanes, queues: arcQueues(lanes), selected: firstBriefing(lanes.map((lane) => ({ id: lane.id, questions: lane.view.questions }))) };
 }

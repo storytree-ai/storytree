@@ -55,3 +55,20 @@ test("3.1 the arc bar omits the project and exposes open/close to keyboard users
   assert.match(open, /aria-expanded="true" aria-controls="arc-drawer"/);
   assert.match(open, /data-close-arcs/);
 });
+
+test("3/4 a queued lane says what it waits on, and its chip under the blocker names the increment", () => {
+  const work = (id: string, arcId: string) => record(id, "increment", { arc: arcId, title: `Build ${id}`, objective: id, body: id, status: "ready" });
+  const arcs = ["lamp", "users", "cutover"].map((id) => ({ arc: record(id, "arc", { title: `Arc ${id}`, intent: id, endState: "Done" }), state: "active" as const, increments: [work(`${id}1`, id)], questions: [] }));
+  const queued = boardView({ arcs, heldOn: {}, waits: {
+    lamp1: [{ on: "users1", reason: "after first users", forGood: false }],
+    cutover1: [{ on: "outside", reason: "the go-ahead", forGood: false }],
+  } }, [], new Date());
+  const closed = renderBoard(queued, "users");
+  assert.doesNotMatch(closed, /data-arc-select="lamp"/);
+  const opened = renderBoard(queued, "users", undefined, new Set(["users"]));
+  assert.match(opened, /data-arc-select="lamp"[^>]*aria-label="Arc lamp — queued behind Arc users, waits on Build users1"/);
+  const top = renderBoard(queued, "cutover");
+  assert.match(top, /arc-state-queued[^>]*>queued</);
+  assert.match(top, /class="arc-waits-on"[^>]*>waits on outside \(missing\)</);
+  assert.match(renderBoard(queued, "users"), /arc-state-ready[^>]*>ready · 1 to take</);
+});

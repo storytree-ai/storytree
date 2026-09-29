@@ -16,16 +16,17 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-menu::backdrop { background: transparent; pointer-events: none; }
 .app-menu, .app-menu * { box-sizing: border-box; }
 .app-menu-window { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden; border: 1px solid #485159; border-radius: 12px; background: #101418; box-shadow: 0 8px 30px rgb(0 0 0 / .25); }
-.app-menu-header { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 16px 24px; border-bottom: 1px solid #485159; }
 .app-menu button { font: inherit; }
-.app-menu-header button, [data-app-updates] { border: 1px solid #485159; border-radius: 6px; padding: 7px 12px; background: transparent; color: #eceae3; cursor: pointer; }
-.app-menu-header button span { margin-left: 12px; }
+[data-app-updates] { border: 1px solid #485159; border-radius: 6px; padding: 7px 12px; background: transparent; color: #eceae3; cursor: pointer; }
 .app-menu button:hover { background: #262a2f; }
 .app-menu button:disabled { color: #a9b0ba; opacity: .6; cursor: default; background: transparent; }
 .app-menu-body { display: flex; flex: 1; min-height: 0; }
 .app-menu-sections { display: flex; flex-direction: column; flex: 0 0 200px; gap: 4px; padding: 20px 12px; border-right: 1px solid #485159; overflow: auto; }
 .app-menu-sections button { border: 0; border-radius: 6px; padding: 10px 14px; background: transparent; color: #a9b0ba; text-align: left; cursor: pointer; }
 .app-menu-sections button[aria-pressed="true"] { color: #eceae3; background: #262a2f; }
+/* Close ends the tab row: at the foot of the column, or the far end of the row when narrow. */
+.app-menu-sections .app-menu-close { margin-top: auto; }
+.app-menu-close span { margin-left: 8px; }
 .app-menu-content { flex: 1; min-width: 0; overflow: auto; overscroll-behavior: contain; padding: 28px 32px; }
 .app-menu-content > section { max-width: 880px; margin: 0 auto; }
 .app-menu-content h2 { margin: 0; font-size: 22px; font-weight: 600; }
@@ -89,7 +90,7 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
   .surface-state { text-align: left; }
   .surface-setting select { grid-row: auto; grid-column: auto; }
   .app-menu { padding: 12px; }
-  .app-menu-header { padding: 12px 16px; }
+  .app-menu-sections .app-menu-close { margin: 0 0 0 auto; }
   .app-menu-body { flex-direction: column; }
   .app-menu-sections { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; gap: 2px; padding: 8px; border-right: 0; border-bottom: 1px solid #485159; }
   .app-menu-sections button { padding: 8px 10px; }

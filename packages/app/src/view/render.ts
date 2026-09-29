@@ -8,10 +8,10 @@ export function renderAppMenu(): string {
   </button></header>
   <div id="app-menu" popover="auto" class="app-menu" role="dialog" aria-modal="true" aria-label="App menu">
     <div class="app-menu-window">
-      <header class="app-menu-header"><button type="button" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button></header>
       <div class="app-menu-body">
         <nav class="app-menu-sections" aria-label="App sections">
           ${["Projects", "Sessions", "Library", "Surfaces", "Updates", "Help"].map((label) => `<button type="button" data-app-section="${label.toLowerCase()}" aria-controls="app-${label.toLowerCase()}" aria-pressed="${label === "Projects"}">${label}</button>`).join("")}
+          <button type="button" class="app-menu-close" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button>
         </nav>
         <div class="app-menu-content">
           <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Choose the project to show in the forest, or add a folder as a new one.</p><div data-app-switcher></div><p class="app-project-error" data-app-project-error role="alert" hidden></p><div data-app-add-project></div></section>

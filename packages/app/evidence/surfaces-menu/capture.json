@@ -1,0 +1,85 @@
+{
+  "snapshot": "2026-09-28T21-35-29-644Z.json",
+  "shots": [
+    {
+      "shot": "0-default-app",
+      "census": [],
+      "mounted": {
+        "arcs": true,
+        "sessions": true,
+        "forestViews": true,
+        "panelTree": false,
+        "panelDetail": false
+      }
+    },
+    {
+      "shot": "1-menu-default",
+      "census": [],
+      "mounted": {
+        "arcs": true,
+        "sessions": true,
+        "forestViews": true,
+        "panelTree": false,
+        "panelDetail": false
+      }
+    },
+    {
+      "shot": "2-menu-default-lower",
+      "census": [],
+      "mounted": {
+        "arcs": true,
+        "sessions": true,
+        "forestViews": true,
+        "panelTree": false,
+        "panelDetail": false
+      }
+    },
+    {
+      "shot": "3-menu-changed",
+      "census": [],
+      "mounted": {
+        "arcs": false,
+        "sessions": false,
+        "forestViews": true,
+        "panelTree": false,
+        "panelDetail": false
+      }
+    },
+    {
+      "shot": "4-quiet-globe",
+      "census": [],
+      "mounted": {
+        "arcs": false,
+        "sessions": false,
+        "forestViews": true,
+        "panelTree": false,
+        "panelDetail": false
+      }
+    },
+    {
+      "shot": "5-library-and-tree-off",
+      "census": [],
+      "mounted": {
+        "arcs": false,
+        "sessions": false,
+        "forestViews": false,
+        "panelTree": false,
+        "panelDetail": false
+      }
+    }
+  ],
+  "settingsFile": {
+    "surfaces": {
+      "sessions": {
+        "on": false
+      },
+      "arcs": {
+        "on": false
+      },
+      "capability-tree": {
+        "opening-zoom": "full-size"
+      }
+    }
+  },
+  "pageErrors": []
+}

@@ -70,7 +70,7 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
   assert.equal(isSessionRows({ rows: [row] }), false);
 });
 
-test("7.8 one expander per row, counting its children; expanded, a row lists its worktrees' full paths, its window's files (gone ones muted) and then its children", () => {
+test("7.8 one expander per row, counting its children; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
   const busy: SessionRow = { ...row, worktrees: ["/home/me/code/app/.claude/worktrees/one", "/home/me/code/app/.claude/worktrees/two"] };
   const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], onHighlight() {} }));
   assert.equal(folded.match(/<button/g)?.length, 2, "every row has one expander, a childless one too");
@@ -82,7 +82,9 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   assert.match(parentRow, />\+1<\/button>/);
   assert.match(html, /aria-expanded="true"/);
   const detail = html.match(/class="session-detail".*?<\/div>/s)?.[0] ?? "";
-  assert.ok(detail.includes("/home/me/code/app/.claude/worktrees/one") && detail.indexOf("worktrees/one") < detail.indexOf("worktrees/two"), detail);
+  assert.ok(detail.indexOf(">Worktrees<") < detail.indexOf(">one<") && detail.indexOf(">one<") < detail.indexOf(">two<")
+    && detail.indexOf(">two<") < detail.indexOf(">Files<") && detail.indexOf(">Files<") < detail.indexOf("src/a.ts"), detail);
+  assert.match(detail, /<li title="\/home\/me\/code\/app\/\.claude\/worktrees\/one">one<\/li>/, "a worktree by its folder's name, its full path on hover");
   assert.match(detail, /<li[^>]*>src\/a\.ts<\/li>/);
   assert.match(detail, /<li[^>]*data-resident="no"[^>]*>src\/b\.ts<\/li>/);
   assert.ok(html.indexOf("session-detail") < html.indexOf('data-session-id="child"'), "children follow the detail");

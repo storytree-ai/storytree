@@ -122,3 +122,13 @@ test("4.6 a session is its harness id, not a folder: one whose lines name two wo
     assert.deepEqual(session?.worktrees, ["/work/site", "/work/site/.claude/worktrees/fix"]);
   });
 });
+
+test("4.7 a session silent for longer than a command may run has stopped reporting: it reads as gone, never as ended, since no end line said so (ADR-0749)", async () => {
+  await withProject(async (log, project) => {
+    const start = await log.append(project, { ...CLAUDE, kind: "session-started", how: "startup" });
+    const [idle] = await readSessions(log, project, { now: after(start, LONGEST_COMMAND_MS) });
+    assert.equal(idle?.state, "idle", "idle up to the limit");
+    const [gone] = await readSessions(log, project, { now: after(start, LONGEST_COMMAND_MS + 1) });
+    assert.equal(gone?.state, "gone", "gone past it");
+  });
+});

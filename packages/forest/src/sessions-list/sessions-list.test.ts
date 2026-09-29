@@ -72,6 +72,12 @@ test("the list honours the idle-after setting it is given, not a fixed 30 minute
   assert.equal(sessionRows(tree, lines, [], now, new Map(), 10 * 60 * 1000)[0]?.state, "idle", "and idle past a 10-minute setting");
 });
 
+test("a session that stopped reporting (gone) is hidden like an ended one, even holding a claim", () => {
+  const lines = log({ ...off, kind: "claimed", increment: "tidy", reason: "Tidy", at: "2026-09-27T20:00:00Z" },
+    { ...parent, kind: "claimed", capability: "cap-one", reason: "Build signup" });
+  assert.deepEqual(sessionRows(tree, lines, [], now).map(row => row.id), ["parent"], "16 hours silent: gone");
+});
+
 test("supplied supervision and totals use a view seam without parsing transcripts; missing parents and cycles keep rows reachable", () => {
   const lines = log(claimed("cap-one", "Build signup"), { ...child, kind: "claimed", increment: "inc", reason: "Finish signup" });
   const details = new Map([["child", { parentSession: "parent", totalTokens: 120_000 }]]);

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading } from "@storytree/agent-link";
 import type { Line } from "@storytree/agent-link/readings";
-import { liveReading, type LiveReads } from "@storytree/arc-surface";
+import { liveReading, pageKept, type LiveReads } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
 import { sessionRoster, sessionRows, type SessionDetails, type SessionRow } from "../sessions-list/sessions-list.js";
@@ -30,6 +30,13 @@ function detailsOf(reading: ContextReading): SessionDetails {
       implementation: reading.composition.implementation, other: reading.composition.other } };
 }
 
+/** Whether a kept value is session rows, so rows kept by an older build are not drawn. */
+export function isSessionRows(value: unknown): value is SessionRow[] {
+  return Array.isArray(value) && value.every((row: Partial<SessionRow> | null) => typeof row === "object" && row !== null
+    && typeof row.id === "string" && typeof row.label === "string" && typeof row.agent === "string" && typeof row.state === "string"
+    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && isSessionRows(row.children));
+}
+
 function everyId(rows: readonly SessionRow[]): string[] {
   return rows.flatMap(row => [row.id, ...everyId(row.children)]);
 }
@@ -52,7 +59,9 @@ export function mountSessionsList(container: HTMLElement, options: {
   let tree: AnnotatedTree | undefined;
   let arcs: ArcView[] = [];
   let lines: Line[] = [];
-  let rows: SessionRow[] = [];
+  // The rows last drawn for this project, shown marked as refreshing until the first read lands.
+  const kept = pageKept(`storytree.forest.sessions.v1:${options.project}`, isSessionRows);
+  let rows: SessionRow[] = kept.read() ?? [];
   let details: ReadonlyMap<string, SessionDetails> = new Map();
   let readings: ReadonlyMap<string, SessionDetails> = new Map();
   let quietMs: number | undefined;
@@ -61,7 +70,8 @@ export function mountSessionsList(container: HTMLElement, options: {
   let highlighted: string | undefined;
   let selected: string | undefined;
   let stopped = false;
-  const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined}
+  const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
+    refreshing={tree === undefined && rows.length > 0}
     error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
@@ -87,6 +97,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined) return;
     rows = sessionRows(tree, lines, arcs, now, merged(), quietMs);
+    kept.write(rows);
     options.onWisps?.(sessionWisps(rows, lines, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
@@ -157,9 +168,11 @@ function ContextBar({ row }: { row: SessionRow }) {
   </span>;
 }
 
-export function SessionsList({ rows, loading = false, error, highlighted, selected, onHighlight, onSelect }: {
+export function SessionsList({ rows, loading = false, refreshing = false, error, highlighted, selected, onHighlight, onSelect }: {
   rows: readonly SessionRow[];
   loading?: boolean;
+  /** The rows are the ones last kept, drawn before this start's first read lands. */
+  refreshing?: boolean;
   error?: string | undefined;
   /** The session whose wisp is hovered on the forest. */
   highlighted?: string | undefined;
@@ -198,7 +211,7 @@ export function SessionsList({ rows, loading = false, error, highlighted, select
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   };
-  return <aside className="sessions-list" aria-label="Running sessions">
+  return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
     <header>
       <span>Sessions <span className="sessions-count">{rows.length}</span></span>
       <span className="session-legend" aria-label="Bar colours">
@@ -206,6 +219,7 @@ export function SessionsList({ rows, loading = false, error, highlighted, select
       </span>
     </header>
     {loading && !error && <p role="status">Reading sessions…</p>}
+    {refreshing && !error && <p role="status">As last read. Refreshing…</p>}
     {error && <p role="status">{error}</p>}
     {!loading && rows.length === 0 && <p>No running sessions</p>}
     <ul>

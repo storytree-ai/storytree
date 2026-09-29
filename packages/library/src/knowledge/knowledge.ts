@@ -351,25 +351,17 @@ export class Knowledge {
   async decision(id: string): Promise<DecisionView | null> {
     const record = await liveRecord(this.#records, id, ["decision"]);
     if (record === null) return null;
-    const supersededBy = (await this.#records.list("decision"))
-      .filter((other) => other.fields.status === "accepted" && other.fields.supersedes?.includes(id) === true)
-      .sort(byCreation)
-      .map((other) => other.id);
-    const composed = record.fields.composed;
-    return {
-      record,
-      status: supersededBy.length > 0 ? "superseded" : record.fields.status,
-      supersededBy,
-      ...(composed === undefined
-        ? {}
-        : {
-            composed: {
-              statement: composed.statement,
-              composedAt: composed.composedAt,
-              stale: composed.fingerprint !== fingerprintOf(record.fields.text),
-            },
-          }),
-    };
+    return decisionView(record, await this.#records.list("decision"));
+  }
+
+  /**
+   * Every live decision as decision() reads it, oldest first, from one reading of the decisions
+   * (13.9): what the decision log's listing asks, in place of a decision() per id, each of which
+   * reads every decision again.
+   */
+  async decisions(): Promise<DecisionView[]> {
+    const all = await this.#records.list("decision");
+    return [...all].sort(byCreation).map((record) => decisionView(record, all));
   }
 
   /**
@@ -690,4 +682,27 @@ function fullRecordNumber(text: string): number | undefined {
   if (lines.length !== 1) return undefined;
   const digits = /^[ \t]*Full record:[ \t]+ADR-(\d{4,})(?=[ \t.,;]|$)/.exec(lines[0]!)?.[1];
   return digits === undefined ? undefined : Number(digits);
+}
+
+/** `record` as the decision log reads it, superseded by the accepted decisions among `all` that name it. */
+function decisionView(record: SchemaRecord<"decision">, all: readonly SchemaRecord<"decision">[]): DecisionView {
+  const supersededBy = all
+    .filter((other) => other.fields.status === "accepted" && other.fields.supersedes?.includes(record.id) === true)
+    .sort(byCreation)
+    .map((other) => other.id);
+  const composed = record.fields.composed;
+  return {
+    record,
+    status: supersededBy.length > 0 ? "superseded" : record.fields.status,
+    supersededBy,
+    ...(composed === undefined
+      ? {}
+      : {
+          composed: {
+            statement: composed.statement,
+            composedAt: composed.composedAt,
+            stale: composed.fingerprint !== fingerprintOf(record.fields.text),
+          },
+        }),
+  };
 }

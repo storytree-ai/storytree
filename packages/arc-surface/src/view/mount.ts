@@ -1,5 +1,6 @@
 import type { BoardReads } from "../board/reads.js";
-import { watchBoard, type BoardState } from "../board/live-board.js";
+import { isBoardSnapshot, watchBoard, type BoardState } from "../board/live-board.js";
+import { pageKept } from "../live-reading/kept.js";
 import type { BoardScope } from "../board/board.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
@@ -35,7 +36,8 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     const sameScope = state?.board?.scope === next.board?.scope;
     state = next;
     drawer.dataset.arcState = next.status;
-    status.textContent = next.status === "loading" ? "Reading arcs…" : next.status === "error" ? `Arcs could not be read: ${next.error}. Retrying…` : "";
+    status.textContent = next.status === "loading" ? "Reading arcs…" : next.status === "refreshing" ? "Showing the arcs as last read. Refreshing…"
+      : next.status === "error" ? `Arcs could not be read: ${next.error}. Retrying…` : "";
     status.setAttribute("role", next.status === "error" ? "alert" : "status");
     // A failed read retains the last good board, explicitly stale.
     if (!next.board) return;
@@ -65,7 +67,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       if (!drawer.hidden) return;
       drawer.hidden = false; launch.hidden = true; launch.setAttribute("aria-expanded", "true");
       remember();
-      watching = watchBoard({ ...options, onState: draw });
+      watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), onState: draw });
       watching.setScope(scope);
       drawer.querySelector<HTMLButtonElement>("[data-close-arcs]")!.focus();
     },

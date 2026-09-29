@@ -1,0 +1,40 @@
+{
+  "steps": [
+    {
+      "from": "decision_69b5ac6855c3",
+      "to": "decision_5ae1815d9959",
+      "edge": "solid",
+      "faded": true
+    },
+    {
+      "from": "decision_5ae1815d9959",
+      "to": "decision_914f96703a84",
+      "edge": "solid",
+      "faded": false
+    },
+    {
+      "from": "decision_914f96703a84",
+      "to": "decision_026dc42f1fa9",
+      "edge": "dotted",
+      "faded": false
+    }
+  ],
+  "rings": [
+    "decision_026dc42f1fa9",
+    "decision_5ae1815d9959",
+    "decision_914f96703a84"
+  ],
+  "states": {
+    "decision_026dc42f1fa9": "in-window",
+    "decision_201187b6b53c": "glimpsed",
+    "decision_229b50334c5b": "glimpsed",
+    "decision_5ae1815d9959": "in-window",
+    "decision_69b5ac6855c3": "faded",
+    "decision_914f96703a84": "in-window"
+  },
+  "fills": 3,
+  "grown": [
+    "decision_026dc42f1fa9",
+    "decision_101478dc54ed"
+  ]
+}

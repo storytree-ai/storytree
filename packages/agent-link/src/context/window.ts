@@ -1,7 +1,7 @@
 /**
  * Contract 9.10 · a session's window, read from its transcript (ADR-0746 D1): what is in it now, the
- * call that brought each piece, and, for each note or file the session opened, the earlier results
- * already in view whose content held that id when the open was issued.
+ * call that brought each piece, each note or file the session opened, in order, with whether its
+ * read is still in the window, and the notes it only glimpsed.
  *
  * - A piece is a tool result, joined to its call by the id the harness wrote (`tool_use_id`, Codex's
  *   `call_id`). What a call opened is read from its labels: the agent link's `open`, a shell's
@@ -10,8 +10,8 @@
  * - A compaction (Claude Code's `compact_boundary`, Codex's `compacted`) drops what came before it,
  *   except the segment Claude Code says it kept. A subagent's (`isSidechain`) records are another
  *   window's and are left out.
- * - "In view" means only that: a result that held the id was resident when the open was issued. It
- *   never says the session followed it (ADR-0740 D3), and nothing decides anything from it (D4).
+ * - A glimpse means only that a note's id is in a result the window holds. It never says the session
+ *   followed anything (ADR-0740 D3), and nothing decides anything from it (D4).
  */
 
 import type { Line } from "../activity/index.js";
@@ -24,13 +24,11 @@ export type WindowTarget = { readonly kind: "note" | "file"; readonly id: string
 /** How a piece arrived: the call that brought it, and what that call opened. */
 export type Arrival = { readonly call: string; readonly tool: string; readonly opened: readonly WindowTarget[] };
 
-/** One opening, and the earlier results in view at that moment whose content held its id. */
+/** One opening: the call that made it, and whether what it brought is still in the window now. */
 export type WindowOpen = WindowTarget & {
   readonly call: string;
   readonly tool: string;
-  /** Whether what the open brought is still in the window now. */
   readonly resident: boolean;
-  readonly inViewFrom: readonly Arrival[];
 };
 
 export type WindowReading = {
@@ -84,7 +82,7 @@ function textOf(content: unknown): string {
   return JSON.stringify(content) ?? "";
 }
 
-/** The window a list of steps leaves, and what was in view at each open. */
+/** The window a list of steps leaves. */
 function fold(steps: readonly Step[]): WindowReading {
   const calls = new Map<string, Arrival>();
   const results: { at: number; id: string; text: string }[] = [];
@@ -110,10 +108,9 @@ function fold(steps: readonly Step[]): WindowReading {
   const glimpses = new Set(resident.flatMap(({ text }) => text.match(NOTE_IDS) ?? []).filter((id) => !everOpened.has(id)));
   return {
     inView: resident.map(({ id }) => arrivalOf(id)),
-    opens: opened.map(({ at, target, arrival }) => {
+    opens: opened.map(({ target, arrival }) => {
       const brought = resultOf.get(arrival.call);
-      const seen = results.filter((result) => inViewAt(result.at, at) && result.text.includes(target.id)).map(({ id }) => arrivalOf(id));
-      return { ...target, call: arrival.call, tool: arrival.tool, resident: brought !== undefined && inViewAt(brought.at, end), inViewFrom: seen };
+      return { ...target, call: arrival.call, tool: arrival.tool, resident: brought !== undefined && inViewAt(brought.at, end) };
     }),
     glimpses: [...glimpses],
     compactions: boundaries.length,

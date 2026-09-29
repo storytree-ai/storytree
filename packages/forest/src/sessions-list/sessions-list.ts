@@ -42,8 +42,9 @@ export interface SessionRow {
 const LABEL_LIMIT = 40;
 
 /**
- * One row per session that has not ended, claimed or not (ADR-0749 D1), each judged idle by
- * `quietMs`, the user's idle-after setting (the 30-minute default when the caller has none).
+ * One row per session that has not ended, claimed or not (ADR-0749 D1), each working or waiting by
+ * its turns (ADR-0754 D5); one whose hooks report no turns is judged by `quietMs`, the user's
+ * idle-after setting (the 30-minute default when the caller has none).
  */
 export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: readonly ArcView[], now: Date,
   details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number): SessionRow[] {

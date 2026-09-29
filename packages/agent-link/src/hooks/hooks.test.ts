@@ -312,7 +312,7 @@ test("3.6 recorded inputs from before a shell command, after one that failed, an
     assert.deepEqual((await linesOf(project)).map(written), [
       { ...claude, kind: "command-started", command, call: "toolu_01Kjexd4yP2myMhXEATFdm25" },
       { ...claude, kind: "command-run", command, call: "toolu_01Kjexd4yP2myMhXEATFdm25" },
-      { ...claude, kind: "turn-ended" },
+      { ...claude, kind: "turn-ended", background: 0 },
     ]);
 
     // On Windows without Git, Claude Code has no Bash tool and runs the command with its PowerShell tool.
@@ -476,7 +476,9 @@ test("9.9 past context guidance, the Claude Code prompt hook advises handing off
       });
       await t.test("no reading, an unreadable transcript, stopped storytree, and unreadable settings add none", async () => {
         writeTokens(900_000);
-        assert.equal(await ask("unrecorded"), undefined);
+        // No reading: the transcript its hooks name (the recorded one's) is not on this machine.
+        const unrecorded = await runHook("claude-code", prompted("claude-code", folder, "Continue", `${project}-unrecorded`), home);
+        assert.equal(addedContext(unrecorded), undefined);
         await start("missing");
         rmSync(transcript);
         assert.equal(await ask("missing"), undefined);
@@ -661,4 +663,24 @@ test("3.13 each hook streams its session's new transcript records, and each suba
     await log.close();
     await dropTestProjects([project]);
   }
+});
+
+test("3.15 recorded prompt inputs make a prompt line on their session, for Claude Code and Codex alike, and a Claude Code turn that ends with background tasks still running writes its end line with how many (ADR-0754 D5)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    for (const harness of ["claude-code", "codex"] as const) {
+      const ran = await runHook(harness, recorded(harness, "user-prompt-submit", folder), home);
+      assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" }, harness);
+    }
+    const stop = { ...JSON.parse(recorded("claude-code", "stop", folder)), background_tasks: [{ id: "b1", type: "shell" }] };
+    await runHook("claude-code", JSON.stringify(stop), home);
+    const common = { project, source: "hook", folder, machine: MACHINE } as const;
+    assert.deepEqual((await linesOf(project)).map(written), [
+      { ...common, session: "f0451558-ef9c-4014-b2cd-1edeb2de7682", harness: "claude-code", kind: "prompt-submitted" },
+      { ...common, session: "01a0de50-e5be-7731-8e02-d411fd8845fe", harness: "codex", kind: "prompt-submitted" },
+      { ...common, session: "b4f8eff5-05ab-4ef2-b070-78375e2a5deb", harness: "claude-code", kind: "turn-ended", background: 1 },
+    ]);
+  });
 });

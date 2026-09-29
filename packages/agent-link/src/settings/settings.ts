@@ -15,11 +15,11 @@ const contextGuidance = {
 
 const idleAfter = {
   name: "idle-after",
-  label: "Time before a session is considered idle",
+  label: "Time before a quiet claim can be taken over",
   type: "duration",
   unit: "",
   default: "30m",
-  meaning: "A session with no activity or command running becomes idle after this time. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 10m. Default: 30 minutes.",
+  meaning: "Another session may take over a claim whose holder has had no activity and no command running for this time; a session whose hooks do not report its turns also reads as waiting after it. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 10m. Default: 30 minutes.",
 } as const;
 
 const library = {

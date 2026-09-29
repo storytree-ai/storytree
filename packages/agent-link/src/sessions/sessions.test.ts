@@ -40,7 +40,7 @@ test('4.1 a start line makes a live session labelled "Claude Code", with its fol
         worktrees: ["/work/site"],
         startedAt: start.at,
         lastSeenAt: edit.at,
-        state: "live",
+        state: "working",
         hooksRunning: true,
       },
     ]);
@@ -51,9 +51,9 @@ test("4.2 with no line for longer than the quiet time the session reads as idle,
   await withProject(async (log, project) => {
     const start = await log.append(project, { ...CLAUDE, kind: "session-started", how: "startup" });
     const [atQuietTime] = await readSessions(log, project, { now: after(start, QUIET_MS) });
-    assert.equal(atQuietTime?.state, "live", "still live at the end of the quiet time");
+    assert.equal(atQuietTime?.state, "working", "still live at the end of the quiet time");
     const [pastQuietTime] = await readSessions(log, project, { now: after(start, QUIET_MS + 1) });
-    assert.equal(pastQuietTime?.state, "idle", "idle once the quiet time has passed");
+    assert.equal(pastQuietTime?.state, "waiting", "idle once the quiet time has passed");
 
     const end = await log.append(project, { ...CLAUDE, kind: "session-ended", reason: "other" });
     const [ended] = await readSessions(log, project, { now: after(end, 1_000) });
@@ -71,7 +71,7 @@ test("4.3 a resumed window continues the same session instead of starting a seco
     assert.equal(sessions.length, 1, "one session");
     assert.deepEqual(
       sessions.map(({ session, startedAt, lastSeenAt, state }) => ({ session, startedAt, lastSeenAt, state })),
-      [{ session: "claude-1", startedAt: start.at, lastSeenAt: resumed.at, state: "live" }],
+      [{ session: "claude-1", startedAt: start.at, lastSeenAt: resumed.at, state: "working" }],
     );
   });
 });
@@ -85,8 +85,8 @@ test('4.4 a Codex session whose hooks never ran, but which calls a storytree too
     assert.deepEqual(
       sessions.map(({ session, label, state, hooksRunning }) => ({ session, label, state, hooksRunning })),
       [
-        { session: "claude-1", label: "Claude Code", state: "live", hooksRunning: true },
-        { session: "codex-1", label: "Codex", state: "live", hooksRunning: false },
+        { session: "claude-1", label: "Claude Code", state: "working", hooksRunning: true },
+        { session: "codex-1", label: "Codex", state: "working", hooksRunning: false },
       ],
     );
   });
@@ -96,19 +96,19 @@ test("4.5 a command that started 40 minutes ago and has not finished keeps its s
   await withProject(async (log, project) => {
     const started = await log.append(project, { ...CLAUDE, kind: "command-started", command: "npm run build", call: "call-1" });
     const [running] = await readSessions(log, project, { now: after(started, 40 * 60 * 1000) });
-    assert.equal(running?.state, "live", "live while its command runs");
+    assert.equal(running?.state, "working", "live while its command runs");
     const [abandoned] = await readSessions(log, project, { now: after(started, LONGEST_COMMAND_MS + 1) });
     assert.equal(abandoned?.state, "gone", "a command older than the longest a command may run died with its window, and the silent session with it (4.7)");
 
     const finished = await log.append(project, { ...CLAUDE, kind: "command-run", command: "npm run build", call: "call-1" });
     const [done] = await readSessions(log, project, { now: after(finished, QUIET_MS + 1) });
-    assert.equal(done?.state, "idle", "idle once the quiet time has passed after it finished");
+    assert.equal(done?.state, "waiting", "idle once the quiet time has passed after it finished");
 
     // A command the harness refused never finishes: the end of its turn closes it.
     await log.append(project, { ...CLAUDE, kind: "command-started", command: "rm -rf build", call: "call-2" });
     const turn = await log.append(project, { ...CLAUDE, kind: "turn-ended" });
     const [refused] = await readSessions(log, project, { now: after(turn, QUIET_MS + 1) });
-    assert.equal(refused?.state, "idle", "idle once the quiet time has passed after the turn ended");
+    assert.equal(refused?.state, "waiting", "idle once the quiet time has passed after the turn ended");
   });
 });
 
@@ -127,8 +127,33 @@ test("4.7 a session silent for longer than a command may run has stopped reporti
   await withProject(async (log, project) => {
     const start = await log.append(project, { ...CLAUDE, kind: "session-started", how: "startup" });
     const [idle] = await readSessions(log, project, { now: after(start, LONGEST_COMMAND_MS) });
-    assert.equal(idle?.state, "idle", "idle up to the limit");
+    assert.equal(idle?.state, "waiting", "idle up to the limit");
     const [gone] = await readSessions(log, project, { now: after(start, LONGEST_COMMAND_MS + 1) });
     assert.equal(gone?.state, "gone", "gone past it");
+  });
+});
+
+test("4.8 working comes from turn state (ADR-0754 D5): a prompt makes its session working until its turn ends, however long the turn is silent; its end makes it waiting at once; a turn that ends with background tasks still running leaves their command running", async () => {
+  await withProject(async (log, project) => {
+    await log.append(project, { ...CLAUDE, kind: "session-started", how: "startup" });
+    const prompt = await log.append(project, { ...CLAUDE, kind: "prompt-submitted" });
+    const [longTurn] = await readSessions(log, project, { now: after(prompt, 3 * QUIET_MS) });
+    assert.equal(longTurn?.state, "working", "a long turn that writes no line stays working");
+    await log.append(project, { ...CLAUDE, kind: "session-started", how: "compact" });
+    const [compacted] = await readSessions(log, project, { now: after(prompt, 3 * QUIET_MS) });
+    assert.equal(compacted?.state, "working", "compacting mid-turn does not end the turn");
+
+    const turn = await log.append(project, { ...CLAUDE, kind: "turn-ended", background: 0 });
+    const [waiting] = await readSessions(log, project, { now: after(turn, 1_000) });
+    assert.equal(waiting?.state, "waiting", "waiting as soon as the turn ends, not after the quiet time");
+
+    await log.append(project, { ...CLAUDE, kind: "prompt-submitted" });
+    await log.append(project, { ...CLAUDE, kind: "command-started", command: "pnpm test", call: "call-bg" });
+    const backgrounded = await log.append(project, { ...CLAUDE, kind: "turn-ended", background: 1 });
+    const [running] = await readSessions(log, project, { now: after(backgrounded, 3 * QUIET_MS) });
+    assert.equal(running?.state, "working", "its background command is still running");
+    const finished = await log.append(project, { ...CLAUDE, kind: "command-run", command: "pnpm test", call: "call-bg" });
+    const [done] = await readSessions(log, project, { now: after(finished, 1_000) });
+    assert.equal(done?.state, "waiting", "waiting once the background command finishes");
   });
 });

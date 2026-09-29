@@ -357,7 +357,7 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
       );
       assert.ok(plan.text.split("\n").some((line) => line.includes(increment) && line.includes("Signup release") && line.includes("Claude Code claude-1") && line.includes("driving the signup release")), plan.text);
       assert.deepEqual((plan.data.sessions as { session: string; state: string }[]).map(({ session, state }) => ({ session, state })), [
-        { session: "claude-1", state: "live" },
+        { session: "claude-1", state: "working" },
       ]);
 
       assert.equal((await agent.call("report", { contract, result: "red" })).isError, false);

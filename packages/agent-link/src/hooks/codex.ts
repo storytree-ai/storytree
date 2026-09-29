@@ -15,6 +15,7 @@
  *   registered for Bash: its line says the command started, under the call's `tool_use_id`, which
  *   the line after it carries too (ADR-0636 D2). A command Codex's sandbox refuses fires only this
  *   one, never PostToolUse (seen 2026-09-27 in Codex 0.155).
+ * - UserPromptSubmit carries the `prompt`: its line says the session's turn began, without the words.
  * - Stop fires when the agent finishes its turn, which closes a refused command.
  * - SessionEnd carries `reason`. Codex sends it only when a session shuts down, so a session whose
  *   end never comes goes idle instead (capability 4).
@@ -42,6 +43,8 @@ export function codexLines(input: Record<string, unknown>): HookLines | undefine
       return line(toolRequestedLine(common, input) ?? commandStartedLine(common, input));
     case "PostToolUse":
       return line(toolLine(common, input.tool_name, input.tool_input, input.tool_use_id) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response));
+    case "UserPromptSubmit":
+      return line({ ...common, kind: "prompt-submitted" });
     case "Stop":
       return line({ ...common, kind: "turn-ended" });
     default:

@@ -12,7 +12,7 @@
  * time fades; landing, releasing or its window closing takes the wisp away. Folded subagents and
  * lanes orbit only through their parent's wisp (ADR-0736 D4).
  */
-import { sessionsFrom, type Line } from "@storytree/agent-link/readings";
+import { claimsFrom, sessionsFrom, type Line } from "@storytree/agent-link/readings";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 /** One session's wisp round one island. */
@@ -28,8 +28,10 @@ export interface SessionWisp {
 
 /** The wisps the listed `rows` draw at time `now`: one per row and island, in list order. */
 export function sessionWisps(rows: readonly SessionRow[], lines: readonly Line[], now: Date, quietMs?: number): SessionWisp[] {
-  const quiet = new Set(sessionsFrom(lines, quietMs === undefined ? { now } : { now, quietMs })
-    .filter(session => session.state === "idle" && session.hooksRunning).map(session => session.session));
+  const judged = quietMs === undefined ? { now } : { now, quietMs };
+  // Faded by the claim's quiet time, as takeover judges it, never by a session waiting between turns (ADR-0754 D5).
+  const hooked = new Set(sessionsFrom(lines, judged).filter(session => session.hooksRunning).map(session => session.session));
+  const quiet = new Set(claimsFrom(lines, judged).filter(claim => claim.holder === "idle" && hooked.has(claim.session)).map(claim => claim.session));
   return rows.flatMap(row => row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id),
     phase: (hashOf(row.id) >>> 8) % 360, faded: quiet.has(row.id) })));
 }

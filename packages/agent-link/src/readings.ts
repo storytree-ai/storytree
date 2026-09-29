@@ -4,7 +4,11 @@
 import type { Line } from "./activity/index.js";
 export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity/index.js";
 
-/** The quiet time after which a session whose lines have stopped reads as idle: 30 minutes to start with. */
+/**
+ * The quiet time after which a session whose lines have stopped reads as waiting, when its hooks
+ * report no turns (hooks not running, or installed before ADR-0754 D5): 30 minutes to start with.
+ * A session whose hooks report its turns is never judged by it.
+ */
 export const QUIET_MS = 30 * 60 * 1000;
 
 /** The kinds of line that decide whether a session has a command running. */
@@ -17,11 +21,12 @@ export const COMMAND_KINDS = ["command-started", "command-run", "turn-ended", "s
 export const LONGEST_COMMAND_MS = 12 * 60 * 60 * 1000;
 
 /**
- * Live while its lines keep arriving, idle after the quiet time, ended once its end line arrives;
- * gone when no line has come for longer than a command may run (LONGEST_COMMAND_MS) and none said
- * it ended: it stopped reporting, as a window that crashed does, which is never read as an end.
+ * Working from a prompt until its turn ends, or while a command it started runs; waiting otherwise
+ * (ADR-0754 D5). Ended once its end line arrives; gone when no line has come for longer than a
+ * command may run (LONGEST_COMMAND_MS) and none said it ended: it stopped reporting, as a window
+ * that crashed does, which is never read as an end.
  */
-export type SessionState = "live" | "idle" | "ended" | "gone";
+export type SessionState = "working" | "waiting" | "ended" | "gone";
 
 /** One agent window, as the activity log shows it. */
 export interface Session {
@@ -47,7 +52,7 @@ export interface Session {
 export interface SessionOptions {
   /** The time to judge by. By default, now. */
   readonly now?: Date;
-  /** How long a session may be quiet before it reads as idle. By default, QUIET_MS in browser readings; the per-user setting in Node readers. */
+  /** How long a session whose hooks report no turns may be quiet before it reads as waiting. By default, QUIET_MS in browser readings; the per-user setting in Node readers. */
   readonly quietMs?: number;
 }
 
@@ -76,7 +81,7 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     const folder = (own.find((line) => line.kind === "session-started" && line.folder !== undefined) ?? own.find((line) => line.folder !== undefined))?.folder;
     const worktrees = [...new Set(own.flatMap((line) => (line.folder === undefined ? [] : [line.folder])))];
     const state: SessionState = latest.kind === "session-ended" ? "ended"
-      : now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone" : isQuiet(own, now, quietMs) ? "idle" : "live";
+      : now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone" : (turnState(own, now) ?? (isQuiet(own, now, quietMs) ? "waiting" : "working"));
     return {
       session,
       ...(harness === undefined ? {} : { harness }),
@@ -89,6 +94,23 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
       hooksRunning: own.some((line) => line.source === "hook"),
     };
   });
+}
+
+/**
+ * Whether a session, by its own lines `own` (oldest first), is working or waiting at `now` by its
+ * turns (ADR-0754 D5): working from a prompt until its turn ends, or while a command it started
+ * runs. A restart ends a turn its window never finished; compacting mid-turn does not. Undefined
+ * when its hooks have reported no prompt, so its turns are unknown.
+ */
+export function turnState(own: readonly Line[], now: number): "working" | "waiting" | undefined {
+  let prompted = false;
+  let inTurn = false;
+  for (const line of own) {
+    if (line.kind === "prompt-submitted") prompted = inTurn = true;
+    else if (line.kind === "turn-ended" || line.kind === "session-ended" || (line.kind === "session-started" && line.how !== "compact")) inTurn = false;
+  }
+  if (!prompted) return undefined;
+  return inTurn || commandRunning(own, now) ? "working" : "waiting";
 }
 
 /**
@@ -106,7 +128,7 @@ export function isQuiet(own: readonly Line[], now: number, quietMs: number): boo
  * Only its command-started, command-run, turn-ended, session-started and session-ended lines count,
  * so `own` may hold just those (COMMAND_KINDS). A command is running when it
  * started, has no finish line under its call's id, and was not closed since by the end of
- * its turn or of its session, or by a restart. The finish line may be written before the start line
+ * its turn (unless that turn left background tasks running) or of its session, or by a restart. The finish line may be written before the start line
  * (each is written by its own hook process), so a finish anywhere closes it.
  */
 export function commandRunning(own: readonly Line[], now: number): boolean {
@@ -114,7 +136,7 @@ export function commandRunning(own: readonly Line[], now: number): boolean {
   let running: number[] = [];
   for (const line of own) {
     if (line.kind === "command-started" && !finished.has(line.call)) running.push(Date.parse(line.at));
-    else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") running = [];
+    else if ((line.kind === "turn-ended" && !(line.background !== undefined && line.background > 0)) || line.kind === "session-started" || line.kind === "session-ended") running = [];
   }
   return running.some((startedAt) => now - startedAt <= LONGEST_COMMAND_MS);
 }

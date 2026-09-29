@@ -73,8 +73,13 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("command-started"), command: z.string(), call: z.string().min(1) }).strict(),
   /** A shell command that finished, whether it succeeded or failed: the call's id, where the harness gave one (lines written before ADR-0636 D2's fix carry none). */
   z.object({ ...common, kind: z.literal("command-run"), command: z.string(), call: z.string().min(1).optional() }).strict(),
-  /** The agent finished its turn: no command it started in that turn is still running. */
-  z.object({ ...common, kind: z.literal("turn-ended") }).strict(),
+  /** The user sent a prompt: the session works until its turn ends (ADR-0754 D5). The prompt's words are not kept. */
+  z.object({ ...common, kind: z.literal("prompt-submitted") }).strict(),
+  /**
+   * The agent finished its turn, with how many background tasks it left running, where the harness
+   * says (ADR-0754 D5). With none left running, no command it started in that turn still runs.
+   */
+  z.object({ ...common, kind: z.literal("turn-ended"), background: z.number().int().nonnegative().optional() }).strict(),
   /** A hook saw an agent ask for one of storytree's tools, before the call reached the tool server: the call's id, as the harness names it, and the agent asking. */
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),

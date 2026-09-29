@@ -7,7 +7,7 @@ import { isSessionRows, SessionsList } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
-const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "idle",
+const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
   needsYou: true, totalTokens: 120_000, stories: ["signup"], worktrees: [], children: [
     { id: "child", label: "Read the library", agent: "Subagent", state: "observed", needsYou: false,
       totalTokens: undefined, stories: [], worktrees: [], children: [] },

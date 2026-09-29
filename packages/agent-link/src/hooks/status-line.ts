@@ -68,7 +68,7 @@ async function lineFor(where: ConnectOptions, project: string, session: string, 
     for (const arc of tree.arcs) for (const increment of (await library.arcView(arc.id))?.increments ?? []) titles.set(increment.id, increment.fields.title);
 
     const held = claimsFrom(lines, { now: new Date(now), quietMs }).filter((claim) => claim.session === session);
-    const others = sessionsFrom(lines, { now: new Date(now), quietMs }).filter((other) => other.session !== session && other.state === "live");
+    const others = sessionsFrom(lines, { now: new Date(now), quietMs }).filter((other) => other.session !== session && other.state === "working");
     const parts = [
       "storytree",
       held.length === 0 ? "holds nothing" : `holds ${held.map((claim) => titles.get(claim.capability ?? claim.increment) ?? claim.capability ?? claim.increment).join(", ")}`,

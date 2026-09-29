@@ -7,7 +7,7 @@
  */
 import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
-import { surfaceOn } from "@storytree/app/surfaces";
+import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
 import { mountAppMenu } from "@storytree/app/view";
 import { mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
@@ -18,7 +18,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { attachPanZoom, openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type PanZoom, type TreeSpace } from "@storytree/forest/view";
+import { attachPanZoom, openForestView, mountArtifactCard, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
 import { renderNoProjects } from "../view/view.js";
 
 declare global {
@@ -111,6 +111,9 @@ async function showForest(name: string): Promise<void> {
   if (showing !== mine) return;
   const surfaces = read?.ok === true ? read.value : [];
   const withTree = surfaceOn(surfaces, "capability-tree");
+  // Each is one of the choices the forest declared, or undefined for its default (the app checks it).
+  const treeOpening = surfaceSetting(surfaces, "capability-tree", "opening-zoom") as TreeOpening | undefined;
+  const globeOpening = surfaceSetting(surfaces, "globe", "opening-zoom") as GlobeOpening | undefined;
   if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
   const history: Change[] = [];
   const lines: Line[] = [];
@@ -162,8 +165,8 @@ async function showForest(name: string): Promise<void> {
         chosen = id;
         showPanel();
         panel.querySelector<SVGGElement>(".panel-diagram .selected")?.focus({ preventScroll: true });
-      });
-      if (kept === undefined) moving.fit();
+      }, treeOpening);
+      if (kept === undefined) moving.open();
       else moving.place(kept);
       inPanel = { story: drilled.story, moving };
     }
@@ -181,6 +184,7 @@ async function showForest(name: string): Promise<void> {
       showPanel();
     },
     closed: () => panel.querySelector<HTMLButtonElement>("[data-open-tree]")?.focus(),
+    opening: treeOpening,
   });
   const core = createKnowledgeCore(name, { reads: window.storytree });
   const view = await openForestView(holder, (selection) => {
@@ -190,7 +194,7 @@ async function showForest(name: string): Promise<void> {
     if (selection?.kind === "note") document.body.dataset.note = selection.id;
     chosen = undefined;
     showPanel();
-  }, core, session => mine.sessions?.hover(session), { library: surfaceOn(surfaces, "library") });
+  }, core, session => mine.sessions?.hover(session), { library: surfaceOn(surfaces, "library"), opening: globeOpening });
   if (showing !== mine) return view.dispose();
   mine.view = view;
   // Sessions off is a quiet globe: no list, no wisps and no islands lit on hover.

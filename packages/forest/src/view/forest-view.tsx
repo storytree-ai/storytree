@@ -11,7 +11,8 @@ import { preloadKit } from "@storytree/forest-world/canvas";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { PlanetView } from "./planet-view.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
-import type { ForestMode } from "./planet-navigation.js";
+import { globeFraming, type ForestMode } from "./planet-navigation.js";
+import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export interface ForestView {
   /** Draw `scene`, recomputing only the islands that changed since the last one. */
@@ -42,10 +43,11 @@ interface Drawn {
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
  * `onWispHover` hears the session whose wisp the pointer is over, or undefined when it leaves.
- * With `library` off (ADR-0750) the globe stays solid and has no Forest and Library buttons.
+ * With `library` off (ADR-0750) the globe stays solid and has no Forest and Library buttons;
+ * `opening` is how close it opens.
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
-  onWispHover: (session: string | undefined) => void = () => {}, { library = true }: { library?: boolean } = {}): Promise<ForestView> {
+  onWispHover: (session: string | undefined) => void = () => {}, { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {
@@ -60,7 +62,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     root.render(<>
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
         selected={drawn.selected} highlighted={drawn.highlighted} highlightedSession={drawn.highlightedSession}
-        onPick={pick} onNote={pickNote} onWispHover={onWispHover} mode={drawn.mode} />
+        onPick={pick} onNote={pickNote} onWispHover={onWispHover} mode={drawn.mode} framing={globeFraming(opening)} />
       {library && <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>

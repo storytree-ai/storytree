@@ -3,13 +3,36 @@
  * name, one line on what it is, whether it can be switched off, and its own settings. Plain data, so
  * the app, the desktop frame and the command line can all read it without a browser.
  */
+
+/** The globe's opening views: how much of the window's short side the planet fills. */
+export const GLOBE_OPENINGS = [
+  { id: "whole-planet", name: "Whole planet" },
+  { id: "close", name: "Close up" },
+  { id: "far", name: "With room around" },
+] as const;
+export type GlobeOpening = (typeof GLOBE_OPENINGS)[number]["id"];
+
+/** The capability tree's opening views, in the panel and in its larger window alike. */
+export const TREE_OPENINGS = [
+  { id: "whole-tree", name: "Whole tree" },
+  { id: "full-size", name: "Full size" },
+  { id: "close", name: "Close up" },
+] as const;
+export type TreeOpening = (typeof TREE_OPENINGS)[number]["id"];
+
 export const forestSurfaces = [
   {
     id: "globe",
     name: "Forest globe",
     description: "The planet of your project: one island per story, where you pick a story to open.",
     switchable: false,
-    settings: [],
+    settings: [{
+      id: "opening-zoom",
+      name: "Opening zoom",
+      meaning: "How close the globe opens: the whole planet (most of the window), close up, or with room around it.",
+      default: "whole-planet",
+      choices: GLOBE_OPENINGS,
+    }],
   },
   {
     id: "library",
@@ -31,7 +54,13 @@ export const forestSurfaces = [
     name: "Capability tree",
     description: "The story's capabilities as a tree you can move and zoom, in the panel and in its larger window.",
     switchable: true,
-    settings: [],
+    settings: [{
+      id: "opening-zoom",
+      name: "Opening zoom",
+      meaning: "How the tree opens, in the panel and in its larger window: the whole tree fitted (never above full size nor below 30%), full size, or close up, from its top.",
+      default: "whole-tree",
+      choices: TREE_OPENINGS,
+    }],
   },
   {
     id: "capability-details",

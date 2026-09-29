@@ -14,6 +14,11 @@ export const SURFACES_CHANNELS = {
   saveSurface: "storytree:save-surface",
 } as const;
 
+/** The value of surface `id`'s `setting` in `readings`, undefined when the list does not name it. */
+export function surfaceSetting(readings: readonly SurfaceReading[], id: string, setting: string): string | undefined {
+  return readings.find((surface) => surface.id === id)?.settings.find((each) => each.id === setting)?.value;
+}
+
 /** Whether surface `id` is on in `readings`; one the list does not name is on. */
 export function surfaceOn(readings: readonly SurfaceReading[], id: string): boolean {
   return readings.find((surface) => surface.id === id)?.on ?? true;

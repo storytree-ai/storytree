@@ -6,6 +6,7 @@
  * reach. A card pressed and released without a drag is a click, and chooses it. Both spaces open
  * with the whole tree fitted in the frame (ADR-0744: the owner found full size too close).
  */
+import type { TreeOpening } from "../surfaces/surfaces.js";
 
 export interface View {
   x: number;
@@ -29,6 +30,8 @@ export interface PanZoom {
   place(view: View): void;
   /** Fit the whole tree in the frame, centred (`fitted`). */
   fit(): void;
+  /** Place the tree as its opening zoom says (`opening`). */
+  open(): void;
   stop(): void;
 }
 
@@ -43,7 +46,7 @@ const DRAG = 4;
  * Let `frame` move `surface`, which holds the tree's SVG at 1 unit to 1 pixel and may be redrawn;
  * `choose` hears a card clicked or keyed. Place it with `fit` or `place` once the tree is drawn.
  */
-export function attachPanZoom(frame: HTMLElement, surface: HTMLElement, choose: (id: string) => void): PanZoom {
+export function attachPanZoom(frame: HTMLElement, surface: HTMLElement, choose: (id: string) => void, openAs: TreeOpening | undefined = "whole-tree"): PanZoom {
   let view: View = { x: 0, y: 0, scale: 1 };
 
   const size = (): Size => {
@@ -130,6 +133,10 @@ export function attachPanZoom(frame: HTMLElement, surface: HTMLElement, choose: 
       write();
     },
     fit,
+    open() {
+      view = opening(openAs, size(), { width: frame.clientWidth, height: frame.clientHeight });
+      write();
+    },
     stop() {
       resized.disconnect();
     },
@@ -144,6 +151,17 @@ export function fitted(tree: Size, frame: Size): View {
   const fits = tree.width > 0 && tree.height > 0 ? Math.min(frame.width / tree.width, frame.height / tree.height) : 1;
   const scale = Math.min(1, Math.max(MIN_SCALE, fits));
   return { x: (frame.width - tree.width * scale) / 2, y: (frame.height - tree.height * scale) / 2, scale };
+}
+
+/**
+ * The view a tree opens at (ADR-0750): the whole tree `fitted`, as it always has by default; or at
+ * full size or close up, from its top and centred, or wholly centred when it is smaller than the frame.
+ */
+export function opening(choice: TreeOpening, tree: Size, frame: Size): View {
+  if (choice === "whole-tree") return fitted(tree, frame);
+  const scale = choice === "close" ? 1.5 : 1;
+  const across = (content: number, room: number) => (room - content * scale) / 2;
+  return { x: across(tree.width, frame.width), y: tree.height * scale > frame.height ? 0 : across(tree.height, frame.height), scale };
 }
 
 /** `view` zoomed by `by` about a point of the frame, keeping the point under it where it was. */

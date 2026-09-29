@@ -5,8 +5,17 @@ import { edgeMarkers, PLANET_RADIUS, turnToIsland, type FacingIsland, type Fores
 import { placeOnPackedGlobe } from "@storytree/forest";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
+import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export type ForestMode = "forest" | "library";
+
+/**
+ * How many radii half the window's short side spans as the globe opens (ADR-0750): 1.18 for the
+ * whole planet, so it fills 85% of the short side as it always has; less close up, more with room around.
+ */
+export function globeFraming(choice: GlobeOpening): number {
+  return choice === "close" ? 0.8 : choice === "far" ? 1.7 : 1.18;
+}
 
 export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
   const islands: FacingIsland[] = scene.islands.map(island => {

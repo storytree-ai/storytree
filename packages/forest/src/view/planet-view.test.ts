@@ -6,7 +6,7 @@ import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, placeOnGlobe, PLANET_RADIUS, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { focusRotation, hiddenMarkers, pickIsland, planetLayout } from "./planet-navigation.js";
+import { focusRotation, globeFraming, hiddenMarkers, pickIsland, planetLayout } from "./planet-navigation.js";
 
 test("the globe opens every story with its grove at its permanent place, readable by the smoke check", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -91,4 +91,11 @@ test("Forest never hides a failing island; only an explicit Library choice suppr
   const focused = focusRotation(marker!.turn, eye);
   const facing = new Vector3(0, 0, -1).applyQuaternion(focused);
   assert.ok(facing.z > 0.999999, "the marker still turns the failure into view");
+});
+
+test("the globe's opening zoom: the whole planet fills 85% of the short side by default, as today; close up fills more, room around less (ADR-0750)", () => {
+  const fills = (choice: Parameters<typeof globeFraming>[0]) => 1 / globeFraming(choice);
+  assert.equal(globeFraming("whole-planet"), 1.18, "today's framing: half the short side is 1.18 radii");
+  assert.ok(fills("close") > 1, "close up: the planet runs past the short side");
+  assert.ok(fills("far") < 0.7, "room around: the planet stands well inside the window");
 });

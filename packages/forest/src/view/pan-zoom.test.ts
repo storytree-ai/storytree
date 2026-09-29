@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { bounded, fitted } from "./pan-zoom.js";
+import { bounded, fitted, opening } from "./pan-zoom.js";
 
 test("4.11 both spaces open with the whole tree fitted in the frame and centred, never larger than full size nor smaller than the least zoom", () => {
   assert.deepEqual(fitted({ width: 1000, height: 400 }, { width: 500, height: 400 }), { x: 0, y: 100, scale: 0.5 }, "a wide tree: its width fills the frame, centred top to bottom");
@@ -18,4 +18,13 @@ test("4.11 however far it is dragged, some of the tree stays in the space", () =
   const tree = { width: 1000, height: 400 };
   const frame = { width: 400, height: 360 };
   assert.deepEqual(bounded({ x: 5000, y: -5000, scale: 1 }, tree, frame), { x: 304, y: -304, scale: 1 });
+});
+
+test("the tree's opening zoom: the whole tree fitted by default, as today; full size or close up open on the tree's top, centred (ADR-0750)", () => {
+  const tree = { width: 1000, height: 1200 };
+  const frame = { width: 500, height: 400 };
+  assert.deepEqual(opening("whole-tree", tree, frame), fitted(tree, frame));
+  assert.deepEqual(opening("full-size", tree, frame), { x: -250, y: 0, scale: 1 });
+  assert.deepEqual(opening("close", tree, frame), { x: -500, y: 0, scale: 1.5 });
+  assert.deepEqual(opening("full-size", { width: 200, height: 100 }, frame), { x: 150, y: 150, scale: 1 }, "a tree smaller than the frame is centred");
 });

@@ -9,7 +9,7 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { contextReading, idleAfterMs, openActivityLog, sessionWindow, type ActivityLog, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
+import { idleAfterMs, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Hold, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -29,11 +29,11 @@ export interface PageReads {
   arcView(project: unknown, id: unknown): Promise<ArcView | null>;
   waitHolds(project: unknown, id: unknown): Promise<Hold[]>;
   heldOnQuestion(project: unknown, id: unknown): Promise<string[]>;
-  /** Each named session's context reading in a project (agent link 9.5), read now from the transcript its hooks named, in the order asked. */
+  /** Each named session's context reading in a project (agent link 9.5), parsed now from the transcript records its hooks streamed into the shared log (ADR-0749 D3), in the order asked. */
   contextReadings(project: unknown, sessions: unknown): Promise<ContextReading[]>;
   /** The user's idle-after setting in milliseconds (agent link 10), read now: how long a session may be quiet before the list shows it idle. */
   idleAfterMs(): Promise<number>;
-  /** A session's window in a project (agent link 9.10), read now from the transcript its hooks named. */
+  /** A session's window in a project (agent link 9.10), parsed now from the transcript records in the shared log. */
   windowReading(project: unknown, session: unknown): Promise<SessionWindow>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;
@@ -78,6 +78,8 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       opening.catch(() => {
         if (log === opening) log = undefined;
       });
+      // Once an app start: raw transcript records past their 180 days go, their readings kept (ADR-0749 D4). The next start retries a failure.
+      opening.then((opened) => pruneTranscripts(opened)).catch(() => {});
     }
     return log;
   }
@@ -98,15 +100,17 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
     contextReadings: async (name, sessions) => {
       const known = await project(name);
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
-      const { lines } = await (await activityLog()).since(known, 0);
-      return Promise.all(sessions.map((session: string) => contextReading(lines, session)));
+      const opened = await activityLog();
+      const { lines } = await opened.since(known, 0);
+      return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session)));
     },
     idleAfterMs: async () => idleAfterMs(),
     windowReading: async (name, session) => {
       const known = await project(name);
       if (typeof session !== "string") throw new Error("session must be a session id");
-      const { lines } = await (await activityLog()).since(known, 0);
-      return sessionWindow(lines, session);
+      const opened = await activityLog();
+      const { lines } = await opened.since(known, 0);
+      return storedSessionWindow(opened, known, lines, session);
     },
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];

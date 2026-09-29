@@ -24,6 +24,7 @@ import { z } from "zod";
 import type { Storytree } from "@storytree/library";
 
 import { NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine } from "./lines.js";
+import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, type TranscriptRecords } from "./transcript-records.js";
 
 /** The database the log lives in, on the same server as the projects' libraries. */
 export const ACTIVITY_DATABASE = "storytree-activity";
@@ -40,6 +41,8 @@ export interface ActivityLog {
    * who holds a capability and takes it in one step (capability 5).
    */
   locked<T>(project: string, work: (log: LockedLog) => Promise<T>): Promise<T>;
+  /** Sessions' transcripts as their hooks streamed them in, scrubbed (ADR-0749 D3): kept beside the lines, on the same connection. */
+  readonly transcripts: TranscriptRecords;
   /** Close the log's connections. */
   close(): Promise<void>;
 }
@@ -82,6 +85,7 @@ const SCHEMA: readonly string[] = [
     detail  jsonb NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS activity_project_seq_idx ON activity (project, seq)`,
+  ...TRANSCRIPT_SCHEMA,
 ];
 
 /** The fields every line has its own column for; the rest of a line is its `detail`. */
@@ -153,10 +157,13 @@ class PgActivityLog implements ActivityLog {
   readonly #ownsPool: boolean;
 
   /** `ownsPool` false: the pool is a library connection's, which ends it. */
+  readonly transcripts: TranscriptRecords;
+
   constructor(pool: Pool, machine: string | undefined, ownsPool = true) {
     this.#pool = pool;
     this.#machine = machine;
     this.#ownsPool = ownsPool;
+    this.transcripts = new PgTranscriptRecords(pool);
   }
 
   async append(project: string, line: NewLine): Promise<Line> {

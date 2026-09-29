@@ -33,6 +33,9 @@ export interface MergedPull {
 /** The merged pull requests from `branch`, asked of GitHub from the project's `folder`. */
 export type MergedPulls = (folder: string, branch: string) => Promise<MergedPull[]>;
 
+/** Every merged pull request of the project's repository, by the branch it came from, asked of GitHub from the project's `folder`. */
+export type AllMergedPulls = (folder: string) => Promise<Map<string, MergedPull[]>>;
+
 /** How merges are watched for. */
 export interface MergeWatch {
   /** How to ask GitHub. By default, through `gh`. */
@@ -105,6 +108,28 @@ export const mergedPullsThrough = (command: string, prefix: readonly string[] = 
   } catch {
     return [];
   }
+};
+
+/** How many merged pull requests one look reads, newest first, and how long `gh` may take to list them. */
+const ALL_LIMIT = 1_000;
+const ALL_TIMEOUT_MS = 10_000;
+
+/** Every merged pull request, by its branch, in one call to `gh`: nothing when `gh` is missing, signed out or slow. */
+export const ghAllMergedPulls: AllMergedPulls = async (folder) => {
+  const args = ["pr", "list", "--state", "merged", "--json", "number,mergedAt,headRefName", "--limit", String(ALL_LIMIT)];
+  const answer = await ask("gh", args, process.env, ALL_TIMEOUT_MS, { cwd: folder, shell: false });
+  const byBranch = new Map<string, MergedPull[]>();
+  if (!answer.answered || answer.code !== 0) return byBranch;
+  try {
+    const pulls = JSON.parse(answer.out) as unknown;
+    for (const pull of Array.isArray(pulls) ? pulls : []) {
+      if (typeof pull?.number !== "number" || typeof pull?.mergedAt !== "string" || typeof pull?.headRefName !== "string") continue;
+      byBranch.set(pull.headRefName, [...(byBranch.get(pull.headRefName) ?? []), { number: pull.number, mergedAt: pull.mergedAt }]);
+    }
+  } catch {
+    // Not what gh prints: no merge seen.
+  }
+  return byBranch;
 };
 
 /** Whether `project` is due to be asked about again, and if so, mark it asked now. */

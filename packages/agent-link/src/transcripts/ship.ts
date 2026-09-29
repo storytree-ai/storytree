@@ -4,7 +4,8 @@
  * file, and each subagent's (`<transcript without .jsonl>/subagents/agent-<id>.jsonl`), stored
  * under the parent session by the subagent's id. Only whole records go, each scrubbed (D4); a
  * record still being written waits for the next hook. Where each file is up to is read from the
- * store, so a hook keeps no state of its own and a record is never stored twice.
+ * store, so a hook keeps no state of its own and a record is never stored twice. (A session still
+ * working when its oldest records expire, 180 days in, would ship its file again from the start.)
  */
 import { open, readdir } from "node:fs/promises";
 import path from "node:path";

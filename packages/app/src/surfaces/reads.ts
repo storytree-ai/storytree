@@ -9,7 +9,7 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { idleAfterMs, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
+import { idleAfterMs, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Hold, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -51,6 +51,8 @@ export interface PageReadsOptions {
  */
 export function pageReads({ storytree }: PageReadsOptions): PageReads {
   const libraries = new Map<string, Promise<Library>>();
+  /** What the page's reads already fetched of each session's stored transcript: each ask fetches only what was stored since. */
+  const transcripts: TranscriptCache = new Map();
   let log: Promise<ActivityLog> | undefined;
 
   /** `name`, if it is a project the library has; refused otherwise. */
@@ -102,7 +104,7 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
       const opened = await activityLog();
       const { lines } = await opened.since(known, 0);
-      return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session)));
+      return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session, { cache: transcripts })));
     },
     idleAfterMs: async () => idleAfterMs(),
     windowReading: async (name, session) => {
@@ -110,7 +112,7 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       if (typeof session !== "string") throw new Error("session must be a session id");
       const opened = await activityLog();
       const { lines } = await opened.since(known, 0);
-      return storedSessionWindow(opened, known, lines, session);
+      return storedSessionWindow(opened, known, lines, session, { cache: transcripts });
     },
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];

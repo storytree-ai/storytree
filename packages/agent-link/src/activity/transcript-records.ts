@@ -53,6 +53,8 @@ export interface TranscriptRecords {
   store(project: string, session: string, records: readonly TranscriptRecord[]): Promise<void>;
   /** A part of a session's transcript as stored (by default its own), one record per line in file order; undefined when none is. */
   text(project: string, session: string, part?: string): Promise<string | undefined>;
+  /** The records of a session's own transcript that start at or after byte `from`, in file order, and the byte past the last. */
+  since(project: string, session: string, from: number): Promise<{ records: string[]; finish: number }>;
   /** The sessions with a record stored before `before`. */
   storedBefore(before: Date): Promise<StoredSession[]>;
   /** Delete every record stored before `before`, and say how many went. */
@@ -94,6 +96,14 @@ export class PgTranscriptRecords implements TranscriptRecords {
       [project, session, part],
     );
     return rows.length === 0 ? undefined : rows.map((row) => row.record).join("\n");
+  }
+
+  async since(project: string, session: string, from: number): Promise<{ records: string[]; finish: number }> {
+    const { rows } = await this.#pool.query<{ record: string; finish: string }>(
+      "SELECT record, finish FROM transcript_records WHERE project = $1 AND session = $2 AND part = '' AND start >= $3 ORDER BY start",
+      [project, session, from],
+    );
+    return { records: rows.map((row) => row.record), finish: rows.length === 0 ? from : Number(rows.at(-1)!.finish) };
   }
 
   async storedBefore(before: Date): Promise<StoredSession[]> {

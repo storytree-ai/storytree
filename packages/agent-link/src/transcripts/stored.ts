@@ -17,25 +17,45 @@ interface Kept {
   readonly window: SessionWindow;
 }
 
-/** A reader of `session`'s own transcript as stored in `project`'s log. */
-function storedReader(log: ActivityLog, project: string, session: string): TranscriptReader {
-  return () => log.transcripts.text(project, session);
+/**
+ * What a reader that asks again and again (the app, every 10 seconds) already has of each session's
+ * stored transcript, so each ask fetches only the records stored since.
+ */
+export type TranscriptCache = Map<string, { records: string[]; finish: number }>;
+
+/** A reader of `session`'s own transcript as stored in `project`'s log, through `cache` when given. */
+function storedReader(log: ActivityLog, project: string, session: string, cache?: TranscriptCache): TranscriptReader {
+  if (cache === undefined) return () => log.transcripts.text(project, session);
+  return async () => {
+    const key = `${project}\0${session}`;
+    const had = cache.get(key) ?? { records: [], finish: 0 };
+    const added = await log.transcripts.since(project, session, had.finish);
+    const now = { records: [...had.records, ...added.records], finish: added.finish };
+    cache.set(key, now);
+    return now.records.length === 0 ? undefined : now.records.join("\n");
+  };
+}
+
+interface StoredOptions {
+  readonly now?: Date;
+  readonly home?: string;
+  readonly cache?: TranscriptCache;
 }
 
 /** `session`'s context reading, parsed from its stored records; what was kept, once they expired. */
 export async function storedContextReading(log: ActivityLog, project: string, lines: readonly Line[], session: string,
-  { now, home }: { now?: Date; home?: string } = {}): Promise<ContextReading> {
+  { now, home, cache }: StoredOptions = {}): Promise<ContextReading> {
   const kept = (await log.transcripts.kept(project, session)) as Kept | undefined;
   if (kept !== undefined) return kept.context;
-  return contextReading(lines, session, { ...(now === undefined ? {} : { now }), ...(home === undefined ? {} : { home }), read: storedReader(log, project, session) });
+  return contextReading(lines, session, { ...(now === undefined ? {} : { now }), ...(home === undefined ? {} : { home }), read: storedReader(log, project, session, cache) });
 }
 
 /** `session`'s window, parsed from its stored records; what was kept, once they expired. */
 export async function storedSessionWindow(log: ActivityLog, project: string, lines: readonly Line[], session: string,
-  { now }: { now?: Date } = {}): Promise<SessionWindow> {
+  { now, cache }: StoredOptions = {}): Promise<SessionWindow> {
   const kept = (await log.transcripts.kept(project, session)) as Kept | undefined;
   if (kept !== undefined) return kept.window;
-  return sessionWindow(lines, session, { ...(now === undefined ? {} : { now }), read: storedReader(log, project, session) });
+  return sessionWindow(lines, session, { ...(now === undefined ? {} : { now }), read: storedReader(log, project, session, cache) });
 }
 
 /**

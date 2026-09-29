@@ -1,0 +1,3 @@
+tool calls: 1
+storytree tool calls: 0
+hook context mentioning set up: 0

@@ -1,0 +1,6 @@
+Codex: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.
+rc=0 
+Name       Command                                                                             Args                                                                                         Env  Cwd  Status   Auth       
+storytree  C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\node.exe  C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp.mjs  -    -    enabled  Unsupported
+hooks.json present

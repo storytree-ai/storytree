@@ -1,0 +1,63 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Create a f ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\Codex Not A Project
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0ed2a-98bc-7db1-a4ed-75a8d1279ecf
+--------
+user
+Create a file named hello.txt containing the word hi.
+hook: SessionStart
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+IÔÇÖll create `hello.txt` containing `hi`.
+
+apply patch
+patch: completed
+C:\Users\mickh\Codex Not A Project\hello.txt
+diff --git a/hello.txt b/hello.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..45b983be36b73c0788dc9cbcb76cbb80fc7bb057
+--- /dev/null
++++ b/hello.txt
+@@ -0,0 +1 @@
++hi
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/hello.txt b/hello.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..45b983be36b73c0788dc9cbcb76cbb80fc7bb057
+--- /dev/null
++++ b/hello.txt
+@@ -0,0 +1 @@
++hi
+
+codex
+Created [hello.txt](</C:/Users/mickh/Codex Not A Project/hello.txt>) containing `hi`.
+diff --git a/hello.txt b/hello.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..45b983be36b73c0788dc9cbcb76cbb80fc7bb057
+--- /dev/null
++++ b/hello.txt
+@@ -0,0 +1 @@
++hi
+
+hook: Stop
+hook: Stop Completed
+tokens used
+4,726
+Created [hello.txt](</C:/Users/mickh/Codex Not A Project/hello.txt>) containing `hi`.

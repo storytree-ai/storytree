@@ -27,7 +27,7 @@ async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects
 }
 
 test("1.7 / 3.4: a chosen folder becomes a project (created if missing, suggested its own name); one already a project is said and nothing is created; a refused name or folder leaves nothing", async (t) => {
-  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-add-project-")));
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-add-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const token = randomBytes(4).toString("hex");
   const name = `my-site-${token}`;

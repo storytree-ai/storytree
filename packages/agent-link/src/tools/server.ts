@@ -35,7 +35,7 @@ import type { z } from "zod";
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
 import { endMergedClaims, type MergeWatch } from "../claims/index.js";
 import { habitsCard } from "../instructions/index.js";
-import { findProject, locateStorytree, route } from "../routing/index.js";
+import { findProject, locateStorytree, recordTrunkOnSight, route } from "../routing/index.js";
 import { idleAfterMs } from "../settings/settings.js";
 import type { SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result, type Answer } from "./answers.js";
@@ -129,6 +129,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const ownSession = `storytree-mcp-${randomUUID()}`;
   const locate = options.dataDir === undefined ? {} : { dataDir: options.dataDir };
   const callerOf = (context: ServerContext): Caller => callerFrom(server, context, env, ownSession);
+  // The first call that reaches the library records where the project lives on this machine (ADR-0757).
+  let sighted: Promise<unknown> | undefined;
 
   const define: Define = (name, description, input, act) => {
     servedTools.push(name);
@@ -140,6 +142,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       try {
         let quietMs = options.quietMs;
         const { library, log } = await connections.reach(where.library, where.project);
+        await (sighted ??= connections.server(where.library).then((storytree) => recordTrunkOnSight(storytree, where.project, where.folder, options.setup?.storytreeHome)).catch(() => undefined));
         // What the hooks have written, the one run just before this call included (ADR-0629 D2).
         const { lines } = await log.since(where.project, 0);
         const caller = seenCaller(lines, callerOf(context), meta);

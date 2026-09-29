@@ -134,6 +134,17 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   return { project, marker };
 }
 
+/**
+ * Record where `project` lives on this machine the first time it is seen from `folder` (a folder
+ * routed to it): the main checkout, when `folder` is in a git worktree. A project set up before
+ * trunks were recorded (ADR-0757) keeps working and gains its record. It never refuses and never
+ * moves a trunk already recorded: true only when it recorded one.
+ */
+export async function recordTrunkOnSight(storytree: Storytree, project: string, folder: string, home: string = storytreeHome()): Promise<boolean> {
+  const machine = machineOf(home);
+  return registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: canonical(inMainCheckout(canonical(folder))) });
+}
+
 /** A name to suggest for `folder` as a new project: its own name, or the first of name-2, name-3… no project has. */
 export async function suggestProjectName(folder: string, storytree: Storytree): Promise<string> {
   return unusedName(suggestedName(folder), await storytree.listProjects());

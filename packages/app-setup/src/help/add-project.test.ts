@@ -9,7 +9,7 @@ import pg from "pg";
 import { setupHelpActions } from "./actions.js";
 
 test("3.4 Add project: the picked folder becomes a project under its own name (kept apart from an existing one of that name) and is shown; a folder already a project is simply selected; cancelling does nothing", async (t) => {
-  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-app-add-project-")));
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-app-add-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
   const token = randomBytes(4).toString("hex");

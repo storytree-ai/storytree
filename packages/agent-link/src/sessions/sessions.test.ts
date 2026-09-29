@@ -190,7 +190,7 @@ test("4.9 who is listed (ADR-0754 D4): a session holding unmerged work stays lis
     // The quiet time counts from the resolution when that came after the session's last line.
     const late = { ...CLAUDE, session: "late", folder: "/work/site/.claude/worktrees/late", branch: "claude/late" } as const;
     const worked = await log.append(project, { ...late, kind: "turn-ended" });
-    const resolved = await log.append(project, { ...observer, kind: "branch-state", of: "claude/late", open: false, how: "not-ahead" });
+    const resolved = await log.append(project, { ...observer, kind: "branch-state", of: "claude/late", open: false, how: "not-ahead" }, { at: new Date(Date.parse(worked.at) + 60_000).toISOString() });
     assert.equal((await listing("late", after(worked, LEAVE_MS + 1)))?.listing, "listed", "resolved only later");
     assert.equal((await listing("late", after(resolved, LEAVE_MS + 1)))?.listing, "hidden");
     await log.append(project, { ...observer, kind: "branch-state", of: "claude/late", open: true, how: "ahead" });

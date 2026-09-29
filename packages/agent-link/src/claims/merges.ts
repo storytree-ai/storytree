@@ -108,7 +108,7 @@ export const mergedPullsThrough = (command: string, prefix: readonly string[] = 
 };
 
 /** Whether `project` is due to be asked about again, and if so, mark it asked now. */
-function due(project: string, everyMs: number): boolean {
+export function due(project: string, everyMs: number): boolean {
   if (everyMs <= 0) return true;
   const stamp = path.join(tmpdir(), `storytree-merges-${project}.stamp`);
   try {

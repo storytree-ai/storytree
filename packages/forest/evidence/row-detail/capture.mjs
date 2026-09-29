@@ -81,7 +81,9 @@ try {
   const detail = list.locator('.session-detail');
   await detail.locator('.session-detail-files li').first().waitFor();
   const text = await detail.innerText();
-  for (const tree of trees) assert.ok(text.includes(tree), `lists ${tree}`);
+  assert.ok(text.includes('Worktrees') && text.includes('Files'), 'labels both blocks');
+  assert.deepEqual(await detail.locator('.session-detail-worktrees li').evaluateAll(items => items.map(item => [item.textContent, item.title])),
+    trees.map(tree => [path.basename(tree), tree]), 'each worktree by its folder name, its full path on hover');
   assert.equal(await detail.locator('.session-detail-files li').count(), opened.length);
   assert.equal(await detail.locator('li[data-resident="no"]').count(), 1);
   await list.locator(`.session-row[data-session-id="${ids.helper}"]`).waitFor();

@@ -22,7 +22,8 @@
 .session-children-toggle::before { content:"▸"; display:inline-block; width:9px; }
 .session-children-toggle[aria-expanded="true"]::before { content:"▾"; }
 .session-detail { margin:1px 0 6px 20px; padding-left:8px; border-left:1px solid #3d4748; font-size:11px; line-height:1.5; color:#b3bdb9; }
-.session-detail ul + ul { margin-top:4px; }
+.session-detail ul + .session-detail-label { margin-top:4px; }
+.sessions-list .session-detail-label { margin:0; font-size:10px; color:#7f8a87; }
 .session-detail li { overflow-wrap:anywhere; }
 .session-detail-worktrees li { color:#d9dedb; }
 .session-detail-files li[data-resident="no"] { opacity:.5; }

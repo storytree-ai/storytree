@@ -198,11 +198,17 @@ function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
   return next;
 }
 
-/** An expanded row's detail (7.8): the full path of each worktree, then the files in its window. */
+/** A worktree's folder name, the trunk's too, from its full path on any platform. */
+const folderName = (path: string): string => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
+
+/** An expanded row's detail (7.8): each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
 function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
   return <div className="session-detail">
-    {row.worktrees.length > 0 && <ul className="session-detail-worktrees" aria-label="Worktrees">
-      {row.worktrees.map(path => <li key={path}>{path}</li>)}</ul>}
+    {row.worktrees.length > 0 && <>
+      <p className="session-detail-label">Worktrees</p>
+      <ul className="session-detail-worktrees" aria-label="Worktrees">
+        {row.worktrees.map(path => <li key={path} title={path}>{folderName(path)}</li>)}</ul></>}
+    <p className="session-detail-label">Files</p>
     {files === undefined ? <p className="session-detail-note">Reading files…</p>
       : "absent" in files ? <p className="session-detail-note">No files: {files.absent}</p>
       : files.files.length === 0 ? <p className="session-detail-note">No files opened</p>

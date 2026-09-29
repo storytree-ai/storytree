@@ -4,7 +4,7 @@ import type { SetupReport } from "./setup.js";
 import type { AppReading } from "../sessions/app-records.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
+  readonly check: "storytree" | "hooks" | "codex-server" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -12,7 +12,7 @@ export interface SetupLine {
 }
 
 export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
-  const { storytree, hooks, command, gh, machine, project } = report;
+  const { storytree, hooks, codexServer, command, gh, machine, project } = report;
   const lines: SetupLine[] = [storytree.state === "not running"
     ? { check: "storytree", state: "needs-attention", message: storytree.message, fix: "Open the storytree app and run the setup check again." }
     : { check: "storytree", state: storytree.state === "opened" ? "fixed" : "ok", message: storytree.state === "opened" ? "storytree was closed, so it has been opened." : "storytree is running." }];
@@ -24,8 +24,9 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
     const registered = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered");
     // Name only the harnesses whose hooks are in place: not one that is not on this machine or was disconnected.
     const present = (["claude-code", "codex"] as const).filter((harness) => hooks[harness] === "registered" || hooks[harness] === "already registered");
+    const replaced = [...new Set(Object.values(hooks.replaced ?? {}).flat())];
     lines.push({ check: "hooks", state: registered.length > 0 ? "fixed" : "ok", message: registered.length > 0
-      ? `storytree's hooks were registered for ${registered.map(name).join(" and ")}.`
+      ? `storytree's hooks were registered for ${registered.map(name).join(" and ")}${replaced.length > 0 ? `, replacing another build's hooks, which ran ${replaced.join(" and ")}` : ""}.`
       : present.length > 0
         ? `storytree's hooks are registered for ${present.map(name).join(" and ")}; receiving them is verified inside a session.`
         : "No harness here has storytree's hooks: neither Claude Code nor Codex is on this machine and connected." });
@@ -40,6 +41,15 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
         ? "The user has a Claude Code status line of their own, so storytree's was not installed: storytree never replaces it."
         : "storytree's status line is installed in Claude Code." });
   }
+
+  if (codexServer !== undefined) lines.push(codexServer.state === "registered"
+    ? { check: "codex-server", state: "ok", message: "Codex has storytree's tool server." }
+    : {
+        check: "codex-server",
+        state: "needs-attention",
+        message: `Codex has no storytree tool server ([mcp_servers.storytree] in ${codexServer.config}), so Codex sessions get no storytree tools.`,
+        fix: "Run `storytree setup connect --codex`, then start a new Codex session.",
+      });
 
   switch (command) {
     case "installed":

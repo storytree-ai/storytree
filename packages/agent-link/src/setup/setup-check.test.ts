@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -204,9 +204,12 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     assert.ok(runsFor(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code").PostToolUseFailure?.[0], "PowerShell", true), "the older install now hears PowerShell");
     removeHooks(home.homes);
 
-    // A registration from an older install, at another path, is replaced rather than doubled.
-    registerHooks(home.homes, { ...HOOK, script: path.join(dir, "old", "storytree-hook.mjs") });
-    registerHooks(home.homes, HOOK);
+    // A registration from an older install, at another path, is replaced rather than doubled, and the check names the path it replaced.
+    const old = path.join(dir, "old", "storytree-hook.mjs");
+    registerHooks(home.homes, { ...HOOK, script: old });
+    const moved = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.deepEqual(moved.hooks?.replaced, { "claude-code": [old], codex: [old] });
+    assert.ok(moved.lines.find((line) => line.check === "hooks")?.message.includes(old), JSON.stringify(moved.lines));
     assert.deepEqual(Object.keys(storytreeHooks(readJson(home.claudeSettings), path.join(dir, "old", "storytree-hook.mjs"), "claude-code")), []);
     assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code")).length, 7);
   });
@@ -591,6 +594,45 @@ test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS);
     assert.equal(existsSync(home.codexHooks), false);
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
+  });
+});
+
+test("8.11 a Codex installed only as its desktop app, off the PATH, is found where the app keeps it or where Codex's config names it (regression: the owner's Windows laptop, 2026-09-29)", async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    const codexHome = path.join(dir, ".codex");
+    for (const folder of [bin, codexHome]) mkdirSync(folder, { recursive: true });
+    // Codex's CLI stand-in is a Node: `--version` answers, and `login status` fails as a signed-out Codex does.
+    const desktopCodex = (file: string): string => {
+      mkdirSync(path.dirname(file), { recursive: true });
+      if (process.platform === "win32") copyFileSync(process.execPath, file);
+      else symlinkSync(process.execPath, file);
+      return file;
+    };
+    assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") })).codex, "missing");
+
+    // Where the desktop app installs its CLI: %LOCALAPPDATA%\OpenAI\Codex\bin\<hash>\codex.exe.
+    const localAppData = path.join(dir, "AppData", "Local");
+    desktopCodex(path.join(localAppData, "OpenAI", "Codex", "bin", "3f2a9c", "codex.exe"));
+    assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData })).codex, "signed out");
+
+    // Where Codex's config.toml names it.
+    const named = desktopCodex(path.join(dir, "Programs", "codex.exe"));
+    writeFileSync(path.join(codexHome, "config.toml"), `model = "gpt-5"\n\n[shell_environment_policy.set]\nCODEX_CLI_PATH = ${JSON.stringify(named)}\n`);
+    assert.equal((await machineState({ path: bin, waitMs: 10_000, codexHome, localAppData: path.join(dir, "Local") })).codex, "signed out");
+  });
+});
+
+test("8.14 the check names Codex's storytree tool server as missing, with its fix, where Codex has none (regression: the owner's Windows laptop, 2026-09-29)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const options = { ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome };
+    assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "codex-server")?.state, "ok");
+
+    writeFileSync(home.codexConfig, 'model = "gpt-5"\n');
+    const line = (await runSetupCheck(options)).lines.find((each) => each.check === "codex-server");
+    assert.equal(line?.state, "needs-attention");
+    assert.match(line?.fix ?? "", /storytree setup connect --codex/);
   });
 });
 

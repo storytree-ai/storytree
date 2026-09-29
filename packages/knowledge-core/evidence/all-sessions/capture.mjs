@@ -90,7 +90,7 @@ try {
     const found = [];
     window.__globe.scene.traverse(object => {
       if (!object.name.startsWith('knowledge-point:')) return;
-      found.push({ id: object.userData.id, lit: object.userData.lit, shared: object.userData.shared });
+      found.push({ id: object.userData.id, lit: object.userData.lit, shared: object.userData.arcs.length > 0 });
     });
     return found;
   });

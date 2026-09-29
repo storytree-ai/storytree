@@ -1,5 +1,5 @@
 /**
- * The close-out reminder (ADR-0758 D4): when a Claude Code turn ends in a storytree project, on a
+ * The close-out reminder (ADR-0758 D4): when a Claude Code or Codex turn ends in a storytree project, on a
  * branch whose work has reached main, and the session has not closed out on this machine, the Stop
  * hook asks it to, once per session. Only a session ending a turn is asked: an idle or exited one
  * is never woken.
@@ -28,7 +28,7 @@ export function rememberClosedOut(session: string): void {
 
 /** The Stop hook's output asking the agent to close out, or undefined when it is not to be asked. */
 export function closeOutReminder(harness: string, input: unknown): string | undefined {
-  if (harness !== "claude-code" || typeof input !== "object" || input === null) return undefined;
+  if ((harness !== "claude-code" && harness !== "codex") || typeof input !== "object" || input === null) return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, stop_hook_active: again } = input as Record<string, unknown>;
   // A turn the reminder itself caused is never asked again.
   if (event !== "Stop" || again === true || typeof session !== "string" || typeof folder !== "string" || folder === "") return undefined;

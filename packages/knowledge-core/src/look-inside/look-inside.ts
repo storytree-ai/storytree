@@ -115,7 +115,7 @@ export interface LegendEntry {
 }
 
 /** The orchestrator's colour, then each subagent's in turn (Okabe-Ito, told apart by colour-blind eyes), and unknown's pale. */
-const ORCHESTRATOR = "#0072B2";
+export const ORCHESTRATOR = "#0072B2";
 const SUBAGENTS = ["#E69F00", "#009E73", "#CC79A7", "#F0E442", "#56B4E9", "#D55E00"];
 const UNKNOWN = "#9AA0AA";
 /** Lightnesses a listed session's subagents take, skipping the session's own. */
@@ -222,48 +222,65 @@ export function pinnedLinks(id: string | undefined, knowledge: Knowledge): Link[
   return [...out, ...into];
 }
 
-/** A note opened while an earlier note's result, which held its id, was still in view (ADR-0746 D1): never a followed link. */
-export interface InViewLink {
-  kind: "in-view";
+/** One step of a selected session's traversal: from one opened note to the next it opened (ADR-0756). */
+export interface TraversalStep {
   from: string;
   to: string;
+  /** Solid where a stored link joins the two notes, either way round; dotted where none does, a jump by search or another route. */
+  edge: "solid" | "dotted";
+  /** Either end's read has left the window since, so the step fades with it. */
+  faded: boolean;
 }
 
-/** What a selected session's window shows in the core: the notes and files it holds now, and its in-view links. */
+/** What a selected session's window shows in the core (ADR-0756). */
 export interface WindowView {
-  /** Present notes whose opened read is in the window now. */
+  /** Present notes opened in full whose read is in the window now: a ring, in full colour. */
   notes: Set<string>;
-  /** Files whose opened read is in the window now, in the order opened. */
+  /** Present notes opened in full whose read has since been compacted out: a lighter dot. */
+  faded: Set<string>;
+  /** Present notes named in a result in the window but never opened: a faint tint, no line. */
+  glimpsed: Set<string>;
+  /** Files whose opened read is in the window now, in the order opened; not drawn on the globe. */
   files: string[];
-  links: InViewLink[];
+  /** One step per move between opened notes, in reading order; a step taken again draws once. */
+  steps: TraversalStep[];
   /** Why there is no window to show, when there is none. */
   status: string | undefined;
 }
 
 /**
- * A session's window as the core draws it (4.16). A link joins a note to one opened after it only
- * when the open's reading names that note's result as in view and holding the id; a search's result
- * joins nothing, and a note no longer in the library is left out.
+ * A session's window as the core draws it (4.16, ADR-0756): the notes it opened, in reading order,
+ * each step joined by a line; files read between them do not break the chain, and a note no longer
+ * in the library is stepped over. `joined` says whether a stored link joins two notes.
  */
-export function windowView(window: SessionWindow, present: ReadonlySet<string>): WindowView {
-  if ("absent" in window) return { notes: new Set(), files: [], links: [], status: `No window: ${window.absent}` };
-  const notes = new Set<string>();
-  const files: string[] = [];
-  const links = new Map<string, InViewLink>();
+export function windowView(window: SessionWindow, present: ReadonlySet<string>, joined: (a: string, b: string) => boolean): WindowView {
+  const view: WindowView = { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], status: undefined };
+  if ("absent" in window) return { ...view, status: `No window: ${window.absent}` };
+  const opened: string[] = [];
   for (const open of window.opens) {
     if (open.kind === "file") {
-      if (open.resident && !files.includes(open.id)) files.push(open.id);
-      continue;
-    }
-    if (!present.has(open.id)) continue;
-    if (open.resident) notes.add(open.id);
-    for (const { opened } of open.inViewFrom) {
-      for (const { kind, id: from } of opened) {
-        if (kind === "note" && from !== open.id && present.has(from)) links.set(`${from}>${open.id}`, { kind: "in-view", from, to: open.id });
-      }
+      if (open.resident && !view.files.includes(open.id)) view.files.push(open.id);
+    } else if (present.has(open.id)) {
+      opened.push(open.id);
+      if (open.resident) view.notes.add(open.id);
     }
   }
-  return { notes, files, links: [...links.values()], status: undefined };
+  for (const note of opened) if (!view.notes.has(note)) view.faded.add(note);
+  for (const note of window.glimpses) if (present.has(note) && !opened.includes(note)) view.glimpsed.add(note);
+  const taken = new Set<string>();
+  opened.forEach((to, index) => {
+    const from = opened[index - 1];
+    if (from === undefined || from === to || taken.has(`${from}>${to}`)) return;
+    taken.add(`${from}>${to}`);
+    view.steps.push({ from, to, edge: joined(from, to) ? "solid" : "dotted", faded: view.faded.has(from) || view.faded.has(to) });
+  });
+  return view;
+}
+
+/** How far a step's faint fill has run from its earlier note (ADR-0756): 0 to 1 over `run` ms, nothing for a `pause`, then again. */
+export function fillAt(elapsed: number, timing: { run: number; pause: number }): number | undefined {
+  const at = elapsed % (timing.run + timing.pause);
+  return at < timing.run ? at / timing.run : undefined;
 }
 
 /** The replay after `step` of its steps, one read a step, in recorded order across the visible agents. */
@@ -362,6 +379,8 @@ export interface Trail {
   seq: number;
   /** The session the reads were filed under and the agent that read, as "<session> <agent>". */
   mover: string;
+  /** A selected session's traversal step (ADR-0756): solid or dotted, and whether it fades; a reading path's curve has none. */
+  step?: Pick<TraversalStep, "edge" | "faded">;
 }
 
 /**

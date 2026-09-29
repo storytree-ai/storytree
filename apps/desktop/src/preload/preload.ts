@@ -4,12 +4,15 @@
  */
 import { contextBridge, ipcRenderer } from "electron";
 import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/agent-link/view";
+import { SURFACES_CHANNELS, type SurfacesBridge } from "@storytree/app/surfaces";
 
 import { CHANNELS, type StorytreeBridge } from "../bridge.js";
 
-const bridge: StorytreeBridge & SettingsBridge = {
+const bridge: StorytreeBridge & SettingsBridge & SurfacesBridge = {
   readSettings: () => ipcRenderer.invoke(SETTINGS_CHANNELS.readSettings),
   saveSetting: (name, values) => ipcRenderer.invoke(SETTINGS_CHANNELS.saveSetting, name, values),
+  readSurfaces: () => ipcRenderer.invoke(SURFACES_CHANNELS.readSurfaces),
+  saveSurface: (words) => ipcRenderer.invoke(SURFACES_CHANNELS.saveSurface, words),
   checkForUpdates: (action) => ipcRenderer.invoke(CHANNELS.checkForUpdates, action) as ReturnType<StorytreeBridge["checkForUpdates"]>,
   readSetupLicense: () => ipcRenderer.invoke(CHANNELS.readSetupLicense) as ReturnType<StorytreeBridge["readSetupLicense"]>,
   checkSetupFolder: () => ipcRenderer.invoke(CHANNELS.checkSetupFolder) as ReturnType<StorytreeBridge["checkSetupFolder"]>,

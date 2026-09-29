@@ -202,6 +202,12 @@ importers:
       '@storytree/app':
         specifier: workspace:*
         version: link:../app
+      '@storytree/arc-surface':
+        specifier: workspace:*
+        version: link:../arc-surface
+      '@storytree/forest':
+        specifier: workspace:*
+        version: link:../forest
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

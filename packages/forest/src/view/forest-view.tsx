@@ -42,9 +42,10 @@ interface Drawn {
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
  * `onWispHover` hears the session whose wisp the pointer is over, or undefined when it leaves.
+ * With `library` off (ADR-0750) the globe stays solid and has no Forest and Library buttons.
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
-  onWispHover: (session: string | undefined) => void = () => {}): Promise<ForestView> {
+  onWispHover: (session: string | undefined) => void = () => {}, { library = true }: { library?: boolean } = {}): Promise<ForestView> {
   await preloadKit(kitBytes);
   const root = createRoot(container);
   let drawn: Drawn = {
@@ -60,12 +61,12 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
         selected={drawn.selected} highlighted={drawn.highlighted} highlightedSession={drawn.highlightedSession}
         onPick={pick} onNote={pickNote} onWispHover={onWispHover} mode={drawn.mode} />
-      <div className="forest-views" role="group" aria-label="Globe view">
+      {library && <div className="forest-views" role="group" aria-label="Globe view">
         {(["forest", "library"] as const).map(mode => <button key={mode} type="button"
           data-forest-mode={mode} aria-pressed={drawn.mode === mode} onClick={() => changeMode(mode)}>
           {mode === "forest" ? "Forest" : "Library"}
         </button>)}
-      </div>
+      </div>}
     </>);
   };
   const selection = new PanelSelection(next => {

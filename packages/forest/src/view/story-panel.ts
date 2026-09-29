@@ -10,16 +10,20 @@ import type { HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
 
-/** The panel's HTML, with `selected` shown below the diagram, if it is one of the story's capabilities. */
-export function renderStoryPanel(panel: StoryPanel, selected: string | undefined): string {
-  const shown = panel.capabilities.find(({ id }) => id === selected);
+/**
+ * The panel's HTML, with `selected` shown below the diagram, if it is one of the story's capabilities.
+ * With the capability tree switched off (ADR-0750) it is the story's sentences alone: a capability is
+ * picked only in the tree, so its details go with it.
+ */
+export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { tree = true }: { tree?: boolean } = {}): string {
+  const shown = tree ? panel.capabilities.find(({ id }) => id === selected) : undefined;
   return `
     <header class="panel-head">
       <h2>${text(panel.title)}</h2>
       <button type="button" class="panel-close" aria-label="Close">×</button>
     </header>
     <p class="panel-sentences">${text(panel.description)}</p>
-    ${panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
+    ${!tree || panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
     ${shown === undefined ? "" : capability(shown)}`;
 }
 

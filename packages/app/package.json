@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./projects": "./src/projects/follow.ts",
+    "./surfaces": "./src/surfaces/bridge.ts",
     "./view": "./src/view/index.ts"
   },
   "scripts": {

@@ -40,6 +40,7 @@ const leaveAfter = {
 const library = {
   name: "library",
   group: "library",
+  label: "Where the library lives",
   default: "local",
   meaning:
     "Where the library lives: `local`, the storytree app's own database on this computer, or `cloudsql`, " +
@@ -77,6 +78,7 @@ export type LibraryLocation = { readonly location: "local" } | { readonly locati
 export type LibraryReading = LibraryLocation & {
   readonly name: "library";
   readonly group: "library";
+  readonly label: string;
   readonly default: "local";
   readonly meaning: string;
   readonly source: "default" | "set";

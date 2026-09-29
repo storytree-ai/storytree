@@ -217,6 +217,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
+      '@storytree/librarian':
+        specifier: workspace:*
+        version: link:../librarian
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

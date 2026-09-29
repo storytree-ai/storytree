@@ -1,15 +1,17 @@
 /**
  * Capability 9 · Friction and re-steers: the agent link owns evidence validation and recurrence
- * dates. This door only reads the fields, resolves the current branch and passes the writer.
+ * dates, and the librarian owns the drain and the routing judgement. This door only reads the
+ * fields, resolves the current branch and passes the writer.
  */
 import { execFileSync } from "node:child_process";
 import { recordFriction, recordResteer, reinforceFriction } from "@storytree/agent-link";
+import { frictionDrain, route, type Route } from "@storytree/librarian";
 
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
 
-/** Capture takes only its own fields: routing a friction remains the librarian's work. */
+/** Capture takes only its own fields: routing is its own verb, the librarian's work. */
 function fields(args: Args, names: readonly string[]): Record<string, unknown> {
   const given: Record<string, unknown> = {};
   for (const name of names) {
@@ -56,6 +58,37 @@ const reinforce: Verb = {
   },
 };
 
+const drain: Verb = {
+  name: "drain",
+  usage: "friction drain",
+  summary: "the reports a landing's librarian pass routes: up to three from other branches, most recurrences first",
+  async act(_args, context) {
+    const due = await frictionDrain(await context.library(), { branch: branchIn(context.cwd) });
+    if (due.length === 0) return { text: "No friction is due: every report from another branch is routed." };
+    const lines = due.map((note) => `  ${note.id}  (${note.fields.reinforcedBy?.length ?? 0} recurrences)  ${note.fields.title}`);
+    return {
+      text: [`${due.length} friction report${due.length === 1 ? "" : "s"} due for routing:`, ...lines].join("\n"),
+      next: [
+        { command: "storytree library read <friction>", why: "read one whole before judging it" },
+        { command: "storytree friction route <friction> --to <route> --reason …", why: "record the route and its reason" },
+      ],
+    };
+  },
+};
+
+const routeVerb: Verb = {
+  name: "route",
+  usage: "friction route <friction> --to <adr|tool|principle|guardrail|process|definition|edit-existing|nothing> --reason <text|@file> [--discharged-by <pr or decision>]",
+  summary: "record the librarian's route and reason, or stamp the remedy that landed",
+  async act(args, context) {
+    const id = args.word(0, "the friction's id", this.usage);
+    const to = args.need("to", this.usage) as Route;
+    const dischargedBy = args.text("discharged-by");
+    const note = await route(await context.library(), id, to, args.need("reason", this.usage), { ...context.writer(), ...(dischargedBy === undefined ? {} : { dischargedBy }) });
+    return { text: `Routed ${note.id} to ${to}.`, next: [{ command: `storytree library read ${note.id}`, why: "read it back" }] };
+  },
+};
+
 const resteerNew: Verb = {
   name: "new",
   usage: "resteer new --title <t> --description … --doing … --redirect … --evidence <quote|@file> --disposition <defect|taste> --judged-by <owner|agent> [--mode <failure-mode>] [--self-report <text|@file>] [--links a,b]",
@@ -69,8 +102,8 @@ const resteerNew: Verb = {
 
 export const friction: Family = {
   name: "friction",
-  summary: "file friction with its evidence, or add a recurrence",
-  verbs: [frictionNew, reinforce],
+  summary: "file friction with its evidence, add a recurrence, or drain and route it",
+  verbs: [frictionNew, reinforce, drain, routeVerb],
 };
 
 export const resteer: Family = {

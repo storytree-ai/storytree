@@ -23,7 +23,7 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
       return (await roundDue(call.library, await sessionStart(call))).rest ? "run the librarian's pass" : undefined;
     },
     registerTools(define) {
-      define("worklist", "Gather the librarian's worklist since this session started: graduation always, other curation when due. Memory folders default to Claude Code's for this folder; name other folders explicitly.", z.object({
+      define("worklist", "Gather the librarian's worklist since this session started: graduation and the friction drain always, other curation when due. Memory folders default to Claude Code's for this folder; name other folders explicitly.", z.object({
         memoryFolders: z.array(text).optional(),
         tools: z.array(text).optional().describe("Tools served, for matching processes; defaults to this server's catalogue when supplied by the host"),
       }), async (args, call) => {

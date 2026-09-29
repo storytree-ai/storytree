@@ -1,0 +1,39 @@
+{
+  "asked": [
+    "builder",
+    "librarian",
+    "traversal-a"
+  ],
+  "colours": {
+    "a": "hsl(194, 80%, 68%)",
+    "b": "hsl(270, 80%, 68%)",
+    "c": "hsl(15, 80%, 68%)"
+  },
+  "lit": 16,
+  "rings": 1,
+  "lines": 14,
+  "linesBySession": {
+    "builder": 5,
+    "traversal-a": 5,
+    "librarian": 4
+  },
+  "grew": "decision_229b7f7d10de>decision_11abba9f5405",
+  "litWhileGrowing": [
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "glows": [
+    "builder orchestrator",
+    "librarian orchestrator",
+    "traversal-a orchestrator"
+  ]
+}

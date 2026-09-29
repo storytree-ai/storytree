@@ -19,6 +19,12 @@ import { processes } from "./processes.js";
 import { session } from "./session.js";
 import { settings } from "./settings.js";
 
+/** Words agents try for a family storytree does not have, each with the command for that job. */
+export const GUESSES: Readonly<Record<string, string>> = {
+  claim: "workspace <increment|capability> --reason <text>",
+  board: "noticeboard",
+};
+
 export const FAMILIES: readonly Family[] = [
   library,
   arcs,

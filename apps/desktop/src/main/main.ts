@@ -164,6 +164,7 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.holds, (_event, name: unknown) => open().holds(name));
   ipcMain.handle(CHANNELS.contextReadings, (_event, name: unknown, sessions: unknown) => open().contextReadings(name, sessions));
   ipcMain.handle(CHANNELS.idleAfterMs, () => open().idleAfterMs());
+  ipcMain.handle(CHANNELS.leaveAfterMs, () => open().leaveAfterMs());
   ipcMain.handle(CHANNELS.windowReading, (_event, name: unknown, session: unknown) => open().windowReading(name, session));
 
   ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));

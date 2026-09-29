@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, arcKey, arrived, coreScene, curvePoint, fillAt, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, ringArcs, SIZE_LABELS, windowView, type CoreInput } from "./look-inside.js";
+import { agentPaths, arcKey, arrived, coreScene, curvePoint, fillAt, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, ringArcs, SIZE_LABELS, stampOpens, windowReplays, windowView, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -369,4 +369,38 @@ test("4.16 a selected session's window draws one step per move in reading order,
   // Direction: a faint fill runs along each step from its earlier note to its later one, rests, then runs again.
   const timing = { run: 1000, pause: 500 };
   assert.deepEqual([0, 250, 999, 1200, 1750].map((ms) => fillAt(ms, timing)), [0, 0.25, 0.999, undefined, 0.25]);
+});
+
+test("4.18 with no session selected, a listed session's window lights the notes it opened in its colour and draws one step between them, though the log holds no note-read line; a session with no window falls back to its log", () => {
+  const history = project();
+  const [a, b] = ["hsl(200, 80%, 68%)", "hsl(300, 80%, 68%)"];
+  const roster = [
+    { session: "a", label: "Signup", colour: a, members: ["a"] },
+    { session: "b", label: "Billing", colour: b, members: ["b"] },
+  ];
+  const open = (id: string, kind: "note" | "file" = "note") => ({ kind, id, call: `read ${id}`, tool: "Bash", resident: true });
+  const windows = new Map([
+    // Read by command line, so no note-read line: a file between the two notes does not break the step.
+    ["a", { session: "a", at: "-", compactions: 0, inView: [], glimpses: ["new"], opens: [open("deep"), open("src/x.ts", "file"), open("cover")] }],
+    ["b", { session: "b", at: "-", absent: "no hook has named this session's transcript" }],
+  ]);
+  const { reads, knowledge: known } = input(history, [read("b", "old", "whole", "orchestrator")]);
+  const present = new Set(known.notes.keys());
+  const windowed = windowReplays(windows, present);
+
+  const lit = lighting(reads, roster, undefined, present, windowed);
+  assert.deepEqual([...lit].map(([note, { colour }]) => [note, colour]).sort(), [["cover", a], ["deep", a], ["old", b]],
+    "a's opens light in a's colour; b, with no window, lights what its log says; a glimpse lights nothing");
+  assert.deepEqual(trails(reads, roster, undefined, present, windowed).map(({ from, to, colour }) => [from, to, colour]), [["deep", "cover", a]]);
+  assert.deepEqual(agentPaths(reads, roster, undefined, present, windowed).map(({ mover, note, steps }) => [mover, note, steps.length]),
+    [["a orchestrator", "cover", 1], ["b orchestrator", "old", 0]]);
+  assert.equal(coreScene(input(history, [], { roster, windowed })).notes.find(({ id }) => id === "deep")!.colour, a, "the inside view lights it too");
+});
+
+test("4.19 opens in a session's first window reading are history and never grow; opens a later reading adds are stamped after everything already seen", () => {
+  const first = stampOpens(undefined, 3, 40);
+  assert.deepEqual(first, { stamps: [0, 0, 0], clock: 40 });
+  const later = stampOpens(first.stamps, 5, 57);
+  assert.deepEqual(later, { stamps: [0, 0, 0, 58, 59], clock: 59 });
+  assert.deepEqual(stampOpens(later.stamps, 5, 59), later, "nothing new, nothing stamped");
 });

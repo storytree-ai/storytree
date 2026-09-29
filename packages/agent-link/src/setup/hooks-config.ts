@@ -16,6 +16,8 @@
  *   its shell (PowerShell on Windows, sh elsewhere), so the line is written for the shell of this
  *   machine. Codex has no background hooks, so the ones before each shell command and at the end of
  *   each turn pass `--background`: the hook hands its writing to a copy of itself and exits (hooks.ts).
+ *   A second end-of-turn hook runs in the foreground, since Codex reads a Stop hook's block as
+ *   Claude Code does: it may ask the agent to close out (ADR-0758 D4).
  *   Codex runs a newly added hook only after the user approves it once (ADR-0626 D4).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -81,6 +83,27 @@ export function defaultHomes(env: Readonly<Record<string, string | undefined>> =
     claude: env.CLAUDE_CONFIG_DIR || path.join(homedir(), ".claude"),
     codex: env.CODEX_HOME || path.join(homedir(), ".codex"),
   };
+}
+
+/** The hook scripts Claude Code's settings.json and Codex's hooks.json register, as paths: none from a file missing or unreadable. */
+export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
+  const scripts: string[] = [];
+  for (const file of [homes.claude && path.join(homes.claude, "settings.json"), homes.codex && path.join(homes.codex, "hooks.json")]) {
+    if (file === undefined) continue;
+    const strings: string[] = [];
+    const collect = (value: unknown): void => {
+      if (typeof value === "string") strings.push(value);
+      else if (value !== null && typeof value === "object") for (const inner of Object.values(value)) collect(inner);
+    };
+    try {
+      collect(JSON.parse(readFileSync(file, "utf8")));
+    } catch {
+      continue;
+    }
+    // A Claude Code argument is the path alone; a Codex command line holds it, perhaps quoted.
+    for (const text of strings) for (const found of text.matchAll(/(?:^|['"\s])((?:[A-Za-z]:)?[\\/][^'"]*?storytree-hook\.mjs)/g)) scripts.push(found[1]!);
+  }
+  return scripts;
 }
 
 /**
@@ -207,7 +230,8 @@ function codexEntries({ node, script }: HookCommand): Record<string, HookEntry[]
       { matcher: "^Bash$", hooks: [run(10, true)] },
     ],
     PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: [run(10)] }],
-    Stop: [{ hooks: [run(10, true)] }],
+    // As in Claude Code: the turn's line in the background, then a foreground check whose block Codex reads (ADR-0758 D4).
+    Stop: [{ hooks: [run(10, true)] }, { hooks: [{ type: "command", command: `${line} ${CLOSE_OUT_REMINDER}`, timeout: 10 }] }],
     UserPromptSubmit: [{ hooks: [run(10)] }],
     SessionEnd: [{ hooks: [run(3)] }],
   };

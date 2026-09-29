@@ -122,3 +122,34 @@ test("9.8 a Codex reading splits its context into the same four groups: base ins
     charsPerToken: CHARS_PER_TOKEN,
   });
 });
+
+/** A PNG's first bytes, naming its size, then `size` bytes of body: base64 as the harness writes it. */
+const png = (width: number, height: number, size: number): string => {
+  const head = Buffer.alloc(24);
+  head.writeUInt32BE(0x89504e47, 0);
+  head.writeUInt32BE(0x0d0a1a0a, 4);
+  head.writeUInt32BE(13, 8);
+  head.write("IHDR", 12);
+  head.writeUInt32BE(width, 16);
+  head.writeUInt32BE(height, 20);
+  return Buffer.concat([head, Buffer.alloc(size, 7)]).toString("base64");
+};
+
+test("9.8 a screenshot a session reads counts at what the model pays for its pixels, not at its base64 length, in Claude Code and Codex readings alike", () => {
+  // A 1920×1080 screenshot, about 660K characters of base64: the length alone would read as ~170K tokens.
+  const shot = png(1920, 1080, 490_000);
+  const claude = claudeCodeComposition(jsonl(
+    user("Look at it"),
+    assistant([call("shot", "Read", { file_path: "shot.png" })], { input_tokens: 5_000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }),
+    user([{ type: "tool_result", tool_use_id: "shot", content: [{ type: "image", source: { type: "base64", media_type: "image/png", data: shot } }] }]),
+  ));
+  const codex = codexComposition(jsonl(
+    counted(5_000),
+    item({ type: "function_call", call_id: "shot", name: "view_image", arguments: "{\"path\":\"shot.png\"}" }),
+    item({ type: "function_call_output", call_id: "shot", output: [{ type: "input_image", image_url: `data:image/png;base64,${shot}` }] }),
+  ));
+  for (const reading of [claude, codex]) {
+    assert.ok(reading !== undefined);
+    assert.ok(reading.grounding > 1_000 && reading.grounding < 6_000, `grounding ${reading.grounding}`);
+  }
+});

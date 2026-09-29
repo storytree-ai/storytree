@@ -16,7 +16,7 @@
  * prompt names (definitions.ts), and once-per-session advice to start fresh when a Claude Code
  * session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
  * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). And a
- * second Claude Code hook at the end of each turn (`--close-out-reminder`, close-out-reminder.ts) may
+ * second hook at the end of each turn (`--close-out-reminder`, close-out-reminder.ts) may
  * print one request to close out, once per session, deciding from this machine alone (ADR-0758 D4).
  * No other prints: in a folder that isn't a storytree project, a session start adds nothing for the
  * agent (ADR-0752 D3).
@@ -174,6 +174,9 @@ async function writeLines(harness: string, input: string, flags: readonly string
           const { resolveBranches } = await import("../sessions/branch-states.js");
           const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" } as const;
           await resolveBranches(watcher, merges).catch(() => []);
+          // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
+          const { reapWorktrees } = await import("../sessions/worktree-reaper.js");
+          await reapWorktrees(watcher).catch(() => []);
           // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
           const { recordAppStates } = await import("../sessions/app-records.js");
           await recordAppStates(watcher).catch(() => []);

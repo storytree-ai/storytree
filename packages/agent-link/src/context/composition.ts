@@ -281,13 +281,68 @@ export function codexComposition(text: string): Composition | undefined {
   return floor === undefined ? undefined : composition(floor);
 }
 
+/**
+ * What the model pays for an image, in tokens: its pixels ÷ 750, the most one costs about 4,800.
+ * Measured on this laptop's transcripts, 2026-09-29: the usage between the requests either side of
+ * a lone screenshot read (1440×960 ≈ 1,900; 1918×1052 ≈ 2,700; 1875×1999 ≈ 4,760).
+ */
+const PIXELS_PER_TOKEN = 750;
+const MOST_IMAGE_TOKENS = 4_800;
+
+/** An image's tokens from its base64 header (PNG, JPEG, GIF, WebP), or the most one costs when its size cannot be read. */
+export function imageTokens(base64: string): number {
+  const head = Buffer.from(base64.slice(0, 8_000), "base64");
+  const size = pixelSize(head);
+  return size === undefined ? MOST_IMAGE_TOKENS : Math.min(MOST_IMAGE_TOKENS, Math.ceil((size[0] * size[1]) / PIXELS_PER_TOKEN));
+}
+
+function pixelSize(head: Buffer): [number, number] | undefined {
+  if (head.length >= 24 && head.readUInt32BE(0) === 0x89504e47) return [head.readUInt32BE(16), head.readUInt32BE(20)];
+  if (head.length >= 10 && head.toString("latin1", 0, 3) === "GIF") return [head.readUInt16LE(6), head.readUInt16LE(8)];
+  if (head.length >= 30 && head.toString("latin1", 0, 4) === "RIFF" && head.toString("latin1", 8, 12) === "WEBP") {
+    const chunk = head.toString("latin1", 12, 16);
+    if (chunk === "VP8X") return [1 + head.readUIntLE(24, 3), 1 + head.readUIntLE(27, 3)];
+    if (chunk === "VP8 ") return [head.readUInt16LE(26) & 0x3fff, head.readUInt16LE(28) & 0x3fff];
+    if (chunk === "VP8L") { const bits = head.readUInt32LE(21); return [1 + (bits & 0x3fff), 1 + ((bits >> 14) & 0x3fff)]; }
+  }
+  if (head.length >= 4 && head[0] === 0xff && head[1] === 0xd8) {
+    for (let at = 2; at + 9 < head.length;) {
+      if (head[at] !== 0xff) return undefined;
+      const marker = head[at + 1]!;
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return [head.readUInt16BE(at + 7), head.readUInt16BE(at + 5)];
+      at += 2 + head.readUInt16BE(at + 2);
+    }
+  }
+  return undefined;
+}
+
+/** The base64 of an image block: Claude Code's `image` source, or Codex's `input_image` data URL. */
+function imageData(value: unknown): string | undefined {
+  if (!isRecord(value)) return undefined;
+  if (value.type === "image" && isRecord(value.source) && typeof value.source.data === "string") return value.source.data;
+  if (value.type === "input_image" && typeof value.image_url === "string" && value.image_url.startsWith("data:")) return value.image_url.slice(value.image_url.indexOf(",") + 1);
+  return undefined;
+}
+
+/** A value's size in bytes as the model pays for it: text by its length, each image by its pixels. */
+function sizeOf(value: unknown): number {
+  let images = 0;
+  const text = JSON.stringify(value, (_key, inner: unknown) => {
+    const data = imageData(inner);
+    if (data === undefined) return inner;
+    images += imageTokens(data) * CHARS_PER_TOKEN;
+    return null;
+  });
+  return Buffer.byteLength(text ?? "") + images;
+}
+
 /** A running count of bytes per group, and the labels nothing sorted. */
 function tally() {
   const bytes: Record<CompositionGroup, number> = { injected: 0, grounding: 0, implementation: 0, other: 0 };
   const unsorted = new Set<string>();
   let seen = 0;
   const add = (group: CompositionGroup, value: unknown): void => {
-    const size = Buffer.byteLength(JSON.stringify(value) ?? "");
+    const size = sizeOf(value);
     bytes[group] += size;
     seen += size;
   };

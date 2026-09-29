@@ -84,7 +84,7 @@ const search: Verb = {
     const lines = ranked.hits.map(({ note, score }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${note.type}]  ${labelOf(note.fields)}`);
     return {
       text: [heading, ...lines].join("\n"),
-      next: [{ command: "storytree library links <artifact>", why: "what links to one of them" }],
+      next: [{ command: "storytree library read <id>", why: "read one whole" }],
     };
   },
 };
@@ -126,7 +126,7 @@ const related: Verb = {
     const lines = answer.hits.map((hit) => `  ${hit.id}  [${hit.type}]  ${hit.title}  (${hit.linked ? `linked via ${hit.linkVia.join(", ")}` : "unlinked"}; ${hit.matched.join(", ")})`);
     return {
       text: [`Like ${id}, on ${answer.terms.join(", ")} (${counts}):`, ...lines].join("\n"),
-      next: [{ command: `storytree library edit <artifact> --links '[...]'`, why: "link one that belongs" }],
+      next: [{ command: "storytree library read <id>", why: "read one whole" }],
     };
   },
 };
@@ -145,7 +145,7 @@ const create: Verb = {
       throw new Refusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { code: 2 });
     }
     const written = await write(await context.library(), fieldsOf(args), context.writer());
-    return { text: `Wrote ${kind} ${written.id}.`, next: [{ command: `storytree library links ${written.id}`, why: "what links to it" }] };
+    return { text: `Wrote ${kind} ${written.id}.`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
   },
 };
 
@@ -160,7 +160,6 @@ const read: Verb = {
     const fields = Object.entries(record.fields).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
     return {
       text: [`${record.id}  [${record.type}]  schema ${record.version}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields].join("\n"),
-      next: [{ command: `storytree library history ${id}`, why: "every write and its writer" }],
     };
   },
 };
@@ -242,6 +241,7 @@ const history: Verb = {
 export const library: Family = {
   name: "library",
   summary: "read, search and write the project's records",
+  guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
   verbs: [
     search,
     links,

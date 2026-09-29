@@ -135,7 +135,7 @@ const pull: Verb = {
     const out = args.text("out");
     if (out === undefined) return { text: file };
     writeFileSync(path.resolve(context.cwd, out), file);
-    return { text: `Pulled ${id} to ${out}.`, next: [{ command: `storytree adr push ${id} --file ${out}`, why: "once you have edited it" }] };
+    return { text: `Pulled ${id} to ${out}. Once you have edited it: storytree adr push ${id} --file ${out}` };
   },
 };
 
@@ -204,4 +204,5 @@ export const decisions: Family = {
   name: "adr",
   summary: "the decision log: new, pull, push, compose, list",
   verbs: [list, create, pull, push, compose],
+  guesses: { show: "adr pull <decision>", read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
 };

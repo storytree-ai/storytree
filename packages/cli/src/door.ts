@@ -20,7 +20,7 @@ import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytre
 
 import { Refusal, render, type Answer } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
-import { FAMILIES } from "./families/index.js";
+import { FAMILIES, GUESSES } from "./families/index.js";
 import { commandSession, commandWriter, person } from "./writer.js";
 
 /** Where a command runs, and where its answer goes. */
@@ -65,6 +65,11 @@ export interface Family {
   readonly name: string;
   /** Former names it still answers to, left out of the families list. */
   readonly aliases?: readonly string[];
+  /**
+   * Words agents try for a job another command does, each with that command (after `storytree `):
+   * the refusal names it rather than running it, so each job keeps one name.
+   */
+  readonly guesses?: Readonly<Record<string, string>>;
   readonly summary: string;
   readonly verbs: readonly Verb[];
   /** Families within it: `storytree arc increment <verb>`. */
@@ -109,7 +114,8 @@ async function dispatch(argv: readonly string[], context: Context): Promise<Answ
   if (first === undefined || first === "--help" || first === "-h" || first === "help") return families();
   const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
   if (family === undefined) {
-    throw new Refusal(`storytree has no "${first}"`, { code: 2, next: [{ command: "storytree", why: "the families it has" }] });
+    const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
+    throw unknown("storytree", first, (Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined) ?? nearest(first, named), "Its families", named);
   }
   return dispatchIn(family, family.name, rest, context);
 }
@@ -127,7 +133,49 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
     return family.bare.act(parseArgs(words, family.bare.switches ?? [], context.cwd), context);
   }
   if (help) return verbsOf(family, path);
-  throw new Refusal(`storytree ${path} has no "${second}"`, { code: 2, next: [{ command: `storytree ${path}`, why: "its verbs" }] });
+  const named = [
+    ...family.verbs.map((verb) => ({ name: verb.name, command: verb.usage })),
+    ...(family.families ?? []).map((inner) => ({ name: inner.name, command: `${path} ${inner.name}` })),
+  ];
+  const guessed = Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
+  throw unknown(`storytree ${path}`, second, guessed ?? nearest(second, named), "Its commands", named);
+}
+
+/**
+ * The door's answer to a word it does not have: the real command for that job when agents are
+ * known to guess the word, else the nearest real one by spelling, and what there is to choose from.
+ */
+function unknown(where: string, word: string, instead: string | undefined, listed: string, named: readonly { name: string }[]): Refusal {
+  const said = instead === undefined ? "" : `: run storytree ${instead}`;
+  const choices = `${listed}: ${named.map((one) => one.name).join(", ")}.`;
+  return new Refusal(`${where} has no "${word}"${said}\n${choices}`, {
+    code: 2,
+    next: instead === undefined ? [{ command: where, why: "each command, with its usage" }] : [],
+  });
+}
+
+/** The command whose name is closest to `word`, when it is close enough to be the one meant. */
+function nearest(word: string, named: readonly { name: string; command: string }[]): string | undefined {
+  let best: { distance: number; command: string } | undefined;
+  for (const one of named) {
+    const distance = editDistance(word.toLowerCase(), one.name);
+    if (best === undefined || distance < best.distance) best = { distance, command: one.command };
+  }
+  return best !== undefined && best.distance <= Math.max(1, Math.floor(word.length / 3)) ? best.command : undefined;
+}
+
+/** Edits (insert, delete, change, or swap two neighbours) that turn `a` into `b`. */
+function editDistance(a: string, b: string): number {
+  const rows = Array.from({ length: a.length + 1 }, (_, i) => Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let best = Math.min(rows[i - 1]![j]! + 1, rows[i]![j - 1]! + 1, rows[i - 1]![j - 1]! + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) best = Math.min(best, rows[i - 2]![j - 2]! + 1);
+      rows[i]![j] = best;
+    }
+  }
+  return rows[a.length]![b.length]!;
 }
 
 /** Whether a verb's words ask for its help: `--help` or `-h` before any `--`. */

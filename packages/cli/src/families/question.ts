@@ -46,10 +46,7 @@ const raise: Verb = {
     }
     return {
       text: `Raised question ${question.id} on ${question.fields.arc}${held.length === 0 ? "" : `, holding ${held.map((one) => one.id).join(", ")}`}.`,
-      next: [
-        { command: `storytree question settle ${question.id} --answer <the owner's words>`, why: "when he answers" },
-        { command: `storytree arc show ${question.fields.arc}`, why: "see what waits on him" },
-      ],
+      next: [{ command: `storytree arc show ${question.fields.arc}`, why: "see what waits on him" }],
     };
   },
 };
@@ -115,12 +112,8 @@ const check: Verb = {
     const line = `${id} is ${lease.state}: ${checked}, ${lease.leaseDays}-day lease${runs}.`;
     if (lease.state === "fresh") return { text: line };
     return {
-      text: line,
-      next: [
-        { command: `storytree library read ${id}`, why: "re-read it: does it still hold?" },
-        { command: `storytree question renew ${id}`, why: "if it still holds, as asked" },
-        { command: `storytree question retire ${id} --reason <why>`, why: "if it no longer does" },
-      ],
+      text: `${line}\nRe-read it: renew it if it still holds as asked, retire it if it no longer does.`,
+      next: [{ command: `storytree library read ${id}`, why: "re-read it" }],
     };
   },
 };
@@ -141,4 +134,5 @@ export const questions: Family = {
   name: "question",
   summary: "the owner's questions: raise, settle, retire, list, check, renew",
   verbs: [raise, settle, retire, list, check, renew],
+  guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
 };

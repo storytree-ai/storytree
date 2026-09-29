@@ -15,8 +15,11 @@
  * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions for the terms the
  * prompt names (definitions.ts), and once-per-session advice to start fresh when a Claude Code
  * session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
- * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). No other prints: in a folder that isn't a storytree project, a
- * session start adds nothing for the agent (ADR-0752 D3).
+ * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). And a
+ * second Claude Code hook at the end of each turn (`--close-out-reminder`, close-out-reminder.ts) may
+ * print one request to close out, once per session, deciding from this machine alone (ADR-0758 D4).
+ * No other prints: in a folder that isn't a storytree project, a session start adds nothing for the
+ * agent (ADR-0752 D3).
  *
  * A hook's input is the harness's own JSON on stdin. hookLines() turns it into lines, and knows
  * nothing of storytree's state; runHook() routes the session's folder (capability 1) and, only when
@@ -27,6 +30,7 @@ import type { NewLine } from "../activity/index.js";
 import type { MergeWatch } from "../claims/index.js";
 import { route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
+import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
 import { contextNudge } from "./context-nudge.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
@@ -95,6 +99,8 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     const parsed = parse(input);
     // An older install's asking hook, until the next setup check replaces its registration.
     if (flags.includes(ASK_SETUP)) return;
+    // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
+    if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
     const made = hookLines(harness, parsed);
     const asked = promptIn(harness, parsed);
     // A prompt's line is written while its context is looked up: the harness waits for both.

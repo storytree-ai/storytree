@@ -22,7 +22,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ASK_SETUP, BACKGROUND, STORYTREE_TOOLS } from "../hooks/index.js";
+import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, STORYTREE_TOOLS } from "../hooks/index.js";
 
 /** The command a harness runs as storytree's hook: a Node and the built hook script. */
 export interface HookCommand {
@@ -184,7 +184,8 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
     ],
     PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task", hooks: [run(true)] }],
     PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }],
-    Stop: [{ hooks: [run(true)] }],
+    // The turn's line in the background; then, in the foreground, a check that may ask the agent to close out (ADR-0758 D4).
+    Stop: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", CLOSE_OUT_REMINDER] }] }],
     UserPromptSubmit: [{ hooks: [run(false)] }],
     SessionEnd: [{ hooks: [run(false)] }],
   };

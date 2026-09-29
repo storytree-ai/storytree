@@ -6,7 +6,8 @@
  * - Claude Code: `<config folder>/settings.json` (CLAUDE_CONFIG_DIR, else ~/.claude). Each hook is a
  *   program with arguments, run with no shell in between, so it works on Windows without a Unix
  *   shell. The start, edit and end-of-turn hooks, and the one before each shell command, run in the
- *   background (`async`); the end hook runs before Claude Code exits, the hook before storytree's
+ *   background (`async`); the end hook runs before Claude Code exits, which stops it after 1.5 s, so
+ *   it passes `--background` and hands its line to a copy of itself that outlives it; the hook before storytree's
  *   own tools before the call is made, so its line is there when the call reaches the tool server
  *   (ADR-0629 D2), and the prompt hook before the prompt reaches the agent, since what it prints is
  *   added for the agent (ADR-0636 D1). Without Git for Windows, Claude Code has no Bash tool and
@@ -187,7 +188,8 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
     // The turn's line in the background; then, in the foreground, a check that may ask the agent to close out (ADR-0758 D4).
     Stop: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", CLOSE_OUT_REMINDER] }] }],
     UserPromptSubmit: [{ hooks: [run(false)] }],
-    SessionEnd: [{ hooks: [run(false)] }],
+    // Claude Code stops its end hooks after 1.5 s, sooner than a distant store answers: the hook hands its line to a copy of itself that outlives it.
+    SessionEnd: [{ hooks: [{ type: "command", command: node, args: [script, "claude-code", BACKGROUND] }] }],
   };
 }
 

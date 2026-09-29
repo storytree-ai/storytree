@@ -10,8 +10,8 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
-import { knowledge } from "../ghosts/ghosts.js";
-import { coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, windowView, type CoreInput, type Point, type RosterEntry, type SizeBy } from "../look-inside/look-inside.js";
+import { knowledge, storedEdges } from "../ghosts/ghosts.js";
+import { ORCHESTRATOR, coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, windowView, type CoreInput, type Point, type RosterEntry, type SizeBy, type Trail } from "../look-inside/look-inside.js";
 import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -256,8 +256,17 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
     [store.reads, state.version, state.roster, state.session, known]);
   const replays = useMemo(() => agentPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     [store.reads, state.version, state.roster, state.session, known]);
+  const joined = useMemo(() => storedEdges(known), [known]);
+  const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).
-  const window = useMemo(() => state.session === undefined || state.window === undefined ? undefined : windowView(state.window, new Set(known.notes.keys())),
-    [state.session, state.window, known]);
-  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} trails={paths} paths={replays} window={window} />;
+  const window = useMemo(() => state.session === undefined || state.window === undefined ? undefined
+    : { ...windowView(state.window, new Set(known.notes.keys()), joined), colour }, [state.session, state.window, known, joined, colour]);
+  // A selected session is drawn as its window's traversal, one line per step (ADR-0756); its log's reading-path
+  // curves and their glow draw only when it has no window to read, and nothing is drawn while the window is read.
+  const traversal = useMemo(() => window?.steps.map(({ from, to, edge, faded }, seq): Trail => ({ from, to, colour, seq, mover: state.session!, step: { edge, faded } })),
+    [window, colour, state.session]);
+  const drawnPaths = state.session === undefined || window?.status !== undefined ? paths : traversal ?? [];
+  const glows = state.session === undefined || window?.status !== undefined ? replays : [];
+  // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
+  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} />;
 }

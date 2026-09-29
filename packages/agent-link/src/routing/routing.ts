@@ -32,6 +32,7 @@ import type { ConnectOptions, Storytree } from "@storytree/library";
 import { readLibrary } from "../settings/settings.js";
 
 import { recordProjectChoice } from "./project-choice.js";
+import { machineOf, ProjectFolderError, refusal, registerTrunk, trunksOn, unusedName } from "./trunks.js";
 
 /** The marker a folder set up as a storytree project holds. */
 export const MARKER_FILE = ".storytree.json";
@@ -50,8 +51,10 @@ export interface SetUpOptions {
   readonly project: string;
   /** A connection to the running storytree's library. */
   readonly storytree: Storytree;
-  /** The app's home; defaults to STORYTREE_HOME, else ~/.storytree/0.3. */
+  /** The app's home; defaults to STORYTREE_HOME, else ~/.storytree/0.3. It keeps this machine's identity. */
   readonly storytreeHome?: string;
+  /** Add this machine's checkout to project `project`, which already exists (ADR-0757 D4). */
+  readonly join?: boolean;
 }
 
 export interface LocateOptions {
@@ -93,16 +96,27 @@ export function findProject(from: string): ProjectLookup {
 }
 
 /**
- * Set `folder` up as project `project`, after the user said yes: open the project in the library
- * (creating its library the first time), leave the marker, then record the user's choice for the app.
- * The name is judged by the library,
- * which refuses one that breaks its rule (ProjectNameError) before anything touches the server; a
- * refusal leaves nothing behind.
+ * Set `folder` up as project `project`, after the user said yes: the one check (ADR-0757) first,
+ * then open the project in the library (creating its library the first time), record the folder as
+ * the project's trunk on this machine, leave the marker, and record the user's choice for the app.
+ * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
+ * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
+ * project that already exists; without it, an existing project's name is refused.
  */
-export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome() }: SetUpOptions): Promise<{ project: string; marker: string }> {
+export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false }: SetUpOptions): Promise<{ project: string; marker: string }> {
+  const at = canonical(path.resolve(folder));
+  const existing = findProject(at);
+  if (existing.project !== undefined) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
+  const machine = machineOf(home);
+  const [projects, trunks] = await Promise.all([storytree.listProjects(), trunksOn(storytree, machine.id)]);
+  const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
+  if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
   await library.close();
-  const marker = path.join(folder, MARKER_FILE);
+  const registered = trunks.some((trunk) => trunk.project === project) || (await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }));
+  if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
+  // Should what follows fail, the trunk stays recorded: a retry here sets its own trunk up again.
+  const marker = path.join(at, MARKER_FILE);
   const previous = existsSync(marker) ? readFileSync(marker) : undefined;
   writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
   try {
@@ -114,6 +128,32 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     throw error;
   }
   return { project, marker };
+}
+
+/**
+ * Record where `project` lives on this machine the first time it is seen from `folder` (a folder
+ * routed to it): the main checkout, when `folder` is in a git worktree. A project set up before
+ * trunks were recorded (ADR-0757) keeps working and gains its record. It never refuses and never
+ * moves a trunk already recorded: true only when it recorded one.
+ */
+export async function recordTrunkOnSight(storytree: Storytree, project: string, folder: string, home: string = storytreeHome()): Promise<boolean> {
+  const machine = machineOf(home);
+  return registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: canonical(inMainCheckout(canonical(folder))) });
+}
+
+/** A name to suggest for `folder` as a new project: its own name, or the first of name-2, name-3… no project has. */
+export async function suggestProjectName(folder: string, storytree: Storytree): Promise<string> {
+  return unusedName(suggestedName(folder), await storytree.listProjects());
+}
+
+/**
+ * Where `folder` sits in its repository's main checkout when it is in a linked git worktree (the
+ * same place in the folder it is a worktree of); `folder` itself otherwise.
+ */
+export function inMainCheckout(folder: string): string {
+  const start = path.resolve(folder);
+  const linked = linkedWorktree(start);
+  return linked === undefined ? start : path.join(linked.main, path.relative(linked.root, start));
 }
 
 /** Where the running storytree's database listens, from the app's owner record, or that it isn't running. */
@@ -185,8 +225,8 @@ export function suggestedName(folder: string): string {
  * What check_setup says in `folder`, which isn't a storytree project: that it isn't, and how the user
  * can add it. The agent is not told to offer setup (ADR-0752 D3); the user adds projects deliberately.
  */
-export function notAProjectYet(folder: string): string {
-  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${suggestedName(folder)}\` in a terminal here, or by asking you to set it up.`;
+export function notAProjectYet(folder: string, name: string = suggestedName(folder)): string {
+  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${name}\` in a terminal here, or by asking you to set it up.`;
 }
 
 /** The storytree 0.3 home: STORYTREE_HOME, else ~/.storytree/0.3, where the desktop app keeps its Postgres. */

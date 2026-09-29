@@ -14,6 +14,7 @@ import {
 } from "@storytree/library";
 
 import { CaptureError } from "../capture/index.js";
+import { ProjectFolderError } from "../routing/index.js";
 
 /** A tool's answer: one plain sentence (or a few lines), what it made or found as data, and whether it refused. */
 export interface Answer {
@@ -40,7 +41,7 @@ export function result(answer: Answer): CallToolResult {
 
 /** A refusal the agent can read: the library's own message for the refusals it makes, said plainly otherwise. */
 export function refusalOf(error: unknown): string {
-  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ConnectionError, LifecycleError, WaitLoopError, RetireRefusedError, CaptureError];
+  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ProjectFolderError, ConnectionError, LifecycleError, WaitLoopError, RetireRefusedError, CaptureError];
   if (refusals.some((kind) => error instanceof kind)) return `storytree refused that: ${(error as Error).message}`;
   return `storytree could not do that: ${error instanceof Error ? error.message : String(error)}`;
 }

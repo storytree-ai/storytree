@@ -41,6 +41,7 @@ const TOOLS = [
   "clear_own_runs",
   "clear_wait",
   "close_increment",
+  "close_out",
   "correct_note",
   "edit_plan",
   "land",
@@ -442,6 +443,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],
         ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
         ["read_context", {}],
+        ["close_out", { safe: true, why: "all merged" }],
       ];
       // Own's offline tools and the setup check's two do not depend on the library.
       const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs"];

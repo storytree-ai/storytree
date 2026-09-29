@@ -8,7 +8,7 @@
  */
 const HABITS_CARD = `storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.
 
-Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project yet, it asks you to ask the user; call \`set_up_project\` only after they say yes.
+Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call \`set_up_project\` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere.
 
 Plan first.
 - \`show_plan\` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about.
@@ -29,6 +29,7 @@ Red, then green, then landed.
 - A capability is proposed until you \`mark_built\` it, once you consider it built. Its card then says healthy, unhealthy or untested from what storytree verified, never from your report.
 - At an increment boundary, \`read_context\` says how many tokens your context holds; judge whether to take on more.
 - When the increment is done, \`close_increment\` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with \`park_increment\` and its outcome.
+- When your session's work is done, \`close_out\`: say whether it is safe to close (pull requests merged, tree clean, nothing of yours running) and why. The sessions list checks a yes; anything it cannot bear out stays listed for the owner.
 
 Record what you learned.
 - \`write_note\` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes an artifact's wording in place.

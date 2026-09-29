@@ -42,6 +42,23 @@ export const LEAVE_MS = 12 * 60 * 60 * 1000;
  */
 export type Listing = "listed" | "done" | "hidden";
 
+/**
+ * A session's close-out (ADR-0758 D2, D3), standing until a prompt puts it back to work: what it said,
+ * and whether the reading bore a "yes" out. A yes is verified when every branch it worked on has
+ * resolved, none of its own runs still ran on its machine as the close-out counted them, and it left
+ * no background task running; otherwise it needs you, naming the disagreement. A no needs you with
+ * its why.
+ */
+export interface CloseOut {
+  safe: boolean;
+  why: string;
+  /** When it closed out. */
+  at: string;
+  verified: boolean;
+  /** Why the owner should look, when the close-out is not verified. */
+  needsYou?: string;
+}
+
 /** The apps that keep their own record of sessions, and can archive them. */
 export type SessionApp = "claude-desktop" | "codex";
 
@@ -75,6 +92,8 @@ export interface Session {
   app?: SessionApp;
   /** Whether that app has it archived. */
   archived: boolean;
+  /** Its close-out, while it stands (ADR-0758). */
+  closeOut?: CloseOut;
   /** Whether the running-sessions list shows it. */
   listing: Listing;
 }
@@ -127,7 +146,10 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     const archived = record?.kind === "session-archived";
     const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(branchStates.get(branch)?.at ?? latest.at)));
     const settled = state === "ended" || now - settledSince > leaveMs;
-    const listing: Listing = openWork.length > 0 ? "listed"
+    const closeOut = closeOutOf(own, openWork);
+    // A verified close-out leaves at once; one that needs you stays, whatever else says (ADR-0758 D3).
+    const listing: Listing = closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
+      : openWork.length > 0 ? "listed"
       : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
       : settled ? "hidden" : "listed";
     return {
@@ -144,9 +166,29 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
       openWork,
       ...(record === undefined ? {} : { app: record.app }),
       archived,
+      ...(closeOut === undefined ? {} : { closeOut }),
       listing,
     };
   });
+}
+
+/** A session's standing close-out, by its own lines `own` (oldest first) and its branches still open. */
+function closeOutOf(own: readonly Line[], openWork: readonly string[]): CloseOut | undefined {
+  const index = own.findLastIndex((line) => line.kind === "closed-out");
+  const line = own[index];
+  if (line?.kind !== "closed-out") return undefined;
+  const since = own.slice(index + 1);
+  if (since.some((later) => later.kind === "prompt-submitted" || (later.kind === "session-started" && later.how !== "compact"))) return undefined;
+  const said = { safe: line.safe, why: line.why, at: line.at };
+  if (!line.safe) return { ...said, verified: false, needsYou: line.why };
+  const turn = own.findLast((later) => later.kind === "turn-ended");
+  const disagreements = [
+    ...(openWork.length === 0 ? [] : [`${openWork.join(", ")} ${openWork.length === 1 ? "is" : "are"} unmerged`]),
+    ...(line.running === undefined ? ["its own runs could not be counted"]
+      : line.running === 0 ? [] : [`${line.running} run${line.running === 1 ? "" : "s"} of its own still ${line.running === 1 ? "runs" : "run"}`]),
+    ...(turn?.kind === "turn-ended" && turn.seq > line.seq && (turn.background ?? 0) > 0 ? ["a background task still runs"] : []),
+  ];
+  return disagreements.length === 0 ? { ...said, verified: true } : { ...said, verified: false, needsYou: `says safe, but ${disagreements.join("; ")}` };
 }
 
 /**

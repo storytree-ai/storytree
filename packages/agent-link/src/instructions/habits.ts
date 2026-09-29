@@ -8,7 +8,7 @@
  */
 const HABITS_CARD = `storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.
 
-Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project yet, it asks you to ask the user; call \`set_up_project\` only after they say yes.
+Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call \`set_up_project\` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere.
 
 Plan first.
 - \`show_plan\` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about.

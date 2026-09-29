@@ -33,7 +33,7 @@ test("10.7 each settings tab shows the settings that declare its group, and a ne
     const names = (html: string) => [...html.matchAll(/data-setting="([^"]+)"/g)].map((match) => match[1]);
     assert.deepEqual(names(renderSettings(readings, "sessions")), ["context-guidance", "idle-after", "leave-after"]);
     assert.deepEqual(names(renderSettings(readings, "library")), ["library"]);
-    const quiet = { ...readings["idle-after"], name: "quiet-after", group: "sessions" as const };
+    const quiet = { ...readings["context-guidance"], name: "quiet-after" };
     assert.deepEqual(names(renderSettings({ ...readings, "quiet-after": quiet }, "sessions")).at(-1), "quiet-after");
   });
 });

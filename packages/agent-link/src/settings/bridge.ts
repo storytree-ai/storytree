@@ -1,9 +1,10 @@
-import type { LibraryReading, SettingsReading } from "./settings.js";
+import type { LibraryReading, SettingGroup, SettingsReading } from "./settings.js";
 
 /** Data only: safe to import into the sandboxed page or preload. */
 export type SettingsResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
 export interface NumberReading {
   readonly name: string;
+  readonly group: SettingGroup;
   readonly type: string;
   readonly unit?: string;
   readonly default: number;

@@ -8,37 +8,28 @@
  * replay lights it. A ghost is see-through, beside the decision that replaced it. A loop is circled
  * in red and labelled a refused shape. Only the pinned note's links are drawn, as solid white
  * lines with an arrowhead at the note they point to; a replay's moves are dashed in the agent's
- * colour, and never along a link, since the record names no source note (T1). A selected session's
- * window (ADR-0746 D1) rings each note it holds now in teal, and joins a note to one opened while
- * its result was in view with a straight, dotted teal line and no head: it says "was in view",
- * never "followed" (ADR-0740 D3).
+ * colour, and never along a link, since the record names no source note (T1).
  */
-import { Billboard, Html, Line } from "@react-three/drei";
+import { Html, Line } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import React, { useEffect, useMemo } from "react";
 import { Quaternion, Raycaster, Vector2, Vector3, type Object3D } from "three";
 
-import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, RosterEntry, SizeBy, WindowView } from "../look-inside/look-inside.js";
+import type { Card, CoreScene, DrawnNote, LegendEntry, Link, Point, ReplayFrame, RosterEntry, SizeBy } from "../look-inside/look-inside.js";
 
 /** Grey for a note the session never reached, pale for one it did (ADR-0647 V1, the prototype's version 4 greys). */
 const GREY = "#3a3d46";
 const REACHED = "#cfd6e4";
 const LOOP = "#ff5a4f";
 const ENTRANCE = "#eadcae";
-/** The window's own colour: nothing else in the core is drawn in it. */
-const IN_VIEW = "#5fd3bc";
-/** How many of the window's files the panel names before counting the rest. */
-const FILES_NAMED = 8;
 
-export function CoreInside({ scene, radius, pinned, links, frame, legend, window, selected, onPin }: {
+export function CoreInside({ scene, radius, pinned, links, frame, legend, selected, onPin }: {
   scene: CoreScene;
   radius: number;
   pinned: string | undefined;
   links: readonly Link[];
   frame: ReplayFrame | undefined;
   legend: readonly LegendEntry[];
-  /** The selected session's window, once read. */
-  window: WindowView | undefined;
   /** The selected story, whose capabilities' entrances are named too. */
   selected: string | undefined;
   onPin: (note: string | undefined) => void;
@@ -64,7 +55,7 @@ export function CoreInside({ scene, radius, pinned, links, frame, legend, window
         <span className={entrance.node === entrance.story ? "core-entrance core-entrance-story" : "core-entrance"}>{entrance.title}</span>
       </Html>}
     </group>)}
-    {scene.notes.map((note) => <Note key={note.id} note={note} ball={ball} pinned={note.id === pinned} inView={window?.notes.has(note.id) === true}
+    {scene.notes.map((note) => <Note key={note.id} note={note} ball={ball} pinned={note.id === pinned}
       colour={note.tone === "lit" ? note.colour ?? colours.get(note.agent ?? "") ?? REACHED : note.tone === "reached" ? REACHED : GREY} />)}
     {links.map(({ from, to }) => {
       const a = byId.get(from), b = byId.get(to);
@@ -75,16 +66,11 @@ export function CoreInside({ scene, radius, pinned, links, frame, legend, window
       return a === undefined || b === undefined ? null : <Line key={`${jump.agent} ${jump.seq}`} points={arc(a.at, b.at)}
         color={colours.get(jump.agent) ?? REACHED} lineWidth={2} dashed dashSize={radius * 0.02} gapSize={radius * 0.015} />;
     })}
-    {window?.links.map(({ from, to }) => {
-      const a = byId.get(from), b = byId.get(to);
-      return a === undefined || b === undefined ? null : <Line key={`in-view ${from}>${to}`} points={[vector(a.at), vector(b.at)]}
-        color={IN_VIEW} lineWidth={1} transparent opacity={0.75} dashed dashSize={radius * 0.004} gapSize={radius * 0.008} />;
-    })}
     <PickNote onPin={onPin} />
   </group>;
 }
 
-function Note({ note, ball, colour, pinned, inView }: { note: DrawnNote; ball: number; colour: string; pinned: boolean; inView: boolean }) {
+function Note({ note, ball, colour, pinned }: { note: DrawnNote; ball: number; colour: string; pinned: boolean }) {
   const size = ball * note.size;
   return <group position={vector(note.at)}>
     <mesh name={`note:${note.id}`}>
@@ -99,10 +85,6 @@ function Note({ note, ball, colour, pinned, inView }: { note: DrawnNote; ball: n
       <sphereGeometry args={[size * 2, 16, 12]} />
       <meshBasicMaterial color="#ffffff" transparent opacity={0.22} depthWrite={false} />
     </mesh>}
-    {inView && <Billboard><mesh>
-      <torusGeometry args={[size * 1.8, size * 0.18, 8, 24]} />
-      <meshBasicMaterial color={IN_VIEW} />
-    </mesh></Billboard>}
     {pinned && <mesh>
       <sphereGeometry args={[size * 1.5, 16, 12]} />
       <meshBasicMaterial color="#ffffff" wireframe />
@@ -167,7 +149,7 @@ export function pickNote(ray: Raycaster, scene: Object3D): string | undefined {
 }
 
 /** The panel beside the core: what is drawn, the session, the size, the replay, the legend and the pinned note's card. */
-export function CorePanel({ scene, counts, sessions, roster, session, sizeBy, frame, step, playing, legend, hidden, card, window, on }: {
+export function CorePanel({ scene, counts, sessions, roster, session, sizeBy, frame, step, playing, legend, hidden, card, on }: {
   scene: CoreScene;
   counts: { placed: number; outside: number; ghosts: number; loops: number };
   sessions: readonly { id: string; label: string }[];
@@ -183,8 +165,6 @@ export function CorePanel({ scene, counts, sessions, roster, session, sizeBy, fr
   card: Card | undefined;
   links: readonly Link[];
   titles: ReadonlyMap<string, string>;
-  /** The selected session's window, once read. */
-  window: WindowView | undefined;
   on: {
     session(session: string | undefined): void;
     sizeBy(sizeBy: SizeBy): void;
@@ -245,20 +225,6 @@ export function CorePanel({ scene, counts, sessions, roster, session, sizeBy, fr
       </ul>
       <p className="core-note">A dashed line is a jump between one agent's full reads, not a link it followed. Reads show reach, never usefulness.</p>
     </>}
-    {window !== undefined && <section className="core-window" aria-label="Window">
-      <h3>In its window now</h3>
-      {window.status !== undefined ? <p className="core-status">{window.status}</p> : <>
-        <p className="core-counts">
-          <span className="core-swatch" style={{ background: IN_VIEW }} />
-          {window.notes.size} artifact{window.notes.size === 1 ? "" : "s"} · {window.files.length} file{window.files.length === 1 ? "" : "s"}
-        </p>
-        {window.files.length > 0 && <ul className="core-window-files">
-          {window.files.slice(0, FILES_NAMED).map((file) => <li key={file} title={file}>{file.slice(file.replace(/\\/g, "/").lastIndexOf("/") + 1)}</li>)}
-          {window.files.length > FILES_NAMED && <li>and {window.files.length - FILES_NAMED} more</li>}
-        </ul>}
-        <p className="core-note">A teal ring is an artifact the session holds now. A dotted teal line joins one artifact to another opened while it was in view: it was in view, not a link the session followed.</p>
-      </>}
-    </section>}
     {card !== undefined && <NoteCard card={card} onClose={on.unpin} />}
   </aside>;
 }

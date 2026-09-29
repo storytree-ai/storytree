@@ -1,14 +1,18 @@
 import type { GlobePoint } from "../shelves/positions.js";
 import type { RecordEnvelope } from "@storytree/library";
+import { Billboard, Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdditiveBlending, Color } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { curvePoint, glowAt, growthPlan, heldNotes, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail } from "../look-inside/look-inside.js";
+import { curvePoint, glowAt, growthPlan, heldNotes, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
+
+/** The window's own colour (ADR-0746 D1): nothing else on the globe is drawn in it. */
+const IN_VIEW = "#5fd3bc";
 
 /** How long a new step's line takes to grow, and each step of a glow's loop, and its rest between loops (ADR-0742). */
 const GROW_MS = 900;
@@ -18,7 +22,7 @@ const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMe
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [] }: {
+export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
   /** Notes a running session read, in its colour; a shared one gets a halo (ADR-0738). */
   lit?: ReadonlyMap<string, Lighting>;
@@ -26,6 +30,8 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
   trails?: readonly Trail[];
   /** Each drawn agent's path, replayed by a looping glow (ADR-0742). */
   paths?: readonly AgentPath[];
+  /** The selected session's window: a teal ring on each note it holds now, and dotted teal in-view lines (ADR-0746 D1). */
+  window?: WindowView | undefined;
 }) {
   const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
   // Steps already read when the view first had any are history and never grow (ADR-0742 D4).
@@ -67,6 +73,14 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
       return from === undefined || to === undefined ? null
         : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} />;
     })}
+    {window?.links.map(({ from, to }) => {
+      const a = at.get(from), b = at.get(to);
+      // Straight, dotted and headless, so it never reads as a reading path's curve or a followed link (ADR-0740 D3).
+      return a === undefined || b === undefined ? null : <group key={`${from}>${to}`} name={`knowledge-in-view:${from}>${to}`} userData={{ from, to, kind: "in-view" }}>
+        <Line points={[[a.x, a.y, a.z], [b.x, b.y, b.z]]} color={IN_VIEW} lineWidth={1.2} transparent opacity={0.8} depthWrite={false}
+          dashed dashSize={radius * 0.006} gapSize={radius * 0.01} raycast={noRaycast} />
+      </group>;
+    })}
     {!reducedMotion() && paths.map(path => <PathGlow key={path.mover} path={path} at={at} starts={starts} />)}
     {points.map(point => <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
@@ -74,6 +88,12 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
         lit: showing.get(point.id)?.colour ?? null, shared: showing.get(point.id)?.shared ?? false }}>
       <sphereGeometry args={[radius * (showing.has(point.id) ? 0.009 : 0.006), 12, 8]} />
       <meshBasicMaterial color={showing.get(point.id)?.colour ?? "#a5c5d1"} transparent opacity={showing.has(point.id) ? 1 : lit.size > 0 ? 0.3 : 0.52} depthWrite={false} />
+      {window?.notes.has(point.id) === true && <Billboard name={`knowledge-window:${point.id}`}>
+        <mesh raycast={noRaycast}>
+          <torusGeometry args={[radius * 0.015, radius * 0.0022, 8, 28]} />
+          <meshBasicMaterial color={IN_VIEW} transparent opacity={0.9} depthWrite={false} />
+        </mesh>
+      </Billboard>}
       {showing.get(point.id)?.shared && <mesh raycast={noRaycast}>
         <sphereGeometry args={[radius * 0.017, 12, 8]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.22} depthWrite={false} />

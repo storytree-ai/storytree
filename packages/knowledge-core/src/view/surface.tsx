@@ -160,8 +160,7 @@ function useCore(core: KnowledgeCore, spots: ReadonlyMap<string, Point>, radius:
     changes: state.history, knowledge: known, core: placed, reads: store.reads, spots, radius, session: state.session, sizeBy: state.sizeBy, roster: state.roster,
     ...(frame === undefined ? {} : { frame }),
   };
-  const window = state.session === undefined || state.window === undefined ? undefined : windowView(state.window, present);
-  return { store, state, known, placed, present, frame, input, window, key: replay === undefined ? [] : legend(replay.agents, colourOf(state.roster, state.session)), links: pinnedLinks(state.pinned, known) };
+  return { store, state, known, placed, present, frame, input, key: replay === undefined ? [] : legend(replay.agents, colourOf(state.roster, state.session)), links: pinnedLinks(state.pinned, known) };
 }
 
 /** The core inside the turning globe, in its coordinates: `spots` are each story's unit direction. */
@@ -172,17 +171,17 @@ export function KnowledgeCoreInside({ core, spots, radius, selected }: {
   /** The selected story, whose capabilities' entrances are named too. */
   selected: string | undefined;
 }) {
-  const { store, state, frame, input, key, links, window } = useCore(core, spots, radius);
+  const { store, state, frame, input, key, links } = useCore(core, spots, radius);
   // Leaving the core lets the pin go, so the globe comes back as it was.
   useEffect(() => () => store.set({ pinned: undefined }), [store]);
-  return <CoreInside scene={coreScene(input)} radius={radius} pinned={state.pinned} links={links} frame={frame} legend={key} window={window}
+  return <CoreInside scene={coreScene(input)} radius={radius} pinned={state.pinned} links={links} frame={frame} legend={key}
     selected={selected} onPin={(pinned) => store.set({ pinned })} />;
 }
 
 /** The panel beside the core: what is drawn, the session, the size, the replay, the legend and the card. */
 export function KnowledgeCorePanel({ core }: { core: KnowledgeCore }) {
   const none = useMemo(() => new Map<string, Point>(), []);
-  const { store, state, known, placed, present, frame, input, key, links, window } = useCore(core, none, 1);
+  const { store, state, known, placed, present, frame, input, key, links } = useCore(core, none, 1);
   useEffect(() => () => store.stop(), [store]);
   const titles = new Map([...known.notes.values()].map((note) => [note.id, noteTitle(note)]));
   const listed = new Map(state.roster.map(({ session, label }) => [session, label]));
@@ -192,7 +191,7 @@ export function KnowledgeCorePanel({ core }: { core: KnowledgeCore }) {
     counts={{ placed: placed.placed.size, outside: placed.outside.length, ghosts: known.ghosts.size, loops: placed.loops.length }}
     sessions={sessions} roster={state.roster} session={state.session} sizeBy={state.sizeBy} frame={frame} step={state.step} playing={state.playing}
     legend={key} hidden={state.hidden} card={state.pinned === undefined ? undefined : noteCard(state.pinned, input)}
-    links={links} titles={titles} window={window}
+    links={links} titles={titles}
     on={{
       session: (session) => core.select(session),
       sizeBy: (sizeBy) => store.set({ sizeBy }),
@@ -242,7 +241,7 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
   return card === undefined ? null : <NoteCard card={card} onClose={onClose} />;
 }
 
-/** Knowledge under the globe's islands, without story text, ghosts or replay: faint, or lit by the running sessions' reads (ADR-0738). */
+/** Knowledge under the globe's islands, without story text, ghosts or replay: faint, or lit by the running sessions' reads (ADR-0738), with a selected session's window (ADR-0746 D1). */
 export function KnowledgeGlobePoints({ core, spots, radius }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
 }) {
@@ -257,5 +256,8 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
     [store.reads, state.version, state.roster, state.session, known]);
   const replays = useMemo(() => agentPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     [store.reads, state.version, state.roster, state.session, known]);
-  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} trails={paths} paths={replays} />;
+  // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).
+  const window = useMemo(() => state.session === undefined || state.window === undefined ? undefined : windowView(state.window, new Set(known.notes.keys())),
+    [state.session, state.window, known]);
+  return <GlobePoints points={points} radius={radius} notes={known.notes} lit={lit} trails={paths} paths={replays} window={window} />;
 }

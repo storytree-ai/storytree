@@ -1,0 +1,35 @@
+{
+  "converged": {
+    "decision_086ba2fa35d6": {
+      "dot": "librarian",
+      "arcs": [
+        "builder",
+        "traversal-a",
+        "librarian"
+      ]
+    },
+    "decision_0c5d8fd4535c": {
+      "dot": "traversal-a",
+      "arcs": [
+        "builder",
+        "traversal-a",
+        "librarian"
+      ]
+    }
+  },
+  "arrival": {
+    "note": "decision_229b7f7d10de",
+    "before": {
+      "dot": "traversal-a",
+      "arcs": []
+    },
+    "after": {
+      "dot": "builder",
+      "arcs": [
+        "traversal-a",
+        "builder"
+      ]
+    }
+  },
+  "whiteHalos": 0
+}

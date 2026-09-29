@@ -32,6 +32,7 @@ import type { ConnectOptions, Storytree } from "@storytree/library";
 import { readLibrary } from "../settings/settings.js";
 
 import { recordProjectChoice } from "./project-choice.js";
+import { forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, trunksOn, unusedName } from "./trunks.js";
 
 /** The marker a folder set up as a storytree project holds. */
 export const MARKER_FILE = ".storytree.json";
@@ -50,8 +51,10 @@ export interface SetUpOptions {
   readonly project: string;
   /** A connection to the running storytree's library. */
   readonly storytree: Storytree;
-  /** The app's home; defaults to STORYTREE_HOME, else ~/.storytree/0.3. */
+  /** The app's home; defaults to STORYTREE_HOME, else ~/.storytree/0.3. It keeps this machine's identity. */
   readonly storytreeHome?: string;
+  /** Add this machine's checkout to project `project`, which already exists (ADR-0757 D4). */
+  readonly join?: boolean;
 }
 
 export interface LocateOptions {
@@ -93,27 +96,57 @@ export function findProject(from: string): ProjectLookup {
 }
 
 /**
- * Set `folder` up as project `project`, after the user said yes: open the project in the library
- * (creating its library the first time), leave the marker, then record the user's choice for the app.
- * The name is judged by the library,
- * which refuses one that breaks its rule (ProjectNameError) before anything touches the server; a
- * refusal leaves nothing behind.
+ * Set `folder` up as project `project`, after the user said yes: the one check (ADR-0757) first,
+ * then open the project in the library (creating its library the first time), record the folder as
+ * the project's trunk on this machine, leave the marker, and record the user's choice for the app.
+ * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
+ * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
+ * project that already exists; without it, an existing project's name is refused.
  */
-export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome() }: SetUpOptions): Promise<{ project: string; marker: string }> {
+export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false }: SetUpOptions): Promise<{ project: string; marker: string }> {
+  const at = canonical(path.resolve(folder));
+  const existing = findProject(at);
+  if (existing.project !== undefined) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
+  const machine = machineOf(home);
+  const [projects, trunks] = await Promise.all([storytree.listProjects(), trunksOn(storytree, machine.id)]);
+  const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
+  if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
   await library.close();
-  const marker = path.join(folder, MARKER_FILE);
+  const registered = trunks.some((trunk) => trunk.project === project) || (await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }));
+  if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
+  const marker = path.join(at, MARKER_FILE);
   const previous = existsSync(marker) ? readFileSync(marker) : undefined;
-  writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
   try {
-    recordProjectChoice(path.join(home, "project-choice.json"), project);
+    writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
+    try {
+      recordProjectChoice(path.join(home, "project-choice.json"), project);
+    } catch (error) {
+      // A new marker would make the tool's explicit retry stop at "already set up".
+      if (previous === undefined) rmSync(marker);
+      else writeFileSync(marker, previous);
+      throw error;
+    }
   } catch (error) {
-    // A new marker would make the tool's explicit retry stop at "already set up".
-    if (previous === undefined) rmSync(marker);
-    else writeFileSync(marker, previous);
+    await forgetTrunk(storytree, project, machine.id).catch(() => undefined);
     throw error;
   }
   return { project, marker };
+}
+
+/** A name to suggest for `folder` as a new project: its own name, or the first of name-2, name-3… no project has. */
+export async function suggestProjectName(folder: string, storytree: Storytree): Promise<string> {
+  return unusedName(suggestedName(folder), await storytree.listProjects());
+}
+
+/**
+ * Where `folder` sits in its repository's main checkout when it is in a linked git worktree (the
+ * same place in the folder it is a worktree of); `folder` itself otherwise.
+ */
+export function inMainCheckout(folder: string): string {
+  const start = path.resolve(folder);
+  const linked = linkedWorktree(start);
+  return linked === undefined ? start : path.join(linked.main, path.relative(linked.root, start));
 }
 
 /** Where the running storytree's database listens, from the app's owner record, or that it isn't running. */

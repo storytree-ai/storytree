@@ -51,11 +51,13 @@ function Invoke-StorytreeProjectFolder([string]$Here, [string]$UserHome, [hashta
       $result = & $Operations.SetUp $folder $name
       if ($result.status -ne 'name refused') { break }
       Write-Host $result.message
+      if ($result.suggestion) { $status.suggestion = $result.suggestion }
     }
   } catch {
     throw "The project was not set up: $($_.Exception.Message). The app and your agents are ready. $later"
   }
   if ($result.status -eq 'already a project') { Write-Host "$folder is already storytree project '$($result.project)'. Nothing new was set up."; return }
+  if ($result.status -eq 'folder refused') { Write-Host "$($result.message) No project was set up. $later"; return }
   Write-Host "$folder is now storytree project '$name', and the app shows it. Start Claude Code or Codex in that folder to work in it."
 }
 

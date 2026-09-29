@@ -1,19 +1,25 @@
 /**
- * Adding a project (ADR-0752): the folder the user chose, in the installer's folder step or the
- * app's Add project, becomes a storytree project exactly as the setup check's yes makes one. The
- * choice is the user's explicit yes; a folder that already belongs to a project is left as it is.
+ * Adding a project (ADR-0752, ADR-0757): the folder the user chose, in the installer's folder step
+ * or the app's Add project, becomes a storytree project through the agent link's one setup check,
+ * as every other way of adding one does. The choice is the user's explicit yes; a folder that
+ * already belongs to a project is left as it is, and a folder the check refuses is said with why.
  */
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { findProject, openStorytree, setUpProject, storytreeHome, suggestedName } from "@storytree/agent-link";
+import { findProject, openStorytree, ProjectFolderError, setUpProject, storytreeHome, suggestProjectName, unusedName } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
 
-/** The project a folder belongs to, or the name to suggest for it. The folder need not exist yet. */
+export { unusedName };
+
+/** The project a folder belongs to, or the name no project has yet to suggest for it. The folder need not exist yet. */
 export type ProjectFolder = { folder: string; project: string } | { folder: string; suggestion: string };
 
 export type AddedProject =
   | { status: "set up" | "already a project"; folder: string; project: string }
-  | { status: "name refused"; folder: string; message: string };
+  /** Another name would do: the message says why this one would not, and suggests one. */
+  | { status: "name refused"; folder: string; message: string; suggestion?: string }
+  /** The folder cannot be a project of its own (it is inside, or holds, another project's folder). */
+  | { status: "folder refused"; folder: string; message: string };
 
 export interface AddProjectOptions {
   /** The app's home, where the project choice is recorded. By default, storytreeHome(). */
@@ -24,10 +30,12 @@ export interface AddProjectOptions {
   readonly library?: Storytree;
 }
 
-export function projectFolder(folder: string): ProjectFolder {
+/** What `folder` is: the project it belongs to, or the name to suggest, which no project has yet. */
+export async function projectFolder(folder: string, options: AddProjectOptions = {}): Promise<ProjectFolder> {
   const resolved = path.resolve(folder);
   const found = findProject(resolved);
-  return found.project === undefined ? { folder: resolved, suggestion: suggestedName(resolved) } : { folder: resolved, project: found.project };
+  if (found.project !== undefined) return { folder: resolved, project: found.project };
+  return { folder: resolved, suggestion: await withLibrary(options, (storytree) => suggestProjectName(resolved, storytree)) };
 }
 
 async function openLibrary(home: string): Promise<Storytree> {
@@ -37,29 +45,34 @@ async function openLibrary(home: string): Promise<Storytree> {
   return connect(running.library);
 }
 
-/** Make `folder` (created if missing) project `name`, and the one the app shows. Nothing is made for a folder already in a project. */
-export async function addProject(folder: string, name: string, options: AddProjectOptions = {}): Promise<AddedProject> {
-  const current = projectFolder(folder);
-  if ("project" in current) return { status: "already a project", ...current };
-  const home = options.home ?? storytreeHome();
-  const storytree = options.library ?? await (options.open ?? openLibrary)(home);
+async function withLibrary<T>(options: AddProjectOptions, use: (storytree: Storytree) => Promise<T>): Promise<T> {
+  const storytree = options.library ?? await (options.open ?? openLibrary)(options.home ?? storytreeHome());
   try {
-    mkdirSync(current.folder, { recursive: true });
-    await setUpProject({ folder: current.folder, project: name, storytree, storytreeHome: home });
-    return { status: "set up", folder: current.folder, project: name };
-  } catch (error) {
-    if (error instanceof Error && error.name === "ProjectNameError") return { status: "name refused", folder: current.folder, message: error.message };
-    throw error;
+    return await use(storytree);
   } finally {
     if (options.library === undefined) await storytree.close();
   }
 }
 
-/** `name`, or the first of `name-2`, `name-3`… that is no project yet, within the project-name length. */
-export function unusedName(name: string, taken: readonly string[]): string {
-  for (let n = 1; ; n++) {
-    const suffix = n === 1 ? "" : `-${n}`;
-    const candidate = `${name.slice(0, 40 - suffix.length).replace(/-+$/, "")}${suffix}`;
-    if (!taken.includes(candidate)) return candidate;
-  }
+/** Make `folder` (created if missing) project `name`, and the one the app shows. Nothing is made for a folder already in a project. */
+export async function addProject(folder: string, name: string, options: AddProjectOptions = {}): Promise<AddedProject> {
+  const resolved = path.resolve(folder);
+  const found = findProject(resolved);
+  if (found.project !== undefined) return { status: "already a project", folder: resolved, project: found.project };
+  const home = options.home ?? storytreeHome();
+  return withLibrary({ ...options, home }, async (storytree) => {
+    try {
+      mkdirSync(resolved, { recursive: true });
+      await setUpProject({ folder: resolved, project: name, storytree, storytreeHome: home });
+      return { status: "set up", folder: resolved, project: name };
+    } catch (error) {
+      if (error instanceof ProjectFolderError) {
+        return error.suggestion === undefined
+          ? { status: "folder refused", folder: resolved, message: error.message }
+          : { status: "name refused", folder: resolved, message: error.message, suggestion: error.suggestion };
+      }
+      if (error instanceof Error && error.name === "ProjectNameError") return { status: "name refused", folder: resolved, message: error.message };
+      throw error;
+    }
+  });
 }

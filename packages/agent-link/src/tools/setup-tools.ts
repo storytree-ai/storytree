@@ -81,9 +81,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
     {
       description:
         "Set this folder up as a storytree project, under the name the user chose. Call it only when the user has asked for storytree in this folder: storytree never sets a folder up by itself.",
-      inputSchema: z.object({ name: z.string().describe("The project's name: lower-case letters, digits and single hyphens") }),
+      inputSchema: z.object({
+        name: z.string().describe("The project's name: lower-case letters, digits and single hyphens"),
+        join: z.boolean().optional().describe("True only when the user asked to add this machine's checkout of their existing project `name` (a project already set up on another machine)"),
+      }),
     },
-    (async ({ name }: { name: string }, context: ServerContext): Promise<CallToolResult> => {
+    (async ({ name, join }: { name: string; join?: boolean }, context: ServerContext): Promise<CallToolResult> => {
       const caller = callerOf(context);
       const existing = findProject(folder);
       if (existing.project !== undefined) return result({ text: `This folder is already storytree project ${quoted(existing.project)}.`, data: { project: existing.project } });
@@ -94,7 +97,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       if (running.state === "not running") return result({ text: NOT_RUNNING_ANSWER });
       try {
         await setUpProject({
-          folder, project: name, storytree: await connections.server(running.library),
+          folder, project: name, storytree: await connections.server(running.library), join: join === true,
           ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
         });
         const { log } = await connections.reach(running.library, name);

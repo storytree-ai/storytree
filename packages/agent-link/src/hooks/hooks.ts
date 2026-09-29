@@ -15,7 +15,7 @@
  * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions for the terms the
  * prompt names (definitions.ts), and once-per-session advice to start fresh when a Claude Code
  * session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
- * after 2 s and prints nothing. No other prints: in a folder that isn't a storytree project, a
+ * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). No other prints: in a folder that isn't a storytree project, a
  * session start adds nothing for the agent (ADR-0752 D3).
  *
  * A hook's input is the harness's own JSON on stdin. hookLines() turns it into lines, and knows
@@ -95,10 +95,22 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     const parsed = parse(input);
     // An older install's asking hook, until the next setup check replaces its registration.
     if (flags.includes(ASK_SETUP)) return;
-    const asked = promptIn(harness, parsed);
-    if (asked !== undefined) return await withinTime(contextForPrompt(asked));
     const made = hookLines(harness, parsed);
-    if (made === undefined || made.lines.length === 0) return;
+    const asked = promptIn(harness, parsed);
+    // A prompt's line is written while its context is looked up: the harness waits for both.
+    if (asked !== undefined) return (await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate)]))[0];
+    if (made === undefined) return;
+    await writeLines(harness, input, flags, made, handOff, merges, locate);
+  } catch {
+    // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said.
+  }
+  return undefined;
+}
+
+/** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine. Never throws. */
+async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined): Promise<void> {
+  try {
+    if (made.lines.length === 0) return;
     const where = route(made.folder, locate);
     if (where.status === "not-a-project") return;
     // Storytree cannot be reached: the lines wait on this machine for the next hook that reaches it.
@@ -137,9 +149,9 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
         written += 1;
       }
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
-      // call, which the harness waits for and which looks for itself.
+      // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;
-      if (first !== undefined && first.kind !== "tool-requested") {
+      if (first !== undefined && first.kind !== "tool-requested" && first.kind !== "prompt-submitted") {
         const { endMergedClaims } = await import("../claims/index.js");
         await endMergedClaims({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, merges);
         // What the session's transcript gained since the last hook streams into the shared log, scrubbed (ADR-0749 D3, D4).
@@ -156,9 +168,8 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
       await storytree.close();
     }
   } catch {
-    // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said.
+    // Whatever went wrong, nothing is written.
   }
-  return undefined;
 }
 
 /** The prompt in a prompt hook's input from `harness`, or undefined for any other input. */

@@ -312,7 +312,7 @@ test("3.6 recorded inputs from before a shell command, after one that failed, an
     assert.deepEqual((await linesOf(project)).map(written), [
       { ...claude, kind: "command-started", command, call: "toolu_01Kjexd4yP2myMhXEATFdm25" },
       { ...claude, kind: "command-run", command, call: "toolu_01Kjexd4yP2myMhXEATFdm25" },
-      { ...claude, kind: "turn-ended" },
+      { ...claude, kind: "turn-ended", background: 0 },
     ]);
 
     // On Windows without Git, Claude Code has no Bash tool and runs the command with its PowerShell tool.
@@ -476,7 +476,9 @@ test("9.9 past context guidance, the Claude Code prompt hook advises handing off
       });
       await t.test("no reading, an unreadable transcript, stopped storytree, and unreadable settings add none", async () => {
         writeTokens(900_000);
-        assert.equal(await ask("unrecorded"), undefined);
+        // No reading: the transcript its hooks name (the recorded one's) is not on this machine.
+        const unrecorded = await runHook("claude-code", prompted("claude-code", folder, "Continue", `${project}-unrecorded`), home);
+        assert.equal(addedContext(unrecorded), undefined);
         await start("missing");
         rmSync(transcript);
         assert.equal(await ask("missing"), undefined);

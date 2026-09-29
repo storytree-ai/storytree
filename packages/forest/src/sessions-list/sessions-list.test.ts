@@ -30,7 +30,7 @@ test("one row per non-ended claiming session, plain idle, reason and held island
   assert.deepEqual(rows.map(row => row.id), ["parent", "off", "quiet"], "every session that has not ended shows (ADR-0749 D1)");
   assert.equal(rows[0]!.label, "Build signup");
   assert.deepEqual(rows[0]!.stories, ["one", "two"]);
-  assert.equal(rows[1]!.state, "idle");
+  assert.equal(rows[1]!.state, "waiting");
   assert.equal(rows[1]!.needsYou, false);
   assert.equal(rows[0]!.totalTokens, undefined, "an unavailable total is not zero");
   lines.push(...log({ ...parent, kind: "released", capability: "cap-one" }).map(line => ({ ...line, seq: 5 })));
@@ -66,10 +66,10 @@ test("7.1 a session holding no claim still gets a plain row, named from the work
   assert.deepEqual(row?.worktrees, ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
 });
 
-test("the list honours the idle-after setting it is given, not a fixed 30 minutes", () => {
+test("a session whose hooks report no turns is judged by the idle-after setting the list is given, not a fixed 30 minutes", () => {
   const lines = log({ ...off, kind: "claimed", increment: "tidy", reason: "Tidy", at: "2026-09-28T11:45:00Z" });
-  assert.equal(sessionRows(tree, lines, [], now)[0]?.state, "live", "15 minutes quiet is live at the 30-minute default");
-  assert.equal(sessionRows(tree, lines, [], now, new Map(), 10 * 60 * 1000)[0]?.state, "idle", "and idle past a 10-minute setting");
+  assert.equal(sessionRows(tree, lines, [], now)[0]?.state, "working", "15 minutes quiet is working at the 30-minute default");
+  assert.equal(sessionRows(tree, lines, [], now, new Map(), 10 * 60 * 1000)[0]?.state, "waiting", "and waiting past a 10-minute setting");
 });
 
 test("a session that stopped reporting (gone) is hidden like an ended one, even holding a claim", () => {

@@ -16,6 +16,7 @@
  *   under the call's `tool_use_id`, which the line after it carries too (ADR-0636 D2).
  * - A command that exits with an error fires PostToolUseFailure instead of PostToolUse (seen
  *   2026-09-27 in Claude Code 2.1.283), with the same `tool_input` and `tool_use_id`, and `error`.
+ * - UserPromptSubmit carries the `prompt`: its line says the session's turn began, without the words.
  * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running.
  * - SessionEnd carries `reason`.
  */
@@ -46,9 +47,11 @@ export function claudeCodeLines(input: Record<string, unknown>): HookLines | und
       return line(toolLine(common, input) ?? subagentLine(common, input.tool_name, input.tool_input, input.tool_response));
     case "PostToolUseFailure":
       return line(isText(input.tool_name) && RUNS_COMMAND.has(input.tool_name) ? toolLine(common, input) : undefined);
+    case "UserPromptSubmit":
+      return line({ ...common, kind: "prompt-submitted" });
     case "Stop":
-      // A turn that leaves tasks running in the background may leave a command of theirs running too.
-      return Array.isArray(input.background_tasks) && input.background_tasks.length > 0 ? undefined : line({ ...common, kind: "turn-ended" });
+      // A turn that leaves tasks running in the background may leave a command of theirs running too: its line says how many.
+      return line({ ...common, kind: "turn-ended", ...(Array.isArray(input.background_tasks) ? { background: input.background_tasks.length } : {}) });
     default:
       return undefined;
   }

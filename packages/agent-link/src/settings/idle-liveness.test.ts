@@ -36,24 +36,24 @@ test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 
         locked: (name, work) => log.locked(name, (locked) => work({ ...locked, now: async () => now })),
       };
       const claimant = { log: later, library, project, session: "B" };
-      assert.equal((await readSessions(log, project, { now }))[0]?.state, "live");
+      assert.equal((await readSessions(log, project, { now }))[0]?.state, "working");
       assert.equal((await readClaims(log, project, { now }))[0]?.holder, "live");
       assert.equal((await claim(claimant, capability.id, "taking over")).ok, false);
 
       setSetting("idle-after", "10m");
-      assert.equal((await readSessions(log, project, { now }))[0]?.state, "idle");
+      assert.equal((await readSessions(log, project, { now }))[0]?.state, "waiting");
       assert.equal((await readClaims(log, project, { now }))[0]?.holder, "idle");
       const { lines } = await log.since(project, 0);
-      assert.equal(sessionsFrom(lines, { now })[0]?.state, "live", "the browser default stays 30m");
+      assert.equal(sessionsFrom(lines, { now })[0]?.state, "working", "the browser default stays 30m");
       assert.equal(claimsFrom(lines, { now })[0]?.holder, "live");
-      assert.equal(sessionsFrom(lines, { now, quietMs: 10 * 60_000 })[0]?.state, "idle");
+      assert.equal(sessionsFrom(lines, { now, quietMs: 10 * 60_000 })[0]?.state, "waiting");
       assert.equal(claimsFrom(lines, { now, quietMs: 10 * 60_000 })[0]?.holder, "idle");
       const taken = await claim(claimant, capability.id, "taking over");
       assert.ok(taken.ok);
       assert.equal(taken.takenOverFrom?.session, "A");
 
       await log.append(project, { session: "B", source: "hook", kind: "command-started", command: "build", call: "running" });
-      assert.equal((await readSessions(log, project, { now })).find((session) => session.session === "B")?.state, "live");
+      assert.equal((await readSessions(log, project, { now })).find((session) => session.session === "B")?.state, "working");
       assert.equal((await readClaims(log, project, { now }))[0]?.holder, "live");
       assert.equal((await claim({ ...claimant, session: "C" }, capability.id, "command still running")).ok, false);
     } finally {
@@ -86,13 +86,13 @@ test("10.10 / 9.7 a running MCP server rereads idle-after without blocking indep
       await withAgent(home, claudeCode("B", { dataDir }), async (agent) => {
         const before = await agent.call("show_plan");
         assert.equal(before.isError, false, before.text);
-        assert.match(before.text, /A, live/);
+        assert.match(before.text, /A, working/);
         assert.equal((await agent.call("claim", { capability: capability.id, reason: "taking over" })).isError, true);
         setSetting("idle-after", "10m");
         assert.equal(await claimRefusal({ log, library, project, session: "B" }, capability.id), undefined);
         const after = await agent.call("show_plan");
         assert.equal(after.isError, false, after.text);
-        assert.match(after.text, /A, idle/);
+        assert.match(after.text, /A, waiting/);
         assert.match(after.text, /A \(idle\)/);
         const taken = await agent.call("claim", { capability: capability.id, reason: "taking over" });
         assert.equal(taken.isError, false, taken.text);

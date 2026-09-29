@@ -13,6 +13,10 @@
  * - "In view" means only that: a result that held the id was resident when the open was issued. It
  *   never says the session followed it (ADR-0740 D3), and nothing decides anything from it (D4).
  */
+import { readFile } from "node:fs/promises";
+
+import type { Line } from "../activity/index.js";
+import { transcriptOf } from "./context.js";
 import { isRecord, jsonLines, type JsonRecord } from "./transcript.js";
 
 /** A note (any library record, by id) or a file (by the path the call named). */
@@ -185,4 +189,24 @@ function execOpens(source: string): WindowTarget[] {
     const name = start[1] ?? "";
     return name.endsWith("open") ? callOpens(`mcp__storytree__open`, { id: value }) : callOpens(name, { command: value, path: value });
   });
+}
+
+/** A session's window, worked out when asked, and when and from what; or why there is none. */
+export type SessionWindow = { readonly session: string; readonly harness?: string; readonly at: string; readonly source?: string }
+  & (WindowReading | { readonly absent: string });
+
+/** `session`'s window, from the transcript last recorded for it (3.12), read now: never a folder's guess. */
+export async function sessionWindow(lines: readonly Line[], session: string, { now = new Date() }: { now?: Date } = {}): Promise<SessionWindow> {
+  const at = now.toISOString();
+  const named = transcriptOf(lines, session);
+  if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
+  const { transcript, harness } = named;
+  const who = harness === undefined ? { session } : { session, harness };
+  let text: string;
+  try {
+    text = await readFile(transcript, "utf8");
+  } catch {
+    return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
+  }
+  return { ...who, ...(harness === "codex" ? codexWindow(text) : claudeCodeWindow(text)), at, source: transcript };
 }

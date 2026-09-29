@@ -126,3 +126,18 @@ test("7.9-7.11 the header counts sessions at work; quiet sessions that never clo
   const unsure = rows.find(row => row.id === "unsure");
   assert.deepEqual({ needsYou: unsure?.needsYou, why: unsure?.needsYouWhy }, { needsYou: true, why: "says safe, but fix-login is unmerged" });
 });
+
+test("7.12 a session holding unmerged work is marked with its branches; the list leaves by the leave-after it is given; a finished desktop window folds as idle (ADR-0754 D4, ADR-0758 D5)", () => {
+  const hours = (n: number) => new Date(now.getTime() - n * 3_600_000).toISOString();
+  const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
+  const lines = log(
+    { ...hook("holding"), branch: "fix-login", kind: "file-edited", files: ["a.ts"], at: hours(5) },
+    { ...hook("quiet"), kind: "prompt-submitted", at: hours(2) }, { ...hook("quiet"), kind: "turn-ended", at: hours(2) },
+    { ...hook("desk"), kind: "prompt-submitted", at: hours(3) }, { ...hook("desk"), kind: "turn-ended", at: hours(3) },
+    { ...hook("reader"), kind: "session-unarchived", of: "desk", app: "claude-desktop", at: hours(3) });
+  const rows = sessionRows(tree, lines, [], now);
+  assert.deepEqual(rows.map(row => [row.id, row.idle, row.unmerged]), [["holding", true, ["fix-login"]], ["desk", true, []]],
+    "two hours quiet leaves at the 1-hour default; unmerged work stays, marked; the finished desktop window folds");
+  assert.deepEqual(sessionRows(tree, lines, [], now, new Map(), undefined, 3 * 3_600_000).map(row => row.id), ["holding", "quiet", "desk"],
+    "a 3-hour leave-after keeps the two-hour-quiet session listed");
+});

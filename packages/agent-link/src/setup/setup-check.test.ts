@@ -359,6 +359,8 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
       const report = await runSetupCheck(options);
       assert.equal(report.lines.find((line) => line.check === "storytree")?.state, "ok");
       assert.equal(report.lines.find((line) => line.check === "hooks")?.state, "fixed");
+      assert.match(report.lines.find((line) => line.check === "transcripts")?.message ?? "", /secrets.*scrubbed.*best-effort.*180 days/is,
+        "the check says transcripts leave the machine, and that the scrub is best-effort (ADR-0749 D4)");
       assert.match(report.lines.find((line) => line.check === "gh")?.fix ?? "", /gh auth login/);
       assert.match(report.lines.find((line) => line.check === "project")?.fix ?? "", /only.*yes/i);
       assert.equal(existsSync(path.join(folder, MARKER_FILE)), false);

@@ -4,3 +4,5 @@ export { resolveBranches } from "./branch-states.js";
 export type { BranchWatch } from "./branch-states.js";
 export { defaultAppPlaces, readAppRecords, recordAppStates } from "./app-records.js";
 export type { AppPlaces, AppReading } from "./app-records.js";
+export { reapWorktrees } from "./worktree-reaper.js";
+export type { ReapWatch } from "./worktree-reaper.js";

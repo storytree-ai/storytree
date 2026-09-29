@@ -4,7 +4,7 @@ import type { Claim } from "@storytree/agent-link";
 import type { ArcState as Lifecycle, FieldsOf, Hold } from "@storytree/library";
 
 export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "queued" | "held" | "open";
-export type ArcState = "closed" | "parked" | "waiting" | "blocked" | "claimed" | "idle" | "quiet";
+export type ArcState = "closed" | "parked" | "waiting" | "blocked" | "queued" | "claimed" | "idle" | "ready" | "quiet";
 export interface IncrementReading {
   state: IncrementState;
   color: "green" | "red" | "yellow" | "grey";
@@ -23,6 +23,8 @@ export interface ArcFacts {
   waits?: readonly Hold[];
   /** Only claims on this arc's own work (capability 2). */
   claims?: readonly Claim[];
+  /** Its increments' own readings; closed ones are ignored (ADR-0760 D1). */
+  increments?: readonly IncrementReading[];
 }
 
 export function incrementState(increment: FieldsOf<"increment">, facts: IncrementFacts = {}): IncrementReading {
@@ -46,7 +48,9 @@ export function arcState(lifecycle: Lifecycle, facts: ArcFacts = {}): ArcState {
   if (lifecycle !== "active") return lifecycle;
   if (facts.openQuestions) return "waiting";
   if (facts.waits?.length) return "blocked";
+  const open = (facts.increments ?? []).filter(({ state }) => state !== "landed" && state !== "not-completed");
+  if (open.length && open.every(({ state }) => state === "queued" || state === "waiting-on-you")) return "queued";
   if (facts.claims?.some((claim) => claim.holder === "live")) return "claimed";
   if (facts.claims?.length) return "idle";
-  return "quiet";
+  return open.some(({ state }) => state === "open") ? "ready" : "quiet";
 }

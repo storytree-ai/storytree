@@ -7,6 +7,7 @@ import { test } from "node:test";
 
 import { registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
+import { deliveredCommand } from "./installed.js";
 
 const legacy = '# user comment\nmodel = "kept"\n[mcp_servers.legacy]\ncommand = "storytree-02"\n';
 
@@ -267,4 +268,18 @@ test("2.4: invalid hook settings block only that harness; missing installed tool
   const missing = await connectAgents({ ...f.options, harnesses: ["codex"] });
   assert.equal(missing[0]!.tools, "not connected");
   assert.match(missing[0]!.next, /installer.*bundled Node/);
+});
+
+test("2.1: before finish has recorded the delivery, connect uses the tools installed beside its own helper", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree unfinished "));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const tools = path.join(dir, "resources", "agent-tools");
+  mkdirSync(tools, { recursive: true });
+  const node = path.join(tools, process.platform === "win32" ? "node.exe" : "node");
+  const mcp = path.join(tools, "storytree-mcp.mjs");
+  for (const file of [node, mcp]) writeFileSync(file, "installed");
+  const home = path.join(dir, "home without a delivery record");
+  assert.deepEqual(deliveredCommand(home, tools), installedToolServerCommand(node, mcp));
+  rmSync(mcp);
+  assert.throws(() => deliveredCommand(home, tools), /finish/);
 });

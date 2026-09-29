@@ -1,11 +1,21 @@
 /** The installed helper joins delivery's saved paths to capability 2's connection operations. */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { storytreeHome } from "@storytree/agent-link";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type Harness } from "./index.js";
 
-function deliveredCommand() {
-  const file = path.join(storytreeHome(), "delivery.json");
+/**
+ * finish's record names the tools; before finish has run (the app never launched), the tools are the
+ * ones installed beside this helper, which the installed command runs from its own folder.
+ */
+export function deliveredCommand(home = storytreeHome(), helperDir = path.dirname(process.argv[1] ?? "")) {
+  const file = path.join(home, "delivery.json");
+  if (!existsSync(file)) {
+    const node = path.join(helperDir, process.platform === "win32" ? "node.exe" : "node");
+    const mcp = path.join(helperDir, "storytree-mcp.mjs");
+    if ([node, mcp].every((tool) => existsSync(tool))) return installedToolServerCommand(node, mcp);
+    throw new Error(`No delivery record at ${file} and no installed tools beside this command in ${helperDir}. Re-run the storytree installer to the end: its finish step opens the app, puts the storytree command on PATH and records the tool paths. Then retry storytree setup connect --claude or --codex.`);
+  }
   try {
     const record = JSON.parse(readFileSync(file, "utf8"));
     if (record?.schema !== 1 || typeof record.installDir !== "string" || !path.isAbsolute(record.installDir) ||

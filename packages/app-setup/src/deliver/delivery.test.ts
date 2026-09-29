@@ -113,6 +113,20 @@ test("1.6: command conflicts of every Windows executable kind are named and left
   } finally { f.close(); }
 });
 
+test("1.6: finish repoints an older storytree launcher on PATH and says which one it replaced", () => {
+  const f = fixture();
+  const cargo = path.join(f.dir, ".cargo", "bin");
+  mkdirSync(cargo, { recursive: true });
+  const older = path.join(cargo, "storytree.cmd");
+  writeFileSync(older, "@echo off\r\nrem storytree 0.3's command (put here by its setup check)\r\n\"node\" \"source build storytree.mjs\" %*\r\n");
+  try {
+    const first = installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: cargo });
+    assert.deepEqual(first.replaced, [older]);
+    assert.equal(readFileSync(older, "utf8"), readFileSync(first.file, "utf8"));
+    assert.deepEqual(installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: cargo }).replaced, []);
+  } finally { f.close(); }
+});
+
 test("1.1: a payload cannot bless a missing entry point or a path outside its installation", () => {
   const f = fixture();
   try {

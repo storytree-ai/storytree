@@ -206,6 +206,9 @@ namespace StorytreeDelivery {
     Write-Host "Run this installation explicitly: & '$($answer.report.tools.node)' '$($answer.report.tools.cli)'"
   } else {
     Write-Host 'The storytree command is available in a fresh Windows terminal.'
+    foreach ($older in @($answer.report.command.replaced)) {
+      if ($older) { Write-Host "An older storytree command now runs this installation: $older" }
+    }
   }
   Invoke-StorytreeConnection $answer.report @{
     Choose = { Read-Host 'Choose 1, 2, 3 or S' }

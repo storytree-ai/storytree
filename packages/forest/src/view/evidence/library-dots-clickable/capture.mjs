@@ -323,7 +323,7 @@ try {
   await capture(page, browser, 'forest-card');
   const land = await openLand(page); // card -> story, while proving the land hides the dot behind it
   const replacing = await openDot(page); // story -> card
-  await page.getByRole('button', { name: 'Close artifact', exact: true }).click();
+  await page.getByRole('button', { name: 'Close the library panel', exact: true }).click();
   await assertDismissed(page);
   await openDot(page);
   await page.keyboard.press('Escape');

@@ -11,8 +11,10 @@ import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { Names, Overlay, SelectionRing, Wisps } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 
-export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing }: {
+export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, library = true }: {
   mode?: ForestMode;
+  /** False when the Library is switched off (ADR-0750): no notes inside, so the globe reads solid. */
+  library?: boolean;
   /** How many radii half the short side spans as it opens (`globeFraming`). */
   framing?: number | undefined;
   core: KnowledgeCore;
@@ -44,7 +46,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   }, [wisps, selected, highlighted, highlightedSession, onWispHover]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
     surface={mode === "forest"} framing={framing}
-    inside={<KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} />}
+    inside={library ? <KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} /> : undefined}
     rotation={rotation.toArray()} kitBytes={kitBytes} plateChildren={overlays}>
     <Navigation islands={layout.islands} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPick={onPick} onNote={onNote} mode={mode} />

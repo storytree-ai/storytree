@@ -10,7 +10,8 @@
  *   is closed, registers the hooks, and puts the `storytree` command on the path. Those last two
  *   need storytree's hook script, which an installed storytree keeps beside this command; run from
  *   anywhere else, the doctor says so rather than registering something else.
- * - Setting a folder up is the agent link's `setUpProject`, called only for `--set-up <name>`.
+ * - Setting a folder up is the agent link's `setUpProject`, called only for `--set-up <name>`, or
+ *   `--join <name>` to add this machine's checkout to a project that already exists (ADR-0757 D4).
  * - The hooks last seen firing is the latest hook line in the project's activity log.
  * - `storytree setup install | remove` stays the agent link's own command, run from beside this one.
  */
@@ -19,7 +20,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { openActivityLog, runSetupCheck, setUpProject, type SetupReport } from "@storytree/agent-link";
+import { openActivityLog, ProjectFolderError, runSetupCheck, setUpProject, suggestProjectName, type SetupReport } from "@storytree/agent-link";
 import type { ConnectOptions } from "@storytree/library";
 
 import { Refusal, type Answer } from "../answer.js";
@@ -96,7 +97,7 @@ async function lastHook(library: ConnectOptions, project: string): Promise<strin
 
 const doctor: Verb = {
   name: "doctor",
-  usage: "doctor [--set-up <project>]",
+  usage: "doctor [--set-up <project> | --join <project>]",
   summary: "check storytree's setup, fix what it can, and name the fix for the rest",
   async act(args, context): Promise<Answer> {
     const hook = hookBeside(context.script);
@@ -114,21 +115,27 @@ const doctor: Verb = {
     said.push(...hooksSaid(report));
     const next = [];
     const setUp = args.text("set-up");
+    const join = args.text("join");
     if (report.project.status === "set up") {
       said.push(`This folder is storytree project "${report.project.name}".`);
       said.push(await lastHook(library, report.project.name));
-    } else if (setUp !== undefined) {
+    } else {
       const { connect } = await import("@storytree/library");
       const storytree = await connect(library);
       try {
-        await setUpProject({ folder: context.cwd, project: setUp, storytree });
+        const project = join ?? setUp;
+        if (project !== undefined) {
+          await setUpProject({ folder: context.cwd, project, storytree, join: join !== undefined }).catch((error: unknown) => {
+            throw error instanceof ProjectFolderError ? new Refusal(error.message) : error;
+          });
+          said.push(join === undefined ? `This folder is set up as storytree project "${project}" now.` : `This folder is storytree project "${project}"'s checkout on this machine now.`);
+        } else {
+          said.push(`This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.`);
+          next.push({ command: `storytree doctor --set-up ${await suggestProjectName(context.cwd, storytree)}`, why: "make it a new project, or name it as you like" });
+        }
       } finally {
         await storytree.close();
       }
-      said.push(`This folder is set up as storytree project "${setUp}" now.`);
-    } else {
-      said.push(`This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.`);
-      next.push({ command: `storytree doctor --set-up ${report.project.suggestion}`, why: "make it a project, or name it as you like" });
     }
     said.push(...commandSaid(report), ...ghSaid(report), ...machineSaid(report));
     return { text: said.join("\n"), next };

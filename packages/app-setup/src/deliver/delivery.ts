@@ -81,7 +81,7 @@ export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<
   }
   // The installer's project folder step (ADR-0752 D1): what the folder is, then setting it up on the user's choice.
   if (args[0] === "project" && args.length === 2) {
-    process.stdout.write(JSON.stringify(projectFolder(args[1]!)) + "\n");
+    process.stdout.write(JSON.stringify(await projectFolder(args[1]!)) + "\n");
     return;
   }
   if (args[0] === "add-project" && args.length === 3) {

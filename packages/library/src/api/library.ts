@@ -261,6 +261,8 @@ export interface Library {
    * statement, marked stale once its text has changed since. Null if `id` is not a live decision.
    */
   decision(id: string): Promise<DecisionView | null>;
+  /** Every live decision as decision() reads it, oldest first, in one reading. */
+  decisions(): Promise<DecisionView[]>;
   /**
    * Compose a decision's one statement: a maintained paragraph beside its text, never in its place,
    * replacing any before it. Null if `id` is not a live decision.
@@ -565,6 +567,10 @@ class LibraryHandle implements Library {
 
   decision(id: string): Promise<DecisionView | null> {
     return this.#project.knowledge.decision(id);
+  }
+
+  decisions(): Promise<DecisionView[]> {
+    return this.#project.knowledge.decisions();
   }
 
   composeStatement(id: string, statement: string, options?: WriteOptions): Promise<SchemaRecord<"decision"> | null> {

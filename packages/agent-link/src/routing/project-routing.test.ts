@@ -22,7 +22,7 @@ import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, setUpProject, suggestProjectName } from "./index.js";
+import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, recordTrunkOnSight, route, setUpProject, suggestProjectName } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
@@ -313,3 +313,25 @@ test("1.11 another machine adds its checkout to an existing project only on purp
   });
 });
 
+test("1.12 a project set up before trunks were recorded keeps routing, and the first sight of it from a git worktree records its trunk on this machine, so a second trunk is then refused", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop } = machines(dir);
+    const trunk = markedFolder(dir, "app");
+    writeFileSync(path.join(trunk, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    git(trunk, "init", "-q");
+    git(trunk, "add", MARKER_FILE);
+    git(trunk, "commit", "-q", "-m", "first");
+    const worktree = path.join(dir, "app-feature");
+    git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
+    await withStorytree([project], async (storytree) => {
+      await (await storytree.openProject(project)).close();
+      assert.deepEqual(findProject(worktree), { project, folder: worktree }, "the committed marker routes the worktree as before");
+      assert.equal(await recordTrunkOnSight(storytree, project, worktree, laptop), true);
+      assert.equal(await recordTrunkOnSight(storytree, project, trunk, laptop), false, "seen again, nothing changes");
+      const second = path.join(dir, "copy");
+      mkdirSync(second);
+      await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(trunk));
+    });
+  });
+});

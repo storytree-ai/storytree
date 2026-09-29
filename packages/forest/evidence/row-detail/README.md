@@ -4,5 +4,6 @@ The real desktop page (built by `../sessions-list/build.mjs`), with synthetic ac
 window reading; run both through `flock /tmp/storytree-heavy.lock`.
 
 - `collapsed.png`: every row has one expander; the row with a subagent shows it as "+1".
-- `expanded.png`: the first row expanded: its three worktrees' full paths, then the five files in its
+- `expanded.png`: the first row expanded: its three worktrees under a "Worktrees" label, each by its folder name (full path on hover), then, under
+  "Files", the five files in its
   window in the order first opened (the one compacted out of the window is muted), then its subagent.

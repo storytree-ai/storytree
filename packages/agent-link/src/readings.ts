@@ -16,8 +16,12 @@ export const COMMAND_KINDS = ["command-started", "command-run", "turn-ended", "s
  */
 export const LONGEST_COMMAND_MS = 12 * 60 * 60 * 1000;
 
-/** Live while its lines keep arriving, idle after the quiet time, ended once its end line arrives. */
-export type SessionState = "live" | "idle" | "ended";
+/**
+ * Live while its lines keep arriving, idle after the quiet time, ended once its end line arrives;
+ * gone when no line has come for longer than a command may run (LONGEST_COMMAND_MS) and none said
+ * it ended: it stopped reporting, as a window that crashed does, which is never read as an end.
+ */
+export type SessionState = "live" | "idle" | "ended" | "gone";
 
 /** One agent window, as the activity log shows it. */
 export interface Session {
@@ -71,7 +75,8 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     const harness = own.find((line) => line.harness !== undefined)?.harness;
     const folder = (own.find((line) => line.kind === "session-started" && line.folder !== undefined) ?? own.find((line) => line.folder !== undefined))?.folder;
     const worktrees = [...new Set(own.flatMap((line) => (line.folder === undefined ? [] : [line.folder])))];
-    const state: SessionState = latest.kind === "session-ended" ? "ended" : isQuiet(own, now, quietMs) ? "idle" : "live";
+    const state: SessionState = latest.kind === "session-ended" ? "ended"
+      : now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone" : isQuiet(own, now, quietMs) ? "idle" : "live";
     return {
       session,
       ...(harness === undefined ? {} : { harness }),

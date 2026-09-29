@@ -1,5 +1,5 @@
 export { ACTIVITY_DATABASE, openActivityLog, thisMachine } from "./activity-log.js";
-export type { ActivityLog, LockedLog, OpenOptions } from "./activity-log.js";
+export type { ActivityLog, AppendOptions, LockedLog, OpenOptions } from "./activity-log.js";
 export type { StoredSession, TranscriptRecord, TranscriptRecords } from "./transcript-records.js";
 export { NEW_LINE } from "./lines.js";
 export { lineText } from "./text.js";

@@ -1,0 +1,81 @@
+
+> storytree@ test /home/mickh/code/storytree03-wt/projfolder-1
+> node --import tsx scripts/test.mjs "--test-name-pattern=8\\.12|8\\.4 setup records|2\\.2: connecting|1\\.7 / 3\\.4" "packages/agent-link/src/setup/setup-check.test.ts" "packages/app-setup/src/connect/connect.test.ts" "packages/app-setup/src/project/project.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/projfolder-1/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:43803 (started in 0.1 s)
+✖ 8.12 at the start of a session in a folder that isn't a storytree project, no hook adds anything for the agent (ADR-0752 D3), an older install's asking hook included; nothing is set up (343.665829ms)
+✖ 8.4 setup records the chosen project only after a successful yes, never on an existing-project check (409.073712ms)
+✔ 2.2: connecting registers the chosen harness's hooks, so its first session's start hook already runs (5.795922ms)
+✖ 1.7 / 3.4: a chosen folder becomes a project (created if missing, suggested its own name); one already a project is said and nothing is created; a refused name leaves nothing (1.511239ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1228.879315
+
+✖ failing tests:
+
+test at packages/agent-link/src/setup/setup-check.test.ts:3:1226
+✖ 8.12 at the start of a session in a folder that isn't a storytree project, no hook adds anything for the agent (ADR-0752 D3), an older install's asking hook included; nothing is set up (343.665829ms)
+  AssertionError [ERR_ASSERTION]: claude-code: ["/tmp/storytree-link-bins-vPsvjt/storytree-hook.mjs","claude-code","--ask-setup"] says nothing
+  + actual - expected
+  
+  + `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"storytree: This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project \\"new-site\\" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on. Ask this first, before you create, edit or run anything for the user's request, and end your turn there to wait for their answer. Once they have answered, call storytree's check_setup tool and do what it says."}}`
+  - ''
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/setup/setup-check.test.ts:236:41)
+      at withTempDir (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/testing/folders.ts:17:18)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/setup/setup-check.test.ts:224:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"storytree: This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project \\"new-site\\" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on. Ask this first, before you create, edit or run anything for the user's request, and end your turn there to wait for their answer. Once they have answered, call storytree's check_setup tool and do what it says."}}`,
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/agent-link/src/setup/setup-check.test.ts:3:4307
+✖ 8.4 setup records the chosen project only after a successful yes, never on an existing-project check (409.073712ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /not a storytree project/. Input:
+  
+  `storytree is running. This check has no installed storytree hook command to register. Run the check from an installed storytree. No command installation was requested. Claude Code is installed and signed in; Codex is installed and signed in. git is installed. Node v24.19.0 is installed. This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project "t-30ea67f9" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on.`
+  
+      at <anonymous> (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/setup/setup-check.test.ts:302:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withAgent (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/testing/agent.ts:71:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/setup/setup-check.test.ts:298:7)
+      at async withTempDir (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/testing/folders.ts:17:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/projfolder-1/packages/agent-link/src/setup/setup-check.test.ts:290:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: `storytree is running. This check has no installed storytree hook command to register. Run the check from an installed storytree. No command installation was requested. Claude Code is installed and signed in; Codex is installed and signed in. git is installed. Node v24.19.0 is installed. This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project "t-30ea67f9" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on.`,
+    expected: /not a storytree project/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/app-setup/src/project/project.test.ts:1:753
+✖ 1.7 / 3.4: a chosen folder becomes a project (created if missing, suggested its own name); one already a project is said and nothing is created; a refused name leaves nothing (1.511239ms)
+  Error: not built
+      at projectFolder (/home/mickh/code/storytree03-wt/projfolder-1/packages/app-setup/src/project/index.ts:3:71)
+      at TestContext.<anonymous> (/home/mickh/code/storytree03-wt/projfolder-1/packages/app-setup/src/project/project.test.ts:26:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.
+  Invoke-StorytreeProjectFolder: /home/mickh/code/storytree03-wt/projfolder-1/packages/app-setup/src/deliver/bootstrap.test.ps1:87
+    87 |    Invoke-StorytreeProjectFolder $From $userHome $folderOps
+       | The term 'Invoke-StorytreeProjectFolder' is not recognized as a name of

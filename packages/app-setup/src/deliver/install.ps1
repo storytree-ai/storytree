@@ -32,6 +32,33 @@ function Invoke-StorytreeConnection($Report, [hashtable]$Operations) {
   & $Operations.Connect $Report.tools @($flags)
 }
 
+function Invoke-StorytreeProjectFolder([string]$Here, [string]$UserHome, [hashtable]$Operations) {
+  $later = 'Add a project later with Add project in the storytree app, storytree doctor --set-up <name> in a terminal in its folder, or by asking your agent there.'
+  # The home folder or a drive root as a project would put every folder under it in that project.
+  $offer = $Here -and ($Here.TrimEnd('\', '/') -ine $UserHome.TrimEnd('\', '/')) -and ($Here -ne [IO.Path]::GetPathRoot($Here))
+  if ($offer) { Write-Host "Choose your project folder: press Enter for $Here, type another folder (created if missing), or S to skip." }
+  else { Write-Host 'Choose your project folder: type its path (created if missing), or press Enter or S to skip.' }
+  $answer = ([string](& $Operations.Ask 'Project folder')).Trim().Trim('"').Trim()
+  if ($answer -ieq 's' -or (-not $answer -and -not $offer)) { Write-Host "No project was set up. $later"; return }
+  $folder = if ($answer) { [IO.Path]::GetFullPath([IO.Path]::Combine($Here, $answer)) } else { $Here }
+  try {
+    $status = & $Operations.Inspect $folder
+    if ($status.project) { Write-Host "$folder is already storytree project '$($status.project)'. Nothing new was set up."; return }
+    while ($true) {
+      Write-Host "Project name: press Enter for '$($status.suggestion)', or type your own (lower-case letters, digits and single hyphens)."
+      $name = ([string](& $Operations.Ask 'Project name')).Trim()
+      if (-not $name) { $name = $status.suggestion }
+      $result = & $Operations.SetUp $folder $name
+      if ($result.status -ne 'name refused') { break }
+      Write-Host $result.message
+    }
+  } catch {
+    throw "The project was not set up: $($_.Exception.Message). The app and your agents are ready. $later"
+  }
+  if ($result.status -eq 'already a project') { Write-Host "$folder is already storytree project '$($result.project)'. Nothing new was set up."; return }
+  Write-Host "$folder is now storytree project '$name', and the app shows it. Start Claude Code or Codex in that folder to work in it."
+}
+
 function Invoke-StorytreeDelivery([string]$InstallDir, [string]$Architecture, [hashtable]$Operations) {
   $step = 'inspect'
   try {
@@ -171,7 +198,7 @@ namespace StorytreeDelivery {
     }
   }
   $answer = Invoke-StorytreeDelivery $installDir $architecture $operations
-  Write-Host 'storytree is installed; its app is open and its database is ready. Delivery did not create a project.'
+  Write-Host 'storytree is installed; its app is open and its database is ready.'
   if ($answer.report.command.status -eq 'conflict') {
     Write-Host "An existing storytree command was preserved: $($answer.report.command.conflict)"
     Write-Host "Run this installation explicitly: & '$($answer.report.tools.node)' '$($answer.report.tools.cli)'"
@@ -185,6 +212,22 @@ namespace StorytreeDelivery {
       # Use the delivered command explicitly, including when an unrelated storytree is on PATH.
       & $Tools.node $Tools.cli setup connect @Flags | Out-Host
       if ($LASTEXITCODE -ne 0) { throw 'Agent connection needs attention; read each agent result above. The app remains installed. Retry with storytree setup connect --claude or --codex (or both).' }
+    }
+  }
+  $tools = $answer.report.tools
+  Invoke-StorytreeProjectFolder (Get-Location).ProviderPath $env:USERPROFILE @{
+    Ask = { param($Prompt) Read-Host $Prompt }
+    Inspect = {
+      param($Folder)
+      $out = & $tools.node $tools.deliver project $Folder
+      if ($LASTEXITCODE -ne 0) { throw 'the folder could not be read' }
+      return ($out | ConvertFrom-Json)
+    }
+    SetUp = {
+      param($Folder, $Name)
+      $out = & $tools.node $tools.deliver add-project $Folder $Name
+      if ($LASTEXITCODE -ne 0) { throw 'the library did not take the project; read the error above' }
+      return ($out | ConvertFrom-Json)
     }
   }
 } catch {

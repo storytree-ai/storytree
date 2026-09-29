@@ -1,0 +1,21 @@
+# The bundled delivery helper (apps/desktop tools.mjs build) against a throwaway local Postgres, 2026-09-29T07:11:12Z
+$ storytree-deliver project /tmp/pf a/My Site
+{"folder":"/tmp/pf a/My Site","suggestion":"my-site"}
+exit 0
+$ storytree-deliver add-project /tmp/pf a/My Site Bad Name
+{"status":"name refused","folder":"/tmp/pf a/My Site","message":"project name \"Bad Name\" is not allowed: a project name is lower-case letters, digits and single hyphens (1-40 characters, starting with a letter or digit and not ending with a hyphen)"}
+exit 0
+$ storytree-deliver add-project /tmp/pf a/My Site my-site
+{"status":"set up","folder":"/tmp/pf a/My Site","project":"my-site"}
+exit 0
+$ storytree-deliver add-project /tmp/pf a/My Site my-site
+{"status":"already a project","folder":"/tmp/pf a/My Site","project":"my-site"}
+exit 0
+$ storytree-deliver project /tmp/pf a/My Site
+{"folder":"/tmp/pf a/My Site","project":"my-site"}
+exit 0
+$ cat "/tmp/pf a/My Site/.storytree.json" $STORYTREE_HOME/project-choice.json
+{
+  "project": "my-site"
+}
+{"current":"my-site"}

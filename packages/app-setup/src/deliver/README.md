@@ -23,7 +23,16 @@ one-liner prompts for Claude Code, Codex, both, or skip, then invokes the instal
 `tools.node tools.cli setup connect` with the chosen switches. The CLI delegates to the
 bundled app-setup helper, which reads `delivery.json` and reuses `connectAgents`.
 Registration reports tools connected separately from hooks not verified and directs the
-user to start a session in their folder. `setup install` retains its hook/command meaning;
+user to start a session in their folder.
+
+Then the one-liner asks for the project folder (ADR-0752 D1): Enter takes the folder it ran
+from, a typed path is resolved against it and created if missing, S skips. Run from the home
+folder or a drive root, Enter skips instead, since every folder below would join that project.
+The suggested name is the setup check's `suggestedName`; Enter accepts it and a refused name is
+asked again. The bundled helper's `project <folder>` says what the folder is, and
+`add-project <folder> <name>` sets it up through `../project` exactly as the setup check's yes
+does (marker, library project, the app's project choice); a folder already in a project is
+said and nothing is created. `finish` itself still never creates a project. `setup install` retains its hook/command meaning;
 delivery's own `inspect` and `finish` operations do not write harness settings.
 
 Delivery owns `~/.storytree/0.3/bin/storytree.cmd`, recognizes the agent-link's 0.3 launcher

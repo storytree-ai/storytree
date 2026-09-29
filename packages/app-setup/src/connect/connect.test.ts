@@ -77,7 +77,7 @@ test("2.2: connecting registers the chosen harness's hooks, so its first session
   const codexHooks = path.join(f.codex, "hooks.json");
   await connectAgents({ ...f.options, harnesses: ["claude-code"] });
   const starts = JSON.parse(readFileSync(settingsFile, "utf8")).hooks.SessionStart.flatMap((entry: { hooks: { args?: string[] }[] }) => entry.hooks);
-  assert.ok(starts.some((hook: { args?: string[] }) => hook.args?.[0] === hookScript && hook.args.includes("--ask-setup")), "the start hook that asks is registered");
+  assert.ok(starts.some((hook: { args?: string[] }) => hook.args?.[0] === hookScript), "the start hook is registered");
   assert.equal(existsSync(codexHooks), false, "an unchosen harness gets no hooks");
   await connectAgents({ ...f.options, harnesses: ["codex"] });
   assert.ok(readFileSync(codexHooks, "utf8").includes("storytree-hook.mjs"));

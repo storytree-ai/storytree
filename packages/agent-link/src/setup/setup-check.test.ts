@@ -220,34 +220,20 @@ function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"
   return ran.stdout;
 }
 
-test("8.12 at the start of a session in a folder that isn't a storytree project, a hook the harness waits for tells the agent to ask the user whether to set storytree up; in a project, nothing, and nothing is ever set up", async () => {
+test("8.12 at the start of a session in a folder that isn't a storytree project, no hook adds anything for the agent (ADR-0752 D3), an older install's asking hook included; nothing is set up", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     registerHooks(home.homes, { node: process.execPath, script: hookScript });
     const stopped = path.join(dir, "stopped-home");
     mkdirSync(stopped);
     const fresh = path.join(dir, "new-site");
-    const project = path.join(dir, "site");
-    for (const folder of [fresh, project]) mkdirSync(folder);
-    writeFileSync(path.join(project, MARKER_FILE), `${JSON.stringify({ project: "site" })}\n`);
-
+    mkdirSync(fresh);
+    // An install from before ADR-0752 registered a second Claude Code start hook, which the harness waits for.
+    const older = { type: "command", command: process.execPath, args: [hookScript, "claude-code", "--ask-setup"] };
     for (const [harness, settings] of [["claude-code", home.claudeSettings], ["codex", home.codexHooks]] as const) {
-      const starts = ((readJson(settings).hooks as Record<string, HookEntry[]>).SessionStart ?? []).flatMap((entry) => entry.hooks);
-      // What reaches the agent: the output of the hooks the harness waits for (Claude Code's run in the background print nothing it reads).
-      const told = (folder: string) => {
-        const input = JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: folder });
-        return starts.filter((hook) => hook.async !== true).map((hook) => runRegistered(harness, hook, input, stopped)).filter((out) => out !== "");
-      };
-      const [asked, ...more] = told(fresh);
-      assert.equal(more.length, 0, `${harness}: told once`);
-      const output = JSON.parse(asked ?? "{}") as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } };
-      assert.equal(output.hookSpecificOutput?.hookEventName, "SessionStart", harness);
-      const context = output.hookSpecificOutput?.additionalContext ?? "";
-      assert.ok(context.includes("set_up_project") && context.includes('"new-site"'), `${harness}: ${context}`);
-      assert.deepEqual(told(project), [], `${harness}: nothing in a project`);
-      for (const hook of starts.filter((hook) => hook.async === true)) {
-        assert.equal(runRegistered(harness, hook, JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: fresh }), stopped), "", `${harness}: nothing from the background`);
-      }
+      const starts = [...((readJson(settings).hooks as Record<string, HookEntry[]>).SessionStart ?? []).flatMap((entry) => entry.hooks), ...(harness === "claude-code" ? [older] : [])];
+      const input = JSON.stringify({ ...readJson(path.join(FIXTURES, harness, "session-start-startup.json")), cwd: fresh });
+      for (const hook of starts) assert.equal(runRegistered(harness, hook, input, stopped), "", `${harness}: ${JSON.stringify(hook.args ?? hook.command)} says nothing`);
     }
     assert.equal(existsSync(path.join(fresh, MARKER_FILE)), false, "the folder is not set up");
   });
@@ -313,6 +299,10 @@ test("8.4 setup records the chosen project only after a successful yes, never on
         const checked = await agent.call("check_setup");
         assert.equal(checked.isError, false, checked.text);
         assert.deepEqual(checked.data.project, { status: "ask", suggestion: name });
+        assert.match(checked.text, /not a storytree project/);
+        assert.match(checked.text, /Add project/);
+        assert.match(checked.text, /storytree doctor --set-up/);
+        assert.doesNotMatch(checked.text, /[Aa]sk the user|set_up_project/, "the agent is not told to offer setup (ADR-0752 D3)");
         assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, "no marker before a yes");
         assert.equal((await storytree.listProjects()).includes(name), false, "no project before a yes");
         assert.equal(existsSync(choice), false, "no choice before a yes");

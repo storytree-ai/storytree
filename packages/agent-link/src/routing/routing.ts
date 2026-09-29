@@ -182,11 +182,11 @@ export function suggestedName(folder: string): string {
 }
 
 /**
- * What the agent is to do in `folder`, which isn't a storytree project yet: ask the user, and set it
- * up only on their yes (ADR-0626 D5). check_setup says it, and so does the session-start hook.
+ * What check_setup says in `folder`, which isn't a storytree project: that it isn't, and how the user
+ * can add it. The agent is not told to offer setup (ADR-0752 D3); the user adds projects deliberately.
  */
-export function askToSetUp(folder: string): string {
-  return `This folder isn't a storytree project yet. Ask the user whether to set storytree up here, as project "${suggestedName(folder)}" or a name they choose (lower-case letters, digits and hyphens). Only if they say yes, call set_up_project with that name; without a yes, set nothing up and carry on.`;
+export function notAProjectYet(folder: string): string {
+  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${suggestedName(folder)}\` in a terminal here, or by asking you to set it up.`;
 }
 
 /** The storytree 0.3 home: STORYTREE_HOME, else ~/.storytree/0.3, where the desktop app keeps its Postgres. */

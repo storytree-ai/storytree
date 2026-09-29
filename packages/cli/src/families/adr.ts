@@ -186,13 +186,12 @@ const list: Verb = {
   async act(args, context) {
     const library = await context.library();
     const lines: string[] = [];
-    for (const record of await library.list("decision")) {
-      const view = await library.decision(record.id);
-      if (view === null || (args.has("current") && view.status !== "accepted")) continue;
+    for (const view of await library.decisions()) {
+      if (args.has("current") && view.status !== "accepted") continue;
       if (args.has("status") && view.status !== args.text("status")) continue;
       if (args.has("load-bearing") && !view.record.fields.loadBearing) continue;
       const fields = view.record.fields;
-      lines.push(`  ${adr(fields.number)}  ${record.id}  [${view.status}]${fields.loadBearing ? "  load-bearing" : ""}  ${fields.title}`);
+      lines.push(`  ${adr(fields.number)}  ${view.record.id}  [${view.status}]${fields.loadBearing ? "  load-bearing" : ""}  ${fields.title}`);
     }
     return {
       text: lines.length === 0 ? "No decisions match." : [`${lines.length} decisions:`, ...lines].join("\n"),

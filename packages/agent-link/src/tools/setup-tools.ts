@@ -39,7 +39,8 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       const data: Record<string, unknown> = { storytree: report.storytree.state, hooks: report.hooks ?? null, project: report.project, lines: report.lines };
       const unverified = { verified: false, missing: [...HOOK_TESTS], fixes: [] };
       const said = report.lines
-        .filter((line) => line.check !== "project" && !(line.check === "gh" && line.state === "ok"))
+        // A note (an optional tool missing) is not said to the agent, so it is never taken as work to do.
+        .filter((line) => line.check !== "project" && line.state !== "note" && !(line.check === "gh" && line.state === "ok"))
         .map((line) => [line.message, line.fix].filter(Boolean).join(" "));
       if (report.storytree.state === "not running") {
         return result({ text: [...said, "Until storytree is running, carry on without it."].join(" "), data: { ...data, ...unverified } });

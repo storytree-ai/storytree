@@ -495,7 +495,7 @@ test("8.7 a status line of the user's own is kept: storytree's is installed only
   });
 });
 
-test("8.8 with gh missing, or signed out, the check says so and names the fix; signed in, it says nothing about it", async () => {
+test("8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const said = async (gh: GhState): Promise<string> => {
@@ -506,11 +506,11 @@ test("8.8 with gh missing, or signed out, the check says so and names the fix; s
       });
       return text;
     };
-    const missing = await said("missing");
-    assert.match(missing, /gh/);
-    assert.match(missing, /cli\.github\.com/, `names where to get it: ${missing}`);
-    assert.match(await said("signed out"), /gh auth login/);
-    assert.doesNotMatch(await said("signed in"), /\bgh\b/);
+    // Owner, 2026-09-29 (question_bb3efa1e3191): "dont list them as fixes".
+    for (const gh of ["missing", "signed out", "signed in"] as const) {
+      const text = await said(gh);
+      assert.doesNotMatch(text, /\bgh\b/, `${gh}: ${text}`);
+    }
   });
 });
 

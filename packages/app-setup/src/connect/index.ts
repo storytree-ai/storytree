@@ -98,7 +98,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
       registerHooks(harness === "claude-code" ? { claude: where.claude } : { codex: where.codex }, hook);
-      result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder you want to work on and call check_setup. It asks before creating a project and names each missing hook until its event is received. Project or managed settings can override this user registration.");
+      result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
       const reason = harness === "claude-code" ? " Check that the file contains a valid JSON object." : " Check that codex mcp list --json succeeds and hooks.json contains a valid JSON object.";

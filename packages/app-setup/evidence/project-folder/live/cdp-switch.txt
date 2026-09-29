@@ -1,0 +1,9 @@
+mouse css=button.app-gear clicked at 1076 24
+mouse Projects clicked at 132 191
+shot app-2-projects-after-add
+evalfile C:\Users\mickh\st-retest\steps.js "helpers loaded"
+eval "options=downloads,pf-project-folder,pf-second-project | now state=ready project=pf-project-folder"
+shot app-3-forest-pf-project-folder
+eval "options=downloads,pf-project-folder,pf-second-project | now state=ready project=pf-second-project"
+shot app-4-forest-pf-second-project
+eval "pf-second-project · storytree 0.3"

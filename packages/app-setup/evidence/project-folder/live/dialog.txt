@@ -1,0 +1,8 @@
+task last result: 0
+dialog: 'Select Folder'
+folder box: 'C:\Users\mickh\PF Second Project'; button: 'Select Folder'
+dialog still open: False
+marker: {
+  "project": "pf-second-project"
+}
+

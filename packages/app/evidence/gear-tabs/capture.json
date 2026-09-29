@@ -1,0 +1,65 @@
+{
+  "snapshot": "2026-09-28T21-35-29-644Z.json",
+  "shots": [
+    {
+      "shot": "1-sessions",
+      "tabs": [
+        "Projects",
+        "Sessions",
+        "Library",
+        "Surfaces",
+        "Updates",
+        "Help"
+      ],
+      "rows": [
+        "context-guidance",
+        "idle-after",
+        "leave-after"
+      ]
+    },
+    {
+      "shot": "2-library",
+      "tabs": [
+        "Projects",
+        "Sessions",
+        "Library",
+        "Surfaces",
+        "Updates",
+        "Help"
+      ],
+      "rows": [
+        "library"
+      ]
+    },
+    {
+      "shot": "3-library-cloud-sql-fields",
+      "tabs": [
+        "Projects",
+        "Sessions",
+        "Library",
+        "Surfaces",
+        "Updates",
+        "Help"
+      ],
+      "note": "Google Cloud SQL chosen, not saved: its connection fields show"
+    },
+    {
+      "shot": "4-surfaces",
+      "tabs": [
+        "Projects",
+        "Sessions",
+        "Library",
+        "Surfaces",
+        "Updates",
+        "Help"
+      ],
+      "switches": [
+        "library",
+        "capability-tree",
+        "sessions",
+        "arcs"
+      ]
+    }
+  ],
+  "pageErrors": []
+}

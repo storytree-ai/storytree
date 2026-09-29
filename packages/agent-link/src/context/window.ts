@@ -13,10 +13,9 @@
  * - "In view" means only that: a result that held the id was resident when the open was issued. It
  *   never says the session followed it (ADR-0740 D3), and nothing decides anything from it (D4).
  */
-import { readFile } from "node:fs/promises";
 
 import type { Line } from "../activity/index.js";
-import { transcriptOf } from "./context.js";
+import { NOTHING_STORED, readTranscriptFile, transcriptOf, type TranscriptReader } from "./context.js";
 import { isRecord, jsonLines, type JsonRecord } from "./transcript.js";
 
 /** A note (any library record, by id) or a file (by the path the call named). */
@@ -195,18 +194,20 @@ function execOpens(source: string): WindowTarget[] {
 export type SessionWindow = { readonly session: string; readonly harness?: string; readonly at: string; readonly source?: string }
   & (WindowReading | { readonly absent: string });
 
-/** `session`'s window, from the transcript last recorded for it (3.12), read now: never a folder's guess. */
-export async function sessionWindow(lines: readonly Line[], session: string, { now = new Date() }: { now?: Date } = {}): Promise<SessionWindow> {
+/** `session`'s window, from the transcript last recorded for it (3.12), read now: never a folder's guess. From its file, unless `read` says otherwise. */
+export async function sessionWindow(lines: readonly Line[], session: string,
+  { now = new Date(), read = readTranscriptFile }: { now?: Date; read?: TranscriptReader } = {}): Promise<SessionWindow> {
   const at = now.toISOString();
   const named = transcriptOf(lines, session);
   if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
   const { transcript, harness } = named;
   const who = harness === undefined ? { session } : { session, harness };
-  let text: string;
+  let text: string | undefined;
   try {
-    text = await readFile(transcript, "utf8");
+    text = await read(transcript);
   } catch {
     return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
   }
+  if (text === undefined) return { ...who, absent: NOTHING_STORED, at, source: transcript };
   return { ...who, ...(harness === "codex" ? codexWindow(text) : claudeCodeWindow(text)), at, source: transcript };
 }

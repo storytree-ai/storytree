@@ -32,6 +32,7 @@ test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 
         append: (...args) => log.append(...args),
         since: (...args) => log.since(...args),
         close: () => log.close(),
+        transcripts: log.transcripts,
         locked: (name, work) => log.locked(name, (locked) => work({ ...locked, now: async () => now })),
       };
       const claimant = { log: later, library, project, session: "B" };

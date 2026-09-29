@@ -24,8 +24,9 @@ const READING_EVERY_MS = 10_000;
 /** A reading as the facts a row shows: its tokens, and its four groups when it has them. */
 function detailsOf(reading: ContextReading): SessionDetails {
   if (!("tokens" in reading)) return {};
-  return "absent" in reading.composition ? { totalTokens: reading.tokens }
-    : { totalTokens: reading.tokens, composition: { injected: reading.composition.injected, grounding: reading.composition.grounding,
+  const guidance = "absent" in reading.guidance ? {} : { guidance: reading.guidance.value };
+  return "absent" in reading.composition ? { totalTokens: reading.tokens, ...guidance }
+    : { totalTokens: reading.tokens, ...guidance, composition: { injected: reading.composition.injected, grounding: reading.composition.grounding,
       implementation: reading.composition.implementation, other: reading.composition.other } };
 }
 
@@ -132,8 +133,6 @@ export function mountSessionsList(container: HTMLElement, options: {
  * session past it fills the bar and its total says how far.
  */
 export const BAR_TOKENS = 1_000_000;
-/** Claude Code's marks (ADR-0557 in 0.2): the context guidance default (ADR-0729) and the line past it. Codex rows carry none. */
-const CLAUDE_TICKS = [700_000, 850_000];
 const GROUPS = [["injected", "Injected"], ["grounding", "Grounding"], ["implementation", "Implementation"], ["other", "Other"]] as const;
 
 const percent = (tokens: number): string => `${+(Math.min(tokens, BAR_TOKENS) / BAR_TOKENS * 100).toFixed(2)}%`;
@@ -153,7 +152,8 @@ function ContextBar({ row }: { row: SessionRow }) {
     {parts === undefined
       ? <span className="session-segment" data-group="raw" style={{ width: percent(tokens) }} />
       : parts.map(part => <span key={part.group} className="session-segment" data-group={part.group} style={{ width: percent(part.tokens) }} />)}
-    {row.agent === "Claude Code" && CLAUDE_TICKS.map(tick => <span key={tick} className="session-tick" style={{ left: percent(tick) }} />)}
+    {/* One mark, at the user's context guidance past which a Claude Code session is nudged (ADR-0739 D1); Codex has no nudge (D5), so no mark. */}
+    {row.agent === "Claude Code" && row.guidance !== undefined && <span className="session-tick" style={{ left: percent(row.guidance) }} />}
   </span>;
 }
 

@@ -420,7 +420,7 @@ for (const target of ["capability", "active increment"] as const) {
       await locked;
       const abort = new AbortController();
       const observing: ActivityLog = {
-        append: log.append.bind(log), since: log.since.bind(log), close: log.close.bind(log),
+        append: log.append.bind(log), since: log.since.bind(log), close: log.close.bind(log), transcripts: log.transcripts,
         locked: (project, work) => {
           const pending = log.locked(project, work);
           requested();

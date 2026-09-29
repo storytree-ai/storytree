@@ -35,14 +35,15 @@ test("5.5 a row wears its session's wisp colour, and a hovered wisp highlights i
   assert.doesNotMatch(plain, /data-highlighted/);
 });
 
-test("7.6 a row's bar is its tokens on a 1,000,000-token scale in four groups, numbers on hover; Claude rows mark 700K and 850K, Codex rows none; a row without a composition is one raw segment", () => {
+test("7.6 a row's bar is its tokens on a 1,000,000-token scale in four groups, numbers on hover; a Claude row marks its reading's context guidance, one mark (ADR-0739 D1), Codex rows none; a row without a composition is one raw segment", () => {
   const composition = { injected: 100, grounding: 100, implementation: 150, other: 50 };
-  const claude = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], agent: "Claude Code", totalTokens: 400_000, composition }], onHighlight() {} }));
+  const claude = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], agent: "Claude Code", totalTokens: 400_000, composition, guidance: 600_000 }], onHighlight() {} }));
   for (const [group, width] of [["injected", "10%"], ["grounding", "10%"], ["implementation", "15%"], ["other", "5%"]]) {
     assert.match(claude, new RegExp(`class="session-segment" data-group="${group}" style="width:${width}"`));
   }
-  assert.match(claude, /class="session-tick" style="left:70%"/);
-  assert.match(claude, /class="session-tick" style="left:85%"/);
+  assert.deepEqual(claude.match(/class="session-tick" style="left:[^"]*"/g), ['class="session-tick" style="left:60%"'], "one mark, at the guidance");
+  const unread = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], agent: "Claude Code", totalTokens: 400_000, composition }], onHighlight() {} }));
+  assert.doesNotMatch(unread, /session-tick/, "no mark where the reading carries no guidance");
   assert.match(claude, /title="400,000 tokens: Injected 100,000 · Grounding 100,000 · Implementation 150,000 · Other 50,000 \(an estimated split\)"/);
 
   const codex = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], agent: "Codex", totalTokens: 1_200_000, composition: undefined }], onHighlight() {} }));

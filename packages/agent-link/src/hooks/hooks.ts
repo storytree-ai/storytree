@@ -140,6 +140,11 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
       if (first !== undefined && first.kind !== "tool-requested") {
         const { endMergedClaims } = await import("../claims/index.js");
         await endMergedClaims({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, merges);
+        // What the session's transcript gained since the last hook streams into the shared log, scrubbed (ADR-0749 D3, D4).
+        if (first.transcript !== undefined) {
+          const { shipTranscript } = await import("../transcripts/index.js");
+          await shipTranscript(log, where.project, first.session, first.transcript);
+        }
       }
     } finally {
       await log.close();

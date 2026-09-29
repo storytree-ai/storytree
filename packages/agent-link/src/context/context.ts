@@ -81,19 +81,33 @@ export function transcriptOf(lines: readonly Line[], session: string): { transcr
   return line.harness === undefined ? { transcript: line.transcript } : { transcript: line.transcript, harness: line.harness };
 }
 
-/** `session`'s reading from `lines`, its transcript read now. */
-export async function contextReading(lines: readonly Line[], session: string, { now = new Date(), home }: { now?: Date; home?: string } = {}): Promise<ContextReading> {
+/**
+ * Where a transcript's text comes from: its file on this machine by default, or the records its
+ * hooks streamed into the shared log (ADR-0749 D3). Undefined when none of it is there yet.
+ */
+export type TranscriptReader = (transcript: string) => Promise<string | undefined>;
+
+/** The transcript file itself, on the machine the session ran on. */
+export const readTranscriptFile: TranscriptReader = (transcript) => readFile(transcript, "utf8");
+
+/** Why a transcript `read` gave nothing: none of its records has reached the shared log. */
+export const NOTHING_STORED = "none of this session's transcript has reached the shared log yet";
+
+/** `session`'s reading from `lines`, its transcript read now: from its file, unless `read` says otherwise. */
+export async function contextReading(lines: readonly Line[], session: string,
+  { now = new Date(), home, read = readTranscriptFile }: { now?: Date; home?: string; read?: TranscriptReader } = {}): Promise<ContextReading> {
   const at = now.toISOString();
   const named = transcriptOf(lines, session);
   if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
   const { transcript, harness } = named;
   const who = harness === undefined ? { session } : { session, harness };
-  let text: string;
+  let text: string | undefined;
   try {
-    text = await readFile(transcript, "utf8");
+    text = await read(transcript);
   } catch {
     return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
   }
+  if (text === undefined) return { ...who, absent: NOTHING_STORED, at, source: transcript };
   const count = harness === "codex" ? codexTokens(text) : claudeCodeTokens(text);
   if ("absent" in count) return { ...who, ...count, at, source: transcript };
   const composition = harness === "codex" ? codexComposition(text) : claudeCodeComposition(text);

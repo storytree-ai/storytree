@@ -17,6 +17,8 @@ export interface SessionDetails {
   parentSession?: string;
   totalTokens?: number;
   composition?: ContextGroups | undefined;
+  /** The user's context guidance in tokens, as the reading carried it (agent link 9.7). */
+  guidance?: number | undefined;
 }
 export interface SessionRow {
   id: string;
@@ -28,6 +30,8 @@ export interface SessionRow {
   totalTokens: number | undefined;
   /** What those tokens are made of, when the reading could tell. */
   composition?: ContextGroups | undefined;
+  /** Where the bar marks the user's context guidance, when the reading carried it. */
+  guidance?: number | undefined;
   stories: string[];
   /** Every folder the session has worked in, oldest first (ADR-0749 D2); none for an observed subagent. */
   worktrees: string[];
@@ -64,7 +68,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     rows.set(session.session, { id: session.session,
       label: own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title || workingIn(session.label, lines, session.session, session.worktrees),
       agent: session.label, state: session.state, needsYou: question,
-      totalTokens: contextTotal(detail), composition: detail?.composition,
+      totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees, children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.

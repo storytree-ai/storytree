@@ -77,9 +77,11 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   assert.doesNotMatch(folded, /session-detail/);
   const files = new Map([["parent", { files: [{ path: "src/a.ts", resident: true }, { path: "src/b.ts", resident: false }] }]]);
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]), files, onHighlight() {} }));
-  assert.equal(html.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");
+  const parentRow = html.match(/data-session-id="parent".*?<\/div>/s)?.[0] ?? "";
+  assert.equal(parentRow.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");
+  assert.match(parentRow, />\+1<\/button>/);
   assert.match(html, /aria-expanded="true"/);
-  const detail = html.match(/class="session-detail".*?<\/div>/)?.[0] ?? "";
+  const detail = html.match(/class="session-detail".*?<\/div>/s)?.[0] ?? "";
   assert.ok(detail.includes("/home/me/code/app/.claude/worktrees/one") && detail.indexOf("worktrees/one") < detail.indexOf("worktrees/two"), detail);
   assert.match(detail, /<li[^>]*>src\/a\.ts<\/li>/);
   assert.match(detail, /<li[^>]*data-resident="no"[^>]*>src\/b\.ts<\/li>/);

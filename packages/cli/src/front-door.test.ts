@@ -73,3 +73,14 @@ test("1.5 `storytree` alone lists the families", async () => {
     }
   });
 });
+
+test("1.6 `--help` after a command prints its usage and summary, and runs nothing", async () => {
+  await inWorld(command, async (world) => {
+    // In a folder that is no project, and without the --arc it needs: run, it would refuse.
+    const ran = await storytree(command.script, ["question", "new", "--help"], { cwd: world.elsewhere, home: world.home });
+
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.match(ran.stdout, /storytree question new --arc <arc>/);
+    assert.match(ran.stdout, /raise a question for the owner/);
+  });
+});

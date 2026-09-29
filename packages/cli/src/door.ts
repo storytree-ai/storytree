@@ -10,6 +10,8 @@
  *   "not running" are its words, and come back before anything reaches a database.
  * - The library is reached only through its public API, opened on first use, so a command that
  *   needs none (the help) never connects.
+ * - `--help` (or `-h`) after a command answers its usage and summary and runs nothing, whatever
+ *   else the command would need.
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
@@ -119,13 +121,24 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   const inner = family.families?.find((candidate) => candidate.name === second);
   if (inner !== undefined) return dispatchIn(inner, `${path} ${inner.name}`, rest, context);
   const verb = family.verbs.find((candidate) => candidate.name === second);
-  if (verb !== undefined) return verb.act(parseArgs(rest, verb.switches ?? [], context.cwd), context);
+  if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : verb.act(parseArgs(rest, verb.switches ?? [], context.cwd), context);
   const help = second === undefined || second === "--help" || second === "-h";
   if (family.bare !== undefined && !(help && second !== undefined)) {
     return family.bare.act(parseArgs(words, family.bare.switches ?? [], context.cwd), context);
   }
   if (help) return verbsOf(family, path);
   throw new Refusal(`storytree ${path} has no "${second}"`, { code: 2, next: [{ command: `storytree ${path}`, why: "its verbs" }] });
+}
+
+/** Whether a verb's words ask for its help: `--help` or `-h` before any `--`. */
+function asksHelp(words: readonly string[]): boolean {
+  const end = words.indexOf("--");
+  return (end === -1 ? words : words.slice(0, end)).some((word) => word === "--help" || word === "-h");
+}
+
+/** `storytree <family> <verb> --help`: its usage and summary, as its family's menu shows them. */
+function helpOf(verb: Verb): Answer {
+  return { text: `storytree ${verb.usage}\n    ${verb.summary}` };
 }
 
 /** `storytree` alone: the families. */

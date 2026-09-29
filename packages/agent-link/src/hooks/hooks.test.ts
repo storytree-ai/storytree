@@ -33,6 +33,7 @@ import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { buildBins } from "../bins/build.js";
 import { readContext } from "../context/index.js";
 import { MARKER_FILE } from "../routing/index.js";
+import { hookLines } from "./hooks.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
 import { withTempDir } from "../testing/folders.js";
@@ -297,6 +298,20 @@ test("3.5 recorded inputs for starting a subagent, for a storytree tool call ins
       { ...codex, kind: "tool-requested", tool: "open", call: "exec-a6165a7e-7f86-4ca3-a6d6-ae4a68433045", agent: "orchestrator" },
     ]);
   });
+});
+
+test("3.6 where Claude Code's limit on a command is raised (BASH_MAX_TIMEOUT_MS, in the environment its hooks share), the command's started line records it, so the command counts as running until then", () => {
+  const input = JSON.parse(recorded("claude-code", "pre-tool-use-bash", "/work/site")) as unknown;
+  const before = process.env.BASH_MAX_TIMEOUT_MS;
+  try {
+    delete process.env.BASH_MAX_TIMEOUT_MS;
+    assert.equal((hookLines("claude-code", input)?.lines[0] as { limitMs?: number } | undefined)?.limitMs, undefined, "Claude Code's default limit is the reading's own");
+    process.env.BASH_MAX_TIMEOUT_MS = "1800000";
+    assert.equal((hookLines("claude-code", input)?.lines[0] as { limitMs?: number } | undefined)?.limitMs, 1_800_000);
+  } finally {
+    if (before === undefined) delete process.env.BASH_MAX_TIMEOUT_MS;
+    else process.env.BASH_MAX_TIMEOUT_MS = before;
+  }
 });
 
 test("3.6 recorded inputs from before a shell command, after one that failed, and at the end of a turn make three lines: the command started, and finished, under the call's id, and the turn ended; for Codex, which waits for its hooks, the hook hands its line to one in the background", async () => {

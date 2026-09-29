@@ -98,13 +98,15 @@ test('4.4 a Codex session whose hooks never ran, but which calls a storytree too
 
 test("4.5 a command that started 40 minutes ago and has not finished keeps its session live; once it finishes, or its turn ends, the quiet time counts again, and one older than the longest a command may run no longer counts", async () => {
   await withProject(async (log, project) => {
-    const started = await log.append(project, { ...CLAUDE, kind: "command-started", command: "npm run build", call: "call-1" });
+    // Codex sets no limit of its own on a command; Claude Code's is claims' 5.6.
+    const CODEX = { ...CLAUDE, harness: "codex" } as const;
+    const started = await log.append(project, { ...CODEX, kind: "command-started", command: "npm run build", call: "call-1" });
     const [running] = await readSessions(log, project, { now: after(started, 40 * 60 * 1000) });
     assert.equal(running?.state, "working", "live while its command runs");
     const [abandoned] = await readSessions(log, project, { now: after(started, LONGEST_COMMAND_MS + 1) });
     assert.equal(abandoned?.state, "gone", "a command older than the longest a command may run died with its window, and the silent session with it (4.7)");
 
-    const finished = await log.append(project, { ...CLAUDE, kind: "command-run", command: "npm run build", call: "call-1" });
+    const finished = await log.append(project, { ...CODEX, kind: "command-run", command: "npm run build", call: "call-1" });
     const [done] = await readSessions(log, project, { now: after(finished, QUIET_MS + 1) });
     assert.equal(done?.state, "waiting", "idle once the quiet time has passed after it finished");
 

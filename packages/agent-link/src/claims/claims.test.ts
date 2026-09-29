@@ -21,7 +21,7 @@ import { claudeCode, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claim, land, readAttribution, release, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
-import { mergedPullsThrough } from "./merges.js";
+import { boardClaims, due, mergedPullsThrough } from "./merges.js";
 
 interface World {
   log: ActivityLog;
@@ -192,6 +192,24 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
   });
 });
 
+test("5.6 a Claude Code command with no finish line keeps its holder live only until Claude Code's own limit on a command (10 minutes, or the limit its line records); past it the holder reads idle (regression: a claim read live for 7 hours, 2026-09-29)", async () => {
+  await withWorld(async ({ log, project, emailForm, as }) => {
+    const quietMs = 5 * 60 * 1000;
+    assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
+    // The turn is interrupted: Claude Code writes neither the command's finish nor the turn's end.
+    const started = await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-started", command: "gh pr create", call: "call-1" });
+    const at = (ms: number) => new Date(Date.parse(started.at) + ms);
+    assert.equal((await readClaims(log, project, { quietMs, now: at(9 * 60 * 1000) }))[0]?.holder, "live", "still within Claude Code's limit");
+    assert.equal((await readClaims(log, project, { quietMs, now: at(11 * 60 * 1000) }))[0]?.holder, "idle", "Claude Code has ended the command by now");
+
+    // Where Claude Code's limit is raised, the command's line says so, and the command counts until then.
+    const long = await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-started", command: "npm run e2e", call: "call-2", limitMs: 30 * 60 * 1000 });
+    const later = (ms: number) => new Date(Date.parse(long.at) + ms);
+    assert.equal((await readClaims(log, project, { quietMs, now: later(20 * 60 * 1000) }))[0]?.holder, "live");
+    assert.equal((await readClaims(log, project, { quietMs, now: later(31 * 60 * 1000) }))[0]?.holder, "idle");
+  });
+});
+
 test("5.10 a claim taken on branch feature/signup ends with a merged line once GitHub shows a pull request from that branch merged after the claim was taken, found at the next tool call or hook line; one merged before the claim, or still open, ends nothing", async () => {
   await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
     await withTempDir(async (folder) => {
@@ -226,6 +244,18 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
       await runHook({ argv: ["claude-code"], input: JSON.stringify({ ...edit, cwd: folder, session_id: "D" }), merges, locate: { dataDir: testServerDataDir() } });
       assert.deepEqual(await held(), [], "the merge ended B's claim, at the next hook line");
     });
+  });
+});
+
+test("5.10 the board asks GitHub itself before it shows claims, even in a minute a hook has already asked: a claim whose branch merged is not shown (regression: a merged branch's claim stood for 7 hours, 2026-09-29)", async () => {
+  await withWorld(async ({ log, project, emailForm, as }) => {
+    assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
+    await sleep(20);
+    const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt: new Date().toISOString() }] : []) };
+    due(project, 60_000); // a hook asked moments ago, and saw no merge then
+    const shown = await boardClaims({ log, project, folder: "/work/site", session: "person:owner", source: "tool" }, merges);
+    assert.deepEqual(shown, [], "the merge ended the claim");
+    assert.deepEqual(await readClaims(log, project), [], "and a merged line says so for every reader");
   });
 });
 

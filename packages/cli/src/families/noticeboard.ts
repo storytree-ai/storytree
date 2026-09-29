@@ -3,11 +3,12 @@
  * increment or a capability with its agent's harness, window and reason, and whether it is live or
  * idle; or who holds one piece of work. Claiming and releasing stay with the agents' tools.
  *
- * One reading: the agent link's `readClaims` over its activity log, which judges live and idle.
+ * One reading: the agent link's `boardClaims` over its activity log, which judges live and idle,
+ * having first asked GitHub whether any claim's branch has merged (ADR-0643 D3).
  * `noticeboard log` shows the log's latest lines as the agent link writes them out, each with the
  * line that caused it or "cause not recorded" (ADR-0746 D2).
  */
-import { lineText, type Claim } from "@storytree/agent-link";
+import { boardClaims, lineText, type Claim } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -28,7 +29,8 @@ const board: Verb = {
   summary: "every claim now, or who holds one piece of work",
   async act(args, context) {
     const id = args.words[0];
-    const claims = await context.claims();
+    const { log: activity, project, folder, session, harness } = await context.activityContext();
+    const claims = await boardClaims({ log: activity, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" });
     if (id !== undefined) {
       const held = claims.find((claim) => claim.increment === id || claim.capability === id);
       return { text: held === undefined ? `${id}: nobody holds it.` : `${id}: held by ${holderOf(held)}: ${held.reason}` };

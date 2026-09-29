@@ -11,8 +11,8 @@ import { curvePoint, glowAt, growthPlan, heldNotes, noteTitle, tailSpan, type Ag
 
 const noRaycast = () => {};
 
-/** The window's own colour (ADR-0746 D1): nothing else on the globe is drawn in it. */
-const IN_VIEW = "#5fd3bc";
+/** The window's colour (ADR-0746 D1): a warm white no session wears, since sessions take their colours from the whole hue wheel. */
+const IN_VIEW = "#f4ecd8";
 
 /** How long a new step's line takes to grow, and each step of a glow's loop, and its rest between loops (ADR-0742). */
 const GROW_MS = 900;
@@ -30,7 +30,7 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
   trails?: readonly Trail[];
   /** Each drawn agent's path, replayed by a looping glow (ADR-0742). */
   paths?: readonly AgentPath[];
-  /** The selected session's window: a teal ring on each note it holds now, and dotted teal in-view lines (ADR-0746 D1). */
+  /** The selected session's window: a warm white ring on each note it holds now, and dotted warm white in-view lines (ADR-0746 D1). */
   window?: WindowView | undefined;
 }) {
   const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);

@@ -4,10 +4,13 @@
  * the main line, or once it has been deleted; otherwise its work is open, and a session holding
  * open work stays in the running-sessions list.
  *
- * - GitHub is asked about merges as claims ask it (merges.ts), from any machine: a merge is the
- *   same everywhere. Whether a branch is ahead of the main line, or deleted, is asked only of git on
- *   the machine its lines were written on, in the folder they name (or the nearest one still there:
- *   a cleaned-up worktree's repository), since another machine's clone may never have had it.
+ * - GitHub is asked about merges from any machine, in one call for every branch, so a backlog
+ *   drains in one look: a merge is the same everywhere. Whether a branch is ahead of the main line,
+ *   or deleted, is asked of git on the machine its lines were written on, in the folder they name
+ *   (or the nearest one still there: a cleaned-up worktree's repository).
+ * - A branch worked on only on other machines is deleted once it exists nowhere this machine can
+ *   see: not on `origin` and not a branch here. Its own machine opens it again if it is still there,
+ *   and once that machine has found it ahead, no other machine guesses it away.
  * - A branch is looked at while no line has resolved it, or once its session has written on it
  *   since it resolved, so work added after a merge or a fresh start is seen as open again.
  * - A `branch-state` line is written only when the state changes, by whichever session saw it,
@@ -22,12 +25,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { currentBranch, thisMachine, type Line, type NewLine } from "../activity/index.js";
-import { due, ghMergedPulls, type MergeContext, type MergedPulls } from "../claims/merges.js";
+import { due, ghAllMergedPulls, type AllMergedPulls, type MergeContext, type MergedPull } from "../claims/merges.js";
 
 /** How branches are watched. */
 export interface BranchWatch {
-  /** How to ask GitHub. By default, through `gh`. */
-  readonly mergedPulls?: MergedPulls;
+  /** How to ask GitHub for every merged pull request. By default, through `gh`. */
+  readonly allMergedPulls?: AllMergedPulls;
   /** How often a project is looked at, at most. By default, once a minute. */
   readonly everyMs?: number;
   /** The machine this runs on, as lines name it. By default, this one's host name. */
@@ -41,6 +44,7 @@ const MAIN_BRANCHES = new Set(["main", "master"]);
 const EVERY_MS = 60_000;
 const BUDGET_MS = 3_000;
 const GIT_TIMEOUT_MS = 2_000;
+const ORIGIN_TIMEOUT_MS = 5_000;
 
 type BranchState = Extract<NewLine, { kind: "branch-state" }>;
 type Found = Pick<BranchState, "of" | "open" | "how" | "pr">;
@@ -50,21 +54,26 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
   if (!due(`${context.project}-branches`, watch.everyMs ?? EVERY_MS)) return [];
   const machine = watch.machine ?? thisMachine();
   const { lines } = await context.log.since(context.project, 0);
-  const candidates = toLookAt(lines, machine);
-  if (candidates.size === 0) return [];
-  const ask = watch.mergedPulls ?? ghMergedPulls;
-  const deadline = Date.now() + (watch.budgetMs ?? BUDGET_MS);
   const looked = lookedAt(context.project);
+  const candidates = toLookAt(lines, machine, looked);
+  if (candidates.size === 0) return [];
+  const merged = await (watch.allMergedPulls ?? ghAllMergedPulls)(context.folder).catch(() => new Map<string, MergedPull[]>());
+  const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? seenHere(context.folder) : undefined;
+  const deadline = Date.now() + (watch.budgetMs ?? BUDGET_MS);
   const found: Found[] = [];
   for (const [branch, facts] of [...candidates].sort(([a], [b]) => (looked[a] ?? 0) - (looked[b] ?? 0))) {
-    if (Date.now() > deadline) break;
-    looked[branch] = Date.now();
-    const pull = (await ask(context.folder, branch).catch(() => [])).find((pull) => Date.parse(pull.mergedAt) >= Date.parse(facts.firstAt));
+    const pull = (merged.get(branch) ?? []).find((pull) => Date.parse(pull.mergedAt) >= Date.parse(facts.firstAt));
     if (pull !== undefined) {
       found.push({ of: branch, open: false, how: "merged", pr: pull.number });
       continue;
     }
-    const local = facts.folder === undefined ? undefined : gitState(facts.folder, branch);
+    if (facts.folder === undefined) {
+      if (seen !== undefined && !facts.foundThere && !seen.has(branch)) found.push({ of: branch, open: false, how: "deleted" });
+      continue;
+    }
+    if (Date.now() > deadline) continue;
+    looked[branch] = Date.now();
+    const local = gitState(facts.folder, branch);
     if (local !== undefined) found.push({ of: branch, open: local === "ahead", how: local });
   }
   remember(context.project, looked);
@@ -82,6 +91,7 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
         ...(context.harness === undefined ? {} : { harness: context.harness }),
         source: context.source,
         folder: context.folder,
+        ...(machine === undefined ? {} : { machine }),
         kind: "branch-state",
         of: state.of,
         open: state.open,
@@ -93,14 +103,15 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
   });
 }
 
-/** What is known of a branch worth looking at: when it was first worked on, and its latest folder on this machine. */
+/** What is known of a branch worth looking at: when it was first worked on, its latest folder on this machine, and whether its own machine has found it ahead. */
 interface Facts {
   firstAt: string;
   folder?: string;
+  foundThere?: boolean;
 }
 
-/** The branches no line has resolved, or worked on since they resolved. */
-function toLookAt(lines: readonly Line[], machine: string | undefined): Map<string, Facts> {
+/** The branches no line has resolved, worked on since they resolved, or worked on here and taken for deleted by another machine since this one last looked. */
+function toLookAt(lines: readonly Line[], machine: string | undefined, looked: Readonly<Record<string, number>>): Map<string, Facts> {
   const states = latestStates(lines);
   const worked = new Map<string, Facts & { lastAt: string }>();
   for (const line of lines) {
@@ -113,9 +124,25 @@ function toLookAt(lines: readonly Line[], machine: string | undefined): Map<stri
   const candidates = new Map<string, Facts>();
   for (const [branch, { lastAt, ...facts }] of worked) {
     const state = states.get(branch);
-    if (state === undefined || state.open || Date.parse(lastAt) > Date.parse(state.at)) candidates.set(branch, facts);
+    const guessedElsewhere = state?.how === "deleted" && facts.folder !== undefined && state.machine !== undefined && state.machine !== machine && (looked[branch] ?? 0) < Date.parse(state.at);
+    if (state === undefined || state.open || guessedElsewhere || Date.parse(lastAt) > Date.parse(state.at)) candidates.set(branch, { ...facts, foundThere: state?.how === "ahead" });
   }
   return candidates;
+}
+
+/** The branches `origin` has and this clone has, seen from `folder`; undefined when git cannot say. */
+function seenHere(folder: string): Set<string> | undefined {
+  const run = (timeout: number, ...args: string[]) => execFileSync("git", args, { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout, windowsHide: true });
+  try {
+    const remote = run(ORIGIN_TIMEOUT_MS, "ls-remote", "--heads", "origin").split("\n").flatMap((line) => {
+      const ref = line.split("\t")[1]?.trim();
+      return ref?.startsWith("refs/heads/") ? [ref.slice("refs/heads/".length)] : [];
+    });
+    const local = run(GIT_TIMEOUT_MS, "for-each-ref", "--format=%(refname:short)", "refs/heads").split("\n").map((name) => name.trim()).filter(Boolean);
+    return new Set([...remote, ...local]);
+  } catch {
+    return undefined;
+  }
 }
 
 /** The latest `branch-state` line for each branch. */

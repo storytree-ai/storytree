@@ -9,10 +9,9 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { openActivityLog, type Line } from "../activity/index.js";
-import type { MergedPulls } from "../claims/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { resolveBranches } from "./index.js";
+import { resolveBranches, sessionsFrom } from "./index.js";
 
 test("4.10 each branch a session worked on is marked resolved once its pull request merged (any machine), or, on the machine it was worked on, once it has nothing ahead of main or is deleted; one still ahead stays open, and one that gains work after it resolved is open again; a state is written only when it changes", async () => {
   const log = await openActivityLog(testServerUrl());
@@ -40,9 +39,9 @@ test("4.10 each branch a session worked on is marked resolved once its pull requ
       await log.append(project, { ...elsewhere, branch: "claude/merged", kind: "file-edited", files: ["y.ts"] });
       await log.append(project, { ...elsewhere, branch: "claude/laptop-only", kind: "file-edited", files: ["z.ts"] });
 
-      const mergedPulls: MergedPulls = async (_folder, branch) => (branch === "claude/merged" ? [{ number: 12, mergedAt: new Date(Date.now() + 1_000).toISOString() }] : []);
+      const allMergedPulls = async () => new Map([["claude/merged", [{ number: 12, mergedAt: new Date(Date.now() + 1_000).toISOString() }]]]);
       const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
-      const watch = { mergedPulls, everyMs: 0, machine: "here" };
+      const watch = { allMergedPulls, everyMs: 0, machine: "here" };
       const states = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how, line.pr, line.session]] : [])).sort();
 
       assert.deepEqual(states(await resolveBranches(watcher, watch)), [
@@ -58,6 +57,52 @@ test("4.10 each branch a session worked on is marked resolved once its pull requ
       git(repo, "commit", "-q", "-m", "more");
       await worked("claude/not-ahead");
       assert.deepEqual(states(await resolveBranches(watcher, watch)), [["claude/not-ahead", true, "ahead", undefined, "observer"]]);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.10 a session whose branches merged, or exist nowhere this machine can see (not on origin, no branch here) and were worked on elsewhere, holds no open work after one look; one pushed to origin stays open; the machine that worked on it opens it again if it is still there", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const origin = path.join(dir, "origin.git");
+      git(dir, "init", "-q", "--bare", "-b", "main", origin);
+      const clone = (name: string) => {
+        const repo = path.join(dir, name);
+        git(dir, "clone", "-q", origin, repo);
+        return repo;
+      };
+      const site = clone("site");
+      writeFileSync(path.join(site, "a.txt"), "a\n");
+      git(site, "add", "a.txt");
+      git(site, "commit", "-q", "-m", "first");
+      git(site, "push", "-q", "origin", "HEAD:main");
+      git(site, "push", "-q", "origin", "HEAD:claude/pushed");
+      const laptop = clone("laptop");
+      git(laptop, "switch", "-q", "-c", "claude/never-pushed");
+      writeFileSync(path.join(laptop, "b.txt"), "b\n");
+      git(laptop, "add", "b.txt");
+      git(laptop, "commit", "-q", "-m", "work");
+      git(laptop, "switch", "-q", "main");
+
+      const elsewhere = { harness: "claude-code", source: "hook", machine: "elsewhere", folder: laptop } as const;
+      for (const branch of ["claude/merged", "claude/never-pushed"]) await log.append(project, { ...elsewhere, session: "finished", branch, kind: "file-edited", files: ["x.ts"] });
+      await log.append(project, { ...elsewhere, machine: "third", session: "lane", branch: "claude/pushed", kind: "file-edited", files: ["y.ts"] });
+
+      const allMergedPulls = async () => new Map([["claude/merged", [{ number: 12, mergedAt: new Date(Date.now() + 1_000).toISOString() }]]]);
+      const watcher = (folder: string) => ({ log, project, folder, session: "observer", harness: "claude-code", source: "hook" }) as const;
+      const openWork = async () => sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]);
+
+      await resolveBranches(watcher(site), { allMergedPulls, everyMs: 0, machine: "here" });
+      assert.deepEqual(await openWork(), [["finished", []], ["lane", ["claude/pushed"]], ["observer", []]]);
+
+      await resolveBranches(watcher(laptop), { allMergedPulls, everyMs: 0, machine: "elsewhere" });
+      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]], ["observer", []]]);
+      await resolveBranches(watcher(site), { allMergedPulls, everyMs: 0, machine: "here" });
+      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]], ["observer", []]], "a branch its own machine found is not guessed away again");
     });
   } finally {
     await log.close();

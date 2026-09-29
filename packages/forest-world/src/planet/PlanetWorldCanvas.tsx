@@ -35,6 +35,8 @@ export interface PlanetWorldCanvasProps {
   surface?: boolean;
   /** Drawn inside the turning globe, in its own coordinates: the knowledge core. */
   inside?: ReactNode;
+  /** How many radii half the short side spans: 1.18 by default, the planet filling 85% of it. */
+  framing?: number | undefined;
 }
 
 const ALPHA: ReadonlyMap<KitPlacement, number> = new Map();
@@ -85,19 +87,19 @@ function Surface({ radius }: { radius: number }) {
   return <primitive object={surface} />;
 }
 
-function Framing({ radius }: { radius: number }) {
+function Framing({ radius, framing }: { radius: number; framing: number }) {
   const { camera, size, invalidate } = useThree();
   useLayoutEffect(() => {
-    camera.zoom = orthographicZoomFor(radius * 1.18, Math.min(size.width, size.height));
+    camera.zoom = orthographicZoomFor(radius * framing, Math.min(size.width, size.height));
     camera.updateProjectionMatrix();
     invalidate();
-  }, [camera, radius, size.width, size.height, invalidate]);
+  }, [camera, radius, framing, size.width, size.height, invalidate]);
   return null;
 }
 
 /** A second mount of 0.2's ground and pines: one Canvas and one calibrated sun for all plates.
  * The flat ForestWorldCanvas retains its own camera, controls, material defaults and lighting. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children, surface = true, inside }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children, surface = true, inside, framing = 1.18 }: PlanetWorldCanvasProps) {
   const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
   const pathways = drawing.plan;
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
@@ -112,7 +114,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
     <color attach="background" args={['#101418']} />
     <Lights />
-    <Framing radius={radius} />
+    <Framing radius={radius} framing={framing} />
     <group quaternion={rotation}>
       {surface && <Surface radius={radius} />}
       {surface && scene.islands.map(island => {

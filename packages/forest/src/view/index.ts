@@ -5,5 +5,6 @@
 export { openForestView, mountArtifactCard, type ForestView } from "./forest-view.js";
 export { renderStoryPanel, renderTree } from "./story-panel.js";
 export { attachPanZoom, type PanZoom, type View as TreeView } from "./pan-zoom.js";
+export type { GlobeOpening, TreeOpening } from "../surfaces/surfaces.js";
 export { mountTreeSpace, type TreeSpace } from "./tree-space.js";
 export { mountSessionsList, type SessionsReads } from "./sessions-list.js";

@@ -1,12 +1,13 @@
 /**
  * The capability tree's own space (the forest story, capability 4; ADR-0743): a large layer over
  * the forest, beside the story panel, popped out from the tree's space inside the panel, where the
- * tree is moved and zoomed (`attachPanZoom`). It opens with the whole tree fitted in it, as its
- * "Fit" control puts it back, and keeps where it was while the live reading redraws the same story.
+ * tree is moved and zoomed (`attachPanZoom`). It opens at the tree's opening zoom (by default the
+ * whole tree fitted in it, ADR-0750), its "Fit" control fits the whole tree, and keeps where it was while the live reading redraws the same story.
  * Its legend names the cards' four words (ADR-0744). Clicking a card chooses it as the panel's does.
  */
 import type { StoryPanel } from "@storytree/forest";
 
+import type { TreeOpening } from "../surfaces/surfaces.js";
 import { attachPanZoom } from "./pan-zoom.js";
 import { renderTree } from "./story-panel.js";
 
@@ -18,7 +19,7 @@ export interface TreeSpace {
   stop(): void;
 }
 
-export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void; closed(): void }): TreeSpace {
+export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void; closed(): void; opening?: TreeOpening | undefined }): TreeSpace {
   const space = document.createElement("section");
   space.className = "tree-space";
   space.hidden = true;
@@ -42,7 +43,7 @@ export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void
   const surface = space.querySelector(".tree-space-surface") as HTMLDivElement;
 
   let story: string | undefined;
-  const moving = attachPanZoom(frame, surface, (id) => on.choose(id));
+  const moving = attachPanZoom(frame, surface, (id) => on.choose(id), on.opening);
 
   const close = (): void => {
     if (space.hidden) return;
@@ -68,7 +69,7 @@ export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void
       const opening = space.hidden || story !== panel.story;
       space.hidden = false;
       story = panel.story;
-      if (opening) moving.fit();
+      if (opening) moving.open();
       else moving.place(moving.view);
       if (focused) surface.querySelector<SVGGElement>(".selected")?.focus({ preventScroll: true });
     },

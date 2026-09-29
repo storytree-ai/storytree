@@ -7,6 +7,7 @@
 import { listRuns } from "@storytree/processes/listing";
 
 import type { ActivityLog, Line } from "../activity/index.js";
+import { rememberClosedOut } from "../hooks/close-out-reminder.js";
 
 /** Who is closing out, and where. */
 export interface CloseOutContext {
@@ -37,6 +38,8 @@ export async function closeOut(context: CloseOutContext, said: { safe: boolean; 
     why: said.why.trim(),
     ...(running === undefined ? {} : { running }),
   });
+  // The turn-end reminder, on this machine, asks no more (ADR-0758 D4).
+  rememberClosedOut(context.session);
   return { line, running };
 }
 

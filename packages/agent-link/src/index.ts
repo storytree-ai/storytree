@@ -5,7 +5,7 @@ export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddres
 export { readProjectChoice, recordProjectChoice } from "./routing/project-choice.js";
 export { readLibrary, readSettings, setLibrary, setSetting } from "./settings/settings.js";
 export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading } from "./settings/settings.js";
-export { ACTIVITY_DATABASE, NEW_LINE, openActivityLog } from "./activity/index.js";
+export { ACTIVITY_DATABASE, lineText, NEW_LINE, openActivityLog } from "./activity/index.js";
 export type { ActivityLog, Agent, Line, LineKind, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { labelOf, QUIET_MS, readSessions, sessionsFrom } from "./sessions/index.js";
 export type { Session, SessionOptions, SessionState } from "./sessions/index.js";

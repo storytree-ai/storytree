@@ -21,6 +21,13 @@ const common = {
    * its context reading is worked out from (capability 9, ADR-0725). Never found by folder.
    */
   transcript: z.string().min(1).optional(),
+  /**
+   * The number of the earlier line in the same project's log that caused this one (ADR-0746 D2),
+   * stamped only by the code writing the line, when it has that line in hand as it writes. Never
+   * worked out afterwards from timing, order or adjacency; a line without one reads "cause not
+   * recorded", and nothing decides anything from it (D4).
+   */
+  causedBy: z.number().int().positive().optional(),
 };
 
 /**

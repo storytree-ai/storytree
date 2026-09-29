@@ -4,9 +4,12 @@
  * idle; or who holds one piece of work. Claiming and releasing stay with the agents' tools.
  *
  * One reading: the agent link's `readClaims` over its activity log, which judges live and idle.
+ * `noticeboard log` shows the log's latest lines as the agent link writes them out, each with the
+ * line that caused it or "cause not recorded" (ADR-0746 D2).
  */
-import type { Claim } from "@storytree/agent-link";
+import { lineText, type Claim } from "@storytree/agent-link";
 
+import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 
 /** What a claim holds: "increment <id>" or "capability <id>". */
@@ -36,9 +39,27 @@ const board: Verb = {
   },
 };
 
+/** How many of the latest lines `noticeboard log` shows unless told. */
+const LOG_LINES = 20;
+
+const log: Verb = {
+  name: "log",
+  usage: "noticeboard log [--session <id>] [--limit <n>]",
+  summary: "the activity log's latest lines, each with the line that caused it",
+  async act(args, context) {
+    const session = args.text("session");
+    const limit = Number(args.text("limit") ?? LOG_LINES);
+    if (!Number.isSafeInteger(limit) || limit < 1) throw new Refusal(`--limit takes a whole number, 1 or more\nusage: storytree noticeboard log [--session <id>] [--limit <n>]`, { code: 2 });
+    const { log: activity, project } = await context.activityContext();
+    const lines = (await activity.since(project, 0)).lines.filter((line) => session === undefined || line.session === session).slice(-limit);
+    if (lines.length === 0) return { text: session === undefined ? "The activity log has no lines yet." : `The activity log has no lines for ${session}.` };
+    return { text: lines.map(lineText).join("\n") };
+  },
+};
+
 export const noticeboard: Family = {
   name: "noticeboard",
   summary: "who is on what right now (read only)",
-  verbs: [],
+  verbs: [log],
   bare: board,
 };

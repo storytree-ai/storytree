@@ -18,6 +18,8 @@
  * - knows which of the session's agents made it (ADR-0629 D2), from what the harness revealed:
  *   the line the hook before the call left under the call's id, or, for Codex, the call's own
  *   thread (agentOf);
+ * - names that hook's line as the cause of its `tool-called` line and of the reads it records
+ *   (ADR-0746 D2); a call no hook saw names none;
  * - ends each claim whose pull request has merged since it was taken (ADR-0643 D3);
  * - turns a refusal from the library or the claims into a readable answer marked as an error,
  *   never a crash.
@@ -95,6 +97,8 @@ export interface Call {
   readonly quietMs: number;
   /** Which of the session's agents made this call, as the harness revealed it (ADR-0629 D2). */
   readonly agent: Agent;
+  /** The hook's `tool-requested` line for this call, by the harness's call id: the cause of the lines the call writes (ADR-0746 D2). */
+  readonly request?: number;
 }
 
 /** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
@@ -139,7 +143,10 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         // What the hooks have written, the one run just before this call included (ADR-0629 D2).
         const { lines } = await log.since(where.project, 0);
         const caller = seenCaller(lines, callerOf(context), meta);
-        await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name });
+        // The hook's line for this very call, joined by the id the harness gave it: never a guess by time.
+        const request = requestOf(lines, meta)?.seq;
+        const cause = request === undefined ? {} : { causedBy: request };
+        await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name, ...cause });
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder: options.folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
         return result(await act(args as never, {
@@ -150,6 +157,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
           // still return tokens and explain unusable settings (9.7), as routing's readLibrary does.
           get quietMs() { return quietMs ??= idleAfterMs(); },
           agent: agentOf(lines, meta),
+          ...(request === undefined ? {} : { request }),
         }));
       } catch (error) {
         if (isUnreachable(error)) {

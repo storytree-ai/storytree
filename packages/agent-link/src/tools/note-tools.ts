@@ -233,7 +233,7 @@ async function readsOf(call: Call): Promise<Extract<Line, { kind: "note-read" }>
 
 async function recordReads(call: Call, reads: readonly { note: string; found: Found; read: "peek" | "whole" }[]): Promise<void> {
   for (const read of reads) {
-    await call.log.append(call.project, { ...lineOf(call.caller), source: "tool", folder: call.folder, kind: "note-read", ...read, agent: call.agent });
+    await call.log.append(call.project, { ...lineOf(call.caller), source: "tool", folder: call.folder, kind: "note-read", ...read, agent: call.agent, ...(call.request === undefined ? {} : { causedBy: call.request }) });
   }
 }
 

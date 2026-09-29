@@ -3,7 +3,7 @@ import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js"
 import type { SetupReport } from "./setup.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "project";
+  readonly check: "storytree" | "hooks" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "project";
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped";
   readonly message: string;
   readonly fix?: string;
@@ -27,6 +27,11 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
       : present.length > 0
         ? `storytree's hooks are registered for ${present.map(name).join(" and ")}; receiving them is verified inside a session.`
         : "No harness here has storytree's hooks: neither Claude Code nor Codex is on this machine and connected." });
+    if (present.length > 0) {
+      lines.push({ check: "transcripts", state: "ok", message: "Each session's transcript streams into the library's shared log as the session works, so every machine's app can read it. " +
+        "Obvious secrets (API keys, bearer and OAuth tokens, private keys, connection-string passwords) are scrubbed before they leave this machine; " +
+        "the scrub is best-effort, not a guarantee, so a secret in another shape can still reach the log. Raw transcript records are kept 180 days." });
+    }
     lines.push({ check: "status-line", state: hooks.statusLine === "installed" ? "fixed" : "ok", message: hooks.statusLine === "installed"
       ? "storytree's status line was installed in Claude Code: it shows from the next session."
       : hooks.statusLine === "the user's own kept"

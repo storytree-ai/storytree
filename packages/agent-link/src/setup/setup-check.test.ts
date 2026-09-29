@@ -168,6 +168,8 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
       assert.ok(runsFor(tools, "mcp__storytree__open", anchored) && !runsFor(tools, "Bash", anchored), `${harness}: in the foreground before a storytree tool, and no other`);
       assert.ok(runsFor(shell, "Bash", anchored) && !runsFor(shell, "mcp__storytree__open", anchored), `${harness}: in the background before a shell command, and no other`);
       assert.equal(events.Stop?.[0]?.background, true, `${harness}: in the background at the end of a turn`);
+      // A second, in the foreground, may ask the agent to close out (ADR-0758 D4): the harness reads what it prints.
+      assert.equal(events.Stop?.[1]?.background, false, `${harness}: and in the foreground at the end of a turn`);
       // The one at each prompt adds the project's definitions for the agent, so the harness waits for it.
       assert.equal(events.UserPromptSubmit?.[0]?.background, false, `${harness}: in the foreground at each prompt`);
     }

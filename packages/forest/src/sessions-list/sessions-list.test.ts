@@ -27,7 +27,7 @@ test("one row per non-ended claiming session, plain idle, reason and held island
     { ...child, kind: "session-ended" },
     { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });
   const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => row.id), ["parent", "off"], "a session holding no claim gets no row");
+  assert.deepEqual(rows.map(row => row.id), ["parent", "off", "quiet"], "every session that has not ended shows (ADR-0749 D1)");
   assert.equal(rows[0]!.label, "Build signup");
   assert.deepEqual(rows[0]!.stories, ["one", "two"]);
   assert.equal(rows[1]!.state, "idle");
@@ -56,10 +56,20 @@ test("explicit children nest once, propagate needs-you and islands; ending a par
   assert.deepEqual(sessionRows(tree, lines, [arc], now).map(row => row.id), ["child"]);
 });
 
-test("7.1 a session holding no claim gets no row however much unclaimed work it has done (ADR-0737 D1)", () => {
-  const lines = log({ ...off, kind: "file-edited", files: ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts", "f.ts"] },
-    { ...off, kind: "command-run", command: "git push -u origin fix" }, { ...off, kind: "command-run", command: "gh pr create --fill" });
-  assert.deepEqual(sessionRows(tree, lines, [], now), []);
+test("7.1 a session holding no claim still gets a plain row, named from the worktree it works in, with no off-plan label (ADR-0749 D1)", () => {
+  const lines = log({ ...off, folder: "/home/me/code/site", kind: "file-edited", files: ["a.ts"] },
+    { ...off, folder: "/home/me/code/site/.claude/worktrees/fix-login", kind: "command-run", command: "gh pr create --fill" });
+  const [row] = sessionRows(tree, lines, [], now);
+  assert.equal(row?.label, "Codex · fix-login");
+  assert.equal(row?.needsYou, false);
+  assert.deepEqual(row?.stories, []);
+  assert.deepEqual(row?.worktrees, ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
+});
+
+test("the list honours the idle-after setting it is given, not a fixed 30 minutes", () => {
+  const lines = log({ ...off, kind: "claimed", increment: "tidy", reason: "Tidy", at: "2026-09-28T11:45:00Z" });
+  assert.equal(sessionRows(tree, lines, [], now)[0]?.state, "live", "15 minutes quiet is live at the 30-minute default");
+  assert.equal(sessionRows(tree, lines, [], now, new Map(), 10 * 60 * 1000)[0]?.state, "idle", "and idle past a 10-minute setting");
 });
 
 test("supplied supervision and totals use a view seam without parsing transcripts; missing parents and cycles keep rows reachable", () => {
@@ -81,5 +91,6 @@ test("the knowledge core's roster is exactly the listed rows, each with its chil
   assert.deepEqual(roster, [
     { session: "parent", label: "Build signup", colour: sessionColour("parent"), members: ["parent", "child"] },
     { session: "off", label: "Tidy", colour: sessionColour("off"), members: ["off"] },
+    { session: "quiet", label: "Codex", colour: sessionColour("quiet"), members: ["quiet"] },
   ]);
 });

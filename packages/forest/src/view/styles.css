@@ -19,6 +19,7 @@
 .sessions-list button { font:inherit; cursor:pointer; background:none; color:inherit; border:0; border-radius:3px; padding:1px 3px; white-space:nowrap; }
 .session-children-toggle { font-size:11px !important; color:#b3bdb9 !important; }
 .session-needs-you { font-size:11px; color:#f2cb83; white-space:nowrap; }
+.session-worktrees { font-size:11px; color:#b3bdb9; white-space:nowrap; }
 .session-context-slot { position:relative; display:flex; overflow:hidden; width:120px; height:7px; flex-shrink:0; border:1px solid #65716d; border-radius:2px; box-sizing:border-box; margin-left:8px; }
 .session-segment { height:100%; flex-shrink:0; }
 .sessions-list [data-group="injected"],.sessions-list [data-group="raw"] { --swatch:var(--group-injected); }

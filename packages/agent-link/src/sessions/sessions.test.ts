@@ -37,6 +37,7 @@ test('4.1 a start line makes a live session labelled "Claude Code", with its fol
         harness: "claude-code",
         label: "Claude Code",
         folder: "/work/site",
+        worktrees: ["/work/site"],
         startedAt: start.at,
         lastSeenAt: edit.at,
         state: "live",
@@ -108,5 +109,16 @@ test("4.5 a command that started 40 minutes ago and has not finished keeps its s
     const turn = await log.append(project, { ...CLAUDE, kind: "turn-ended" });
     const [refused] = await readSessions(log, project, { now: after(turn, QUIET_MS + 1) });
     assert.equal(refused?.state, "idle", "idle once the quiet time has passed after the turn ended");
+  });
+});
+
+test("4.6 a session is its harness id, not a folder: one whose lines name two worktrees lists both, in the order it worked in them (ADR-0749 D2)", async () => {
+  await withProject(async (log, project) => {
+    await log.append(project, { ...CLAUDE, kind: "session-started", how: "startup" });
+    await log.append(project, { ...CLAUDE, folder: "/work/site/.claude/worktrees/fix", kind: "file-edited", files: ["a.ts"] });
+    const edit = await log.append(project, { ...CLAUDE, kind: "turn-ended" });
+    const [session] = await readSessions(log, project, { now: after(edit, 1_000) });
+    assert.equal(session?.folder, "/work/site", "the folder it started in");
+    assert.deepEqual(session?.worktrees, ["/work/site", "/work/site/.claude/worktrees/fix"]);
   });
 });

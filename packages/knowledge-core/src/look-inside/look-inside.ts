@@ -163,7 +163,8 @@ export function coreScene(input: CoreInput): CoreScene {
 
   const present = new Set(knowledge.notes.keys());
   const reached = new Set(session === undefined ? [] : reads.replay(session, present).agents.flatMap(({ lit }) => lit.map(({ note }) => note)));
-  const live = session === undefined ? liveReads(reads, input.roster ?? [], present) : new Map<string, LiveNote>();
+  const windowed = input.windowed ?? new Map<string, AgentReplay>();
+  const live = session === undefined ? liveReads(reads, input.roster ?? [], present, windowed) : new Map<string, LiveNote>();
   const notes: DrawnNote[] = [...at].map(([id, point]) => {
     const count = sizeBy === "visits" ? reads.visits(id) : knowledge.linksIn.get(id) ?? 0;
     const placement = core.placed.get(id);
@@ -175,7 +176,9 @@ export function coreScene(input: CoreInput): CoreScene {
       colour: lit?.colour, arcs: lit === undefined ? [] : ringArcs(lightingOf(lit)),
     };
   });
-  return { entrances, notes, sizeLabel: SIZE_LABELS[sizeBy], status: reads.status() };
+  // A window's reads are recorded reads too, though the log holds none.
+  const windowRead = session === undefined && [...windowed.values()].some(({ lit }) => lit.length > 0);
+  return { entrances, notes, sizeLabel: SIZE_LABELS[sizeBy], status: windowRead ? undefined : reads.status() };
 }
 
 /** A pinned artifact's shared summary, with inspection metadata retained for the inside view's model. */
@@ -357,9 +360,9 @@ export function arrived(lit: ReadonlyMap<string, Lighting>, held: ReadonlySet<st
  * the agent that first read it, a listed session's agents in shades of its colour.
  */
 export function lighting(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>, _windowed: ReadonlyMap<string, AgentReplay> = new Map()): Map<string, Lighting> {
+  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay> = new Map()): Map<string, Lighting> {
   if (session === undefined) {
-    return new Map([...liveReads(reads, roster, present)].map(([note, live]) => [note, lightingOf(live)]));
+    return new Map([...liveReads(reads, roster, present, windowed)].map(([note, live]) => [note, lightingOf(live)]));
   }
   const { agents } = reads.replay(session, present);
   const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
@@ -392,9 +395,9 @@ export interface Trail {
  * repeated step of the same session draws once.
  */
 export function trails(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>, _windowed: ReadonlyMap<string, AgentReplay> = new Map()): Trail[] {
+  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay> = new Map()): Trail[] {
   const drawn = new Map<string, Trail>();
-  for (const { listed, member, replay, colour } of drawnAgents(reads, roster, session, present)) {
+  for (const { listed, member, replay, colour } of drawnAgents(reads, roster, session, present, windowed)) {
     for (const { from, to, seq } of replay.jumps) {
       if (from === undefined || from === to || drawn.has(`${listed} ${from} ${to}`)) continue;
       drawn.set(`${listed} ${from} ${to}`, { from, to, colour, seq, mover: `${member} ${replay.agent}` });
@@ -419,8 +422,8 @@ export interface AgentPath {
  * an unknown agent or an unlisted session has none.
  */
 export function agentPaths(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>, _windowed: ReadonlyMap<string, AgentReplay> = new Map()): AgentPath[] {
-  return drawnAgents(reads, roster, session, present).flatMap(({ member, replay, colour }) => {
+  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay> = new Map()): AgentPath[] {
+  return drawnAgents(reads, roster, session, present, windowed).flatMap(({ member, replay, colour }) => {
     const note = replay.lit.filter(({ read }) => read === "whole").at(-1)?.note;
     if (!replay.known || note === undefined) return [];
     const mover = `${member} ${replay.agent}`;
@@ -455,10 +458,10 @@ export function growthPlan(fresh: readonly { key: string; mover: string; seq: nu
 
 /** Each agent of each drawn session, with the colour its paths wear (ADR-0740 D2). */
 function drawnAgents(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
-  present: ReadonlySet<string>): { listed: string; member: string; replay: AgentReplay; colour: string }[] {
+  present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay>): { listed: string; member: string; replay: AgentReplay; colour: string }[] {
   if (session === undefined) {
     return roster.flatMap(({ session: listed, colour, members }) =>
-      members.flatMap((member) => reads.replay(member, present).agents.map((replay) => ({ listed, member, replay, colour }))));
+      members.flatMap((member) => memberAgents(reads, member, present, windowed).map((replay) => ({ listed, member, replay, colour }))));
   }
   const { agents } = reads.replay(session, present);
   const colours = new Map(legend(agents, roster.find(({ members }) => members.includes(session))?.colour).map(({ agent, colour }) => [agent, colour]));
@@ -505,11 +508,12 @@ interface LiveNote {
 }
 
 /** Every listed session's reads since it started, no fade: each note in its latest reader's colour, with all its readers (ADR-0738 D1-D2, ADR-0754 D2). */
-function liveReads(reads: ReadRecord, roster: readonly RosterEntry[], present: ReadonlySet<string>): Map<string, LiveNote> {
+function liveReads(reads: ReadRecord, roster: readonly RosterEntry[], present: ReadonlySet<string>,
+  windowed: ReadonlyMap<string, AgentReplay>): Map<string, LiveNote> {
   const live = new Map<string, LiveNote>();
   for (const { session, colour, members } of roster) {
     for (const member of members) {
-      for (const { lit } of reads.replay(member, present).agents) {
+      for (const { lit } of memberAgents(reads, member, present, windowed)) {
         for (const { note, seq } of lit) {
           const seen = live.get(note) ?? live.set(note, { colour, seq, readers: new Map() }).get(note)!;
           if (seq > seen.seq) Object.assign(seen, { colour, seq });
@@ -523,6 +527,16 @@ function liveReads(reads: ReadRecord, roster: readonly RosterEntry[], present: R
   // A session's members are read one after another, so arrival order is sorted in at the end.
   for (const seen of live.values()) seen.readers = new Map([...seen.readers].sort(([, a], [, b]) => a.first - b.first));
   return live;
+}
+
+/**
+ * A listed member's agents with no session selected: its window's reads when it has a window, with
+ * its log's subagents beside them (a subagent's transcript is its own), else its log's alone.
+ */
+function memberAgents(reads: ReadRecord, member: string, present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay>): AgentReplay[] {
+  const { agents } = reads.replay(member, present);
+  const window = windowed.get(member);
+  return window === undefined ? agents : [window, ...agents.filter(({ agent }) => agent.startsWith("subagent:"))];
 }
 
 function lightingOf({ colour, readers }: LiveNote): Lighting {
@@ -560,13 +574,39 @@ function titleOf(knowledge: Knowledge, id: string): string {
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** Each listed session's window as a replay (stub). */
-export function windowReplays(_windows: ReadonlyMap<string, SessionWindow>, _present: ReadonlySet<string>,
-  _stamps: ReadonlyMap<string, readonly number[]> = new Map()): Map<string, AgentReplay> {
-  return new Map();
+/**
+ * Every listed session's window as the no-selection view reads it (ADR-0754 D1): the notes it
+ * opened, in reading order, as one known agent's full reads, each a step from the note before.
+ * Files and glimpses are not drawn here, and a compacted read still lights, since this view shows a
+ * session's reads since it started with no fade (ADR-0738 D1). A session with no window has none,
+ * so its log's reads stand in. `stamps` give each open its place in time (see stampOpens); an
+ * unstamped open is history.
+ */
+export function windowReplays(windows: ReadonlyMap<string, SessionWindow>, present: ReadonlySet<string>,
+  stamps: ReadonlyMap<string, readonly number[]> = new Map()): Map<string, AgentReplay> {
+  const replays = new Map<string, AgentReplay>();
+  for (const [session, window] of windows) {
+    if ("absent" in window) continue;
+    const replay: AgentReplay = { agent: "orchestrator", label: "orchestrator", known: true, lit: [], jumps: [] };
+    window.opens.forEach((open, index) => {
+      if (open.kind !== "note" || !present.has(open.id)) return;
+      const seq = stamps.get(session)?.[index] ?? 0;
+      replay.lit.push({ note: open.id, read: "whole", seq, at: window.at });
+      replay.jumps.push({ from: replay.jumps.at(-1)?.to, to: open.id, move: "jump", seq, at: window.at });
+    });
+    replays.set(session, replay);
+  }
+  return replays;
 }
 
-/** Stamps for a session's opens (stub). */
-export function stampOpens(_previous: readonly number[] | undefined, _count: number, clock: number): { stamps: number[]; clock: number } {
-  return { stamps: [], clock };
+/**
+ * When each of a session's `count` opens was first seen (ADR-0742 D4): every open in its first
+ * window reading is history (0), and each open a later reading adds is stamped after `clock`, the
+ * latest line or open already seen, so its step grows while history never does.
+ */
+export function stampOpens(previous: readonly number[] | undefined, count: number, clock: number): { stamps: number[]; clock: number } {
+  if (previous === undefined) return { stamps: Array.from({ length: count }, () => 0), clock };
+  const stamps = previous.slice(0, count);
+  while (stamps.length < count) stamps.push(++clock);
+  return { stamps, clock };
 }

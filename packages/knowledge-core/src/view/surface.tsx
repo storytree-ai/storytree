@@ -11,7 +11,7 @@ import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
-import { ORCHESTRATOR, coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, windowView, type CoreInput, type Point, type RosterEntry, type SizeBy, type Trail } from "../look-inside/look-inside.js";
+import { ORCHESTRATOR, coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, stampOpens, windowReplays, windowView, type CoreInput, type Point, type RosterEntry, type SizeBy, type Trail } from "../look-inside/look-inside.js";
 import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -20,10 +20,10 @@ import { CoreInside, CorePanel, NoteCard } from "./drawing.js";
 
 /** How fast the replay steps, one read a step. */
 const REPLAY_STEP_MS = 700;
-/** How often the selected session's window is read again, as often as the sessions list's bars. */
+/** How often the selected session's window, or every listed session's with none selected, is read again, as often as the sessions list's bars. */
 const WINDOW_EVERY_MS = 10_000;
 
-/** The one read the core makes beyond what it is handed: a session's window (agent link 9.10), from the host. */
+/** The one read the core makes beyond what it is handed: a session's window (agent link 9.10), from the host: the selected session's, or every listed session's with none selected (ADR-0754 D1). */
 export interface CoreReads {
   windowReading(project: string, session: string): Promise<SessionWindow>;
 }
@@ -43,6 +43,10 @@ interface State {
   pinned: string | undefined;
   /** The selected session's window, once read. */
   window: SessionWindow | undefined;
+  /** Each listed session's (and child's) window, once read, drawn with no session selected (ADR-0754 D1). */
+  windows: ReadonlyMap<string, SessionWindow>;
+  /** When each of those windows' opens was first seen, so only new ones grow (ADR-0742 D4). */
+  stamps: ReadonlyMap<string, readonly number[]>;
 }
 
 /** One project's knowledge core: its inputs, its controls, and a subscription for the pieces. */
@@ -51,7 +55,7 @@ export interface KnowledgeCore {
   take(history: readonly Change[], lines: readonly Line[]): void;
   /** The same pin is shared by the globe card and the inspection view. */
   pin(note: string | undefined): void;
-  /** The running sessions the host lists, lit together while none is selected (ADR-0738 D2). */
+  /** The running sessions the host lists, lit together while none is selected (ADR-0738 D2), each from its window when the host reads one (ADR-0754 D1). */
   showRoster(roster: readonly RosterEntry[]): void;
   /** Drill into one session's replay, or back to every running session with undefined (ADR-0738 D5). */
   select(session: string | undefined): void;
@@ -77,9 +81,39 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   const selections = new Set<(session: string | undefined) => void>();
   let state: State = {
     history: [], version: 0, session: undefined, roster: [], sizeBy: "visits", step: Infinity, playing: false, hidden: new Set(), pinned: undefined, window: undefined,
+    windows: new Map(), stamps: new Map(),
   };
   let timer: ReturnType<typeof setInterval> | undefined;
   let windowTimer: ReturnType<typeof setInterval> | undefined;
+  let rosterTimer: ReturnType<typeof setInterval> | undefined;
+  /** The latest log line or window open seen, after which a newly seen open is stamped. */
+  let clock = 0;
+  /** Listed sessions whose window is being read, so a slow read is not asked again meanwhile. */
+  const reading = new Set<string>();
+  const listedMembers = (): Set<string> => new Set(state.roster.flatMap(({ members }) => members));
+  /**
+   * Read every listed session's window while none is selected (ADR-0754 D1), or, with `only`, those
+   * not read yet. A session that has left the list meanwhile is dropped; a failed read keeps the last.
+   */
+  const readRosterWindows = (only = false): void => {
+    if (host === undefined || state.session !== undefined) return;
+    for (const member of listedMembers()) {
+      if (reading.has(member) || (only && state.windows.has(member))) continue;
+      reading.add(member);
+      host.windowReading(project, member).then((window) => {
+        if (!listedMembers().has(member)) return;
+        const stamps = new Map(state.stamps);
+        if (!("absent" in window)) {
+          const stamped = stampOpens(state.stamps.get(member), window.opens.length, clock);
+          clock = stamped.clock;
+          stamps.set(member, stamped.stamps);
+        }
+        store.set({ windows: new Map([...state.windows, [member, window]]), stamps });
+      }, () => {
+        // A failed read leaves the window as it was; the next one tries again.
+      }).finally(() => reading.delete(member));
+    }
+  };
   /** Read the selected session's window; an answer for a session no longer selected is dropped. */
   const readWindow = (session: string): void => {
     host?.windowReading(project, session).then((window) => {
@@ -91,7 +125,13 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   const store: Store = {
     reads,
     pin: pinned => store.set({ pinned }),
-    showRoster: roster => store.set({ roster }),
+    showRoster(roster) {
+      const members = new Set(roster.flatMap(({ members: listed }) => listed));
+      const kept = <T,>(map: ReadonlyMap<string, T>) => new Map([...map].filter(([member]) => members.has(member)));
+      store.set({ roster, windows: kept(state.windows), stamps: kept(state.stamps) });
+      readRosterWindows(true);
+      if (host !== undefined && rosterTimer === undefined) rosterTimer = setInterval(() => readRosterWindows(), WINDOW_EVERY_MS);
+    },
     select(session) {
       if (session === state.session) return;
       store.stop();
@@ -101,7 +141,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       if (session !== undefined && host !== undefined) {
         readWindow(session);
         windowTimer = setInterval(() => readWindow(session), WINDOW_EVERY_MS);
-      }
+      } else readRosterWindows();
       for (const listener of selections) listener(session);
     },
     onSelect(listener) {
@@ -119,6 +159,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
     },
     take(history, lines) {
       reads.add(lines);
+      for (const { seq } of lines) clock = Math.max(clock, seq);
       store.set({ history: [...history], version: state.version + 1 });
     },
     play() {
@@ -140,6 +181,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
     dispose() {
       store.stop();
       if (windowTimer !== undefined) clearInterval(windowTimer);
+      if (rosterTimer !== undefined) clearInterval(rosterTimer);
       listeners.clear();
       selections.clear();
     },
@@ -156,8 +198,9 @@ function useCore(core: KnowledgeCore, spots: ReadonlyMap<string, Point>, radius:
   const present = new Set(known.notes.keys());
   const replay = state.session === undefined ? undefined : store.reads.replay(state.session, present);
   const frame = replay === undefined ? undefined : replayFrame(replay.agents, state.step, state.hidden);
+  const windowed = useMemo(() => windowReplays(state.windows, new Set(known.notes.keys()), state.stamps), [state.windows, state.stamps, known]);
   const input: CoreInput = {
-    changes: state.history, knowledge: known, core: placed, reads: store.reads, spots, radius, session: state.session, sizeBy: state.sizeBy, roster: state.roster,
+    changes: state.history, knowledge: known, core: placed, reads: store.reads, spots, radius, session: state.session, sizeBy: state.sizeBy, roster: state.roster, windowed,
     ...(frame === undefined ? {} : { frame }),
   };
   return { store, state, known, placed, present, frame, input, key: replay === undefined ? [] : legend(replay.agents, colourOf(state.roster, state.session)), links: pinnedLinks(state.pinned, known) };
@@ -249,13 +292,15 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.history), [state.history]);
   const points = useMemo(() => globePoints(underShelves(state.history, known), spots, radius, known.notes), [state.history, known, spots, radius]);
-  const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
+  // With none selected, every listed session is drawn from its window, or its log's reads when it has none (ADR-0754 D1).
+  const windowed = useMemo(() => windowReplays(state.windows, new Set(known.notes.keys()), state.stamps), [state.windows, state.stamps, known]);
+  const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys()), windowed),
     // The record is kept in place, so its version stands in for its reads.
-    [store.reads, state.version, state.roster, state.session, known]);
-  const paths = useMemo(() => readingPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
-    [store.reads, state.version, state.roster, state.session, known]);
-  const replays = useMemo(() => agentPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
-    [store.reads, state.version, state.roster, state.session, known]);
+    [store.reads, state.version, state.roster, state.session, known, windowed]);
+  const paths = useMemo(() => readingPaths(store.reads, state.roster, state.session, new Set(known.notes.keys()), windowed),
+    [store.reads, state.version, state.roster, state.session, known, windowed]);
+  const replays = useMemo(() => agentPaths(store.reads, state.roster, state.session, new Set(known.notes.keys()), windowed),
+    [store.reads, state.version, state.roster, state.session, known, windowed]);
   const joined = useMemo(() => storedEdges(known), [known]);
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).

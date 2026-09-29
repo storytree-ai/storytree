@@ -1,0 +1,41 @@
+scope: full — everything — packages/agent-link/src/setup/setup-check.test.ts changed in @storytree/agent-link, which the test harness and scripts/ run on
+- Claim (definition_263d3e729b64): Holding a capability while you build it.
+- Claim (definition_263d3e729b64): Holding a capability while you build it.
+✖ 8.10 a terminal runs the shared setup check with diagnostic lines and fixes, creating a project only on request (92.8152ms)
+✖ 8.11 the check says whether Claude Code or Codex is installed and signed in, naming its fix, and notes a missing git or Node without making either a fix; a tool that does not answer is never waited on (2058.3656ms)
+✖ failing tests:
+✖ 8.10 a terminal runs the shared setup check with diagnostic lines and fixes, creating a project only on request (92.8152ms)
+  AssertionError [ERR_ASSERTION]: gh is never a fix (owner, question_bb3efa1e3191)
+  + actual - expected
+    actual: { state: 'needs-attention', fix: 'Run `gh auth login`.' },
+    expected: { state: 'note', fix: undefined },
+✖ 8.11 the check says whether Claude Code or Codex is installed and signed in, naming its fix, and notes a missing git or Node without making either a fix; a tool that does not answer is never waited on (2058.3656ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+    actual: { state: 'needs-attention', fix: 'Install git from https://git-scm.com, then run the setup check again.' },
+    expected: { state: 'note', fix: undefined },
+✔ 3.7 cross-story chains land at both actual clipped shores and continue into their capability parcels (32.595ms)
+✔ GOLDEN: the contact reach of the two casters this map actually has (0.1347ms)
+✔ ADR-0528: a garden hero keeps the re-based NAMEPLATE BAND clear — 18 tile units above the plate, on a fixture where the band is where the sampler actually draws (0.2368ms)
+✔ ⚠⚠ THE CRITERION MARKER KEEPS ITS COLOUR AND ITS SIZE — measured on what is actually placed (81.7055ms)
+✔ native-status-presentation-batches-delivered-materials-by-alpha: actual kitMeshes keeps equal presentation parts merged while retaining every prop (1.1637ms)
+✔ the FIELD IS THE FIELD — a frozen table of what the land actually does (1.3212ms)
+✔ ⚠⚠ A FAILING CRITERION IS DRAWN TOO, on its own island, and is NEVER counted as a signature (4.062ms)
+✔ a malformed token FAILS where it can be named, not as a silent black reference (0.0861ms)
+✔ the census counts what the division actually did, parcel by parcel (0.1973ms)
+✔ 4.2/4.4 native: stale identity leaves the actual process alive; registered detached child is force-stopped even after root exits (396.5989ms)
+✔ the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun the failures (0.3461ms)
+  PASS    apps/desktop — 6.1 s
+  FAIL    packages/agent-link — 49.3 s
+  PASS    packages/app — 4.9 s
+  PASS    packages/app-setup — 1.4 s
+  PASS    packages/arc-surface — 1.8 s
+  PASS    packages/cli — 38.7 s
+  PASS    packages/forest — 5.2 s
+  PASS    packages/forest-world — 15.1 s
+  PASS    packages/knowledge-core — 1.6 s
+  PASS    packages/librarian — 5.0 s
+  PASS    packages/library — 36.6 s
+  PASS    packages/local-postgres — 20.5 s
+  PASS    packages/processes — 1.5 s
+  PASS    scripts — 6.3 s

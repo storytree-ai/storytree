@@ -14,7 +14,7 @@ test("4.16 selecting a session asks the host for its window; one answered after 
     return new Promise((resolve) => answers.set(session, resolve));
   } } });
   const windowOf = (): SessionWindow | undefined => (core as unknown as { get(): { window: SessionWindow | undefined } }).get().window;
-  const reading = (session: string): SessionWindow => ({ session, at: "-", inView: [], opens: [], compactions: 0 });
+  const reading = (session: string): SessionWindow => ({ session, at: "-", inView: [], opens: [], glimpses: [], compactions: 0 });
   try {
     core.select("S");
     core.select("T");

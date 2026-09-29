@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { History } from "../testing/changes.js";
-import { knowledge } from "./ghosts.js";
+import { knowledge, storedEdges } from "./ghosts.js";
 
 test("2.1 an accepted decision that supersedes an old one makes it a ghost, even with its cover mark left; a proposal does not", () => {
   const history = new History()
@@ -104,4 +104,20 @@ test("2.4 depth and incoming links count only notes that are neither ghosts nor 
 
   const without = knowledge(new History().decision("new", { frontCoverOf: "cap-a", links: ["base"] }).memory("base").memory("reader", { links: ["base", "new"] }).changes);
   assert.deepEqual(core.linksIn, without.linksIn, "the ghost changes no other note's count");
+});
+
+test("4.16 two notes are joined when either stores a reference to the other (links or supersedes); a shared neighbour joins nothing", () => {
+  const core = knowledge(new History()
+    .decision("a", { links: ["b"] })
+    .decision("b", {})
+    .decision("c", { supersedes: ["b"] })
+    .decision("d", { links: ["b"] })
+    .changes);
+  const joins = storedEdges(core);
+
+  assert.equal(joins("a", "b"), true);
+  assert.equal(joins("b", "a"), true, "either direction");
+  assert.equal(joins("c", "b"), true);
+  assert.equal(joins("a", "d"), false, "both link to b, but not to each other");
+  assert.equal(joins("a", "a"), false);
 });

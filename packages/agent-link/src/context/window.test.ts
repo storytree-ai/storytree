@@ -67,3 +67,17 @@ test("9.10 a Codex window drops what a compaction replaced, joins outputs by cal
     { kind: "note", id: "decision_000000000001", call: "cell", tool: "exec", resident: true, inViewFrom: [{ call: "find", tool: "exec_command", opened: [] }] },
   ]);
 });
+
+test("9.10 a note named in a result still in the window but never opened is glimpsed, once, in the order first named; an opened note and one named only in a compacted result are not", () => {
+  const text = jsonl(
+    calls(call("old", "mcp__storytree__search_notes", { query: "claims" })),
+    results(result("old", "decision_000000000009 Gone with the compaction")),
+    line({ type: "system", subtype: "compact_boundary" }),
+    calls(call("find", "mcp__storytree__search_notes", { query: "claims" })),
+    results(result("find", "decision_000000000002 Release\ndecision_000000000001 Claims\ndecision_000000000002 again")),
+    calls(call("open", "mcp__storytree__open", { id: "decision_000000000001" })),
+    results(result("open", "Claims. Links to principle_000000000003")),
+  );
+
+  assert.deepEqual(claudeCodeWindow(text).glimpses, ["decision_000000000002", "principle_000000000003"]);
+});

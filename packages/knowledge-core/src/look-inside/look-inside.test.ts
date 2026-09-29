@@ -337,7 +337,7 @@ test("4.16 a selected session's window marks the notes and files it holds now, a
     inViewFrom: from.map(({ call, opened }) => ({ call, tool: "mcp__storytree__open", opened: opened.map((note) => ({ kind: "note" as const, id: note })) })),
   });
   const view = windowView({
-    session: "S", at: "-", compactions: 1, inView: [],
+    session: "S", at: "-", compactions: 1, inView: [], glimpses: [],
     opens: [
       open("cover", "c1", [{ call: "search", opened: [] }]),
       open("deep", "c2", [{ call: "search", opened: [] }, { call: "c1", opened: ["cover"] }]),

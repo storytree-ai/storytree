@@ -11,9 +11,9 @@ import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
 import { mountAppMenu } from "@storytree/app/view";
 import { mountAddProject, mountSetupHelp } from "@storytree/app-setup/view";
-import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
+import { workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
-import { drillDown, forestDrawn, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
+import { drillDown, forestDrawn, forestReading, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -215,35 +215,33 @@ async function showForest(name: string): Promise<void> {
     view.show(forestScene(last, history, workStates(lines)), new Map(storyNodes(last, history).map(node => [node.id, node.place])));
     showFreshness("Showing the forest as last read. Refreshing…");
   }
-  const failed = (heading: string, error: unknown): void => {
+  // A read that fails before the first one lands keeps the reading going: the next ask tries again,
+  // and the forest is drawn once the library answers. Once drawn, a failed read changes nothing on show.
+  const failed = (error: unknown): void => {
     if (showing !== mine || document.body.dataset.state === "ready") return;
+    const heading = "The forest could not be read";
     if (document.body.dataset.fresh === "no") showFreshness(`${heading}: ${messageOf(error)}. Showing it as last read; retrying…`);
-    else showMessage("error", heading, messageOf(error));
+    else showReadError(heading, `${messageOf(error)}. Retrying…`);
   };
-  let drawing = Promise.resolve();
-  mine.reading = liveReading({
+  mine.reading = forestReading({
     project: name,
     reads: window.storytree,
-    onNews: (news) => {
-      // One news at a time, in the order it came, so a slow tree read never draws over a newer one.
-      drawing = drawing.then(async () => {
-        history.push(...news.changes);
-        lines.push(...news.lines);
-        if (tree === undefined || news.changes.length > 0) tree = await window.storytree.projectTree(name);
-        if (showing !== mine) return;
-        const scene = forestScene(tree, history, workStates(lines));
-        view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
-        core.take(history, news.lines);
-        sayWhatWasDrawn(forestDrawn(scene));
-        if (!panel.hidden) showPanel();
-        kept.write(tree);
-        showFreshness(undefined);
-        setState("ready");
-      }).catch((error: unknown) => failed("Something went wrong", error));
+    onTree: (read, news) => {
+      if (showing !== mine) return;
+      tree = read;
+      history.push(...news.changes);
+      lines.push(...news.lines);
+      const scene = forestScene(tree, history, workStates(lines));
+      view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
+      core.take(history, news.lines);
+      sayWhatWasDrawn(forestDrawn(scene));
+      if (!panel.hidden) showPanel();
+      kept.write(tree);
+      showFreshness(undefined);
+      showReadError(undefined);
+      setState("ready");
     },
-    // A quiet holder's wisp fades on the sessions list's own clock (capability 5), not this one.
-    onClock: () => {},
-    onError: (error) => failed("The forest could not be read", error),
+    onError: failed,
   });
 }
 
@@ -265,6 +263,7 @@ function stopShowing(): void {
   showing?.view?.dispose();
   showing = undefined;
   showFreshness(undefined);
+  showReadError(undefined);
   delete document.body.dataset.surface;
   delete document.body.dataset.note;
 }
@@ -285,6 +284,28 @@ function showFreshness(text: string | undefined): void {
   }
   mark.textContent = text;
   document.body.dataset.fresh = "no";
+}
+
+/**
+ * Say over the forest why its first read failed, while the reading keeps trying (`data-state="error"`
+ * until a read lands), or take the notice away.
+ */
+function showReadError(heading: string, text: string): void;
+function showReadError(clear: undefined): void;
+function showReadError(heading: string | undefined, text?: string): void {
+  document.getElementById("read-error")?.remove();
+  if (heading === undefined) return;
+  const box = document.createElement("div");
+  box.id = "read-error";
+  box.className = "empty";
+  box.setAttribute("role", "status");
+  const title = document.createElement("h1");
+  title.textContent = heading;
+  const body = document.createElement("p");
+  body.textContent = text ?? "";
+  box.append(title, body);
+  content.append(box);
+  setState("error");
 }
 
 /**

@@ -140,7 +140,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
     let opened;
     try {
       const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
-      const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
+      const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) }).catch(async (error: unknown) => {
         await storytree.close();
         throw error;
       });
@@ -168,6 +168,11 @@ async function writeLines(harness: string, input: string, flags: readonly string
         if (first.transcript !== undefined) {
           const { shipTranscript } = await import("../transcripts/index.js");
           await shipTranscript(log, where.project, first.session, first.transcript);
+        }
+        // Whether each session's branches still hold open work (ADR-0754 D4); never at a session's end, which the harness cuts short.
+        if (first.kind !== "session-ended") {
+          const { resolveBranches } = await import("../sessions/branch-states.js");
+          await resolveBranches({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, merges).catch(() => []);
         }
       }
     } catch {

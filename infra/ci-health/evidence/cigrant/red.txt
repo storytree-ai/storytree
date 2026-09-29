@@ -1,0 +1,104 @@
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/storytree03-wt/cigrant/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:33539 (started in 0.1 s)
+✖ 8.4 CI's health account (grants.sql) records a contract's verified health and is refused any other record and any table change (203.652789ms)
+✔ 1.1 openProject creates the project's database and its tables (197.97763ms)
+✔ 1.2 opening the same project again succeeds and changes nothing (250.296479ms)
+✔ 1.2 reopening while a record write is in flight does not deadlock (PR 75 macOS CLI incident) (96.3936ms)
+✔ 1.3 listProjects returns exactly the storytree projects, sorted, and no other database (586.79606ms)
+✔ 1.4 a record saved in one project cannot be read from another (198.306615ms)
+✔ 1.5 a bad project name is refused before anything touches the server, and the error names the rule (200.377324ms)
+✖ 1.10 opening a project whose tables are current runs no table setup, so it needs no owner's rights (98.350454ms)
+✖ 1.11 opening a project whose tables are not current, as an account that may not set them up, is refused saying so (104.518445ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 6
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2025.640097
+
+✖ failing tests:
+
+test at packages/library/src/project/ci-health.test.ts:1:600
+✖ 8.4 CI's health account (grants.sql) records a contract's verified health and is refused any other record and any table change (203.652789ms)
+  error: permission denied to grant role "t-e63ace61-creator"
+      at /home/mickh/code/storytree03-wt/cigrant/node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/client.js:694:17
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async withClient (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/testing/pg.ts:79:12)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/ci-health.test.ts:44:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    length: 383,
+    severity: 'ERROR',
+    code: '42501',
+    detail: 'Only roles with the ADMIN option on role "t-e63ace61-creator" may grant this role.',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: 'SQL statement "GRANT "t-e63ace61-creator" TO "t-e63ace61-ci-health@storytree.test" WITH INHERIT FALSE, SET TRUE"\nPL/pgSQL function inline_code_block line 9 at EXECUTE',
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'user.c',
+    line: '2161',
+    routine: 'check_role_membership_authorization'
+  }
+
+test at packages/library/src/project/project-libraries.test.ts:1:8447
+✖ 1.10 opening a project whose tables are current runs no table setup, so it needs no owner's rights (98.350454ms)
+  error: permission denied for schema public
+      at /home/mickh/code/storytree03-wt/cigrant/node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/client.js:694:17
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async applySchema (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/storytree.ts:319:45)
+      at async ServerConnection.openProject (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/storytree.ts:134:9)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/project-libraries.test.ts:282:23)
+      at async withStorytree (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/project-libraries.test.ts:30:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/project-libraries.test.ts:276:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    length: 99,
+    severity: 'ERROR',
+    code: '42501',
+    detail: undefined,
+    hint: undefined,
+    position: '28',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'aclchk.c',
+    line: '2845',
+    routine: 'aclcheck_error'
+  }
+
+test at packages/library/src/project/project-libraries.test.ts:1:9121
+✖ 1.11 opening a project whose tables are not current, as an account that may not set them up, is refused saying so (104.518445ms)
+  AssertionError [ERR_ASSERTION]: a ConnectionError, not error: permission denied for schema public
+      at Object.<anonymous> (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/project-libraries.test.ts:305:16)
+      at expectedException (node:assert:578:17)
+      at expectsError (node:assert:703:21)
+      at strict.rejects (node:assert:769:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/project-libraries.test.ts:304:7)
+      at async withStorytree (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/project-libraries.test.ts:30:5)
+      at async TestContext.<anonymous> (/home/mickh/code/storytree03-wt/cigrant/packages/library/src/project/project-libraries.test.ts:296:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)

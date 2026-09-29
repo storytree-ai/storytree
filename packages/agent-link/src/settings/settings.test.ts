@@ -162,3 +162,20 @@ test("10.6 a library setting that is not local or a well-written Cloud SQL insta
     assert.throws(() => agentLink.readSettings(home), /invalid settings file/i);
   });
 });
+
+test("the settings file keeps the app's surface choices beside the settings, and refuses them in the wrong shape (ADR-0750)", async () => {
+  await withTempDir((home) => {
+    assert.deepEqual(agentLink.readSurfaceChoices(home), {});
+    agentLink.setSetting("idle-after", "10m", home);
+    agentLink.setSurfaceChoice("sessions", "on", false, home);
+    agentLink.setSurfaceChoice("globe", "opening-zoom", "close", home);
+    assert.deepEqual(agentLink.readSurfaceChoices(home), { sessions: { on: false }, globe: { "opening-zoom": "close" } });
+    assert.equal(agentLink.readSettings(home)["idle-after"].value, "10m", "the other settings still read");
+    const file = path.join(home, "settings.json");
+    const bad = JSON.stringify({ surfaces: { sessions: { on: "no" } } });
+    writeFileSync(file, bad);
+    assert.throws(() => agentLink.readSurfaceChoices(home), /Invalid settings file.*surfaces/);
+    assert.throws(() => agentLink.setSurfaceChoice("sessions", "on", true, home), /Invalid settings file/);
+    assert.equal(readFileSync(file, "utf8"), bad);
+  });
+});

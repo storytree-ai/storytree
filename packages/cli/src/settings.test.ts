@@ -98,3 +98,24 @@ test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid 
     assert.equal(readFileSync(file, "utf8"), idleSaved);
   }
 });
+
+test("settings: the app's surfaces are listed and switched from the command line (ADR-0750)", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-settings-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
+
+  const shown = await invoke(["settings", "show"]);
+  assert.equal(shown.code, 0, shown.stderr);
+  assert.match(shown.stdout, /Sessions \(sessions\): on \(default\)/);
+  assert.match(shown.stdout, /Forest globe \(globe\): always on/);
+
+  const off = await invoke(["settings", "set", "surface", "sessions", "off"]);
+  assert.equal(off.code, 0, off.stderr);
+  assert.match(off.stdout, /Sessions \(sessions\): off \(set\)/);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8")), { surfaces: { sessions: { on: false } } });
+
+  const refused = await invoke(["settings", "set", "surface", "globe", "off"]);
+  assert.equal(refused.code, 1);
+  assert.match(refused.stderr, /always on/);
+});

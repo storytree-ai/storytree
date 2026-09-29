@@ -8,8 +8,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
-import { connect, type Project, type Storytree } from "./index.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
+import { ConnectionError, connect, type Project, type Storytree } from "./index.js";
 
 /** The spec's naming, restated here rather than taken from the code: project `x` is database `storytree_x`. */
 function databaseOf(project: string): string {
@@ -72,7 +72,7 @@ test("1.1 openProject creates the project's database and its tables", async () =
     assert.equal(project.name, name);
     assert.deepEqual(await databasesContaining(name), [databaseOf(name)], "its database is storytree_<name>");
     // Its tables exist, seen from outside the library: library_meta, holding the project's name.
-    assert.deepEqual(await metaOf(databaseOf(name)), { project: name });
+    assert.equal((await metaOf(databaseOf(name))).project, name);
   });
 });
 
@@ -83,7 +83,7 @@ test("1.2 opening the same project again succeeds and changes nothing", async ()
     const first = await storytree.openProject(name);
     await first.pool.query("INSERT INTO library_meta (key, value) VALUES ('probe', 'saved before reopening')");
     const before = await metaOf(databaseOf(name));
-    assert.deepEqual(before, { project: name, probe: "saved before reopening" });
+    assert.equal(before.probe, "saved before reopening");
 
     // Open it again from a second connection, as a new process would.
     const later = await connect({ url: testServerUrl() });
@@ -99,7 +99,7 @@ test("1.2 opening the same project again succeeds and changes nothing", async ()
       const both = await Promise.all([storytree.openProject(raced), later.openProject(raced)]);
       assert.deepEqual(both.map((project) => project.name), [raced, raced]);
       assert.deepEqual(await databasesContaining(raced), [databaseOf(raced)]);
-      assert.deepEqual(await metaOf(databaseOf(raced)), { project: raced });
+      assert.equal((await metaOf(databaseOf(raced))).project, raced);
     } finally {
       await later.close();
     }
@@ -246,4 +246,75 @@ test("1.5 a bad project name is refused before anything touches the server, and 
     }
     assert.deepEqual(await databasesContaining(run), [databaseOf(digitFirst), databaseOf(longest)]);
   });
+});
+
+/**
+ * A server user that may read a project's tables and nothing more: not their owner, no CREATE on
+ * its schema, and no role to take on. It is the shape of an account let only read, or write a
+ * little (CI's health account, contract 8.4), rather than set tables up.
+ */
+async function createReader(role: string, database: string): Promise<void> {
+  await createTestRole(role, { createdb: false });
+  await withTestClient((client) => client.query(`GRANT CONNECT ON DATABASE "${database}" TO "${role}"`));
+  await withTestClient(
+    (client) => client.query(`GRANT USAGE ON SCHEMA public TO "${role}"; GRANT SELECT ON library_meta, record, record_event TO "${role}"`),
+    database,
+  );
+}
+
+function as(user: string): string {
+  const url = new URL(testServerUrl());
+  url.username = user;
+  return url.href;
+}
+
+test("1.10 opening a project whose tables are current runs no table setup, so it needs no owner's rights", async () => {
+  const name = uniqueProjectName();
+  const reader = `${name}-reader`;
+  let opened: Storytree | undefined;
+  try {
+    await withStorytree([databaseOf(name)], async (storytree) => {
+      const owner = await storytree.openProject(name);
+      const saved = await owner.transactions.save({ id: "kept", type: "decision", fields: { title: "Kept", text: "Read by anyone let in." } });
+      await createReader(reader, databaseOf(name));
+
+      opened = await connect({ url: as(reader) });
+      const project = await opened.openProject(name);
+      assert.deepEqual(await project.transactions.get("kept"), saved);
+    });
+  } finally {
+    await opened?.close();
+    await dropTestRoles([reader]);
+  }
+});
+
+test("1.11 opening a project whose tables are not current, as an account that may not set them up, is refused saying so", async () => {
+  const name = uniqueProjectName();
+  const reader = `${name}-reader`;
+  let opened: Storytree | undefined;
+  try {
+    await withStorytree([databaseOf(name)], async (storytree) => {
+      await storytree.openProject(name);
+      await createReader(reader, databaseOf(name));
+      // As a project made before its latest table was added stands: set up, but not all the way.
+      await withTestClient((client) => client.query("DROP TABLE embedding"), databaseOf(name));
+      await withTestClient((client) => client.query("DELETE FROM library_meta WHERE key <> 'project'"), databaseOf(name));
+
+      opened = await connect({ url: as(reader) });
+      await assert.rejects(opened.openProject(name), (error: unknown) => {
+        assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
+        assert.equal(error.problem, "project-owner");
+        assert.match(error.message, new RegExp(`"${name}".*set up or upgraded.*owner`, "s"));
+        assert.ok(error.message.includes(reader), "it names the account that was refused");
+        return true;
+      });
+
+      // Its owner still sets it up, as before.
+      const again = await storytree.openProject(name);
+      assert.equal(again.name, name);
+    });
+  } finally {
+    await opened?.close();
+    await dropTestRoles([reader]);
+  }
 });

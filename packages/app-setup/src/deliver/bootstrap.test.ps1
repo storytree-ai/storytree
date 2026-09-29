@@ -65,4 +65,45 @@ $script:Selected = '3'
 $join.Connect = { throw 'one agent could not connect' }
 try { Invoke-StorytreeConnection $report $join; throw 'accepted partial failure' }
 catch { Assert ($_.Exception.Message -match 'one agent could not connect') 'connection failure reaches installer caller' }
+$here = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'folder with spaces'))
+$userHome = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'the user'))
+$script:Answers = [Collections.Generic.Queue[string]]::new()
+$script:SetUps = [Collections.Generic.List[string]]::new()
+$script:Existing = $null
+$script:Refuse = ''
+$folderOps = @{
+  Ask = { param($Prompt) if ($script:Answers.Count -gt 0) { return $script:Answers.Dequeue() }; return '' }
+  Inspect = { param($Folder) if ($script:Existing) { return @{ folder = $Folder; project = $script:Existing } }; return @{ folder = $Folder; suggestion = 'folder-with-spaces' } }
+  SetUp = {
+    param($Folder, $Name)
+    $script:SetUps.Add("${Folder}|${Name}")
+    if ($Name -eq $script:Refuse) { return @{ status = 'name refused'; message = 'project name is not allowed' } }
+    return @{ status = 'set up'; folder = $Folder; project = $Name }
+  }
+}
+function Test-ProjectFolder([string[]]$Answers, [string]$From = $here) {
+  $script:Answers.Clear(); foreach ($a in $Answers) { $script:Answers.Enqueue($a) }
+  $script:SetUps.Clear()
+  Invoke-StorytreeProjectFolder $From $userHome $folderOps
+  return ($script:SetUps -join ';')
+}
+Assert ((Test-ProjectFolder @('', '')) -eq "$here|folder-with-spaces") 'Enter twice sets up the folder the command ran from, under its suggested name'
+Assert ((Test-ProjectFolder @()) -eq "$here|folder-with-spaces") 'an ended stdin accepts both defaults'
+$typed = [IO.Path]::GetFullPath([IO.Path]::Combine($here, 'my site'))
+Assert ((Test-ProjectFolder @('my site', 'site-x')) -eq "$typed|site-x") 'a typed relative path and name'
+$absolute = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'elsewhere'))
+Assert ((Test-ProjectFolder @("`"$absolute`"", '')) -eq "$absolute|folder-with-spaces") 'a typed absolute path, quotes stripped'
+Assert ((Test-ProjectFolder @('S')) -eq '') 'S skips and sets nothing up'
+$script:Existing = 'site'
+Assert ((Test-ProjectFolder @('', 'never asked')) -eq '') 'a folder that is already a project creates nothing'
+Assert ($script:Answers.Count -eq 1) 'an existing project is not asked for a name'
+$script:Existing = $null
+$script:Refuse = 'Bad Name'
+Assert ((Test-ProjectFolder @('', 'Bad Name', '')) -eq "$here|Bad Name;$here|folder-with-spaces") 'a refused name is asked again'
+$script:Refuse = ''
+Assert ((Test-ProjectFolder @('') $userHome) -eq '') 'Enter in the home folder sets nothing up: the whole account would become one project'
+Assert ((Test-ProjectFolder @('code', 'code') $userHome) -eq "$([IO.Path]::GetFullPath((Join-Path $userHome 'code')))|code") 'a typed folder under home is fine'
+$folderOps.SetUp = { param($Folder, $Name) throw 'the library could not be reached' }
+try { Test-ProjectFolder @('', '') | Out-Null; throw 'accepted failed setup' }
+catch { Assert ($_.Exception.Message -match 'library could not be reached' -and $_.Exception.Message -match 'doctor --set-up' -and $_.Exception.Message -match 'Add project') "failed setup names the later ways: $($_.Exception.Message)" }
 Write-Output 'delivery bootstrap PASS'

@@ -6,3 +6,4 @@ export type { FeedbackDraft, DraftResult } from "./help/feedback.js";
 export { readShippedLicense } from "./help/license.js";
 export * from "./deliver/index.js";
 export * from "./connect/index.js";
+export * from "./project/index.js";

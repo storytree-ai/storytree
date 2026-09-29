@@ -15,7 +15,7 @@ export const processes: Family = {
       const { listRuns, renderInventory } = await import('@storytree/processes/listing');
       const inventory = await listRuns({ scope: args.has('all') ? 'all' : 'self', ...(owner ? { owner } : {}),
         stopAction: run => ({ command: `storytree processes stop ${run}` }),
-        shared: sharedWork(),
+        shared: await sharedWork(),
       });
       return { text: renderInventory(inventory) };
     },
@@ -40,7 +40,7 @@ export const processes: Family = {
       if (!owner) throw new Refusal('storytree processes clear needs a session identity from the calling harness; use storytree processes --all to inspect work.');
       const { clearOwned, readClosing } = await import('@storytree/processes/closing');
       const clear = await clearOwned({ owner });
-      const closing = await readClosing({ owner, knownGaps: clear.gaps, shared: sharedWork() });
+      const closing = await readClosing({ owner, knownGaps: clear.gaps, shared: await sharedWork() });
       const text = JSON.stringify({ clear, closing }, null, 2);
       if (clear.failed.length || clear.gaps.length) throw new Refusal(text);
       return { text };
@@ -54,8 +54,7 @@ function caller() {
   return commandSession();
 }
 
-function sharedWork() {
-  const lifecycle = locateStorytree();
-  return [{ name: 'storytree app and database', state: 'unknown' as const,
-    reason: `The app lifecycle reports the database ${lifecycle.running ? 'running' : 'not running'}; it supplies no native lifetime or separate app identity. This shared work is managed by the app; use storytree app status or storytree app quit.` }];
+async function sharedWork() {
+  const { appDatabaseWork } = await import('@storytree/processes/listing');
+  return [appDatabaseWork(locateStorytree().running)];
 }

@@ -30,6 +30,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { ConnectionError, type Library, type WriteOptions } from "@storytree/library";
 import { librarianTools } from "@storytree/librarian";
+import { appDatabaseWork } from "@storytree/processes/listing";
 import type { z } from "zod";
 
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
@@ -209,9 +210,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       return { ...caller, agent };
     },
     shared() {
-      const lifecycle = locateStorytree(locate);
-      return [{ name: 'storytree app and database', state: 'unknown',
-        reason: `The app lifecycle reports the database ${lifecycle.running ? 'running' : 'not running'}; it supplies no native lifetime or separate app identity. This shared work is managed by the app; use storytree app status or storytree app quit.` }];
+      return [appDatabaseWork(locateStorytree(locate).running)];
     },
   });
   registerClaimTools(define, extensions);

@@ -341,6 +341,16 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
+  contract("13.9", "decisions() gives every live decision's view in one reading, oldest first, as decision(id) does", async ({ knowledge }) => {
+    const old = await knowledge.recordDecision(DECIDE);
+    const next = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES", supersedes: [old.id] });
+    const open = await knowledge.recordDecision({ ...DECIDE, title: "Queue the mail", status: "proposed" });
+    await knowledge.composeStatement(open.id, "Mail waits in a queue.");
+    const views = await knowledge.decisions();
+    assert.deepEqual(views, await Promise.all([old.id, next.id, open.id].map((id) => knowledge.decision(id))));
+    assert.deepEqual(views.map(({ status }) => status), ["superseded", "accepted", "proposed"]);
+  });
+
   contract("13.3", "status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one", async ({ knowledge, records, transactions }) => {
     const history = await transactions.history();
     await assert.rejects(

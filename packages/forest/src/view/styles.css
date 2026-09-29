@@ -19,6 +19,14 @@
 .session-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:60px; }
 .sessions-list button { font:inherit; cursor:pointer; background:none; color:inherit; border:0; border-radius:3px; padding:1px 3px; white-space:nowrap; }
 .session-children-toggle { font-size:11px !important; color:#b3bdb9 !important; }
+.session-children-toggle::before { content:"▸"; display:inline-block; width:9px; }
+.session-children-toggle[aria-expanded="true"]::before { content:"▾"; }
+.session-detail { margin:1px 0 6px 20px; padding-left:8px; border-left:1px solid #3d4748; font-size:11px; line-height:1.5; color:#b3bdb9; }
+.session-detail ul + ul { margin-top:4px; }
+.session-detail li { overflow-wrap:anywhere; }
+.session-detail-worktrees li { color:#d9dedb; }
+.session-detail-files li[data-resident="no"] { opacity:.5; }
+.sessions-list .session-detail-note { margin:2px 0; font-size:11px; }
 .session-needs-you { font-size:11px; color:#f2cb83; white-space:nowrap; }
 .session-worktrees { font-size:11px; color:#b3bdb9; white-space:nowrap; }
 .session-context-slot { position:relative; display:flex; overflow:hidden; width:120px; height:7px; flex-shrink:0; border:1px solid #65716d; border-radius:2px; box-sizing:border-box; margin-left:8px; }

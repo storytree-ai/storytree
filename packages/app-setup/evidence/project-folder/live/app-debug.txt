@@ -1,0 +1,4 @@
+task last result: 0
+storytree quit: its database has stopped.
+storytree processes after quit: 0
+debug targets: 

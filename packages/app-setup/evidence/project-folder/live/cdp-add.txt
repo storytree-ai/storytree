@@ -1,0 +1,5 @@
+mouse css=button.app-gear clicked at 1076 24
+mouse Projects clicked at 132 191
+eval true
+mouse css=[data-add-project] clicked at 317 355
+eval "pf-second-project | downloads,pf-project-folder,pf-second-project | C:\\Users\\mickh\\PF Second Project is now project “pf-second-project”."

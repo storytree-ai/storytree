@@ -88,6 +88,7 @@ const LIBRARY_API = [
   "related",
   "frontCovers",
   "decision",
+  "decisions",
   "composeStatement",
   "retire",
   "changesSince",

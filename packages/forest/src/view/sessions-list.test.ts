@@ -3,7 +3,7 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SessionsList } from "./sessions-list.js";
+import { isSessionRows, SessionsList } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
@@ -57,4 +57,15 @@ test("7.6 the header names the bar's four colours in bar order", () => {
   const header = html.match(/<header>.*<\/header>/)?.[0] ?? "";
   assert.deepEqual([...header.matchAll(/data-group="(\w+)"><span class="session-swatch"[^>]*><\/span>(\w+)/g)].map(m => [m[1], m[2]]),
     [["injected", "Injected"], ["grounding", "Grounding"], ["implementation", "Implementation"], ["other", "Other"]]);
+});
+
+test("the list draws its kept last rows at once, marked as refreshing; a kept value of another shape is not rows", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], refreshing: true, onHighlight() {} }));
+  assert.match(html, /data-session-id="parent"/);
+  assert.match(html, /class="sessions-list" data-fresh="no"/);
+  assert.match(html, /role="status"/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} })), /data-fresh/);
+  assert.equal(isSessionRows(JSON.parse(JSON.stringify([row]))), true, "rows survive being kept, a missing total and all");
+  assert.equal(isSessionRows([{ id: "parent" }]), false);
+  assert.equal(isSessionRows({ rows: [row] }), false);
 });

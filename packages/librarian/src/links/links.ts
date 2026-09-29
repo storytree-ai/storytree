@@ -39,12 +39,9 @@ export async function link(library: Library, from: string, to: string, writer?: 
 export async function unrestedDecisions(library: Library): Promise<SchemaRecord<"decision">[]> {
   const notes = await allNotes(library);
   const restedOn = new Set(notes.flatMap((note) => note.fields.links ?? []));
-  const unrested: SchemaRecord<"decision">[] = [];
-  for (const note of notes) {
-    if (note.type !== "decision" || note.fields.frontCoverOf !== undefined || restedOn.has(note.id)) continue;
-    if ((await library.decision(note.id))?.status === "accepted") unrested.push(note);
-  }
-  return unrested;
+  const accepted = new Set((await library.decisions()).filter(({ status }) => status === "accepted").map(({ record }) => record.id));
+  return notes.filter((note): note is SchemaRecord<"decision"> =>
+    note.type === "decision" && note.fields.frontCoverOf === undefined && !restedOn.has(note.id) && accepted.has(note.id));
 }
 
 /** Related but unlinked neighbours for each live note written since `cursor`, including edits. */

@@ -1,0 +1,40 @@
+/**
+ * Capability 4 · Sessions, the listing (contract 4.13): the running-sessions list read out as
+ * text for the command line, one block per session, or as JSON. Lines go to the real agent
+ * activity log on the Postgres `pnpm test` provides.
+ */
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { openActivityLog } from "../activity/index.js";
+import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { sessionsListing } from "./index.js";
+
+test("4.13 the sessions listing shows each listed session's state and why it needs you; a verified close-out shows only with all", async () => {
+  const log = await openActivityLog(testServerUrl());
+  try {
+    const project = uniqueProjectName();
+    const at = (session: string, branch: string) => ({ session, harness: "claude-code", source: "hook", folder: `/work/site/.claude/worktrees/${branch}`, branch }) as const;
+    await log.append(project, { ...at("login", "fix-login"), kind: "prompt-submitted" });
+    await log.append(project, { ...at("login", "fix-login"), kind: "turn-ended" });
+    await log.append(project, { ...at("login", "fix-login"), kind: "closed-out", safe: true, why: "all landed", running: 0 });
+    await log.append(project, { ...at("done", "fix-done"), kind: "file-edited", files: ["a.ts"] });
+    await log.append(project, { ...at("done", "main"), kind: "branch-state", of: "fix-done", open: false, how: "merged", pr: 3 });
+    const last = await log.append(project, { ...at("done", "fix-done"), kind: "closed-out", safe: true, why: "PR 3 merged", running: 0 });
+    const now = new Date(Date.parse(last.at) + 1_000);
+
+    const listed = await sessionsListing(log, project, { now, quietMs: 60_000, leaveMs: 60_000 });
+    assert.match(listed, /login/);
+    assert.match(listed, /waiting/);
+    assert.match(listed, /says safe, but fix-login is unmerged/);
+    assert.doesNotMatch(listed, /PR 3 merged/);
+
+    const all = await sessionsListing(log, project, { now, quietMs: 60_000, leaveMs: 60_000, all: true });
+    assert.match(all, /PR 3 merged/);
+
+    const json = JSON.parse(await sessionsListing(log, project, { now, quietMs: 60_000, leaveMs: 60_000, json: true })) as { session: string; closeOut?: { needsYou?: string } }[];
+    assert.deepEqual(json.map((one) => [one.session, one.closeOut?.needsYou]), [["login", "says safe, but fix-login is unmerged"]]);
+  } finally {
+    await log.close();
+  }
+});

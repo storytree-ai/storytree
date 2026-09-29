@@ -31,6 +31,8 @@ function about(line: Line): string {
       return ` ${line.files.length} file${line.files.length === 1 ? "" : "s"}`;
     case "subagent-started":
       return ` ${line.type ?? line.subagent}`;
+    case "closed-out":
+      return ` ${line.safe ? "safe" : "not safe"}: ${line.why}`;
     default:
       return "";
   }

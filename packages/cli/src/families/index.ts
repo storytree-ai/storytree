@@ -16,6 +16,7 @@ import { noticeboard } from "./noticeboard.js";
 import { plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
+import { session } from "./session.js";
 import { settings } from "./settings.js";
 
 export const FAMILIES: readonly Family[] = [
@@ -35,4 +36,5 @@ export const FAMILIES: readonly Family[] = [
   processes,
   settings,
   contextFamily,
+  session,
 ];

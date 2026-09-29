@@ -17,8 +17,7 @@ function reads(fail: () => boolean): BoardReads {
     linesSince: async () => ({ lines: [], cursor: 0 }),
     projectTree: async () => ({ stories: [], arcs: [{ id: "arc_1" }] }) as never,
     arcView: async () => snapshot.arcs[0]!,
-    waitHolds: async () => [],
-    heldOnQuestion: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
   };
 }
 function kept(start?: BoardSnapshot): Kept<BoardSnapshot> & { written: BoardSnapshot[] } {

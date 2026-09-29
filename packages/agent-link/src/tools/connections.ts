@@ -9,7 +9,7 @@ import { connect, ConnectionError, type ConnectOptions, type Library, type Story
 
 import { withConnectTimeout } from "../routing/index.js";
 
-import { openActivityLog, thisMachine, type ActivityLog } from "../activity/index.js";
+import { currentBranch, openActivityLog, thisMachine, type ActivityLog } from "../activity/index.js";
 
 /** How long a fresh database handshake may take before a call says storytree isn't reachable. */
 const CONNECT_TIMEOUT_MS = 3_000;
@@ -39,7 +39,7 @@ export class Connections {
   async reach(library: ConnectOptions, project: string): Promise<Reached> {
     const storytree = await this.server(library);
     const machine = thisMachine();
-    const opened = () => openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, ...(machine === undefined ? {} : { machine }) });
+    const opened = () => openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     const log = (this.#log ??= forgetOnFailure(opened(), () => (this.#log = undefined)));
     let opening = this.#libraries.get(project);
     if (opening === undefined) {

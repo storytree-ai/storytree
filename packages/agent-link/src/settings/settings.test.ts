@@ -110,6 +110,19 @@ test("10.10 idle-after defaults to 30 minutes and accepts positive durations wit
   });
 });
 
+test("10.11 leave-after defaults to 12 hours and accepts positive durations; one that is not a duration is refused and the file is left byte for byte (ADR-0754 D4)", async () => {
+  await withTempDir((home) => {
+    const initial = agentLink.readSettings(home)["leave-after"];
+    assert.deepEqual({ value: initial.value, default: initial.default, type: initial.type, source: initial.source }, { value: "12h", default: "12h", type: "duration", source: "default" });
+    assert.equal(agentLink.setSetting("leave-after", "2h", home).value, "2h");
+    assert.equal(agentLink.readSettings(home)["leave-after"].source, "set");
+    assert.equal(agentLink.leaveAfterMs(home), 2 * 3_600_000);
+    const before = readFileSync(path.join(home, "settings.json"), "utf8");
+    assert.throws(() => agentLink.setSetting("leave-after", "soon", home), /leave-after.*positive duration/i);
+    assert.equal(readFileSync(path.join(home, "settings.json"), "utf8"), before);
+  });
+});
+
 test("10.10 invalid idle durations are refused with a reason and leave the file byte for byte", async () => {
   await withTempDir((home) => {
     agentLink.setSetting("context-guidance", "400000", home);

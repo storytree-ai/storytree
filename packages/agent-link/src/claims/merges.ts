@@ -14,12 +14,12 @@
  *   never makes an idle holder read as live.
  * - Nothing here ever fails a hook or a tool: `gh` missing, signed out or slow means no merge seen.
  */
-import { execFileSync } from "node:child_process";
 import { statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type { ActivityLog, Line } from "../activity/index.js";
+export { currentBranch } from "../activity/branch.js";
 import { ask } from "../setup/machine.js";
 import { claimsFrom, readClaims } from "./claims.js";
 
@@ -106,16 +106,6 @@ export const mergedPullsThrough = (command: string, prefix: readonly string[] = 
     return [];
   }
 };
-
-/** The branch `folder` is on, or undefined when it is not on one (not a git folder, or a detached head). */
-export function currentBranch(folder: string): string | undefined {
-  try {
-    const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim();
-    return branch === "" || branch === "HEAD" ? undefined : branch;
-  } catch {
-    return undefined;
-  }
-}
 
 /** Whether `project` is due to be asked about again, and if so, mark it asked now. */
 function due(project: string, everyMs: number): boolean {

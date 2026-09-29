@@ -12,7 +12,7 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { test } from "node:test";
@@ -22,7 +22,7 @@ import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, setUpProject } from "./index.js";
+import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, recordTrunkOnSight, route, setUpProject, suggestProjectName } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
@@ -214,5 +214,124 @@ test("1.7 routing reads only the library setting: damage elsewhere in settings.j
       assert.throws(() => route(folder, { home }), (error: unknown) => error instanceof Error && error.message.includes(file));
       assert.equal(readFileSync(file, "utf8"), damaged, "a damaged file is never rewritten");
     }
+  });
+});
+
+/** Two storytree homes stand for two machines: each keeps its own machine identity. */
+function machines(dir: string): { laptop: string; box: string } {
+  return { laptop: path.join(dir, "laptop-home"), box: path.join(dir, "box-home") };
+}
+
+/** A refusal of a folder by the one setup check (ADR-0757 D3), with the words it must carry. */
+function folderRefusal(...words: string[]): (error: unknown) => boolean {
+  return (error: unknown) => error instanceof Error && error.name === "ProjectFolderError" && words.every((word) => error.message.includes(word));
+}
+
+test("1.8 a folder that is a project's trunk, inside one, a git worktree of one, or holding one is refused for another project, and nothing is written", async () => {
+  const [site, other] = [uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const { laptop } = machines(dir);
+    const trunk = path.join(dir, "code", "site");
+    mkdirSync(trunk, { recursive: true });
+    git(trunk, "init", "-q");
+    git(trunk, "commit", "-q", "--allow-empty", "-m", "first");
+    const worktree = path.join(dir, "site-feature");
+    git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
+    await withStorytree([site, other], async (storytree) => {
+      await setUpProject({ folder: trunk, project: site, storytree, storytreeHome: laptop });
+      // The marker is gone (never committed, say): the library's record of the trunk still refuses.
+      rmSync(path.join(trunk, MARKER_FILE));
+      const inside = path.join(trunk, "docs");
+      mkdirSync(inside);
+      for (const folder of [trunk, inside, worktree, path.dirname(trunk)]) {
+        await assert.rejects(setUpProject({ folder, project: other, storytree, storytreeHome: laptop }), folderRefusal(site), `${folder} is refused`);
+        assert.equal(existsSync(path.join(folder, MARKER_FILE)), false, `no marker in ${folder}`);
+      }
+      assert.equal((await storytree.listProjects()).includes(other), false, "no library was made for the refused project");
+    });
+  });
+});
+
+test("1.9 a second folder for a project already living on this machine is refused, joining or not; its trunk keeps routing", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop } = machines(dir);
+    const [first, second] = [path.join(dir, "first"), path.join(dir, "second")];
+    mkdirSync(first);
+    mkdirSync(second);
+    await withStorytree([project], async (storytree) => {
+      await setUpProject({ folder: first, project, storytree, storytreeHome: laptop });
+      for (const join of [false, true]) {
+        await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join }), folderRefusal(first, "worktree"));
+      }
+      assert.equal(existsSync(path.join(second, MARKER_FILE)), false);
+      assert.deepEqual(findProject(first), { project, folder: first });
+    });
+  });
+});
+
+test("1.10 a new folder named like an existing project is refused unless it joins on purpose, and the refusal suggests the first free name", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop, box } = machines(dir);
+    const [trunk, other] = [path.join(dir, "a", project), path.join(dir, "b", project)];
+    mkdirSync(trunk, { recursive: true });
+    mkdirSync(other, { recursive: true });
+    await withStorytree([project, `${project}-2`], async (storytree) => {
+      await setUpProject({ folder: trunk, project, storytree, storytreeHome: laptop });
+      assert.equal(await suggestProjectName(other, storytree), `${project}-2`, "the suggestion avoids every existing project");
+      // On another machine too: a matching folder name is never taken as joining.
+      await assert.rejects(setUpProject({ folder: other, project, storytree, storytreeHome: box }), folderRefusal(`${project}-2`));
+      assert.equal(existsSync(path.join(other, MARKER_FILE)), false);
+      await setUpProject({ folder: other, project: `${project}-2`, storytree, storytreeHome: box });
+      assert.deepEqual(findProject(other), { project: `${project}-2`, folder: other });
+    });
+  });
+});
+
+test("1.11 another machine adds its checkout to an existing project only on purpose, and a git worktree of it then routes there; joining a missing project is refused", async () => {
+  const [project, missing] = [uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const { laptop, box } = machines(dir);
+    const [onLaptop, onBox] = [path.join(dir, "laptop", "app"), path.join(dir, "box", "app")];
+    mkdirSync(onLaptop, { recursive: true });
+    mkdirSync(onBox, { recursive: true });
+    git(onBox, "init", "-q");
+    git(onBox, "commit", "-q", "--allow-empty", "-m", "first");
+    await withStorytree([project, missing], async (storytree) => {
+      await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop });
+      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
+      const worktree = path.join(dir, "box", "app-feature");
+      git(onBox, "worktree", "add", "-q", "-b", "feature", worktree);
+      assert.deepEqual(findProject(worktree), { project, folder: onBox });
+      assert.deepEqual(await storytree.listProjects().then((names) => names.filter((name) => name === project)), [project], "one project, shared by both machines");
+      const elsewhere = path.join(dir, "elsewhere");
+      mkdirSync(elsewhere);
+      await assert.rejects(setUpProject({ folder: elsewhere, project: missing, storytree, storytreeHome: box, join: true }), folderRefusal(missing));
+      assert.equal((await storytree.listProjects()).includes(missing), false);
+    });
+  });
+});
+
+test("1.12 a project set up before trunks were recorded keeps routing, and the first sight of it from a git worktree records its trunk on this machine, so a second trunk is then refused", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop } = machines(dir);
+    const trunk = markedFolder(dir, "app");
+    writeFileSync(path.join(trunk, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    git(trunk, "init", "-q");
+    git(trunk, "add", MARKER_FILE);
+    git(trunk, "commit", "-q", "-m", "first");
+    const worktree = path.join(dir, "app-feature");
+    git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
+    await withStorytree([project], async (storytree) => {
+      await (await storytree.openProject(project)).close();
+      assert.deepEqual(findProject(worktree), { project, folder: worktree }, "the committed marker routes the worktree as before");
+      assert.equal(await recordTrunkOnSight(storytree, project, worktree, laptop), true);
+      assert.equal(await recordTrunkOnSight(storytree, project, trunk, laptop), false, "seen again, nothing changes");
+      const second = path.join(dir, "copy");
+      mkdirSync(second);
+      await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(trunk));
+    });
   });
 });

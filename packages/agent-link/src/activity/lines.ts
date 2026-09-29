@@ -14,6 +14,11 @@ const common = {
   source: z.enum(["hook", "tool"]),
   /** The folder the agent was working in. */
   folder: z.string().min(1).optional(),
+  /**
+   * The git branch that folder was on, when it was on one (ADR-0749 D2, ADR-0754 D4): a session's
+   * branches are the ones its lines name. A `merged` line's branch is the claim's, not its writer's.
+   */
+  branch: z.string().min(1).optional(),
   /** The name of the machine the line was written on (ADR-0636 D1), as the log that wrote it was told it. */
   machine: z.string().min(1).optional(),
   /**
@@ -85,7 +90,7 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /** A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3). */
-  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional(), branch: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
+  z.object({ ...common, kind: z.literal("claimed"), ...part, reason: z.string().min(1), takenOverFrom: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("released"), ...part }).strict().refine(onePart, ONE_PART),
   z.object({ ...common, kind: z.literal("landed"), capability: z.string().min(1) }).strict(),
   /** An increment closed through storytree, with what the close meant: it ends any claim on it (ADR-0643 D1, 6). */
@@ -96,6 +101,20 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * the holder's own session, so it makes no idle holder read as live.
    */
   z.object({ ...common, kind: z.literal("merged"), ...part, holder: z.string().min(1), branch: z.string().min(1), pr: z.number().int().positive() }).strict().refine(onePart, ONE_PART),
+  /**
+   * Whether a branch (`of`) still holds open work (ADR-0754 D4): resolved once a pull request from
+   * it merged, it has nothing ahead of the default branch, or it was deleted; open again when work
+   * is added after. Written by whichever session saw it, never on the sessions that worked on it,
+   * and the latest line for a branch is its state. A branch no line has resolved is open.
+   */
+  z.object({ ...common, kind: z.literal("branch-state"), of: z.string().min(1), open: z.boolean(), how: z.enum(["merged", "not-ahead", "deleted", "ahead"]), pr: z.number().int().positive().optional() }).strict(),
+  /**
+   * A session (`of`) the Claude or Codex app keeps in its own record, archived there, or not (on
+   * first sight, or un-archived) (ADR-0754 D4). Read from the app's files on the machine it runs on
+   * and written by whichever session read them, never on the session it is about.
+   */
+  z.object({ ...common, kind: z.literal("session-archived"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]) }).strict(),
+  z.object({ ...common, kind: z.literal("session-unarchived"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]) }).strict(),
 ]);
 
 /** A line as it is written. */

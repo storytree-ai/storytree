@@ -1,6 +1,6 @@
 import { runSetupCheck } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
-import { addProject, projectFolder, unusedName } from "../project/index.js";
+import { addProject, projectFolder } from "../project/index.js";
 import type { SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "./feedback.js";
 import { readShippedLicense } from "./license.js";
@@ -27,12 +27,12 @@ export function setupHelpActions(options: {
     async addProject() {
       const folder = await options.chooseFolder();
       if (folder === undefined) return null;
-      const found = projectFolder(folder);
-      if ("project" in found) return { status: "already a project", project: found.project, folder: found.folder };
-      // The folder's own name, unless a project has it already: a second folder never joins it silently.
       const library = options.library();
-      const added = await addProject(found.folder, unusedName(found.suggestion, await library.listProjects()), { home: options.storytreeHome, library });
-      if (added.status === "name refused") throw new Error(added.message);
+      const found = await projectFolder(folder, { library });
+      if ("project" in found) return { status: "already a project", project: found.project, folder: found.folder };
+      // The folder's own name, unless a project has it already: a second folder never joins it silently (ADR-0757).
+      const added = await addProject(found.folder, found.suggestion, { home: options.storytreeHome, library });
+      if (added.status === "name refused" || added.status === "folder refused") throw new Error(added.message);
       return added;
     },
     openFeedbackDraft: (draft) => openFeedbackDraft(draft, options.openExternal),

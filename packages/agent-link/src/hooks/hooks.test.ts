@@ -17,7 +17,7 @@
  * record, where the app's would be.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import { hostname, tmpdir } from "node:os";
@@ -681,6 +681,24 @@ test("3.15 recorded prompt inputs make a prompt line on their session, for Claud
       { ...common, session: "f0451558-ef9c-4014-b2cd-1edeb2de7682", harness: "claude-code", kind: "prompt-submitted" },
       { ...common, session: "01a0de50-e5be-7731-8e02-d411fd8845fe", harness: "codex", kind: "prompt-submitted" },
       { ...common, session: "b4f8eff5-05ab-4ef2-b070-78375e2a5deb", harness: "claude-code", kind: "turn-ended", background: 1 },
+    ]);
+  });
+});
+
+test("3.16 every line a hook writes records the git branch its folder is on, beside the folder; a folder on no branch records none (ADR-0754 D4)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, stdio: "ignore" });
+    git("init", "-q", "-b", "claude/fix-login");
+    for (const name of ["session-start-startup", "post-tool-use-bash"]) await runHook("claude-code", recorded("claude-code", name, folder), home);
+    rmSync(path.join(folder, ".git"), { recursive: true, force: true });
+    await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
+    assert.deepEqual((await linesOf(project)).map((line) => [line.kind, line.branch]), [
+      ["session-started", "claude/fix-login"],
+      ["command-run", "claude/fix-login"],
+      ["session-ended", undefined],
     ]);
   });
 });

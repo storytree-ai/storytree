@@ -146,6 +146,15 @@ export interface Hold {
 }
 
 /**
+ * Every hold on a project's live work at once (11.5): each live arc's and increment's wait holds,
+ * and each increment's owner holds, keyed by id, each as waitHolds and heldOnQuestion give it.
+ */
+export interface Holds {
+  readonly waits: Readonly<Record<string, Hold[]>>;
+  readonly heldOn: Readonly<Record<string, string[]>>;
+}
+
+/**
  * A wait would close a loop: the work would wait on itself, directly or through other arcs and
  * increments. The message names the loop, from the work the loop was found at back round to it.
  */
@@ -296,13 +305,21 @@ export class WorkInFlight {
   async waitHolds(id: string): Promise<Hold[]> {
     const record = await recordNamed(this.#records, id);
     if (record === null || !(record.type === "arc" || record.type === "increment")) return [];
+    return (await this.#snapshot()).waitHolds(record as SchemaRecord<"arc" | "increment">);
+  }
+
+  /**
+   * Every live arc's and increment's wait holds, and every increment's owner holds, from one
+   * reading of the project's work (11.5): what a surface showing all of it asks, in place of a
+   * waitHolds and a heldOnQuestion per id, each of which reads all the work again.
+   */
+  async holds(): Promise<Holds> {
     const work = await this.#snapshot();
-    if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => work.arcHold(wait));
-    if (record.fields.status === "closed") return [];
-    return [
-      ...holdsOf(record.fields.waits, (wait) => work.incrementHold(wait)),
-      ...holdsOf(work.arcs.get(record.fields.arc)?.fields.waits, (wait) => work.arcHold(wait)),
-    ];
+    const live = [...work.arcs.values(), ...work.increments.values()];
+    return {
+      waits: Object.fromEntries(live.map((record) => [record.id, work.waitHolds(record)])),
+      heldOn: Object.fromEntries([...work.increments.values()].map((increment) => [increment.id, work.heldOn(increment)])),
+    };
   }
 
   /**
@@ -391,10 +408,7 @@ export class WorkInFlight {
   async heldOnQuestion(incrementId: string): Promise<string[]> {
     const increment = await liveRecord(this.#records, incrementId, ["increment"]);
     if (increment === null || increment.fields.status === "closed") return [];
-    const open = new Set(
-      (await this.#records.list("question")).filter((question) => question.fields.lifecycle === "open").map(({ id }) => id),
-    );
-    return [...new Set(increment.fields.heldOn ?? [])].filter((id) => open.has(id));
+    return heldOnOpen(increment, await this.#records.list("question"));
   }
 
   /**
@@ -511,6 +525,7 @@ class Snapshot {
   readonly increments: ReadonlyMap<string, SchemaRecord<"increment">>;
   readonly #byArc = new Map<string, SchemaRecord<"increment">[]>();
   readonly #questionsByArc = new Map<string, SchemaRecord<"question">[]>();
+  readonly #questions: readonly SchemaRecord<"question">[];
 
   constructor(
     arcs: readonly SchemaRecord<"arc">[],
@@ -518,6 +533,7 @@ class Snapshot {
     questions: readonly SchemaRecord<"question">[],
   ) {
     this.arcs = new Map(arcs.map((arc) => [arc.id, arc]));
+    this.#questions = questions;
     this.increments = new Map(increments.map((increment) => [increment.id, increment]));
     for (const increment of [...increments].sort(byCreation)) {
       const siblings = this.#byArc.get(increment.fields.arc);
@@ -529,6 +545,25 @@ class Snapshot {
       if (siblings === undefined) this.#questionsByArc.set(question.fields.arc, [question]);
       else siblings.push(question);
     }
+  }
+
+  /**
+   * The blockers still holding `record`'s waits: an arc's own; an open increment's own, then its
+   * arc's; a closed increment's none (11.4).
+   */
+  waitHolds(record: SchemaRecord<"arc" | "increment">): Hold[] {
+    if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => this.arcHold(wait));
+    const increment = record as SchemaRecord<"increment">;
+    if (increment.fields.status === "closed") return [];
+    return [
+      ...holdsOf(increment.fields.waits, (wait) => this.incrementHold(wait)),
+      ...holdsOf(this.arcs.get(increment.fields.arc)?.fields.waits, (wait) => this.arcHold(wait)),
+    ];
+  }
+
+  /** The open questions an increment is held on; none once it is closed (12.3). */
+  heldOn(increment: SchemaRecord<"increment">): string[] {
+    return increment.fields.status === "closed" ? [] : heldOnOpen(increment, this.#questions);
   }
 
   /** The arc's open increments, oldest first. */
@@ -555,6 +590,12 @@ class Snapshot {
     if (status !== "closed") return { ...wait, forGood: false };
     return outcome?.disposition === "landed" ? undefined : { ...wait, forGood: true };
   }
+}
+
+/** The open questions among those `increment` names, in its order, each once. */
+function heldOnOpen(increment: SchemaRecord<"increment">, questions: readonly SchemaRecord<"question">[]): string[] {
+  const open = new Set(questions.filter((question) => question.fields.lifecycle === "open").map(({ id }) => id));
+  return [...new Set(increment.fields.heldOn ?? [])].filter((id) => open.has(id));
 }
 
 /** The holds among `waits`, in order: each wait that `hold` says still holds. */

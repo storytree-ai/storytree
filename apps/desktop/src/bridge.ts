@@ -5,7 +5,7 @@
 import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
 import type { ProjectSelection, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
-import type { AnnotatedTree, ArcView, Hold, Changes, Note, SchemaRecord } from "@storytree/library";
+import type { AnnotatedTree, ArcView, Holds, Changes, Note, SchemaRecord } from "@storytree/library";
 
 export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
@@ -15,8 +15,8 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   projectSelection(): Promise<ProjectSelection>;
   chooseProject(name: string): Promise<ProjectSelection>;
   arcView(name: string, id: string): Promise<ArcView | null>;
-  waitHolds(name: string, id: string): Promise<Hold[]>;
-  heldOnQuestion(name: string, id: string): Promise<string[]>;
+  /** Every hold on a project's live work, wait and owner, in one reading. Refused for a name that is not a project. */
+  holds(name: string): Promise<Holds>;
   /** Each named session's context reading in a project, read now. Refused for a name that is not a project. */
   contextReadings(name: string, sessions: readonly string[]): Promise<ContextReading[]>;
   /** The user's idle-after setting in milliseconds, read now. */
@@ -53,8 +53,7 @@ export const CHANNELS = {
   projectSelection: "storytree:project-selection",
   chooseProject: "storytree:choose-project",
   arcView: "storytree:arc-view",
-  waitHolds: "storytree:wait-holds",
-  heldOnQuestion: "storytree:held-on-question",
+  holds: "storytree:holds",
   contextReadings: "storytree:context-readings",
   idleAfterMs: "storytree:idle-after-ms",
   windowReading: "storytree:window-reading",

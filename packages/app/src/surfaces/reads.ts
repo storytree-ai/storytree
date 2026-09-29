@@ -10,7 +10,7 @@
  * never created, since opening a project's library would create it.
  */
 import { idleAfterMs, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
-import type { AnnotatedTree, ArcView, Hold, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
+import type { AnnotatedTree, ArcView, Holds, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
 export interface PageReads {
@@ -27,8 +27,8 @@ export interface PageReads {
   /** The notes in a project that link to a note. */
   relatedNotes(project: unknown, noteId: unknown): Promise<Note[]>;
   arcView(project: unknown, id: unknown): Promise<ArcView | null>;
-  waitHolds(project: unknown, id: unknown): Promise<Hold[]>;
-  heldOnQuestion(project: unknown, id: unknown): Promise<string[]>;
+  /** Every hold on a project's live work, wait and owner, in one reading. */
+  holds(project: unknown): Promise<Holds>;
   /** Each named session's context reading in a project (agent link 9.5), parsed now from the transcript records its hooks streamed into the shared log (ADR-0749 D3), in the order asked. */
   contextReadings(project: unknown, sessions: unknown): Promise<ContextReading[]>;
   /** The user's idle-after setting in milliseconds (agent link 10), read now: how long a session may be quiet before the list shows it idle. */
@@ -97,8 +97,7 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
     frontCovers: async (name, nodeId) => (await library(await project(name))).frontCovers(nodeId as string),
     relatedNotes: async (name, noteId) => (await library(await project(name))).relatedNotes(noteId as string),
     arcView: async (name, id) => (await library(await project(name))).arcView(id as string),
-    waitHolds: async (name, id) => (await library(await project(name))).waitHolds(id as string),
-    heldOnQuestion: async (name, id) => (await library(await project(name))).heldOnQuestion(id as string),
+    holds: async (name) => (await library(await project(name))).holds(),
     contextReadings: async (name, sessions) => {
       const known = await project(name);
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");

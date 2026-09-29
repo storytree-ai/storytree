@@ -23,6 +23,7 @@ import type {
   CloseInput,
   ContractEdit,
   Hold,
+  Holds,
   NewQuestion,
   QuestionLease,
   Settlement,
@@ -164,6 +165,11 @@ export interface Library {
    * never release: the one answer to whether a wait holds.
    */
   waitHolds(id: string): Promise<Hold[]>;
+  /**
+   * Every live arc's and increment's wait holds, and every increment's owner holds, in one reading:
+   * each as waitHolds and heldOnQuestion give it, for a surface that shows all the work at once.
+   */
+  holds(): Promise<Holds>;
 
   /** Raise a question for the owner on a live arc: it is open. */
   raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">>;
@@ -462,6 +468,10 @@ class LibraryHandle implements Library {
 
   heldOnQuestion(incrementId: string): Promise<string[]> {
     return this.#project.flight.heldOnQuestion(incrementId);
+  }
+
+  holds(): Promise<Holds> {
+    return this.#project.flight.holds();
   }
 
   checkQuestion(id: string, at?: Date): Promise<QuestionLease | null> {

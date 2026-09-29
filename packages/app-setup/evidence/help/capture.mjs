@@ -61,7 +61,7 @@ try {
     return reads[method](...args);
   });
   await context.addInitScript(() => {
-    window.storytree = Object.fromEntries(['readSetupLicense', 'checkSetupFolder', 'openFeedbackDraft', 'copyHelpText', 'projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'waitHolds', 'heldOnQuestion'].map(name => [name, (...args) => window.bridge(name, args)]));
+    window.storytree = Object.fromEntries(['readSetupLicense', 'checkSetupFolder', 'openFeedbackDraft', 'copyHelpText', 'projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds'].map(name => [name, (...args) => window.bridge(name, args)]));
   });
   context.on('page', page => page.on('pageerror', error => errors.push(error.stack ?? String(error))));
   const page = await context.newPage();

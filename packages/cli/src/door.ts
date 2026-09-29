@@ -2,7 +2,8 @@
  * Capability 1 · Front door (the command line story): `storytree <family> <verb>` works out which project
  * the folder you are in belongs to, opens that project's library, and hands the command to the
  * owning story's function, keeping no rule of its own. Every answer is a short plain sentence or
- * listing followed by what you might run next, and a failure exits non-zero and says what to do.
+ * listing, offering next only the commands that open what it named (ADR-0786), and a failure exits
+ * non-zero and says what to do; a command it does not have answers with the real one for that job.
  *
  * - The project is the agent link's project routing (its capability 1) from the folder the command
  *   runs in: the nearest `.storytree.json` at or above it. Where storytree is, is the same routing's

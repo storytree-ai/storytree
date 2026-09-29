@@ -105,12 +105,6 @@ export async function registerTrunk(storytree: Storytree, trunk: Trunk): Promise
   return rowCount === 1;
 }
 
-/** Forget `project`'s trunk on `machine`, when setting it up failed after recording it. */
-export async function forgetTrunk(storytree: Storytree, project: string, machine: string): Promise<void> {
-  const pool = await trunksPool(storytree);
-  await pool.query("DELETE FROM trunks WHERE project = $1 AND machine = $2", [project, machine]);
-}
-
 /** `name`, or the first of `name-2`, `name-3`… that is no project yet, within the project-name length. */
 export function unusedName(name: string, taken: readonly string[]): string {
   for (let n = 1; ; n++) {
@@ -148,7 +142,9 @@ export function refusal(asked: Asked): ProjectFolderError | undefined {
     }
   }
   const own = asked.trunks.find((trunk) => trunk.project === asked.project);
-  if (own !== undefined && !samePath(own.folder, asked.folder)) {
+  // Setting its own trunk up again (after a setup that failed on this machine, say) is no new folder.
+  if (own !== undefined && samePath(own.folder, asked.folder)) return undefined;
+  if (own !== undefined) {
     return new ProjectFolderError(`storytree project "${asked.project}" already lives at ${own.folder} on this machine, and a project has one folder per machine: work in a git worktree of it (git worktree add), or set this folder up as a new project, such as "${asked.suggestion}".`, asked.suggestion);
   }
   const exists = asked.projects.includes(asked.project);

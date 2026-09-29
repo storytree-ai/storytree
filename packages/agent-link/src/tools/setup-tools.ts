@@ -10,7 +10,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { findProject, notAProjectYet, setUpProject } from "../routing/index.js";
+import { findProject, notAProjectYet, setUpProject, suggestProjectName } from "../routing/index.js";
 import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -46,7 +46,9 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         return result({ text: [...said, "Until storytree is running, carry on without it."].join(" "), data: { ...data, ...unverified } });
       }
       if (report.project.status === "ask") {
-        said.push(notAProjectYet(folder));
+        // A name no project has yet (ADR-0757 D3); the folder's own when storytree cannot say.
+        const name = await connections.server(report.storytree.library).then((storytree) => suggestProjectName(folder, storytree)).catch(() => undefined);
+        said.push(notAProjectYet(folder, name));
         return result({ text: said.join(" "), data: { ...data, ...unverified } });
       }
       said.push(`This folder is storytree project ${quoted(report.project.name)}.`);

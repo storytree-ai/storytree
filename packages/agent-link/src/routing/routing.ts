@@ -32,7 +32,7 @@ import type { ConnectOptions, Storytree } from "@storytree/library";
 import { readLibrary } from "../settings/settings.js";
 
 import { recordProjectChoice } from "./project-choice.js";
-import { forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, trunksOn, unusedName } from "./trunks.js";
+import { machineOf, ProjectFolderError, refusal, registerTrunk, trunksOn, unusedName } from "./trunks.js";
 
 /** The marker a folder set up as a storytree project holds. */
 export const MARKER_FILE = ".storytree.json";
@@ -115,20 +115,16 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   await library.close();
   const registered = trunks.some((trunk) => trunk.project === project) || (await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }));
   if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
+  // Should what follows fail, the trunk stays recorded: a retry here sets its own trunk up again.
   const marker = path.join(at, MARKER_FILE);
   const previous = existsSync(marker) ? readFileSync(marker) : undefined;
+  writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
   try {
-    writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
-    try {
-      recordProjectChoice(path.join(home, "project-choice.json"), project);
-    } catch (error) {
-      // A new marker would make the tool's explicit retry stop at "already set up".
-      if (previous === undefined) rmSync(marker);
-      else writeFileSync(marker, previous);
-      throw error;
-    }
+    recordProjectChoice(path.join(home, "project-choice.json"), project);
   } catch (error) {
-    await forgetTrunk(storytree, project, machine.id).catch(() => undefined);
+    // A new marker would make the tool's explicit retry stop at "already set up".
+    if (previous === undefined) rmSync(marker);
+    else writeFileSync(marker, previous);
     throw error;
   }
   return { project, marker };
@@ -229,8 +225,8 @@ export function suggestedName(folder: string): string {
  * What check_setup says in `folder`, which isn't a storytree project: that it isn't, and how the user
  * can add it. The agent is not told to offer setup (ADR-0752 D3); the user adds projects deliberately.
  */
-export function notAProjectYet(folder: string): string {
-  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${suggestedName(folder)}\` in a terminal here, or by asking you to set it up.`;
+export function notAProjectYet(folder: string, name: string = suggestedName(folder)): string {
+  return `This folder is not a storytree project, so storytree records nothing here; carry on with the user's request. The user can add it as a project: Add project in the storytree app, \`storytree doctor --set-up ${name}\` in a terminal here, or by asking you to set it up.`;
 }
 
 /** The storytree 0.3 home: STORYTREE_HOME, else ~/.storytree/0.3, where the desktop app keeps its Postgres. */

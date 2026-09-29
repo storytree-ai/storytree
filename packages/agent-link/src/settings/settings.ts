@@ -69,10 +69,17 @@ export interface SettingsReading {
   readonly library: LibraryReading;
 }
 
+/**
+ * The app's surface choices (ADR-0750): per surface id, `on` and each setting's chosen value. The
+ * agent link keeps them and checks their shape; each story declares what they mean.
+ */
+export type SurfaceChoices = Readonly<Record<string, Readonly<Record<string, boolean | string>>>>;
+
 interface Stored {
   "context-guidance"?: number;
   "idle-after"?: string;
   library?: LibraryLocation;
+  surfaces?: SurfaceChoices;
 }
 
 /** Read each setting with its declared default, meaning and value source. */
@@ -143,6 +150,19 @@ export function setLibrary(words: readonly string[], home: string = storytreeHom
   const location = checkedLibrary(given, words.length);
   write(home, { ...readStored(home), library: location });
   return readSettings(home).library;
+}
+
+/** The surface choices saved in the settings file, none when it has none. */
+export function readSurfaceChoices(home: string = storytreeHome()): SurfaceChoices {
+  return readStored(home).surfaces ?? {};
+}
+
+/** Save one surface choice (`on`, or a setting's id) beside the rest, the file checked first. */
+export function setSurfaceChoice(surface: string, key: string, value: boolean | string, home: string = storytreeHome()): SurfaceChoices {
+  const stored = readStored(home);
+  const surfaces = { ...stored.surfaces, [surface]: { ...stored.surfaces?.[surface], [key]: value } };
+  write(home, { ...stored, surfaces: checkedSurfaces(surfaces) });
+  return surfaces;
 }
 
 function write(home: string, stored: Stored): void {
@@ -218,6 +238,18 @@ function checkedLibrary(value: unknown, words?: number): LibraryLocation {
   return { location, instance, user };
 }
 
+function checkedSurfaces(value: unknown): SurfaceChoices {
+  const usage = "surfaces must map each surface's id to its choices: `on` true or false, and each setting's id to the text of its choice.";
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
+  for (const choices of Object.values(value)) {
+    if (choices === null || typeof choices !== "object" || Array.isArray(choices)) return refuse(usage);
+    for (const [key, choice] of Object.entries(choices)) {
+      if (key === "on" ? typeof choice !== "boolean" : typeof choice !== "string") return refuse(usage);
+    }
+  }
+  return value as SurfaceChoices;
+}
+
 function readStored(home: string): Stored {
   const file = path.join(home, "settings.json");
   let text: string;
@@ -235,6 +267,10 @@ function readStored(home: string): Stored {
     }
     const settings: Stored = {};
     for (const [name, value] of Object.entries(stored)) {
+      if (name === "surfaces") {
+        settings.surfaces = checkedSurfaces(value);
+        continue;
+      }
       checkName(name);
       if (name === "library") settings.library = checkedLibrary(value);
       else if (name === "idle-after") {

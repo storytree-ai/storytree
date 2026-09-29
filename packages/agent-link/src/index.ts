@@ -3,8 +3,8 @@
 export { findProject, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, setUpProject, storytreeHome, withConnectTimeout } from "./routing/index.js";
 export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddress } from "./routing/index.js";
 export { readProjectChoice, recordProjectChoice } from "./routing/project-choice.js";
-export { idleAfterMs, readLibrary, readSettings, setLibrary, setSetting } from "./settings/settings.js";
-export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading } from "./settings/settings.js";
+export { idleAfterMs, readLibrary, readSettings, readSurfaceChoices, setLibrary, setSetting, setSurfaceChoice } from "./settings/settings.js";
+export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
 export { ACTIVITY_DATABASE, lineText, NEW_LINE, openActivityLog } from "./activity/index.js";
 export type { ActivityLog, Agent, Line, LineKind, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { labelOf, QUIET_MS, readSessions, sessionsFrom } from "./sessions/index.js";

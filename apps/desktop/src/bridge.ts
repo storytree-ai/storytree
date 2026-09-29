@@ -3,11 +3,11 @@
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
-import type { ProjectSelection, UpdateAction, UpdateState } from "@storytree/app";
+import type { ProjectSelection, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { AnnotatedTree, ArcView, Hold, Changes, Note, SchemaRecord } from "@storytree/library";
 
-export interface StorytreeBridge extends SetupHelpBridge {
+export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
   /** The names of the projects in the app's library, sorted. */
   listProjects(): Promise<string[]>;

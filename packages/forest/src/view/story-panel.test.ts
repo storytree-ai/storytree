@@ -123,3 +123,10 @@ test("4.8 a story with no capabilities shows its sentences and nothing below", (
   assert.match(html, /What s is\. Why\./);
   assert.doesNotMatch(html, /panel-diagram|panel-detail/);
 });
+
+test("with the capability tree switched off, the panel is the story's sentences alone: no tree and no capability details (ADR-0750)", () => {
+  const html = renderStoryPanel(panel, "next", { tree: false });
+  assert.match(html, /What s is\. Why\./);
+  assert.doesNotMatch(html, /panel-tree/, "no tree space and no pop-out");
+  assert.doesNotMatch(html, /data-capability-id/, "no capability to pick or show");
+});

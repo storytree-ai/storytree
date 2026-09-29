@@ -7,6 +7,7 @@
  */
 import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
+import { surfaceOn } from "@storytree/app/surfaces";
 import { mountAppMenu } from "@storytree/app/view";
 import { mountSetupHelp } from "@storytree/app-setup/view";
 import { liveReading, workStates, type LiveReading } from "@storytree/arc-surface";
@@ -105,7 +106,12 @@ async function showForest(name: string): Promise<void> {
   document.body.dataset.surface = "forest";
   const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined, tree: undefined };
   showing = mine;
-  mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
+  // The surfaces switched on in the settings file (ADR-0750); if they cannot be read, all are on.
+  const read = await window.storytree.readSurfaces().catch(() => undefined);
+  if (showing !== mine) return;
+  const surfaces = read?.ok === true ? read.value : [];
+  const withTree = surfaceOn(surfaces, "capability-tree");
+  if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
   const history: Change[] = [];
   const lines: Line[] = [];
   let tree: AnnotatedTree | undefined;
@@ -141,7 +147,7 @@ async function showForest(name: string): Promise<void> {
     const selected = selectedCapability(drilled, chosen);
     chosen = selected;
     const open = new Set([...panel.querySelectorAll<HTMLElement>("details[open]")].map((node) => node.closest<HTMLElement>("[data-capability-id]")?.dataset.capabilityId));
-    panel.innerHTML = renderStoryPanel(drilled, selected);
+    panel.innerHTML = renderStoryPanel(drilled, selected, { tree: withTree });
     for (const node of panel.querySelectorAll<HTMLElement>(".panel-detail")) {
       if (open.has(node.dataset.capabilityId)) node.querySelector("details")?.setAttribute("open", "");
     }
@@ -169,7 +175,7 @@ async function showForest(name: string): Promise<void> {
       mine.view?.select(undefined);
     });
   };
-  mine.tree = mountTreeSpace(content, {
+  if (withTree) mine.tree = mountTreeSpace(content, {
     choose: (id) => {
       chosen = id;
       showPanel();
@@ -184,10 +190,11 @@ async function showForest(name: string): Promise<void> {
     if (selection?.kind === "note") document.body.dataset.note = selection.id;
     chosen = undefined;
     showPanel();
-  }, core, session => mine.sessions?.hover(session));
+  }, core, session => mine.sessions?.hover(session), { library: surfaceOn(surfaces, "library") });
   if (showing !== mine) return view.dispose();
   mine.view = view;
-  mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree,
+  // Sessions off is a quiet globe: no list, no wisps and no islands lit on hover.
+  if (surfaceOn(surfaces, "sessions")) mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree,
     onHighlight: (stories, session) => view.highlight(stories, session), onWisps: wisps => view.showWisps(wisps),
     onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
   core.onSelect(session => mine.sessions?.select(session));

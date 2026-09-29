@@ -24,6 +24,8 @@
  * surface on show says it drew every story of the project and every one of its capabilities.
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
+import { arcSurfaces } from "@storytree/arc-surface/surfaces";
+import { forestSurfaces } from "@storytree/forest/surfaces";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
@@ -47,6 +49,9 @@ import {
   slotOf,
   slotSha,
   smokeProblems,
+  surfaceOn,
+  surfacesActions,
+  SURFACES_CHANNELS,
   TRAY_MENU,
   mainUpdates,
   whenToInstall,
@@ -66,6 +71,8 @@ import { followReleases } from "./releases.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();
+/** The app's surfaces, as each story declares them (ADR-0750), in the Surfaces menu's order. */
+const SURFACES = [...forestSurfaces, ...arcSurfaces];
 /** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 
@@ -130,6 +137,9 @@ async function run(): Promise<void> {
   const settings = settingsActions(home.dir);
   ipcMain.handle(SETTINGS_CHANNELS.readSettings, () => settings.readSettings());
   ipcMain.handle(SETTINGS_CHANNELS.saveSetting, (_event, name: unknown, values: unknown) => settings.saveSetting(name, values));
+  const surfaces = surfacesActions(SURFACES, home.dir);
+  ipcMain.handle(SURFACES_CHANNELS.readSurfaces, () => surfaces.readSurfaces());
+  ipcMain.handle(SURFACES_CHANNELS.saveSurface, (_event, words: unknown) => surfaces.saveSurface(words));
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,
@@ -413,7 +423,10 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       pick.querySelector("summary").click();
       return { title: pick.querySelector("summary .row-title").innerText, contracts: pick.querySelectorAll("[data-contract-id]").length };
     })()`)) as { title: string; contracts: number } | null;
-    const arcProblems = project !== undefined && state === "ready" ? await smokeArcSurface(window.webContents, project, open()) : [];
+    // A surface switched off draws nothing to judge (ADR-0750); the forest's globe is always on.
+    const read = await surfacesActions(SURFACES, home.dir).readSurfaces();
+    const arcsOn = !read.ok || surfaceOn(read.value, "arcs");
+    const arcProblems = project !== undefined && state === "ready" && arcsOn ? await smokeArcSurface(window.webContents, project, open()) : [];
     if (state === "ready" && args.forestMode !== undefined) {
       const mode = args.forestMode;
       await window.webContents.executeJavaScript(`(async () => {

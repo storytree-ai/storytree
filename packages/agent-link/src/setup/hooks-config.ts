@@ -85,6 +85,27 @@ export function defaultHomes(env: Readonly<Record<string, string | undefined>> =
   };
 }
 
+/** The hook scripts Claude Code's settings.json and Codex's hooks.json register, as paths: none from a file missing or unreadable. */
+export function registeredHookScripts(homes: Homes = defaultHomes()): string[] {
+  const scripts: string[] = [];
+  for (const file of [homes.claude && path.join(homes.claude, "settings.json"), homes.codex && path.join(homes.codex, "hooks.json")]) {
+    if (file === undefined) continue;
+    const strings: string[] = [];
+    const collect = (value: unknown): void => {
+      if (typeof value === "string") strings.push(value);
+      else if (value !== null && typeof value === "object") for (const inner of Object.values(value)) collect(inner);
+    };
+    try {
+      collect(JSON.parse(readFileSync(file, "utf8")));
+    } catch {
+      continue;
+    }
+    // A Claude Code argument is the path alone; a Codex command line holds it, perhaps quoted.
+    for (const text of strings) for (const found of text.matchAll(/(?:^|['"\s])((?:[A-Za-z]:)?[\\/][^'"]*?storytree-hook\.mjs)/g)) scripts.push(found[1]!);
+  }
+  return scripts;
+}
+
 /**
  * Register storytree's hooks for each harness whose home is here, replacing any older registration
  * of them, and install storytree's status line in Claude Code where the user has none of their own.

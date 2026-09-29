@@ -174,6 +174,9 @@ async function writeLines(harness: string, input: string, flags: readonly string
           const { resolveBranches } = await import("../sessions/branch-states.js");
           const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" } as const;
           await resolveBranches(watcher, merges).catch(() => []);
+          // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
+          const { reapWorktrees } = await import("../sessions/worktree-reaper.js");
+          await reapWorktrees(watcher).catch(() => []);
           // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
           const { recordAppStates } = await import("../sessions/app-records.js");
           await recordAppStates(watcher).catch(() => []);

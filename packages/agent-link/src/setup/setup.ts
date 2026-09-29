@@ -19,6 +19,7 @@ import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
 import { machineState, type MachineState } from "./machine.js";
+import { readAppRecords, type AppPlaces, type AppReading } from "../sessions/app-records.js";
 
 export { suggestedName };
 
@@ -51,6 +52,8 @@ export interface SetupOptions {
   readonly gh?: () => Promise<GhState>;
   /** How to ask the machine for an agent CLI, git and Node (ADR-0716). By default, each by name on the PATH. */
   readonly machine?: () => Promise<MachineState>;
+  /** Where the Claude desktop app and Codex keep their session records (ADR-0754 D4). By default, where each app puts them for this user. */
+  readonly appPlaces?: AppPlaces;
 }
 
 export interface SetupReport {
@@ -67,6 +70,8 @@ export interface SetupReport {
   readonly gh: GhState;
   /** Whether Claude Code or Codex is signed in, and whether git and a usable Node are there. */
   readonly machine: MachineState;
+  /** Whether the Claude desktop app's and Codex's session records could be read, and how many sessions each keeps. */
+  readonly archives: readonly AppReading[];
 }
 
 /** Check `options.folder`, inside or outside a session, and fix what needs no user decision. Never creates a project. */
@@ -82,8 +87,8 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
   const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"));
-  const [gh, machine] = await Promise.all([(options.gh ?? ghState)(), (options.machine ?? machineState)()]);
-  const report = { storytree, hooks, project, command, gh, machine };
+  const [gh, machine, archives] = await Promise.all([(options.gh ?? ghState)(), (options.machine ?? machineState)(), readAppRecords(options.appPlaces)]);
+  const report = { storytree, hooks, project, command, gh, machine, archives };
   return { ...report, lines: setupLines(report) };
 }
 

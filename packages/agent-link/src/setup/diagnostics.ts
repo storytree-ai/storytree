@@ -1,9 +1,10 @@
 /** The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
 import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js";
 import type { SetupReport } from "./setup.js";
+import type { AppReading } from "../sessions/app-records.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "project";
+  readonly check: "storytree" | "hooks" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -62,10 +63,28 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
     ? { check: "gh", state: "ok", message: "GitHub's gh command is signed in." }
     : { check: "gh", state: "note", message: `GitHub's gh command ${ghNow}. storytree works without it: only a claim ending by itself when its pull request merges needs it.` });
   lines.push(...machineLines(machine));
+  lines.push(archivesLine(report.archives));
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
     : { check: "project", state: "needs-attention", message: "This folder isn't a storytree project yet.", fix: `Only after the user says yes, set up project ${JSON.stringify(project.suggestion)} or a name they choose (lower-case letters, digits and hyphens).` });
   return lines;
+}
+
+/**
+ * Whether the Claude desktop app's and Codex's session records could be read (ADR-0754 D4): a
+ * session one of them keeps stays listed, shown done, until it is archived there. Without either,
+ * sessions leave after the leave-after time instead: a note, never a fix.
+ */
+function archivesLine(archives: readonly AppReading[]): SetupLine {
+  const name = (app: AppReading["app"]) => (app === "claude-desktop" ? "the Claude desktop app" : "Codex");
+  const said = archives.map((reading) => reading.state === "read" ? `${name(reading.app)} keeps ${reading.sessions.size} session${reading.sessions.size === 1 ? "" : "s"}`
+    : reading.state === "absent" ? `${name(reading.app)} keeps no session record on this machine`
+      : `${name(reading.app)}'s session record could not be read (${reading.problem ?? "unknown reason"})`);
+  const summary = said.join("; ");
+  const capital = summary.charAt(0).toUpperCase() + summary.slice(1);
+  return archives.some((reading) => reading.state === "read")
+    ? { check: "archives", state: "ok", message: `${capital}. storytree reads which are archived there, and an archived session leaves the running-sessions list.` }
+    : { check: "archives", state: "note", message: `${capital}. Sessions here leave the running-sessions list after the leave-after time instead of when archived.` };
 }
 
 /** The agent CLI, git and Node lines: what a first run needs on the machine (ADR-0716). */

@@ -166,7 +166,11 @@ async function writeLines(harness: string, input: string, flags: readonly string
         // Whether each session's branches still hold open work (ADR-0754 D4); never at a session's end, which the harness cuts short.
         if (first.kind !== "session-ended") {
           const { resolveBranches } = await import("../sessions/branch-states.js");
-          await resolveBranches({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, merges).catch(() => []);
+          const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" } as const;
+          await resolveBranches(watcher, merges).catch(() => []);
+          // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
+          const { recordAppStates } = await import("../sessions/app-records.js");
+          await recordAppStates(watcher).catch(() => []);
         }
       }
     } catch {

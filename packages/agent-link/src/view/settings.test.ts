@@ -14,7 +14,7 @@ test("10.7 the panel renders every reading with its value, source, meaning and l
     assert.match(html, /input[^>]+inputmode="text"[^>]+value="30m"/);
     assert.match(html, /default/);
     assert.ok(html.includes(readings["context-guidance"].meaning));
-    assert.match(html, /Library/);
+    assert.match(html, /<label for="[^"]+">Where the library lives<\/label>/);
     assert.match(html, /<option value="local" selected>/);
     // An additional numeric reading needs no view change; metadata also stays inert as HTML.
     const additional = { ...readings["context-guidance"], name: "next-setting", meaning: '<img src=x onerror="bad()">', value: 42, source: "set" as const };

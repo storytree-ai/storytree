@@ -89,7 +89,7 @@ export class PgTransactions implements Transactions {
         record.fields = (await numberedIn(client, { ...record, sequence: input.sequence, sequenceNeverHeld: input.sequenceNeverHeld === true })).fields;
       }
       check(record, input.validate);
-      await appendEvent(client, "updated", record, record.updatedAt, input.actor);
+      await appendEvent(client, "updated", record, record.updatedAt, input.actor, input.reason);
       await putRecord(client, record);
       return record;
     }, input.signal);

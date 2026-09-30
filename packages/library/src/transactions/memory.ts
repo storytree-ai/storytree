@@ -59,7 +59,7 @@ export class MemoryTransactions implements Transactions {
       record.fields = (this.#numbered({ ...record, sequence: input.sequence, sequenceNeverHeld: input.sequenceNeverHeld === true })).fields;
     }
     check(record, input.validate);
-    this.#append("updated", record, record.updatedAt, input.actor);
+    this.#append("updated", record, record.updatedAt, input.actor, input.reason);
     this.#records.set(record.id, record);
     return jsonCopy(record);
   }

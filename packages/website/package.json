@@ -1,0 +1,21 @@
+{
+  "name": "@storytree/website",
+  "private": true,
+  "type": "module",
+  "license": "PolyForm-Shield-1.0.0",
+  "scripts": {
+    "build": "node --import tsx src/build.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/forest-world": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.1.8",
+    "esbuild": "^0.28.2",
+    "playwright-core": "1.60.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

@@ -11,18 +11,19 @@ import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineB
 
 /**
  * Each word's fill, in three colours only (ADR-0825 D3): healthy green, unhealthy red, and yellow while not
- * proven yet. Grey is kept for mapped, when that state comes across from 0.2.
+ * proven yet. Grey is kept for mapped, when that state comes across from 0.2. Strong enough that the grey
+ * island ground beneath does not turn yellow to tan.
  */
 const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: number }>> = {
-  healthy: { colour: "#97C459", opacity: 0.5 },
-  unhealthy: { colour: "#E24B4A", opacity: 0.6 },
-  proposed: { colour: "#F2D16B", opacity: 0.5 },
-  untested: { colour: "#F2D16B", opacity: 0.5 },
+  healthy: { colour: "#97C459", opacity: 0.8 },
+  unhealthy: { colour: "#E24B4A", opacity: 0.85 },
+  proposed: { colour: "#F2D16B", opacity: 0.8 },
+  untested: { colour: "#F2D16B", opacity: 0.8 },
 };
 /** A claim's outline: a band this deep inside the territory's border, in ground units. */
-const CLAIM_INSET = 0.22;
+const CLAIM_INSET = 0.3;
 const CLAIM_OPACITY = 0.95;
-const FADED_CLAIM_OPACITY = 0.45;
+const FADED_CLAIM_OPACITY = 0.6;
 const BORDER_COLOUR = "#f4f7f8";
 const BORDER_OPACITY = 0.85;
 

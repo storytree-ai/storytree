@@ -6,7 +6,7 @@
  * that note is newer than the hooks.json they were registered in. A registration written later (a
  * new install's path) is one Codex asks about again, so it reads as waiting until a hook runs again.
  */
-import { closeSync, mkdirSync, openSync, readFileSync, statSync, utimesSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 /** The note a Codex hook leaves in the storytree home when it runs. */
@@ -25,10 +25,9 @@ export function noteCodexHookRan({ storytreeHome, codexHome }: CodexHomes): void
   try {
     if (codexHookTrust({ storytreeHome, codexHome }) !== "waiting") return;
     mkdirSync(storytreeHome, { recursive: true });
-    const note = path.join(storytreeHome, NOTE);
-    closeSync(openSync(note, "a"));
-    const now = new Date();
-    utimesSync(note, now, now);
+    // Written, not touched: the file system stamps a write at its own precision, where a Date given to
+    // utimes is cut to the millisecond and can read as older than a hooks.json written in the same one.
+    writeFileSync(path.join(storytreeHome, NOTE), `${new Date().toISOString()}\n`);
   } catch {
     // A hook never fails on its own bookkeeping.
   }

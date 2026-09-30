@@ -5,8 +5,12 @@ import { fileURLToPath } from "node:url";
 
 import { versionAt, type Git } from "./release-source.js";
 
-/** This code's own build, when it runs from a storytree checkout: its version and short commit; undefined anywhere else. */
+/** The release packaging stamped into a bundled build (buildBins' `release`), as JSON; undeclared when run from source. */
+declare const STORYTREE_RELEASE: string | undefined;
+
+/** This code's own build: the release stamped into it at packaging, else its version and short commit when it runs from a storytree checkout; undefined anywhere else. */
 export function sourceVersion(from = path.dirname(fileURLToPath(import.meta.url))): { version: string; commit: string } | undefined {
+  if (typeof STORYTREE_RELEASE === "string") return JSON.parse(STORYTREE_RELEASE) as { version: string; commit: string };
   const git: Git = (...args) => execFileSync("git", ["-C", from, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   try {
     return { version: versionAt(git, "HEAD"), commit: git("rev-parse", "--short=7", "HEAD") };

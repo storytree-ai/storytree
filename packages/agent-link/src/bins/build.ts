@@ -24,8 +24,8 @@ const ENTRY_POINTS: Readonly<Record<string, string>> = {
   storytree: path.resolve(here, "../../../cli/src/bins/storytree.ts"),
 };
 
-/** Build every command into `outdir`, and return the path of each, by name. */
-export async function buildBins(outdir: string): Promise<Record<string, string>> {
+/** Build every command into `outdir`, and return the path of each, by name. A `release` is stamped in, for `storytree --version` to print. */
+export async function buildBins(outdir: string, { release }: { release?: { version: string; commit: string } } = {}): Promise<Record<string, string>> {
   await build({
     entryPoints: ENTRY_POINTS,
     outdir,
@@ -40,6 +40,7 @@ export async function buildBins(outdir: string): Promise<Record<string, string>>
     chunkNames: "chunks/[name]-[hash]",
     target: "node24",
     logLevel: "warning",
+    ...(release === undefined ? {} : { define: { STORYTREE_RELEASE: JSON.stringify(JSON.stringify(release)) } }),
     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: [

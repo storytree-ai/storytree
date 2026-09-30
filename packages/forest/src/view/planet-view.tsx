@@ -5,7 +5,6 @@ import { Quaternion, Vector3 } from "three";
 import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
-import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { Names, Overlay, SelectionRing, Wisps } from "./island-overlays.js";
@@ -47,7 +46,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
     surface={mode === "forest"} framing={framing}
     inside={library ? <KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} /> : undefined}
-    rotation={rotation.toArray()} kitBytes={kitBytes} plateChildren={overlays}>
+    rotation={rotation.toArray()} plateChildren={overlays}>
     <Navigation islands={layout.islands} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPick={onPick} onNote={onNote} mode={mode} />
   </PlanetWorldCanvas>;

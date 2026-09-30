@@ -304,3 +304,20 @@ test("5.13 a session that holds work on a branch GitHub reports merged, before t
     assert.deepEqual((await readClaims(log, project)).map(({ session, branch }) => ({ session, branch })), [{ session: "A", branch: made.branch }]);
   });
 });
+
+test("5.12 a Claude Code session the app started in its own linked worktree attaches that folder: it holds the work on that worktree's branch, and no second worktree is made", async () => {
+  await withWorld(async ({ dir, log, library, project, site, fresh, park, as }) => {
+    const increment = await park("email form");
+    const folder = path.join(dir, "app-made");
+    git(site, "worktree", "add", "-b", "claude/app-made", folder, fresh);
+
+    const attached = await workspace.attachWorkspace(as("A", folder), increment, "build form", { folder });
+
+    assert.ok(attached.ok, JSON.stringify(attached));
+    assert.equal(attached.folder, folder);
+    assert.equal(attached.branch, "claude/app-made");
+    assert.deepEqual(worktrees(site), [path.resolve(site), path.resolve(folder)], "no second worktree");
+    assert.deepEqual((await readClaims(log, project)).map(({ session, branch }) => ({ session, branch })), [{ session: "A", branch: "claude/app-made" }]);
+    assert.equal(await statusOf(library, increment), "active");
+  });
+});

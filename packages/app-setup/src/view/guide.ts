@@ -17,6 +17,9 @@ export const guide = `
   <details><summary>Windows asks whether to trust the installer</summary>
     <p>This release is unsigned, so Windows may show an unknown-publisher or SmartScreen warning. Check that you obtained it from storytree-ai/storytree. If you choose to trust that download, use More info → Run anyway when offered. If your organisation blocks it, ask its administrator; do not disable Windows protection.</p>
   </details>
+  <details><summary>Remove storytree</summary>
+    <p>Uninstall <strong>storytree-0.3</strong> from Windows Settings → Apps, or run <code>storytree setup uninstall</code>. It asks whether to keep your library, then removes the app, its command and its connections and hooks in Claude Code and Codex. Your project folders and their files stay as they are. Restart your agents afterwards.</p>
+  </details>
   <p>Connection incomplete? Check a folder below for setup diagnostics. This folder check does not register hooks or install the command; those checks will say “skipped”. Use <strong>Copy request for your agent</strong> to complete setup and verify hook receipt in your agent session.</p>
 `;
 

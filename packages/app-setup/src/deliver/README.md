@@ -50,3 +50,12 @@ recognises it. The delivery tests exercise that public disconnect seam after bot
 See `../../evidence/deliver/README.md` for observed proofs and the outstanding real Windows
 first-run, update and harness acceptance. The fixed payload paths are the update interface;
 this Linux lane does not attest a real Windows release update with live agent processes.
+
+Leaving (app setup 1.8): the NSIS uninstaller (Windows Apps & features, or `storytree setup
+uninstall [--keep-library|--remove-library]`, which opens it) runs the bundled helper before it
+deletes the app's files. `uninstall-asks <installDir>` says whether to ask about the library;
+`uninstall <installDir> keep|remove` removes this installation's agent registrations, hooks and
+status line (anything else's stays), and, only when `delivery.json` names this installation, the
+per-user PATH entry, the updater cache named in `app-update.yml` and the home (all of it, or all but
+the library). Project folders are never touched. An update runs the uninstaller with `--updated`,
+and then nothing is removed. `apps/desktop/check-install.mjs` proves both through the real installer.

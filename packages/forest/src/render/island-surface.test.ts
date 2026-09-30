@@ -4,9 +4,7 @@ import test from 'node:test';
 import { Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
 import { workStates } from '@storytree/arc-surface';
 import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from '../index.js';
-import { buildPlanetPathways } from '../../../forest-world/src/planet/pathways.js';
-import { islandSurface } from '../../../forest-world/src/planet/island-surface.js';
-import { PLATE_CLEARANCE } from '../../../forest-world/src/planet/planet.js';
+import { buildPlanetPathways, islandSurface, PLATE_CLEARANCE } from '@storytree/forest-world/geometry';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) =>

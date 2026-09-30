@@ -100,6 +100,10 @@ export interface Session {
   app?: SessionApp;
   /** Whether that app has it archived. */
   archived: boolean;
+  /** The title that app shows for it (4.19), when it gives one. */
+  title?: string;
+  /** Its latest status as that app sums it up (4.19), when it gives one. */
+  status?: string;
   /** Its close-out, while it stands (ADR-0758). */
   closeOut?: CloseOut;
   /** Whether the running-sessions list shows it. */
@@ -133,6 +137,7 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
   // A claim's merge resolves its branch as a branch-state line does, until a later look says otherwise.
   const branchStates = new Map<string, { open: boolean; at: string }>();
   const appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
+  const appWords = new Map<string, Line & { kind: "session-described" }>();
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
     const own = bySession.get(line.session);
     if (own === undefined) bySession.set(line.session, [line]);
@@ -140,6 +145,7 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     if (line.kind === "branch-state") branchStates.set(line.of, line);
     else if (line.kind === "merged") branchStates.set(line.branch, { open: false, at: line.at });
     else if (line.kind === "session-archived" || line.kind === "session-unarchived") appRecords.set(line.of, line);
+    else if (line.kind === "session-described") appWords.set(line.of, line);
   }
   return [...bySession.entries()].map(([session, own]) => {
     const first = own[0]!;
@@ -176,6 +182,8 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
       openWork,
       ...(record === undefined ? {} : { app: record.app }),
       archived,
+      ...(appWords.get(session)?.title === undefined ? {} : { title: appWords.get(session)!.title! }),
+      ...(appWords.get(session)?.status === undefined ? {} : { status: appWords.get(session)!.status! }),
       ...(closeOut === undefined ? {} : { closeOut }),
       listing,
     };

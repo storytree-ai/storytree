@@ -66,3 +66,39 @@ test("4.11 the sessions the Claude desktop app and Codex keep are read from thei
     await log.close();
   }
 });
+
+test("4.19 each session an app keeps gets a line naming it as the app does, its title and latest status (Claude's post-turn summary), scrubbed, written only when either changes", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const claude = path.join(dir, "Claude", "claude-code-sessions", "account-1", "org-1");
+      mkdirSync(claude, { recursive: true });
+      const write = (status: string) => writeFileSync(path.join(claude, "local_a.json"), JSON.stringify({ cliSessionId: "c-one", isArchived: false,
+        title: "Sessions list labelling", postTurnSummary: { status_category: "review_ready", status_detail: status, needs_action: "" } }));
+      write("PR #309 awaiting CI; token sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789");
+      const codexState = path.join(dir, "codex", "state_5.sqlite");
+      mkdirSync(path.dirname(codexState));
+      const db = new DatabaseSync(codexState);
+      db.exec("CREATE TABLE threads (id TEXT PRIMARY KEY, source TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0, name TEXT, title TEXT)");
+      const thread = db.prepare("INSERT INTO threads (id, source, archived, name, title) VALUES (?, ?, 0, ?, ?)");
+      thread.run("x-named", "cli", "Drive Mint orchestration", "drive the mint box");
+      thread.run("x-titled", "cli", null, "tidy the readme");
+      db.close();
+      for (const session of ["c-one", "x-named", "x-titled"]) await log.append(project, { session, source: "hook", folder: "/work/site", kind: "session-started" });
+      const watcher = { log, project, folder: "/work/site", session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { places: { claudeSessions: path.join(dir, "Claude", "claude-code-sessions"), codexState }, everyMs: 0 };
+      const described = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "session-described" ? [[line.of, line.title, line.status]] : [])).sort();
+
+      const first = described(await recordAppStates(watcher, watch));
+      assert.deepEqual(first.map(([of, title]) => [of, title]), [["c-one", "Sessions list labelling"], ["x-named", "Drive Mint orchestration"], ["x-titled", "tidy the readme"]]);
+      assert.match(String(first[0]![2]), /^PR #309 awaiting CI; token \[scrubbed/, "a status is scrubbed as transcripts are");
+      assert.equal(first[1]![2], undefined, "Codex keeps no status");
+      assert.deepEqual(described(await recordAppStates(watcher, watch)), [], "nothing changed, nothing written");
+      write("Merged; increment closed");
+      assert.deepEqual(described(await recordAppStates(watcher, watch)), [["c-one", "Sessions list labelling", "Merged; increment closed"]]);
+    });
+  } finally {
+    await log.close();
+  }
+});

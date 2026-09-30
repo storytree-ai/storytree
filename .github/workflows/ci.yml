@@ -3,8 +3,8 @@ name: CI
 # Every change reaches main through a pull request. On each pull request into main, `platforms`
 # installs, typechecks and runs the tests on Linux, macOS and Windows, against the merge of the
 # branch with main, and `verify` passes once all three have. Then `automerge` merges the pull
-# request. Branch protection on main requires `verify`, so nothing merges unless the tests passed on
-# every system.
+# request, but only if main is still the commit those tests ran against. Branch protection on main
+# requires `verify`, so nothing merges unless the tests passed on every system.
 #
 # The product ships for Windows first, on x64 and arm64; the Windows run here is x64. The macOS run
 # keeps the code working on a Mac from the day each line is written, so that Mac support later is
@@ -120,6 +120,18 @@ jobs:
       contents: write
       pull-requests: write
     steps:
+      # The merge `platforms` tested (github.sha, refs/pull/N/merge) has main as it stood then for
+      # its first parent. Two pull requests that each pass alone can together leave main red, so if
+      # another has merged since, this one was never tested with it and is not merged: the job fails
+      # and says to bring main in and push, which runs CI again (scripts/automerge-base.mjs). A merge
+      # landing in the seconds between this check and the next step is not caught.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+          sparse-checkout: scripts/automerge-base.mjs
+          sparse-checkout-cone-mode: false
+      - name: Main is still the one the tests ran against
+        run: node scripts/automerge-base.mjs "$(git rev-parse HEAD^1)" "$(git ls-remote origin refs/heads/main | cut -f1)"
       # --match-head-commit: merge the commit `verify` passed, never one pushed since. --auto: if
       # main's protection still holds the merge back, GitHub's auto-merge makes it once it allows;
       # otherwise gh merges now. --delete-branch: the repo's own "automatically delete head

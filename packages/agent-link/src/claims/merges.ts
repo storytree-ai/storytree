@@ -177,6 +177,46 @@ export const ghAllMergedPulls: AllMergedPulls = async (folder) => {
   return byBranch;
 };
 
+/** An open pull request, as GitHub reports it (contract 4.24). */
+export interface OpenPull {
+  readonly number: number;
+  readonly draft: boolean;
+  /** Its head commit's checks, taken together; none when it has no checks. */
+  readonly checks?: "pending" | "passing" | "failing";
+  /** Whether it waits in the merge queue (ADR-0796). */
+  readonly queued: boolean;
+}
+
+/** Every open pull request of the project's repository, by the branch it comes from; undefined when GitHub could not say. */
+export type AllOpenPulls = (folder: string) => Promise<Map<string, OpenPull> | undefined>;
+
+/** How GitHub sums up a commit's checks, as one of three. */
+const CHECKS: Readonly<Record<string, OpenPull["checks"]>> = { SUCCESS: "passing", PENDING: "pending", EXPECTED: "pending", FAILURE: "failing", ERROR: "failing" };
+
+/**
+ * Every open pull request, by its branch, in one call to `gh`: its GraphQL, since `gh pr list` does
+ * not say which wait in the merge queue. Undefined when `gh` is missing, signed out or slow.
+ */
+export const ghAllOpenPulls: AllOpenPulls = async (folder) => {
+  const query = "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){pullRequests(states:OPEN,first:100,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number headRefName isDraft isInMergeQueue commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}";
+  const args = ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-f", `query=${query}`];
+  const answer = await ask("gh", args, process.env, ALL_TIMEOUT_MS, { cwd: folder, shell: false });
+  if (!answer.answered || answer.code !== 0) return undefined;
+  try {
+    const nodes = (JSON.parse(answer.out) as { data?: { repository?: { pullRequests?: { nodes?: unknown } } } }).data?.repository?.pullRequests?.nodes;
+    if (!Array.isArray(nodes)) return undefined;
+    const byBranch = new Map<string, OpenPull>();
+    for (const pull of nodes) {
+      if (typeof pull?.number !== "number" || typeof pull?.headRefName !== "string" || byBranch.has(pull.headRefName)) continue;
+      const checks = CHECKS[pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? ""];
+      byBranch.set(pull.headRefName, { number: pull.number, draft: pull.isDraft === true, ...(checks === undefined ? {} : { checks }), queued: pull.isInMergeQueue === true });
+    }
+    return byBranch;
+  } catch {
+    return undefined;
+  }
+};
+
 /** Whether `project` is due to be asked about again, and if so, mark it asked now. */
 export function due(project: string, everyMs: number): boolean {
   if (everyMs <= 0) return true;

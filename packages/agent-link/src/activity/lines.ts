@@ -116,8 +116,13 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * it merged, it has nothing ahead of the default branch, or it was deleted; open again when work
    * is added after. Written by whichever session saw it, never on the sessions that worked on it,
    * and the latest line for a branch is its state. A branch no line has resolved is open.
+   * Resolved as merged, `pr` is the pull request that merged it. Open, `pr` is its open pull request
+   * (contract 4.24), with whether it is a draft, its checks, and whether it waits in the merge queue
+   * (`draft` and `queued` written only when true); a line written again when any of them changes.
+   * Lines are read back unparsed, so a reader that predates these fields reads such a line as it did.
    */
-  z.object({ ...common, kind: z.literal("branch-state"), of: z.string().min(1), open: z.boolean(), how: z.enum(["merged", "not-ahead", "deleted", "ahead"]), pr: z.number().int().positive().optional() }).strict(),
+  z.object({ ...common, kind: z.literal("branch-state"), of: z.string().min(1), open: z.boolean(), how: z.enum(["merged", "not-ahead", "deleted", "ahead"]), pr: z.number().int().positive().optional(),
+    draft: z.literal(true).optional(), checks: z.enum(["pending", "passing", "failing"]).optional(), queued: z.literal(true).optional() }).strict(),
   /**
    * A session (`of`) the Claude or Codex app keeps in its own record, archived there, or not (on
    * first sight, or un-archived) (ADR-0754 D4). Read from the app's files on the machine it runs on

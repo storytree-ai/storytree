@@ -32,7 +32,7 @@ import type { ConnectOptions, Storytree } from "@storytree/library";
 import { readLibrary } from "../settings/settings.js";
 
 import { keepOnThisComputer, recordProjectChoice } from "./project-choice.js";
-import { machineOf, ProjectFolderError, refusal, registerTrunk, trunksOn, unusedName } from "./trunks.js";
+import { forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, type Trunk, trunksOn, unusedName } from "./trunks.js";
 
 /** The marker a folder set up as a storytree project holds. */
 export const MARKER_FILE = ".storytree.json";
@@ -108,7 +108,7 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   const existing = findProject(at);
   if (existing.project !== undefined) throw new ProjectFolderError(`${at} is already part of storytree project "${existing.project}" (its folder is ${existing.folder}).`);
   const machine = machineOf(home);
-  const [projects, trunks] = await Promise.all([storytree.listProjects(), trunksOn(storytree, machine.id)]);
+  const [projects, trunks] = await Promise.all([storytree.listProjects(), liveTrunks(storytree, machine.id)]);
   const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
   if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
@@ -135,12 +135,34 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
 /**
  * Record where `project` lives on this machine the first time it is seen from `folder` (a folder
  * routed to it): the main checkout, when `folder` is in a git worktree. A project set up before
- * trunks were recorded (ADR-0757) keeps working and gains its record. It never refuses and never
- * moves a trunk already recorded: true only when it recorded one.
+ * trunks were recorded (ADR-0757) keeps working and gains its record, and a project whose folder
+ * moved follows it. It never refuses and never moves a live trunk: true only when it recorded one.
  */
 export async function recordTrunkOnSight(storytree: Storytree, project: string, folder: string, home: string = storytreeHome()): Promise<boolean> {
   const machine = machineOf(home);
-  return registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: canonical(inMainCheckout(canonical(folder))) });
+  const trunk = { project, machine: machine.id, machineName: machine.name, folder: canonical(inMainCheckout(canonical(folder))) };
+  if (await registerTrunk(storytree, trunk)) return true;
+  const trunks = await trunksOn(storytree, machine.id);
+  if (!(await forgetStale(storytree, trunks))) return false;
+  return registerTrunk(storytree, trunk);
+}
+
+/**
+ * This machine's trunks whose folders are still there. A trunk whose folder is gone (moved away or
+ * deleted) is forgotten, so the project can be joined or seen at its new folder. A folder that is
+ * there keeps its trunk even with its marker gone: the record, not the marker, holds it (1.8).
+ */
+async function liveTrunks(storytree: Storytree, machine: string): Promise<Trunk[]> {
+  const trunks = await trunksOn(storytree, machine);
+  await forgetStale(storytree, trunks);
+  return trunks.filter((trunk) => existsSync(trunk.folder));
+}
+
+/** Forget each of `trunks` whose folder is gone; true when any was. */
+async function forgetStale(storytree: Storytree, trunks: readonly Trunk[]): Promise<boolean> {
+  const stale = trunks.filter((trunk) => !existsSync(trunk.folder));
+  for (const trunk of stale) await forgetTrunk(storytree, trunk);
+  return stale.length > 0;
 }
 
 /** A name to suggest for `folder` as a new project: its own name, or the first of name-2, name-3… no project has. */

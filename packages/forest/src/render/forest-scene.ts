@@ -16,7 +16,7 @@ import { PLACE_WIDTH, type ForestScene, type Island, type PlacedTree, type TreeF
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
-import type { StorySurvey } from "../code-survey/code-survey.js";
+import { packageOf, type StorySurvey } from "../code-survey/code-survey.js";
 import { islandArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 
@@ -71,7 +71,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
         turn: (index * 2.39996) % (2 * Math.PI),
       };
     });
-    const land = landOf(story.capabilities, survey[story.id]);
+    const land = landOf(story.capabilities, survey[story.id], packageOf(story.title));
     // ADR-0804 D3, D7: a surveyed story's land follows its lines of code; unsurveyed, it follows its capabilities.
     const area = land === undefined ? undefined : islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0));
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, contracts }) => [capability, form, contracts]), land?.territories, area]);
@@ -113,12 +113,14 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
  * A surveyed story's land: one territory per capability with code, in the story's order, then Unclaimed
  * code, and its files. The page cuts it to the island's coast, which only the drawing knows.
  */
-function landOf(capabilities: readonly { id: string; title: string }[], survey: StorySurvey | undefined): Island["land"] {
+function landOf(capabilities: readonly { id: string; title: string }[], survey: StorySurvey | undefined, pkg: string): Island["land"] {
   if (survey === undefined || survey.files.length === 0) return undefined;
   const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
   return {
     territories: [...capabilities.map(({ id, title }) => ({ capability: id, title, lines: linesOf(id) })), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
     files: survey.files,
+    package: pkg,
+    imports: survey.imports,
   };
 }
 

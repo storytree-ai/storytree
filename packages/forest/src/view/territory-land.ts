@@ -133,3 +133,37 @@ function insideOf(from: Point, to: Point, coast: readonly (readonly Point[])[]):
   const at = (t: number): Point => ({ x: from.x + t * d.x, z: from.z + t * d.z });
   return cuts.slice(1).flatMap((t, i) => (onLand(at((cuts[i]! + t) / 2), coast) && t > cuts[i]! ? [{ from: at(cuts[i]!), to: at(t) }] : []));
 }
+
+/** A lit territory's fill: the session's colour, filled while the read is in the window, lighter and fainter once compacted out. */
+const LIT_TERRITORY = { "in-window": 0.36, faded: 0.26 } as const;
+
+/**
+ * Fills the territories of the capabilities the selected session opened (ADR-0804 D5) in its `colour`: a read
+ * in the window fully, one compacted out lighter. The fill is laid over the territory, never swapped into it,
+ * so every other territory, and this one once let go, is as it was; the session emphasis that dims an island leaves it at full strength.
+ */
+export function lightTerritories(land: Group, lit: ReadonlyMap<string, "in-window" | "faded">, colour: string): void {
+  for (const mesh of land.children) {
+    const capability = mesh.userData.capability;
+    if (typeof capability !== "string" || !(mesh instanceof Mesh)) continue;
+    const old = mesh.getObjectByName(`territory-lit:${capability}`) as Mesh | undefined;
+    if (old !== undefined) {
+      old.removeFromParent();
+      (old.material as MeshBasicMaterial).dispose();
+    }
+    const state = lit.get(capability);
+    if (state === undefined) {
+      delete mesh.userData.window;
+      continue;
+    }
+    mesh.userData.window = state;
+    const wear = new Color(colour);
+    if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
+    const fill = new Mesh(mesh.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_TERRITORY[state], side: DoubleSide, depthWrite: false }));
+    fill.name = `territory-lit:${capability}`;
+    fill.raycast = () => {};
+    fill.userData = { traversal: true };
+    fill.renderOrder = 1.5;
+    mesh.add(fill);
+  }
+}

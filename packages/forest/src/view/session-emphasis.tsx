@@ -29,8 +29,9 @@ export function SessionIslandEmphasis({ emphasis }: { emphasis: SessionEmphasis 
     if (!emphasis) return;
     anchor.current?.parent?.traverse(object => {
       // Wisps keep their own colour and fade; the session they belong to is lit through them directly.
+      // What the selected session's traversal lights on the land stays at full strength: it is read on every island.
       if (!(object instanceof Mesh) || object.name.startsWith("session-highlight:") || saved.current.has(object)
-        || object.parent?.userData.sessionWisp !== undefined) return;
+        || object.parent?.userData.sessionWisp !== undefined || object.userData.traversal === true) return;
       const original: Material | Material[] = object.material;
       const copies = (Array.isArray(original) ? original : [original]).map(source => {
         const copy = source.clone();

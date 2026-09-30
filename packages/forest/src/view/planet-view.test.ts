@@ -1,14 +1,15 @@
 /** The page's planet joins: permanent places, mesh picking, and failure markers after orbiting. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DoubleSide, Euler, Group, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
+import { Color, DoubleSide, Euler, Group, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
 import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, placeOnGlobe, PLANET_RADIUS, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
-import { fileCircleMarks } from "./file-circles.js";
-import { territoryLand } from "./territory-land.js";
+import { codePathKey } from "@storytree/knowledge-core";
+import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
+import { lightTerritories, territoryLand } from "./territory-land.js";
 
 test("the globe opens every story with its grove at its permanent place, readable by the smoke check", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -183,4 +184,76 @@ test("3.16 a file circle lies flat on the island's surface; 3.17 pointing at it 
   camera.updateMatrixWorld();
   assert.deepEqual(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 400, y: 400 }), { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
   assert.equal(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 700, y: 700 }), undefined);
+});
+
+const flat = { onSurface: (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z), normalAt: () => new Vector3(0, 1, 0) };
+const circlesOf = () => fileCircleMarks([
+  { path: "src/a.ts", lines: 40, capability: "cap-a", x: -3, z: 0, radius: 1 },
+  { path: "src/b.ts", lines: 90, capability: "cap-a", x: 3, z: 0, radius: 1.5 },
+], flat.onSurface, flat.normalAt);
+const mark = (group: Group, path: string) => group.getObjectByName(`file:${path}`) as Mesh;
+const colourOf = (object: Mesh) => (object.material as MeshBasicMaterial).color.getHexString();
+
+test("3.18 the forest hands the core each circle's place on the globe: where it lies once its island is set on the sphere, keyed by its package and path", () => {
+  const circles = circlesOf();
+  const plate = new Group();
+  plate.position.set(4, -7, 9);
+  plate.quaternion.setFromEuler(new Euler(0.4, -1.1, 0.7));
+  plate.add(circles);
+  plate.updateMatrixWorld(true);
+  const stops = circleStops(circles, "agent-link", { position: plate.position, quaternion: plate.quaternion });
+  assert.deepEqual([...stops.keys()], [codePathKey("agent-link", "src/a.ts"), codePathKey("agent-link", "src/b.ts")]);
+  assert.equal(codePathKey("agent-link", "src/a.ts"), "packages/agent-link/src/a.ts");
+  for (const path of ["src/a.ts", "src/b.ts"]) {
+    const world = mark(circles, path).getWorldPosition(new Vector3());
+    assert.ok(new Vector3().copy(stops.get(codePathKey("agent-link", path))!).distanceTo(world) < 1e-9, path);
+  }
+});
+
+test("3.18 a file circle the selected session opened is lit in its colour with the in-view ring, a compacted one lighter with none, and letting go restores it", () => {
+  const circles = circlesOf();
+  const [a, b] = [mark(circles, "src/a.ts"), mark(circles, "src/b.ts")];
+  const resting = [a.material, b.material];
+  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
+  const [litA, litB] = [a.getObjectByName("file-lit:src/a.ts") as Mesh, b.getObjectByName("file-lit:src/b.ts") as Mesh];
+  assert.equal(colourOf(litA), "e69f00");
+  assert.ok(new Color(`#${colourOf(litB)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "lighter, as a compacted note is");
+  assert.ok((litB.material as MeshBasicMaterial).opacity < (litA.material as MeshBasicMaterial).opacity);
+  assert.equal(a.userData.window, "in-window");
+  assert.equal(b.userData.window, "faded");
+  assert.ok(a.getObjectByName("file-ring:src/a.ts"), "the in-view ring");
+  assert.equal(b.getObjectByName("file-ring:src/b.ts"), undefined, "a compacted read has no ring");
+  assert.deepEqual([a.material, b.material], resting, "the circles themselves are not swapped for anything, so nothing that dims or restores them can undo the lighting");
+  assert.equal(litA.userData.traversal, true, "and the lighting is marked, for the session emphasis to leave alone");
+  assert.deepEqual({ file: a.userData.file, lines: a.userData.lines }, { file: "src/a.ts", lines: 40 }, "pointing still names it");
+  lightFileCircles(circles, new Map(), "#e69f00", "story");
+  assert.equal(a.userData.window, undefined);
+  assert.deepEqual([a.getObjectByName("file-lit:src/a.ts"), a.getObjectByName("file-ring:src/a.ts"), b.getObjectByName("file-lit:src/b.ts")], [undefined, undefined, undefined]);
+});
+
+test("3.18 a capability the selected session opened fills its territory in the session's colour, faintly lighter when compacted, and letting go restores its tint", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a" }, { capability: "cap-b" }],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [],
+  };
+  const drawn = territoryLand(land, (p) => new Vector3(p.x, 0, p.z));
+  const [a, b] = ["cap-a", "cap-b"].map((id) => drawn.getObjectByName(`territory:${id}`) as Mesh);
+  const resting = [colourOf(a!), (a!.material as MeshBasicMaterial).opacity];
+  lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
+  const [litA, litB] = [a!.getObjectByName("territory-lit:cap-a") as Mesh, b!.getObjectByName("territory-lit:cap-b") as Mesh];
+  assert.equal(colourOf(litA), "e69f00");
+  assert.ok((litB.material as MeshBasicMaterial).opacity < (litA.material as MeshBasicMaterial).opacity, "a compacted read is fainter");
+  assert.ok(new Color(`#${colourOf(litB)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "and lighter");
+  assert.equal(a!.userData.window, "in-window");
+  assert.equal(b!.userData.window, "faded");
+  assert.equal(litA.userData.traversal, true);
+  assert.equal(a!.userData.capability, "cap-a", "picking still names it");
+  assert.deepEqual([colourOf(a!), (a!.material as MeshBasicMaterial).opacity], resting, "the tint itself is untouched");
+  lightTerritories(drawn, new Map(), "#e69f00");
+  assert.deepEqual([a!.getObjectByName("territory-lit:cap-a"), b!.getObjectByName("territory-lit:cap-b"), a!.userData.window], [undefined, undefined, undefined]);
 });

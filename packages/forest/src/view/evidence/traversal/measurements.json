@@ -1,0 +1,1226 @@
+{
+  "expected": 9,
+  "noneSelected": {
+    "zoom": 1.6793655730057533,
+    "shellRadius": 218,
+    "trails": [
+      {
+        "from": "decision_88f95657e45b",
+        "to": "decision_98e3f55d636d",
+        "edge": null,
+        "kind": null,
+        "faded": false,
+        "seq": 0,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 0,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 187.64701886643357,
+        "opacity": 0.85
+      }
+    ],
+    "circles": [],
+    "rings": [],
+    "territories": [],
+    "allCircles": 258
+  },
+  "front": {
+    "zoom": 1.6793655730057533,
+    "shellRadius": 218,
+    "trails": [
+      {
+        "from": "file:packages/knowledge-core/src/ghosts/ghosts.ts",
+        "to": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": true,
+        "seq": 0,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921045184219,
+        "maxRadius": 224.3304393774369,
+        "opacity": 0.45
+      },
+      {
+        "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "to": "file:packages/knowledge-core/src/view/surface.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 1,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79211182465303,
+        "maxRadius": 225.57458267227312,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/surface.tsx",
+        "to": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 2,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 222.5309669819809,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "to": "file:packages/knowledge-core/src/reads/reads.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 3,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 230.07072780133947,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/reads/reads.ts",
+        "to": "decision_88f95657e45b",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 4,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.12000150526848,
+        "maxRadius": 219.83338993049526,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_88f95657e45b",
+        "to": "decision_98e3f55d636d",
+        "edge": "dotted",
+        "kind": null,
+        "faded": false,
+        "seq": 5,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 0,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 187.64701886643357,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_98e3f55d636d",
+        "to": "file:packages/forest/src/view/planet-view.tsx",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 6,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 219.82991304296414,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/planet-view.tsx",
+        "to": "file:packages/forest/src/view/file-circles.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 7,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 228.17285632985818,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/file-circles.ts",
+        "to": "file:packages/agent-link/src/context/window.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 8,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 246.16715834307604,
+        "opacity": 0.85
+      }
+    ],
+    "circles": [
+      {
+        "file": "src/context/window.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 4.034287247573733,
+        "lines": 222
+      },
+      {
+        "file": "src/view/file-circles.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 2.039241731918637,
+        "lines": 35
+      },
+      {
+        "file": "src/view/planet-view.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 3.625370156821116,
+        "lines": 171
+      },
+      {
+        "file": "src/ghosts/ghosts.ts",
+        "state": "faded",
+        "colour": "bdeaf8",
+        "opacity": 0.6,
+        "dimmedByEmphasis": false,
+        "ring": false,
+        "radiusPx": 3.034307885461376,
+        "lines": 131
+      },
+      {
+        "file": "src/look-inside/look-inside.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 4.930117251908296,
+        "lines": 588
+      },
+      {
+        "file": "src/reads/reads.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 2.534236408703845,
+        "lines": 121
+      },
+      {
+        "file": "src/view/globe-points.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 4.114627713902861,
+        "lines": 283
+      },
+      {
+        "file": "src/view/surface.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 4.120331111765649,
+        "lines": 303
+      }
+    ],
+    "rings": [
+      "file-ring:src/context/window.ts",
+      "file-ring:src/view/file-circles.ts",
+      "file-ring:src/view/planet-view.tsx",
+      "file-ring:src/look-inside/look-inside.ts",
+      "file-ring:src/reads/reads.ts",
+      "file-ring:src/view/globe-points.tsx",
+      "file-ring:src/view/surface.tsx"
+    ],
+    "territories": [
+      {
+        "capability": "capability_83d80a307e18",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.36,
+        "dimmedByEmphasis": false
+      }
+    ],
+    "allCircles": 258
+  },
+  "knowledgeCore": {
+    "zoom": 4.030477375213808,
+    "shellRadius": 218,
+    "trails": [
+      {
+        "from": "file:packages/knowledge-core/src/ghosts/ghosts.ts",
+        "to": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": true,
+        "seq": 0,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921045184219,
+        "maxRadius": 224.3304393774369,
+        "opacity": 0.45
+      },
+      {
+        "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "to": "file:packages/knowledge-core/src/view/surface.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 1,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79211182465303,
+        "maxRadius": 225.57458267227312,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/surface.tsx",
+        "to": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 2,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 222.5309669819809,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "to": "file:packages/knowledge-core/src/reads/reads.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 3,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 230.07072780133947,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/reads/reads.ts",
+        "to": "decision_88f95657e45b",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 4,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.12000150526848,
+        "maxRadius": 219.83338993049526,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_88f95657e45b",
+        "to": "decision_98e3f55d636d",
+        "edge": "dotted",
+        "kind": null,
+        "faded": false,
+        "seq": 5,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 0,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 187.64701886643357,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_98e3f55d636d",
+        "to": "file:packages/forest/src/view/planet-view.tsx",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 6,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 219.82991304296414,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/planet-view.tsx",
+        "to": "file:packages/forest/src/view/file-circles.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 7,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 228.17285632985818,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/file-circles.ts",
+        "to": "file:packages/agent-link/src/context/window.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 8,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 246.16715834307604,
+        "opacity": 0.85
+      }
+    ],
+    "circles": [
+      {
+        "file": "src/context/window.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 6.6983274715219006,
+        "lines": 222
+      },
+      {
+        "file": "src/view/file-circles.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 5.42331169718363,
+        "lines": 35
+      },
+      {
+        "file": "src/view/planet-view.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 8.382260688258835,
+        "lines": 171
+      },
+      {
+        "file": "src/ghosts/ghosts.ts",
+        "state": "faded",
+        "colour": "bdeaf8",
+        "opacity": 0.6,
+        "dimmedByEmphasis": false,
+        "ring": false,
+        "radiusPx": 8.138923414408879,
+        "lines": 131
+      },
+      {
+        "file": "src/look-inside/look-inside.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 14.335875152541128,
+        "lines": 588
+      },
+      {
+        "file": "src/reads/reads.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 7.883938682956813,
+        "lines": 121
+      },
+      {
+        "file": "src/view/globe-points.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 10.693302501565858,
+        "lines": 283
+      },
+      {
+        "file": "src/view/surface.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 11.014044417841642,
+        "lines": 303
+      }
+    ],
+    "rings": [
+      "file-ring:src/context/window.ts",
+      "file-ring:src/view/file-circles.ts",
+      "file-ring:src/view/planet-view.tsx",
+      "file-ring:src/look-inside/look-inside.ts",
+      "file-ring:src/reads/reads.ts",
+      "file-ring:src/view/globe-points.tsx",
+      "file-ring:src/view/surface.tsx"
+    ],
+    "territories": [
+      {
+        "capability": "capability_83d80a307e18",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.36,
+        "dimmedByEmphasis": false
+      }
+    ],
+    "allCircles": 258
+  },
+  "forest": {
+    "zoom": 4.030477375213808,
+    "shellRadius": 218,
+    "trails": [
+      {
+        "from": "file:packages/knowledge-core/src/ghosts/ghosts.ts",
+        "to": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": true,
+        "seq": 0,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921045184219,
+        "maxRadius": 224.3304393774369,
+        "opacity": 0.45
+      },
+      {
+        "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "to": "file:packages/knowledge-core/src/view/surface.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 1,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79211182465303,
+        "maxRadius": 225.57458267227312,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/surface.tsx",
+        "to": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 2,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 222.5309669819809,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "to": "file:packages/knowledge-core/src/reads/reads.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 3,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 230.07072780133947,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/reads/reads.ts",
+        "to": "decision_88f95657e45b",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 4,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.12000150526848,
+        "maxRadius": 219.83338993049526,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_88f95657e45b",
+        "to": "decision_98e3f55d636d",
+        "edge": "dotted",
+        "kind": null,
+        "faded": false,
+        "seq": 5,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 0,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 187.64701886643357,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_98e3f55d636d",
+        "to": "file:packages/forest/src/view/planet-view.tsx",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 6,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 219.82991304296414,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/planet-view.tsx",
+        "to": "file:packages/forest/src/view/file-circles.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 7,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 228.17285632985818,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/file-circles.ts",
+        "to": "file:packages/agent-link/src/context/window.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 8,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 246.16715834307604,
+        "opacity": 0.85
+      }
+    ],
+    "circles": [
+      {
+        "file": "src/context/window.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 8.030678285905548,
+        "lines": 222
+      },
+      {
+        "file": "src/view/file-circles.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 5.445842729550397,
+        "lines": 35
+      },
+      {
+        "file": "src/view/planet-view.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 8.929649143612332,
+        "lines": 171
+      },
+      {
+        "file": "src/ghosts/ghosts.ts",
+        "state": "faded",
+        "colour": "bdeaf8",
+        "opacity": 0.6,
+        "dimmedByEmphasis": false,
+        "ring": false,
+        "radiusPx": 7.88376327125815,
+        "lines": 131
+      },
+      {
+        "file": "src/look-inside/look-inside.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 13.545132137954532,
+        "lines": 588
+      },
+      {
+        "file": "src/reads/reads.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 7.338016868664206,
+        "lines": 121
+      },
+      {
+        "file": "src/view/globe-points.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 10.483257831530905,
+        "lines": 283
+      },
+      {
+        "file": "src/view/surface.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 10.67380078507716,
+        "lines": 303
+      }
+    ],
+    "rings": [
+      "file-ring:src/context/window.ts",
+      "file-ring:src/view/file-circles.ts",
+      "file-ring:src/view/planet-view.tsx",
+      "file-ring:src/look-inside/look-inside.ts",
+      "file-ring:src/reads/reads.ts",
+      "file-ring:src/view/globe-points.tsx",
+      "file-ring:src/view/surface.tsx"
+    ],
+    "territories": [
+      {
+        "capability": "capability_83d80a307e18",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.36,
+        "dimmedByEmphasis": false
+      }
+    ],
+    "allCircles": 258
+  },
+  "knowledgeCoreClose": {
+    "zoom": 10.076193438034519,
+    "shellRadius": 218,
+    "trails": [
+      {
+        "from": "file:packages/knowledge-core/src/ghosts/ghosts.ts",
+        "to": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": true,
+        "seq": 0,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921045184219,
+        "maxRadius": 224.3304393774369,
+        "opacity": 0.45
+      },
+      {
+        "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "to": "file:packages/knowledge-core/src/view/surface.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 1,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79211182465303,
+        "maxRadius": 225.57458267227312,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/surface.tsx",
+        "to": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 2,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 222.5309669819809,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "to": "file:packages/knowledge-core/src/reads/reads.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 3,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 230.07072780133947,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/reads/reads.ts",
+        "to": "decision_88f95657e45b",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 4,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.12000150526848,
+        "maxRadius": 219.83338993049526,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_88f95657e45b",
+        "to": "decision_98e3f55d636d",
+        "edge": "dotted",
+        "kind": null,
+        "faded": false,
+        "seq": 5,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 0,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 187.64701886643357,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_98e3f55d636d",
+        "to": "file:packages/forest/src/view/planet-view.tsx",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 6,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 219.82991304296414,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/planet-view.tsx",
+        "to": "file:packages/forest/src/view/file-circles.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 7,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 228.17285632985818,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/file-circles.ts",
+        "to": "file:packages/agent-link/src/context/window.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 8,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 246.16715834307604,
+        "opacity": 0.85
+      }
+    ],
+    "circles": [
+      {
+        "file": "src/context/window.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 16.745818678804422,
+        "lines": 222
+      },
+      {
+        "file": "src/view/file-circles.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 13.55827924295923,
+        "lines": 35
+      },
+      {
+        "file": "src/view/planet-view.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 20.955651720646355,
+        "lines": 171
+      },
+      {
+        "file": "src/ghosts/ghosts.ts",
+        "state": "faded",
+        "colour": "bdeaf8",
+        "opacity": 0.6,
+        "dimmedByEmphasis": false,
+        "ring": false,
+        "radiusPx": 20.347308536022357,
+        "lines": 131
+      },
+      {
+        "file": "src/look-inside/look-inside.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 35.839687881352816,
+        "lines": 588
+      },
+      {
+        "file": "src/reads/reads.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 19.709846707391986,
+        "lines": 121
+      },
+      {
+        "file": "src/view/globe-points.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 26.733256253914814,
+        "lines": 283
+      },
+      {
+        "file": "src/view/surface.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 27.535111044604005,
+        "lines": 303
+      }
+    ],
+    "rings": [
+      "file-ring:src/context/window.ts",
+      "file-ring:src/view/file-circles.ts",
+      "file-ring:src/view/planet-view.tsx",
+      "file-ring:src/look-inside/look-inside.ts",
+      "file-ring:src/reads/reads.ts",
+      "file-ring:src/view/globe-points.tsx",
+      "file-ring:src/view/surface.tsx"
+    ],
+    "territories": [
+      {
+        "capability": "capability_83d80a307e18",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.36,
+        "dimmedByEmphasis": false
+      }
+    ],
+    "allCircles": 258
+  },
+  "hop": {
+    "zoom": 2.2671435235577673,
+    "shellRadius": 218,
+    "trails": [
+      {
+        "from": "file:packages/knowledge-core/src/ghosts/ghosts.ts",
+        "to": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": true,
+        "seq": 0,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921045184219,
+        "maxRadius": 224.3304393774369,
+        "opacity": 0.45
+      },
+      {
+        "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+        "to": "file:packages/knowledge-core/src/view/surface.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 1,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79211182465303,
+        "maxRadius": 225.57458267227312,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/surface.tsx",
+        "to": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 2,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 222.5309669819809,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/view/globe-points.tsx",
+        "to": "file:packages/knowledge-core/src/reads/reads.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 3,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.79210376543028,
+        "maxRadius": 230.07072780133947,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/knowledge-core/src/reads/reads.ts",
+        "to": "decision_88f95657e45b",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 4,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.12000150526848,
+        "maxRadius": 219.83338993049526,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_88f95657e45b",
+        "to": "decision_98e3f55d636d",
+        "edge": "dotted",
+        "kind": null,
+        "faded": false,
+        "seq": 5,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 0,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 187.64701886643357,
+        "opacity": 0.85
+      },
+      {
+        "from": "decision_98e3f55d636d",
+        "to": "file:packages/forest/src/view/planet-view.tsx",
+        "edge": "dotted",
+        "kind": "dive",
+        "faded": false,
+        "seq": 6,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 219.82991304296414,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/planet-view.tsx",
+        "to": "file:packages/forest/src/view/file-circles.ts",
+        "edge": "solid",
+        "kind": "hop",
+        "faded": false,
+        "seq": 7,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 228.17285632985818,
+        "opacity": 0.85
+      },
+      {
+        "from": "file:packages/forest/src/view/file-circles.ts",
+        "to": "file:packages/agent-link/src/context/window.ts",
+        "edge": "dotted",
+        "kind": "hop",
+        "faded": false,
+        "seq": 8,
+        "visible": true,
+        "dashed": true,
+        "renderOrder": 6,
+        "minRadius": 219.7921014429459,
+        "maxRadius": 246.16715834307604,
+        "opacity": 0.85
+      }
+    ],
+    "circles": [
+      {
+        "file": "src/context/window.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 4.5172565358218035,
+        "lines": 222
+      },
+      {
+        "file": "src/view/file-circles.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 3.063286535372159,
+        "lines": 35
+      },
+      {
+        "file": "src/view/planet-view.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 5.0229276432819425,
+        "lines": 171
+      },
+      {
+        "file": "src/ghosts/ghosts.ts",
+        "state": "faded",
+        "colour": "bdeaf8",
+        "opacity": 0.6,
+        "dimmedByEmphasis": false,
+        "ring": false,
+        "radiusPx": 4.434616840082806,
+        "lines": 131
+      },
+      {
+        "file": "src/look-inside/look-inside.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 7.619136827599494,
+        "lines": 588
+      },
+      {
+        "file": "src/reads/reads.ts",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 4.1276344886236425,
+        "lines": 121
+      },
+      {
+        "file": "src/view/globe-points.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 5.896832530236334,
+        "lines": 283
+      },
+      {
+        "file": "src/view/surface.tsx",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.9,
+        "dimmedByEmphasis": false,
+        "ring": true,
+        "radiusPx": 6.004012941605817,
+        "lines": 303
+      }
+    ],
+    "rings": [
+      "file-ring:src/context/window.ts",
+      "file-ring:src/view/file-circles.ts",
+      "file-ring:src/view/planet-view.tsx",
+      "file-ring:src/look-inside/look-inside.ts",
+      "file-ring:src/reads/reads.ts",
+      "file-ring:src/view/globe-points.tsx",
+      "file-ring:src/view/surface.tsx"
+    ],
+    "territories": [
+      {
+        "capability": "capability_83d80a307e18",
+        "state": "in-window",
+        "colour": "6cd0ef",
+        "opacity": 0.36,
+        "dimmedByEmphasis": false
+      }
+    ],
+    "allCircles": 258
+  },
+  "released": {
+    "zoom": 1.6793655730057533,
+    "shellRadius": 218,
+    "trails": [
+      {
+        "from": "decision_88f95657e45b",
+        "to": "decision_98e3f55d636d",
+        "edge": null,
+        "kind": null,
+        "faded": false,
+        "seq": 0,
+        "visible": true,
+        "dashed": false,
+        "renderOrder": 0,
+        "minRadius": 183.11999594430011,
+        "maxRadius": 187.64701886643357,
+        "opacity": 0.85
+      }
+    ],
+    "circles": [],
+    "rings": [],
+    "territories": [],
+    "allCircles": 258
+  },
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "asked": [
+    "builder",
+    "builder",
+    "builder"
+  ]
+}

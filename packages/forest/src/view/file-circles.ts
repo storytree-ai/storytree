@@ -4,7 +4,8 @@
  * and hides a neighbour; it is named `file:<path>` and carries the file, its lines and its capability,
  * which is what pointing at it names (3.17). Plain three.js, so the marks are read without a browser.
  */
-import { CircleGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, Quaternion, Vector3 } from "three";
+import { CircleGeometry, Color, DoubleSide, Group, Mesh, MeshBasicMaterial, Quaternion, RingGeometry, Vector3 } from "three";
+import { codePathKey, IN_VIEW, type CodeState } from "@storytree/knowledge-core";
 
 type Point = { readonly x: number; readonly z: number };
 
@@ -36,4 +37,65 @@ export function fileCircleMarks(circles: readonly FileCircleMark[], onSurface: (
     group.add(mark);
   }
   return group;
+}
+
+/** Where each circle lies once its island is set on the globe (`plate`: the island's place and turn there), keyed as the knowledge core keys a file: its package and its path in the package (ADR-0804 D5). */
+export function circleStops(marks: Group, pkg: string, plate: { position: Vector3; quaternion: Quaternion }): Map<string, { x: number; y: number; z: number }> {
+  const stops = new Map<string, { x: number; y: number; z: number }>();
+  for (const mark of marks.children) {
+    if (typeof mark.userData.file !== "string") continue;
+    const { x, y, z } = mark.position.clone().applyQuaternion(plate.quaternion).add(plate.position);
+    stops.set(codePathKey(pkg, mark.userData.file), { x, y, z });
+  }
+  return stops;
+}
+
+/** A lit circle's fill: the session's colour over the pale circle, full while the read is in the window, lighter and fainter once compacted out (as a note's dot is, ADR-0756). */
+const LIT_OPACITY = { "in-window": 0.9, faded: 0.6 } as const;
+const RING_INNER = 1.18;
+const RING_OUTER = 1.42;
+
+/** Marks what lighting adds, so the session emphasis that dims an island leaves them at full strength: the traversal reads on every island. */
+const traversalMark = (mark: Mesh, name: string): Mesh => {
+  mark.name = name;
+  mark.raycast = () => {};
+  mark.userData = { traversal: true };
+  return mark;
+};
+
+/**
+ * Lights the circles the selected session opened (ADR-0804 D5), `lit` keyed as `circleStops` keys them, in the
+ * session's `colour`: a fill over the circle, and for a read in the window the in-view ring around it; a
+ * compacted read is lighter with no ring. What lighting adds is laid over the circle, never swapped into it,
+ * so calling it again with less lit lets the rest go and the circle itself is as it was.
+ */
+export function lightFileCircles(marks: Group, lit: ReadonlyMap<string, CodeState>, colour: string, pkg: string): void {
+  for (const mark of marks.children) {
+    const path = mark.userData.file;
+    if (typeof path !== "string" || !(mark instanceof Mesh)) continue;
+    for (const added of [`file-lit:${path}`, `file-ring:${path}`]) {
+      const old = mark.getObjectByName(added) as Mesh | undefined;
+      if (old === undefined) continue;
+      old.removeFromParent();
+      (old.material as MeshBasicMaterial).dispose();
+      if (old.geometry !== mark.geometry) old.geometry.dispose();
+    }
+    const state = lit.get(codePathKey(pkg, path));
+    if (state === undefined) {
+      delete mark.userData.window;
+      continue;
+    }
+    mark.userData.window = state;
+    const wear = new Color(colour);
+    if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
+    // Children of the circle, so they lie as flat as it does and grow with it.
+    const fill = traversalMark(new Mesh(mark.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_OPACITY[state], side: DoubleSide, depthWrite: false })), `file-lit:${path}`);
+    fill.renderOrder = 4;
+    mark.add(fill);
+    if (state === "in-window") {
+      const ring = traversalMark(new Mesh(new RingGeometry(RING_INNER, RING_OUTER, 40), new MeshBasicMaterial({ color: IN_VIEW, transparent: true, opacity: 0.95, side: DoubleSide, depthWrite: false })), `file-ring:${path}`);
+      ring.renderOrder = 5;
+      mark.add(ring);
+    }
+  }
 }

@@ -26,6 +26,15 @@ export type FileImport = { readonly from: string; readonly to: string };
 
 export type StorySurvey = { readonly files: readonly SurveyedFile[]; readonly imports: readonly FileImport[] };
 
+/** Stories whose package is not named after their title. */
+const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes" };
+
+/** The package a story's code lives in: named after its title ("The agent link" is packages/agent-link), but for a few named otherwise. */
+export function packageOf(title: string): string {
+  const name = title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return PACKAGE_NAMED_OTHERWISE[name] ?? name;
+}
+
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;

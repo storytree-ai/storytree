@@ -8,12 +8,9 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { SessionRing } from "./ring.js";
-import { arcKey, arrived, curvePoint, fillAt, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, tailSpan, type AgentPath, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { arcKey, arrived, curvePoint, IN_VIEW, fillAt, stepPoint, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, tailSpan, type AgentPath, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
-
-/** The window's colour (ADR-0746 D1): a warm white no session wears, since sessions take their colours from the whole hue wheel. */
-const IN_VIEW = "#f4ecd8";
 
 /** How long a new step's line takes to grow, and each step of a glow's loop, and its rest between loops (ADR-0742). */
 const GROW_MS = 900;
@@ -32,7 +29,7 @@ const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMe
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window, replay = false }: {
+export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window, replay = false, stops }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
   /** Notes a running session read, in its latest reader's colour, with every session that read it (ADR-0738, ADR-0754 D2). */
   lit?: ReadonlyMap<string, Lighting>;
@@ -44,8 +41,10 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
   window?: (WindowView & { colour: string }) | undefined;
   /** A selected session: its trails replay as one head walking them in recorded order, building the picture, then resting and starting again (ADR-0797). */
   replay?: boolean;
+  /** Where else a step can start or end (ADR-0804 D5): each file circle's stop on the land, outside the core, by its stop id. */
+  stops?: ReadonlyMap<string, Point> | undefined;
 }) {
-  const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
+  const at = useMemo(() => new Map<string, Point>([...points.map((point): [string, Point] => [point.id, point.at]), ...(stops ?? [])]), [points, stops]);
   const invalidate = useThree(state => state.invalidate);
   // One replay for the session, never one per agent: a single clock walks every trail in seq order (ADR-0797 D1).
   const replaying = replay && !reducedMotion();
@@ -141,8 +140,8 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
 }
 
 const STEPS = 24;
-const sample = (from: Point, to: Point, end: number): number[] =>
-  Array.from({ length: STEPS + 1 }, (_, index) => curvePoint(from, to, end * index / STEPS)).flatMap(({ x, y, z }) => [x, y, z]);
+const sample = (from: Point, to: Point, end: number, kind?: "hop" | "dive"): number[] =>
+  Array.from({ length: STEPS + 1 }, (_, index) => stepPoint(kind, from, to, end * index / STEPS)).flatMap(({ x, y, z }) => [x, y, z]);
 
 /**
  * One step of a reading path: a quadratic Bezier bowed away from the globe's centre, so it never
@@ -164,11 +163,17 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   const { step } = trail;
   const line = useMemo(() => {
     const made = lineOf(1.6, false);
+    // A step over the land is drawn after the land's tints and circles, which are otherwise laid over it (ADR-0804 D5).
+    if (step?.kind !== undefined) { made.renderOrder = 6; made.material.linewidth = 2.4; }
     if (step?.edge === "dotted") Object.assign(made.material, { dashed: true, dashSize: radius * 0.007, gapSize: radius * 0.007 });
     if (step?.faded) made.material.opacity = 0.45;
     return made;
-  }, [step?.edge, step?.faded, radius]);
-  const fill = useMemo(() => step === undefined || reducedMotion() || replayed !== undefined ? undefined : lineOf(3, true), [step === undefined, replayed === undefined]);
+  }, [step?.edge, step?.faded, step?.kind, radius]);
+  const fill = useMemo(() => {
+    const made = step === undefined || reducedMotion() || replayed !== undefined ? undefined : lineOf(3, true);
+    if (made !== undefined && step?.kind !== undefined) made.renderOrder = 6;
+    return made;
+  }, [step === undefined, replayed === undefined]);
   useEffect(() => () => { line.geometry.dispose(); line.material.dispose(); }, [line]);
   useEffect(() => () => { fill?.geometry.dispose(); fill?.material.dispose(); }, [fill]);
   useEffect(() => {
@@ -191,7 +196,7 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   }, [trail.colour, step?.faded]);
   // Drawn to `end` of the way along; a log path's colours stay dim-to-bright over what is drawn.
   const draw = (end: number) => {
-    line.geometry.setPositions(sample(from, to, end));
+    line.geometry.setPositions(sample(from, to, end, step?.kind));
     line.geometry.setColors(colours);
     if (step?.edge === "dotted") line.computeLineDistances();
     line.visible = end > 0;
@@ -222,14 +227,14 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
     const run = done.current ? fillAt(now - began.current, FILL) : undefined;
     fill.visible = run !== undefined && run > 0;
     if (fill.visible) {
-      fill.geometry.setPositions(sample(from, to, run!));
+      fill.geometry.setPositions(sample(from, to, run!, step?.kind));
       fill.geometry.setColors(fillColours);
     }
     fill.userData = { fill: run ?? null };
     invalidate();
   });
   return <group name={`knowledge-trail:${trail.from}>${trail.to}`}
-    userData={{ from: trail.from, to: trail.to, colour: trail.colour, seq: trail.seq, edge: step?.edge ?? null, faded: step?.faded ?? false }}>
+    userData={{ from: trail.from, to: trail.to, colour: trail.colour, seq: trail.seq, edge: step?.edge ?? null, faded: step?.faded ?? false, kind: step?.kind ?? null }}>
     <primitive object={line} />
     {fill !== undefined && <primitive object={fill} name={`knowledge-fill:${trail.from}>${trail.to}`} />}
   </group>;

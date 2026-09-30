@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.3 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.4 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -62,5 +62,31 @@ test("10.3 `capability built` switches a capability's proposed flag off, `capabi
     const unknown = await world.run(["capability", "built", "capability_000000000000"]);
     assert.equal(unknown.code, 1);
     assert.match(unknown.stderr, /no capability "capability_000000000000"/);
+  });
+});
+
+test("10.4 each capability's line gives its word, and for one not healthy its reason, who moves it and the contracts carrying it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const proposed = await library.addCapability({ title: "Password rules", story: story.id });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const good = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.addContract({ title: "1.2 · Accepts a plus address", capability: form.id });
+    const owner = await library.addContract({ title: "1.3 · Sends through the real mail service", capability: form.id });
+    const done = await library.addCapability({ title: "Thank-you page", story: story.id });
+    const shown = await library.addContract({ title: "2.1 · Says thank you", capability: done.id });
+    for (const built of [form, done]) await library.setProposed(built.id, false);
+    await library.recordVerified(good.id, "passing");
+    await library.recordVerified(owner.id, "not-checked", { skip: "owner" });
+    await library.recordVerified(shown.id, "passing");
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const line = (text: string): string => ran.stdout.split(/\r?\n/).find((each) => each.includes(`[`) && each.includes(text) && !each.trimStart().startsWith("-")) ?? "";
+    assert.match(line("Password rules"), /proposed — not built, the agent's to move/);
+    assert.match(line("Email form"), /untested — no test names it, the agent's to move: 1\.2$/);
+    assert.match(line("Thank-you page"), /healthy$/);
   });
 });

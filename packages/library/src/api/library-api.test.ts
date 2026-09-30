@@ -109,7 +109,8 @@ const LIBRARY_API = [
  * RetireRefusedError with capability 12: how retiring a question work is held on is refused.
  * NumberTakenError and SupersessionLoopError joined it with capability 13: how a decision number
  * already held, and a decision superseding itself, are refused. LinkLoopError joined it with
- * contract 9.4: how a note link that would close a loop is refused (ADR-0647 D2).
+ * contract 9.4: how a note link that would close a loop is refused (ADR-0647 D2). wordAndWhy joined
+ * it with contract 5.8: how a capability's word and why it is not healthy are said (ADR-0825 D1).
  */
 const RUNTIME_EXPORTS = [
   "ConnectionError",
@@ -128,6 +129,7 @@ const RUNTIME_EXPORTS = [
   "UnknownTypeError",
   "WaitLoopError",
   "connect",
+  "wordAndWhy",
 ];
 
 /** The health of a node with no entries. */
@@ -167,6 +169,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
               health: rolledUp,
               contracts: [{ id: contract.id, title: "Rejects a bad email", health: contractHealth }],
               status: "proposed",
+              why: { reason: "not built", mover: "agent", contracts: [] },
             },
           ],
         },

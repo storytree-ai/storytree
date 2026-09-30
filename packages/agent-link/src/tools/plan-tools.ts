@@ -4,7 +4,7 @@
  * and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import type { AnnotatedTree, HealthState, NodeHealth } from "@storytree/library";
+import { wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth } from "@storytree/library";
 import { z } from "zod";
 
 import { claimsFrom } from "../claims/index.js";
@@ -190,7 +190,7 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
   for (const story of tree.stories) {
     out.push(`Story ${quoted(story.title)} (${story.id}): ${healthOf(story.health)}`);
     for (const capability of story.capabilities) {
-      out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${heldBy(capability.id)}`);
+      out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);
     }
   }

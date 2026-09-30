@@ -5,7 +5,7 @@
  * below the tree, with its health as the agent reports it and its contracts on request (ADR-0659).
  * Every word from the library is written as text, never as HTML.
  */
-import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type StoryPanel } from "@storytree/forest";
+import { CARD, layoutTree, OUTSIDE_CARD, type CapabilityLine, type Card, type StoryPanel, type WhyLine } from "@storytree/forest";
 import type { HealthState } from "@storytree/library";
 
 const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", failing: "failing", "not-checked": "not checked" };
@@ -38,6 +38,7 @@ function capability(line: CapabilityLine): string {
               <span class="panel-health">
                 ${badge("the agent reports", contract.reported)}
                 <span class="panel-trail">${text(contract.trail)}</span>
+                ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
                 ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified)}
               </span>
             </li>`,
@@ -46,6 +47,7 @@ function capability(line: CapabilityLine): string {
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
       <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.status}</span></h3>
+      ${line.why === undefined ? "" : why(line.why)}
       <p>${text(line.description)}</p>
       <p class="panel-health">
         ${badge("the agent reports", line.reported)}
@@ -53,6 +55,31 @@ function capability(line: CapabilityLine): string {
       </p>
       <details><summary>${line.contracts.length} contract${line.contracts.length === 1 ? "" : "s"}</summary>${contracts}</details>
     </section>`;
+}
+
+/** The reason in the owner's words, by what carries it. */
+const REASON: Readonly<Record<WhyLine["reason"], (named: string) => string>> = {
+  "not built": () => "it is not built yet",
+  failing: (named) => `${named} ${/ and |, /.test(named) ? "are" : "is"} failing`,
+  "not re-run": (named) => `${named} ${/ and |, /.test(named) ? "were" : "was"} not re-run`,
+  "no test names it": (named) => `no test names ${named}`,
+  "out of CI's reach": (named) => `${named} can only run on another platform`,
+  "needs owner": (named) => `${named} needs something only you can give`,
+};
+
+/** Under its word: why it is not green and who moves it (ADR-0825 D1). Everything the library says is text. */
+function why({ reason, mover, contracts, since }: WhyLine): string {
+  const named = contracts.length < 2 ? (contracts[0] ?? "it") : `${contracts.slice(0, -1).join(", ")} and ${contracts.at(-1)}`;
+  const sentence = REASON[reason](reason === "not built" ? "" : named);
+  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${since === undefined ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A time as the day it fell on, in UTC so every reader sees the same: "27 Sep". */
+function day(at: string): string {
+  const when = new Date(at);
+  return `${when.getUTCDate()} ${MONTHS[when.getUTCMonth()]}`;
 }
 
 function badge(who: string, state: HealthState): string {

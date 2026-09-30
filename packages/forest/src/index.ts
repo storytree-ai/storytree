@@ -12,7 +12,7 @@ export { keptTree } from "./render/kept-tree.js";
 export { forestReading } from "./render/forest-reading.js";
 export type { ForestReadingOptions, ForestReads } from "./render/forest-reading.js";
 export { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down/drill-down.js";
-export type { Arrow, CapabilityLine, ContractLine, StoryPanel } from "./drill-down/drill-down.js";
+export type { Arrow, CapabilityLine, ContractLine, StoryPanel, WhyLine } from "./drill-down/drill-down.js";
 export { CARD, layoutTree, OUTSIDE_CARD } from "./drill-down/tree-layout.js";
 export type { Card, Link, TreeLayout } from "./drill-down/tree-layout.js";
 export { claimTints, coastArcs, sessionColour, sessionWisps } from "./agent-claims/agent-claims.js";

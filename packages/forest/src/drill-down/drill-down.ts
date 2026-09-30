@@ -14,7 +14,7 @@
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
 import type { PartState, WorkStates } from "@storytree/arc-surface";
-import type { AnnotatedContract, AnnotatedTree, CapabilityStatus, Change, HealthColumn, HealthState } from "@storytree/library";
+import type { AnnotatedContract, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthState } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 
@@ -28,6 +28,18 @@ export interface ContractLine {
   trail: string;
   /** Storytree's own column, only where something wrote it. */
   verified?: HealthState;
+  /** The verdict storytree last saw for it, when the latest run did not reproduce it: "not re-run" (ADR-0825 D2). */
+  lastSeen?: EarlierVerdict;
+}
+
+/** Why a capability is not healthy, and who moves it, with its contracts named for the owner (ADR-0825 D1). */
+export interface WhyLine {
+  reason: CapabilityWhy["reason"];
+  mover: CapabilityWhy["mover"];
+  /** The contracts carrying the reason, each by the number its title starts with, else its title. */
+  contracts: string[];
+  /** The earliest time one of them was recorded so, when a time was recorded. */
+  since?: string;
 }
 
 /** One capability, as the panel explains it. */
@@ -45,6 +57,8 @@ export interface CapabilityLine {
   /** Its word, as the library gives it: proposed, healthy, unhealthy or untested (ADR-0744). */
   status: CapabilityStatus;
   contracts: ContractLine[];
+  /** Why it is not healthy; absent when it is healthy. */
+  why?: WhyLine;
 }
 
 /** An arrow of the diagram: a capability pointing at one it builds on. */
@@ -100,6 +114,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates
         state,
         status: capability.status,
         contracts,
+        ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts) }),
       },
     ];
   });
@@ -128,7 +143,15 @@ function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]
     reported: contract.health.reported.state,
     trail: trailWords(trail),
     ...(written(contract.health.verified) ? { verified: contract.health.verified.state } : {}),
+    ...(contract.health.verified.was === undefined ? {} : { lastSeen: contract.health.verified.was }),
   };
+}
+
+/** `why` with its contract ids turned into what the owner reads: the number their title starts with ("8.1 · …"), else the title. */
+function whyLine({ reason, mover, contracts, since }: CapabilityWhy, all: readonly AnnotatedContract[]): WhyLine {
+  const titles = new Map(all.map(({ id, title }) => [id, title]));
+  const named = contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? titles.get(id) ?? id);
+  return { reason, mover, contracts: named, ...(since === undefined ? {} : { since }) };
 }
 
 /** Whether a column has an entry: a contract's column carries its time once something wrote it. */

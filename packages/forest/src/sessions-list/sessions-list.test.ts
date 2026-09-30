@@ -66,6 +66,14 @@ test("7.1 a session holding no claim still gets a plain row, named from the work
   assert.deepEqual(row?.worktrees, ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
 });
 
+test("7.13 each row names the machine its session runs on only when the listed sessions span more than one machine", () => {
+  const lines = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "mint" },
+    { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });
+  assert.deepEqual(sessionRows(tree, lines, [], now).map(row => row.machine), ["laptop", "mint", undefined]);
+  const one = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "laptop" });
+  assert.deepEqual(sessionRows(tree, one, [], now).map(row => row.machine), [undefined, undefined], "one machine is not worth naming");
+});
+
 test("a session whose hooks report no turns is judged by the idle-after setting the list is given, not a fixed 30 minutes", () => {
   const lines = log({ ...off, kind: "claimed", increment: "tidy", reason: "Tidy", at: "2026-09-28T11:45:00Z" });
   assert.equal(sessionRows(tree, lines, [], now)[0]?.state, "working", "15 minutes quiet is working at the 30-minute default");

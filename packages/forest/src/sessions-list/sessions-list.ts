@@ -45,6 +45,8 @@ export interface SessionRow {
   worktrees: string[];
   /** Its branches that still hold unmerged work (ADR-0754 D4): a session that has not cleaned up, marked so it can be looked into. */
   unmerged: string[];
+  /** The machine it runs on, named only when the listed sessions span more than one (7.13). */
+  machine?: string;
   children: SessionRow[];
 }
 
@@ -117,6 +119,12 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   }
   for (const row of roots) includeChildren(row);
   for (const row of roots) row.idle &&= !row.needsYou && !row.children.some(child => child.state === "working");
+  // A session's machine is the latest one its lines name; worth showing only when the list spans several.
+  const machines = new Map<string, string>();
+  for (const line of [...lines].sort((a, b) => a.seq - b.seq)) if (line.machine !== undefined) machines.set(line.session, line.machine);
+  if (new Set(roots.flatMap(row => machines.has(row.id) ? [machines.get(row.id)!] : [])).size > 1) {
+    for (const row of roots) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
+  }
   return roots;
 }
 

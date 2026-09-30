@@ -2,9 +2,15 @@ name: CI
 
 # Every change reaches main through a pull request. On each pull request into main, `platforms`
 # installs, typechecks and runs the tests on Linux, macOS and Windows, against the merge of the
-# branch with main, and `verify` passes once all three have. Then `automerge` merges the pull
+# branch with main, and `verify` passes once all three have. Then `automerge` lands the pull
 # request. Branch protection on main requires `verify`, so nothing merges unless the tests passed on
 # every system.
+#
+# main merges through GitHub's merge queue (ADR-0796): `automerge` hands a green pull request to
+# the queue, and the queue runs this workflow again (`merge_group`) on the merge of main, every pull
+# request ahead of it, and this one; it merges only if `verify` passes there too, so two pull
+# requests that each passed alone cannot together leave main red. While no queue is required on
+# main, `automerge` merges directly, as before the queue.
 #
 # The product ships for Windows first, on x64 and arm64; the Windows run here is x64. The macOS run
 # keeps the code working on a Mac from the day each line is written, so that Mac support later is
@@ -15,14 +21,18 @@ name: CI
 # pull request that carries the `hold` label when its run starts is not merged either. A pull
 # request from a fork is checked, never merged automatically.
 #
-# `verify` also runs on each push to main. A merge that `automerge` makes starts no such run:
-# GitHub starts no workflow from a push made with a workflow's own token. So `automerge` starts
-# own-health.yml on main itself, which records each contract's verified health (ADR-0744 D3).
+# `verify` also runs on each push to main. The queue's merge is such a push, so it starts this
+# workflow, release.yml (after it) and own-health.yml on main by itself. A direct merge that
+# `automerge` makes starts none of them: GitHub starts no workflow from a push made with a
+# workflow's own token. So then `automerge` starts own-health.yml on main itself, which records
+# each contract's verified health (ADR-0744 D3), and release.yml follows the pull request's run.
 
 on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
 
@@ -87,7 +97,8 @@ jobs:
       - if: matrix.system == 'Windows' && steps.installer.outputs.changed == 'true'
         run: node apps/desktop/check-install.mjs
 
-  # The check branch protection on main requires, and the one `automerge` waits for. It passes only
+  # The check branch protection on main requires, and the one `automerge` waits for; it reports on
+  # the merge queue's runs too, so the queue can merge on it. It passes only
   # if every run in `platforms` passed. It runs whatever they did (always()), so a run that failed
   # or was cancelled fails it: were it skipped instead, GitHub would count the skipped check as
   # passed.
@@ -120,24 +131,40 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      # --match-head-commit: merge the commit `verify` passed, never one pushed since. --auto: if
-      # main's protection still holds the merge back, GitHub's auto-merge makes it once it allows;
-      # otherwise gh merges now. --delete-branch: the repo's own "automatically delete head
-      # branches" setting left #1's branch in place after this job merged it, so gh deletes the
+      # With a merge queue required on main, enqueue the pull request at the commit `verify` passed
+      # (expectedHeadOid): the queue tests it on top of main and merges it. Without one, merge it
+      # directly. --match-head-commit: merge the commit `verify` passed, never one pushed since.
+      # --auto: if main's protection still holds the merge back, GitHub's auto-merge makes it once
+      # it allows; otherwise gh merges now. --delete-branch: the repo's own "automatically delete
+      # head branches" setting left #1's branch in place after this job merged it, so gh deletes the
       # branch itself.
       - name: Merge
+        id: merge
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          PR_ID: ${{ github.event.pull_request.node_id }}
           SHA: ${{ github.event.pull_request.head.sha }}
-        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$SHA" --delete-branch
-      # Main has changed, and this merge starts no push workflow (it was made with this token), so
-      # start the one that records each contract's verified health on main (own-health.yml). Only
-      # once the merge has happened, which GitHub finishes a few seconds after `gh pr merge --auto`
-      # returns (7 s on #219), so this waits for it, up to two minutes. A merge still held back
-      # after that records nothing now, and the next change to main records it. The merge is
-      # already made or scheduled, so a failure here never fails it.
+        run: |
+          queue=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
+            -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { isMergeQueueEnabled } } }' \
+            --jq .data.repository.pullRequest.isMergeQueueEnabled)
+          echo "queue=$queue" >> "$GITHUB_OUTPUT"
+          if [ "$queue" = true ]; then
+            gh api graphql -f id="$PR_ID" -f sha="$SHA" \
+              -f query='mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }' \
+              --jq '"Entered the merge queue at position \(.data.enqueuePullRequest.mergeQueueEntry.position)."'
+          else
+            gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$SHA" --delete-branch
+          fi
+      # A direct merge starts no push workflow (it was made with this token), so start the one that
+      # records each contract's verified health on main (own-health.yml). Only once the merge has
+      # happened, which GitHub finishes a few seconds after `gh pr merge --auto` returns (7 s on
+      # #219), so this waits for it, up to two minutes. A merge still held back after that records
+      # nothing now, and the next change to main records it. The merge is already made or
+      # scheduled, so a failure here never fails it. The queue's merge starts own-health.yml itself.
       - name: Record own health on main
+        if: steps.merge.outputs.queue != 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}

@@ -8,8 +8,8 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
-  needsYou: true, idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], unmerged: [], description: [], children: [
-    { id: "child", label: "Read the library", agent: "Subagent", state: "observed", needsYou: false, idle: false,
+  idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], unmerged: [], description: [], children: [
+    { id: "child", label: "Read the library", agent: "Subagent", state: "observed", idle: false,
       totalTokens: undefined, stories: [], worktrees: [], unmerged: [], description: [], children: [] },
   ] };
 
@@ -110,7 +110,7 @@ test("7.13 a row named with its machine shows it beside the label; a row without
 });
 
 test("7.9 the list prints no prose about a session: a row that needs you, holds unmerged work or has a close-out why shows none of it, and the header count names no such need", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], needsYou: true, needsYouWhy: "says safe, but fix-login is unmerged", unmerged: ["fix-login", "tidy-readme"] } as SessionRow], onHighlight() {} }));
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], needsYouWhy: "says safe, but fix-login is unmerged", unmerged: ["fix-login", "tidy-readme"] } as SessionRow], onHighlight() {} }));
   assert.match(html, /Build &lt;signup&gt;/);
   assert.doesNotMatch(html, /needs you|unmerged|says safe|fix-login|needing/i);
 });

@@ -44,10 +44,17 @@ export function hiddenMarkers(islands: readonly FacingIsland[], rotation: Quater
 
 /** Pick the actual rotated land. The see-through shell retains the near-side interaction rule. */
 export function pickIsland(ray: Raycaster, world: Object3D): string | undefined {
+  return pickLand(ray, world)?.story;
+}
+
+/** The land a ray meets first: its story, and the capability whose territory it is, if it is one (3.15). */
+function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?: string } | undefined {
   for (const hit of ray.intersectObject(world, true)) {
+    let capability: string | undefined;
     for (let object: Object3D | null = hit.object; object !== null; object = object.parent) {
       if (object.name === "planet:shell") return undefined;
-      if (object.name.startsWith("planet:")) return object.name.slice("planet:".length);
+      if (object.name.startsWith("territory:") && typeof object.userData.capability === "string") capability ??= object.userData.capability;
+      if (object.name.startsWith("planet:")) return capability === undefined ? { story: object.name.slice("planet:".length) } : { story: object.name.slice("planet:".length), capability };
     }
   }
   return undefined;
@@ -84,6 +91,7 @@ export function pickGlobe(world: Object3D, camera: Camera,
   });
   const note = pickProjectedNote(notes, cursor, landDistance);
   if (note !== undefined) return { kind: "note", id: note };
-  const story = mode === "forest" ? pickIsland(ray, world) : undefined;
-  return story === undefined ? undefined : { kind: "story", id: story };
+  const land = mode === "forest" ? pickLand(ray, world) : undefined;
+  if (land === undefined) return undefined;
+  return land.capability === undefined ? { kind: "story", id: land.story } : { kind: "story", id: land.story, capability: land.capability };
 }

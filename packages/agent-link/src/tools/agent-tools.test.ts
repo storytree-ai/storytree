@@ -1286,3 +1286,25 @@ test("6.27 correct_question corrects an open question's wording in place: only t
     });
   });
 });
+
+test("6.26 open on a contract shows it whole: its title, its description and the capability it belongs to; an arc is still refused readably", async () => {
+  await withProject(async ({ folder, library }) => {
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "Postcode form", story: story.id });
+    const contract = await library.addContract({ title: "Rejects a postcode with letters only", capability: capability.id, description: "A bad postcode is refused" });
+    const arc = await library.createArc({ title: "Signup release", intent: "Ship signup", endState: "Signup live" });
+
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const opened = await agent.call("open", { id: contract.id });
+
+      assert.equal(opened.isError, false);
+      assert.match(opened.text, /Contract "Rejects a postcode with letters only" \(contract_\w+\):\nA bad postcode is refused/);
+      assert.match(opened.text, new RegExp(`Capability "Postcode form" \\(${capability.id}\\)`));
+      assert.deepEqual(opened.data.contract, { id: contract.id, title: "Rejects a postcode with letters only", description: "A bad postcode is refused", capability: { id: capability.id, title: "Postcode form" } });
+
+      const refused = await agent.call("open", { id: arc.id });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /is an arc/);
+    });
+  });
+});

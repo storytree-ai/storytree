@@ -6,10 +6,10 @@ name: Own health
 # with the commit in each note. Never from a pull request's run: only main's own commits are
 # recorded.
 #
-# CI's merges are made with the workflow's own token, and GitHub starts no push workflow from those,
-# so ci.yml's `automerge` dispatches this workflow on main once its merge has happened. A push to
-# main made any other way starts it too, and it can be run by hand (Actions > Own health > Run
-# workflow) to record main as it is now.
+# The merge queue's merge (ADR-0796) is a push to main and starts it. A direct merge by CI is made
+# with the workflow's own token, and GitHub starts no push workflow from those, so then ci.yml's
+# `automerge` dispatches this workflow on main once its merge has happened. It can also be run by
+# hand (Actions > Own health > Run workflow) to record main as it is now.
 #
 # It signs in to Google keylessly: GitHub's OIDC token, exchanged through workload identity
 # federation for CI's own service account (infra/ci-health), which may connect to the instance as

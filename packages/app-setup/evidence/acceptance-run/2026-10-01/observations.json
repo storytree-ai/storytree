@@ -1,0 +1,91 @@
+{
+  "story": "The app setup",
+  "release": "0.3.401",
+  "commit": "931071cf9c7bb91967f8dcd3eeac49cd38f37592",
+  "evidence": "packages/app-setup/evidence/acceptance-run/2026-10-01",
+  "checks": [
+    {
+      "contract": "2.2",
+      "name": "the first folder: storytree's command says it was not a project before the session",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "the first folder: after one new Claude Code session there, storytree's command says it is project \"st-accept-1002-a\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "the first folder: Claude Code's hooks reached storytree after the run started",
+      "observed": "pass",
+      "detail": "last seen firing 2026-09-30T21:57:42.671Z"
+    },
+    {
+      "contract": "1.6",
+      "name": "the first folder: a fresh PowerShell finds storytree's installed command",
+      "observed": "pass",
+      "detail": "C:\\Users\\mickh\\.storytree\\0.3\\bin\\storytree.cmd"
+    },
+    {
+      "contract": "1.6",
+      "name": "the first folder: storytree doctor, run from that fresh PowerShell, exits 0",
+      "observed": "pass",
+      "detail": "exit 0"
+    },
+    {
+      "contract": "1.5",
+      "name": "the first folder: with no Node and no Git on the machine's path, the session's tools set the folder up",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "a second folder, later: storytree's command says it was not a project before the session",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "a second folder, later: after one new Claude Code session there, storytree's command says it is project \"st-accept-1002-b\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "a second folder, later: Claude Code's hooks reached storytree after the run started",
+      "observed": "pass",
+      "detail": "last seen firing 2026-09-30T21:58:04.260Z"
+    },
+    {
+      "contract": "1.6",
+      "name": "a second folder, later: a fresh PowerShell finds storytree's installed command",
+      "observed": "pass",
+      "detail": "C:\\Users\\mickh\\.storytree\\0.3\\bin\\storytree.cmd"
+    },
+    {
+      "contract": "1.6",
+      "name": "a second folder, later: storytree doctor, run from that fresh PowerShell, exits 0",
+      "observed": "pass",
+      "detail": "exit 0"
+    },
+    {
+      "contract": "1.5",
+      "name": "a second folder, later: with no Node and no Git on the machine's path, the session's tools set the folder up",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.5",
+      "name": "Claude Code starts storytree's tool server from the installed app's own folder, not a checkout or a package cache",
+      "observed": "pass",
+      "detail": "\"C:\\\\Users\\\\mickh\\\\AppData\\\\Local\\\\Programs\\\\storytree-0.3\\\\resources\\\\agent-tools\\\\storytree-mcp.mjs\""
+    },
+    {
+      "contract": "1.6",
+      "name": "an existing unrelated storytree command is preserved and the conflict named",
+      "observed": "not-observed"
+    },
+    {
+      "contract": "1.5",
+      "name": "the app took an ordinary release update before these sessions started",
+      "observed": "pass",
+      "detail": "0.3.400.0 -> 0.3.401.0"
+    }
+  ]
+}

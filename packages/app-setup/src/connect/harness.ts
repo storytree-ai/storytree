@@ -88,7 +88,13 @@ export function claudeSettings(file: string): Settings {
   };
 }
 
-export async function codexSettings(file: string, run: RunHarness, env: NodeJS.ProcessEnv): Promise<Settings> {
+/**
+ * Codex starts a tool server with only HOME, LANG, LOGNAME, PATH, SHELL and USER (measured with
+ * Codex 0.153 in packages/app-setup/evidence/codex-home), so a Codex home other than ~/.codex is
+ * handed to it in the registration's env as `home`: without it the server's setup check would
+ * register and read hooks in ~/.codex while Codex reads them from its own home.
+ */
+export async function codexSettings(file: string, run: RunHarness, env: NodeJS.ProcessEnv, home?: string): Promise<Settings> {
   const before = read(file);
   const scratch = mkdtempSync(path.join(tmpdir(), "storytree-connect-"));
   const staged = path.join(scratch, "config.toml");
@@ -103,7 +109,7 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
       const transport = entry.transport;
       return transport.type === "stdio" && transport.command === installed.command && isDeepStrictEqual(transport.args, installed.args) &&
         (transport.cwd === null || transport.cwd === undefined) &&
-        (transport.env == null || isDeepStrictEqual(transport.env, {})) &&
+        (home === undefined ? transport.env == null || isDeepStrictEqual(transport.env, {}) : isDeepStrictEqual(transport.env, { CODEX_HOME: home })) &&
         (transport.env_vars == null || isDeepStrictEqual(transport.env_vars, [])) &&
         (entry.enabled_tools == null) && (entry.disabled_tools == null || isDeepStrictEqual(entry.disabled_tools, []));
     };
@@ -113,7 +119,7 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
       async add(installed) {
         // JSON's quoted strings/array are also TOML basic strings/array; escape control characters.
         // Appending a fresh table keeps every existing setting and comment byte-for-byte.
-        writeFileSync(staged, `${before ?? ""}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(installed.command)}\nargs = ${JSON.stringify(installed.args)}\n`, { mode: 0o600 });
+        writeFileSync(staged, `${before ?? ""}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(installed.command)}\nargs = ${JSON.stringify(installed.args)}\n${home === undefined ? "" : `env = { CODEX_HOME = ${JSON.stringify(home)} }\n`}`, { mode: 0o600 });
         if (!compatible(JSON.parse(await cli(["get", "storytree", "--json"])), installed)) throw new Error("Codex did not accept the installed tool server.");
         save(file, before, readFileSync(staged, "utf8"));
       },

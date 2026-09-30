@@ -27,6 +27,11 @@ export interface MachineState {
   readonly node: { readonly state: "ok" | "old" | "missing" | "not answering"; readonly version?: string };
   /** How long each tool was given to answer. */
   readonly waitMs: number;
+  /**
+   * Whether this runs as a Windows administrator (an elevated terminal, or a session started from one):
+   * Codex's Windows sandbox cannot run commands there (8.17). Never so elsewhere.
+   */
+  readonly elevated?: boolean;
 }
 
 export interface MachineOptions {
@@ -157,11 +162,28 @@ async function node(env: NodeJS.ProcessEnv, waitMs: number): Promise<MachineStat
 export async function machineState(options: MachineOptions = {}): Promise<MachineState> {
   const waitMs = options.waitMs ?? 5_000;
   const env = pathEnv(options.path);
-  const [claude, codex, gitState, nodeState] = await Promise.all([
+  const [claude, codex, gitState, nodeState, elevatedState] = await Promise.all([
     agentCli("claude", ["auth", "status"], env, waitMs),
     codexCli(env, waitMs, options),
     git(env, waitMs),
     node(env, waitMs),
+    elevated(env, waitMs),
   ]);
-  return { claude, codex, git: gitState, node: nodeState, waitMs };
+  return { claude, codex, git: gitState, node: nodeState, waitMs, elevated: elevatedState };
+}
+
+/**
+ * Whether this process runs elevated, read from its integrity label: an administrator's elevated token
+ * is labelled high (S-1-16-12288) or system (S-1-16-16384), a normal desktop session medium. Measured on
+ * the owner's laptop, 2026-09-30: an SSH login as an administrator is high, the desktop session medium.
+ */
+/** Whether this process runs as a Windows administrator (8.17), asked alone: for the installer's connect step. */
+export function runsElevated(options: { readonly path?: string; readonly waitMs?: number } = {}): Promise<boolean> {
+  return elevated(pathEnv(options.path), options.waitMs ?? 5_000);
+}
+
+async function elevated(env: NodeJS.ProcessEnv, waitMs: number): Promise<boolean> {
+  if (process.platform !== "win32") return false;
+  const answer = await ask("whoami", ["/groups", "/fo", "csv"], env, waitMs);
+  return answer.answered && answer.code === 0 && /S-1-16-(12288|16384)\b/.test(answer.out);
 }

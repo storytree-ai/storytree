@@ -45,6 +45,11 @@
 .setup-help-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .setup-help-panel [role="status"] { color: var(--muted); }
 .setup-help-panel [role="alert"] { color: var(--fail-text); }
+.setup-help-panel .setup-help-agents { color: var(--text); margin: .85rem 0; }
+.setup-help-agent { margin: 0 0 .5rem; padding: .55rem .75rem; border: 1px solid var(--line); border-left-width: 4px; border-radius: 4px; background: var(--code-bg); }
+.setup-help-agent-waiting { border-left-color: var(--text); }
+.setup-help-agent-running { color: var(--muted); }
+.setup-help-agent-step { display: block; margin-top: .3rem; font-weight: 600; }
 .setup-help-diagnostics { border-top: 1px solid var(--line); margin-top: .8rem; padding-top: .3rem; }
 .setup-help-diagnostics small { display: block; color: var(--muted); }
 .setup-help-panel.setup-help-embedded {

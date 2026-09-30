@@ -14,7 +14,9 @@ export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFr
 export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, ReleaseAnswer, ClaimedWorkspace, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
 export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER } from "./tools/index.js";
 export type { AgentToolOptions, AgentTools, ToolExtension, ToolCall, DefineTool, ToolAnswer } from "./tools/index.js";
-export { CHECK_COMMAND, CHECK_FILE, defaultHomes, markDisconnected, openStorytree, registerHooks, removeHooks, runSetupCheck, suggestedName, verifyHooks } from "./setup/index.js";
+export { codexHookTrust, noteCodexHookRan } from "./hooks/index.js";
+export type { CodexHookTrust } from "./hooks/index.js";
+export { CHECK_COMMAND, CHECK_FILE, CODEX_TRUST_STEP, defaultHomes, markDisconnected, openStorytree, registerHooks, removeHooks, runSetupCheck, runsElevated, suggestedName, verifyHooks } from "./setup/index.js";
 export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
 export { habitsCard, removeCodexInstructions, writeCodexInstructions } from "./instructions/index.js";
 export { contextCommand, contextReading, readContext, sessionWindow } from "./context/index.js";

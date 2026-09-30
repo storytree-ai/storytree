@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { markDisconnected, registerHooks, removeCodexInstructions, removeHooks, writeCodexInstructions } from "@storytree/agent-link";
+import { CODEX_TRUST_STEP, codexHookTrust, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, runsElevated, writeCodexInstructions } from "@storytree/agent-link";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };
@@ -14,12 +14,18 @@ export interface ConnectionOptions {
   readonly home?: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly run?: RunHarness;
+  /** Whether this runs as a Windows administrator, where Codex cannot run commands. By default, asked of Windows. */
+  readonly elevated?: () => Promise<boolean>;
 }
 export interface ConnectionResult {
   readonly harness: Harness;
   readonly settingsFile: string;
   readonly tools: "connected" | "already connected" | "not connected";
-  readonly hooks: "not verified";
+  /**
+   * Codex runs storytree's hooks only once the user trusts them, which only a hook that has run proves:
+   * until then its hooks wait for the user. Claude Code's are verified inside a session by check_setup.
+   */
+  readonly hooks: "not verified" | "waiting for you to trust them in Codex" | "running";
   readonly next: string;
 }
 export interface DisconnectionResult {
@@ -52,6 +58,7 @@ async function openSettings(harness: Harness, options: ConnectionOptions): Promi
   const where = locations(options);
   return harness === "claude-code" ? claudeSettings(where.files[harness]) : codexSettings(where.files[harness], options.run ?? runHarness, where.env);
 }
+const ELEVATED = "This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not \"Run as administrator\".";
 const conflict = (file: string) => `The existing storytree entry in ${file} is incompatible and was kept (including any 0.2 entry). Review or move that entry yourself before retrying. The name storytree is required by the existing hooks.`;
 
 /**
@@ -63,10 +70,12 @@ const conflict = (file: string) => `The existing storytree entry in ${file} is i
 export async function connectAgents(options: ConnectionOptions): Promise<ConnectionResult[]> {
   const where = locations(options);
   const results: ConnectionResult[] = [];
+  // Codex's own limit, which storytree only names: started from an administrator terminal, it runs no command (agent link 8.17).
+  const elevated = options.harnesses.includes("codex") && await (options.elevated ?? runsElevated)().catch(() => false);
   const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {
     const settingsFile = where.files[harness];
-    const result = (tools: ConnectionResult["tools"], next: string) => results.push({ harness, settingsFile, tools, hooks: "not verified", next });
+    const result = (tools: ConnectionResult["tools"], next: string, hooks: ConnectionResult["hooks"] = "not verified") => results.push({ harness, settingsFile, tools, hooks, next: harness === "codex" && elevated ? `${next} ${ELEVATED}` : next });
     try {
       const installed = installedToolServerCommand(options.installed.command, options.installed.args[0]);
       if (options.installed.args.length !== 1 || ![installed.command, installed.args[0]].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");
@@ -101,7 +110,10 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
       // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.
       if (harness === "codex") writeCodexInstructions(where.codex);
-      result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
+      const trust = harness === "codex" ? codexHookTrust({ storytreeHome: where.storytree, codexHome: where.codex }) : "not registered";
+      if (trust === "running") result(tools, "Tools connected in user settings; Codex has run storytree's hooks. Start a new Codex session in the folder of your project.", "running");
+      else if (trust === "waiting") result(tools, `Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. ${CODEX_TRUST_STEP}`, "waiting for you to trust them in Codex");
+      else result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
       const reason = harness === "claude-code" ? " Check that the file contains a valid JSON object." : " Check that codex mcp list --json succeeds and hooks.json contains a valid JSON object.";
@@ -156,6 +168,41 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
     }
   }
   return { harnesses, command, next: command === "kept" ? "Shared command kept while another connection exists or cleanup cannot be confirmed; retry Disconnect for cleanup when no connection remains." : "All user connections removed. Project libraries and unrelated settings were kept." };
+}
+
+export interface RemovalResult {
+  readonly harness: Harness;
+  readonly tools: "removed" | "none" | "kept";
+  readonly next?: string;
+}
+
+/**
+ * Uninstalling: take out this installation's registration, hooks and status line from both agents,
+ * whichever were chosen. Anything that does not run this installation's tools (another build's, 0.2's,
+ * the user's own) is not ours and stays, silently. Records no disconnection, since the home goes too.
+ */
+export async function removeConnections(options: Omit<ConnectionOptions, "harnesses">): Promise<RemovalResult[]> {
+  const where = locations({ ...options, harnesses: [] });
+  const hook = hookCommand(options.installed);
+  const results: RemovalResult[] = [];
+  for (const harness of ["claude-code", "codex"] as const) {
+    let settings: Settings | undefined;
+    try {
+      removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+      // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
+      if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
+      settings = await openSettings(harness, { ...options, harnesses: [] });
+      const ours = settings.current !== undefined && settings.compatible(options.installed);
+      if (ours) await settings.remove();
+      results.push({ harness, tools: ours ? "removed" : "none" });
+    } catch {
+      const next = harness === "claude-code"
+        ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks and status line in ${path.join(where.claude, "settings.json")}.`
+        : `run codex mcp remove storytree, or delete the [mcp_servers.storytree] table in ${where.files[harness]}; storytree's hooks are in ${path.join(where.codex, "hooks.json")}.`;
+      results.push({ harness, tools: "kept", next: `storytree could not remove its connection; ${next}` });
+    } finally { settings?.close(); }
+  }
+  return results;
 }
 
 function removeInstalledCommand(home: string, env: NodeJS.ProcessEnv, installed: InstalledToolServerCommand): "removed" | "none" {

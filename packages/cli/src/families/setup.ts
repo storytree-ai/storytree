@@ -7,7 +7,7 @@ import type { Context, Verb } from "../door.js";
 
 function installed(args: string[], context: Context) {
   const script = context.script === undefined ? undefined : path.join(path.dirname(context.script), "storytree-deliver.mjs");
-  if (script === undefined || !existsSync(script)) throw new Refusal("The installed connection helper is missing. Re-run the storytree installer, then run this installation's storytree setup connect command.");
+  if (script === undefined || !existsSync(script)) throw new Refusal(`The installed setup helper is missing: only an installed storytree has it. Re-run the storytree installer, then run this installation's storytree setup ${args[0] === "open-uninstaller" ? "uninstall" : "connect"} command.`);
   const ran = spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
   if (ran.status !== 0) throw new Refusal(`${ran.stderr ?? ""}${ran.stdout ?? ""}`.trim() || "The connection helper could not run. Re-run the storytree installer and retry.", { code: ran.status ?? 1 });
   return { text: ran.stdout };
@@ -32,6 +32,19 @@ export const setupConnectionVerbs: readonly Verb[] = [
         throw new Refusal("usage: storytree setup disconnect <claude-code|codex>", { code: 2 });
       }
       return installed(["disconnect", harness], context);
+    },
+  },
+  {
+    name: "uninstall", usage: "setup uninstall [--keep-library|--remove-library]",
+    summary: "remove storytree from this computer, as Windows Apps & features does; your project folders are left alone",
+    switches: ["keep-library", "remove-library"],
+    async act(args, context) {
+      const keep = args.has("keep-library");
+      const remove = args.has("remove-library");
+      if (args.words.length || (keep && remove) || args.names.some((name) => !["keep-library", "remove-library"].includes(name) || args.text(name) !== "true")) {
+        throw new Refusal("usage: storytree setup uninstall [--keep-library|--remove-library] (without either, the uninstaller asks)", { code: 2 });
+      }
+      return installed(["open-uninstaller", ...(keep ? ["keep"] : remove ? ["remove"] : [])], context);
     },
   },
 ];

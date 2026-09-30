@@ -14,6 +14,7 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { codexHookTrust } from "../hooks/codex-trust.js";
 import { findProject, storytreeHome, suggestedName } from "../routing/index.js";
 import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-release.js";
@@ -26,7 +27,7 @@ import { readAppRecords, type AppPlaces, type AppReading } from "../sessions/app
 export { suggestedName };
 
 export type { SetupLine } from "./diagnostics.js";
-export { machineState, NODE_FLOOR } from "./machine.js";
+export { machineState, NODE_FLOOR, runsElevated } from "./machine.js";
 export type { AgentCliState, MachineOptions, MachineState, ToolState } from "./machine.js";
 
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";
@@ -70,6 +71,8 @@ export interface SetupReport {
   readonly project: { status: "set up"; name: string } | { status: "ask"; suggestion: string };
   /** Whether Codex's config.toml has storytree's tool server; undefined without a Codex home here, or with Codex disconnected. */
   readonly codexServer: { readonly state: "registered" | "missing"; readonly config: string } | undefined;
+  /** Whether Codex runs storytree's hooks, or waits for the user to trust them; undefined where Codex has none. */
+  readonly codexHooks: "running" | "waiting" | undefined;
   /** What putting the `storytree` command on the path found; undefined when there was nothing to put there. */
   readonly command: CommandInstall | undefined;
   /** Whether `gh` is there and signed in, for release on merge. */
@@ -93,6 +96,9 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const homes = options.homes ?? defaultHomes();
   const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected);
   const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex);
+  // Whether a Codex hook has run since storytree's were registered: the only sign the user trusted them (3.18).
+  const trust = homes.codex === undefined || disconnected.has("codex") ? "not registered" : codexHookTrust({ storytreeHome: options.storytreeHome ?? storytreeHome(), codexHome: homes.codex });
+  const codexHooks = trust === "not registered" ? undefined : trust;
   const found = findProject(options.folder);
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
@@ -103,7 +109,7 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
     readAppRecords(options.appPlaces),
     hooksRelease(registeredHookScripts(homes), options.latestRelease),
   ]);
-  const report = { storytree, hooks, codexServer, project, command, gh, machine, archives, hooksRelease: released };
+  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released };
   return { ...report, lines: setupLines(report) };
 }
 

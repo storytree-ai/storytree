@@ -20,11 +20,13 @@ import { connect } from "@storytree/library";
 
 import { runSetupCheck, setUpProject } from "../index.js";
 import { buildBins } from "../bins/build.js";
+import { noteCodexHookRan } from "../hooks/index.js";
+import type { Line } from "../activity/index.js";
 import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { builtFromMain, ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
+import { builtFromMain, FIX_SENTENCES, ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -649,6 +651,59 @@ test("8.14 the check names Codex's storytree tool server as missing, with its fi
     const line = (await runSetupCheck(options)).lines.find((each) => each.check === "codex-server");
     assert.equal(line?.state, "needs-attention");
     assert.match(line?.fix ?? "", /storytree setup connect --codex/);
+  });
+});
+
+test("8.16 until one of Codex's hooks has run, the check says Codex is waiting for the user to trust them, with the one step in plain words, also where it registers no hooks (the app's folder check); once one has run, it says they run", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const options = { ...ANSWERED, folder: dir, homes: home.homes, storytreeHome: home.storytreeHome };
+    assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "codex-hooks"), undefined, "no line where Codex has none of storytree's hooks");
+
+    await runSetupCheck({ ...options, hook: HOOK });
+    for (const check of [{ ...options, hook: HOOK }, options]) {
+      const line = (await runSetupCheck(check)).lines.find((each) => each.check === "codex-hooks");
+      assert.equal(line?.state, "needs-attention");
+      assert.match(line?.fix ?? "", /type \/hooks/);
+      assert.match(line?.fix ?? "", /Hooks need review/);
+    }
+
+    noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
+    const line = (await runSetupCheck({ ...options, hook: HOOK })).lines.find((each) => each.check === "codex-hooks");
+    assert.equal(line?.state, "ok");
+    assert.equal(line?.fix, undefined);
+  });
+});
+
+test("8.17 from an administrator (elevated) terminal with Codex here, the check says Codex cannot run commands there and to open a normal terminal, and a Codex session missing only its command hook is told that instead of the command test; Claude Code alone, or a normal terminal, hears nothing of it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const machine = (elevated: boolean, codex: "signed in" | "missing") => async () => ({ ...(await ANSWERED.machine()), codex, elevated });
+    const check = (elevated: boolean, codex: "signed in" | "missing" = "signed in") => runSetupCheck({ ...ANSWERED, machine: machine(elevated, codex), folder: dir, homes: home.homes, storytreeHome: home.storytreeHome });
+    const line = (await check(true)).lines.find((each) => each.check === "elevated");
+    assert.equal(line?.state, "needs-attention");
+    assert.match(line?.message ?? "", /administrator/);
+    assert.match(line?.message ?? "", /Codex cannot run commands/);
+    assert.match(line?.fix ?? "", /normal/);
+    assert.equal((await check(false)).lines.find((each) => each.check === "elevated"), undefined);
+    assert.equal((await check(true, "missing")).lines.find((each) => each.check === "elevated"), undefined, "Claude Code runs commands elevated; only Codex cannot");
+
+    const hooked = ["session-started", "tool-requested", "file-edited"].map((kind) => ({ session: "s1", source: "hook", kind }) as Line);
+    assert.deepEqual(verifyHooks(hooked, "s1", "codex", { elevated: true }).fixes, ["codex-elevated"]);
+    assert.match(FIX_SENTENCES["codex-elevated"], /administrator/);
+    assert.deepEqual(verifyHooks(hooked, "s1", "codex").fixes, ["run-check-command"]);
+    assert.deepEqual(verifyHooks(hooked, "s1", "claude-code", { elevated: true }).fixes, ["run-check-command"]);
+  });
+});
+
+test("8.17 an elevated process is recognised by its high integrity label", { skip: process.platform !== "win32" && "administrator elevation is Windows' own" }, async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    fakeTool(bin, "whoami", { "/groups /fo csv": { out: '"Mandatory Label\\High Mandatory Level","Label","S-1-16-12288",""', code: 0 } });
+    assert.equal((await machineState({ path: bin, waitMs: 5_000 })).elevated, true);
+    fakeTool(bin, "whoami", { "/groups /fo csv": { out: '"Mandatory Label\\Medium Mandatory Level","Label","S-1-16-8192",""', code: 0 } });
+    assert.equal((await machineState({ path: bin, waitMs: 5_000 })).elevated, false);
   });
 });
 

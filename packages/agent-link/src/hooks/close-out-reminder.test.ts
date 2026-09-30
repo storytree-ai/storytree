@@ -16,7 +16,7 @@ import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
 
-test("3.17 a turn that ends with its branch merged and no close-out is asked, once, to close out; a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
+test("3.17 a turn that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own, a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
   await withTempDir(async (dir) => {
     const origin = path.join(dir, "origin.git");
     const site = path.join(dir, "site");
@@ -33,6 +33,7 @@ test("3.17 a turn that ends with its branch merged and no close-out is asked, on
 
     assert.equal(await stop(asked), undefined, "on main: nothing to close out");
     git(site, "checkout", "-q", "-b", "fix-login");
+    assert.equal(await stop(asked), undefined, "a fresh branch at main has no work of its own to have merged");
     git(site, "commit", "-q", "--allow-empty", "-m", "fix");
     assert.equal(await stop(asked), undefined, "its branch is still ahead of main");
 

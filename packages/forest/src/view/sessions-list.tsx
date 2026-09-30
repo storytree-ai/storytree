@@ -74,33 +74,37 @@ export function mountSessionsList(container: HTMLElement, options: {
   let asking = false;
   let highlighted: string | undefined;
   let selected: string | undefined;
-  let expanded: ReadonlySet<string> = new Set();
+  // Every row starts expanded; these are the ones the user folded.
+  let collapsed: ReadonlySet<string> = new Set();
+  const pending = new Set<string>();
   let files: ReadonlyMap<string, SessionFiles> = new Map();
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
     error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
-    expanded={expanded} files={files} onToggle={toggle}
+    collapsed={collapsed} files={files} onToggle={toggle}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
     .map(id => [id, { ...details.get(id), ...readings.get(id) }]));
-  /** Read an expanded row's files; a failed read says so and the next ask tries again. */
+  /** Read an expanded row's files, one read at a time; a failed read says so and the next ask tries again. */
   const askFiles = (session: string): void => {
     const read = options.reads.windowReading;
-    if (read === undefined) return;
+    if (read === undefined || pending.has(session)) return;
+    pending.add(session);
     read.call(options.reads, options.project, session).then(window => windowFiles(window),
       () => ({ absent: "the window could not be read" })).then(answer => {
-      if (stopped || !expanded.has(session)) return;
+      pending.delete(session);
+      if (stopped || collapsed.has(session)) return;
       files = new Map([...files, [session, answer]]);
       draw();
     });
   };
   const toggle = (session: string): void => {
-    const next = new Set(expanded);
-    if (next.delete(session)) files = new Map([...files].filter(([id]) => id !== session));
-    else { next.add(session); askFiles(session); }
-    expanded = next;
+    const next = new Set(collapsed);
+    if (next.delete(session)) askFiles(session);
+    else { next.add(session); files = new Map([...files].filter(([id]) => id !== session)); }
+    collapsed = next;
     draw();
   };
   const askReadings = (): void => {
@@ -108,7 +112,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (ask === undefined || asking || Date.now() - askedAt < READING_EVERY_MS || rows.length === 0) return;
     asking = true;
     askedAt = Date.now();
-    for (const session of expanded) askFiles(session);
+    for (const session of everyId(rows)) if (!collapsed.has(session)) askFiles(session);
     options.reads.idleAfterMs?.().then(ms => { quietMs = ms; }, () => {
       // An unreadable setting keeps the last one read; the next ask tries again.
     });
@@ -128,6 +132,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (stopped || tree === undefined) return;
     rows = sessionRows(tree, lines, arcs, now, merged(), quietMs, leaveMs);
     kept.write(rows);
+    for (const session of everyId(rows)) if (!collapsed.has(session) && !files.has(session)) askFiles(session);
     options.onWisps?.(sessionWisps(rows, lines, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
@@ -258,14 +263,15 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   selected?: string | undefined;
   onHighlight(stories: readonly string[] | undefined, session?: string): void;
   onSelect?(session: string | undefined): void;
-  /** The expanded rows, when the caller keeps them; otherwise the list keeps its own. */
-  expanded?: ReadonlySet<string>;
+  /** The rows folded, when the caller keeps them; otherwise the list keeps its own. Every other row is expanded (7.17). */
+  collapsed?: ReadonlySet<string>;
   onToggle?(session: string): void;
   /** Each expanded row's files, once read (7.8). */
   files?: ReadonlyMap<string, SessionFiles>;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
-  const expanded = control.expanded ?? own;
+  const collapsed = control.collapsed ?? own;
+  const isOpen = (id: string): boolean => !collapsed.has(id);
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
@@ -277,7 +283,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     for (const row of list) {
       visible.push({ row, depth });
       rootOf.set(row.id, top ?? row.id);
-      if (expanded.has(row.id)) visit(row.children, depth + 1, top ?? row.id);
+      if (isOpen(row.id)) visit(row.children, depth + 1, top ?? row.id);
     }
   };
   // Sessions at work first; the quiet ones fold into one "N idle" row, shown under it when opened (ADR-0758 D5).
@@ -320,8 +326,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
           {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted by the "+N" after its name. */}
-          <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
-            aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
+          <button type="button" className="session-children-toggle" aria-expanded={isOpen(row.id)}
+            aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
             onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
           {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
           <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
@@ -333,7 +339,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
             {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
         </div>
-        {expanded.has(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
+        {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
       </li></Fragment>)}
       {atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
     </ul>

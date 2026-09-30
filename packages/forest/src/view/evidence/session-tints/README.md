@@ -58,9 +58,8 @@ in `capture.mjs`, so the tints are the real page's reading of real log lines (`s
   them, or hues spread by rank), is the owner's call.
 - **Faded look** ([close-up-forest.png](close-up-forest.png)): the quiet session's coast is 0.35 against 0.9, and it
   reads as a faint violet rim, still visible against the dark sea but clearly quieter than the live
-  arcs. Note the claimed territory on the same island is **not** faded: Story node render is filled at the
-  same 0.32 as a live claim, so a quiet session's territory looks as strong as A's. Only the coast says
-  "quiet".
+  arcs. Its claimed territory (Story node render) now fades with it, to 0.14 against a live claim's
+  0.32: the first capture had it at full strength, and that was fixed before this re-capture.
 - **Claimed-territory fill**: 0.32 opacity in the claimant's colour over the territory's own tint; it
   reads as a clear coloured cell (blue Agent tools, magenta Claims), and the file circles stay
   readable on top. Judge the strength; it is stronger than the rim at rest.
@@ -72,6 +71,6 @@ in `capture.mjs`, so the tints are the real page's reading of real log lines (`s
 ## Problems seen
 
 1. Two live sessions with near hues merge into one outline (above). Not fixed here.
-2. A faded session's claimed territory keeps its full fill; only the coast fades (above).
+2. (Fixed, re-captured.) A faded session's claimed territory kept its full fill; it now fades to 0.14.
 3. The stand-in bridge has no readings, so the sessions panel says "Sessions could not be refreshed.
    Retrying..." and shows empty token bars; that is the capture bridge, not the page.

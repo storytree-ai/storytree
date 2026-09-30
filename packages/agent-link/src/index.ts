@@ -3,7 +3,7 @@
 export { findProject, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route, setUpProject, storytreeHome, suggestProjectName, withConnectTimeout } from "./routing/index.js";
 export { forgetTrunk, machineOf, ProjectFolderError, trunksOn, unusedName } from "./routing/index.js";
 export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddress } from "./routing/index.js";
-export { readProjectChoice, recordProjectChoice } from "./routing/project-choice.js";
+export { keepOnThisComputer, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects } from "./routing/project-choice.js";
 export { idleAfterMs, leaveAfterMs, readLibrary, readSettings, readSurfaceChoices, setLibrary, setSetting, setSurfaceChoice } from "./settings/settings.js";
 export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
 export { ACTIVITY_DATABASE, cachedLines, currentBranch, lineText, NEW_LINE, openActivityLog, thisMachine } from "./activity/index.js";

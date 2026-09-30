@@ -36,3 +36,30 @@ export function recordProjectChoice(file: string, project: string): void {
     rmSync(temporary, { force: true });
   }
 }
+
+const REMOVED_FILE = "removed-projects.json";
+
+/** The projects taken off this computer's list (the app's Projects picker), kept in the app's home. */
+export function removedProjects(home: string): string[] {
+  try {
+    const { removed } = JSON.parse(readFileSync(path.join(home, REMOVED_FILE), "utf8")) as { removed?: unknown };
+    return Array.isArray(removed) ? removed.filter((name): name is string => typeof name === "string") : [];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+export function recordRemovedProjects(home: string, removed: readonly string[]): void {
+  mkdirSync(home, { recursive: true });
+  const file = path.join(home, REMOVED_FILE);
+  const temp = `${file}.${process.pid}.tmp`;
+  writeFileSync(temp, `${JSON.stringify({ removed: [...new Set(removed)].sort() }, null, 2)}\n`);
+  renameSync(temp, file);
+}
+
+/** Put `project` back on this computer's list, if it was taken off: adding its folder again, or joining it on purpose. */
+export function keepOnThisComputer(project: string, home: string): void {
+  const removed = removedProjects(home);
+  if (removed.includes(project)) recordRemovedProjects(home, removed.filter((name) => name !== project));
+}

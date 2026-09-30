@@ -63,7 +63,7 @@ test("1.7 / 3.4: a chosen folder becomes a project (created if missing, suggeste
   assert.equal(existsSync(path.join(dir, ".storytree.json")), false);
 });
 
-test("removing a project takes it off this computer's list, keeps its records and frees its folder here: set up afresh, or joined on purpose; an unknown name is refused", async (t) => {
+test("removing a project takes it off this computer's list, keeps its records and frees its folder here: set up afresh, or joined on purpose, which brings it back; an unknown name is refused", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-remove-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const token = randomBytes(4).toString("hex");
@@ -82,6 +82,7 @@ test("removing a project takes it off this computer's list, keeps its records an
   const elsewhere = path.join(dir, "elsewhere");
   mkdirSync(elsewhere);
   await setUpProject({ folder: elsewhere, project: name, storytree: library, storytreeHome: home, join: true });
+  assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name), "joining it on purpose brings it back to this computer's list");
   assert.deepEqual(await addProject(folder, `site-${token}`, { home, library }), { status: "set up", folder, project: `site-${token}` }, "the freed folder can be set up afresh");
 
   const unknown = await removeProject(`nothing-${token}`, { home, library });

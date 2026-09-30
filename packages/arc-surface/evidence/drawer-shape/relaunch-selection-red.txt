@@ -1,0 +1,17 @@
+2026-09-30, Mint box, after node apps/desktop/build.mjs:
+flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/capture.mjs
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+'false' !== 'true'
+    at capture.mjs:204 (the parked arc picked before relaunch is aria-pressed after it)
+
+Saved storage before relaunch: storytree.arc-surface.v1:storytree={"open":true,"scope":"parked","picked":"arc_…"}
+The relaunched drawer shows Parked pressed, but not the picked parked arc.
+
+Cause (packages/arc-surface/src, outside this landing): mount.ts starts watchBoard with the kept
+board, which draws at scope "active" before setScope(saved scope); the mount's draw resets the
+picked arc to an active one and saves that. Filed as increment_5d72c0f0c875.
+
+With only this assertion disabled, every other check passes (claim seen in 1004 ms, idle chip
+"idle · 42 min", smoke problems [], page errors []). capture.json is left at its last full pass
+because this run did not complete.

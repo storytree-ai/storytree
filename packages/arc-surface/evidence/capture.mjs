@@ -69,11 +69,13 @@ try {
   await library.addIncrement({ arc: closed.id, title: 'Alternative layout', objective: 'Explore', body: 'Explore', outcome: { disposition: 'withdrawn', note: 'Kept the smaller layout.' } });
   reads = pageReads({ storytree: store });
   let failRead = false;
-  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); } };
-  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds'];
+  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); },
+    // The renderer asks for its surfaces setting first; an unread setting means every surface is on.
+    readSurfaces: async () => undefined };
+  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds', 'idleAfterMs', 'readSurfaces'];
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
-    if (!['index.html', 'renderer.js', 'arc-surface.css', 'styles.css'].includes(name)) { res.writeHead(404).end(); return; }
+    if (!['index.html', 'renderer.js', 'styles.css', 'app-setup.css', 'arc-surface.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
     res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
     res.end(readFileSync(path.join(dist, name)));
   });
@@ -82,23 +84,28 @@ try {
     args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, colorScheme: 'dark', deviceScaleFactor: 1 });
   const errors = []; page.on('pageerror', error => errors.push(String(error)));
-  await page.exposeFunction('arcRead', (method, args) => { assert.ok(allowed.includes(method)); return bridge[method](...args); });
-  await page.addInitScript(methods => {
-    window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.arcRead(method, args)]));
+  // A read the renderer makes beyond these (another surface's) fails as a read error there, never a write.
+  const arcRead = (method, args) => { if (!allowed.includes(method) || !bridge[method]) throw new Error(`not carried: ${method}`); return bridge[method](...args); };
+  const carry = () => { window.storytree = new Proxy({}, { get: (_, method) => (...args) => window.arcRead(String(method), args) }); };
+  // The app menu opens itself when the app's own reads (updates, setup) are not carried here; it is not under test.
+  const hideMenu = target => target.evaluate(() => { const menu = document.getElementById('app-menu'); if (menu?.matches(':popover-open')) menu.hidePopover(); });
+  await page.exposeFunction('arcRead', arcRead);
+  await page.addInitScript(carry);
+  await page.addInitScript(() => {
     const realNow = Date.now, realEvery = window.setInterval, realClear = window.clearInterval;
     let offset = 0; const clocks = new Map();
     Date.now = () => realNow() + offset;
     window.setInterval = (run, ms, ...args) => { const id = realEvery(run, ms, ...args); if (ms === 60000) clocks.set(id, run); return id; };
     window.clearInterval = id => { clocks.delete(id); return realClear(id); };
     window.advanceArcClock = ms => { offset += ms; for (const run of clocks.values()) run(); };
-  }, allowed);
+  });
   await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
   await page.waitForSelector('canvas', { timeout: 120000 });
-  const forestBefore = await page.getAttribute('body', 'data-drew');
+  await hideMenu(page);
   const handle = page.getByRole('button', { name: 'Open arc surface', exact: true });
   const handleBox = await handle.boundingBox();
-  assert.ok(handleBox.y < 4 && Math.abs(handleBox.x + handleBox.width / 2 - 720) < 2, 'closed handle is centered on the top edge');
+  assert.ok(handleBox.x === 0 && handleBox.width === 1440, 'the closed arc bar spans the window'); // its placement is ../arc-bar's acceptance
   await page.screenshot({ path: path.join(output, 'drawer-closed.png') });
   failRead = true;
   await page.locator('[data-open-arcs]').click();
@@ -107,7 +114,7 @@ try {
   failRead = false;
   await page.waitForSelector('.arc-overlay[data-arc-state=ready]');
   const drawerBox = await page.locator('.arc-overlay').boundingBox();
-  assert.equal(drawerBox.y, 0);
+  assert.equal(drawerBox.y, handleBox.y + handleBox.height, 'the drawer opens directly below the arc bar');
   assert.equal(drawerBox.width, 1440);
   assert.ok(drawerBox.height <= 500, 'drawer leaves the lower half of the forest exposed');
   await page.locator('canvas').evaluate(canvas => {
@@ -121,7 +128,7 @@ try {
   assert.equal(await page.locator(`[data-arc-select="${queued.id}"]`).count(), 0, 'queued arc starts behind the caret');
   const started = Date.now();
   await log.append(project, { kind: 'session-started', source: 'hook', harness: 'codex', session: 'capture-agent' });
-  assert.equal((await claim({ library, log, project, session: 'capture-agent', harness: 'codex' }, held.id, 'Draw the board and check it over the forest.')).ok, true);
+  assert.equal((await claim({ library, log, project, session: 'capture-agent', harness: 'codex' }, held.id, 'Draw the board over the forest.')).ok, true);
   await page.waitForSelector('[data-agent-label=Codex]');
   const claimVisibleMs = Date.now() - started;
   assert.ok(claimVisibleMs < 4000, `claim appeared after ${claimVisibleMs} ms`);
@@ -166,10 +173,14 @@ try {
   await library.settleQuestion(question.id, { answer: 'One project first.' });
   await page.locator(`[data-arc-select="${decision.id}"]`).first().click();
   await page.waitForFunction(() => document.querySelector('.arc-briefing')?.textContent.includes('One project first.'));
+  // The forest draws the fixture's agent session once it starts, so the census is taken as the drawer closes;
+  // its arcSurface part is the drawer's own reading, not the forest.
+  const forest = async () => { const { arcSurface, ...drew } = JSON.parse(await page.getAttribute('body', 'data-drew')); return drew; };
+  const forestBefore = await forest();
   await page.locator('[data-close-arcs]').click();
   assert.equal(await page.locator('.arc-overlay').isVisible(), false);
   assert.equal(await page.locator('canvas').count(), 1);
-  assert.equal(await page.getAttribute('body', 'data-drew'), forestBefore);
+  assert.deepEqual(await forest(), forestBefore, 'closing the drawer leaves the same forest');
   await page.locator('[data-open-arcs]').click();
   await page.waitForSelector('.arc-overlay[data-arc-state=ready]');
   await page.keyboard.press('Escape');
@@ -179,12 +190,15 @@ try {
   await page.locator('[data-arc-scope="parked"]').click();
   await page.locator(`[data-arc-select="${parked.id}"]`).click();
   const saved = await page.context().storageState();
+  const url = page.url();
+  const renderer = await page.evaluate(() => { const gl = document.querySelector('canvas')?.getContext('webgl2'); const debug = gl?.getExtension('WEBGL_debug_renderer_info'); return debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable'; });
+  const forestPointerCount = await page.evaluate(() => window.forestPointerCount);
+  // The first launch ends before the next begins: two forests drawing at once starve each other in one headless browser.
+  await page.close();
   const relaunched = await browser.newPage({ storageState: saved, viewport: { width: 1440, height: 960 } });
-  await relaunched.exposeFunction('arcRead', (method, args) => bridge[method](...args));
-  await relaunched.addInitScript(methods => {
-    window.storytree = Object.fromEntries(methods.map(method => [method, (...args) => window.arcRead(method, args)]));
-  }, allowed);
-  await relaunched.goto(page.url());
+  await relaunched.exposeFunction('arcRead', arcRead);
+  await relaunched.addInitScript(carry);
+  await relaunched.goto(url);
   await relaunched.waitForSelector('.arc-overlay[data-arc-state=ready]');
   assert.equal(await relaunched.locator('[data-arc-scope="parked"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await relaunched.locator(`[data-arc-select="${parked.id}"]`).getAttribute('aria-pressed'), 'true');
@@ -194,8 +208,7 @@ try {
   assert.equal(await relaunched.locator('.arc-overlay').isVisible(), false, 'closed state survives relaunch');
   await relaunched.close();
   assert.deepEqual(errors, []);
-  const renderer = await page.evaluate(() => { const gl = document.querySelector('canvas')?.getContext('webgl2'); const debug = gl?.getExtension('WEBGL_debug_renderer_info'); return debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'unavailable'; });
-  const result = { snapshot: { takenAt: snapshot.takenAt, records: snapshot.records.length, arcs: snapshot.records.filter(record => record.type === 'arc').length }, drawerBox, rowHeights, forestPointerCount: await page.evaluate(() => window.forestPointerCount), browser: await browser.version(), renderer, claimVisibleMs, idleChip, smokeProblems: problems, checks: ['read error and retry', 'live claim', 'question reading, fold, queue and scroll survive refresh', 'drawer geometry', 'forest receives input below drawer', 'queue nesting', 'question list swap and back', 'open/scope/selection persist across launch', 'closed state persists', 'all scopes smoke', 'idle without a new line', 'queued briefing', 'read-only UI', 'live settlement', 'close and Escape preserve the forest'], errors };
+  const result = { snapshot: { takenAt: snapshot.takenAt, records: snapshot.records.length, arcs: snapshot.records.filter(record => record.type === 'arc').length }, drawerBox, rowHeights, forestPointerCount, browser: await browser.version(), renderer, claimVisibleMs, idleChip, smokeProblems: problems, checks: ['read error and retry', 'live claim', 'question reading, fold, queue and scroll survive refresh', 'drawer geometry', 'forest receives input below drawer', 'queue nesting', 'question list swap and back', 'open/scope/selection persist across launch', 'closed state persists', 'all scopes smoke', 'idle without a new line', 'queued briefing', 'read-only UI', 'live settlement', 'close and Escape preserve the forest'], errors };
   writeFileSync(path.join(output, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result));
 } finally {

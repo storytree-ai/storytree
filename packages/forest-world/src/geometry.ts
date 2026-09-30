@@ -1,0 +1,10 @@
+// @storytree/forest-world/geometry: the ground, coast and pathway geometry beneath the drawn
+// scene, for the forest to check what it draws against (ADR-0805 D1: the world is a story, so
+// no other package reaches into its files).
+export { capabilityFactsFrom, stateForm } from "./kit-vocabulary.js";
+export { parcelCellsFrom } from "./parcel-cells.js";
+export { clipToCoast, rimLoops, SHIPPED_COAST } from "./coast-clip.js";
+export { plateTransform } from "./planet/planet.js";
+export { buildPlanetPathways, planetPathwayDrawing } from "./planet/pathways.js";
+export { trailFillWidth } from "./core/routing.js";
+export { RIBBON_GROUND_SCALE } from "./trail-ribbon-width.js";

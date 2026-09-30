@@ -1,0 +1,11 @@
+--- storytree setup connect --codex (desktop session, not elevated):
+Codex: tools already connected; hooks waiting for you to trust them in Codex.
+Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.
+
+--- storytree doctor (desktop session), codex-hooks and elevated lines:
+
+Hooks for Codex: registered.
+Claude Code is installed and signed in; Codex is installed and signed in.
+
+
+

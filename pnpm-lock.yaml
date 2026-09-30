@@ -498,16 +498,40 @@ importers:
 
   packages/website:
     dependencies:
+      '@react-three/fiber':
+        specifier: ^9.6.1
+        version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
       '@storytree/forest-world':
         specifier: workspace:*
         version: link:../forest-world
+      react:
+        specifier: ^19.1.1
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+      '@storytree/arc-surface':
+        specifier: workspace:*
+        version: link:../arc-surface
+      '@storytree/forest':
+        specifier: workspace:*
+        version: link:../forest
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
       '@types/react':
         specifier: ^19.1.8
         version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.3.0(@types/react@19.3.0)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

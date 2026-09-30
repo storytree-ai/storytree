@@ -1,0 +1,15 @@
+✔ this repo keeps every story in its own package, behind a thin frame and front door (179.9244ms)
+✔ the planted trees start from one that keeps the rules (25.8011ms)
+✔ a story with no package is refused, and so is a package that belongs to no story (21.5179ms)
+✔ a story's code in the frame or the front door is refused (29.7722ms)
+✔ story code the frame still holds passes only while it is declared, and its declaration only while it is there (32.3216ms)
+✔ a package reaching into another story's files is refused, by relative path or by a subpath it does not export (18.417ms)
+✔ packages that depend on each other, even for development only, are refused: pnpm links them into a loop (16.8492ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 568.5971

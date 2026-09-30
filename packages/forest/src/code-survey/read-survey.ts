@@ -19,7 +19,7 @@ import { surveyStory, type SourceFile, type StorySurvey } from "./code-survey.js
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 
 /** Stories whose package is not named after their title. */
-const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli" };
+const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes" };
 const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 
 export function packageOf(title: string): string {

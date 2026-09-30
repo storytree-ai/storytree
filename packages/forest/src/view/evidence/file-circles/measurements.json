@@ -1,0 +1,1184 @@
+{
+  "front": {
+    "zoom": 1.6793655730057533,
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "circles": 89,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 89,
+        "middlesOnGround": 89,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.8197056274847714,
+        "maxRadius": 3.0015101530718504,
+        "overlappingPairs": 15,
+        "circleAreaOverGround": 0.28762767958409696,
+        "groundArea": 3109.83409031765,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/readings.ts",
+            "lines": 384,
+            "radius": 3.0015101530718504
+          },
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "lines": 328,
+            "radius": 2.8232924331529805
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "lines": 303,
+            "radius": 2.738827422263505
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/readings.ts",
+            "lines": 384,
+            "radius": 3.0015101530718504
+          },
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "lines": 328,
+            "radius": 2.8232924331529805
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "lines": 303,
+            "radius": 2.738827422263505
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 26,
+        "middlesOnGround": 26,
+        "outsideOwnTerritory": [],
+        "minRadius": 1.1447726750741194,
+        "maxRadius": 2.04427400463467,
+        "overlappingPairs": 3,
+        "circleAreaOverGround": 0.1208668909442831,
+        "groundArea": 1692.949899456463,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/index.ts",
+            "lines": 135,
+            "radius": 2.04427400463467
+          },
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 2.0129380029920654
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "lines": 123,
+            "radius": 1.9808643807691297
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 1.867866987811066
+          },
+          {
+            "file": "src/view/styles.ts",
+            "lines": 99,
+            "radius": 1.8439849245279436
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/index.ts",
+            "lines": 135,
+            "radius": 2.04427400463467
+          },
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 2.0129380029920654
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "lines": 123,
+            "radius": 1.9808643807691297
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 1.867866987811066
+          },
+          {
+            "file": "src/view/styles.ts",
+            "lines": 99,
+            "radius": 1.8439849245279436
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "circles": 19,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 18,
+        "middlesOnGround": 18,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/work-states/work-states.ts",
+            "capability": "capability_da68dca0d5f4",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 0.8197056274847714,
+        "maxRadius": 1.9256174975281584,
+        "overlappingPairs": 0,
+        "circleAreaOverGround": 0.06009728369319871,
+        "groundArea": 2075.7754147239198,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 1.9256174975281584
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 1.8854756169184401
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "lines": 96,
+            "radius": 1.8257550765359252
+          },
+          {
+            "file": "src/board/board.ts",
+            "lines": 81,
+            "radius": 1.73
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 1.6682337649086285
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 1.9256174975281584
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 1.8854756169184401
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "lines": 96,
+            "radius": 1.8257550765359252
+          },
+          {
+            "file": "src/board/board.ts",
+            "lines": 81,
+            "radius": 1.73
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 1.6682337649086285
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 26,
+        "middlesOnGround": 26,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.89,
+        "maxRadius": 2.6181463360228077,
+        "overlappingPairs": 0,
+        "circleAreaOverGround": 0.05860232002347681,
+        "groundArea": 4212.462181594657,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 2.6181463360228077
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 2.54356806056714
+          },
+          {
+            "file": "src/families/arc.ts",
+            "lines": 248,
+            "radius": 2.539761889762835
+          },
+          {
+            "file": "src/families/adr.ts",
+            "lines": 193,
+            "radius": 2.3170932787339766
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "lines": 181,
+            "radius": 2.264434885648846
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 2.6181463360228077
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 2.54356806056714
+          },
+          {
+            "file": "src/families/arc.ts",
+            "lines": 248,
+            "radius": 2.539761889762835
+          },
+          {
+            "file": "src/families/adr.ts",
+            "lines": 193,
+            "radius": 2.3170932787339766
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "lines": 181,
+            "radius": 2.264434885648846
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 26,
+        "middlesOnGround": 26,
+        "outsideOwnTerritory": [],
+        "minRadius": 1.01,
+        "maxRadius": 2.783166660155741,
+        "overlappingPairs": 1,
+        "circleAreaOverGround": 0.09354879380441339,
+        "groundArea": 2730.626012364418,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 2.783166660155741
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 2.20074175799841
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 2.1960918472070152
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 2.1439879517586484
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 2.0999655168313485
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 2.783166660155741
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 2.20074175799841
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 2.1960918472070152
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 2.1439879517586484
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 2.0999655168313485
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "circles": 14,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 14,
+        "middlesOnGround": 14,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.89,
+        "maxRadius": 3.559845356715714,
+        "overlappingPairs": 2,
+        "circleAreaOverGround": 0.10749418894174328,
+        "groundArea": 1721.4036249840499,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 3.559845356715714
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "lines": 303,
+            "radius": 2.738827422263505
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 2.6687124609512862
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "lines": 246,
+            "radius": 2.532126456962974
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "lines": 161,
+            "radius": 2.1726293048539422
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 3.559845356715714
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "lines": 303,
+            "radius": 2.738827422263505
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 2.6687124609512862
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "lines": 246,
+            "radius": 2.532126456962974
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "lines": 161,
+            "radius": 2.1726293048539422
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "circles": 17,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 17,
+        "middlesOnGround": 17,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.7700000000000001,
+        "maxRadius": 2.0023313203501574,
+        "overlappingPairs": 2,
+        "circleAreaOverGround": 0.04219715023521945,
+        "groundArea": 2411.0032439923143,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "lines": 127,
+            "radius": 2.0023313203501574
+          },
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 1.8854756169184401
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 1.8072380913191544
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 1.7165833300778708
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 1.6099999999999997
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "lines": 127,
+            "radius": 2.0023313203501574
+          },
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 1.8854756169184401
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 1.8072380913191544
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 1.7165833300778708
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 1.6099999999999997
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "circles": 37,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 37,
+        "middlesOnGround": 37,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.8197056274847714,
+        "maxRadius": 3.76538119657932,
+        "overlappingPairs": 4,
+        "circleAreaOverGround": 0.11225603780207105,
+        "groundArea": 4839.619591858406,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 3.76538119657932
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "lines": 657,
+            "radius": 3.725841348314311
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 3.4744645510255565
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 3.232092174962002
+          },
+          {
+            "file": "src/schema/types.ts",
+            "lines": 433,
+            "radius": 3.1470382456021775
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 3.76538119657932
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "lines": 657,
+            "radius": 3.725841348314311
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 3.4744645510255565
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 3.232092174962002
+          },
+          {
+            "file": "src/schema/types.ts",
+            "lines": 433,
+            "radius": 3.1470382456021775
+          }
+        ]
+      }
+    ]
+  },
+  "surveyedFiles": {
+    "story_05e45963ca9f": 89,
+    "story_16ac26dfa5d6": 26,
+    "story_78b33d16d0b6": 19,
+    "story_20549f1d48af": 26,
+    "story_be32e99ed54f": 26,
+    "story_4c04d95d52a8": 14,
+    "story_69d0ee10bbe7": 17,
+    "story_eb7d623fb9c8": 37
+  },
+  "closeUp": {
+    "zoom": 4.366350489814959,
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "circles": 89,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 89,
+        "middlesOnGround": 89,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.8197056274847714,
+        "maxRadius": 3.0015101530718504,
+        "overlappingPairs": 15,
+        "circleAreaOverGround": 0.28762767958409685,
+        "groundArea": 3109.8340903176513,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/readings.ts",
+            "lines": 384,
+            "radius": 3.0015101530718504
+          },
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "lines": 328,
+            "radius": 2.8232924331529805
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "lines": 303,
+            "radius": 2.738827422263505
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/readings.ts",
+            "lines": 384,
+            "radius": 3.0015101530718504
+          },
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 2.8724311012942563
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "lines": 328,
+            "radius": 2.8232924331529805
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "lines": 303,
+            "radius": 2.738827422263505
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 26,
+        "middlesOnGround": 26,
+        "outsideOwnTerritory": [],
+        "minRadius": 1.1447726750741194,
+        "maxRadius": 2.04427400463467,
+        "overlappingPairs": 3,
+        "circleAreaOverGround": 0.12086689094428305,
+        "groundArea": 1692.9498994564638,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/index.ts",
+            "lines": 135,
+            "radius": 2.04427400463467
+          },
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 2.0129380029920654
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "lines": 123,
+            "radius": 1.9808643807691297
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 1.867866987811066
+          },
+          {
+            "file": "src/view/styles.ts",
+            "lines": 99,
+            "radius": 1.8439849245279436
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/index.ts",
+            "lines": 135,
+            "radius": 2.04427400463467
+          },
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 2.0129380029920654
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "lines": 123,
+            "radius": 1.9808643807691297
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 1.867866987811066
+          },
+          {
+            "file": "src/view/styles.ts",
+            "lines": 99,
+            "radius": 1.8439849245279436
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "circles": 19,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 18,
+        "middlesOnGround": 18,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/work-states/work-states.ts",
+            "capability": "capability_da68dca0d5f4",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 0.8197056274847714,
+        "maxRadius": 1.9256174975281581,
+        "overlappingPairs": 0,
+        "circleAreaOverGround": 0.06009728369319875,
+        "groundArea": 2075.7754147239184,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 1.9256174975281581
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 1.8854756169184401
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "lines": 96,
+            "radius": 1.8257550765359252
+          },
+          {
+            "file": "src/board/board.ts",
+            "lines": 81,
+            "radius": 1.73
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 1.6682337649086285
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 1.9256174975281581
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 1.8854756169184401
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "lines": 96,
+            "radius": 1.8257550765359252
+          },
+          {
+            "file": "src/board/board.ts",
+            "lines": 81,
+            "radius": 1.73
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 1.6682337649086285
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 26,
+        "middlesOnGround": 26,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.89,
+        "maxRadius": 2.6181463360228077,
+        "overlappingPairs": 0,
+        "circleAreaOverGround": 0.05860232002347681,
+        "groundArea": 4212.462181594657,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 2.6181463360228077
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 2.54356806056714
+          },
+          {
+            "file": "src/families/arc.ts",
+            "lines": 248,
+            "radius": 2.5397618897628345
+          },
+          {
+            "file": "src/families/adr.ts",
+            "lines": 193,
+            "radius": 2.3170932787339766
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "lines": 181,
+            "radius": 2.264434885648846
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 2.6181463360228077
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 2.54356806056714
+          },
+          {
+            "file": "src/families/arc.ts",
+            "lines": 248,
+            "radius": 2.5397618897628345
+          },
+          {
+            "file": "src/families/adr.ts",
+            "lines": 193,
+            "radius": 2.3170932787339766
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "lines": 181,
+            "radius": 2.264434885648846
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 26,
+        "middlesOnGround": 26,
+        "outsideOwnTerritory": [],
+        "minRadius": 1.01,
+        "maxRadius": 2.7831666601557417,
+        "overlappingPairs": 1,
+        "circleAreaOverGround": 0.09354879380441339,
+        "groundArea": 2730.6260123644183,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 2.7831666601557417
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 2.20074175799841
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 2.1960918472070152
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 2.1439879517586484
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 2.099965516831349
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 2.7831666601557417
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 2.20074175799841
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 2.1960918472070152
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 2.1439879517586484
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 2.099965516831349
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "circles": 14,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 14,
+        "middlesOnGround": 14,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.8900000000000001,
+        "maxRadius": 3.559845356715714,
+        "overlappingPairs": 2,
+        "circleAreaOverGround": 0.10749418894174327,
+        "groundArea": 1721.40362498405,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 3.559845356715714
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "lines": 303,
+            "radius": 2.738827422263505
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 2.6687124609512867
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "lines": 246,
+            "radius": 2.532126456962974
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "lines": 161,
+            "radius": 2.1726293048539422
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 3.559845356715714
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "lines": 303,
+            "radius": 2.738827422263505
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 2.6687124609512867
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "lines": 246,
+            "radius": 2.532126456962974
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "lines": 161,
+            "radius": 2.1726293048539422
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "circles": 17,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 17,
+        "middlesOnGround": 17,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.7699999999999999,
+        "maxRadius": 2.0023313203501574,
+        "overlappingPairs": 2,
+        "circleAreaOverGround": 0.04219715023521944,
+        "groundArea": 2411.0032439923143,
+        "islandWorldScale": 1.0000000000000002,
+        "largestOnIsland": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "lines": 127,
+            "radius": 2.0023313203501574
+          },
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 1.88547561691844
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 1.8072380913191541
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 1.7165833300778706
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 1.6099999999999994
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "lines": 127,
+            "radius": 2.0023313203501574
+          },
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 1.88547561691844
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 1.8072380913191541
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 1.7165833300778706
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 1.6099999999999994
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "circles": 37,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 37,
+        "middlesOnGround": 37,
+        "outsideOwnTerritory": [],
+        "minRadius": 0.8197056274847714,
+        "maxRadius": 3.76538119657932,
+        "overlappingPairs": 4,
+        "circleAreaOverGround": 0.11225603780207109,
+        "groundArea": 4839.619591858404,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 3.76538119657932
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "lines": 657,
+            "radius": 3.725841348314311
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 3.4744645510255565
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 3.2320921749620015
+          },
+          {
+            "file": "src/schema/types.ts",
+            "lines": 433,
+            "radius": 3.1470382456021775
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 3.76538119657932
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "lines": 657,
+            "radius": 3.725841348314311
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 3.4744645510255565
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 3.2320921749620015
+          },
+          {
+            "file": "src/schema/types.ts",
+            "lines": 433,
+            "radius": 3.1470382456021775
+          }
+        ]
+      }
+    ]
+  },
+  "hover": {
+    "largest": {
+      "tried": [
+        {
+          "file": "src/readings.ts",
+          "lines": 384,
+          "radius": 3.0015101530718504,
+          "at": {
+            "x": 631.8910508718078,
+            "y": 566.8828621551286
+          },
+          "label": "src/readings.ts · 384 lines · 5 · Claims"
+        }
+      ],
+      "chosen": {
+        "file": "src/readings.ts",
+        "lines": 384,
+        "radius": 3.0015101530718504,
+        "at": {
+          "x": 631.8910508718078,
+          "y": 566.8828621551286
+        },
+        "label": "src/readings.ts · 384 lines · 5 · Claims"
+      }
+    },
+    "largestOnTerritory": {
+      "tried": [
+        {
+          "file": "src/readings.ts",
+          "lines": 384,
+          "radius": 3.0015101530718504,
+          "at": {
+            "x": 631.8910508718078,
+            "y": 566.8828621551286
+          },
+          "label": "src/readings.ts · 384 lines · 5 · Claims"
+        }
+      ],
+      "chosen": {
+        "file": "src/readings.ts",
+        "lines": 384,
+        "radius": 3.0015101530718504,
+        "at": {
+          "x": 631.8910508718078,
+          "y": 566.8828621551286
+        },
+        "label": "src/readings.ts · 384 lines · 5 · Claims"
+      }
+    }
+  },
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  }
+}

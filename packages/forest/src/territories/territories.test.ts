@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { territories, territoryAt } from "./territories.js";
+import { fileCircles, territories, territoryAt, type CircleFile } from "./territories.js";
 
 const shares = [
   { capability: "cap-a", lines: 600 },
@@ -47,4 +47,36 @@ test("3.14 each capability is one connected territory whose share of the island 
 test("3.15 a point on a territory's land picks that capability; open sea picks none", () => {
   for (const cell of map.cells) assert.equal(territoryAt(map, cell.site.x, cell.site.z), map.territories[cell.territory]);
   assert.equal(territoryAt(map, 30, 0), undefined);
+});
+
+test("3.16 every file is one circle whose middle lies on its capability's territory, a longer file never drawn smaller", () => {
+  const files: CircleFile[] = [
+    ...Array.from({ length: 9 }, (_, at) => ({ path: `src/a/${at}.ts`, lines: 20 + at * 60, capability: "cap-a" })),
+    ...Array.from({ length: 4 }, (_, at) => ({ path: `src/b/${at}.ts`, lines: 40 + at * 20, capability: "cap-b" })),
+    { path: "src/c/only.ts", lines: 100, capability: "cap-c" },
+    { path: "src/bins/run.ts", lines: 50 },
+  ];
+  const circles = fileCircles(map, files);
+  assert.deepEqual(circles.map(({ path }) => path), files.map(({ path }) => path));
+  for (const circle of circles) {
+    const file = files.find(({ path }) => path === circle.path)!;
+    assert.equal(territoryAt(map, circle.x, circle.z)?.capability, file.capability, `${circle.path} lies on its own territory`);
+  }
+  const bySize = [...circles].sort((a, b) => files.find(({ path }) => path === a.path)!.lines - files.find(({ path }) => path === b.path)!.lines);
+  bySize.slice(1).forEach((circle, at) => assert.ok(circle.radius >= bySize[at]!.radius));
+});
+
+test("3.14 and 3.16 cut to a real coast, every territory's cells and every file's circle lie on the land, the areas following the lines", () => {
+  // A C-shaped island: a square 20 across with a bay cut into its east side.
+  const coast = [[{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: -3 }, { x: 0, z: -3 }, { x: 0, z: 3 }, { x: 10, z: 3 }, { x: 10, z: 10 }, { x: -10, z: 10 }]];
+  const onLand = (x: number, z: number) => Math.abs(x) <= 10 && Math.abs(z) <= 10 && !(x > 0 && Math.abs(z) < 3);
+  const cut = territories(shares, coast);
+  for (const cell of cut.cells) assert.ok(onLand(cell.site.x, cell.site.z), "every cell is on the land");
+  cut.territories.forEach((_, at) => {
+    const share = cut.cells.filter((cell) => cell.territory === at).length / cut.cells.length;
+    assert.ok(Math.abs(share - shares[at]!.lines / 1000) <= 0.02, "cells follow the lines");
+  });
+  assert.equal(territoryAt(cut, 5, 0), undefined, "the bay is sea");
+  const files = [{ path: "a.ts", lines: 400, capability: "cap-a" }, { path: "b.ts", lines: 90, capability: "cap-b" }, { path: "u.ts", lines: 30 }];
+  for (const circle of fileCircles(cut, files)) assert.ok(onLand(circle.x, circle.z), `${circle.path} is on the land`);
 });

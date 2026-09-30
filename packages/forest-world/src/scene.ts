@@ -40,14 +40,11 @@ export interface Island {
   key: string;
 }
 
-/** An island cut into territories (ADR-0804 D2): its cells, each in a territory, and the borders between territories. */
+/** An island's code (ADR-0804 D2, D3): its territories' shares, and its files, for the page to lay on its land. */
 export interface IslandLand {
-  /** The round island the territories were cut from, in world units. */
-  radius: number;
-  /** Each territory's capability; absent for Unclaimed code. */
-  territories: readonly { capability?: string }[];
-  cells: readonly { polygon: readonly { x: number; z: number }[]; territory: number }[];
-  borders: readonly { from: { x: number; z: number }; to: { x: number; z: number } }[];
+  /** Each territory's capability, its title and its lines; no capability for Unclaimed code. */
+  territories: readonly { capability?: string; title?: string; lines: number }[];
+  files: readonly { path: string; lines: number; capability?: string }[];
 }
 
 export interface ForestScene {

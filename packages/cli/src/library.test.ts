@@ -30,6 +30,25 @@ test("3.1 `read` returns the whole body", async () => {
   });
 });
 
+test("3.10 `read --field` prints one field exactly as stored, and refuses a field the record does not have", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const meaning = "  Indented first line.\n\nA trailing blank line and spaces follow.  \n\n";
+    const target = await library.defineTerm({ term: "Target", meaning: "Linked" });
+    const note = await library.defineTerm({ term: "Raw", meaning, links: [target.id] });
+    const text = await world.run(["library", "read", note.id, "--field", "meaning"]);
+    assert.equal(text.code, 0, text.stderr);
+    assert.equal(text.stdout, meaning);
+    const json = await world.run(["library", "read", note.id, "--field", "links"]);
+    assert.equal(json.code, 0, json.stderr);
+    assert.deepEqual(JSON.parse(json.stdout), [target.id]);
+    const missing = await world.run(["library", "read", note.id, "--field", "answer"]);
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /\banswer\b/);
+    for (const field of Object.keys(note.fields)) assert.ok(missing.stderr.includes(field), missing.stderr);
+  });
+});
+
 test("3.2 `edit` changes only the named fields", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

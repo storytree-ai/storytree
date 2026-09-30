@@ -94,6 +94,12 @@ export function onIslandSurface(radius: number, lift = 0): (point: { x: number; 
   return ({ x, z }) => new Vector3(x, Math.sqrt(Math.max(sphere * sphere - x * x - z * z, 0)) - sphere + lift, z);
 }
 
+/** The island surface's normal at plate point (x, z): straight out from the globe's middle. */
+export function islandNormal(radius: number): (point: { x: number; z: number }) => Vector3 {
+  const sphere = radius + PLATE_CLEARANCE;
+  return ({ x, z }) => new Vector3(x, Math.sqrt(Math.max(sphere * sphere - x * x - z * z, 0)), z).normalize();
+}
+
 export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius: number, story: string): Group {
   const sphere = radius + PLATE_CLEARANCE;
   // Plate-local height of the sphere under (x, z): 0 at the plate's centre, bending away from it.

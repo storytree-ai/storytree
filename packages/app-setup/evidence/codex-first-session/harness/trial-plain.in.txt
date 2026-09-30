@@ -1,0 +1,9 @@
+$env:CODEX_HOME = "$HOME\st-codexharden\home-LABEL"
+$plain = "$HOME\CH Plain LABEL"
+if (Test-Path $plain) { Remove-Item -Recurse -Force $plain }
+New-Item -ItemType Directory $plain | Out-Null
+Add-Content -Encoding utf8 "$env:CODEX_HOME\config.toml" -Value "`n[projects.'$($plain.ToLower())']`ntrust_level = `"trusted`""
+Set-Location $plain
+$null | codex exec --skip-git-repo-check --approve-for-me "Make a hello.txt file here that says hi." 2>&1 | Out-String -Width 200
+"--- folder after:"
+Get-ChildItem -Force -Name

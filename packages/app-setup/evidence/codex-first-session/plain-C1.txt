@@ -1,0 +1,61 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Make a hel ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\CH Plain C1
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f1fc-90f2-79b3-97b9-9099f2f4586d
+--------
+user
+Make a hello.txt file here that says hi.
+codex
+I’ll create `hello.txt` here with the text `hi`.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Force -Name; Get-ChildItem -Path . -Filter AGENTS.md -Force | ForEach-Object { Get-Content -LiteralPath 
+$_.FullName }' in C:\Users\mickh\CH Plain C1
+ succeeded in 160ms:
+apply patch
+patch: completed
+C:\Users\mickh\CH Plain C1\hello.txt
+diff --git a/hello.txt b/hello.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..45b983be36b73c0788dc9cbcb76cbb80fc7bb057
+--- /dev/null
++++ b/hello.txt
+@@ -0,0 +1 @@
++hi
+
+diff --git a/hello.txt b/hello.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..45b983be36b73c0788dc9cbcb76cbb80fc7bb057
+--- /dev/null
++++ b/hello.txt
+@@ -0,0 +1 @@
++hi
+
+codex
+Created [hello.txt](</C:/Users/mickh/CH Plain C1/hello.txt>) containing `hi`.
+diff --git a/hello.txt b/hello.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..45b983be36b73c0788dc9cbcb76cbb80fc7bb057
+--- /dev/null
++++ b/hello.txt
+@@ -0,0 +1 @@
++hi
+
+tokens used
+3,205
+Created [hello.txt](</C:/Users/mickh/CH Plain C1/hello.txt>) containing `hi`.
+
+--- folder after:
+hello.txt

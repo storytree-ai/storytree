@@ -7,6 +7,9 @@
  * Each start is a session start, so it runs the setup check (capability 8) beside serving: it opens
  * storytree if it is closed and registers the hooks if they are missing, with the hook script that
  * was built beside this one (`storytree-hook.mjs`). The agent's part comes through check_setup.
+ * Run from a checkout's source, with no hook script beside it, it registers a build of that
+ * checkout's commit when the commit is origin/main's (contract 8.15), so a machine without the
+ * desktop app's updater still runs main's hooks.
  */
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -14,12 +17,15 @@ import { fileURLToPath } from "node:url";
 
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 
-import { runSetupCheck, type HookCommand } from "../setup/index.js";
+import { builtFromMain, runSetupCheck, type HookCommand } from "../setup/index.js";
 import { createAgentTools } from "../tools/index.js";
 
 const folder = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const script = fileURLToPath(new URL("./storytree-hook.mjs", import.meta.url));
-const hook: HookCommand | undefined = existsSync(script) ? { node: process.execPath, script } : undefined;
+const checkout = fileURLToPath(new URL("../../../../", import.meta.url));
+const hook: HookCommand | undefined = existsSync(script)
+  ? { node: process.execPath, script }
+  : await builtFromMain({ checkout }).catch(() => undefined);
 // The `storytree` command goes on the user's own path, beside the hooks (ADR-0643 D1, 8).
 const command = { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() };
 const tools = createAgentTools({ folder, env: process.env, setup: hook === undefined ? {} : { hook, command } });

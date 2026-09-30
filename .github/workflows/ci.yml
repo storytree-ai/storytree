@@ -132,7 +132,10 @@ jobs:
       pull-requests: write
     steps:
       # With a merge queue required on main, enqueue the pull request at the commit `verify` passed
-      # (expectedHeadOid): the queue tests it on top of main and merges it. Without one, merge it
+      # (expectedHeadOid): the queue tests it on top of main and merges it. It enqueues with the
+      # MERGE_QUEUE_TOKEN secret, never this workflow's own token: GitHub starts no workflow from an
+      # event that token causes, so an entry it enqueued gets no `merge_group` run and waits in the
+      # queue until it times out (2026-09-30, PRs #311-#316). Without a queue, merge it
       # directly. --match-head-commit: merge the commit `verify` passed, never one pushed since.
       # --auto: if main's protection still holds the merge back, GitHub's auto-merge makes it once
       # it allows; otherwise gh merges now. --delete-branch: the repo's own "automatically delete
@@ -145,13 +148,18 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           PR_ID: ${{ github.event.pull_request.node_id }}
           SHA: ${{ github.event.pull_request.head.sha }}
+          QUEUE_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
         run: |
           queue=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
             -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { isMergeQueueEnabled } } }' \
             --jq .data.repository.pullRequest.isMergeQueueEnabled)
           echo "queue=$queue" >> "$GITHUB_OUTPUT"
           if [ "$queue" = true ]; then
-            gh api graphql -f id="$PR_ID" -f sha="$SHA" \
+            if [ -z "$QUEUE_TOKEN" ]; then
+              echo "::error::main requires the merge queue, but the MERGE_QUEUE_TOKEN secret is not set, so this pull request cannot be enqueued (an entry this workflow's own token enqueued would never be checked)."
+              exit 1
+            fi
+            GH_TOKEN="$QUEUE_TOKEN" gh api graphql -f id="$PR_ID" -f sha="$SHA" \
               -f query='mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }' \
               --jq '"Entered the merge queue at position \(.data.enqueuePullRequest.mergeQueueEntry.position)."'
           else

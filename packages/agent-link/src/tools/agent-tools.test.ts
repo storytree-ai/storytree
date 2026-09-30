@@ -43,6 +43,7 @@ const TOOLS = [
   "close_increment",
   "close_out",
   "correct_note",
+  "correct_question",
   "edit_plan",
   "land",
   "list_all_runs",
@@ -440,6 +441,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["reinforce", { friction: "friction_000000000000", evidence: "#81: timed out again" }],
         ["record_resteer", { title: "Redirected", description: "Redirected", doing: "a", redirect: "b", evidence: '"not that"', disposition: "taste", judged_by: "owner" }],
         ["raise_question", { arc: "arc_000000000000", title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" }],
+        ["correct_question", { question: "question_000000000000", title: "Which mailer, Mailgun or SES?" }],
         ["settle_question", { question: "question_000000000000", answer: "Mailgun" }],
         ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
         ["read_context", {}],
@@ -1088,6 +1090,7 @@ test("6.16 every library write from a tool names the calling session, including 
       await write("clear_wait", { waiter: increment, on: blocker });
       const questionArgs = { arc, title: "Mailer?", stakes: "Delivery", statement: "Which?", context: "Signup", options: "Mailgun or SES" };
       const question = await write("raise_question", { ...questionArgs, holds: [increment] }, 2);
+      await write("correct_question", { question, stakes: "Cost and deliverability" });
       await write("settle_question", { question, answer: "Mailgun" });
       const mistaken = await write("raise_question", questionArgs);
       await write("retire_question", { question: mistaken, reason: "Already asked" });
@@ -1217,6 +1220,27 @@ test("6.19 Codex gets app creation arguments then attaches the returned worktree
   });
 });
 
+test("6.19 a Claude Code session attaches the linked worktree it is in through the tool, on that worktree's branch, with no ref or name", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "first");
+    const ownFolder = path.join(path.dirname(folder), "desktop worktree");
+    git(folder, "worktree", "add", "-b", "claude/desktop-own", ownFolder);
+    await withAgent(folder, claudeCode("claude-desktop"), async (agent) => {
+      const { arc } = await planned(agent);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Form", objective: "Build form", body: "Red then green" }));
+      const attached = await agent.call("attach_workspace", { increment, reason: "build form", folder: ownFolder });
+      assert.equal(attached.isError, false, attached.text);
+      assert.equal(attached.data.branch, "claude/desktop-own");
+      assert.deepEqual(
+        (await readClaims(log, project)).map(({ increment, session, branch }) => ({ increment, session, branch })),
+        [{ increment, session: "claude-desktop", branch: "claude/desktop-own" }],
+      );
+    });
+  });
+});
+
 test("6.22 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words", async () => {
   await withProject(async ({ folder, library }) => {
     for (const n of [1, 2, 3]) await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });
@@ -1249,6 +1273,37 @@ test("6.25 search_notes finds a story, a capability and a contract by their own 
         ],
       );
       assert.match(answer.text, /"Rejects a postcode with letters only" \(contract_\w+\): A bad postcode is refused/);
+    });
+  });
+});
+
+test("6.27 correct_question corrects an open question's wording in place: only the fields given change and it keeps its id; a settled question keeps its words and answer, and a missing question or no words get a readable refusal", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const asked = { arc, title: "Which mailer?", stakes: "Cost", statement: "Send through Mailgun or SES?", context: "Both work here", options: "Mailgun; SES" };
+      const question = idOf(await agent.call("raise_question", asked));
+      const wordsOf = async (id: string) => (await library.arcView(arc))?.questions.find((one) => one.id === id)?.fields;
+
+      const corrected = await agent.call("correct_question", { question, stakes: "Cost and deliverability", recommendation: "Mailgun" });
+      assert.equal(corrected.isError, false, corrected.text);
+      assert.equal(corrected.data.id, question);
+      const words = await wordsOf(question);
+      assert.deepEqual([words?.title, words?.stakes, words?.statement, words?.recommendation], ["Which mailer?", "Cost and deliverability", "Send through Mailgun or SES?", "Mailgun"]);
+
+      const nothing = await agent.call("correct_question", { question });
+      assert.equal(nothing.isError, true);
+      assert.match(nothing.text, /Give the words to change/);
+
+      const missing = await agent.call("correct_question", { question: "question_000000000000", title: "Anything" });
+      assert.equal(missing.isError, true);
+      assert.match(missing.text, /no question question_000000000000/);
+
+      await agent.call("settle_question", { question, answer: "Mailgun" });
+      const settled = await agent.call("correct_question", { question, title: "Which mail provider?" });
+      assert.equal(settled.isError, true);
+      assert.match(settled.text, /settled/);
+      assert.deepEqual([(await wordsOf(question))?.title, (await wordsOf(question))?.answer], ["Which mailer?", "Mailgun"]);
     });
   });
 });

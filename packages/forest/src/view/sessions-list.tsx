@@ -38,7 +38,7 @@ function detailsOf(reading: ContextReading): SessionDetails {
 export function isSessionRows(value: unknown): value is SessionRow[] {
   return Array.isArray(value) && value.every((row: Partial<SessionRow> | null) => typeof row === "object" && row !== null
     && typeof row.id === "string" && typeof row.label === "string" && typeof row.agent === "string" && typeof row.state === "string"
-    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && Array.isArray(row.unmerged) && isSessionRows(row.children));
+    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && Array.isArray(row.unmerged) && Array.isArray(row.description) && isSessionRows(row.children));
 }
 
 function everyId(rows: readonly SessionRow[]): string[] {
@@ -207,9 +207,10 @@ function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
 /** A worktree's folder name, the trunk's too, from its full path on any platform. */
 const folderName = (path: string): string => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
 
-/** An expanded row's detail (7.8): each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
+/** An expanded row's detail (7.8): its description's lines (7.14), then each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
 function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
   return <div className="session-detail">
+    {row.description.length > 0 && <div className="session-description">{row.description.map(said => <p key={said}>{said}</p>)}</div>}
     {row.worktrees.length > 0 && <>
       <p className="session-detail-label">Worktrees</p>
       <ul className="session-detail-worktrees" aria-label="Worktrees">

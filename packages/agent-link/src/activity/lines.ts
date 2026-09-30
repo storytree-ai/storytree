@@ -125,6 +125,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("session-archived"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]) }).strict(),
   z.object({ ...common, kind: z.literal("session-unarchived"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]) }).strict(),
+  /**
+   * How the app that keeps a session (`of`) names and describes it (agent link 4.19): its title, and
+   * Claude's latest post-turn status, scrubbed. Written as the archive lines are, when either changes.
+   */
+  z.object({ ...common, kind: z.literal("session-described"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]),
+    title: z.string().min(1).optional(), status: z.string().min(1).optional() }).strict(),
 ]);
 
 /** A line as it is written. */

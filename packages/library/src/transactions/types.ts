@@ -27,7 +27,7 @@ export interface HistoryEntry {
   action: "created" | "updated" | "retired";
   /** The record after the change; for `retired`, its last state. */
   record: RecordEnvelope;
-  /** Why the record was retired (`retired` only). */
+  /** Why the record was retired, or, when its writer said, why it changed. */
   reason?: string;
   /** Who made the change, when the writer said. */
   actor?: string;
@@ -78,6 +78,8 @@ export interface EditInput {
   /** Merged shallowly onto the stored fields; a key whose value is `undefined` is removed. */
   readonly fields: Record<string, unknown>;
   readonly actor?: string;
+  /** Why the record changed, kept in its history entry, when the writer says. */
+  readonly reason?: string;
   /**
    * Runs on the stored record inside the write, before the merge, and returns the record to merge
    * onto: how a record written on an older schema version is upgraded in place. If it throws, the

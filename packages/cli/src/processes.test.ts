@@ -7,13 +7,13 @@ import test from 'node:test';
 import { setTimeout as pause } from 'node:timers/promises';
 import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/deliver';
 import { buildBins } from '@storytree/agent-link/bins';
-import { launchOwned, readProcess } from '@storytree/processes';
+import { launchOwned, probeProcess, type RunRecord } from '@storytree/processes';
 import { BuiltCommand, storytree } from './testing/cli.js';
 
 for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'processes-door-'));
   const command = new BuiltCommand();
-  const children: number[] = [];
+  const children: RunRecord[] = [];
   t.after(async () => {
     await Promise.all(children.map(stopChild));
     command.remove();
@@ -46,7 +46,7 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${instal
   for (const session of ['caller', 'other']) {
     const launched = await launchOwned({ home: path.join(home, 'own'), owner: { session, harness: 'codex' },
       command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
-    if (launched.pid) children.push(launched.pid);
+    if (launched.status === 'tracked') children.push(launched.run);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
     runs.push(launched.run);
@@ -121,11 +121,17 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${instal
   }
 });
 
-async function stopChild(pid: number): Promise<void> {
-  try { process.kill(pid, 'SIGKILL'); } catch { return; }
+/** Kill a test child still running, never whatever process has since been given its PID. */
+async function stopChild(run: RunRecord): Promise<void> {
+  if (run.birth.state !== 'live') return;
+  const { identity } = run.birth;
+  // Windows reuses a PID at once: a raw kill after the child exits can end a Postgres backend and
+  // send the shared test server into crash recovery under every other test.
+  if ((await probeProcess(identity)).state !== 'live') return;
+  try { process.kill(identity.pid, 'SIGKILL'); } catch { return; }
   for (let attempt = 0; attempt < 100; attempt++) {
-    if ((await readProcess(pid)).state === 'gone') return;
+    if ((await probeProcess(identity)).state === 'gone') return;
     await pause(20);
   }
-  assert.fail(`test child ${pid} did not exit`);
+  assert.fail(`test child ${identity.pid} did not exit`);
 }

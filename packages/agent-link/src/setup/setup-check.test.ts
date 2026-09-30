@@ -24,7 +24,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
+import { builtFromMain, ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -748,5 +748,45 @@ test("8.13 the check says whether storytree can read which sessions the Claude d
     const readLine = read.lines.find((each) => each.check === "archives");
     assert.equal(readLine?.state, "ok");
     assert.match(readLine?.message ?? "", /Claude desktop app.*1 session/);
+  });
+});
+
+/** A git checkout with one commit, which `origin/main` names too: a fresh worktree of main. */
+function checkoutOfMain(dir: string): { folder: string; commit: string } {
+  const folder = path.join(dir, "checkout");
+  mkdirSync(folder);
+  const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" }).stdout.trim();
+  git("init", "-q");
+  git("commit", "-q", "--allow-empty", "-m", "main");
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  return { folder, commit: git("rev-parse", "HEAD") };
+}
+
+test("8.15 with no desktop app, a session whose tool server runs from a checkout at origin/main registers the hooks from a build of that commit kept in the storytree home; a checkout off main, or hooks the app installed, are left as they are (regression: the Mint box's hooks ran a build from 746caf1, 2026-09-30)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const { folder, commit } = checkoutOfMain(dir);
+    const build = async (outdir: string) => {
+      mkdirSync(outdir, { recursive: true });
+      writeFileSync(path.join(outdir, "storytree-hook.mjs"), "");
+    };
+    const options = { checkout: folder, storytreeHome: home.storytreeHome, homes: home.homes, build };
+
+    const hook = await builtFromMain(options);
+    assert.ok(hook !== undefined, "a checkout at origin/main gives a hook to register");
+    assert.equal(path.dirname(hook.script), path.join(home.storytreeHome, "agent-tools", commit), "built from main's commit, in the storytree home");
+    assert.ok(existsSync(hook.script));
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome });
+    assert.ok(Object.keys(storytreeHooks(readJson(home.claudeSettings), hook.script, "claude-code")).length > 0, "Claude Code runs that build");
+
+    // A branch with work on it is not main: its hooks are not what every session on the machine should run.
+    spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "branch work"], { cwd: folder });
+    assert.equal(await builtFromMain(options), undefined, "a checkout off main registers nothing");
+
+    // Where the desktop app installed the hooks, its updater keeps them current: they stay the app's.
+    spawnSync("git", ["reset", "-q", "--hard", commit], { cwd: folder });
+    const app: HookCommand = { node: process.execPath, script: path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools", "storytree-hook.mjs") };
+    registerHooks(home.homes, app);
+    assert.equal(await builtFromMain(options), undefined, "hooks the app installed are kept");
   });
 });

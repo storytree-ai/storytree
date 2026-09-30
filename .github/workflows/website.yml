@@ -1,0 +1,64 @@
+name: Publish website
+
+# CI's GITHUB_TOKEN merge starts no push workflow. Follow completed CI, then verify the merge.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - id: source
+        run: node packages/website/publish-ci.mjs source
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    needs: source
+    if: needs.source.outputs.sha != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only eligible website runs enter this queue; an unrelated merge cannot displace one.
+    concurrency:
+      group: website-herenow
+      cancel-in-progress: false
+    env:
+      WEBSITE_SHA: ${{ needs.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.source.outputs.sha }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @storytree/website typecheck
+      - run: pnpm run test --only=website
+      - run: pnpm --filter @storytree/website build
+      - name: Publish, or clearly skip without the token
+        run: node packages/website/publish-ci.mjs publish
+        env:
+          HERENOW_TOKEN: ${{ secrets.HERENOW_TOKEN }}

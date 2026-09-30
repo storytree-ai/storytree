@@ -8,9 +8,9 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
-  idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], description: [], children: [
+  idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], running: [], description: [], children: [
     { id: "child", label: "Read the library", agent: "Subagent", state: "observed", idle: false,
-      totalTokens: undefined, stories: [], worktrees: [], description: [], children: [] },
+      totalTokens: undefined, stories: [], worktrees: [], running: [], description: [], children: [] },
   ] };
 
 test("7.1–7.5 rows start folded, show safe words and available total beside its bar", () => {
@@ -122,4 +122,17 @@ test("7.15 an expanded row's worktree carries its label, unmerged or merged, bes
   assert.match(list, /<li title="\/w\/one\nfix-one">one<span class="session-worktree-state" data-state="unmerged">unmerged<\/span><\/li>/, list);
   assert.match(list, /<li title="\/w\/two\nfix-two">two<span class="session-worktree-state" data-state="merged">merged<\/span><\/li>/, list);
   assert.match(list, /<li title="\/w\/site">site<\/li>/, list);
+});
+
+test("7.16 an expanded row's Running block, between its worktrees and its files, lists each running command by its words (the full command on hover) and how long it has run; with nothing running it is not drawn", () => {
+  const running: SessionRow["running"] = [{ words: "pnpm run test --full", command: "pnpm run test --full --reason x", ranMs: 12_000 },
+    { words: "gh pr checks --watch", command: "gh pr checks --watch", ranMs: 90_000 }, { words: "sleep 9999", command: "sleep 9999", ranMs: 3_900_000 }];
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees: [{ path: "/w/one", branches: [] }], running }], expanded: new Set(["parent"]), onHighlight() {} }));
+  const block = html.match(/<ul class="session-detail-running".*?<\/ul>/s)?.[0] ?? "";
+  assert.match(block, /<li title="pnpm run test --full --reason x"><span class="session-run-command">pnpm run test --full<\/span><span class="session-run-time">12s<\/span><\/li>/, block);
+  assert.match(block, /session-run-time">1m<\/span>/, block);
+  assert.match(block, /session-run-time">1h 5m<\/span>/, block);
+  assert.ok(html.indexOf(">Worktrees<") < html.indexOf(">Running<") && html.indexOf(">Running<") < html.indexOf(">Files<"));
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], running: [] }], expanded: new Set(["parent"]), onHighlight() {} })), />Running</);
+  assert.equal(isSessionRows([{ ...row, children: [], running: undefined }]), false, "rows kept by an older build are not drawn");
 });

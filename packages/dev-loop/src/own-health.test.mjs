@@ -191,6 +191,9 @@ test("own health reads a story's contracts from the library, each number from it
   assert.equal(packageOf("The arc surface"), "arc-surface");
   assert.equal(packageOf("The library"), "library");
   assert.equal(packageOf("The command line"), "cli", "a package named otherwise");
+  assert.equal(packageOf("The world"), "forest-world");
+  assert.equal(packageOf("The local database"), "local-postgres");
+  assert.equal(packageOf("Process ledger"), "processes");
 });
 
 test("recordHealth writes each passing or failing verdict to the verified column, with who and how many tests, and nothing for not checked", async () => {

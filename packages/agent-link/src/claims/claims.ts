@@ -87,17 +87,19 @@ export type LandAnswer =
  * Refused if the library has no live capability or increment by that id, if it is a closed
  * increment, if it is waiting work (waitingOn), or if another live session holds it; a holder idle
  * past the quiet time is taken over. Claiming a proposed or ready increment starts it, through the
- * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing.
+ * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing,
+ * unless `moveBranch` is given with a new branch: then it holds it on that branch from now on.
  */
-export async function claim(context: ClaimContext, id: string, reason: string): Promise<ClaimAnswer> {
+export async function claim(context: ClaimContext, id: string, reason: string, options: { readonly moveBranch?: true } = {}): Promise<ClaimAnswer> {
   const tooLong = reasonRefusal(reason);
   if (tooLong !== undefined) return tooLong;
   const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
-    if (current?.session === context.session) return { ok: true, claim: current, alreadyHeld: true };
-    if (current?.holder === "live") return { ok: false, refused: "held", holder: current };
+    const mine = current?.session === context.session;
+    if (mine && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
+    if (!mine && current?.holder === "live") return { ok: false, refused: "held", holder: current };
     // A claim may have waited for this lock without needing any library write at all.
     context.writer?.signal?.throwIfAborted();
     // Activation takes the library lock and checks cancellation there, before any claimed line.
@@ -108,11 +110,11 @@ export async function claim(context: ClaimContext, id: string, reason: string): 
       kind: "claimed",
       ...found.part,
       reason,
-      ...(current === undefined ? {} : { takenOverFrom: current.session }),
+      ...(current === undefined || mine ? {} : { takenOverFrom: current.session }),
       ...(context.branch === undefined ? {} : { branch: context.branch }),
     });
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
-    return current === undefined ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
+    return current === undefined || mine ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });
 }
 

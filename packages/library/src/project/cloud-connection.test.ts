@@ -672,6 +672,30 @@ interface FakeGoogle {
 }
 
 /** A connector whose sign-in (getOptions) is `signIn`. It reaches nothing of its own. */
+test("8.4 on a shared Cloud SQL instance, a project's pool holds at most three of the instance's connection slots, and busier work queues for them", async () => {
+  const run = uniqueProjectName();
+  const user = `${run}@storytree.test`;
+  const project = `${run}-busy`;
+  const opened: Storytree[] = [];
+  try {
+    await createTestRole(user, { createdb: true });
+    const cloud = await connect({ cloudSql: { instance: INSTANCE, user } }, { connector: fakeGoogle(toTestServer).make });
+    opened.push(cloud);
+    const library = await cloud.openProject(project);
+
+    const reads = Array.from({ length: 8 }, () => library.pool.query("SELECT pg_sleep(0.3)"));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const held = await sessionsOn(`storytree_${project}`, user);
+    await Promise.all(reads);
+
+    assert.ok(held >= 1 && held <= 3, `the pool held ${held} connections at once`);
+  } finally {
+    await Promise.allSettled(opened.map((storytree) => storytree.close()));
+    await dropTestDatabases([`storytree_${project}`]);
+    await dropTestRoles([user]);
+  }
+});
+
 function fakeGoogle(signIn: () => Promise<{ stream: () => Duplex }>): FakeGoogle {
   const google: FakeGoogle = {
     make: async () => {

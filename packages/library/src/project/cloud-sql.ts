@@ -50,6 +50,16 @@ export interface CloudSqlSeams {
   readonly timeoutMs?: number;
 }
 
+/**
+ * The most connections each of a process's pools opens on the instance. A Cloud SQL instance is
+ * shared by every session, command and app on every machine (storytree's own allowed 47 in all
+ * when measured on 2026-09-30), and a process holds a pool per database it reads: its project's,
+ * the admin one, and the activity log's among them. pg's own default of ten each let a handful of
+ * processes fill the instance; three keeps a dozen parallel sessions within it, and busier work
+ * queues in the pool for a connection instead.
+ */
+const POOL_MAX = 3;
+
 /** How long reaching an instance may take before it is refused: the sign-in, and then each connection. */
 const TIMEOUT_MS = 20_000;
 
@@ -92,7 +102,7 @@ export async function cloudSqlServer(config: unknown, seams: CloudSqlSeams = {})
   const timeoutMs = seams.timeoutMs ?? TIMEOUT_MS;
   const connector = await (seams.connector ?? (() => googleConnector(instanceParts(instance).project)))();
   const options = await signIn(connector, instance, user, timeoutMs);
-  const pool = (database: string, role?: string) => newPool({ ...options, user, database, connectionTimeoutMillis: timeoutMs, ...actingAs(role) });
+  const pool = (database: string, role?: string) => newPool({ ...options, user, database, max: POOL_MAX, connectionTimeoutMillis: timeoutMs, ...actingAs(role) });
   return {
     kind: "cloud-sql",
     admin: pool(ADMIN_DATABASE),

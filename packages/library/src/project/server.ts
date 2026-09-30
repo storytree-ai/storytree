@@ -5,9 +5,9 @@
  * PoolFactory makes.
  */
 import pg from "pg";
-import type { Pool, PoolConfig } from "pg";
+import type { Pool, PoolClient, PoolConfig } from "pg";
 
-import { ConnectionError } from "./connection-error.js";
+import { ConnectionError, sqlState } from "./connection-error.js";
 
 /**
  * Makes a connection pool for one database on the server; with `role`, every connection in it acts
@@ -66,13 +66,53 @@ export function actingAs(role: string | undefined): PoolConfig {
   return role === undefined ? {} : { options: `-c role=${role.replace(/[\\ ]/g, (c) => `\\${c}`)}` };
 }
 
-/** A pool for `config`. */
+/**
+ * How long a pool keeps asking for a connection the server refused for want of a free slot
+ * (SQLSTATE 53300: too many clients, or the slots left are reserved) before it passes the refusal
+ * on. A server shared by parallel sessions frees a slot within seconds as their idle connections
+ * close, so a call waits through the rush rather than failing in it.
+ */
+const SLOT_WAIT_MS = 30_000;
+
+/** A pool for `config`, whose connections wait for a free slot on the server rather than fail for want of one. */
 export function newPool(config: PoolConfig): Pool {
-  const pool = new pg.Pool(config);
+  const pool = new SlotWaitingPool(config);
   // An idle connection that drops (a server restart, a dropped database) is discarded by the pool
   // and the next query reconnects or fails loudly. Without a listener Node would crash instead.
   pool.on("error", () => {});
   return pool;
+}
+
+type ConnectCallback = (error: Error | undefined, client: PoolClient | undefined, done: (release?: unknown) => void) => void;
+
+/**
+ * A pg pool that asks again, backing off, when the server refuses a new connection for want of a
+ * slot. Each attempt goes back through the pool, so a connection another of its calls hands back
+ * meanwhile is taken first. pool.query() reaches the server through connect() too.
+ */
+class SlotWaitingPool extends pg.Pool {
+  override connect(): Promise<PoolClient>;
+  override connect(callback: ConnectCallback): void;
+  override connect(callback?: ConnectCallback): Promise<PoolClient> | void {
+    const connecting = this.#connectWaiting();
+    if (callback === undefined) return connecting;
+    connecting.then(
+      (client) => callback(undefined, client, (release) => client.release(release as Error | boolean | undefined)),
+      (error: Error) => callback(error, undefined, () => {}),
+    );
+  }
+
+  async #connectWaiting(): Promise<PoolClient> {
+    const giveUpAt = Date.now() + SLOT_WAIT_MS;
+    for (let pause = 50; ; pause = Math.min(pause * 2, 2_000)) {
+      try {
+        return await super.connect();
+      } catch (error) {
+        if (sqlState(error) !== "53300" || Date.now() + pause > giveUpAt) throw error;
+        await new Promise((resolve) => setTimeout(resolve, pause * (0.5 + Math.random())));
+      }
+    }
+  }
 }
 
 /** The server URL with its database swapped for `database`; user, host, port and options stay. */

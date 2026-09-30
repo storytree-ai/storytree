@@ -146,7 +146,8 @@ async function checkStory(library, story, writer) {
       let line = `    ${number.padEnd(5)} ${verdict.state.padEnd(12)} ${verdict.note ?? verdict.reason ?? ""}`;
       if (verdict.state === "not-checked") {
         const earlier = (await library.health(contract.id)).verified;
-        if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is left as it was`;
+        if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
+        if (verdict.skip !== undefined) line += ` [skip: ${verdict.skip}]`;
       }
       console.log(line);
     }
@@ -154,7 +155,7 @@ async function checkStory(library, story, writer) {
   const written = await recordHealth(library, contractIds, verdicts, writer);
   console.log(
     `\nrecorded: ${written.passing} passing, ${written.failing} failing; ` +
-      `${written.notChecked} not checked (nothing written for those). The reported column is untouched.`,
+      `${written.notChecked} not checked, ${written.marked} of them marked with a skip's kind or as not re-run. The reported column is untouched.`,
   );
   return true;
 }

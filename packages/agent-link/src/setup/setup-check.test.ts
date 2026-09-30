@@ -585,7 +585,7 @@ test("8.9 an older storytree launcher in the home that runs another build is rep
 });
 
 test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83)", {
-  skip: process.platform !== "win32" && "Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it",
+  skip: process.platform !== "win32" && "platform:win32: cmd.exe reads the .cmd wrapper again after setup remove deletes it",
 }, async () => {
   await withTempDir(async (dir) => {
     const profile = path.join(dir, "user home");
@@ -698,7 +698,7 @@ test("8.17 from an administrator (elevated) terminal with Codex here, the check 
   });
 });
 
-test("8.17 an elevated process is recognised by its high integrity label", { skip: process.platform !== "win32" && "administrator elevation is Windows' own" }, async () => {
+test("8.17 an elevated process is recognised by its high integrity label", { skip: process.platform !== "win32" && "platform:win32: administrator elevation is Windows' own" }, async () => {
   await withTempDir(async (dir) => {
     const bin = path.join(dir, "bin");
     mkdirSync(bin);

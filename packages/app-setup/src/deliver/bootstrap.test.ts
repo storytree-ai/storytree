@@ -14,7 +14,7 @@ const engines = process.env.STORYTREE_TEST_PWSH
 for (const { command, required } of engines) {
   test(`1.1 / 1.3 / 1.4 / 1.6 under ${command}: PowerShell delivery selects Windows architecture, reuses, retries, preserves failures and persists PATH`, (t) => {
     const found = spawnSync(command, ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"], { encoding: "utf8" });
-    if (found.error && !required) return t.skip(`${command} unavailable here; Windows CI runs this proof`);
+    if (found.error && !required) return t.skip(`platform:win32: ${command} unavailable here; Windows CI runs this proof`);
     assert.ifError(found.error);
     // A user opens Windows PowerShell afresh; a module path inherited from pwsh (CI's shell) would load 7's modules into 5.1.
     const env = { ...process.env };

@@ -60,7 +60,7 @@ test("5.5 recordAcceptance writes each passing or failing verdict to the verifie
       ],
     });
     const written = await recordAcceptance(lib, contractIds, verdicts, { commit: "9f3734a", evidence: "packages/app-setup/evidence/acceptance-run" });
-    assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 1 });
+    assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 1, marked: 0 });
 
     const passing = await lib.health(contractIds.get("1.1"));
     assert.equal(passing.verified.state, "passing");

@@ -27,7 +27,7 @@ import { PgTransactions } from "./pg.js";
 const CONTRACT =
   "8.1 capability 2's behaviour suite, unchanged, passes against a real Cloud SQL instance reached with Google sign-in";
 const OWNER_GATED =
-  "live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role — owner-gated";
+  "owner: live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER and a database user that may create databases, itself or through a granted role";
 
 const instance = process.env.STORYTREE_TEST_CLOUDSQL_INSTANCE ?? "";
 const user = process.env.STORYTREE_TEST_CLOUDSQL_USER ?? "";

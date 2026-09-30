@@ -143,3 +143,55 @@ test("4.21 the app looks for itself: a branch a session on this machine worked o
     await log.close();
   }
 });
+
+test("4.24 the same look reads each open branch's pull request from GitHub in one call: its number, whether it is a draft, its checks (pending, passing or failing) and whether it waits in the merge queue; a change is written, nothing else is; GitHub not answering erases nothing; the Session reading carries it on each open branch", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "a.txt"), "a\n");
+      git(repo, "add", "a.txt");
+      git(repo, "commit", "-q", "-m", "first");
+      git(repo, "switch", "-q", "-c", "claude/ahead");
+      writeFileSync(path.join(repo, "b.txt"), "b\n");
+      git(repo, "add", "b.txt");
+      git(repo, "commit", "-q", "-m", "work");
+      git(repo, "switch", "-q", "main");
+
+      await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "here", folder: repo, branch: "claude/ahead", kind: "file-edited", files: ["x.ts"] });
+      await log.append(project, { session: "laptop", harness: "claude-code", source: "hook", machine: "elsewhere", folder: "C:\site", branch: "claude/laptop", kind: "file-edited", files: ["y.ts"] });
+
+      type Pulls = Map<string, { number: number; draft: boolean; checks?: "pending" | "passing" | "failing"; queued: boolean }>;
+      let answer: Pulls | undefined = new Map([
+        ["claude/ahead", { number: 40, draft: false, checks: "pending", queued: false }],
+        ["claude/laptop", { number: 41, draft: true, queued: false }],
+      ]);
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => answer, everyMs: 0, machine: "here" };
+      const pulls = (lines: readonly Line[]) => lines.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.pr, line.draft, line.checks, line.queued]] : [])).sort();
+
+      assert.deepEqual(pulls(await resolveBranches(watcher, watch)), [
+        ["claude/ahead", true, 40, undefined, "pending", undefined],
+        ["claude/laptop", true, 41, true, undefined, undefined],
+      ]);
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nothing changed, nothing written");
+
+      answer = new Map([["claude/ahead", { number: 40, draft: false, checks: "passing", queued: true }], ["claude/laptop", { number: 41, draft: true, queued: false }]]);
+      assert.deepEqual(pulls(await resolveBranches(watcher, watch)), [["claude/ahead", true, 40, undefined, "passing", true]]);
+
+      answer = undefined;
+      assert.deepEqual(await resolveBranches(watcher, { ...watch, allOpenPulls: async () => { throw new Error("gh is signed out"); } }), [], "GitHub not answering learns nothing");
+      assert.deepEqual(await resolveBranches(watcher, watch), [], "nor does an answer that says nothing");
+
+      const [worker] = sessionsFrom((await log.since(project, 0)).lines).filter((session) => session.session === "worker");
+      assert.deepEqual(worker?.branchesByFolder, [{ folder: repo, branch: "claude/ahead", open: true, pr: { number: 40, draft: false, checks: "passing", queued: true } }]);
+
+      answer = new Map([["claude/laptop", { number: 41, draft: true, queued: false }]]);
+      assert.deepEqual(pulls(await resolveBranches(watcher, watch)), [["claude/ahead", true, undefined, undefined, undefined, undefined]], "a pull request closed unmerged leaves the branch open, with none");
+    });
+  } finally {
+    await log.close();
+  }
+});

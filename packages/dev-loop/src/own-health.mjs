@@ -10,7 +10,9 @@
 // passing, and one whose tests were all skipped, or that has none, is not checked. A test file
 // that produced no results (its process died before running any test) proves nothing either way:
 // the contracts it holds are left not checked, never failed on the strength of a crash.
-// Not checked is never written; the column's absence of an entry already reads not-checked.
+// Not checked is written only when a contract's tests were skipped or crashed (ADR-0825 D2): with
+// the kind of the skip, and any earlier verdict the run did not reproduce, marked "not re-run". Otherwise the column's absence of
+// an entry already reads not-checked.
 
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -140,7 +142,7 @@ function moduleFile(target) {
 }
 
 /**
- * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string }} Verdict
+ * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}`, crashed?: true }} Verdict
  */
 
 /**
@@ -191,15 +193,28 @@ export function judge({ contracts, results, coverage, show = (file) => file }) {
     let verdict;
     if (counts.failed > 0) verdict = { number, state: "failing", ...counts, note: tally };
     else if (crashedUnder.has(number)) {
-      verdict = { number, state: "not-checked", ...counts, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
+      verdict = { number, state: "not-checked", ...counts, crashed: true, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
     } else if (counts.total === 0) verdict = { number, state: "not-checked", ...counts, reason: "no tests" };
     else if (counts.skipped > 0) {
       const why = skipReasons.length > 0 ? ` (${skipReasons.join("; ")})` : "";
-      verdict = { number, state: "not-checked", ...counts, reason: `${counts.skipped} of ${counts.total} tests skipped${why}` };
+      verdict = { number, state: "not-checked", ...counts, skip: skipKind(skipReasons), reason: `${counts.skipped} of ${counts.total} tests skipped${why}` };
     } else verdict = { number, state: "passing", ...counts, note: tally };
     verdicts.set(number, verdict);
   }
   return { verdicts, unmapped, crashedFiles };
+}
+
+/**
+ * The kind of a contract's skip (ADR-0825 D2), from its skip reasons' first word: `owner` when any
+ * says `owner:` (only the owner can give what it needs), else `platform:<os>` when one names the
+ * platform it runs on, else `other`.
+ * @param {string[]} reasons
+ * @returns {"owner" | "other" | `platform:${string}`}
+ */
+function skipKind(reasons) {
+  if (reasons.some((reason) => /^owner\b/i.test(reason))) return "owner";
+  const platform = reasons.map((reason) => /^platform:([a-z0-9]+)/i.exec(reason)?.[1]).find(Boolean);
+  return platform === undefined ? "other" : `platform:${platform.toLowerCase()}`;
 }
 
 /** The result Node reports for a test file itself, named after the file, as it does for one that died. */
@@ -291,21 +306,26 @@ function optional(field, value) {
 /**
  * Write each verdict to its contract's VERIFIED column: passing or failing, by `writer` (a test
  * run), with its tally as the note, and the commit it ran on when the writer names one. A
- * not-checked verdict writes nothing. The reported column is never touched: that is what an agent
- * says, and no agent has spoken here.
+ * not-checked verdict is written only when its tests were skipped or crashed (ADR-0825 D2): with
+ * the kind of its skip, and any earlier passing or failing it did not reproduce, which it carries as
+ * "not re-run at <commit>" (history keeps the old verdict). With no tests there is nothing to re-run,
+ * and a verdict from elsewhere stands. One whose column already says the same is not written
+ * again, so its note keeps the commit it was first not re-run at. The reported column is never
+ * touched: that is what an agent says, and no agent has spoken here.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
  * @param {Map<string, Verdict>} verdicts
  * @param {Writer} [writer]
  */
 export async function recordHealth(library, contractIds, verdicts, writer = { by: VERIFIED_BY }) {
-  const written = { passing: 0, failing: 0, notChecked: 0 };
+  const written = { passing: 0, failing: 0, notChecked: 0, marked: 0 };
   for (const [number, verdict] of verdicts) {
+    const id = contractIds.get(number);
     if (verdict.state === "not-checked") {
       written.notChecked++;
+      if (id !== undefined && (await markNotChecked(library, id, verdict, writer))) written.marked++;
       continue;
     }
-    const id = contractIds.get(number);
     if (id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
     const note = writer.commit === undefined ? verdict.note : `${verdict.note}, at commit ${writer.commit}`;
     await library.recordVerified(id, verdict.state, { by: writer.by, ...optional("note", note) });
@@ -314,6 +334,25 @@ export async function recordHealth(library, contractIds, verdicts, writer = { by
   return written;
 }
 
+
+/**
+ * Mark contract `id` not checked when its tests were skipped or crashed: with its skip's kind, and
+ * the earlier verdict it did not reproduce (carried over from a mark already standing). True if it
+ * wrote.
+ */
+async function markNotChecked(library, id, verdict, writer) {
+  // Only a run that had tests for it, skipped or crashed, failed to reproduce a verdict: with none,
+  // a verdict from elsewhere (an acceptance run, ADR-0825 D5) stands.
+  if (verdict.skip === undefined && verdict.crashed !== true) return false;
+  const earlier = (await library.health(id)).verified;
+  const was = earlier.state === "not-checked" ? earlier.was : { state: earlier.state, at: earlier.at };
+  const same = earlier.state === "not-checked" && earlier.skip === verdict.skip && earlier.was?.state === was?.state && earlier.was?.at === was?.at;
+  if (same) return false;
+  const at = writer.commit === undefined ? "" : ` at commit ${writer.commit}`;
+  const note = was === undefined ? `${verdict.reason}${at === "" ? "" : `,${at}`}` : `not re-run${at}: ${verdict.reason}`;
+  await library.recordVerified(id, "not-checked", { by: writer.by, note, ...optional("skip", verdict.skip), ...(was === undefined ? {} : { was }) });
+  return true;
+}
 
 // --- where to record ------------------------------------------------------------------------
 

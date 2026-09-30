@@ -306,10 +306,10 @@ test("5.13 a session that holds work on a branch GitHub reports merged, before t
 });
 
 test("5.12 a Claude Code session the app started in its own linked worktree attaches that folder: it holds the work on that worktree's branch, and no second worktree is made", async () => {
-  await withWorld(async ({ dir, log, library, project, site, fresh, park, as }) => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     const increment = await park("email form");
     const folder = path.join(dir, "app-made");
-    git(site, "worktree", "add", "-b", "claude/app-made", folder, fresh);
+    git(site, "worktree", "add", "-b", "claude/app-made", folder, "main");
 
     const attached = await workspace.attachWorkspace(as("A", folder), increment, "build form", { folder });
 

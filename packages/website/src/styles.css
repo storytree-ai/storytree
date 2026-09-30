@@ -1,0 +1,27 @@
+:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #101418; color: #f1f1e9; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; text-underline-offset: .3em; }
+a:focus-visible { outline: 2px solid #b8d6a1; outline-offset: 6px; }
+header, main, footer { width: min(1180px, calc(100% - 96px)); margin: auto; }
+header, footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+header { min-height: 100px; border-bottom: 1px solid #38413d; }
+header > a:last-child, footer { font-size: 14px; }
+.wordmark { font-size: 27px; font-weight: 650; letter-spacing: -.055em; text-decoration: none; }
+.wordmark span { color: #b8d6a1; }
+main { padding-top: 84px; }
+.eyebrow { margin: 0 0 24px; font-size: 12px; text-transform: uppercase; letter-spacing: .14em; color: #b8d6a1; }
+h1 { font-size: clamp(48px, 7.6vw, 100px); line-height: 1.03; letter-spacing: -.055em; font-weight: 500; margin: 0; }
+h1 em { font-style: normal; color: #b8d6a1; }
+.lede { font-size: 20px; line-height: 1.55; color: #b6beb6; margin: 30px 0 50px; }
+#website-forest { min-height: 240px; display: grid; place-items: center; border-block: 1px solid #38413d; color: #b6beb6; }
+footer { padding: 36px 0; color: #b6beb6; }
+@media (max-width: 600px) {
+  header, main, footer { width: calc(100% - 40px); }
+  header { min-height: 80px; }
+  main { padding-top: 54px; }
+  h1 { font-size: clamp(42px, 11.5vw, 68px); }
+  .eyebrow { font-size: 10px; letter-spacing: .1em; }
+  .lede { font-size: 17px; }
+  footer { flex-direction: column; align-items: flex-start; gap: 16px; }
+}

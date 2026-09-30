@@ -1,0 +1,34 @@
+[
+  {
+    "viewport": 1440,
+    "document": 1440,
+    "headings": 1,
+    "mount": {
+      "x": 130,
+      "y": 573,
+      "width": 1180,
+      "height": 240,
+      "top": 573,
+      "right": 1310,
+      "bottom": 813,
+      "left": 130
+    },
+    "bodyFont": "20px"
+  },
+  {
+    "viewport": 390,
+    "document": 390,
+    "headings": 1,
+    "mount": {
+      "x": 20,
+      "y": 423.40625,
+      "width": 350,
+      "height": 240,
+      "top": 423.40625,
+      "right": 370,
+      "bottom": 663.40625,
+      "left": 20
+    },
+    "bodyFont": "17px"
+  }
+]

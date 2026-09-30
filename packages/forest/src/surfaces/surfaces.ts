@@ -74,7 +74,7 @@ export const forestSurfaces = [
   {
     id: "sessions",
     name: "Sessions",
-    description: "The agent sessions at work: their list, their wisps circling the islands they hold, and the islands they light when you point at one.",
+    description: "The agent sessions at work: their list, the coasts and claimed land they tint in their colours, and the islands they light when you point at one.",
     switchable: true,
     settings: [],
   },

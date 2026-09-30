@@ -202,7 +202,7 @@ async function showForest(name: string): Promise<void> {
   }, core, session => mine.sessions?.hover(session), { library: surfaceOn(surfaces, "library"), opening: globeOpening });
   if (showing !== mine) return view.dispose();
   mine.view = view;
-  // Sessions off is a quiet globe: no list, no wisps and no islands lit on hover.
+  // Sessions off is a quiet globe: no list, no session tints and no islands lit on hover.
   if (surfaceOn(surfaces, "sessions")) mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree,
     onHighlight: (stories, session) => view.highlight(stories, session), onWisps: wisps => view.showWisps(wisps),
     onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });

@@ -161,3 +161,26 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
     }
   });
 });
+
+test("4.7 `arc increment move` re-homes an increment to another arc, keeping its id and its claim", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const [from, to] = [await anArc(world), await anArc(world)];
+    const increment = await library.addIncrement({ arc: from, title: "Email form", objective: "Build it", body: "…" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.equal((await claim({ log, library, project: world.project, session: "holder", harness: "claude-code" }, increment.id, "building the form")).ok, true);
+      const bare = await world.run(["arc", "increment", "move", increment.id, "--to", to]);
+      assert.notEqual(bare.code, 0, bare.stdout);
+      assert.match(bare.stderr, /--reason/);
+
+      const ran = await world.run(["arc", "increment", "move", increment.id, "--to", to, "--reason", "belongs with the launch"]);
+      assert.equal(ran.code, 0, ran.stderr);
+      assert.deepEqual((await library.arcView(to))?.increments.map(({ id }) => id), [increment.id]);
+      assert.deepEqual((await library.arcView(from))?.increments, []);
+      assert.equal((await readClaims(log, world.project))[0]?.increment, increment.id, "the claim survives the move");
+    } finally {
+      await log.close();
+    }
+  });
+});

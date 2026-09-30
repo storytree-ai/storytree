@@ -115,3 +115,5 @@ function codexServerState(home: string | undefined): SetupReport["codexServer"] 
   }
   return { state: /^\s*\[\s*mcp_servers\s*\.\s*(?:storytree|"storytree")\s*\]/m.test(text) ? "registered" : "missing", config };
 }
+export { builtFromMain } from "./built-from-main.js";
+export type { FollowMainOptions } from "./built-from-main.js";

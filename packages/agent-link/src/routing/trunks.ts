@@ -78,8 +78,30 @@ const SCHEMA = `CREATE TABLE IF NOT EXISTS trunks (
 
 async function trunksPool(storytree: Storytree): Promise<Pool> {
   const pool = await storytree.ownDatabase(TRUNKS_DATABASE);
-  await pool.query(SCHEMA);
+  await setUpTrunks(pool);
   return pool;
+}
+
+/**
+ * Make the trunks table in `pool`'s database unless it is there. First setups can race (the app,
+ * an agent and the CLI on a new server), and two concurrent CREATE TABLE IF NOT EXISTS can collide
+ * on the table's type, so they take turns on an advisory lock.
+ */
+export async function setUpTrunks(pool: Pool): Promise<void> {
+  const client = await pool.connect();
+  let failed = false;
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.trunks-schema'))");
+    await client.query(SCHEMA);
+    await client.query("COMMIT");
+  } catch (error) {
+    failed = true;
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release(failed);
+  }
 }
 
 /** Every project's trunk on `machine`. */

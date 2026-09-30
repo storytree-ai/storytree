@@ -177,6 +177,35 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.arcView("arc_000000000000"), null);
   });
 
+  contract("10.5", "an open increment moves to another live arc keeping its id and waits, the history recording the move and its reason; a closed increment, or a move to a closed arc, is refused with nothing written", async ({ work, flight, transactions }) => {
+    const from = await work.createArc(ARC);
+    const to = await work.createArc(ARC);
+    const blocker = await flight.addIncrement({ arc: from.id, ...WORK });
+    const increment = await flight.addIncrement({ arc: from.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    await flight.addWait(increment.id, blocker.id, "needs the form first");
+
+    const moved = await flight.moveIncrement(increment.id, to.id, "belongs with the launch work", { actor: "agent-m" });
+    assert.equal(moved?.id, increment.id, "the same increment, not a copy");
+    assert.equal(moved?.fields.arc, to.id);
+    assert.equal(moved?.fields.status, "active");
+    assert.deepEqual(moved?.fields.waits, [{ on: blocker.id, reason: "needs the form first" }], "its waits survive");
+    assert.deepEqual((await flight.arcView(to.id))?.increments.map(({ id }) => id), [increment.id]);
+    assert.deepEqual((await flight.arcView(from.id))?.increments.map(({ id }) => id), [blocker.id]);
+    const last = (await transactions.history({ id: increment.id })).at(-1);
+    assert.equal(last?.reason, "belongs with the launch work", "the history keeps why it moved");
+    assert.equal(last?.actor, "agent-m");
+
+    // A closed increment is the log of the arc it closed on; a closed arc takes nothing new (ADR-0792 D2).
+    await flight.closeIncrement(blocker.id, { pr: "#1", disposition: "landed" });
+    const history = await transactions.history();
+    await assert.rejects(flight.moveIncrement(blocker.id, to.id, "tidy"), LifecycleError);
+    await assert.rejects(flight.moveIncrement(increment.id, from.id, "back"), (error: unknown) => error instanceof RangeError && error.message.includes("closed"));
+    await assert.rejects(flight.moveIncrement(increment.id, "arc_000000000000", "nowhere"), MissingReferenceError);
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+    assert.equal(await flight.moveIncrement("increment_000000000000", to.id, "ghost"), null);
+  });
+
   contract("10.4", "an arc's intent and end state are required, and an arc written before they were is upgraded to carry them", async ({ work, flight, records, transactions }) => {
     const history = await transactions.history();
     for (const field of ["intent", "endState"] as const) {

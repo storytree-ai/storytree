@@ -268,6 +268,26 @@ export class WorkInFlight {
   }
 
   /**
+   * Move an open increment to another arc, keeping its id, status, waits and claims; its history
+   * records the move with `reason`. The arc must be a live arc (MissingReferenceError otherwise)
+   * and not closed, since a closed arc takes nothing new (ADR-0792 D2, RangeError); a closed
+   * increment stays the log of the arc it closed on (LifecycleError). Null, with nothing written,
+   * if `id` is not a live increment.
+   */
+  moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
+    return this.#serially(async () => {
+      const increment = await liveRecord(this.#records, id, ["increment"]);
+      if (increment === null) return null;
+      if (increment.fields.status === "closed") throw new LifecycleError(id, "closed", "closed");
+      await checkReference(this.#records, "arc", arc, "arc");
+      if ((await this.arcView(arc))?.state === "closed") {
+        throw new RangeError(`arc ${JSON.stringify(arc)} is closed and takes nothing new: move ${JSON.stringify(id)} to a live arc`);
+      }
+      return (await this.#records.edit(id, { arc }, { ...options, reason })) as SchemaRecord<"increment"> | null;
+    });
+  }
+
+  /**
    * Change what an increment is: its title, objective, body, or what it touches and remedies, each
    * checked as addIncrement checks it. Null, with nothing written, if `id` is not a live increment.
    */

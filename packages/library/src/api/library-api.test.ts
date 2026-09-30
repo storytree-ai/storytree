@@ -52,6 +52,7 @@ const LIBRARY_API = [
   "addIncrement",
   "advanceIncrement",
   "closeIncrement",
+  "moveIncrement",
   "editIncrement",
   "parkArc",
   "unparkArc",

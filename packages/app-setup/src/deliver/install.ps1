@@ -65,16 +65,16 @@ function Invoke-StorytreeDelivery([string]$InstallDir, [string]$Architecture, [h
   $step = 'inspect'
   try {
     if (-not (& $Operations.Probe $InstallDir $Architecture)) {
-      $step = 'download'
+      $step = 'download'; & $Operations.Stage $step
       $installer = & $Operations.Download $Architecture
-      $step = 'install'
+      $step = 'install'; & $Operations.Stage $step
       & $Operations.Install $installer $InstallDir
-      $step = 'verify'
+      $step = 'verify'; & $Operations.Stage $step
       if (-not (& $Operations.Probe $InstallDir $Architecture)) { throw 'the installed app or its tool payload is incomplete' }
     }
-    $step = 'finish'
+    $step = 'finish'; & $Operations.Stage $step
     $report = & $Operations.Finish $InstallDir $Architecture
-    $step = 'path'
+    $step = 'path'; & $Operations.Stage $step
     & $Operations.Path $report
     return @{ state = 'ready'; report = $report }
   } catch {
@@ -104,6 +104,64 @@ function Assert-StorytreeDownload([string]$File, [string]$Expected) {
   if ((Get-FileHash -LiteralPath $File -Algorithm SHA256).Hash -ine $Expected) { throw 'download checksum does not match the release; the installer was not run' }
 }
 
+$StorytreeStages = @{
+  download = 'Finding the latest storytree release.'
+  install = 'Installing the app silently. This may take a few minutes; a timer shows it is still working.'
+  verify = 'Checking the installed app and its bundled tools.'
+  finish = 'Opening the app and starting its database.'
+  path = 'Adding the storytree command to your PATH.'
+}
+
+function Get-StorytreeProgress([long]$Done, [long]$Total, [double]$Seconds) {
+  $rate = if ($Seconds -gt 0) { $Done / $Seconds } else { 0 }
+  $speed = '{0:N1} MB/s' -f ($rate / 1MB)
+  if ($Total -le 0) { return @{ percent = -1; status = ('{0:N1} MB, {1}' -f ($Done / 1MB), $speed) } }
+  $left = if ($rate -gt 0 -and $Seconds -ge 1) { [TimeSpan]::FromSeconds([math]::Ceiling(($Total - $Done) / $rate)) } else { $null }
+  $eta = if ($null -eq $left) { 'estimating time left' } elseif ($left.TotalMinutes -ge 1) { "about $([int][math]::Floor($left.TotalMinutes)) min $($left.Seconds) s left" } else { "about $($left.Seconds) s left" }
+  return @{ percent = [int][math]::Floor(100 * $Done / $Total); status = ('{0:N1} MB of {1:N1} MB, {2}, {3}' -f ($Done / 1MB), ($Total / 1MB), $speed, $eta) }
+}
+
+# Invoke-WebRequest's own progress bar slows Windows PowerShell 5.1's download many times over, so copy by hand
+# and report at most four times a second.
+function Copy-StorytreeStream([IO.Stream]$Source, [IO.Stream]$Target, [long]$Total, [scriptblock]$Report) {
+  $buffer = New-Object byte[] 262144
+  $clock = [Diagnostics.Stopwatch]::StartNew()
+  $done = [long]0
+  $shown = [long]-250
+  while (($read = $Source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+    $Target.Write($buffer, 0, $read)
+    $done += $read
+    if ($clock.ElapsedMilliseconds - $shown -ge 250) { $shown = $clock.ElapsedMilliseconds; & $Report (Get-StorytreeProgress $done $Total $clock.Elapsed.TotalSeconds) }
+  }
+  & $Report (Get-StorytreeProgress $done $Total $clock.Elapsed.TotalSeconds)
+  if ($Total -gt 0 -and $done -ne $Total) { throw "the download ended early at $done of $Total bytes" }
+  return $clock.Elapsed
+}
+
+function Save-StorytreeFile([string]$Url, [string]$File) {
+  $request = [Net.HttpWebRequest]::Create($Url)
+  $request.UserAgent = 'storytree-delivery'
+  $response = $request.GetResponse()
+  try {
+    $source = $response.GetResponseStream()
+    $target = [IO.File]::Create($File)
+    try {
+      $took = Copy-StorytreeStream $source $target $response.ContentLength {
+        param($Progress)
+        Write-Progress -Activity 'Downloading storytree' -Status $Progress.status -PercentComplete $Progress.percent
+      }
+    } finally { $target.Dispose(); $source.Dispose() }
+  } finally { $response.Dispose(); Write-Progress -Activity 'Downloading storytree' -Completed }
+  Write-Host ('Downloaded {0:N1} MB in {1:N0} s.' -f ((Get-Item -LiteralPath $File).Length / 1MB), $took.TotalSeconds)
+}
+
+function Wait-StorytreeProcess([Diagnostics.Process]$Process, [scriptblock]$Report) {
+  $clock = [Diagnostics.Stopwatch]::StartNew()
+  while (-not $Process.WaitForExit(1000)) { & $Report $clock.Elapsed }
+  $Process.WaitForExit()
+  return $clock.Elapsed
+}
+
 if ($LibraryOnly) { return }
 
 $downloadDir = $null
@@ -124,6 +182,7 @@ try {
   $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
   $env:Path = [Environment]::ExpandEnvironmentVariables("$($env:Path);$machinePath;$userPath")
   $operations = @{
+    Stage = { param($Step) Write-Host $StorytreeStages[$Step] }
     Probe = {
       param($Dir, $Arch)
       $node = Join-Path $Dir 'resources\agent-tools\node.exe'
@@ -153,7 +212,7 @@ try {
       New-Item -ItemType Directory -Path $script:downloadDir | Out-Null
       $file = Join-Path $script:downloadDir $asset.name
       Write-Host "Downloading storytree for Windows $Arch. The installer is unsigned; Windows may ask whether to run it."
-      Invoke-WebRequest $asset.url -UseBasicParsing -OutFile "$file.download"
+      Save-StorytreeFile $asset.url "$file.download"
       Assert-StorytreeDownload "$file.download" $asset.sha256
       Move-Item -LiteralPath "$file.download" -Destination $file
       return $file
@@ -161,8 +220,15 @@ try {
     Install = {
       param($Installer, $Dir)
       # NSIS /D must be last and unquoted, even when it contains spaces.
-      $process = Start-Process -FilePath $Installer -ArgumentList "/S /D=$Dir" -Wait -PassThru
+      $process = Start-Process -FilePath $Installer -ArgumentList "/S /D=$Dir" -PassThru
+      $null = $process.Handle # Windows PowerShell 5.1 loses the exit code unless the handle is held from the start.
+      $took = Wait-StorytreeProcess $process {
+        param($Elapsed)
+        Write-Progress -Activity 'Installing storytree' -Status ('Still installing: {0:mm\:ss} so far. This may take a few minutes.' -f $Elapsed)
+      }
+      Write-Progress -Activity 'Installing storytree' -Completed
       if ($process.ExitCode -ne 0) { throw "NSIS installer exited with code $($process.ExitCode)" }
+      Write-Host ('Installed in {0:N0} s.' -f $took.TotalSeconds)
     }
     Finish = {
       param($Dir, $Arch)

@@ -53,6 +53,7 @@ export const CHANNELS = {
   agentConnections: "storytree:agent-connections",
   checkSetupFolder: "storytree:check-setup-folder",
   addProject: "storytree:add-project",
+  removeProject: "storytree:remove-project",
   openFeedbackDraft: "storytree:open-feedback-draft",
   copyHelpText: "storytree:copy-help-text",
   listProjects: "storytree:list-projects",

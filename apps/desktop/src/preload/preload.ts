@@ -18,6 +18,7 @@ const bridge: StorytreeBridge & SettingsBridge & SurfacesBridge = {
   agentConnections: () => ipcRenderer.invoke(CHANNELS.agentConnections) as ReturnType<StorytreeBridge["agentConnections"]>,
   checkSetupFolder: () => ipcRenderer.invoke(CHANNELS.checkSetupFolder) as ReturnType<StorytreeBridge["checkSetupFolder"]>,
   addProject: () => ipcRenderer.invoke(CHANNELS.addProject) as ReturnType<StorytreeBridge["addProject"]>,
+  removeProject: (name) => ipcRenderer.invoke(CHANNELS.removeProject, name) as ReturnType<StorytreeBridge["removeProject"]>,
   openFeedbackDraft: (draft) => ipcRenderer.invoke(CHANNELS.openFeedbackDraft, draft) as ReturnType<StorytreeBridge["openFeedbackDraft"]>,
   copyHelpText: (text) => ipcRenderer.invoke(CHANNELS.copyHelpText, text) as ReturnType<StorytreeBridge["copyHelpText"]>,
   arcView: (name, id) => ipcRenderer.invoke(CHANNELS.arcView, name, id) as ReturnType<StorytreeBridge["arcView"]>,

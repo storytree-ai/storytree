@@ -80,3 +80,14 @@ test("9.10 a note named in a result still in the window but never opened is glim
 
   assert.deepEqual(claudeCodeWindow(text).glimpses, ["decision_000000000002", "principle_000000000003"]);
 });
+
+test("9.10 a shell call opens the files its own cat, head, tail or sed -n names, and never a word inside quoted text", () => {
+  const shell = (id: string, command: string) => calls(call(id, "Bash", { command }));
+  const window = claudeCodeWindow(jsonl(
+    shell("echo", 'echo "read more carefully before the next step"'),
+    shell("single", "git commit -m 'tail end of the head of the plan'"),
+    shell("head", "head -5 packages/x/src/a.ts"),
+    shell("piped", 'grep -n "cat walks" packages/x/src/b.ts | tail -3'),
+  ));
+  assert.deepEqual(window.opens.map(({ id, call }) => ({ id, call })), [{ id: "packages/x/src/a.ts", call: "head" }]);
+});

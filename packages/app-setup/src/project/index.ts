@@ -2,9 +2,10 @@
  * Adding a project (ADR-0752, ADR-0757): the folder the user chose, in the installer's folder step
  * or the app's Add project, becomes a storytree project through the agent link's one setup check,
  * as every other way of adding one does. The choice is the user's explicit yes; a folder that
- * already belongs to a project is left as it is, and a folder the check refuses is said with why.
+ * already belongs to a project is left as it is (and put back on this computer's list, if it was
+ * removed from it), and a folder the check refuses is said with why.
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { findProject, openStorytree, ProjectFolderError, setUpProject, storytreeHome, suggestProjectName, unusedName } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
@@ -57,9 +58,12 @@ async function withLibrary<T>(options: AddProjectOptions, use: (storytree: Story
 /** Make `folder` (created if missing) project `name`, and the one the app shows. Nothing is made for a folder already in a project. */
 export async function addProject(folder: string, name: string, options: AddProjectOptions = {}): Promise<AddedProject> {
   const resolved = path.resolve(folder);
-  const found = findProject(resolved);
-  if (found.project !== undefined) return { status: "already a project", folder: resolved, project: found.project };
   const home = options.home ?? storytreeHome();
+  const found = findProject(resolved);
+  if (found.project !== undefined) {
+    keepOnThisComputer(found.project, home);
+    return { status: "already a project", folder: resolved, project: found.project };
+  }
   return withLibrary({ ...options, home }, async (storytree) => {
     try {
       mkdirSync(resolved, { recursive: true });
@@ -75,4 +79,55 @@ export async function addProject(folder: string, name: string, options: AddProje
       throw error;
     }
   });
+}
+
+/**
+ * Removing a project added by mistake, its non-destructive half: the project leaves this computer's
+ * list of projects (the app's Projects picker), and every record of it stays in the library, shared
+ * with every other machine. Its folder is left as it is, so adding that folder again brings it back.
+ */
+export type RemovedProject =
+  | { status: "removed"; project: string }
+  | { status: "no such project"; project: string; message: string };
+
+const REMOVED_FILE = "removed-projects.json";
+
+/** The projects taken off this computer's list, kept in the app's home. */
+function removedHere(home: string): string[] {
+  try {
+    const { removed } = JSON.parse(readFileSync(path.join(home, REMOVED_FILE), "utf8")) as { removed?: unknown };
+    return Array.isArray(removed) ? removed.filter((name): name is string => typeof name === "string") : [];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+function recordRemoved(home: string, removed: readonly string[]): void {
+  mkdirSync(home, { recursive: true });
+  const file = path.join(home, REMOVED_FILE);
+  const temp = `${file}.${process.pid}.tmp`;
+  writeFileSync(temp, `${JSON.stringify({ removed: [...new Set(removed)].sort() }, null, 2)}\n`);
+  renameSync(temp, file);
+}
+
+/** `projects` (every project in the library) less those removed from this computer. */
+export function projectsOnThisComputer(projects: readonly string[], home: string = storytreeHome()): string[] {
+  const removed = new Set(removedHere(home));
+  return projects.filter((name) => !removed.has(name));
+}
+
+/** Put `project` back on this computer's list, if it was taken off. */
+export function keepOnThisComputer(project: string, home: string = storytreeHome()): void {
+  const removed = removedHere(home);
+  if (removed.includes(project)) recordRemoved(home, removed.filter((name) => name !== project));
+}
+
+/** Take `project` off this computer's list. Nothing in the library is deleted. */
+export async function removeProject(project: string, options: AddProjectOptions = {}): Promise<RemovedProject> {
+  const home = options.home ?? storytreeHome();
+  const projects = await withLibrary({ ...options, home }, (storytree) => storytree.listProjects());
+  if (!projects.includes(project)) return { status: "no such project", project, message: `There is no project called "${project}" in the library.` };
+  recordRemoved(home, [...removedHere(home), project]);
+  return { status: "removed", project };
 }

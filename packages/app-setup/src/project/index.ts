@@ -5,9 +5,10 @@
  * already belongs to a project is left as it is (and put back on this computer's list, if it was
  * removed from it), and a folder the check refuses is said with why.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { findProject, openStorytree, ProjectFolderError, setUpProject, storytreeHome, suggestProjectName, unusedName } from "@storytree/agent-link";
+import { findProject, forgetTrunk, machineOf, MARKER_FILE, openStorytree, ProjectFolderError, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
 
 export { unusedName };
@@ -82,12 +83,15 @@ export async function addProject(folder: string, name: string, options: AddProje
 }
 
 /**
- * Removing a project added by mistake, its non-destructive half: the project leaves this computer's
- * list of projects (the app's Projects picker), and every record of it stays in the library, shared
- * with every other machine. Its folder is left as it is, so adding that folder again brings it back.
+ * Removing a project added by mistake: the project leaves this computer's list of projects (the app's
+ * Projects picker), and every record of it stays in the library, shared with every other machine.
+ * Its folder here is freed: its marker is deleted and this machine's trunk record forgotten, so the
+ * folder can be set up afresh, and the project comes back here only by joining it on purpose
+ * (ADR-0757 D4). A marker git tracks is the user's to change: it is kept and named, so deleting it
+ * frees the folder, and until then adding the folder again brings the project back.
  */
 export type RemovedProject =
-  | { status: "removed"; project: string }
+  | { status: "removed"; project: string; freed?: string; kept?: string }
   | { status: "no such project"; project: string; message: string };
 
 const REMOVED_FILE = "removed-projects.json";
@@ -123,11 +127,42 @@ export function keepOnThisComputer(project: string, home: string = storytreeHome
   if (removed.includes(project)) recordRemoved(home, removed.filter((name) => name !== project));
 }
 
-/** Take `project` off this computer's list. Nothing in the library is deleted. */
+/** Take `project` off this computer's list and free its folder here. Nothing in the library is deleted. */
 export async function removeProject(project: string, options: AddProjectOptions = {}): Promise<RemovedProject> {
   const home = options.home ?? storytreeHome();
-  const projects = await withLibrary({ ...options, home }, (storytree) => storytree.listProjects());
-  if (!projects.includes(project)) return { status: "no such project", project, message: `There is no project called "${project}" in the library.` };
-  recordRemoved(home, [...removedHere(home), project]);
-  return { status: "removed", project };
+  return withLibrary({ ...options, home }, async (storytree) => {
+    if (!(await storytree.listProjects()).includes(project)) return { status: "no such project", project, message: `There is no project called "${project}" in the library.` };
+    const machine = machineOf(home).id;
+    const trunk = (await trunksOn(storytree, machine)).find((each) => each.project === project);
+    let kept = false;
+    if (trunk !== undefined) {
+      const marker = path.join(trunk.folder, MARKER_FILE);
+      if (markerProject(marker) === project) {
+        kept = trackedByGit(trunk.folder);
+        if (!kept) rmSync(marker);
+      }
+      await forgetTrunk(storytree, { project, machine });
+    }
+    recordRemoved(home, [...removedHere(home), project]);
+    if (trunk === undefined) return { status: "removed", project };
+    return kept ? { status: "removed", project, kept: trunk.folder } : { status: "removed", project, freed: trunk.folder };
+  });
+}
+
+function markerProject(marker: string): string | undefined {
+  try {
+    const { project } = JSON.parse(readFileSync(marker, "utf8")) as { project?: unknown };
+    return typeof project === "string" ? project : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Whether the folder's marker is in git, where deleting it would be a change to the user's repository. */
+function trackedByGit(folder: string): boolean {
+  try {
+    return execFileSync("git", ["ls-files", "--", MARKER_FILE], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() !== "";
+  } catch {
+    return false;
+  }
 }

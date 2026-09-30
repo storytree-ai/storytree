@@ -99,12 +99,14 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       }
       checkingFile = settingsFile;
       settings = await openSettings(harness, options);
-      if (settings.current !== undefined && !settings.compatible(options.installed)) {
+      const outdated = settings.current !== undefined && settings.outdated(options.installed);
+      if (settings.current !== undefined && !outdated && !settings.compatible(options.installed)) {
         result("not connected", conflict(settingsFile));
         continue;
       }
-      const tools = settings.current === undefined ? "connected" : "already connected";
-      if (settings.current === undefined) await settings.add(options.installed);
+      const tools = settings.current === undefined || outdated ? "connected" : "already connected";
+      if (outdated) await settings.update(options.installed);
+      else if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
       registerHooks(harness === "claude-code" ? { claude: where.claude } : { codex: where.codex }, hook);
       // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and

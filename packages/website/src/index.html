@@ -3,21 +3,101 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="See what your coding agents are building. Storytree turns your project's plan into a forest you can explore.">
+    <meta name="description" content="Your coding agent builds the software. Storytree shows you what is taking shape: a forest of stories, capabilities and the health their agents report.">
     <meta name="theme-color" content="#101418">
     <title>storytree — Software you can watch grow.</title>
+    <link rel="canonical" href="https://crisp-globe-bf6v.here.now/">
     <link rel="stylesheet" href="/assets/styles.css">
+    <script type="module" src="/assets/main.js"></script>
+    <script type="module" src="/assets/forest.js"></script>
   </head>
   <body>
-    <header><a class="wordmark" href="/">storytree<span aria-hidden="true">.</span></a><a href="https://github.com/storytree-ai/storytree">View on GitHub ↗</a></header>
-    <main>
-      <p class="eyebrow">A view of what your agents are building</p>
-      <h1>Software you<br>can watch <em>grow.</em></h1>
-      <p class="lede">Your coding agent builds the software.<br>Storytree helps you see what is taking shape.</p>
-      <div id="website-forest" aria-label="Storytree’s project forest">
-        <p>The project forest will appear here.</p>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header shell">
+      <a class="wordmark" href="/" aria-label="storytree home">storytree<span aria-hidden="true">.</span></a>
+      <nav aria-label="Main navigation">
+        <a href="#install">Install</a>
+        <a href="https://github.com/storytree-ai/storytree">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+    <main id="main">
+      <section class="hero shell" aria-labelledby="hero-title">
+        <p class="eyebrow">A view of what your agents are building</p>
+        <h1 id="hero-title">Software you<br>can watch <em>grow.</em></h1>
+        <div class="hero-bottom">
+          <p class="lede">Your coding agent builds the software.<br>Storytree helps you see what is taking shape.</p>
+          <div class="hero-action">
+            <a class="button button-light" href="#install">Get storytree <span aria-hidden="true">↓</span></a>
+            <p>For Windows · Bring Claude Code or Codex</p>
+          </div>
+        </div>
+      </section>
+      <section class="forest-section shell" aria-labelledby="forest-title">
+        <div class="section-caption">
+          <h2 id="forest-title">A project, taking shape.</h2>
+          <p>storytree’s own forest <span class="caption-divider" aria-hidden="true">/</span> Saved snapshot</p>
+        </div>
+        <div id="website-forest" aria-label="Storytree’s project forest"><p class="forest-placeholder">The project forest will appear here.</p></div>
+        <div class="forest-key">
+          <p>Each island is a story. Each tree is a capability.</p>
+          <p>A saved view of the project’s plan, not live project data.</p>
+        </div>
+      </section>
+      <div class="paper">
+        <section class="explanation shell" aria-labelledby="explanation-title">
+          <div class="section-intro">
+            <p class="eyebrow">Read the shape of the work</p>
+            <h2 id="explanation-title">See the project.<br>Then look closer.</h2>
+          </div>
+          <ol class="explanation-rows">
+            <li>
+              <span class="row-number" aria-hidden="true">01</span>
+              <div><h3>Start with a story.</h3><p>A story describes something the software does. Its capabilities break that work into pieces you can follow.</p></div>
+            </li>
+            <li>
+              <span class="row-number" aria-hidden="true">02</span>
+              <div><h3>See how the pieces connect.</h3><p>In the app, open a story to read what it does, how its capabilities connect, and the health its agent reports.</p></div>
+            </li>
+            <li>
+              <span class="row-number" aria-hidden="true">03</span>
+              <div><h3>Keep the report in context.</h3><p>Health is what the agent reports about its work. Storytree makes that report visible, so you can decide where to look next.</p></div>
+            </li>
+          </ol>
+        </section>
+        <section id="install" class="install shell" aria-labelledby="install-title">
+          <div class="section-intro">
+            <p class="eyebrow">Bring your coding agent</p>
+            <h2 id="install-title">Plant your<br>next project.</h2>
+            <p class="install-summary">Install storytree on Windows.<br>Start with the first-run guide.</p>
+          </div>
+          <div class="install-detail">
+            <p class="requirement">Windows x64 or arm64, with Claude Code or Codex already installed and signed in.</p>
+            <div class="command-box">
+              <div class="command-heading"><span>PowerShell</span><button id="copy-command" type="button" hidden>Copy command</button></div>
+              <pre tabindex="0" aria-label="PowerShell install command"><code id="install-command"><!-- INSTALL_COMMAND --></code></pre>
+            </div>
+            <p id="copy-status" class="copy-status" aria-live="polite" role="status"></p>
+            <p class="install-step">Paste the command into PowerShell. After installing, open storytree and go to <strong>Help → First-run guide</strong>.</p>
+            <a class="text-link" href="https://github.com/storytree-ai/storytree">Read the installation notes on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </section>
       </div>
+      <section class="about shell" aria-labelledby="about-title">
+        <p class="eyebrow">A small project, in the open</p>
+        <div class="about-body">
+          <h2 id="about-title">One person.<br>With AI agents.</h2>
+          <div class="about-copy">
+            <p>Storytree is a one-person project. This website was written by AI agents.</p>
+            <p>You can read the source, follow the work, or get in touch with Mick on LinkedIn.</p>
+            <a class="text-link" href="https://www.linkedin.com/in/mick-hua-353353a/">Say hello on LinkedIn <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </section>
     </main>
-    <footer><span>A one-person project, written with AI agents.</span><a href="https://github.com/storytree-ai/storytree">Follow the work ↗</a></footer>
+    <footer class="site-footer shell">
+      <a class="wordmark" href="/">storytree<span aria-hidden="true">.</span></a>
+      <p>Source-available · <a href="https://github.com/storytree-ai/storytree/blob/main/LICENSE">PolyForm Shield License 1.0.0</a></p>
+      <a href="https://github.com/storytree-ai/storytree">Follow the work <span aria-hidden="true">↗</span></a>
+    </footer>
   </body>
 </html>

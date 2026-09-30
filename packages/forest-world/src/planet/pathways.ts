@@ -13,6 +13,8 @@ import { plateTransform, type PlanetSpot } from './planet.js';
 export interface PlanetPathwayPlate {
   descriptors: Descriptor3D[];
   paths: Map<string, CoastPoint[][]>;
+  /** The island's coast loops in the plate's local ground coordinates: the outline of its flat surface. */
+  coast: CoastPoint[][];
 }
 
 export interface PlanetPathwaySegment {
@@ -247,7 +249,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     // Routing can run again while the unchanged local wear keeps its previous identity.
     const pathKey = JSON.stringify(paths), old = pathwayPlates.get(g.descriptors);
     const plate = old?.key === pathKey ? old.plate
-      : { descriptors: g.descriptors, paths: new Map([[g.id, paths]]) };
+      : { descriptors: g.descriptors, paths: new Map([[g.id, paths]]), coast: g.rings };
     if (plate !== old?.plate) pathwayPlates.set(g.descriptors, { key: pathKey, plate });
     plan.plates.set(g.id, plate);
     localEdges.set(g.id, new Map(local.edges.map(edge => [keyOf(edge), { ...edge, segments: refPrefix(prefix, edge) }])));

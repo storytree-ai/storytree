@@ -1,0 +1,1503 @@
+{
+  "front": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 1.6793655730057533,
+    "canvas": {
+      "w": 1440,
+      "h": 864,
+      "size": {
+        "width": 1440,
+        "height": 864,
+        "top": 96,
+        "left": 0
+      }
+    },
+    "plates": [
+      {
+        "story": "story_05e45963ca9f",
+        "facing": 1,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 772,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 5.235708613327006e-7
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "facing": 0.9024679421630114,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 550,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.3647439206797571e-7
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "facing": 0.8721475028369807,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 766,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.4277014176732337e-7
+      },
+      {
+        "story": "story_20549f1d48af",
+        "facing": 0.8366324701778857,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 1166,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 5.827100721944589e-7
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "facing": 0.8010717470577161,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 684,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 3.7397472851807834e-7
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "facing": 0.7728945230172037,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 526,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.1185164200687723e-7
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "facing": 0.737905656249381,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 614,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 3.059079745071358e-7
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "facing": 0.7005042732161494,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 1342,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 6.524036280097789e-7
+      }
+    ],
+    "pinesOrProps": 0,
+    "nonIslandMeshesOnPlates": 0,
+    "render": {
+      "frame": 15,
+      "calls": 145,
+      "triangles": 60746,
+      "points": 0,
+      "lines": 0
+    },
+    "shell": true,
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_05e45963ca9f",
+        "story_16ac26dfa5d6",
+        "story_78b33d16d0b6",
+        "story_20549f1d48af",
+        "story_be32e99ed54f",
+        "story_4c04d95d52a8",
+        "story_69d0ee10bbe7",
+        "story_eb7d623fb9c8"
+      ],
+      "capabilities": [
+        "capability_602c631d32a7",
+        "capability_3f03444b9515",
+        "capability_f3c4cf342304",
+        "capability_f5d1f85f2dd1",
+        "capability_05ff7e9f0f99",
+        "capability_4da153322012",
+        "capability_2b2232e0345d",
+        "capability_644c46abf9fa",
+        "capability_9dedb2e237cb",
+        "capability_b59e959e0da8",
+        "capability_08d9ed39dc7a",
+        "capability_dd7b2b7e8ba0",
+        "capability_da68dca0d5f4",
+        "capability_3224f4ab8017",
+        "capability_60a15402b053",
+        "capability_e0c02f9f5cfa",
+        "capability_34349210675b",
+        "capability_d52cb21878a8",
+        "capability_ff688ce5c495",
+        "capability_6becd708350e",
+        "capability_fb00f5d65e35",
+        "capability_577030ecbf6f",
+        "capability_335e55878092",
+        "capability_1d423d892a78",
+        "capability_3a5c6a03eb0b",
+        "capability_066ce0de0158",
+        "capability_ce057519af04",
+        "capability_e2404de2783f",
+        "capability_cd33386156ad",
+        "capability_9e755f5badcf",
+        "capability_9f02379a2e1a",
+        "capability_5f85ed8b29a7",
+        "capability_01edc782b586",
+        "capability_5daf2d36116d",
+        "capability_dda13a1b6f32",
+        "capability_5006e778a1a5",
+        "capability_71f0c121b919",
+        "capability_8573ce40ed88",
+        "capability_83d80a307e18",
+        "capability_2fa1a37e0d10",
+        "capability_625728b42886",
+        "capability_c7aada819094",
+        "capability_d6e345aa554a",
+        "capability_e07dc33c510d",
+        "capability_741dcbce28ee",
+        "capability_10618c4fdcc4",
+        "capability_75abfdd699c0",
+        "capability_f37769a4a28f",
+        "capability_1ceafc09bfaa",
+        "capability_bf3001e9ea74",
+        "capability_9ee4ed8d31a4",
+        "capability_dd3fe61f2b0c",
+        "capability_2417a0fb5578",
+        "capability_257f1084e3fe",
+        "capability_24cff71dc3fd",
+        "capability_5dab5db5f983",
+        "capability_9b5a450c6869",
+        "capability_7449c208f41b"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The knowledge core",
+        "The librarian",
+        "The library"
+      ],
+      "trees": [
+        {
+          "capability": "capability_602c631d32a7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3f03444b9515",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f3c4cf342304",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f5d1f85f2dd1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_05ff7e9f0f99",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4da153322012",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2b2232e0345d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_644c46abf9fa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9dedb2e237cb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b59e959e0da8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_08d9ed39dc7a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dd7b2b7e8ba0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da68dca0d5f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3224f4ab8017",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_60a15402b053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c02f9f5cfa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_34349210675b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d52cb21878a8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ff688ce5c495",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6becd708350e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_fb00f5d65e35",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_577030ecbf6f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_335e55878092",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1d423d892a78",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3a5c6a03eb0b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_066ce0de0158",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ce057519af04",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e2404de2783f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_cd33386156ad",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9e755f5badcf",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9f02379a2e1a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5f85ed8b29a7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_01edc782b586",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5daf2d36116d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dda13a1b6f32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5006e778a1a5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_71f0c121b919",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8573ce40ed88",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_83d80a307e18",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2fa1a37e0d10",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_625728b42886",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c7aada819094",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d6e345aa554a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e07dc33c510d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_741dcbce28ee",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_10618c4fdcc4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_75abfdd699c0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f37769a4a28f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1ceafc09bfaa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bf3001e9ea74",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ee4ed8d31a4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dd3fe61f2b0c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2417a0fb5578",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_257f1084e3fe",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_24cff71dc3fd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5dab5db5f983",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9b5a450c6869",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7449c208f41b",
+          "form": "seedling"
+        }
+      ],
+      "sessions": []
+    }
+  },
+  "closeUp": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 4.366350489814959,
+    "canvas": {
+      "w": 1440,
+      "h": 864,
+      "size": {
+        "width": 1440,
+        "height": 864,
+        "top": 96,
+        "left": 0
+      }
+    },
+    "plates": [
+      {
+        "story": "story_05e45963ca9f",
+        "facing": 1,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 772,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 5.235708613327006e-7
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "facing": 0.9024679421630114,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 550,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.3647439206797571e-7
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "facing": 0.8721475028369807,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 766,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.4277014176732337e-7
+      },
+      {
+        "story": "story_20549f1d48af",
+        "facing": 0.8366324701778857,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 1166,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 5.827100721944589e-7
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "facing": 0.8010717470577161,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 684,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 3.7397472851807834e-7
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "facing": 0.7728945230172037,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 526,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.1185164200687723e-7
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "facing": 0.737905656249381,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 614,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 3.059079745071358e-7
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "facing": 0.7005042732161494,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 1342,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 6.524036280097789e-7
+      }
+    ],
+    "pinesOrProps": 0,
+    "nonIslandMeshesOnPlates": 0,
+    "render": {
+      "frame": 28,
+      "calls": 122,
+      "triangles": 56882,
+      "points": 0,
+      "lines": 0
+    },
+    "shell": true,
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_05e45963ca9f",
+        "story_16ac26dfa5d6",
+        "story_78b33d16d0b6",
+        "story_20549f1d48af",
+        "story_be32e99ed54f",
+        "story_4c04d95d52a8",
+        "story_69d0ee10bbe7",
+        "story_eb7d623fb9c8"
+      ],
+      "capabilities": [
+        "capability_602c631d32a7",
+        "capability_3f03444b9515",
+        "capability_f3c4cf342304",
+        "capability_f5d1f85f2dd1",
+        "capability_05ff7e9f0f99",
+        "capability_4da153322012",
+        "capability_2b2232e0345d",
+        "capability_644c46abf9fa",
+        "capability_9dedb2e237cb",
+        "capability_b59e959e0da8",
+        "capability_08d9ed39dc7a",
+        "capability_dd7b2b7e8ba0",
+        "capability_da68dca0d5f4",
+        "capability_3224f4ab8017",
+        "capability_60a15402b053",
+        "capability_e0c02f9f5cfa",
+        "capability_34349210675b",
+        "capability_d52cb21878a8",
+        "capability_ff688ce5c495",
+        "capability_6becd708350e",
+        "capability_fb00f5d65e35",
+        "capability_577030ecbf6f",
+        "capability_335e55878092",
+        "capability_1d423d892a78",
+        "capability_3a5c6a03eb0b",
+        "capability_066ce0de0158",
+        "capability_ce057519af04",
+        "capability_e2404de2783f",
+        "capability_cd33386156ad",
+        "capability_9e755f5badcf",
+        "capability_9f02379a2e1a",
+        "capability_5f85ed8b29a7",
+        "capability_01edc782b586",
+        "capability_5daf2d36116d",
+        "capability_dda13a1b6f32",
+        "capability_5006e778a1a5",
+        "capability_71f0c121b919",
+        "capability_8573ce40ed88",
+        "capability_83d80a307e18",
+        "capability_2fa1a37e0d10",
+        "capability_625728b42886",
+        "capability_c7aada819094",
+        "capability_d6e345aa554a",
+        "capability_e07dc33c510d",
+        "capability_741dcbce28ee",
+        "capability_10618c4fdcc4",
+        "capability_75abfdd699c0",
+        "capability_f37769a4a28f",
+        "capability_1ceafc09bfaa",
+        "capability_bf3001e9ea74",
+        "capability_9ee4ed8d31a4",
+        "capability_dd3fe61f2b0c",
+        "capability_2417a0fb5578",
+        "capability_257f1084e3fe",
+        "capability_24cff71dc3fd",
+        "capability_5dab5db5f983",
+        "capability_9b5a450c6869",
+        "capability_7449c208f41b"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The knowledge core",
+        "The librarian",
+        "The library"
+      ],
+      "trees": [
+        {
+          "capability": "capability_602c631d32a7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3f03444b9515",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f3c4cf342304",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f5d1f85f2dd1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_05ff7e9f0f99",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4da153322012",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2b2232e0345d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_644c46abf9fa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9dedb2e237cb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b59e959e0da8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_08d9ed39dc7a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dd7b2b7e8ba0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da68dca0d5f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3224f4ab8017",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_60a15402b053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c02f9f5cfa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_34349210675b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d52cb21878a8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ff688ce5c495",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6becd708350e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_fb00f5d65e35",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_577030ecbf6f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_335e55878092",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1d423d892a78",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3a5c6a03eb0b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_066ce0de0158",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ce057519af04",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e2404de2783f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_cd33386156ad",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9e755f5badcf",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9f02379a2e1a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5f85ed8b29a7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_01edc782b586",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5daf2d36116d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dda13a1b6f32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5006e778a1a5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_71f0c121b919",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8573ce40ed88",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_83d80a307e18",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2fa1a37e0d10",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_625728b42886",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c7aada819094",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d6e345aa554a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e07dc33c510d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_741dcbce28ee",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_10618c4fdcc4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_75abfdd699c0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f37769a4a28f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1ceafc09bfaa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bf3001e9ea74",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ee4ed8d31a4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dd3fe61f2b0c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2417a0fb5578",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_257f1084e3fe",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_24cff71dc3fd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5dab5db5f983",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9b5a450c6869",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7449c208f41b",
+          "form": "seedling"
+        }
+      ],
+      "sessions": []
+    }
+  },
+  "quarterTurn": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 1.6793655730057535,
+    "canvas": {
+      "w": 1440,
+      "h": 864,
+      "size": {
+        "width": 1440,
+        "height": 864,
+        "top": 96,
+        "left": 0
+      }
+    },
+    "plates": [
+      {
+        "story": "story_05e45963ca9f",
+        "facing": 6.447022626985881e-16,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 772,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 5.235708613327006e-7
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "facing": -0.42984217753319465,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 550,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.3647439206797571e-7
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "facing": -0.3211187300091552,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 766,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.4277014176732337e-7
+      },
+      {
+        "story": "story_20549f1d48af",
+        "facing": 0.13021486743697647,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 1166,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 5.827100721944589e-7
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "facing": 0.5350728743349141,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 684,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 3.7397472851807834e-7
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "facing": 0.6250384182564066,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 526,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 2.1185164200687723e-7
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "facing": 0.40928797801901495,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 614,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 3.059079745071358e-7
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "facing": -0.07154822345060075,
+        "drawn": {
+          "island-ground": 1,
+          "island-coast": 1
+        },
+        "triangles": 1342,
+        "ground": [
+          {
+            "opacity": 0.4,
+            "transparent": true,
+            "depthWrite": false,
+            "colour": "edf3f5",
+            "vertexColors": false
+          }
+        ],
+        "worstSphereGap": 6.524036280097789e-7
+      }
+    ],
+    "pinesOrProps": 0,
+    "nonIslandMeshesOnPlates": 0,
+    "render": {
+      "frame": 41,
+      "calls": 145,
+      "triangles": 60746,
+      "points": 0,
+      "lines": 0
+    },
+    "shell": true,
+    "drew": {
+      "surface": "forest",
+      "stories": [
+        "story_05e45963ca9f",
+        "story_16ac26dfa5d6",
+        "story_78b33d16d0b6",
+        "story_20549f1d48af",
+        "story_be32e99ed54f",
+        "story_4c04d95d52a8",
+        "story_69d0ee10bbe7",
+        "story_eb7d623fb9c8"
+      ],
+      "capabilities": [
+        "capability_602c631d32a7",
+        "capability_3f03444b9515",
+        "capability_f3c4cf342304",
+        "capability_f5d1f85f2dd1",
+        "capability_05ff7e9f0f99",
+        "capability_4da153322012",
+        "capability_2b2232e0345d",
+        "capability_644c46abf9fa",
+        "capability_9dedb2e237cb",
+        "capability_b59e959e0da8",
+        "capability_08d9ed39dc7a",
+        "capability_dd7b2b7e8ba0",
+        "capability_da68dca0d5f4",
+        "capability_3224f4ab8017",
+        "capability_60a15402b053",
+        "capability_e0c02f9f5cfa",
+        "capability_34349210675b",
+        "capability_d52cb21878a8",
+        "capability_ff688ce5c495",
+        "capability_6becd708350e",
+        "capability_fb00f5d65e35",
+        "capability_577030ecbf6f",
+        "capability_335e55878092",
+        "capability_1d423d892a78",
+        "capability_3a5c6a03eb0b",
+        "capability_066ce0de0158",
+        "capability_ce057519af04",
+        "capability_e2404de2783f",
+        "capability_cd33386156ad",
+        "capability_9e755f5badcf",
+        "capability_9f02379a2e1a",
+        "capability_5f85ed8b29a7",
+        "capability_01edc782b586",
+        "capability_5daf2d36116d",
+        "capability_dda13a1b6f32",
+        "capability_5006e778a1a5",
+        "capability_71f0c121b919",
+        "capability_8573ce40ed88",
+        "capability_83d80a307e18",
+        "capability_2fa1a37e0d10",
+        "capability_625728b42886",
+        "capability_c7aada819094",
+        "capability_d6e345aa554a",
+        "capability_e07dc33c510d",
+        "capability_741dcbce28ee",
+        "capability_10618c4fdcc4",
+        "capability_75abfdd699c0",
+        "capability_f37769a4a28f",
+        "capability_1ceafc09bfaa",
+        "capability_bf3001e9ea74",
+        "capability_9ee4ed8d31a4",
+        "capability_dd3fe61f2b0c",
+        "capability_2417a0fb5578",
+        "capability_257f1084e3fe",
+        "capability_24cff71dc3fd",
+        "capability_5dab5db5f983",
+        "capability_9b5a450c6869",
+        "capability_7449c208f41b"
+      ],
+      "labels": [
+        "The agent link",
+        "The app",
+        "The arc surface",
+        "The command line",
+        "The forest",
+        "The knowledge core",
+        "The librarian",
+        "The library"
+      ],
+      "trees": [
+        {
+          "capability": "capability_602c631d32a7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3f03444b9515",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f3c4cf342304",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f5d1f85f2dd1",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_05ff7e9f0f99",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_4da153322012",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2b2232e0345d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_644c46abf9fa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9dedb2e237cb",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_b59e959e0da8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_08d9ed39dc7a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dd7b2b7e8ba0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_da68dca0d5f4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3224f4ab8017",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_60a15402b053",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e0c02f9f5cfa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_34349210675b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d52cb21878a8",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ff688ce5c495",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_6becd708350e",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_fb00f5d65e35",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_577030ecbf6f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_335e55878092",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1d423d892a78",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_3a5c6a03eb0b",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_066ce0de0158",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_ce057519af04",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e2404de2783f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_cd33386156ad",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9e755f5badcf",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9f02379a2e1a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5f85ed8b29a7",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_01edc782b586",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5daf2d36116d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dda13a1b6f32",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5006e778a1a5",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_71f0c121b919",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_8573ce40ed88",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_83d80a307e18",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2fa1a37e0d10",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_625728b42886",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_c7aada819094",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_d6e345aa554a",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_e07dc33c510d",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_741dcbce28ee",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_10618c4fdcc4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_75abfdd699c0",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_f37769a4a28f",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_1ceafc09bfaa",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_bf3001e9ea74",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9ee4ed8d31a4",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_dd3fe61f2b0c",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_2417a0fb5578",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_257f1084e3fe",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_24cff71dc3fd",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_5dab5db5f983",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_9b5a450c6869",
+          "form": "seedling"
+        },
+        {
+          "capability": "capability_7449c208f41b",
+          "form": "seedling"
+        }
+      ],
+      "sessions": []
+    }
+  },
+  "pickedStory": "story_05e45963ca9f",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  }
+}

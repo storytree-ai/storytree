@@ -52,9 +52,10 @@ when the forest changes the website package.
 **Lane handoff.** The first PR lands this story plus the minimal static scaffold. It reserves
 `#website-forest` and the browser entry `src/forest.ts`. Site-b owns that module, the snapshot,
 the forest assets and the scene's own styling; site-a owns the surrounding home page and its
-styles. The scaffold emits `forest.js` from the public engine entry without loading it on the
-page. Site-b replaces the stub with the lazy mount. Coordinate changes to shared build files
-or package dependencies; never copy `packages/forest` implementation into this story.
+styles. The first scaffold emitted `forest.js` from the public engine entry without loading it
+on the page. The home page links that entry; site-b replaces its stub and owns lazy scene
+initialization under contract 2.3. Coordinate changes to shared build files or package
+dependencies; never copy `packages/forest` implementation into this story.
 
 **Proof.** Write the smallest failing behavior test before implementation. Functional proofs
 below do not approve the appearance. Capture desktop and 390 px phone views with headless
@@ -73,7 +74,7 @@ A visitor gets the introduction, install command, license and contact from a sta
 
 1. Building produces a static page with locally resolvable assets and a forest mount; it can be
    served without an application server (`contract_19fd6361f0be`). Serve `dist` and request
-   the document and its assets; the scaffold includes the independently emitted engine bundle.
+   the document and its assets. Lazy scene activation belongs to the forest capability.
 2. The displayed install command comes from the README Install PowerShell block; a missing
    or ambiguous block fails the build (`contract_1191205c8b9d`). Build from fixture README text
    and observe its arbitrary command in the rendered install control.
@@ -82,6 +83,10 @@ A visitor gets the introduction, install command, license and contact from a sta
    with scripts disabled.
 4. The emitted not-found page has a working home link (`contract_97dcc6993f2c`). Follow it
    from the served error document; review the retained line as copy.
+5. The optional copy control copies exactly the visible install command; success appears only
+   after the clipboard write resolves (`contract_088958bd3a2c`). A denied write reports failure
+   and leaves the command manually selectable. Prove pending, resolved and rejected writes
+   with a controlled clipboard writer.
 
 ## 2 · The forest on the site
 

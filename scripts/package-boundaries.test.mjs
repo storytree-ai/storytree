@@ -18,7 +18,7 @@ test("this repo keeps every story in its own package, behind a thin frame and fr
   assert.deepEqual(boundaryProblems(root), []);
 });
 
-// Four stories (declared: the stories live in the library, which CI cannot read), their packages, the frame, the front door and one shared engine, all within bounds.
+// Five stories (declared: the stories live in the library, which CI cannot read), their packages, the frame and the front door, all within bounds.
 const KEPT = {
   "packages/app/package.json": pkg("app"),
   "packages/app/src/lifecycle/start.ts": 'import { connect } from "@storytree/library";\n',
@@ -27,19 +27,19 @@ const KEPT = {
   "packages/cli/package.json": pkg("cli"),
   "packages/cli/src/families/library.ts": 'import { connect } from "@storytree/library";\n',
   "packages/forest/package.json": pkg("forest"),
-  "packages/forest/src/index.ts": 'import { arc } from "@storytree/library/readings";\nimport { coast } from "../../forest-world/src/coast.js";\n',
+  "packages/forest/src/index.ts": 'import { arc } from "@storytree/library/readings";\nimport { coast } from "@storytree/forest-world";\n',
   "packages/library/package.json": pkg("library", { ".": "./src/index.ts", "./readings": "./src/readings.ts" }),
   "packages/library/src/index.ts": "",
   "packages/forest-world/package.json": pkg("forest-world"),
   "packages/forest-world/src/coast.ts": "",
 };
-const DECLARED = { stories: ["app", "cli", "forest", "library"], sharedEngines: ["forest-world"], notYetMoved: [] };
+const DECLARED = { stories: ["app", "cli", "forest", "forest-world", "library"], notYetMoved: [] };
 
 test("the planted trees start from one that keeps the rules", (t) => {
   assert.deepEqual(boundaryProblems(plant(t, {}), DECLARED), []);
 });
 
-test("a story with no package is refused, and so is a package that is neither a story's nor declared", (t) => {
+test("a story with no package is refused, and so is a package that belongs to no story", (t) => {
   const problems = boundaryProblems(plant(t, { "packages/helpers/package.json": pkg("helpers") }), {
     ...DECLARED,
     stories: [...DECLARED.stories, "knowledge-core"],

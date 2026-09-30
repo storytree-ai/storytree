@@ -11,6 +11,8 @@ import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineB
 const TINTS = ["#9cc3d5", "#c9b38f", "#a8c49a", "#c7a0b5", "#b4acd6", "#d4c48a", "#8fc2b8", "#d2a48e", "#a5b8cf", "#bfc98f"];
 const UNCLAIMED_TINT = "#b9bec2";
 const TERRITORY_OPACITY = 0.22;
+const CLAIMED_OPACITY = 0.32;
+const FADED_CLAIM_OPACITY = 0.14;
 const BORDER_COLOUR = "#f4f7f8";
 const BORDER_OPACITY = 0.85;
 
@@ -27,7 +29,7 @@ export type DrawnLand = {
  * The territories of `land`, each point placed on the island's surface by `onSurface`, cut to `coast`
  * (its loops, in the same coordinates as the land) when given.
  */
-export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[]): Group {
+export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[], claimed: ReadonlyMap<string, { colour: string; faded: boolean }> = new Map()): Group {
   const group = new Group();
   group.name = "territory-land";
   let tint = 0;
@@ -46,10 +48,14 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     }
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-    const colour = territory.capability === undefined ? UNCLAIMED_TINT : TINTS[tint++ % TINTS.length]!;
-    const mesh = new Mesh(geometry, new MeshBasicMaterial({ color: new Color(colour), transparent: true, opacity: TERRITORY_OPACITY, side: DoubleSide, depthWrite: false }));
+    const own = territory.capability === undefined ? UNCLAIMED_TINT : TINTS[tint++ % TINTS.length]!;
+    // A capability a running session claims is filled faintly in that session's colour (ADR-0804 D9).
+    const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);
+    // A quiet claimant's fill fades as its coast does.
+    const opacity = claimant === undefined ? TERRITORY_OPACITY : claimant.faded ? FADED_CLAIM_OPACITY : CLAIMED_OPACITY;
+    const mesh = new Mesh(geometry, new MeshBasicMaterial({ color: new Color(claimant?.colour ?? own), transparent: true, opacity, side: DoubleSide, depthWrite: false }));
     mesh.name = `territory:${territory.capability ?? "unclaimed"}`;
-    mesh.userData = territory.capability === undefined ? { territory: true } : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability };
+    mesh.userData = territory.capability === undefined ? { territory: true } : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
     group.add(mesh);
   });

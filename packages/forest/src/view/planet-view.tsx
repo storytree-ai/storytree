@@ -2,15 +2,16 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Vector3 } from "three";
-import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, coastArcs, openingTurn, PLANET_RADIUS, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
+import { coastTintMarks } from "./session-tints.js";
 import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
-import { Names, Overlay, SelectionRing, Wisps } from "./island-overlays.js";
+import { Names, Overlay, SelectionRing } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
 
 export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, library = true }: {
@@ -34,19 +35,21 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
 }) {
   const layout = useMemo(() => planetLayout(scene, places), [scene, places]);
   const [rotation, setRotation] = useState(() => new Quaternion());
+  // ADR-0804 D9: a running session tints its islands' coasts and its claimed territories; no wisps.
+  const claimed = useMemo(() => claimTints(wisps), [wisps]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
     const emphasis = highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
-      {island.land !== undefined && <Territories land={island.land} coast={coast} />}
+      {island.land !== undefined && <Territories land={island.land} coast={coast} claimed={claimed} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       <Names islands={[local]} selected={selected} dimmed={emphasis === "dimmed"} onGlobe />
-      <Wisps wisps={wisps} island={local} descriptors={descriptors} highlighted={highlightedSession} onHover={onWispHover} />
+      <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} />
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [wisps, selected, highlighted, highlightedSession, onWispHover]);
+  }, [wisps, claimed, selected, highlighted]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
     surface={mode === "forest"} framing={framing}
     inside={library ? <KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} /> : undefined}
@@ -63,13 +66,24 @@ const TERRITORY_LIFT = 0.05;
  * An island's territories (3.14) and its files' circles (3.16), cut to its coast and laid on its surface,
  * all in the plate's own units.
  */
-function Territories({ land, coast }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[] }) {
+function Territories({ land, coast, claimed }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[]; claimed: ReadonlyMap<string, ClaimTint> }) {
   const group = useMemo(() => {
     const map = territories(land.territories, coast);
-    const group = territoryLand(map, onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT), coast);
+    const group = territoryLand(map, onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT), coast, claimed);
     group.add(fileCircleMarks(fileCircles(map, land.files), onIslandSurface(PLANET_RADIUS), islandNormal(PLANET_RADIUS)));
     return group;
-  }, [land, coast]);
+  }, [land, coast, claimed]);
+  useEffect(() => () => group.traverse((object) => {
+    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
+    mark.geometry?.dispose();
+    mark.material?.dispose();
+  }), [group]);
+  return <primitive object={group} />;
+}
+
+/** Each running session's arc of an island's coast (5.6, 5.7), laid just above the ground. */
+function CoastTints({ arcs, coast }: { arcs: readonly CoastArc[]; coast: readonly (readonly { x: number; z: number }[])[] }) {
+  const group = useMemo(() => coastTintMarks(coast, arcs, onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT * 2)), [JSON.stringify(arcs), coast]);
   useEffect(() => () => group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();

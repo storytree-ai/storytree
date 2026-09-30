@@ -60,7 +60,10 @@ function object(value: unknown): value is Record<string, unknown> {
 export interface Settings {
   readonly current: unknown;
   compatible(installed: InstalledToolServerCommand): boolean;
+  /** An entry storytree itself wrote that an older connect left out of date; `update` rewrites it. */
+  outdated(installed: InstalledToolServerCommand): boolean;
   add(installed: InstalledToolServerCommand): Promise<void>;
+  update(installed: InstalledToolServerCommand): Promise<void>;
   remove(): Promise<void>;
   close(): void;
 }
@@ -77,6 +80,8 @@ export function claudeSettings(file: string): Settings {
       current.command === installed.command && isDeepStrictEqual(current.args ?? [], installed.args) &&
       Object.keys(current).every((key) => ["type", "command", "args", "env"].includes(key)) &&
       (current.env === undefined || isDeepStrictEqual(current.env, {})),
+    outdated: () => false,
+    async update() { throw new Error("Nothing to update"); },
     async add(installed) {
       save(file, before, `${JSON.stringify({ ...config, mcpServers: { ...servers, storytree: { type: "stdio", command: installed.command, args: installed.args, env: {} } } }, null, 2)}\n`);
     },
@@ -104,24 +109,31 @@ export async function codexSettings(file: string, run: RunHarness, env: NodeJS.P
     const listed: unknown = before === undefined ? [] : JSON.parse(await cli(["list", "--json"]));
     if (!Array.isArray(listed) || !listed.every((item) => object(item) && typeof item.name === "string")) throw new Error("Unexpected codex mcp list response; update Codex and retry.");
     const current: unknown = listed.some((item) => item.name === "storytree") ? JSON.parse(await cli(["get", "storytree", "--json"])) : undefined;
-    const compatible = (entry: unknown, installed: InstalledToolServerCommand): boolean => {
+    const compatible = (entry: unknown, installed: InstalledToolServerCommand, hand: string | undefined): boolean => {
       if (!object(entry) || entry.enabled !== true || !object(entry.transport)) return false;
       const transport = entry.transport;
       return transport.type === "stdio" && transport.command === installed.command && isDeepStrictEqual(transport.args, installed.args) &&
         (transport.cwd === null || transport.cwd === undefined) &&
-        (home === undefined ? transport.env == null || isDeepStrictEqual(transport.env, {}) : isDeepStrictEqual(transport.env, { CODEX_HOME: home })) &&
+        (hand === undefined ? transport.env == null || isDeepStrictEqual(transport.env, {}) : isDeepStrictEqual(transport.env, { CODEX_HOME: hand })) &&
         (transport.env_vars == null || isDeepStrictEqual(transport.env_vars, [])) &&
         (entry.enabled_tools == null) && (entry.disabled_tools == null || isDeepStrictEqual(entry.disabled_tools, []));
     };
+    const append = async (source: string, installed: InstalledToolServerCommand) => {
+      // JSON's quoted strings/array are also TOML basic strings/array; escape control characters.
+      // Appending a fresh table keeps every existing setting and comment byte-for-byte.
+      writeFileSync(staged, `${source}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(installed.command)}\nargs = ${JSON.stringify(installed.args)}\n${home === undefined ? "" : `env = { CODEX_HOME = ${JSON.stringify(home)} }\n`}`, { mode: 0o600 });
+      if (!compatible(JSON.parse(await cli(["get", "storytree", "--json"])), installed, home)) throw new Error("Codex did not accept the installed tool server.");
+      save(file, before, readFileSync(staged, "utf8"));
+    };
     return {
       current,
-      compatible: (installed) => compatible(current, installed),
-      async add(installed) {
-        // JSON's quoted strings/array are also TOML basic strings/array; escape control characters.
-        // Appending a fresh table keeps every existing setting and comment byte-for-byte.
-        writeFileSync(staged, `${before ?? ""}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(installed.command)}\nargs = ${JSON.stringify(installed.args)}\n${home === undefined ? "" : `env = { CODEX_HOME = ${JSON.stringify(home)} }\n`}`, { mode: 0o600 });
-        if (!compatible(JSON.parse(await cli(["get", "storytree", "--json"])), installed)) throw new Error("Codex did not accept the installed tool server.");
-        save(file, before, readFileSync(staged, "utf8"));
+      compatible: (installed) => compatible(current, installed, home),
+      // Before PR #350 connect handed no custom home over: that registration is storytree's own, only older.
+      outdated: (installed) => home !== undefined && compatible(current, installed, undefined),
+      add: (installed) => append(before ?? "", installed),
+      async update(installed) {
+        await cli(["remove", "storytree"]);
+        await append(readFileSync(staged, "utf8"), installed);
       },
       async remove() {
         await cli(["remove", "storytree"]);

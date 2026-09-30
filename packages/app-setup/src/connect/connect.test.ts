@@ -18,8 +18,9 @@ const run: RunHarness = async (executable, args, options) => {
   const file = path.join(options.env.CODEX_HOME!, "config.toml");
   let source = existsSync(file) ? readFileSync(file, "utf8") : "";
   if (source.includes("INVALID")) throw new Error("invalid TOML");
-  const block = /\n?\[mcp_servers\.storytree\]\ncommand = (.+)\nargs = (.+)\n/.exec(source);
-  const server = block === null ? undefined : { name: "storytree", enabled: true, transport: { type: "stdio", command: JSON.parse(block[1]!), args: JSON.parse(block[2]!), env: null, env_vars: [], cwd: null }, enabled_tools: null, disabled_tools: [] };
+  const block = /\n?\[mcp_servers\.storytree\]\ncommand = (.+)\nargs = (.+)\n(?:env = \{ CODEX_HOME = (.+) \}\n)?/.exec(source);
+  const env = block?.[3] === undefined ? null : { CODEX_HOME: JSON.parse(block[3]) };
+  const server = block === null ? undefined : { name: "storytree", enabled: true, transport: { type: "stdio", command: JSON.parse(block[1]!), args: JSON.parse(block[2]!), env, env_vars: [], cwd: null }, enabled_tools: null, disabled_tools: [] };
   if (args[1] === "list") return JSON.stringify(server === undefined ? [] : [server]);
   if (args[1] === "get") return JSON.stringify(server);
   if (args[1] === "add") {
@@ -160,6 +161,18 @@ test("2.2/2.6: the registered launch keeps the session folder and reaches its ex
   }
   const verification = verifyHooks([], "session", "codex");
   assert.equal(verification.verified, false);
+});
+
+test("2.2: with its own CODEX_HOME, Codex's registration hands the tool server that home, which Codex would otherwise strip, so its setup check registers and reads hooks where Codex reads them", async (t) => {
+  const f = fixture(t);
+  const custom = path.join(f.home, "custom codex");
+  mkdirSync(custom);
+  await connectAgents({ ...f.options, env: { ...f.options.env, CODEX_HOME: custom }, harnesses: ["codex"] });
+  const table = readFileSync(path.join(custom, "config.toml"), "utf8").split("[mcp_servers.storytree]")[1] ?? "";
+  assert.ok(table.includes(`\nenv = { CODEX_HOME = ${JSON.stringify(custom)} }\n`), table);
+  assert.deepEqual((await connectAgents({ ...f.options, env: { ...f.options.env, CODEX_HOME: custom }, harnesses: ["codex"] })).map((r) => r.tools), ["already connected"]);
+  await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.doesNotMatch(readFileSync(f.codexFile, "utf8"), /CODEX_HOME/, "the default home needs no hand-off");
 });
 
 test("2.5: disconnect one keeps the other and command; disconnect all removes only this installation's hooks and launcher", async (t) => {

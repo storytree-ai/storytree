@@ -786,6 +786,26 @@ test("6.23 mark_built switches a capability's proposed flag off when the agent c
   });
 });
 
+test("6.29 show_plan gives each capability's word, and for one not healthy its reason, who moves it and the contracts carrying it, in its text and its data", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { capability } = await planned(agent);
+      const passing = idOf(await agent.call("plan_contract", { capability, title: "1.1 · Rejects a bad email" }));
+      const owner = idOf(await agent.call("plan_contract", { capability, title: "1.2 · Sends through the real mail service" }));
+      await library.setProposed(capability, false);
+      await library.recordVerified(passing, "passing");
+      await library.recordVerified(owner, "not-checked", { skip: "owner" });
+
+      const plan = await agent.call("show_plan");
+      const line = plan.text.split("\n").find((each) => each.includes(capability)) ?? "";
+      assert.match(line, /untested — needs owner, the owner's to move: 1\.2/, plan.text);
+      const shown = (plan.data.stories as { capabilities: { id: string; status: string; why?: { reason: string; mover: string; contracts: string[] } }[] }[])[0]?.capabilities[0];
+      assert.equal(shown?.status, "untested");
+      assert.deepEqual(shown?.why && { reason: shown.why.reason, mover: shown.why.mover, contracts: shown.why.contracts }, { reason: "needs owner", mover: "owner", contracts: [owner] });
+    });
+  });
+});
+
 test("6.10 it sets a wait with a reason, and a claim on the waiting increment is refused naming it; it clears the wait, and the claim succeeds; a wait that would close a loop gets the library's refusal as a readable answer", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

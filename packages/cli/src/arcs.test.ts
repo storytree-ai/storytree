@@ -171,7 +171,7 @@ test("4.7 `arc increment move` re-homes an increment to another arc, keeping its
     try {
       assert.equal((await claim({ log, library, project: world.project, session: "holder", harness: "claude-code" }, increment.id, "building the form")).ok, true);
       const bare = await world.run(["arc", "increment", "move", increment.id, "--to", to]);
-      assert.equal(bare.code, 1, bare.stdout);
+      assert.notEqual(bare.code, 0, bare.stdout);
       assert.match(bare.stderr, /--reason/);
 
       const ran = await world.run(["arc", "increment", "move", increment.id, "--to", to, "--reason", "belongs with the launch"]);

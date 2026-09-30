@@ -2,8 +2,8 @@
  * Capability 4 · Arcs and increments (the command line story): see one arc whole, its intent, end state,
  * increments and their states, the questions waiting on the owner, and what each waiting item
  * waits for. Create, edit, park or unpark an arc; park an increment, record a landing that was never
- * parked, close one with its outcome, and make an arc or increment wait on another with a reason, or
- * clear the wait. Closing an increment ends its claims through the agent link's `closed`.
+ * parked, close one with its outcome, move one to another arc keeping its id, and make an arc or
+ * increment wait on another with a reason, or clear the wait. Closing an increment ends its claims through the agent link's `closed`.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a
  * close's note, the loop check, whether a wait holds (`waitHolds`) and whether work is held on the
@@ -222,10 +222,23 @@ const incrementEdit: Verb = {
   },
 };
 
+const incrementMove: Verb = {
+  name: "move",
+  usage: "arc increment move <increment> --to <arc> --reason <why>",
+  summary: "re-home an open increment on another live arc, keeping its id, waits and claims",
+  async act(args, context) {
+    const id = args.word(0, "the increment's id", this.usage);
+    const to = args.need("to", this.usage);
+    const moved = await (await context.library()).moveIncrement(id, to, args.need("reason", this.usage), context.writer());
+    if (moved === null) throw new Refusal(`no increment "${id}" in this project`);
+    return { text: `Moved increment ${id} to ${to}.`, next: [{ command: `storytree arc show ${to}`, why: "see the arc whole" }] };
+  },
+};
+
 const increment: Family = {
   name: "increment",
   summary: "the increments of an arc's work",
-  verbs: [incrementNew, incrementAdd, incrementClose, incrementEdit, ...waiting("arc increment", "increment")],
+  verbs: [incrementNew, incrementAdd, incrementClose, incrementEdit, incrementMove, ...waiting("arc increment", "increment")],
   guesses: { show: "library read <id>", read: "library read <id>", get: "library read <id>", open: "library read <id>" },
 };
 

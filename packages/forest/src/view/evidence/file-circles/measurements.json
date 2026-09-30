@@ -1,0 +1,2548 @@
+{
+  "front": {
+    "zoom": 1.6793655730057533,
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "circles": 89,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 38,
+        "middlesOnGround": 38,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/activity/index.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/activity/text.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/activity/transcript-records.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/build.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/storytree-hook.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/storytree-mcp.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/capture/index.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/claims/claims.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/claims/merges.ts",
+            "capability": "capability_05ff7e9f0f99",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/claims/workspace.ts",
+            "capability": "capability_05ff7e9f0f99",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/context.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/guidance.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/index.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/transcript.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/codex-trust.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/codex.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/context-nudge.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/definitions.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/given-once.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/index.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/queue.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/requests.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/status-line.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/instructions/codex-agents.ts",
+            "capability": "capability_2b2232e0345d",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/instructions/habits.ts",
+            "capability": "capability_2b2232e0345d",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/readings.ts",
+            "capability": "capability_05ff7e9f0f99",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/index.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/project-choice.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/trunks.ts",
+            "capability": "capability_602c631d32a7",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/sessions/index.ts",
+            "capability": "capability_f5d1f85f2dd1",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/sessions/listing.ts",
+            "capability": "capability_f5d1f85f2dd1",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/sessions/worktree-reaper.ts",
+            "capability": "capability_f5d1f85f2dd1",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/settings/settings.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/built-from-main.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/diagnostics.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/hooks-release.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/machine.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/setup.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/agent.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/folders.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/stub-app.mjs",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/answers.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/claim-tools.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/connections.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/plan-tools.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/work-tools.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transcripts/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transcripts/stored.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/render.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 1.5333854896768295,
+        "maxRadius": 5.614786530087058,
+        "overlappingPairs": 22,
+        "circleAreaOverGround": 1.006508722449161,
+        "groundArea": 3109.83409031765,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 5.373324304648472
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 5.37332430464847
+          },
+          {
+            "file": "src/tools/server.ts",
+            "lines": 279,
+            "radius": 4.965454551025086
+          },
+          {
+            "file": "src/hooks/hooks.ts",
+            "lines": 275,
+            "radius": 4.938479168004982
+          },
+          {
+            "file": "src/tools/note-tools.ts",
+            "lines": 243,
+            "radius": 4.715197920399331
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/readings.ts",
+            "lines": 384,
+            "radius": 5.614786530087058
+          },
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 5.373324304648472
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 5.37332430464847
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "lines": 328,
+            "radius": 5.2814028658008665
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "lines": 303,
+            "radius": 5.1233980678092585
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 11,
+        "middlesOnGround": 11,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/lifecycle/background.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/lifecycle/backups.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/lifecycle/open-where-set.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/projects/follow.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/surfaces/smoke.ts",
+            "capability": "capability_08d9ed39dc7a",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/agent-activity.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/build-health.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/main-updates.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/seed-writing.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/version.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/styles.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/surfaces.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 3.019356082643941,
+        "maxRadius": 5.391805102340464,
+        "overlappingPairs": 10,
+        "circleAreaOverGround": 0.8408093053139102,
+        "groundArea": 1692.949899456463,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 5.309155901127471
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 4.926528798262946
+          },
+          {
+            "file": "src/updates/releases.ts",
+            "lines": 91,
+            "radius": 4.733621030649268
+          },
+          {
+            "file": "src/view/updates.ts",
+            "lines": 59,
+            "radius": 4.145482551521863
+          },
+          {
+            "file": "src/lifecycle/quit.ts",
+            "lines": 55,
+            "radius": 4.061626239349544
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/index.ts",
+            "lines": 135,
+            "radius": 5.391805102340464
+          },
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 5.309155901127471
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "lines": 123,
+            "radius": 5.224561213937741
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 4.926528798262946
+          },
+          {
+            "file": "src/view/styles.ts",
+            "lines": 99,
+            "radius": 4.863539477666772
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "circles": 19,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 11,
+        "middlesOnGround": 11,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/board/board.ts",
+            "capability": "capability_60a15402b053",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/board/live-board.ts",
+            "capability": "capability_60a15402b053",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/board/reads.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/records.ts",
+            "capability": "capability_60a15402b053",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/smoke.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/work-states/work-states.ts",
+            "capability": "capability_da68dca0d5f4",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.777983558819223,
+        "maxRadius": 6.525920488214802,
+        "overlappingPairs": 3,
+        "circleAreaOverGround": 0.6902371844407645,
+        "groundArea": 2075.7754147239198,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 6.525920488214802
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 6.389879596686392
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 5.653646645568941
+          },
+          {
+            "file": "src/briefing/briefing.ts",
+            "lines": 65,
+            "radius": 5.48161132384604
+          },
+          {
+            "file": "src/work-states/board-states.ts",
+            "lines": 53,
+            "radius": 5.163527296595692
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 6.525920488214802
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 6.389879596686392
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "lines": 96,
+            "radius": 6.187486598829966
+          },
+          {
+            "file": "src/board/board.ts",
+            "lines": 81,
+            "radius": 5.862972505756697
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 5.653646645568941
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 12,
+        "middlesOnGround": 12,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/answer.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/storytree.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/adr.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/app.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/arc.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/capture.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/context.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/doctor.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/settings.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/tree.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/workspace.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "capability": "capability_6becd708350e",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/stub-app.mjs",
+            "capability": null,
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 3.4638459964974952,
+        "maxRadius": 10.189725510423804,
+        "overlappingPairs": 1,
+        "circleAreaOverGround": 0.887670825271852,
+        "groundArea": 4212.462181594657,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 10.189725510423804
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 9.899469711701556
+          },
+          {
+            "file": "src/families/question.ts",
+            "lines": 130,
+            "radius": 7.854798197263761
+          },
+          {
+            "file": "src/args.ts",
+            "lines": 91,
+            "radius": 6.985009076628649
+          },
+          {
+            "file": "src/families/noticeboard.ts",
+            "lines": 60,
+            "radius": 6.147415936748605
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 10.189725510423804
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 9.899469711701556
+          },
+          {
+            "file": "src/families/arc.ts",
+            "lines": 248,
+            "radius": 9.884656240350456
+          },
+          {
+            "file": "src/families/adr.ts",
+            "lines": 193,
+            "radius": 9.01803851354375
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "lines": 181,
+            "radius": 8.8130940595326
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 12,
+        "middlesOnGround": 12,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/agent-claims/agent-claims.ts",
+            "capability": "capability_dda13a1b6f32",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/capability-tree/capability-tree.ts",
+            "capability": "capability_01edc782b586",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/code-survey/code-survey.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": "capability_9f02379a2e1a",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/never-hidden/never-hidden.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/planet-places/planet-places.ts",
+            "capability": "capability_cd33386156ad",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/render/forest-reading.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/story-nodes/story-nodes.ts",
+            "capability": "capability_cd33386156ad",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/forest-view.tsx",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/globe-picking.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/island-overlays.tsx",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/panel-selection.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/planet-navigation.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/story-panel.ts",
+            "capability": "capability_5f85ed8b29a7",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.4492132196958045,
+        "maxRadius": 6.74907779868323,
+        "overlappingPairs": 6,
+        "circleAreaOverGround": 0.5501088532619167,
+        "groundArea": 2730.626012364418,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 6.74907779868323
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 5.3367186206200925
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 5.325442756282773
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 5.199092707243378
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 5.0923399056719525
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 6.74907779868323
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 5.3367186206200925
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 5.325442756282773
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 5.199092707243378
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 5.0923399056719525
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "circles": 14,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 4,
+        "middlesOnGround": 4,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/look-inside/view-state.ts",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/reads/reads.ts",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/shelves/positions.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/shelves/story-text.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/ring.tsx",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.498262793690863,
+        "maxRadius": 9.99261708536634,
+        "overlappingPairs": 4,
+        "circleAreaOverGround": 0.846995716923307,
+        "groundArea": 1721.4036249840499,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 9.99261708536634
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 7.491174211521099
+          },
+          {
+            "file": "src/ghosts/ghosts.ts",
+            "lines": 131,
+            "radius": 5.679934573455333
+          },
+          {
+            "file": "src/testing/changes.ts",
+            "lines": 52,
+            "radius": 4.253593618467165
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 9.99261708536634
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "lines": 303,
+            "radius": 7.687989491439514
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 7.491174211521099
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "lines": 246,
+            "radius": 7.1077722655627715
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "lines": 161,
+            "radius": 6.098650513257355
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "circles": 17,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 12,
+        "middlesOnGround": 12,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "capability": "capability_d6e345aa554a",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/links/links.ts",
+            "capability": "capability_2fa1a37e0d10",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/queues/index.ts",
+            "capability": "capability_e07dc33c510d",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/pg.ts",
+            "capability": "capability_2fa1a37e0d10",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.928348582500903,
+        "maxRadius": 7.614966342395512,
+        "overlappingPairs": 4,
+        "circleAreaOverGround": 0.6103054062665034,
+        "groundArea": 2411.0032439923143,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 7.1705582469391285
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 6.873017016826082
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 6.5282524173743015
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 6.122910672501886
+          },
+          {
+            "file": "src/queues/queues.ts",
+            "lines": 51,
+            "radius": 5.731087787683375
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "lines": 127,
+            "radius": 7.614966342395512
+          },
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 7.1705582469391285
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 6.873017016826082
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 6.5282524173743015
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 6.122910672501886
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "circles": 37,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 17,
+        "middlesOnGround": 17,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/creation-order.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/health/health-record.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/health/index.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": "capability_10618c4fdcc4",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/knowledge/bge-small.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/knowledge/embedding.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/knowledge/similarity.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/connection-error.ts",
+            "capability": "capability_2417a0fb5578",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/embeddings.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/memory-upgrade.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/server.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/snapshot.ts",
+            "capability": "capability_10618c4fdcc4",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/storytree.ts",
+            "capability": "capability_2417a0fb5578",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/references.ts",
+            "capability": "capability_9ee4ed8d31a4",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/schema/index.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/schema/records.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/schema/types.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transactions/index.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transactions/memory.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.1515191429458094,
+        "maxRadius": 9.883169583435746,
+        "overlappingPairs": 9,
+        "circleAreaOverGround": 0.7733646289521611,
+        "groundArea": 4839.619591858406,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 9.883169583435746
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 9.11958725470258
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 8.483421307639238
+          },
+          {
+            "file": "src/project/cloud-sql.ts",
+            "lines": 281,
+            "radius": 6.98593641244122
+          },
+          {
+            "file": "src/work/work-model.ts",
+            "lines": 273,
+            "radius": 6.910235699119702
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 9.883169583435746
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "lines": 657,
+            "radius": 9.77938752119424
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 9.11958725470258
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 8.483421307639238
+          },
+          {
+            "file": "src/schema/types.ts",
+            "lines": 433,
+            "radius": 8.26017633887901
+          }
+        ]
+      }
+    ]
+  },
+  "surveyedFiles": {
+    "story_05e45963ca9f": 89,
+    "story_16ac26dfa5d6": 26,
+    "story_78b33d16d0b6": 19,
+    "story_20549f1d48af": 26,
+    "story_be32e99ed54f": 26,
+    "story_4c04d95d52a8": 14,
+    "story_69d0ee10bbe7": 17,
+    "story_eb7d623fb9c8": 37
+  },
+  "closeUp": {
+    "zoom": 4.366350489814959,
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "circles": 89,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 38,
+        "middlesOnGround": 38,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/activity/index.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/activity/text.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/activity/transcript-records.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/build.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/storytree-hook.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/storytree-mcp.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/capture/index.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/claims/claims.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/claims/merges.ts",
+            "capability": "capability_05ff7e9f0f99",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/claims/workspace.ts",
+            "capability": "capability_05ff7e9f0f99",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/context.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/guidance.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/index.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/context/transcript.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/codex-trust.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/codex.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/context-nudge.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/definitions.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/given-once.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/index.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/queue.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/requests.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/hooks/status-line.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/instructions/codex-agents.ts",
+            "capability": "capability_2b2232e0345d",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/instructions/habits.ts",
+            "capability": "capability_2b2232e0345d",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/readings.ts",
+            "capability": "capability_05ff7e9f0f99",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/index.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/project-choice.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/routing/trunks.ts",
+            "capability": "capability_602c631d32a7",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/sessions/index.ts",
+            "capability": "capability_f5d1f85f2dd1",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/sessions/listing.ts",
+            "capability": "capability_f5d1f85f2dd1",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/sessions/worktree-reaper.ts",
+            "capability": "capability_f5d1f85f2dd1",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/settings/settings.ts",
+            "capability": "capability_f3c4cf342304",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/built-from-main.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/diagnostics.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/hooks-release.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/machine.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/setup/setup.ts",
+            "capability": "capability_644c46abf9fa",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/agent.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/folders.ts",
+            "capability": "capability_4da153322012",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/stub-app.mjs",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/answers.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/claim-tools.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/connections.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/plan-tools.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/tools/work-tools.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transcripts/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transcripts/stored.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/render.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 1.5333854896768295,
+        "maxRadius": 5.614786530087058,
+        "overlappingPairs": 22,
+        "circleAreaOverGround": 1.0065087224491605,
+        "groundArea": 3109.8340903176513,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 5.373324304648472
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 5.37332430464847
+          },
+          {
+            "file": "src/tools/server.ts",
+            "lines": 279,
+            "radius": 4.965454551025086
+          },
+          {
+            "file": "src/hooks/hooks.ts",
+            "lines": 275,
+            "radius": 4.938479168004982
+          },
+          {
+            "file": "src/tools/note-tools.ts",
+            "lines": 243,
+            "radius": 4.715197920399331
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/readings.ts",
+            "lines": 384,
+            "radius": 5.614786530087058
+          },
+          {
+            "file": "src/activity/activity-log.ts",
+            "lines": 343,
+            "radius": 5.373324304648472
+          },
+          {
+            "file": "src/context/composition.ts",
+            "lines": 343,
+            "radius": 5.37332430464847
+          },
+          {
+            "file": "src/setup/hooks-config.ts",
+            "lines": 328,
+            "radius": 5.2814028658008665
+          },
+          {
+            "file": "src/routing/routing.ts",
+            "lines": 303,
+            "radius": 5.1233980678092585
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 11,
+        "middlesOnGround": 11,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/lifecycle/background.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/lifecycle/backups.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/lifecycle/open-where-set.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/projects/follow.ts",
+            "capability": "capability_9dedb2e237cb",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/surfaces/smoke.ts",
+            "capability": "capability_08d9ed39dc7a",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/agent-activity.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/build-health.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/main-updates.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/seed-writing.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/updates/version.ts",
+            "capability": "capability_dd7b2b7e8ba0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/styles.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/surfaces.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 3.0193560826439416,
+        "maxRadius": 5.391805102340464,
+        "overlappingPairs": 10,
+        "circleAreaOverGround": 0.8408093053139098,
+        "groundArea": 1692.9498994564638,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 5.309155901127471
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 4.926528798262947
+          },
+          {
+            "file": "src/updates/releases.ts",
+            "lines": 91,
+            "radius": 4.733621030649268
+          },
+          {
+            "file": "src/view/updates.ts",
+            "lines": 59,
+            "radius": 4.145482551521863
+          },
+          {
+            "file": "src/lifecycle/quit.ts",
+            "lines": 55,
+            "radius": 4.061626239349544
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/index.ts",
+            "lines": 135,
+            "radius": 5.391805102340464
+          },
+          {
+            "file": "src/surfaces/reads.ts",
+            "lines": 129,
+            "radius": 5.309155901127471
+          },
+          {
+            "file": "src/updates/follow-main.ts",
+            "lines": 123,
+            "radius": 5.224561213937741
+          },
+          {
+            "file": "src/surfaces/switches.ts",
+            "lines": 103,
+            "radius": 4.926528798262947
+          },
+          {
+            "file": "src/view/styles.ts",
+            "lines": 99,
+            "radius": 4.863539477666772
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "circles": 19,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 11,
+        "middlesOnGround": 11,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/board/board.ts",
+            "capability": "capability_60a15402b053",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/board/live-board.ts",
+            "capability": "capability_60a15402b053",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/board/reads.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/records.ts",
+            "capability": "capability_60a15402b053",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/smoke.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/work-states/work-states.ts",
+            "capability": "capability_da68dca0d5f4",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.777983558819223,
+        "maxRadius": 6.525920488214801,
+        "overlappingPairs": 3,
+        "circleAreaOverGround": 0.690237184440765,
+        "groundArea": 2075.7754147239184,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 6.525920488214801
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 6.3898795966863915
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 5.653646645568941
+          },
+          {
+            "file": "src/briefing/briefing.ts",
+            "lines": 65,
+            "radius": 5.48161132384604
+          },
+          {
+            "file": "src/work-states/board-states.ts",
+            "lines": 53,
+            "radius": 5.163527296595691
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/mount.ts",
+            "lines": 113,
+            "radius": 6.525920488214801
+          },
+          {
+            "file": "src/waits/waits.ts",
+            "lines": 106,
+            "radius": 6.3898795966863915
+          },
+          {
+            "file": "src/live-reading/live-reading.ts",
+            "lines": 96,
+            "radius": 6.187486598829966
+          },
+          {
+            "file": "src/board/board.ts",
+            "lines": 81,
+            "radius": 5.862972505756697
+          },
+          {
+            "file": "src/view/render.ts",
+            "lines": 72,
+            "radius": 5.653646645568941
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 12,
+        "middlesOnGround": 12,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/answer.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/bins/storytree.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/adr.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/app.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/arc.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/capture.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/context.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/doctor.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/settings.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/tree.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/families/workspace.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "capability": "capability_6becd708350e",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/stub-app.mjs",
+            "capability": null,
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 3.4638459964974952,
+        "maxRadius": 10.189725510423804,
+        "overlappingPairs": 1,
+        "circleAreaOverGround": 0.887670825271852,
+        "groundArea": 4212.462181594657,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 10.189725510423804
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 9.899469711701556
+          },
+          {
+            "file": "src/families/question.ts",
+            "lines": 130,
+            "radius": 7.854798197263761
+          },
+          {
+            "file": "src/args.ts",
+            "lines": 91,
+            "radius": 6.985009076628649
+          },
+          {
+            "file": "src/families/noticeboard.ts",
+            "lines": 60,
+            "radius": 6.147415936748605
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/door.ts",
+            "lines": 269,
+            "radius": 10.189725510423804
+          },
+          {
+            "file": "src/families/library.ts",
+            "lines": 249,
+            "radius": 9.899469711701556
+          },
+          {
+            "file": "src/families/arc.ts",
+            "lines": 248,
+            "radius": 9.884656240350456
+          },
+          {
+            "file": "src/families/adr.ts",
+            "lines": 193,
+            "radius": 9.01803851354375
+          },
+          {
+            "file": "src/testing/cli.ts",
+            "lines": 181,
+            "radius": 8.8130940595326
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "circles": 26,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 12,
+        "middlesOnGround": 12,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/agent-claims/agent-claims.ts",
+            "capability": "capability_dda13a1b6f32",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/capability-tree/capability-tree.ts",
+            "capability": "capability_01edc782b586",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/code-survey/code-survey.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": "capability_9f02379a2e1a",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/never-hidden/never-hidden.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/planet-places/planet-places.ts",
+            "capability": "capability_cd33386156ad",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/render/forest-reading.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/story-nodes/story-nodes.ts",
+            "capability": "capability_cd33386156ad",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/forest-view.tsx",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/globe-picking.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/island-overlays.tsx",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/panel-selection.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/planet-navigation.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/story-panel.ts",
+            "capability": "capability_5f85ed8b29a7",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.4492132196958045,
+        "maxRadius": 6.74907779868323,
+        "overlappingPairs": 6,
+        "circleAreaOverGround": 0.5501088532619167,
+        "groundArea": 2730.6260123644183,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 6.74907779868323
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 5.336718620620092
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 5.325442756282773
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 5.199092707243377
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 5.0923399056719525
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/view/sessions-list.tsx",
+            "lines": 316,
+            "radius": 6.74907779868323
+          },
+          {
+            "file": "src/view/pan-zoom.ts",
+            "lines": 167,
+            "radius": 5.336718620620092
+          },
+          {
+            "file": "src/sessions-list/sessions-list.ts",
+            "lines": 166,
+            "radius": 5.325442756282773
+          },
+          {
+            "file": "src/drill-down/drill-down.ts",
+            "lines": 155,
+            "radius": 5.199092707243377
+          },
+          {
+            "file": "src/view/planet-view.tsx",
+            "lines": 146,
+            "radius": 5.0923399056719525
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "circles": 14,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 4,
+        "middlesOnGround": 4,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/look-inside/view-state.ts",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/reads/reads.ts",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/shelves/positions.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/shelves/story-text.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/ring.tsx",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "capability": "capability_83d80a307e18",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.498262793690863,
+        "maxRadius": 9.99261708536634,
+        "overlappingPairs": 4,
+        "circleAreaOverGround": 0.846995716923307,
+        "groundArea": 1721.40362498405,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 9.99261708536634
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 7.4911742115211
+          },
+          {
+            "file": "src/ghosts/ghosts.ts",
+            "lines": 131,
+            "radius": 5.679934573455333
+          },
+          {
+            "file": "src/testing/changes.ts",
+            "lines": 52,
+            "radius": 4.253593618467165
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/look-inside/look-inside.ts",
+            "lines": 588,
+            "radius": 9.99261708536634
+          },
+          {
+            "file": "src/view/surface.tsx",
+            "lines": 303,
+            "radius": 7.687989491439514
+          },
+          {
+            "file": "src/view/globe-points.tsx",
+            "lines": 283,
+            "radius": 7.4911742115211
+          },
+          {
+            "file": "src/view/drawing.tsx",
+            "lines": 246,
+            "radius": 7.1077722655627715
+          },
+          {
+            "file": "src/shelves/shelves.ts",
+            "lines": 161,
+            "radius": 6.098650513257355
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "circles": 17,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 12,
+        "middlesOnGround": 12,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "capability": "capability_d6e345aa554a",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/links/links.ts",
+            "capability": "capability_2fa1a37e0d10",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/queues/index.ts",
+            "capability": "capability_e07dc33c510d",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/testing/pg.ts",
+            "capability": "capability_2fa1a37e0d10",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.9283485825009024,
+        "maxRadius": 7.614966342395511,
+        "overlappingPairs": 4,
+        "circleAreaOverGround": 0.6103054062665033,
+        "groundArea": 2411.0032439923143,
+        "islandWorldScale": 1.0000000000000002,
+        "largestOnIsland": [
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 7.170558246939127
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 6.87301701682608
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 6.5282524173743
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 6.122910672501886
+          },
+          {
+            "file": "src/queues/queues.ts",
+            "lines": 51,
+            "radius": 5.731087787683374
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/graduation/graduation.ts",
+            "lines": 127,
+            "radius": 7.614966342395511
+          },
+          {
+            "file": "src/rounds/tools.ts",
+            "lines": 106,
+            "radius": 7.170558246939127
+          },
+          {
+            "file": "src/decision-log/decision-log.ts",
+            "lines": 93,
+            "radius": 6.87301701682608
+          },
+          {
+            "file": "src/rounds/rounds.ts",
+            "lines": 79,
+            "radius": 6.5282524173743
+          },
+          {
+            "file": "src/catalogue/catalogue.ts",
+            "lines": 64,
+            "radius": 6.122910672501886
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "circles": 37,
+        "groupPresent": true,
+        "middlesInsideOwnTerritory": 17,
+        "middlesOnGround": 17,
+        "outsideOwnTerritory": [
+          {
+            "file": "src/creation-order.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/health/health-record.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/health/index.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/index.ts",
+            "capability": "capability_10618c4fdcc4",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/knowledge/bge-small.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/knowledge/embedding.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/knowledge/similarity.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/connection-error.ts",
+            "capability": "capability_2417a0fb5578",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/embeddings.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/memory-upgrade.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/server.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/snapshot.ts",
+            "capability": "capability_10618c4fdcc4",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/project/storytree.ts",
+            "capability": "capability_2417a0fb5578",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/references.ts",
+            "capability": "capability_9ee4ed8d31a4",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/schema/index.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/schema/records.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/schema/types.ts",
+            "capability": null,
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transactions/index.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/transactions/memory.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "capability": "capability_75abfdd699c0",
+            "ownTerritoryExists": true
+          }
+        ],
+        "minRadius": 2.1515191429458094,
+        "maxRadius": 9.883169583435746,
+        "overlappingPairs": 9,
+        "circleAreaOverGround": 0.7733646289521613,
+        "groundArea": 4839.619591858404,
+        "islandWorldScale": 1,
+        "largestOnIsland": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 9.883169583435746
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 9.11958725470258
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 8.483421307639238
+          },
+          {
+            "file": "src/project/cloud-sql.ts",
+            "lines": 281,
+            "radius": 6.985936412441221
+          },
+          {
+            "file": "src/work/work-model.ts",
+            "lines": 273,
+            "radius": 6.910235699119703
+          }
+        ],
+        "largest": [
+          {
+            "file": "src/knowledge/knowledge.ts",
+            "lines": 674,
+            "radius": 9.883169583435746
+          },
+          {
+            "file": "src/work/work-in-flight.ts",
+            "lines": 657,
+            "radius": 9.77938752119424
+          },
+          {
+            "file": "src/api/library.ts",
+            "lines": 554,
+            "radius": 9.11958725470258
+          },
+          {
+            "file": "src/transactions/behaviour-suite.ts",
+            "lines": 463,
+            "radius": 8.483421307639238
+          },
+          {
+            "file": "src/schema/types.ts",
+            "lines": 433,
+            "radius": 8.260176338879011
+          }
+        ]
+      }
+    ]
+  },
+  "hover": {
+    "largest": {
+      "tried": [
+        {
+          "file": "src/readings.ts",
+          "lines": 384,
+          "radius": 5.614786530087058,
+          "at": {
+            "x": 567.664676603101,
+            "y": 591.704668683406
+          },
+          "label": "src/readings.ts · 384 lines · 5 · Claims"
+        }
+      ],
+      "chosen": {
+        "file": "src/readings.ts",
+        "lines": 384,
+        "radius": 5.614786530087058,
+        "at": {
+          "x": 567.664676603101,
+          "y": 591.704668683406
+        },
+        "label": "src/readings.ts · 384 lines · 5 · Claims"
+      }
+    },
+    "largestOnTerritory": {
+      "tried": [
+        {
+          "file": "src/activity/activity-log.ts",
+          "lines": 343,
+          "radius": 5.373324304648472,
+          "at": {
+            "x": 664.8836903775781,
+            "y": 624.7009373627865
+          },
+          "label": "src/activity/activity-log.ts · 343 lines · 6 · Agent tools (the MCP server)"
+        }
+      ],
+      "chosen": {
+        "file": "src/activity/activity-log.ts",
+        "lines": 343,
+        "radius": 5.373324304648472,
+        "at": {
+          "x": 664.8836903775781,
+          "y": 624.7009373627865
+        },
+        "label": "src/activity/activity-log.ts · 343 lines · 6 · Agent tools (the MCP server)"
+      }
+    }
+  },
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  }
+}

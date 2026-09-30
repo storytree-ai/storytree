@@ -711,7 +711,8 @@ test("3.16 every line a hook writes records the git branch its folder is on, bes
     for (const name of ["session-start-startup", "post-tool-use-bash"]) await runHook("claude-code", recorded("claude-code", name, folder), home);
     rmSync(path.join(folder, ".git"), { recursive: true, force: true });
     await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
-    assert.deepEqual((await linesOf(project)).map((line) => [line.kind, line.branch]), [
+    // The look around the machine a hook hands on (4.10) writes at its own time what it finds of the branch: not a line of the hooks'.
+    assert.deepEqual((await linesOf(project)).filter((line) => line.kind !== "branch-state").map((line) => [line.kind, line.branch]), [
       ["session-started", "claude/fix-login"],
       ["command-run", "claude/fix-login"],
       ["session-ended", undefined],

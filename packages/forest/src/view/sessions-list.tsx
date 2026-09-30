@@ -45,6 +45,12 @@ function everyId(rows: readonly SessionRow[]): string[] {
   return rows.flatMap(row => [row.id, ...everyId(row.children)]);
 }
 
+/** Whether the strip shows its rows, kept per project in the page's storage like the arcs bar's state; nothing kept, or a foreign value, is expanded (7.17). */
+export function keptPanelOpen(project: string, storage?: Parameters<typeof pageKept>[2]) {
+  const kept = pageKept<boolean>(`storytree.forest.sessions-open.v1:${project}`, (value): value is boolean => typeof value === "boolean", storage);
+  return { read: (): boolean => kept.read() ?? true, write: (open: boolean): void => kept.write(open) };
+}
+
 /** The optional details seam takes already-read facts; it never asks for or parses transcripts. */
 export function mountSessionsList(container: HTMLElement, options: {
   project: string;
@@ -76,13 +82,16 @@ export function mountSessionsList(container: HTMLElement, options: {
   let selected: string | undefined;
   // Every row starts expanded; these are the ones the user folded.
   let collapsed: ReadonlySet<string> = new Set();
+  const openKept = keptPanelOpen(options.project);
+  let stripOpen = openKept.read();
   const pending = new Set<string>();
   let files: ReadonlyMap<string, SessionFiles> = new Map();
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
     error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
-    collapsed={collapsed} files={files} onToggle={toggle}
+    collapsed={collapsed} files={files} onToggle={toggle} open={stripOpen}
+    onToggleOpen={() => { stripOpen = !stripOpen; openKept.write(stripOpen); draw(); }}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
@@ -224,16 +233,17 @@ export function ranFor(ms: number): string {
 function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
   return <div className="session-detail">
     {row.description.length > 0 && <div className="session-description">{row.description.map(said => <p key={said}>{said}</p>)}</div>}
-    {row.worktrees.length > 0 && <>
+    {row.worktrees.length > 0 && <section className="session-detail-block">
       <p className="session-detail-label">Worktrees</p>
       <ul className="session-detail-worktrees" aria-label="Worktrees">
         {row.worktrees.map(tree => <li key={tree.path} title={[tree.path, ...tree.branches].join("\n")}>{folderName(tree.path)}
-          {tree.state !== undefined && <span className="session-worktree-state" data-state={tree.state}>{tree.state}</span>}</li>)}</ul></>}
-    {row.running.length > 0 && <>
+          {tree.state !== undefined && <span className="session-worktree-state" data-state={tree.state}>{tree.state}</span>}</li>)}</ul></section>}
+    {row.running.length > 0 && <section className="session-detail-block">
       <p className="session-detail-label">Running</p>
       <ul className="session-detail-running" aria-label="Running">
         {row.running.map((run, index) => <li key={index} title={run.command.slice(0, 300)}><span className="session-run-command">{run.words}</span>
-          <span className="session-run-time">{ranFor(run.ranMs)}</span></li>)}</ul></>}
+          <span className="session-run-time">{ranFor(run.ranMs)}</span></li>)}</ul></section>}
+    <section className="session-detail-block">
     <p className="session-detail-label">Files</p>
     {files === undefined ? <p className="session-detail-note">Reading files…</p>
       : "absent" in files ? <p className="session-detail-note">No files: {files.absent}</p>
@@ -241,6 +251,7 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
       : <ul className="session-detail-files" aria-label="Files in its window">
         {files.files.map(file => <li key={file.path} data-resident={file.resident ? undefined : "no"}
           title={file.resident ? file.path : `${file.path}\nNo longer in its window`}>{file.path}</li>)}</ul>}
+    </section>
   </div>;
 }
 
@@ -268,8 +279,14 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   onToggle?(session: string): void;
   /** Each expanded row's files, once read (7.8). */
   files?: ReadonlyMap<string, SessionFiles>;
+  /** Whether the strip shows its rows (7.17), when the caller keeps it; otherwise the list keeps its own, starting expanded. */
+  open?: boolean;
+  onToggleOpen?(): void;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
+  const [ownOpen, setOwnOpen] = useState(true);
+  const stripOpen = control.open ?? ownOpen;
+  const onToggleOpen = control.onToggleOpen ?? (() => setOwnOpen(!ownOpen));
   const collapsed = control.collapsed ?? own;
   const isOpen = (id: string): boolean => !collapsed.has(id);
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
@@ -291,6 +308,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   visit(rows.filter(row => !row.idle), 0);
   const atWorkCount = visible.length;
   if (idleOpen) visit(idle, 0);
+  // Folded, the strip draws no rows, so none is hovered or drawn.
+  if (!stripOpen) visible.length = 0;
   const active = visible.find(({ row }) => row.id === (hovered ?? focused ?? highlighted))?.row;
   const islands = active?.stories.join("\0");
   const session = active?.id;
@@ -302,13 +321,18 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id) });
   });
-  return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
-    <header>
-      <span>Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></span>
+  return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} data-open={stripOpen} aria-label="Running sessions">
+    {/* The header toggles the whole list, like the arcs bar's (7.17): a click anywhere on it, the button for the keyboard. */}
+    <header onClick={onToggleOpen}>
+      <button type="button" className="sessions-handle" aria-expanded={stripOpen} aria-controls="sessions-body"
+        aria-label={stripOpen ? "Hide sessions" : "Show sessions"} title={stripOpen ? "Hide sessions" : "Show sessions"}>
+        Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></button>
       <span className="session-legend" aria-label="Bar colours">
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
       </span>
+      <span className="sessions-caret" aria-hidden="true">{stripOpen ? "▾" : "▴"}</span>
     </header>
+    <div id="sessions-body" className="sessions-body" hidden={!stripOpen}>
     {loading && !error && <p role="status">Reading sessions…</p>}
     {refreshing && !error && <p role="status">As last read. Refreshing…</p>}
     {error && <p role="status">{error}</p>}
@@ -341,7 +365,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         </div>
         {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
       </li></Fragment>)}
-      {atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
+      {stripOpen && atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
     </ul>
+    </div>
   </aside>;
 }

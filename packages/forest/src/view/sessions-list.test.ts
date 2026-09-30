@@ -76,7 +76,7 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
 test("7.8 one expander per row, counting its children; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
   const busy: SessionRow = { ...row, worktrees: [{ path: "/home/me/code/app/.claude/worktrees/one", branches: [] }, { path: "/home/me/code/app/.claude/worktrees/two", branches: [] }] };
   const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], collapsed: new Set(["parent", "lone"]), onHighlight() {} }));
-  assert.equal(folded.match(/<button/g)?.length, 2, "every row has one expander, a childless one too");
+  assert.equal(folded.match(/<button[^>]*session-children-toggle/g)?.length, 2, "every row has one expander, a childless one too");
   assert.doesNotMatch(folded, /session-detail/);
   const files = new Map([["parent", { files: [{ path: "src/a.ts", resident: true }, { path: "src/b.ts", resident: false }] }]]);
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], files, onHighlight() {} }));

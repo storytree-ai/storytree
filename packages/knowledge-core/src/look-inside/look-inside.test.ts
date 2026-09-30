@@ -180,7 +180,7 @@ test("4.8 drilling into a listed session wears its colour: the orchestrator the 
   assert.equal(key.get("unknown"), legend(agents).find(({ agent }) => agent === "unknown")!.colour, "unknown stays pale");
 });
 
-test("4.9 the globe's dots light as the core does: every listed session with none selected, one session in its shades when selected", () => {
+test("4.9 the globe's dots light as the core does: every listed session with none selected, one session in its shades when selected, a note both read showing that session alone", () => {
   const history = project();
   const roster = [
     { session: "a", label: "Signup", colour: "hsl(200, 80%, 68%)", members: ["a"] },
@@ -198,6 +198,8 @@ test("4.9 the globe's dots light as the core does: every listed session with non
   assert.match(one.get("deep")!.colour, /^hsl\(300, 80%, \d+%\)$/);
   assert.notEqual(one.get("deep")!.colour, "hsl(300, 80%, 68%)", "its subagent a shade");
   assert.equal(one.size, 2, "another session's reads stay faint");
+  assert.deepEqual(one.get("deep")!.readers.map(({ colour }) => colour), [one.get("deep")!.colour], "a note both read wears the selected session's colour alone");
+  assert.deepEqual(ringArcs(one.get("deep")!), [], "with no ring for the other session");
   assert.equal(lighting(reads, [], undefined, present).size, 0, "no running sessions light nothing");
 });
 

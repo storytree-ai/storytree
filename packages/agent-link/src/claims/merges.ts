@@ -62,7 +62,23 @@ const GH_TIMEOUT_MS = 3_000;
 /** End every claim in `context.project` whose branch has a pull request merged since it was taken, each with a "merged" line. */
 export async function endMergedClaims(context: MergeContext, watch: MergeWatch = {}): Promise<Line[]> {
   if (!due(context.project, watch.everyMs ?? EVERY_MS)) return [];
-  const claims = (await readClaims(context.log, context.project)).filter((claim) => claim.branch !== undefined);
+  return endMergedOn(context, watch, () => true);
+}
+
+/**
+ * End the claim `claim` if a pull request from its branch has merged since it was taken, asked now
+ * rather than on the watch's next look: a session re-claiming work right after its merge must not
+ * be sent back to the merged branch. Only that branch is asked about. Whether it ended.
+ */
+export async function endIfMerged(context: MergeContext, claim: Claim, watch: MergeWatch = {}): Promise<boolean> {
+  if (claim.branch === undefined) return false;
+  await endMergedOn(context, watch, (branch) => branch === claim.branch);
+  const same = (held: Claim) => held.session === claim.session && held.since === claim.since && held.increment === claim.increment && held.capability === claim.capability;
+  return !(await readClaims(context.log, context.project)).some(same);
+}
+
+async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (branch: string) => boolean): Promise<Line[]> {
+  const claims = (await readClaims(context.log, context.project)).filter((claim) => claim.branch !== undefined && asked(claim.branch));
   if (claims.length === 0) return [];
   const ask = watch.mergedPulls ?? ghMergedPulls;
   const merged = new Map<string, MergedPull[]>();

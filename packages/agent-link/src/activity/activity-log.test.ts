@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { connect } from "@storytree/library";
 
 import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type Line } from "./index.js";
+import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type Line, type LinesCache } from "./index.js";
 
 const WRITER = fileURLToPath(new URL("../testing/activity-writer.ts", import.meta.url));
 
@@ -103,6 +103,26 @@ test('2.2 reading "since line N" returns only the lines after N, in order, each 
       written.map(({ project: of, session, harness, source }) => ({ of, session, harness, source })),
       Array.from({ length: 8 }, () => ({ of: project, session: "s", harness: "codex", source: "hook" })),
     );
+  });
+});
+
+test("a reader that asks again and again, through a lines cache, fetches a project's log from the start once and then only from its cursor, and sees each line added in between", async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const asked: number[] = [];
+    const watched: ActivityLog = Object.assign(Object.create(log) as ActivityLog, {
+      since: (of: string, cursor: number) => (asked.push(cursor), log.since(of, cursor)),
+    });
+    const cache: LinesCache = new Map();
+    await log.append(project, { session: "A", source: "hook", kind: "session-started" });
+    const first = await cachedLines(watched, project, cache);
+    await log.append(project, { session: "A", source: "hook", kind: "session-ended" });
+    const [second, third] = await Promise.all([cachedLines(watched, project, cache), cachedLines(watched, project, cache)]);
+
+    assert.deepEqual(first.map(({ kind }) => kind), ["session-started"]);
+    assert.deepEqual(second.map(({ kind }) => kind), ["session-started", "session-ended"], "the line added in between is seen");
+    assert.deepEqual(third, second, "two asks at once read each line once");
+    assert.deepEqual(asked, [0, first[0]!.seq, second[1]!.seq], "from the start once, then only from the cursor");
   });
 });
 

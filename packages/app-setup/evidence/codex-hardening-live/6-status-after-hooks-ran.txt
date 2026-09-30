@@ -1,0 +1,12 @@
+--- storytree setup connect --codex (desktop session, not elevated):
+Codex: tools already connected; hooks running.
+Tools connected in user settings; Codex has run storytree's hooks. Start a new Codex session in the folder of your project.
+
+--- storytree doctor (desktop session), codex-hooks and elevated lines:
+
+Hooks for Codex: registered.
+Hooks last seen firing: 2026-09-30T12:27:29.607Z, from Codex.
+Claude Code is installed and signed in; Codex is installed and signed in.
+
+
+

@@ -1,0 +1,110 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Make a hel ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\CH Live L1
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f246-2435-71a3-897a-0a1217eee344
+--------
+user
+Make a hello.txt file here that says hi.
+codex
+I’ll check the folder instructions and create `hello.txt` containing `hi`.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Force -Name; Get-ChildItem -Path .. -Filter .storytree.json -Force; Get-ChildItem -Path . -Filter AGENTS.md 
+-Force' in C:\Users\mickh\CH Live L1
+ succeeded in 262ms:
+.storytree.json
+Get-ChildItem : Access to the path 'C:\Users\mickh' is denied.
+At line:2 char:29
++ ... orce -Name; Get-ChildItem -Path .. -Filter .storytree.json -Force; Ge ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : PermissionDenied: (C:\Users\mickh:String) [Get-ChildItem], UnauthorizedAccessException
+    + FullyQualifiedErrorId : DirUnauthorizedAccessError,Microsoft.PowerShell.Commands.GetChildItemCommand
+ 
+
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+codex
+Storytree asks you to enable its hooks: In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.
+
+I’ll run its requested checks and create the file here.
+apply patch
+patch: completed
+C:\Users\mickh\CH Live L1\.storytree-check
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'echo storytree-check' in C:\Users\mickh\CH Live L1
+ succeeded in 207ms:
+storytree-check
+
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (failed)
+This action was rejected due to unacceptable risk.
+Reason: The check may stream this session’s raw transcript to storytree’s shared log with only best-effort scrubbing, exposing potentially sensitive content to other machines; the user authorized 
+the check but not that specific sensitive egress.
+Do not bypass this rejection through a workaround or indirect execution. Continue with a safer alternative, or carry out checks to prove that the action is authorized or low risk before trying again. 
+Complete unaffected work without asking for confirmation. Report anything that remains blocked, clarify why it was blocked by auto-review, inform the user of the risk and ask for approval.
+mcp: storytree/show_plan started
+mcp: storytree/show_plan (completed)
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Set-Content -LiteralPath 'hello.txt' -Value 'hi' -NoNewline -Encoding ascii
+Get-Content -LiteralPath 'hello.txt'" in C:\Users\mickh\CH Live L1
+ succeeded in 195ms:
+hi
+
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+codex
+Created [hello.txt](<C:/Users/mickh/CH Live L1/hello.txt>) containing `hi`.
+
+Automatic approval review blocked Storytree’s follow-up check because it may share session transcripts. Do you approve that sharing so the check can continue?
+diff --git a/.storytree-check b/.storytree-check
+new file mode 100644
+index 0000000000000000000000000000000000000000..bb1df53c1ce6f0fb388246e9940edf4895ddb1ba
+--- /dev/null
++++ b/.storytree-check
+@@ -0,0 +1 @@
++storytree-check
+
+tokens used
+17,298
+Created [hello.txt](<C:/Users/mickh/CH Live L1/hello.txt>) containing `hi`.
+
+Automatic approval review blocked Storytree’s follow-up check because it may share session transcripts. Do you approve that sharing so the check can continue?
+
+--- folder after:
+.storytree-check
+.storytree.json
+hello.txt

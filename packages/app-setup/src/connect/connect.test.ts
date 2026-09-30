@@ -175,6 +175,20 @@ test("2.2: with its own CODEX_HOME, Codex's registration hands the tool server t
   assert.doesNotMatch(readFileSync(f.codexFile, "utf8"), /CODEX_HOME/, "the default home needs no hand-off");
 });
 
+test("2.2: a custom-home Codex registration storytree wrote before it handed over CODEX_HOME is updated in place, keeping the user's other settings", async (t) => {
+  const f = fixture(t);
+  const custom = path.join(f.home, "custom codex");
+  mkdirSync(custom);
+  const file = path.join(custom, "config.toml");
+  writeFileSync(file, `${legacy}\n[mcp_servers.storytree]\ncommand = ${JSON.stringify(f.options.installed.command)}\nargs = ${JSON.stringify(f.options.installed.args)}\n`);
+  const [result] = await connectAgents({ ...f.options, env: { ...f.options.env, CODEX_HOME: custom }, harnesses: ["codex"] });
+  assert.equal(result!.tools, "connected", result!.next);
+  const source = readFileSync(file, "utf8");
+  assert.ok(source.startsWith(legacy), source);
+  assert.equal(source.split("[mcp_servers.storytree]").length, 2, source);
+  assert.ok(source.includes(`\nenv = { CODEX_HOME = ${JSON.stringify(custom)} }\n`), source);
+});
+
 test("2.5: disconnect one keeps the other and command; disconnect all removes only this installation's hooks and launcher", async (t) => {
   const f = fixture(t);
   await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });

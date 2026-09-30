@@ -47,6 +47,8 @@ function hooksSaid(report: SetupReport): string[] {
   });
   const server = report.lines.find((line) => line.check === "codex-server" && line.fix !== undefined);
   if (server !== undefined) said.push(`${server.message} Fix: ${server.fix}`);
+  // Whether Codex runs its hooks yet, and an administrator terminal where it cannot (agent link 8.16, 8.17).
+  for (const line of report.lines.filter((each) => each.check === "codex-hooks" || each.check === "elevated")) said.push(line.fix === undefined ? line.message : `${line.message} Fix: ${line.fix}`);
   const statusLine = report.hooks.statusLine;
   if (statusLine === "installed") said.push("Claude Code status line: storytree's installed now; it shows from the next session.");
   if (statusLine === "the user's own kept") said.push("Claude Code status line: yours is kept; storytree never replaces it.");

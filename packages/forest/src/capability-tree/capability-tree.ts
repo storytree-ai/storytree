@@ -28,6 +28,8 @@ export interface Tree {
   state: PartState;
   /** Its health as the agent reports it: the agent's word, always labelled so. */
   reported: HealthState;
+  /** Its word (ADR-0744), from storytree's verified column; absent for a story's placeholder seedling. */
+  status?: AnnotatedCapability["status"];
   form: TreeForm;
 }
 
@@ -39,7 +41,7 @@ export function grove(story: AnnotatedStory, states: WorkStates): Tree[] {
   return inBuildOrder(story.capabilities).map((capability) => {
     const state = states.part(capability.id);
     const reported = capability.health.reported.state;
-    return { capability: capability.id, title: capability.title, buildsOn: [...capability.dependsOn], state, reported, form: formOf(state, reported) };
+    return { capability: capability.id, title: capability.title, buildsOn: [...capability.dependsOn], state, reported, status: capability.status, form: formOf(state, reported) };
   });
 }
 

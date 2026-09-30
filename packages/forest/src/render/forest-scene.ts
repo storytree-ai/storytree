@@ -12,7 +12,7 @@
  * - A click is turned into a point on the ground, and the island under it is the one selected.
  */
 import type { WorkStates } from "@storytree/arc-surface";
-import { PLACE_WIDTH, type ForestScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
+import { PLACE_WIDTH, type CapabilityWord, type ForestScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
@@ -59,11 +59,12 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
     const x = (node?.at.x ?? 0) * PLACE_WIDTH;
     const z = (node?.at.y ?? 0) * PLACE_WIDTH;
     const contractsOf = new Map(story.capabilities.map(({ id, contracts }) => [id, contracts.length]));
-    const placed = trees.map(({ capability, form }, index): PlacedTree => {
+    const placed = trees.map(({ capability, form, status }, index): PlacedTree => {
       const spot = spots[index] ?? { r: 0, angle: 0 };
       return {
         capability,
         form,
+        ...(status === undefined ? {} : { status }),
         contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
         x: x + Math.cos(spot.angle) * spot.r * squeeze,
         z: z + Math.sin(spot.angle) * spot.r * squeeze,
@@ -74,7 +75,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
     const land = landOf(story.capabilities, survey[story.id], packageOf(story.title));
     // ADR-0804 D3, D7: a surveyed story's land follows its lines of code; unsurveyed, it follows its capabilities.
     const area = land === undefined ? undefined : islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0));
-    const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, contracts }) => [capability, form, contracts]), land?.territories, area]);
+    const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, radius, trees: placed, ...(land === undefined ? {} : { land, area: area! }), key };
   });
   const links = tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
@@ -113,11 +114,11 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
  * A surveyed story's land: one territory per capability with code, in the story's order, then Unclaimed
  * code, and its files. The page cuts it to the island's coast, which only the drawing knows.
  */
-function landOf(capabilities: readonly { id: string; title: string }[], survey: StorySurvey | undefined, pkg: string): Island["land"] {
+function landOf(capabilities: readonly { id: string; title: string; status: CapabilityWord }[], survey: StorySurvey | undefined, pkg: string): Island["land"] {
   if (survey === undefined || survey.files.length === 0) return undefined;
   const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
   return {
-    territories: [...capabilities.map(({ id, title }) => ({ capability: id, title, lines: linesOf(id) })), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
+    territories: [...capabilities.map(({ id, title, status }) => ({ capability: id, title, status, lines: linesOf(id) })), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
     files: survey.files,
     package: pkg,
     imports: survey.imports,

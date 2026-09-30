@@ -36,7 +36,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
 }) {
   const layout = useMemo(() => planetLayout(scene, places), [scene, places]);
   const [rotation, setRotation] = useState(() => new Quaternion());
-  // ADR-0804 D9: a running session tints its islands' coasts and its claimed territories; no wisps.
+  // ADR-0804 D9, narrowed by ADR-0825 D3: a running session tints its islands' coasts and outlines its claimed territories; no wisps.
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
   // Each island reports where its file circles lie on the globe once it has drawn them (only the drawing knows its coast); the core's traversal hops between them (ADR-0804 D5).
   const [stopsByStory, setStops] = useState<ReadonlyMap<string, ReadonlyMap<string, { x: number; y: number; z: number }>>>(new Map());
@@ -227,8 +227,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
     {mode === "forest" && markers.map(marker => <button key={marker.story} type="button" className="planet-edge-marker"
       data-failing-story={marker.story}
       style={{ left: marker.left, top: marker.top }}
-      title={`${titles.get(marker.story)} · failing (agent's report)`}
-      aria-label={`Show failing story: ${titles.get(marker.story)}`}
+      title={`${titles.get(marker.story)} · unhealthy (storytree verified)`}
+      aria-label={`Show unhealthy story: ${titles.get(marker.story)}`}
       onClick={() => onRotate(focusRotation(marker.turn, camera.quaternion))}>!</button>)}
   </Overlay>;
 }

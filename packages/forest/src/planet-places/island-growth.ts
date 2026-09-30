@@ -1,26 +1,22 @@
 /** Islands grow with their code from anchored places (ADR-0804 D3, D7). Not built yet: the red tests stand on this. */
-import { PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
+import { placeOnPackedGlobe, PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
 
 /** Ground units² of land per line of code in a surveyed story. */
-export const LAND_PER_LINE = 0;
+export const LAND_PER_LINE = 0.75;
 /** The least land an island has, so a tiny story stays visible. */
-export const MIN_ISLAND_AREA = 0;
+export const MIN_ISLAND_AREA = 318;
 /** The farthest an island may be nudged from its anchor, in radians of arc. */
-export const MAX_NUDGE = 0;
+export const MAX_NUDGE = 0.3;
 /** The open sea kept between two islands' coasts, in ground units. */
-export const SEA_GAP = 0;
+export const SEA_GAP = 6;
 
 /** A surveyed story's land: its lines times the per-line constant, never below the floor. */
 export function islandArea(lines: number): number {
-  return lines * 0;
+  return Math.max(MIN_ISLAND_AREA, lines * LAND_PER_LINE);
 }
 
-/** How far an island's coast reaches from its middle, in ground units. */
-export function islandReach(area: number): number {
-  return Math.sqrt(area / Math.PI);
-}
-
-export interface GrowingIsland { readonly story: string; readonly place: number; readonly area: number }
+/** An island to place: its permanent place, and how far its coast reaches from its middle, in ground units. */
+export interface GrowingIsland { readonly story: string; readonly place: number; readonly reach: number }
 
 export interface GrownPlanet {
   /** The globe's radius, in ground units: PLANET_RADIUS until the islands no longer fit. */
@@ -30,5 +26,8 @@ export interface GrownPlanet {
 }
 
 export function growPlanet(islands: readonly GrowingIsland[]): GrownPlanet {
-  return { radius: PLANET_RADIUS, spots: new Map(islands.map(({ story }) => [story, { x: 0, y: 0, z: 1 }])) };
+  return { radius: PLANET_RADIUS, spots: new Map(islands.map(({ story, place }) => {
+    const p = placeOnPackedGlobe(place);
+    return [story, { x: p.x / PLANET_RADIUS, y: p.y / PLANET_RADIUS, z: p.z / PLANET_RADIUS }];
+  })) };
 }

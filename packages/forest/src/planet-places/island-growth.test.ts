@@ -2,28 +2,27 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { growPlanet, islandReach, MAX_NUDGE, SEA_GAP, type GrowingIsland } from "./island-growth.js";
+import { growPlanet, MAX_NUDGE, SEA_GAP, type GrowingIsland } from "./island-growth.js";
 import { placeOnPackedGlobe, PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
 
-const unit = (p: PlanetPoint): PlanetPoint => { const n = Math.hypot(p.x, p.y, p.z); return { x: p.x / n, y: p.y / n, z: p.z / n }; };
 const angle = (a: PlanetPoint, b: PlanetPoint) => Math.acos(Math.max(-1, Math.min(1, a.x * b.x + a.y * b.y + a.z * b.z)));
-const anchorOf = (place: number) => unit(placeOnPackedGlobe(place));
-const islands = (places: readonly number[], area: number): GrowingIsland[] => places.map(place => ({ story: `story_${place}`, place, area }));
+const anchorOf = (place: number): PlanetPoint => { const p = placeOnPackedGlobe(place); return { x: p.x / PLANET_RADIUS, y: p.y / PLANET_RADIUS, z: p.z / PLANET_RADIUS }; };
+const islands = (places: readonly number[], reach: number): GrowingIsland[] => places.map(place => ({ story: `story_${place}`, place, reach }));
 
-/** How far two islands' coasts overlap at radius `radius` (negative: room to spare beyond the sea gap). */
+/** How far two islands' reaches overlap at radius `radius` (negative: room to spare beyond the sea gap). */
 function overlap(a: GrowingIsland, b: GrowingIsland, spots: ReadonlyMap<string, PlanetPoint>, radius: number): number {
-  return islandReach(a.area) + islandReach(b.area) + SEA_GAP - radius * angle(spots.get(a.story)!, spots.get(b.story)!);
+  return a.reach + b.reach + SEA_GAP - radius * angle(spots.get(a.story)!, spots.get(b.story)!);
 }
 
 test("1.7 small islands never move from their anchors, and the globe keeps its radius", () => {
-  const set = islands([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3000);
+  const set = islands([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 32);
   const grown = growPlanet(set);
   assert.equal(grown.radius, PLANET_RADIUS);
   for (const { story, place } of set) assert.deepEqual(grown.spots.get(story), anchorOf(place));
 });
 
 test("1.7 two neighbours whose sizes would overlap are nudged apart, neither overlapping, each within a bound of its anchor", () => {
-  const set = islands([2, 3], 7000);
+  const set = islands([2, 3], 50);
   const anchors = new Map(set.map(({ story, place }) => [story, anchorOf(place)]));
   const need = overlap(set[0]!, set[1]!, anchors, PLANET_RADIUS);
   assert.ok(need > 0, "at their anchors the two would overlap");
@@ -39,8 +38,8 @@ test("1.7 two neighbours whose sizes would overlap are nudged apart, neither ove
 });
 
 test("1.8 when the islands' total land exceeds what the globe holds, the radius grows until nothing overlaps", () => {
-  const set = islands(Array.from({ length: 36 }, (_, i) => i + 1), 20000);
-  assert.ok(set.length * 20000 > 4 * Math.PI * PLANET_RADIUS ** 2, "more land than the globe's surface");
+  const set = islands(Array.from({ length: 36 }, (_, i) => i + 1), 80);
+  assert.ok(set.length * Math.PI * 80 ** 2 > 4 * Math.PI * PLANET_RADIUS ** 2, "more land than the globe's surface");
   const grown = growPlanet(set);
   assert.ok(grown.radius > PLANET_RADIUS, "the globe grew");
   for (let i = 0; i < set.length; i++) {

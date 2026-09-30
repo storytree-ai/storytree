@@ -1,0 +1,25 @@
+CMD
+st:check_setup [completed] 
+st:check_setup [completed] 
+st:show_plan [completed] 
+st:plan_story [completed] title=Manage a personal to-do list
+CMD
+st:plan_capability [completed] title=To-do page and tested list logic
+CMD
+st:plan_contract [completed] title=Task lifecycle preserves unrelated tasks
+st:claim [completed] 
+st:open [completed] 
+CMD
+EDIT tests.html,todo.test.js,run-tests.js
+CMD
+st:report [completed] result=red
+EDIT README.md,index.html,style.css,todo.js,app.js,todo.test.js
+CMD
+st:report [completed] result=green
+CMD
+st:mark_built [completed] 
+st:land [completed] 
+st:plan_arc [completed] title=Deliver browser to-do page
+st:park_increment [completed] title=Local to-do page and logic tests
+st:read_context [completed] 
+st:close_out [completed] safe=True

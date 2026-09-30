@@ -1,0 +1,2258 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Build me a ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\HB Trial B1
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f3c5-07e3-7082-acdf-bf4af796dec3
+--------
+user
+Build me a small to-do list web page I can open in my browser, with a test for its logic.
+codex
+I’ll build a small to-do page with add, complete, and delete actions, plus a test for the list logic. I’ll first check the workspace for any project instructions.
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Force; rg --files -g AGENTS.md -g .storytree.json -g package.json -g index.html' in C:\Users\mickh\HB Trial B1
+ succeeded in 302ms:
+
+
+    Directory: C:\Users\mickh\HB Trial B1
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----         1/10/2026   5:22 AM             25 .storytree.json                                                      
+.storytree.json
+
+
+
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+codex
+Storytree reports that its hooks need your trust: In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.
+
+Your project instructions require this setup check. I’ll check whether Storytree can track the work in this session.
+
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+mcp: storytree/show_plan started
+mcp: storytree/show_plan (completed)
+mcp: storytree/plan_story started
+mcp: storytree/plan_story (completed)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node --version' in C:\Users\mickh\HB Trial B1
+ exited 1 in 293ms:
+node : The term 'node' is not recognized as the name of a cmdlet, function, script file, or operable program. Check 
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:2 char:1
++ node --version
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (node:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+mcp: storytree/plan_capability started
+mcp: storytree/plan_capability (completed)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Command node*,python*,chrome*,msedge* -ErrorAction SilentlyContinue | Select-Object Name,Source; Get-ChildItem 'C:\\Program 
+Files\\nodejs','C:\\Program Files (x86)\\Microsoft\\Edge\\Application','C:\\Program Files\\Google\\Chrome\\Application' -ErrorAction SilentlyContinue | Select-Object FullName" in C:\Users\mickh\HB Trial B1
+ exited 1 in 419ms:
+
+Name        Source                                                        
+----        ------                                                        
+python.exe  C:\Users\mickh\AppData\Local\Microsoft\WindowsApps\python.exe 
+python3.exe C:\Users\mickh\AppData\Local\Microsoft\WindowsApps\python3.exe
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+                                                                          
+
+
+
+mcp: storytree/plan_contract started
+mcp: storytree/plan_contract (completed)
+mcp: storytree/claim started
+mcp: storytree/claim (completed)
+mcp: storytree/open started
+mcp: storytree/open (completed)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application','C:\\Program Files\\Google\\Chrome\\Application' -Filter *.exe 
+-ErrorAction SilentlyContinue | ForEach-Object FullName" in C:\Users\mickh\HB Trial B1
+ exited 1 in 227ms:
+C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+C:\Program Files (x86)\Microsoft\Edge\Application\msedge_proxy.exe
+C:\Program Files (x86)\Microsoft\Edge\Application\pwahelper.exe
+
+codex
+The page will open directly from a file, with no installation needed. I’m adding tests that can run in the browser and from Windows’ built-in script runner. Storytree accepted the plan, though its hooks are still 
+unverified.
+
+apply patch
+patch: completed
+C:\Users\mickh\HB Trial B1\run-tests.js
+C:\Users\mickh\HB Trial B1\tests.html
+C:\Users\mickh\HB Trial B1\todo.test.js
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..db60f75691afd9ea40459d5a20cd3f8c73c42b30
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' — ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'cscript //nologo run-tests.js' in C:\Users\mickh\HB Trial B1
+ exited 1 in 297ms:
+FAIL: Adds trimmed tasks and rejects whitespace �?" 'Todo' is undefined
+FAIL: Toggles completion and undo without changing previous state �?" 'Todo' is undefined
+FAIL: Deletes only selected task and never reuses a remaining ID �?" 'Todo' is undefined
+
+0 passed, 3 failed
+
+mcp: storytree/report started
+mcp: storytree/report (completed)
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..db60f75691afd9ea40459d5a20cd3f8c73c42b30
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' — ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+apply patch
+patch: completed
+C:\Users\mickh\HB Trial B1\README.md
+C:\Users\mickh\HB Trial B1\app.js
+C:\Users\mickh\HB Trial B1\index.html
+C:\Users\mickh\HB Trial B1\style.css
+C:\Users\mickh\HB Trial B1\todo.js
+C:\Users\mickh\HB Trial B1\todo.test.js
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d7d25e1c2f3e2af957120fe6cc4cc0f0d4c7ad5
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,19 @@
++# One thing at a time
++
++Double-click `index.html` to open the to-do list in your browser. Add tasks,
++tick them to complete (or undo), and delete tasks you no longer need.
++Tasks are saved in your browser when local storage is available. Keep the files
++together; no server, installation, or internet connection is required.
++
++## Test the logic
++
++Double-click `tests.html` for the browser test results, or run this command in
++PowerShell from this folder:
++
++```powershell
++cscript //nologo run-tests.js
++```
++
++The tests exercise the same `todo.js` used by the page: adding and trimming,
++rejecting blank input, unique IDs, completion and undo, deletion, unknown IDs,
++and preservation of previous state. The runner exits with code 1 on failure.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..efde2599a803159baba8944e2c0029e5e6b97548
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,83 @@
++(function () {
++  'use strict';
++  const key = 'one-thing-todos-v1';
++  let tasks = [];
++  const list = document.getElementById('tasks');
++  const input = document.getElementById('task-input');
++  const feedback = document.getElementById('feedback');
++  const storageNote = document.getElementById('storage-note');
++  try {
++    const saved = JSON.parse(localStorage.getItem(key) || '[]');
++    const ids = new Set();
++    if (!Array.isArray(saved) || !saved.every(task => {
++      if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) ||
++          typeof task.text !== 'string' || !task.text.trim() || typeof task.done !== 'boolean') return false;
++      ids.add(task.id);
++      return true;
++    })) throw new Error('Invalid saved list');
++    tasks = saved;
++  } catch (_) {
++    storageNote.textContent = 'Saved tasks could not be loaded. You can still use this list.';
++  }
++  function save() {
++    try {
++      localStorage.setItem(key, JSON.stringify(tasks));
++      storageNote.textContent = 'Saved in this browser. A little less to keep in your head.';
++    } catch (_) {
++      storageNote.textContent = 'Browser storage is unavailable. Tasks will last for this session only.';
++    }
++  }
++  function render() {
++    list.replaceChildren();
++    tasks.forEach(task => {
++      const row = document.createElement('li');
++      row.className = 'task' + (task.done ? ' done' : '');
++      const label = document.createElement('label');
++      const checkbox = document.createElement('input');
++      checkbox.type = 'checkbox';
++      checkbox.checked = task.done;
++      checkbox.dataset.id = task.id;
++      const text = document.createElement('span');
++      text.textContent = task.text;
++      label.append(checkbox, text);
++      const remove = document.createElement('button');
++      remove.type = 'button';
++      remove.className = 'delete';
++      remove.textContent = 'Delete';
++      remove.setAttribute('aria-label', 'Delete ' + task.text);
++      checkbox.addEventListener('change', () => {
++        tasks = Todo.toggle(tasks, task.id);
++        save(); render();
++        list.querySelector('input[data-id="' + task.id + '"]').focus();
++      });
++      remove.addEventListener('click', () => {
++        const position = tasks.findIndex(item => item.id === task.id);
++        tasks = Todo.remove(tasks, task.id);
++        save(); render();
++        feedback.textContent = 'Task deleted.';
++        const next = list.children[Math.min(position, tasks.length - 1)];
++        if (next) next.querySelector('button').focus(); else input.focus();
++      });
++      row.append(label, remove);
++      list.append(row);
++    });
++    const remaining = tasks.filter(task => !task.done).length;
++    document.getElementById('count').textContent = remaining + ' left';
++    document.getElementById('empty').hidden = tasks.length > 0;
++  }
++  input.addEventListener('input', () => input.setCustomValidity(''));
++  document.getElementById('add-form').addEventListener('submit', event => {
++    event.preventDefault();
++    if (!input.value.trim()) {
++      input.setCustomValidity('Please enter a task.');
++      input.reportValidity();
++      return;
++    }
++    tasks = Todo.add(tasks, input.value);
++    input.value = '';
++    save(); render();
++    feedback.textContent = 'Task added.';
++    input.focus();
++  });
++  render();
++}());
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac256202d52c7a64e2a2c08c4cc5460a18260e99
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,34 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>One thing at a time — To-do list</title>
++  <link rel="stylesheet" href="style.css">
++  <script defer src="todo.js"></script>
++  <script defer src="app.js"></script>
++</head>
++<body>
++  <main>
++    <header>
++      <p class="eyebrow"><span class="mark" aria-hidden="true">✓</span> A LITTLE SPACE TO GET THINGS DONE</p>
++      <h1>One thing at a time.</h1>
++      <p class="intro">Make a little plan. Make a little progress.</p>
++    </header>
++    <section class="card" aria-label="Your to-do list">
++      <form id="add-form">
++        <label for="task-input">What’s on your list?</label>
++        <div class="entry">
++          <input id="task-input" name="task" placeholder="e.g. Take a walk outside" maxlength="240" required autocomplete="off">
++          <button class="primary" type="submit">Add task <span aria-hidden="true">+</span></button>
++        </div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status">0 left</span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <p id="feedback" class="feedback" role="status"></p>
++    </section>
++    <footer id="storage-note">Saved in this browser. A little less to keep in your head.</footer>
++  </main>
++</body>
++</html>
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e4d4467cc79c7041f1c8cbb14f9de97513fd48f
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #263e38; background: #f5f4ee; font-synthesis: none; }
++* { box-sizing: border-box; }
++body { margin: 0; min-height: 100vh; border-top: 6px solid #315e4c; }
++main { max-width: 740px; padding: 0 24px; margin: 76px auto 36px; }
++.eyebrow { display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: 1.7px; font-weight: 700; }
++.mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e1e8d9; font-size: 18px; }
++h1 { font-family: Georgia, serif; font-size: clamp(36px, 6vw, 52px); font-weight: 400; letter-spacing: -1.8px; margin: 26px 0 12px; }
++.intro { color: #67716a; margin: 0 0 36px; font-size: 17px; }
++.card { background: #fffefb; border: 1px solid #e0e3d9; border-radius: 18px; padding: 30px; box-shadow: 0 12px 40px #263e3807; }
++label { font-size: 14px; font-weight: 600; }
++.entry { display: flex; gap: 10px; margin-top: 12px; }
++input[type=text], input:not([type]) { min-width: 0; flex: 1; border: 1px solid #cbd3c7; border-radius: 8px; background: white; padding: 14px; font: inherit; color: inherit; }
++button { font: inherit; cursor: pointer; border-radius: 8px; }
++.primary { border: none; color: white; background: #315e4c; padding: 12px 18px; font-size: 14px; font-weight: 600; white-space: nowrap; }
++.primary span { margin-left: 12px; font-size: 20px; }
++.primary:hover { background: #234a3a; }
++:focus-visible { outline: 3px solid #a57636; outline-offset: 3px; }
++.list-heading { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-bottom: 14px; border-bottom: 1px solid #e8e9e1; }
++h2 { font-size: 15px; margin: 0; }
++#count { background: #edf1e7; padding: 5px 10px; border-radius: 20px; color: #50604f; font-size: 12px; }
++ul { list-style: none; margin: 0; padding: 0; }
++.task { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee6; }
++.task label { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; cursor: pointer; font-weight: 400; }
++.task input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #315e4c; cursor: pointer; }
++.task span { overflow-wrap: anywhere; }
++.task.done span { color: #788378; text-decoration: line-through; }
++.delete { background: transparent; border: 1px solid transparent; color: #6d756a; padding: 8px; font-size: 13px; }
++.delete:hover { color: #983f32; background: #fbede8; }
++#empty { text-align: center; padding: 36px 0 24px; color: #747e70; }
++.empty-icon { display: inline-grid; place-items: center; width: 46px; height: 46px; border: 1px solid #d8e0cf; border-radius: 50%; background: #f2f5ec; font-size: 23px; color: #758765; }
++h3 { font-family: Georgia, serif; font-weight: 400; font-size: 23px; margin: 14px 0 8px; color: #435541; }
++#empty p { font-size: 14px; margin: 0; }
++.feedback { font-size: 13px; color: #54634f; margin: 16px 0 0; }
++.feedback:empty { display: none; }
++footer { text-align: center; margin: 24px 0; color: #727b6c; font-size: 12px; line-height: 1.6; }
++@media (max-width: 520px) { main { margin-top: 40px; padding: 0 16px; } .card { padding: 22px 18px; } .entry { flex-direction: column; } .primary { min-height: 46px; } .eyebrow { font-size: 9px; letter-spacing: 1px; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca5fcc7d2fcaf0395f85f374cfb82289ff2bd306
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,23 @@
++var Todo = (function () {
++  function add(tasks, text) {
++    text = text.replace(/^\s+|\s+$/g, '');
++    if (!text) return tasks.slice();
++    var id = 1;
++    for (var i = 0; i < tasks.length; i++) id = Math.max(id, tasks[i].id + 1);
++    return tasks.concat([{ id: id, text: text, done: false }]);
++  }
++  function toggle(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) {
++      var task = tasks[i];
++      result.push(task.id === id ? { id: task.id, text: task.text, done: !task.done } : task);
++    }
++    return result;
++  }
++  function remove(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) if (tasks[i].id !== id) result.push(tasks[i]);
++    return result;
++  }
++  return { add: add, toggle: toggle, remove: remove };
++}());
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..71e6fe3d567c1a9d0be27f2b43b53e4cf0a0dcca
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' - ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'cscript //nologo run-tests.js' in C:\Users\mickh\HB Trial B1
+ succeeded in 297ms:
+PASS: Adds trimmed tasks and rejects whitespace
+PASS: Toggles completion and undo without changing previous state
+PASS: Deletes only selected task and never reuses a remaining ID
+
+3 passed, 0 failed
+
+mcp: storytree/report started
+mcp: storytree/report (completed)
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d7d25e1c2f3e2af957120fe6cc4cc0f0d4c7ad5
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,19 @@
++# One thing at a time
++
++Double-click `index.html` to open the to-do list in your browser. Add tasks,
++tick them to complete (or undo), and delete tasks you no longer need.
++Tasks are saved in your browser when local storage is available. Keep the files
++together; no server, installation, or internet connection is required.
++
++## Test the logic
++
++Double-click `tests.html` for the browser test results, or run this command in
++PowerShell from this folder:
++
++```powershell
++cscript //nologo run-tests.js
++```
++
++The tests exercise the same `todo.js` used by the page: adding and trimming,
++rejecting blank input, unique IDs, completion and undo, deletion, unknown IDs,
++and preservation of previous state. The runner exits with code 1 on failure.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..efde2599a803159baba8944e2c0029e5e6b97548
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,83 @@
++(function () {
++  'use strict';
++  const key = 'one-thing-todos-v1';
++  let tasks = [];
++  const list = document.getElementById('tasks');
++  const input = document.getElementById('task-input');
++  const feedback = document.getElementById('feedback');
++  const storageNote = document.getElementById('storage-note');
++  try {
++    const saved = JSON.parse(localStorage.getItem(key) || '[]');
++    const ids = new Set();
++    if (!Array.isArray(saved) || !saved.every(task => {
++      if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) ||
++          typeof task.text !== 'string' || !task.text.trim() || typeof task.done !== 'boolean') return false;
++      ids.add(task.id);
++      return true;
++    })) throw new Error('Invalid saved list');
++    tasks = saved;
++  } catch (_) {
++    storageNote.textContent = 'Saved tasks could not be loaded. You can still use this list.';
++  }
++  function save() {
++    try {
++      localStorage.setItem(key, JSON.stringify(tasks));
++      storageNote.textContent = 'Saved in this browser. A little less to keep in your head.';
++    } catch (_) {
++      storageNote.textContent = 'Browser storage is unavailable. Tasks will last for this session only.';
++    }
++  }
++  function render() {
++    list.replaceChildren();
++    tasks.forEach(task => {
++      const row = document.createElement('li');
++      row.className = 'task' + (task.done ? ' done' : '');
++      const label = document.createElement('label');
++      const checkbox = document.createElement('input');
++      checkbox.type = 'checkbox';
++      checkbox.checked = task.done;
++      checkbox.dataset.id = task.id;
++      const text = document.createElement('span');
++      text.textContent = task.text;
++      label.append(checkbox, text);
++      const remove = document.createElement('button');
++      remove.type = 'button';
++      remove.className = 'delete';
++      remove.textContent = 'Delete';
++      remove.setAttribute('aria-label', 'Delete ' + task.text);
++      checkbox.addEventListener('change', () => {
++        tasks = Todo.toggle(tasks, task.id);
++        save(); render();
++        list.querySelector('input[data-id="' + task.id + '"]').focus();
++      });
++      remove.addEventListener('click', () => {
++        const position = tasks.findIndex(item => item.id === task.id);
++        tasks = Todo.remove(tasks, task.id);
++        save(); render();
++        feedback.textContent = 'Task deleted.';
++        const next = list.children[Math.min(position, tasks.length - 1)];
++        if (next) next.querySelector('button').focus(); else input.focus();
++      });
++      row.append(label, remove);
++      list.append(row);
++    });
++    const remaining = tasks.filter(task => !task.done).length;
++    document.getElementById('count').textContent = remaining + ' left';
++    document.getElementById('empty').hidden = tasks.length > 0;
++  }
++  input.addEventListener('input', () => input.setCustomValidity(''));
++  document.getElementById('add-form').addEventListener('submit', event => {
++    event.preventDefault();
++    if (!input.value.trim()) {
++      input.setCustomValidity('Please enter a task.');
++      input.reportValidity();
++      return;
++    }
++    tasks = Todo.add(tasks, input.value);
++    input.value = '';
++    save(); render();
++    feedback.textContent = 'Task added.';
++    input.focus();
++  });
++  render();
++}());
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac256202d52c7a64e2a2c08c4cc5460a18260e99
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,34 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>One thing at a time — To-do list</title>
++  <link rel="stylesheet" href="style.css">
++  <script defer src="todo.js"></script>
++  <script defer src="app.js"></script>
++</head>
++<body>
++  <main>
++    <header>
++      <p class="eyebrow"><span class="mark" aria-hidden="true">✓</span> A LITTLE SPACE TO GET THINGS DONE</p>
++      <h1>One thing at a time.</h1>
++      <p class="intro">Make a little plan. Make a little progress.</p>
++    </header>
++    <section class="card" aria-label="Your to-do list">
++      <form id="add-form">
++        <label for="task-input">What’s on your list?</label>
++        <div class="entry">
++          <input id="task-input" name="task" placeholder="e.g. Take a walk outside" maxlength="240" required autocomplete="off">
++          <button class="primary" type="submit">Add task <span aria-hidden="true">+</span></button>
++        </div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status">0 left</span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <p id="feedback" class="feedback" role="status"></p>
++    </section>
++    <footer id="storage-note">Saved in this browser. A little less to keep in your head.</footer>
++  </main>
++</body>
++</html>
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e4d4467cc79c7041f1c8cbb14f9de97513fd48f
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #263e38; background: #f5f4ee; font-synthesis: none; }
++* { box-sizing: border-box; }
++body { margin: 0; min-height: 100vh; border-top: 6px solid #315e4c; }
++main { max-width: 740px; padding: 0 24px; margin: 76px auto 36px; }
++.eyebrow { display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: 1.7px; font-weight: 700; }
++.mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e1e8d9; font-size: 18px; }
++h1 { font-family: Georgia, serif; font-size: clamp(36px, 6vw, 52px); font-weight: 400; letter-spacing: -1.8px; margin: 26px 0 12px; }
++.intro { color: #67716a; margin: 0 0 36px; font-size: 17px; }
++.card { background: #fffefb; border: 1px solid #e0e3d9; border-radius: 18px; padding: 30px; box-shadow: 0 12px 40px #263e3807; }
++label { font-size: 14px; font-weight: 600; }
++.entry { display: flex; gap: 10px; margin-top: 12px; }
++input[type=text], input:not([type]) { min-width: 0; flex: 1; border: 1px solid #cbd3c7; border-radius: 8px; background: white; padding: 14px; font: inherit; color: inherit; }
++button { font: inherit; cursor: pointer; border-radius: 8px; }
++.primary { border: none; color: white; background: #315e4c; padding: 12px 18px; font-size: 14px; font-weight: 600; white-space: nowrap; }
++.primary span { margin-left: 12px; font-size: 20px; }
++.primary:hover { background: #234a3a; }
++:focus-visible { outline: 3px solid #a57636; outline-offset: 3px; }
++.list-heading { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-bottom: 14px; border-bottom: 1px solid #e8e9e1; }
++h2 { font-size: 15px; margin: 0; }
++#count { background: #edf1e7; padding: 5px 10px; border-radius: 20px; color: #50604f; font-size: 12px; }
++ul { list-style: none; margin: 0; padding: 0; }
++.task { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee6; }
++.task label { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; cursor: pointer; font-weight: 400; }
++.task input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #315e4c; cursor: pointer; }
++.task span { overflow-wrap: anywhere; }
++.task.done span { color: #788378; text-decoration: line-through; }
++.delete { background: transparent; border: 1px solid transparent; color: #6d756a; padding: 8px; font-size: 13px; }
++.delete:hover { color: #983f32; background: #fbede8; }
++#empty { text-align: center; padding: 36px 0 24px; color: #747e70; }
++.empty-icon { display: inline-grid; place-items: center; width: 46px; height: 46px; border: 1px solid #d8e0cf; border-radius: 50%; background: #f2f5ec; font-size: 23px; color: #758765; }
++h3 { font-family: Georgia, serif; font-weight: 400; font-size: 23px; margin: 14px 0 8px; color: #435541; }
++#empty p { font-size: 14px; margin: 0; }
++.feedback { font-size: 13px; color: #54634f; margin: 16px 0 0; }
++.feedback:empty { display: none; }
++footer { text-align: center; margin: 24px 0; color: #727b6c; font-size: 12px; line-height: 1.6; }
++@media (max-width: 520px) { main { margin-top: 40px; padding: 0 16px; } .card { padding: 22px 18px; } .entry { flex-direction: column; } .primary { min-height: 46px; } .eyebrow { font-size: 9px; letter-spacing: 1px; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca5fcc7d2fcaf0395f85f374cfb82289ff2bd306
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,23 @@
++var Todo = (function () {
++  function add(tasks, text) {
++    text = text.replace(/^\s+|\s+$/g, '');
++    if (!text) return tasks.slice();
++    var id = 1;
++    for (var i = 0; i < tasks.length; i++) id = Math.max(id, tasks[i].id + 1);
++    return tasks.concat([{ id: id, text: text, done: false }]);
++  }
++  function toggle(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) {
++      var task = tasks[i];
++      result.push(task.id === id ? { id: task.id, text: task.text, done: !task.done } : task);
++    }
++    return result;
++  }
++  function remove(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) if (tasks[i].id !== id) result.push(tasks[i]);
++    return result;
++  }
++  return { add: add, toggle: toggle, remove: remove };
++}());
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..71e6fe3d567c1a9d0be27f2b43b53e4cf0a0dcca
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' - ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+codex
+The page is built, and all three logic tests pass. It supports adding, completing, undoing, and deleting tasks, and saves the list in your browser. I’m checking that the page loads in Edge and finishing the Storytree 
+record.
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "& 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' --headless --disable-gpu --no-first-run --dump-dom 
+--user-data-dir=\""'$env:TEMP'"\\todo-edge-check\" 'file:///C:/Users/mickh/HB%20Trial%20B1/index.html'" in C:\Users\mickh\HB Trial B1
+ succeeded in 8056ms:
+[792:796:1001/052716.840:ERROR:components\os_crypt\async\browser\os_crypt_win.cc:63] Failed to encrypt: The system cannot find the file specified. (0x2)
+[792:16808:1001/052716.900:ERROR:chrome\installer\util\google_update_settings_win.cc:544] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set usagestats; 
+result: 5
+[792:16808:1001/052716.900:ERROR:chrome\installer\util\google_update_settings_win.cc:587] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set urlstats; 
+result: 5
+[792:8316:1001/052722.481:ERROR:components\password_manager\core\browser\password_store\login_database_async_helper.cc:229] Encryption is not available.
+[792:20860:1001/052722.512:ERROR:components\password_manager\core\browser\password_store\login_database_async_helper.cc:229] Encryption is not available.
+[792:16808:1001/052722.690:ERROR:chrome\installer\util\google_update_settings_win.cc:544] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set usagestats; 
+result: 5
+[792:796:1001/052722.690:ERROR:chrome\browser\ui\edge_window_tab_manager\api\wtm_interface_impl.cc:463] Failed to open registry key
+[792:796:1001/052722.690:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[792:16808:1001/052722.690:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory 
+"C:\Users\mickh\AppData\Local\Temp\todo-edge-check\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[792:796:1001/052722.806:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[792:1716:1001/052722.820:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory 
+"C:\Users\mickh\AppData\Local\Temp\todo-edge-check\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[792:16808:1001/052722.940:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory 
+"C:\Users\mickh\AppData\Local\Temp\todo-edge-check\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[792:16808:1001/052723.053:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory 
+"C:\Users\mickh\AppData\Local\Temp\todo-edge-check\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[792:796:1001/052723.121:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[792:16808:1001/052723.121:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory 
+"C:\Users\mickh\AppData\Local\Temp\todo-edge-check\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[792:796:1001/052723.148:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[792:2360:1001/052723.154:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory 
+"C:\Users\mickh\AppData\Local\Temp\todo-edge-check\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[792:16928:1001/052723.168:ERROR:services\device\public\cpp\geolocation\system_geolocation_source_win.cc:124] Failed to create IAppCapability: Access is denied. (0x80070005)
+[792:796:1001/052723.171:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[792:19056:1001/052723.174:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory 
+"C:\Users\mickh\AppData\Local\Temp\todo-edge-check\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[792:796:1001/052723.186:ERROR:chrome\browser\component_updater\edge_language_detection_model_installer.cc:97] Edge Language Detection Model: On-demand update failed with error: 5
+[792:796:1001/052723.195:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[792:796:1001/052723.195:FATAL:content\browser\gpu\gpu_data_manager_impl_private.cc:436] GPU process isn't usable. Goodbye.
+
+mcp: storytree/mark_built started
+mcp: storytree/mark_built (completed)
+mcp: storytree/land started
+mcp: storytree/land (completed)
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d7d25e1c2f3e2af957120fe6cc4cc0f0d4c7ad5
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,19 @@
++# One thing at a time
++
++Double-click `index.html` to open the to-do list in your browser. Add tasks,
++tick them to complete (or undo), and delete tasks you no longer need.
++Tasks are saved in your browser when local storage is available. Keep the files
++together; no server, installation, or internet connection is required.
++
++## Test the logic
++
++Double-click `tests.html` for the browser test results, or run this command in
++PowerShell from this folder:
++
++```powershell
++cscript //nologo run-tests.js
++```
++
++The tests exercise the same `todo.js` used by the page: adding and trimming,
++rejecting blank input, unique IDs, completion and undo, deletion, unknown IDs,
++and preservation of previous state. The runner exits with code 1 on failure.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..efde2599a803159baba8944e2c0029e5e6b97548
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,83 @@
++(function () {
++  'use strict';
++  const key = 'one-thing-todos-v1';
++  let tasks = [];
++  const list = document.getElementById('tasks');
++  const input = document.getElementById('task-input');
++  const feedback = document.getElementById('feedback');
++  const storageNote = document.getElementById('storage-note');
++  try {
++    const saved = JSON.parse(localStorage.getItem(key) || '[]');
++    const ids = new Set();
++    if (!Array.isArray(saved) || !saved.every(task => {
++      if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) ||
++          typeof task.text !== 'string' || !task.text.trim() || typeof task.done !== 'boolean') return false;
++      ids.add(task.id);
++      return true;
++    })) throw new Error('Invalid saved list');
++    tasks = saved;
++  } catch (_) {
++    storageNote.textContent = 'Saved tasks could not be loaded. You can still use this list.';
++  }
++  function save() {
++    try {
++      localStorage.setItem(key, JSON.stringify(tasks));
++      storageNote.textContent = 'Saved in this browser. A little less to keep in your head.';
++    } catch (_) {
++      storageNote.textContent = 'Browser storage is unavailable. Tasks will last for this session only.';
++    }
++  }
++  function render() {
++    list.replaceChildren();
++    tasks.forEach(task => {
++      const row = document.createElement('li');
++      row.className = 'task' + (task.done ? ' done' : '');
++      const label = document.createElement('label');
++      const checkbox = document.createElement('input');
++      checkbox.type = 'checkbox';
++      checkbox.checked = task.done;
++      checkbox.dataset.id = task.id;
++      const text = document.createElement('span');
++      text.textContent = task.text;
++      label.append(checkbox, text);
++      const remove = document.createElement('button');
++      remove.type = 'button';
++      remove.className = 'delete';
++      remove.textContent = 'Delete';
++      remove.setAttribute('aria-label', 'Delete ' + task.text);
++      checkbox.addEventListener('change', () => {
++        tasks = Todo.toggle(tasks, task.id);
++        save(); render();
++        list.querySelector('input[data-id="' + task.id + '"]').focus();
++      });
++      remove.addEventListener('click', () => {
++        const position = tasks.findIndex(item => item.id === task.id);
++        tasks = Todo.remove(tasks, task.id);
++        save(); render();
++        feedback.textContent = 'Task deleted.';
++        const next = list.children[Math.min(position, tasks.length - 1)];
++        if (next) next.querySelector('button').focus(); else input.focus();
++      });
++      row.append(label, remove);
++      list.append(row);
++    });
++    const remaining = tasks.filter(task => !task.done).length;
++    document.getElementById('count').textContent = remaining + ' left';
++    document.getElementById('empty').hidden = tasks.length > 0;
++  }
++  input.addEventListener('input', () => input.setCustomValidity(''));
++  document.getElementById('add-form').addEventListener('submit', event => {
++    event.preventDefault();
++    if (!input.value.trim()) {
++      input.setCustomValidity('Please enter a task.');
++      input.reportValidity();
++      return;
++    }
++    tasks = Todo.add(tasks, input.value);
++    input.value = '';
++    save(); render();
++    feedback.textContent = 'Task added.';
++    input.focus();
++  });
++  render();
++}());
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac256202d52c7a64e2a2c08c4cc5460a18260e99
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,34 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>One thing at a time — To-do list</title>
++  <link rel="stylesheet" href="style.css">
++  <script defer src="todo.js"></script>
++  <script defer src="app.js"></script>
++</head>
++<body>
++  <main>
++    <header>
++      <p class="eyebrow"><span class="mark" aria-hidden="true">✓</span> A LITTLE SPACE TO GET THINGS DONE</p>
++      <h1>One thing at a time.</h1>
++      <p class="intro">Make a little plan. Make a little progress.</p>
++    </header>
++    <section class="card" aria-label="Your to-do list">
++      <form id="add-form">
++        <label for="task-input">What’s on your list?</label>
++        <div class="entry">
++          <input id="task-input" name="task" placeholder="e.g. Take a walk outside" maxlength="240" required autocomplete="off">
++          <button class="primary" type="submit">Add task <span aria-hidden="true">+</span></button>
++        </div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status">0 left</span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <p id="feedback" class="feedback" role="status"></p>
++    </section>
++    <footer id="storage-note">Saved in this browser. A little less to keep in your head.</footer>
++  </main>
++</body>
++</html>
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e4d4467cc79c7041f1c8cbb14f9de97513fd48f
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #263e38; background: #f5f4ee; font-synthesis: none; }
++* { box-sizing: border-box; }
++body { margin: 0; min-height: 100vh; border-top: 6px solid #315e4c; }
++main { max-width: 740px; padding: 0 24px; margin: 76px auto 36px; }
++.eyebrow { display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: 1.7px; font-weight: 700; }
++.mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e1e8d9; font-size: 18px; }
++h1 { font-family: Georgia, serif; font-size: clamp(36px, 6vw, 52px); font-weight: 400; letter-spacing: -1.8px; margin: 26px 0 12px; }
++.intro { color: #67716a; margin: 0 0 36px; font-size: 17px; }
++.card { background: #fffefb; border: 1px solid #e0e3d9; border-radius: 18px; padding: 30px; box-shadow: 0 12px 40px #263e3807; }
++label { font-size: 14px; font-weight: 600; }
++.entry { display: flex; gap: 10px; margin-top: 12px; }
++input[type=text], input:not([type]) { min-width: 0; flex: 1; border: 1px solid #cbd3c7; border-radius: 8px; background: white; padding: 14px; font: inherit; color: inherit; }
++button { font: inherit; cursor: pointer; border-radius: 8px; }
++.primary { border: none; color: white; background: #315e4c; padding: 12px 18px; font-size: 14px; font-weight: 600; white-space: nowrap; }
++.primary span { margin-left: 12px; font-size: 20px; }
++.primary:hover { background: #234a3a; }
++:focus-visible { outline: 3px solid #a57636; outline-offset: 3px; }
++.list-heading { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-bottom: 14px; border-bottom: 1px solid #e8e9e1; }
++h2 { font-size: 15px; margin: 0; }
++#count { background: #edf1e7; padding: 5px 10px; border-radius: 20px; color: #50604f; font-size: 12px; }
++ul { list-style: none; margin: 0; padding: 0; }
++.task { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee6; }
++.task label { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; cursor: pointer; font-weight: 400; }
++.task input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #315e4c; cursor: pointer; }
++.task span { overflow-wrap: anywhere; }
++.task.done span { color: #788378; text-decoration: line-through; }
++.delete { background: transparent; border: 1px solid transparent; color: #6d756a; padding: 8px; font-size: 13px; }
++.delete:hover { color: #983f32; background: #fbede8; }
++#empty { text-align: center; padding: 36px 0 24px; color: #747e70; }
++.empty-icon { display: inline-grid; place-items: center; width: 46px; height: 46px; border: 1px solid #d8e0cf; border-radius: 50%; background: #f2f5ec; font-size: 23px; color: #758765; }
++h3 { font-family: Georgia, serif; font-weight: 400; font-size: 23px; margin: 14px 0 8px; color: #435541; }
++#empty p { font-size: 14px; margin: 0; }
++.feedback { font-size: 13px; color: #54634f; margin: 16px 0 0; }
++.feedback:empty { display: none; }
++footer { text-align: center; margin: 24px 0; color: #727b6c; font-size: 12px; line-height: 1.6; }
++@media (max-width: 520px) { main { margin-top: 40px; padding: 0 16px; } .card { padding: 22px 18px; } .entry { flex-direction: column; } .primary { min-height: 46px; } .eyebrow { font-size: 9px; letter-spacing: 1px; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca5fcc7d2fcaf0395f85f374cfb82289ff2bd306
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,23 @@
++var Todo = (function () {
++  function add(tasks, text) {
++    text = text.replace(/^\s+|\s+$/g, '');
++    if (!text) return tasks.slice();
++    var id = 1;
++    for (var i = 0; i < tasks.length; i++) id = Math.max(id, tasks[i].id + 1);
++    return tasks.concat([{ id: id, text: text, done: false }]);
++  }
++  function toggle(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) {
++      var task = tasks[i];
++      result.push(task.id === id ? { id: task.id, text: task.text, done: !task.done } : task);
++    }
++    return result;
++  }
++  function remove(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) if (tasks[i].id !== id) result.push(tasks[i]);
++    return result;
++  }
++  return { add: add, toggle: toggle, remove: remove };
++}());
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..71e6fe3d567c1a9d0be27f2b43b53e4cf0a0dcca
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' - ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+mcp: storytree/plan_arc started
+mcp: storytree/plan_arc (completed)
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d7d25e1c2f3e2af957120fe6cc4cc0f0d4c7ad5
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,19 @@
++# One thing at a time
++
++Double-click `index.html` to open the to-do list in your browser. Add tasks,
++tick them to complete (or undo), and delete tasks you no longer need.
++Tasks are saved in your browser when local storage is available. Keep the files
++together; no server, installation, or internet connection is required.
++
++## Test the logic
++
++Double-click `tests.html` for the browser test results, or run this command in
++PowerShell from this folder:
++
++```powershell
++cscript //nologo run-tests.js
++```
++
++The tests exercise the same `todo.js` used by the page: adding and trimming,
++rejecting blank input, unique IDs, completion and undo, deletion, unknown IDs,
++and preservation of previous state. The runner exits with code 1 on failure.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..efde2599a803159baba8944e2c0029e5e6b97548
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,83 @@
++(function () {
++  'use strict';
++  const key = 'one-thing-todos-v1';
++  let tasks = [];
++  const list = document.getElementById('tasks');
++  const input = document.getElementById('task-input');
++  const feedback = document.getElementById('feedback');
++  const storageNote = document.getElementById('storage-note');
++  try {
++    const saved = JSON.parse(localStorage.getItem(key) || '[]');
++    const ids = new Set();
++    if (!Array.isArray(saved) || !saved.every(task => {
++      if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) ||
++          typeof task.text !== 'string' || !task.text.trim() || typeof task.done !== 'boolean') return false;
++      ids.add(task.id);
++      return true;
++    })) throw new Error('Invalid saved list');
++    tasks = saved;
++  } catch (_) {
++    storageNote.textContent = 'Saved tasks could not be loaded. You can still use this list.';
++  }
++  function save() {
++    try {
++      localStorage.setItem(key, JSON.stringify(tasks));
++      storageNote.textContent = 'Saved in this browser. A little less to keep in your head.';
++    } catch (_) {
++      storageNote.textContent = 'Browser storage is unavailable. Tasks will last for this session only.';
++    }
++  }
++  function render() {
++    list.replaceChildren();
++    tasks.forEach(task => {
++      const row = document.createElement('li');
++      row.className = 'task' + (task.done ? ' done' : '');
++      const label = document.createElement('label');
++      const checkbox = document.createElement('input');
++      checkbox.type = 'checkbox';
++      checkbox.checked = task.done;
++      checkbox.dataset.id = task.id;
++      const text = document.createElement('span');
++      text.textContent = task.text;
++      label.append(checkbox, text);
++      const remove = document.createElement('button');
++      remove.type = 'button';
++      remove.className = 'delete';
++      remove.textContent = 'Delete';
++      remove.setAttribute('aria-label', 'Delete ' + task.text);
++      checkbox.addEventListener('change', () => {
++        tasks = Todo.toggle(tasks, task.id);
++        save(); render();
++        list.querySelector('input[data-id="' + task.id + '"]').focus();
++      });
++      remove.addEventListener('click', () => {
++        const position = tasks.findIndex(item => item.id === task.id);
++        tasks = Todo.remove(tasks, task.id);
++        save(); render();
++        feedback.textContent = 'Task deleted.';
++        const next = list.children[Math.min(position, tasks.length - 1)];
++        if (next) next.querySelector('button').focus(); else input.focus();
++      });
++      row.append(label, remove);
++      list.append(row);
++    });
++    const remaining = tasks.filter(task => !task.done).length;
++    document.getElementById('count').textContent = remaining + ' left';
++    document.getElementById('empty').hidden = tasks.length > 0;
++  }
++  input.addEventListener('input', () => input.setCustomValidity(''));
++  document.getElementById('add-form').addEventListener('submit', event => {
++    event.preventDefault();
++    if (!input.value.trim()) {
++      input.setCustomValidity('Please enter a task.');
++      input.reportValidity();
++      return;
++    }
++    tasks = Todo.add(tasks, input.value);
++    input.value = '';
++    save(); render();
++    feedback.textContent = 'Task added.';
++    input.focus();
++  });
++  render();
++}());
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac256202d52c7a64e2a2c08c4cc5460a18260e99
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,34 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>One thing at a time — To-do list</title>
++  <link rel="stylesheet" href="style.css">
++  <script defer src="todo.js"></script>
++  <script defer src="app.js"></script>
++</head>
++<body>
++  <main>
++    <header>
++      <p class="eyebrow"><span class="mark" aria-hidden="true">✓</span> A LITTLE SPACE TO GET THINGS DONE</p>
++      <h1>One thing at a time.</h1>
++      <p class="intro">Make a little plan. Make a little progress.</p>
++    </header>
++    <section class="card" aria-label="Your to-do list">
++      <form id="add-form">
++        <label for="task-input">What’s on your list?</label>
++        <div class="entry">
++          <input id="task-input" name="task" placeholder="e.g. Take a walk outside" maxlength="240" required autocomplete="off">
++          <button class="primary" type="submit">Add task <span aria-hidden="true">+</span></button>
++        </div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status">0 left</span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <p id="feedback" class="feedback" role="status"></p>
++    </section>
++    <footer id="storage-note">Saved in this browser. A little less to keep in your head.</footer>
++  </main>
++</body>
++</html>
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e4d4467cc79c7041f1c8cbb14f9de97513fd48f
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #263e38; background: #f5f4ee; font-synthesis: none; }
++* { box-sizing: border-box; }
++body { margin: 0; min-height: 100vh; border-top: 6px solid #315e4c; }
++main { max-width: 740px; padding: 0 24px; margin: 76px auto 36px; }
++.eyebrow { display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: 1.7px; font-weight: 700; }
++.mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e1e8d9; font-size: 18px; }
++h1 { font-family: Georgia, serif; font-size: clamp(36px, 6vw, 52px); font-weight: 400; letter-spacing: -1.8px; margin: 26px 0 12px; }
++.intro { color: #67716a; margin: 0 0 36px; font-size: 17px; }
++.card { background: #fffefb; border: 1px solid #e0e3d9; border-radius: 18px; padding: 30px; box-shadow: 0 12px 40px #263e3807; }
++label { font-size: 14px; font-weight: 600; }
++.entry { display: flex; gap: 10px; margin-top: 12px; }
++input[type=text], input:not([type]) { min-width: 0; flex: 1; border: 1px solid #cbd3c7; border-radius: 8px; background: white; padding: 14px; font: inherit; color: inherit; }
++button { font: inherit; cursor: pointer; border-radius: 8px; }
++.primary { border: none; color: white; background: #315e4c; padding: 12px 18px; font-size: 14px; font-weight: 600; white-space: nowrap; }
++.primary span { margin-left: 12px; font-size: 20px; }
++.primary:hover { background: #234a3a; }
++:focus-visible { outline: 3px solid #a57636; outline-offset: 3px; }
++.list-heading { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-bottom: 14px; border-bottom: 1px solid #e8e9e1; }
++h2 { font-size: 15px; margin: 0; }
++#count { background: #edf1e7; padding: 5px 10px; border-radius: 20px; color: #50604f; font-size: 12px; }
++ul { list-style: none; margin: 0; padding: 0; }
++.task { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee6; }
++.task label { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; cursor: pointer; font-weight: 400; }
++.task input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #315e4c; cursor: pointer; }
++.task span { overflow-wrap: anywhere; }
++.task.done span { color: #788378; text-decoration: line-through; }
++.delete { background: transparent; border: 1px solid transparent; color: #6d756a; padding: 8px; font-size: 13px; }
++.delete:hover { color: #983f32; background: #fbede8; }
++#empty { text-align: center; padding: 36px 0 24px; color: #747e70; }
++.empty-icon { display: inline-grid; place-items: center; width: 46px; height: 46px; border: 1px solid #d8e0cf; border-radius: 50%; background: #f2f5ec; font-size: 23px; color: #758765; }
++h3 { font-family: Georgia, serif; font-weight: 400; font-size: 23px; margin: 14px 0 8px; color: #435541; }
++#empty p { font-size: 14px; margin: 0; }
++.feedback { font-size: 13px; color: #54634f; margin: 16px 0 0; }
++.feedback:empty { display: none; }
++footer { text-align: center; margin: 24px 0; color: #727b6c; font-size: 12px; line-height: 1.6; }
++@media (max-width: 520px) { main { margin-top: 40px; padding: 0 16px; } .card { padding: 22px 18px; } .entry { flex-direction: column; } .primary { min-height: 46px; } .eyebrow { font-size: 9px; letter-spacing: 1px; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca5fcc7d2fcaf0395f85f374cfb82289ff2bd306
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,23 @@
++var Todo = (function () {
++  function add(tasks, text) {
++    text = text.replace(/^\s+|\s+$/g, '');
++    if (!text) return tasks.slice();
++    var id = 1;
++    for (var i = 0; i < tasks.length; i++) id = Math.max(id, tasks[i].id + 1);
++    return tasks.concat([{ id: id, text: text, done: false }]);
++  }
++  function toggle(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) {
++      var task = tasks[i];
++      result.push(task.id === id ? { id: task.id, text: task.text, done: !task.done } : task);
++    }
++    return result;
++  }
++  function remove(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) if (tasks[i].id !== id) result.push(tasks[i]);
++    return result;
++  }
++  return { add: add, toggle: toggle, remove: remove };
++}());
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..71e6fe3d567c1a9d0be27f2b43b53e4cf0a0dcca
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' - ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+mcp: storytree/park_increment started
+mcp: storytree/park_increment (completed)
+mcp: storytree/read_context started
+mcp: storytree/read_context (completed)
+mcp: storytree/close_out started
+mcp: storytree/close_out (completed)
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d7d25e1c2f3e2af957120fe6cc4cc0f0d4c7ad5
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,19 @@
++# One thing at a time
++
++Double-click `index.html` to open the to-do list in your browser. Add tasks,
++tick them to complete (or undo), and delete tasks you no longer need.
++Tasks are saved in your browser when local storage is available. Keep the files
++together; no server, installation, or internet connection is required.
++
++## Test the logic
++
++Double-click `tests.html` for the browser test results, or run this command in
++PowerShell from this folder:
++
++```powershell
++cscript //nologo run-tests.js
++```
++
++The tests exercise the same `todo.js` used by the page: adding and trimming,
++rejecting blank input, unique IDs, completion and undo, deletion, unknown IDs,
++and preservation of previous state. The runner exits with code 1 on failure.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..efde2599a803159baba8944e2c0029e5e6b97548
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,83 @@
++(function () {
++  'use strict';
++  const key = 'one-thing-todos-v1';
++  let tasks = [];
++  const list = document.getElementById('tasks');
++  const input = document.getElementById('task-input');
++  const feedback = document.getElementById('feedback');
++  const storageNote = document.getElementById('storage-note');
++  try {
++    const saved = JSON.parse(localStorage.getItem(key) || '[]');
++    const ids = new Set();
++    if (!Array.isArray(saved) || !saved.every(task => {
++      if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) ||
++          typeof task.text !== 'string' || !task.text.trim() || typeof task.done !== 'boolean') return false;
++      ids.add(task.id);
++      return true;
++    })) throw new Error('Invalid saved list');
++    tasks = saved;
++  } catch (_) {
++    storageNote.textContent = 'Saved tasks could not be loaded. You can still use this list.';
++  }
++  function save() {
++    try {
++      localStorage.setItem(key, JSON.stringify(tasks));
++      storageNote.textContent = 'Saved in this browser. A little less to keep in your head.';
++    } catch (_) {
++      storageNote.textContent = 'Browser storage is unavailable. Tasks will last for this session only.';
++    }
++  }
++  function render() {
++    list.replaceChildren();
++    tasks.forEach(task => {
++      const row = document.createElement('li');
++      row.className = 'task' + (task.done ? ' done' : '');
++      const label = document.createElement('label');
++      const checkbox = document.createElement('input');
++      checkbox.type = 'checkbox';
++      checkbox.checked = task.done;
++      checkbox.dataset.id = task.id;
++      const text = document.createElement('span');
++      text.textContent = task.text;
++      label.append(checkbox, text);
++      const remove = document.createElement('button');
++      remove.type = 'button';
++      remove.className = 'delete';
++      remove.textContent = 'Delete';
++      remove.setAttribute('aria-label', 'Delete ' + task.text);
++      checkbox.addEventListener('change', () => {
++        tasks = Todo.toggle(tasks, task.id);
++        save(); render();
++        list.querySelector('input[data-id="' + task.id + '"]').focus();
++      });
++      remove.addEventListener('click', () => {
++        const position = tasks.findIndex(item => item.id === task.id);
++        tasks = Todo.remove(tasks, task.id);
++        save(); render();
++        feedback.textContent = 'Task deleted.';
++        const next = list.children[Math.min(position, tasks.length - 1)];
++        if (next) next.querySelector('button').focus(); else input.focus();
++      });
++      row.append(label, remove);
++      list.append(row);
++    });
++    const remaining = tasks.filter(task => !task.done).length;
++    document.getElementById('count').textContent = remaining + ' left';
++    document.getElementById('empty').hidden = tasks.length > 0;
++  }
++  input.addEventListener('input', () => input.setCustomValidity(''));
++  document.getElementById('add-form').addEventListener('submit', event => {
++    event.preventDefault();
++    if (!input.value.trim()) {
++      input.setCustomValidity('Please enter a task.');
++      input.reportValidity();
++      return;
++    }
++    tasks = Todo.add(tasks, input.value);
++    input.value = '';
++    save(); render();
++    feedback.textContent = 'Task added.';
++    input.focus();
++  });
++  render();
++}());
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac256202d52c7a64e2a2c08c4cc5460a18260e99
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,34 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>One thing at a time — To-do list</title>
++  <link rel="stylesheet" href="style.css">
++  <script defer src="todo.js"></script>
++  <script defer src="app.js"></script>
++</head>
++<body>
++  <main>
++    <header>
++      <p class="eyebrow"><span class="mark" aria-hidden="true">✓</span> A LITTLE SPACE TO GET THINGS DONE</p>
++      <h1>One thing at a time.</h1>
++      <p class="intro">Make a little plan. Make a little progress.</p>
++    </header>
++    <section class="card" aria-label="Your to-do list">
++      <form id="add-form">
++        <label for="task-input">What’s on your list?</label>
++        <div class="entry">
++          <input id="task-input" name="task" placeholder="e.g. Take a walk outside" maxlength="240" required autocomplete="off">
++          <button class="primary" type="submit">Add task <span aria-hidden="true">+</span></button>
++        </div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status">0 left</span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <p id="feedback" class="feedback" role="status"></p>
++    </section>
++    <footer id="storage-note">Saved in this browser. A little less to keep in your head.</footer>
++  </main>
++</body>
++</html>
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e4d4467cc79c7041f1c8cbb14f9de97513fd48f
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #263e38; background: #f5f4ee; font-synthesis: none; }
++* { box-sizing: border-box; }
++body { margin: 0; min-height: 100vh; border-top: 6px solid #315e4c; }
++main { max-width: 740px; padding: 0 24px; margin: 76px auto 36px; }
++.eyebrow { display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: 1.7px; font-weight: 700; }
++.mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e1e8d9; font-size: 18px; }
++h1 { font-family: Georgia, serif; font-size: clamp(36px, 6vw, 52px); font-weight: 400; letter-spacing: -1.8px; margin: 26px 0 12px; }
++.intro { color: #67716a; margin: 0 0 36px; font-size: 17px; }
++.card { background: #fffefb; border: 1px solid #e0e3d9; border-radius: 18px; padding: 30px; box-shadow: 0 12px 40px #263e3807; }
++label { font-size: 14px; font-weight: 600; }
++.entry { display: flex; gap: 10px; margin-top: 12px; }
++input[type=text], input:not([type]) { min-width: 0; flex: 1; border: 1px solid #cbd3c7; border-radius: 8px; background: white; padding: 14px; font: inherit; color: inherit; }
++button { font: inherit; cursor: pointer; border-radius: 8px; }
++.primary { border: none; color: white; background: #315e4c; padding: 12px 18px; font-size: 14px; font-weight: 600; white-space: nowrap; }
++.primary span { margin-left: 12px; font-size: 20px; }
++.primary:hover { background: #234a3a; }
++:focus-visible { outline: 3px solid #a57636; outline-offset: 3px; }
++.list-heading { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-bottom: 14px; border-bottom: 1px solid #e8e9e1; }
++h2 { font-size: 15px; margin: 0; }
++#count { background: #edf1e7; padding: 5px 10px; border-radius: 20px; color: #50604f; font-size: 12px; }
++ul { list-style: none; margin: 0; padding: 0; }
++.task { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee6; }
++.task label { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; cursor: pointer; font-weight: 400; }
++.task input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #315e4c; cursor: pointer; }
++.task span { overflow-wrap: anywhere; }
++.task.done span { color: #788378; text-decoration: line-through; }
++.delete { background: transparent; border: 1px solid transparent; color: #6d756a; padding: 8px; font-size: 13px; }
++.delete:hover { color: #983f32; background: #fbede8; }
++#empty { text-align: center; padding: 36px 0 24px; color: #747e70; }
++.empty-icon { display: inline-grid; place-items: center; width: 46px; height: 46px; border: 1px solid #d8e0cf; border-radius: 50%; background: #f2f5ec; font-size: 23px; color: #758765; }
++h3 { font-family: Georgia, serif; font-weight: 400; font-size: 23px; margin: 14px 0 8px; color: #435541; }
++#empty p { font-size: 14px; margin: 0; }
++.feedback { font-size: 13px; color: #54634f; margin: 16px 0 0; }
++.feedback:empty { display: none; }
++footer { text-align: center; margin: 24px 0; color: #727b6c; font-size: 12px; line-height: 1.6; }
++@media (max-width: 520px) { main { margin-top: 40px; padding: 0 16px; } .card { padding: 22px 18px; } .entry { flex-direction: column; } .primary { min-height: 46px; } .eyebrow { font-size: 9px; letter-spacing: 1px; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca5fcc7d2fcaf0395f85f374cfb82289ff2bd306
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,23 @@
++var Todo = (function () {
++  function add(tasks, text) {
++    text = text.replace(/^\s+|\s+$/g, '');
++    if (!text) return tasks.slice();
++    var id = 1;
++    for (var i = 0; i < tasks.length; i++) id = Math.max(id, tasks[i].id + 1);
++    return tasks.concat([{ id: id, text: text, done: false }]);
++  }
++  function toggle(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) {
++      var task = tasks[i];
++      result.push(task.id === id ? { id: task.id, text: task.text, done: !task.done } : task);
++    }
++    return result;
++  }
++  function remove(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) if (tasks[i].id !== id) result.push(tasks[i]);
++    return result;
++  }
++  return { add: add, toggle: toggle, remove: remove };
++}());
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..71e6fe3d567c1a9d0be27f2b43b53e4cf0a0dcca
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' - ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+codex
+Built the page with add, complete, undo, delete, and browser saving.
+
+Open [index.html](<C:/Users/mickh/HB Trial B1/index.html>) in your browser.
+
+**Tests: 3 passed, 0 failed.** Open [tests.html](<C:/Users/mickh/HB Trial B1/tests.html>) or run:
+
+```powershell
+cscript //nologo run-tests.js
+```
+
+The automated browser check was blocked by an Edge GPU crash; visual verification remains incomplete.
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d7d25e1c2f3e2af957120fe6cc4cc0f0d4c7ad5
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,19 @@
++# One thing at a time
++
++Double-click `index.html` to open the to-do list in your browser. Add tasks,
++tick them to complete (or undo), and delete tasks you no longer need.
++Tasks are saved in your browser when local storage is available. Keep the files
++together; no server, installation, or internet connection is required.
++
++## Test the logic
++
++Double-click `tests.html` for the browser test results, or run this command in
++PowerShell from this folder:
++
++```powershell
++cscript //nologo run-tests.js
++```
++
++The tests exercise the same `todo.js` used by the page: adding and trimming,
++rejecting blank input, unique IDs, completion and undo, deletion, unknown IDs,
++and preservation of previous state. The runner exits with code 1 on failure.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..efde2599a803159baba8944e2c0029e5e6b97548
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,83 @@
++(function () {
++  'use strict';
++  const key = 'one-thing-todos-v1';
++  let tasks = [];
++  const list = document.getElementById('tasks');
++  const input = document.getElementById('task-input');
++  const feedback = document.getElementById('feedback');
++  const storageNote = document.getElementById('storage-note');
++  try {
++    const saved = JSON.parse(localStorage.getItem(key) || '[]');
++    const ids = new Set();
++    if (!Array.isArray(saved) || !saved.every(task => {
++      if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) ||
++          typeof task.text !== 'string' || !task.text.trim() || typeof task.done !== 'boolean') return false;
++      ids.add(task.id);
++      return true;
++    })) throw new Error('Invalid saved list');
++    tasks = saved;
++  } catch (_) {
++    storageNote.textContent = 'Saved tasks could not be loaded. You can still use this list.';
++  }
++  function save() {
++    try {
++      localStorage.setItem(key, JSON.stringify(tasks));
++      storageNote.textContent = 'Saved in this browser. A little less to keep in your head.';
++    } catch (_) {
++      storageNote.textContent = 'Browser storage is unavailable. Tasks will last for this session only.';
++    }
++  }
++  function render() {
++    list.replaceChildren();
++    tasks.forEach(task => {
++      const row = document.createElement('li');
++      row.className = 'task' + (task.done ? ' done' : '');
++      const label = document.createElement('label');
++      const checkbox = document.createElement('input');
++      checkbox.type = 'checkbox';
++      checkbox.checked = task.done;
++      checkbox.dataset.id = task.id;
++      const text = document.createElement('span');
++      text.textContent = task.text;
++      label.append(checkbox, text);
++      const remove = document.createElement('button');
++      remove.type = 'button';
++      remove.className = 'delete';
++      remove.textContent = 'Delete';
++      remove.setAttribute('aria-label', 'Delete ' + task.text);
++      checkbox.addEventListener('change', () => {
++        tasks = Todo.toggle(tasks, task.id);
++        save(); render();
++        list.querySelector('input[data-id="' + task.id + '"]').focus();
++      });
++      remove.addEventListener('click', () => {
++        const position = tasks.findIndex(item => item.id === task.id);
++        tasks = Todo.remove(tasks, task.id);
++        save(); render();
++        feedback.textContent = 'Task deleted.';
++        const next = list.children[Math.min(position, tasks.length - 1)];
++        if (next) next.querySelector('button').focus(); else input.focus();
++      });
++      row.append(label, remove);
++      list.append(row);
++    });
++    const remaining = tasks.filter(task => !task.done).length;
++    document.getElementById('count').textContent = remaining + ' left';
++    document.getElementById('empty').hidden = tasks.length > 0;
++  }
++  input.addEventListener('input', () => input.setCustomValidity(''));
++  document.getElementById('add-form').addEventListener('submit', event => {
++    event.preventDefault();
++    if (!input.value.trim()) {
++      input.setCustomValidity('Please enter a task.');
++      input.reportValidity();
++      return;
++    }
++    tasks = Todo.add(tasks, input.value);
++    input.value = '';
++    save(); render();
++    feedback.textContent = 'Task added.';
++    input.focus();
++  });
++  render();
++}());
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac256202d52c7a64e2a2c08c4cc5460a18260e99
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,34 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>One thing at a time — To-do list</title>
++  <link rel="stylesheet" href="style.css">
++  <script defer src="todo.js"></script>
++  <script defer src="app.js"></script>
++</head>
++<body>
++  <main>
++    <header>
++      <p class="eyebrow"><span class="mark" aria-hidden="true">✓</span> A LITTLE SPACE TO GET THINGS DONE</p>
++      <h1>One thing at a time.</h1>
++      <p class="intro">Make a little plan. Make a little progress.</p>
++    </header>
++    <section class="card" aria-label="Your to-do list">
++      <form id="add-form">
++        <label for="task-input">What’s on your list?</label>
++        <div class="entry">
++          <input id="task-input" name="task" placeholder="e.g. Take a walk outside" maxlength="240" required autocomplete="off">
++          <button class="primary" type="submit">Add task <span aria-hidden="true">+</span></button>
++        </div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status">0 left</span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <p id="feedback" class="feedback" role="status"></p>
++    </section>
++    <footer id="storage-note">Saved in this browser. A little less to keep in your head.</footer>
++  </main>
++</body>
++</html>
+diff --git a/run-tests.js b/run-tests.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..779e157ad5930398665622cd791db9e571b42dc9
+--- /dev/null
++++ b/run-tests.js
+@@ -0,0 +1,11 @@
++// Run from this folder with: cscript //nologo run-tests.js
++var fs = new ActiveXObject('Scripting.FileSystemObject');
++var folder = fs.GetParentFolderName(WScript.ScriptFullName);
++function read(name) {
++  var file = fs.OpenTextFile(fs.BuildPath(folder, name), 1);
++  var source = file.ReadAll();
++  file.Close();
++  return source;
++}
++if (fs.FileExists(fs.BuildPath(folder, 'todo.js'))) eval(read('todo.js'));
++eval(read('todo.test.js'));
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e4d4467cc79c7041f1c8cbb14f9de97513fd48f
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', system-ui, sans-serif; color: #263e38; background: #f5f4ee; font-synthesis: none; }
++* { box-sizing: border-box; }
++body { margin: 0; min-height: 100vh; border-top: 6px solid #315e4c; }
++main { max-width: 740px; padding: 0 24px; margin: 76px auto 36px; }
++.eyebrow { display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: 1.7px; font-weight: 700; }
++.mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #e1e8d9; font-size: 18px; }
++h1 { font-family: Georgia, serif; font-size: clamp(36px, 6vw, 52px); font-weight: 400; letter-spacing: -1.8px; margin: 26px 0 12px; }
++.intro { color: #67716a; margin: 0 0 36px; font-size: 17px; }
++.card { background: #fffefb; border: 1px solid #e0e3d9; border-radius: 18px; padding: 30px; box-shadow: 0 12px 40px #263e3807; }
++label { font-size: 14px; font-weight: 600; }
++.entry { display: flex; gap: 10px; margin-top: 12px; }
++input[type=text], input:not([type]) { min-width: 0; flex: 1; border: 1px solid #cbd3c7; border-radius: 8px; background: white; padding: 14px; font: inherit; color: inherit; }
++button { font: inherit; cursor: pointer; border-radius: 8px; }
++.primary { border: none; color: white; background: #315e4c; padding: 12px 18px; font-size: 14px; font-weight: 600; white-space: nowrap; }
++.primary span { margin-left: 12px; font-size: 20px; }
++.primary:hover { background: #234a3a; }
++:focus-visible { outline: 3px solid #a57636; outline-offset: 3px; }
++.list-heading { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-bottom: 14px; border-bottom: 1px solid #e8e9e1; }
++h2 { font-size: 15px; margin: 0; }
++#count { background: #edf1e7; padding: 5px 10px; border-radius: 20px; color: #50604f; font-size: 12px; }
++ul { list-style: none; margin: 0; padding: 0; }
++.task { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee6; }
++.task label { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; cursor: pointer; font-weight: 400; }
++.task input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #315e4c; cursor: pointer; }
++.task span { overflow-wrap: anywhere; }
++.task.done span { color: #788378; text-decoration: line-through; }
++.delete { background: transparent; border: 1px solid transparent; color: #6d756a; padding: 8px; font-size: 13px; }
++.delete:hover { color: #983f32; background: #fbede8; }
++#empty { text-align: center; padding: 36px 0 24px; color: #747e70; }
++.empty-icon { display: inline-grid; place-items: center; width: 46px; height: 46px; border: 1px solid #d8e0cf; border-radius: 50%; background: #f2f5ec; font-size: 23px; color: #758765; }
++h3 { font-family: Georgia, serif; font-weight: 400; font-size: 23px; margin: 14px 0 8px; color: #435541; }
++#empty p { font-size: 14px; margin: 0; }
++.feedback { font-size: 13px; color: #54634f; margin: 16px 0 0; }
++.feedback:empty { display: none; }
++footer { text-align: center; margin: 24px 0; color: #727b6c; font-size: 12px; line-height: 1.6; }
++@media (max-width: 520px) { main { margin-top: 40px; padding: 0 16px; } .card { padding: 22px 18px; } .entry { flex-direction: column; } .primary { min-height: 46px; } .eyebrow { font-size: 9px; letter-spacing: 1px; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..acefa1507a39b46b8ffd1df1efd309b28a18839d
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body style="font: 16px/1.7 system-ui; max-width: 800px; margin: 60px auto; padding: 20px">
++  <h1>To-do logic tests</h1>
++  <pre id="results" style="white-space: pre-wrap">Running…</pre>
++  <a href="index.html">Back to the list</a>
++  <script src="todo.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..ca5fcc7d2fcaf0395f85f374cfb82289ff2bd306
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,23 @@
++var Todo = (function () {
++  function add(tasks, text) {
++    text = text.replace(/^\s+|\s+$/g, '');
++    if (!text) return tasks.slice();
++    var id = 1;
++    for (var i = 0; i < tasks.length; i++) id = Math.max(id, tasks[i].id + 1);
++    return tasks.concat([{ id: id, text: text, done: false }]);
++  }
++  function toggle(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) {
++      var task = tasks[i];
++      result.push(task.id === id ? { id: task.id, text: task.text, done: !task.done } : task);
++    }
++    return result;
++  }
++  function remove(tasks, id) {
++    var result = [];
++    for (var i = 0; i < tasks.length; i++) if (tasks[i].id !== id) result.push(tasks[i]);
++    return result;
++  }
++  return { add: add, toggle: toggle, remove: remove };
++}());
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..71e6fe3d567c1a9d0be27f2b43b53e4cf0a0dcca
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,42 @@
++(function () {
++  var passed = 0;
++  var failed = 0;
++  var lines = [];
++  function assert(value, message) { if (!value) throw new Error(message); }
++  function test(name, run) {
++    try { run(); passed++; lines.push('PASS: ' + name); }
++    catch (error) { failed++; lines.push('FAIL: ' + name + ' - ' + error.message); }
++  }
++  test('Adds trimmed tasks and rejects whitespace', function () {
++    var list = Todo.add([], '  Buy milk  ');
++    assert(list.length === 1 && list[0].text === 'Buy milk', 'Trimmed task expected');
++    assert(list[0].done === false, 'New task must be incomplete');
++    assert(Todo.add(list, ' \t ').length === 1, 'Blank task must be ignored');
++  });
++  test('Toggles completion and undo without changing previous state', function () {
++    var before = Todo.add(Todo.add([], 'First'), 'Second');
++    var after = Todo.toggle(before, before[0].id);
++    assert(after[0].done && !after[1].done, 'Only selected task completes');
++    assert(!before[0].done, 'Previous state must remain unchanged');
++    assert(!Todo.toggle(after, after[0].id)[0].done, 'Completion can be undone');
++  });
++  test('Deletes only selected task and never reuses a remaining ID', function () {
++    var before = Todo.add(Todo.add([], 'Same'), 'Same');
++    assert(before[0].id !== before[1].id, 'Duplicate labels need unique IDs');
++    var after = Todo.remove(before, before[0].id);
++    assert(after.length === 1 && after[0].id === before[1].id, 'Wrong task removed');
++    assert(before.length === 2, 'Original list mutated');
++    after = Todo.add(after, 'New');
++    assert(after[0].id !== after[1].id, 'IDs collide after deletion');
++    assert(Todo.remove(after, -1).length === 2, 'Unknown ID must be harmless');
++    assert(!Todo.toggle(after, -1)[0].done, 'Unknown toggle must be harmless');
++  });
++  var summary = passed + ' passed, ' + failed + ' failed';
++  if (typeof document !== 'undefined') {
++    document.getElementById('results').textContent = lines.join('\n') + '\n\n' + summary;
++    document.title = summary;
++  } else {
++    WScript.Echo(lines.join('\n') + '\n\n' + summary);
++    WScript.Quit(failed ? 1 : 0);
++  }
++}());
+
+tokens used
+36,452
+Built the page with add, complete, undo, delete, and browser saving.
+
+Open [index.html](<C:/Users/mickh/HB Trial B1/index.html>) in your browser.
+
+**Tests: 3 passed, 0 failed.** Open [tests.html](<C:/Users/mickh/HB Trial B1/tests.html>) or run:
+
+```powershell
+cscript //nologo run-tests.js
+```
+
+The automated browser check was blocked by an Edge GPU crash; visual verification remains incomplete.
+
+--- folder after:
+.storytree.json
+app.js
+index.html
+README.md
+run-tests.js
+style.css
+tests.html
+todo.js
+todo.test.js

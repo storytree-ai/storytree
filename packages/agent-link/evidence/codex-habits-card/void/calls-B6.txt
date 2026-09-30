@@ -1,0 +1,4 @@
+CMD
+CMD
+st:list_mcp_resources [completed] 
+st:list_mcp_resource_templates [completed] 

@@ -1,0 +1,2715 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me --dangerous ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\HB Trial B7
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f3f0-0bf5-7412-9fbb-27e262dfce27
+--------
+user
+Build me a small to-do list web page I can open in my browser, with a test for its logic.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+hook: SessionStart
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+I’ll build a small to-do page and add a test for adding, completing, and deleting tasks.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Force' in C:\Users\mickh\HB Trial B7
+ succeeded in 247ms:
+
+
+    Directory: C:\Users\mickh\HB Trial B7
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----         1/10/2026   6:09 AM             25 .storytree.json                                                      
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content .storytree.json' in C:\Users\mickh\HB Trial B7
+ succeeded in 265ms:
+{
+  "project": "hb-b7"
+}
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Failed
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (failed)
+tool call error: tool call failed for `storytree/check_setup`
+
+Caused by:
+    Transport closed
+codex
+This folder is a storytree project, but its setup tool couldn’t connect. I’ll continue with the page and tests; storytree’s instructions allow work to proceed when it’s unavailable. The page will open directly 
+in your browser without an installation step.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node --version' in C:\Users\mickh\HB Trial B7
+ exited 1 in 495ms:
+node : The term 'node' is not recognized as the name of a cmdlet, function, script file, or operable program. Check 
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:2 char:1
++ node --version
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (node:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+hook: PostToolUse
+hook: PostToolUse Completed
+apply patch
+patch: completed
+C:\Users\mickh\HB Trial B7\todo.test.js
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node --test todo.test.js' in C:\Users\mickh\HB Trial B7
+ exited 1 in 388ms:
+node : The term 'node' is not recognized as the name of a cmdlet, function, script file, or operable program. Check 
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:2 char:1
++ node --test todo.test.js
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (node:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Command node, node.exe, chrome, msedge, cscript -ErrorAction SilentlyContinue | Select-Object Name, Source
+Get-ChildItem 'C:\\Program Files\\nodejs', 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application', 'C:\\Program Files\\Google\\Chrome\\Application', 'C:\\Users\\mickh\\st-habits' -ErrorAction SilentlyContinue | 
+Select-Object FullName" in C:\Users\mickh\HB Trial B7
+ exited 1 in 643ms:
+
+Name        Source                         
+----        ------                         
+cscript.exe C:\Windows\system32\cscript.exe
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files --hidden 'C:\\Users\\mickh\\st-habits' -g node.exe -g '*playwright*' -g '"'!node_modules'"'" in C:\Users\mickh\HB Trial B7
+ exited 1 in 302ms:
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' 
+-ErrorAction SilentlyContinue | ForEach-Object { "'$_.FullName }' in C:\Users\mickh\HB Trial B7
+ exited 1 in 261ms:
+C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+codex
+The page will support adding, checking off, and deleting tasks, with local saving when the browser permits it. Node.js isn’t available here, so I’m also making the logic tests runnable in a browser.
+2026-09-30T20:13:06.158277Z ERROR codex_core::tools::router: error=apply_patch verification failed: invalid patch: multiple operations target C:\Users\mickh\HB Trial B7\todo.test.js
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+apply patch
+patch: completed
+C:\Users\mickh\HB Trial B7\README.md
+C:\Users\mickh\HB Trial B7\app.js
+C:\Users\mickh\HB Trial B7\browser-test-runner.js
+C:\Users\mickh\HB Trial B7\index.html
+C:\Users\mickh\HB Trial B7\style.css
+C:\Users\mickh\HB Trial B7\tests.html
+C:\Users\mickh\HB Trial B7\todo.js
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "& 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' --headless --disable-gpu --no-first-run 
+--user-data-dir='C:\\Users\\mickh\\HB Trial B7\\.edge-test' --dump-dom 'file:///C:/Users/mickh/HB%20Trial%20B7/tests.html'" in C:\Users\mickh\HB Trial B7
+ succeeded in 8113ms:
+[14560:16800:1001/061445.739:ERROR:components\os_crypt\async\browser\os_crypt_win.cc:63] Failed to encrypt: The system cannot find the file specified. (0x2)
+[14560:5776:1001/061445.804:ERROR:chrome\installer\util\google_update_settings_win.cc:544] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set usagestats; 
+result: 5
+[14560:5776:1001/061445.804:ERROR:chrome\installer\util\google_update_settings_win.cc:587] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set urlstats; 
+result: 5
+[14560:18468:1001/061451.442:ERROR:components\password_manager\core\browser\password_store\login_database_async_helper.cc:229] Encryption is not available.
+[14560:3980:1001/061451.444:ERROR:components\password_manager\core\browser\password_store\login_database_async_helper.cc:229] Encryption is not available.
+[14560:17756:1001/061451.536:ERROR:chrome\installer\util\google_update_settings_win.cc:544] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set usagestats; 
+result: 5
+[14560:16800:1001/061451.536:ERROR:chrome\browser\ui\edge_window_tab_manager\api\wtm_interface_impl.cc:463] Failed to open registry key
+[14560:16800:1001/061451.536:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[14560:16736:1001/061451.536:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory "C:\Users\mickh\HB Trial 
+B7\.edge-test\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[14560:16800:1001/061451.676:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[14560:10804:1001/061451.678:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory "C:\Users\mickh\HB Trial 
+B7\.edge-test\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[14560:10804:1001/061451.787:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory "C:\Users\mickh\HB Trial 
+B7\.edge-test\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[14560:16800:1001/061451.865:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[14560:10804:1001/061451.897:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory "C:\Users\mickh\HB Trial 
+B7\.edge-test\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[14560:16800:1001/061451.899:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[14560:10804:1001/061451.901:ERROR:components\viz\host\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory "C:\Users\mickh\HB Trial 
+B7\.edge-test\GPUPersistentCache\DawnGraphiteCache\TLVJWQT6NJWKNBUVMWJ4BCR6DK7MJALX", error: 0: The process cannot access the file because it is being used by another process. (0x20)
+[14560:8960:1001/061451.922:ERROR:services\device\public\cpp\geolocation\system_geolocation_source_win.cc:124] Failed to create IAppCapability: Access is denied. (0x80070005)
+[14560:16800:1001/061451.930:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[14560:16800:1001/061451.936:ERROR:chrome\browser\component_updater\edge_language_detection_model_installer.cc:97] Edge Language Detection Model: On-demand update failed with error: 5
+[14560:16800:1001/061451.946:ERROR:content\browser\gpu\gpu_process_host.cc:1190] GPU process exited unexpectedly: exit_code=-1073741790
+[14560:16800:1001/061451.946:FATAL:content\browser\gpu\gpu_data_manager_impl_private.cc:436] GPU process isn't usable. Goodbye.
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "& 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' --headless --disable-gpu --in-process-gpu --disable-software-rasterizer 
+--no-first-run --user-data-dir='C:\\Users\\mickh\\HB Trial B7\\.edge-test' --dump-dom 'file:///C:/Users/mickh/HB%20Trial%20B7/tests.html'" in C:\Users\mickh\HB Trial B7
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+codex
+The page and tests are written. I’m checking them now, though the automated browser launch has hit environment restrictions. The test page can also be opened directly to see the results.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "& 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' --headless --disable-gpu --no-first-run 
+--user-data-dir='C:\\Users\\mickh\\HB Trial B7\\.edge-verify' --dump-dom 'file:///C:/Users/mickh/HB%20Trial%20B7/tests.html'" in C:\Users\mickh\HB Trial B7
+hook: PostToolUse
+ succeeded in 363ms:
+hook: PostToolUse Completed
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$browser = Start-Process -FilePath '"'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' -ArgumentList '--headless --disable-gpu 
+--no-first-run --user-data-dir=\"C:\\Users\\mickh\\HB Trial B7\\.edge-verify2\" --dump-dom \"file:///C:/Users/mickh/HB%20Trial%20B7/tests.html\"' -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput 
+'browser-results.txt' -RedirectStandardError 'browser-errors.txt'
+Get-Content browser-results.txt" in C:\Users\mickh\HB Trial B7
+ succeeded in 3294ms:
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>To-do logic tests</title>
+</head><body data-result="pass">
+  <h1>To-do logic tests</h1>
+  <pre id="results">PASS: add, complete, reopen, and delete the intended task
+PASS: blank input is ignored and unknown task IDs leave tasks intact</pre>
+  <script src="todo.js"></script>
+  <script src="browser-test-runner.js"></script>
+  <script src="todo.test.js"></script>
+
+
+</body></html>
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$browser = Start-Process -FilePath '"'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' -ArgumentList '--headless --disable-gpu 
+--no-first-run --user-data-dir=\"C:\\Users\\mickh\\HB Trial B7\\.edge-verify2\" --dump-dom \"file:///C:/Users/mickh/HB%20Trial%20B7/index.html\"' -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput 
+'page-results.txt' -RedirectStandardError 'browser-errors.txt'
+Select-String -Path page-results.txt -Pattern '0 remaining','A fresh start'" in C:\Users\mickh\HB Trial B7
+ succeeded in 2412ms:
+
+page-results.txt:18:      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status">0 
+remaining</span></div>
+page-results.txt:20:      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh 
+start.</h3><p>Add your first task above. Small steps count.</p></div>
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+codex
+Both logic tests passed in Edge, covering adding, completing, reopening, deleting, and blank input. The page also loaded successfully and displayed its empty state. I’m removing the temporary browser test files.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$ownedBrowser = Get-Process -Id 14280 -ErrorAction SilentlyContinue
+if ($ownedBrowser -and $ownedBrowser.ProcessName -eq '"'msedge') { Stop-Process -Id 14280 -Force }
+"'$workspacePath = (Get-Location).Path
+foreach ($name in @('"'.edge-test', '.edge-verify', '.edge-verify2', 'browser-results.txt', 'browser-errors.txt', 'page-results.txt')) {
+  "'$targetPath = [IO.Path]::GetFullPath((Join-Path $workspacePath $name))
+  if (-not $targetPath.StartsWith($workspacePath + '"'\\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Cleanup target outside workspace' }
+  if (Test-Path -LiteralPath "'$targetPath) { Remove-Item -LiteralPath $targetPath -Recurse -Force }
+}
+Get-ChildItem -Force | Select-Object -ExpandProperty Name' in C:\Users\mickh\HB Trial B7
+ succeeded in 86553ms:
+[14280:17512:1001/061501.660:ERROR:components\os_crypt\async\browser\os_crypt_win.cc:63] Failed to encrypt: The system cannot find the file specified. (0x2)
+[14280:17512:1001/061501.708:ERROR:base\metrics\persistent_memory_allocator.cc:899] Corruption detected in shared-memory segment.
+[14280:19212:1001/061501.724:ERROR:chrome\installer\util\google_update_settings_win.cc:544] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set usagestats; 
+result: 5
+[14280:19212:1001/061501.724:ERROR:chrome\installer\util\google_update_settings_win.cc:587] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set urlstats; 
+result: 5
+[14280:19612:1001/061507.189:ERROR:components\password_manager\core\browser\password_store\login_database_async_helper.cc:229] Encryption is not available.
+[14280:12716:1001/061507.189:ERROR:components\password_manager\core\browser\password_store\login_database_async_helper.cc:229] Encryption is not available.
+[14280:19212:1001/061507.366:ERROR:chrome\installer\util\google_update_settings_win.cc:544] Failed opening key Software\Microsoft\EdgeUpdate\ClientStateMedium\{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062} to set usagestats; 
+result: 5
+[14280:17512:1001/061507.366:ERROR:chrome\browser\ui\edge_window_tab_manager\api\wtm_interface_impl.cc:463] Failed to open registry key
+[14280:15828:1001/061507.486:ERROR:gpu\ipc\service\gpu_channel_manager.cc:956] ContextResult::kFatalFailure: Failed to create shared context for virtualization.
+[14280:6912:1001/061507.549:ERROR:services\device\public\cpp\geolocation\system_geolocation_source_win.cc:124] Failed to create IAppCapability: Access is denied. (0x80070005)
+[14280:17512:1001/061507.575:ERROR:chrome\browser\component_updater\edge_language_detection_model_installer.cc:97] Edge Language Detection Model: On-demand update failed with error: 5
+[14280:6196:1001/061507.830:ERROR:chrome\browser\edge_aadc\user_age_utils_win.cc:163] couldn't get user2.
+[14280:6196:1001/061507.830:ERROR:chrome\browser\edge_aadc\user_age_utils_win.cc:310] couldn't get windows user age group.
+[14280:6196:1001/061507.830:ERROR:chrome\browser\edge_aadc\user_age_utils_win.cc:156] callback wasn't called.
+[14280:14796:1001/061601.725:ERROR:components\microsoft\hijacking_prevention\edge_hijacking_prevention_utils_win.cc:277] Failed to get user path: 8
+
+ succeeded in 8311ms:
+.storytree.json
+app.js
+browser-test-runner.js
+index.html
+README.md
+style.css
+tests.html
+todo.js
+todo.test.js
+
+hook: PostToolUse
+hook: PostToolUse Completed
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+codex
+Built [Little List](<C:/Users/mickh/HB Trial B7/index.html>)—open it in your browser to add, complete, and delete tasks. Tasks save locally when available.
+
+Both [logic tests](<C:/Users/mickh/HB Trial B7/tests.html>) passed in Edge. No installation required.
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..568c82f2c181f0b16dc360224d9b38c3e2c556c1
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,11 @@
++# Little List
++
++Open `index.html` in your browser. Add a task, check it off, or delete it.
++Tasks are saved in this browser when local storage is available. Keep the files together.
++
++## Logic tests
++
++Open `tests.html` in your browser to see the test results.
++If Node.js is installed, you can also run `node --test todo.test.js`.
++The tests use the same `todo.js` logic as the page and cover adding, blank input,
++completing/reopening, deleting, and unknown IDs.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc5be4f938564f906a4e1c4f3a5748454ebdada7
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,47 @@
++const key = 'little-list-tasks-v1';
++let tasks = [];
++const note = document.getElementById('storage-note');
++try {
++  const saved = JSON.parse(localStorage.getItem(key) || '[]');
++  if (Array.isArray(saved)) tasks = saved.filter(task => task && typeof task.id === 'string' && typeof task.text === 'string' && typeof task.completed === 'boolean');
++} catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++const list = document.getElementById('tasks');
++const input = document.getElementById('task-input');
++function save() {
++  try { localStorage.setItem(key, JSON.stringify(tasks)); }
++  catch { note.textContent = 'Saving unavailable — tasks last this session'; }
++}
++function render() {
++  list.replaceChildren();
++  document.getElementById('empty').hidden = tasks.length > 0;
++  document.getElementById('count').textContent = tasks.filter(task => !task.completed).length + ' remaining';
++  tasks.forEach((task, index) => {
++    const row = document.createElement('li');
++    row.className = task.completed ? 'done' : '';
++    const label = document.createElement('label');
++    const checkbox = document.createElement('input');
++    checkbox.type = 'checkbox'; checkbox.checked = task.completed;
++    checkbox.addEventListener('change', () => {
++      tasks = Todo.toggleTask(tasks, task.id); save(); render();
++      list.children[index].querySelector('input').focus();
++    });
++    const text = document.createElement('span'); text.textContent = task.text;
++    label.append(checkbox, text);
++    const remove = document.createElement('button');
++    remove.type = 'button'; remove.className = 'delete'; remove.textContent = 'Delete';
++    remove.setAttribute('aria-label', 'Delete ' + task.text);
++    remove.addEventListener('click', () => {
++      tasks = Todo.removeTask(tasks, task.id); save(); render();
++      const next = list.children[Math.min(index, tasks.length - 1)];
++      (next ? next.querySelector('button') : input).focus();
++    });
++    row.append(label, remove); list.append(row);
++  });
++}
++document.getElementById('task-form').addEventListener('submit', event => {
++  event.preventDefault();
++  if (!input.value.trim()) { input.value = ''; input.focus(); return; }
++  tasks = Todo.addTask(tasks, input.value, crypto.randomUUID());
++  save(); render(); input.value = ''; input.focus();
++});
++render();
+diff --git a/browser-test-runner.js b/browser-test-runner.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3f064b5067208d58d4cbd0929ccc188603a231
+--- /dev/null
++++ b/browser-test-runner.js
+@@ -0,0 +1,18 @@
++// Small browser adapter for the Node-style test file; no dependencies needed.
++const results = [];
++function require(name) {
++  if (name === './todo.js') return Todo;
++  if (name === 'node:test') return (name, run) => {
++    try { run(); results.push('PASS: ' + name); }
++    catch (error) { results.push('FAIL: ' + name + ': ' + error.message); }
++    document.getElementById('results').textContent = results.join('\n');
++    document.body.dataset.result = results.some(result => result.startsWith('FAIL')) ? 'fail' : 'pass';
++  };
++  if (name === 'node:assert/strict') {
++    const equal = (actual, expected) => {
++      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
++    };
++    return { equal, deepEqual: equal };
++  }
++  throw new Error('Unknown module: ' + name);
++}
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a1c509c134aca97001c6d4527d3b3f3057c5e89
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,27 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Little List — your to-dos</title>
++  <link rel="stylesheet" href="style.css">
++  <script src="todo.js" defer></script>
++  <script src="app.js" defer></script>
++</head>
++<body>
++  <main>
++    <header><span class="eyebrow">ONE THING AT A TIME</span><h1>Little List<span>.</span></h1><p>A little space for what you want to get done.</p></header>
++    <section class="card" aria-label="Your tasks">
++      <form id="task-form">
++        <label for="task-input">What’s next?</label>
++        <div class="entry"><input id="task-input" placeholder="Add something to do…" maxlength="300" required autocomplete="off"><button type="submit">+ Add task</button></div>
++      </form>
++      <div class="list-heading"><h2>Your tasks</h2><span id="count" role="status"></span></div>
++      <ul id="tasks"></ul>
++      <div id="empty"><span class="empty-icon" aria-hidden="true">✓</span><h3>A fresh start.</h3><p>Add your first task above. Small steps count.</p></div>
++      <footer><span id="storage-note">Saved in this browser</span><span>Make room for progress.</span></footer>
++    </section>
++    <p class="hint">Check a task off. Take a breath. Keep going.</p>
++  </main>
++</body>
++</html>
+diff --git a/style.css b/style.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..d5974d0b165f533739601a466cdf0298b301f503
+--- /dev/null
++++ b/style.css
+@@ -0,0 +1,36 @@
++:root { font-family: 'Segoe UI', sans-serif; color: #243d36; background: #f5f4ee; }
++* { box-sizing: border-box; }
++body { margin: 0; }
++main { max-width: 680px; margin: 76px auto; padding: 0 24px; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2.5px; color: #60766c; }
++h1 { font-size: 54px; letter-spacing: -2.5px; margin: 12px 0; font-weight: 650; }
++h1 span { color: #bf6c44; }
++header p { margin: 0 0 34px; color: #69766e; }
++.card { background: #fffefa; border: 1px solid #dedfd3; border-radius: 20px; padding: 28px; box-shadow: 0 12px 35px #273f3406; }
++label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
++.entry { display: flex; gap: 10px; }
++input, button { font: inherit; }
++.entry input { min-width: 0; flex: 1; border: 1px solid #d8ded4; background: #fff; border-radius: 9px; padding: 13px; }
++button { cursor: pointer; }
++.entry button { border: 0; border-radius: 9px; padding: 12px 18px; background: #285b47; color: #fff; font-weight: 600; }
++.entry button:hover { background: #194532; }
++:focus-visible { outline: 3px solid #b27839; outline-offset: 3px; }
++.list-heading { margin-top: 32px; display: flex; align-items: center; justify-content: space-between; }
++h2 { font-size: 14px; margin: 0; }
++#count { font-size: 12px; color: #596a60; background: #edf0e6; border-radius: 20px; padding: 5px 10px; }
++ul { list-style: none; padding: 0; margin: 14px 0; }
++li { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #eceee5; }
++li label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; margin: 0; font-weight: 400; cursor: pointer; }
++li input { width: 19px; height: 19px; flex-shrink: 0; accent-color: #285b47; }
++li span { overflow-wrap: anywhere; }
++li.done span { text-decoration: line-through; color: #7b857e; }
++.delete { background: transparent; border: 0; color: #7c594d; font-size: 13px; padding: 10px; border-radius: 6px; }
++.delete:hover { background: #f7ede7; }
++#empty { text-align: center; padding: 36px 0 44px; }
++#empty[hidden] { display: none; }
++.empty-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #edf0e6; font-size: 22px; color: #54715d; }
++h3 { font-size: 18px; margin: 15px 0 6px; }
++#empty p, .hint { color: #737c73; font-size: 13px; }
++footer { border-top: 1px solid #eceee5; padding-top: 17px; display: flex; justify-content: space-between; gap: 12px; color: #737c73; font-size: 11px; }
++.hint { text-align: center; margin-top: 24px; }
++@media (max-width: 480px) { main { margin: 38px auto; padding: 0 16px; } h1 { font-size: 44px; } .card { padding: 20px; } .entry { flex-direction: column; } footer { flex-direction: column; } }
+diff --git a/tests.html b/tests.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ed5a1ddcb5e52179d305f006dddd71e76e54a23
+--- /dev/null
++++ b/tests.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<title>To-do logic tests</title>
++<body>
++  <h1>To-do logic tests</h1>
++  <pre id="results">Running tests…</pre>
++  <script src="todo.js"></script>
++  <script src="browser-test-runner.js"></script>
++  <script src="todo.test.js"></script>
++</body>
++</html>
+diff --git a/todo.js b/todo.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bc903791aee852136a66ec0f3292c64dc5ce075
+--- /dev/null
++++ b/todo.js
+@@ -0,0 +1,14 @@
++(function (root) {
++  const api = {
++    addTask(tasks, text, id) {
++      const trimmed = text.trim();
++      return trimmed ? [...tasks, { id, text: trimmed, completed: false }] : tasks;
++    },
++    toggleTask(tasks, id) {
++      return tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
++    },
++    removeTask(tasks, id) { return tasks.filter(task => task.id !== id); }
++  };
++  if (typeof module !== 'undefined' && module.exports) module.exports = api;
++  else root.Todo = api;
++})(globalThis);
+diff --git a/todo.test.js b/todo.test.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6a970f149197e524cbf7d665c7dd1443f28fd23
+--- /dev/null
++++ b/todo.test.js
+@@ -0,0 +1,25 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const { addTask, toggleTask, removeTask } = require('./todo.js');
++
++test('add, complete, reopen, and delete the intended task', () => {
++  const empty = [];
++  const first = addTask(empty, '  Buy milk  ', 'a');
++  const both = addTask(first, 'Read a chapter', 'b');
++  assert.deepEqual(empty, []);
++  assert.equal(first[0].text, 'Buy milk');
++  assert.equal(first[0].completed, false);
++  const completed = toggleTask(both, 'a');
++  assert.equal(completed[0].completed, true);
++  assert.equal(completed[1].completed, false);
++  assert.equal(both[0].completed, false);
++  assert.equal(toggleTask(completed, 'a')[0].completed, false);
++  assert.deepEqual(removeTask(completed, 'a'), [both[1]]);
++});
++
++test('blank input is ignored and unknown task IDs leave tasks intact', () => {
++  const tasks = addTask([], 'Keep me', 'a');
++  assert.deepEqual(addTask(tasks, '   ', 'b'), tasks);
++  assert.deepEqual(toggleTask(tasks, 'missing'), tasks);
++  assert.deepEqual(removeTask(tasks, 'missing'), tasks);
++});
+
+hook: Stop
+hook: Stop
+hook: Stop Completed
+hook: Stop Completed
+tokens used
+39,689
+Built [Little List](<C:/Users/mickh/HB Trial B7/index.html>)—open it in your browser to add, complete, and delete tasks. Tasks save locally when available.
+
+Both [logic tests](<C:/Users/mickh/HB Trial B7/tests.html>) passed in Edge. No installation required.
+
+--- folder after:
+.storytree.json
+app.js
+browser-test-runner.js
+index.html
+README.md
+style.css
+tests.html
+todo.js
+todo.test.js

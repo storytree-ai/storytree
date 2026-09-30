@@ -1,0 +1,6 @@
+| A4 | yes | yes | yes | yes | yes | yes | 6/6 | 16 |
+| A5 | yes | yes | yes | yes | yes | yes | 6/6 | 16 |
+| A7 | yes | yes | yes | yes | yes | yes | 6/6 | 16 |
+| B4 | yes | yes | yes | yes | yes | yes | 6/6 | 16 |
+| B8 | yes | yes | yes | yes | yes | yes | 6/6 | 16 |
+| B9 | yes | yes | yes | yes | yes | yes | 6/6 | 16 |

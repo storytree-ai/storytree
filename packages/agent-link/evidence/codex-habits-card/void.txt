@@ -1,0 +1,5 @@
+VOID A6: storytree tool server absent (0.3.396 installed at 19:55Z and took the placed arms)
+VOID B6: the same
+VOID B5: storytree disconnected mid-session when 0.3.396 installed
+VOID B7, A7, B8 (first runs): the arms were missing (not re-placed after 0.3.396, the re-place step lacked -ExecutionPolicy Bypass)
+VOID B7: the app updated during it (storytree 0.3.396 (9481acd) -> storytree 0.3.397 (a9a61ba))

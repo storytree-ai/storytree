@@ -1,0 +1,16 @@
+CMD
+CMD
+st:check_setup [failed] 
+CMD
+EDIT todo.test.js
+CMD
+CMD
+CMD
+CMD
+EDIT tests.html,README.md,app.js,browser-test-runner.js,style.css,todo.js,index.html
+CMD
+CMD
+CMD
+CMD
+CMD
+CMD

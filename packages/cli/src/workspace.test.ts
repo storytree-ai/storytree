@@ -187,3 +187,23 @@ test("11.6 `workspace release` refuses another session's claim, an unheld target
     }
   });
 });
+
+test("11.4 a Claude Code session attaches the linked worktree the app started it in, with no --ref or --name, and holds its work on that worktree's branch", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const folder = path.join(path.dirname(world.folder), "claude app worktree");
+    git(world.folder, "worktree", "add", "-b", "claude/app-made", folder, "main");
+
+    const attached = await world.run(["workspace", "attach", increment, "--folder", folder, "--reason", "build form"], { CLAUDE_CODE_SESSION_ID: "claude-app" });
+
+    assert.equal(attached.code, 0, attached.stderr);
+    assert.ok(attached.stdout.includes(folder), attached.stdout);
+    assert.equal(git(world.folder, "worktree", "list").trim().split(/\r?\n/).length, 2, "no second worktree");
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.deepEqual((await readClaims(log, world.project)).map(({ session, branch }) => ({ session, branch })), [{ session: "claude-app", branch: "claude/app-made" }]);
+    } finally {
+      await log.close();
+    }
+  });
+});

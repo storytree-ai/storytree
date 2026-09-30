@@ -3,6 +3,8 @@
  * Claude Code keeps its original fetch/claim/create path. Codex preparation only checks and
  * fetches: the agent calls the desktop app's create_worktree, then attaches that returned folder.
  * Storytree never creates or removes a Codex folder. App creation does not change the agent's cwd.
+ * A Claude Code session the Claude desktop app started in its own linked worktree attaches that
+ * worktree the same way, on the branch it is on, rather than making a second one it never uses.
  */
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -15,12 +17,12 @@ import { endIfMerged, type MergeWatch } from "./merges.js";
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
 export interface WorkspaceAttachment {
-  /** The directory returned by the Codex app's create_worktree, used explicitly. */
+  /** The directory returned by the Codex app's create_worktree, or the Claude Code session's own linked worktree, used explicitly. */
   readonly folder: string;
-  /** The exact commit returned by preparation and passed to create_worktree. */
-  readonly ref: string;
-  /** The work-derived name returned by preparation. */
-  readonly name: string;
+  /** Codex: the exact commit returned by preparation and passed to create_worktree. */
+  readonly ref?: string;
+  /** Codex: the work-derived name returned by preparation. */
+  readonly name?: string;
 }
 
 export type WorkspaceRefusal =
@@ -74,36 +76,39 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   return { ok: true, status: "ready", claim: claimed.claim, ...where, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
 }
 
-/** Attach an app-created Codex worktree to this session's work, leaving its lifetime to the app. */
+/** Attach an app-created worktree (Codex's, or the one a Claude Code session is already in) to this session's work, leaving its lifetime to the app. */
 export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment, watch: MergeWatch = {}): Promise<ClaimedWorkspace | WorkspaceRefusal> {
   const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, watch);
   if (refused !== undefined) return refused;
-  if (context.harness !== "codex") return { ok: false, refused: "no-workspace", why: "only a Codex agent attaches an app-created worktree; Claude Code uses make_workspace" };
+  const codex = context.harness === "codex";
 
   let folder: string;
   let existingBranch: string;
+  let base: string;
   try {
-    if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(attachment.ref)) throw new Error("ref must be the exact commit returned by make_workspace");
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(attachment.name)) throw new Error("name must be the lowercase hyphenated name returned by make_workspace");
+    if (codex && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(attachment.ref ?? "")) throw new Error("ref must be the exact commit returned by make_workspace");
+    if (codex && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(attachment.name ?? "")) throw new Error("name must be the lowercase hyphenated name returned by make_workspace");
     folder = realpathSync(path.resolve(context.folder, attachment.folder));
     const common = (where: string) => realpathSync(run(where, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
     if (path.relative(common(context.folder), common(folder)) !== "") throw new Error("the returned directory belongs to another repository");
     const root = realpathSync(run(folder, ["rev-parse", "--show-toplevel"]).trim());
     const gitDir = realpathSync(run(folder, ["rev-parse", "--absolute-git-dir"]).trim());
     if (path.relative(root, folder) !== "" || path.relative(gitDir, common(folder)) === "") throw new Error("the returned directory must be the root of a linked worktree, not the main checkout or a subdirectory");
-    if (run(folder, ["rev-parse", "HEAD"]).trim() !== attachment.ref) throw new Error(`the worktree HEAD is not the expected base ${attachment.ref}`);
+    base = run(folder, ["rev-parse", "HEAD"]).trim();
+    if (codex && base !== attachment.ref) throw new Error(`the worktree HEAD is not the expected base ${attachment.ref}`);
     existingBranch = run(folder, ["branch", "--show-current"]).trim();
+    if (!codex && !existingBranch) throw new Error("the worktree is not on a branch; switch to one so that its merge ends the claim");
   } catch (error) {
     return { ok: false, refused: "no-workspace", why: `cannot attach the app worktree: ${firstLine(error)}` };
   }
 
-  const branch = existingBranch || `codex/${attachment.name}`;
+  const branch = existingBranch || `codex/${attachment.name}`; // Only Codex's may be detached.
   const claimed = await claim({ ...context, branch }, id, reason);
   if (!claimed.ok) return claimed; // Another session may have claimed since preparation.
   // A claim this session took elsewhere while checking must not be retargeted or released.
   if (claimed.alreadyHeld) return { ok: false, refused: "yours", claim: claimed.claim };
   try {
-    if (run(folder, ["rev-parse", "HEAD"]).trim() !== attachment.ref || run(folder, ["branch", "--show-current"]).trim() !== existingBranch) {
+    if (run(folder, ["rev-parse", "HEAD"]).trim() !== base || run(folder, ["branch", "--show-current"]).trim() !== existingBranch) {
       throw new Error("the app worktree changed while its claim was being taken");
     }
     if (!existingBranch) run(folder, ["switch", "-c", branch]);
@@ -111,7 +116,7 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
     await release(context, id);
     return { ok: false, refused: "no-workspace", why: `could not attach the app worktree; the claim was released: ${firstLine(error)}` };
   }
-  return { ok: true, status: "ready", claim: claimed.claim, folder, branch, base: attachment.ref, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
+  return { ok: true, status: "ready", claim: claimed.claim, folder, branch, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
 }
 
 /** Why this session may not have a workspace for `id`; a claim it holds on a branch that has since merged is ended first, not pointed back at. */

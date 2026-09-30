@@ -28,14 +28,17 @@ const make: Verb = {
 
 const attach: Verb = {
   name: "attach",
-  usage: "workspace attach <increment|capability> --folder <directory> --ref <commit> --name <name> --reason <text>",
-  summary: "attach the Codex app's returned worktree and claim its work",
+  usage: "workspace attach <increment|capability> [--folder <directory>] [--ref <commit> --name <name>] --reason <text>",
+  summary: "attach an app's worktree (Codex's returned one, or the Claude Code session's own) and claim its work",
   async act(args, context) {
     const id = args.word(0, "the work's id", this.usage);
     const reason = args.need("reason", this.usage).trim();
     if (!reason) throw new Refusal(`this needs a non-empty --reason\nusage: storytree ${this.usage}`, { code: 2 });
-    const attachment = { folder: args.need("folder", this.usage), ref: args.need("ref", this.usage), name: args.need("name", this.usage) };
     const caller = await context.claimContext();
+    // Codex attaches the folder create_worktree returned, with its --ref and --name; Claude Code, the worktree it is in.
+    const codex = caller.harness === "codex";
+    const folder = codex ? args.need("folder", this.usage) : args.text("folder") ?? caller.folder;
+    const attachment = codex ? { folder, ref: args.need("ref", this.usage), name: args.need("name", this.usage) } : { folder };
     const attached = await attachWorkspace(caller, id, reason, attachment);
     if (!attached.ok) throw new Refusal(`${refusal(id, attached)} The app's worktree is kept.`);
     return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${caller.session} holds ${id}: ${reason}\nUse that directory explicitly for commands. Set it up as this project does at session start.` };

@@ -6,12 +6,12 @@
  * removed from it), and a folder the check refuses is said with why.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
-import { findProject, forgetTrunk, machineOf, MARKER_FILE, openStorytree, ProjectFolderError, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
+import { findProject, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openStorytree, ProjectFolderError, recordRemovedProjects, removedProjects, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
 
-export { unusedName };
+export { keepOnThisComputer, unusedName };
 
 /** The project a folder belongs to, or the name no project has yet to suggest for it. The folder need not exist yet. */
 export type ProjectFolder = { folder: string; project: string } | { folder: string; suggestion: string };
@@ -94,37 +94,10 @@ export type RemovedProject =
   | { status: "removed"; project: string; freed?: string; kept?: string }
   | { status: "no such project"; project: string; message: string };
 
-const REMOVED_FILE = "removed-projects.json";
-
-/** The projects taken off this computer's list, kept in the app's home. */
-function removedHere(home: string): string[] {
-  try {
-    const { removed } = JSON.parse(readFileSync(path.join(home, REMOVED_FILE), "utf8")) as { removed?: unknown };
-    return Array.isArray(removed) ? removed.filter((name): name is string => typeof name === "string") : [];
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-}
-
-function recordRemoved(home: string, removed: readonly string[]): void {
-  mkdirSync(home, { recursive: true });
-  const file = path.join(home, REMOVED_FILE);
-  const temp = `${file}.${process.pid}.tmp`;
-  writeFileSync(temp, `${JSON.stringify({ removed: [...new Set(removed)].sort() }, null, 2)}\n`);
-  renameSync(temp, file);
-}
-
 /** `projects` (every project in the library) less those removed from this computer. */
 export function projectsOnThisComputer(projects: readonly string[], home: string = storytreeHome()): string[] {
-  const removed = new Set(removedHere(home));
+  const removed = new Set(removedProjects(home));
   return projects.filter((name) => !removed.has(name));
-}
-
-/** Put `project` back on this computer's list, if it was taken off. */
-export function keepOnThisComputer(project: string, home: string = storytreeHome()): void {
-  const removed = removedHere(home);
-  if (removed.includes(project)) recordRemoved(home, removed.filter((name) => name !== project));
 }
 
 /** Take `project` off this computer's list and free its folder here. Nothing in the library is deleted. */
@@ -143,7 +116,7 @@ export async function removeProject(project: string, options: AddProjectOptions 
       }
       await forgetTrunk(storytree, { project, machine });
     }
-    recordRemoved(home, [...removedHere(home), project]);
+    recordRemovedProjects(home, [...removedProjects(home), project]);
     if (trunk === undefined) return { status: "removed", project };
     return kept ? { status: "removed", project, kept: trunk.folder } : { status: "removed", project, freed: trunk.folder };
   });

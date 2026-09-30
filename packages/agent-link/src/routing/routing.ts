@@ -31,7 +31,7 @@ import type { ConnectOptions, Storytree } from "@storytree/library";
 
 import { readLibrary } from "../settings/settings.js";
 
-import { recordProjectChoice } from "./project-choice.js";
+import { keepOnThisComputer, recordProjectChoice } from "./project-choice.js";
 import { machineOf, ProjectFolderError, refusal, registerTrunk, trunksOn, unusedName } from "./trunks.js";
 
 /** The marker a folder set up as a storytree project holds. */
@@ -121,6 +121,8 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
   try {
     recordProjectChoice(path.join(home, "project-choice.json"), project);
+    // A project removed from this computer and joined again on purpose is back on its list.
+    keepOnThisComputer(project, home);
   } catch (error) {
     // A new marker would make the tool's explicit retry stop at "already set up".
     if (previous === undefined) rmSync(marker);

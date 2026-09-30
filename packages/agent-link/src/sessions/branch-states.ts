@@ -24,7 +24,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { currentBranch, thisMachine, type Line, type NewLine } from "../activity/index.js";
+import { currentBranch, thisMachine, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { due, ghAllMergedPulls, type AllMergedPulls, type MergeContext, type MergedPull } from "../claims/merges.js";
 
 /** How branches are watched. */
@@ -101,6 +101,20 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
     }
     return written;
   });
+}
+
+/**
+ * The app's own look at the project's branches, so its sessions list never waits on a hook: asked
+ * from the latest folder on this machine that is still there (GitHub needs the project's
+ * repository), and written under the app's name, `app:<machine>`, which lists as no session.
+ * Nothing when this machine has no such folder. Once a minute at most, shared with the hooks' look.
+ */
+export async function lookAsApp(log: ActivityLog, project: string, watch: BranchWatch = {}): Promise<Line[]> {
+  const machine = watch.machine ?? thisMachine();
+  const { lines } = await log.since(project, 0);
+  const folder = lines.findLast((line) => line.machine === machine && line.folder !== undefined && existsSync(line.folder))?.folder;
+  if (folder === undefined) return [];
+  return resolveBranches({ log, project, folder, session: `app:${machine ?? "this machine"}`, source: "tool" }, watch);
 }
 
 /** What is known of a branch worth looking at: when it was first worked on, its latest folder on this machine, and whether its own machine has found it ahead. */

@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { openActivityLog, type Line } from "../activity/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { resolveBranches, sessionsFrom } from "./index.js";
+import { lookAsApp, resolveBranches, sessionsFrom } from "./index.js";
 
 test("4.10 each branch a session worked on is marked resolved once its pull request merged (any machine), or, on the machine it was worked on, once it has nothing ahead of main or is deleted; one still ahead stays open, and one that gains work after it resolved is open again; a state is written only when it changes", async () => {
   const log = await openActivityLog(testServerUrl());
@@ -97,12 +97,12 @@ test("4.10 a session whose branches merged, or exist nowhere this machine can se
       const openWork = async () => sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]);
 
       await resolveBranches(watcher(site), { allMergedPulls, everyMs: 0, machine: "here" });
-      assert.deepEqual(await openWork(), [["finished", []], ["lane", ["claude/pushed"]], ["observer", []]]);
+      assert.deepEqual(await openWork(), [["finished", []], ["lane", ["claude/pushed"]]]);
 
       await resolveBranches(watcher(laptop), { allMergedPulls, everyMs: 0, machine: "elsewhere" });
-      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]], ["observer", []]]);
+      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]]]);
       await resolveBranches(watcher(site), { allMergedPulls, everyMs: 0, machine: "here" });
-      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]], ["observer", []]], "a branch its own machine found is not guessed away again");
+      assert.deepEqual(await openWork(), [["finished", ["claude/never-pushed"]], ["lane", ["claude/pushed"]]], "a branch its own machine found is not guessed away again");
     });
   } finally {
     await log.close();
@@ -121,6 +121,24 @@ test("4.10 a branch a claim's merge names holds no open work before any look has
 
     await log.append(project, { ...at, source: "hook", session: "observer", kind: "branch-state", of: "claude/fix", open: true, how: "ahead" });
     assert.deepEqual((await openWork()).finished, ["claude/fix"], "a later look that found it ahead opens it again");
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.21 the app looks for itself: a branch a session on this machine worked on is resolved, asked from a folder this machine has, under the app's name, which lists as no session", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (site) => {
+      const worked = await log.append(project, { session: "lane", harness: "claude-code", source: "hook", machine: "here", folder: site, branch: "claude/landed", kind: "file-edited", files: ["x.ts"] });
+      const allMergedPulls = async () => new Map([["claude/landed", [{ number: 21, mergedAt: new Date(Date.parse(worked.at) + 1_000).toISOString() }]]]);
+
+      const written = await lookAsApp(log, project, { allMergedPulls, everyMs: 0, machine: "here" });
+      assert.deepEqual(written.map((line) => [line.kind, line.session]), [["branch-state", "app:here"]]);
+      const sessions = sessionsFrom((await log.since(project, 0)).lines);
+      assert.deepEqual(sessions.map((session) => [session.session, session.openWork]), [["lane", []]]);
+    });
   } finally {
     await log.close();
   }

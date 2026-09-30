@@ -127,6 +127,9 @@ export function labelOf(harness: string | undefined): string {
   return harness === undefined ? "an unnamed harness" : (LABELS[harness] ?? harness);
 }
 
+/** The kinds of line whose writer only looked at others' work: a claim's merge, a branch's state, what an app keeps. */
+const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state", "session-archived", "session-unarchived", "session-described"]);
+
 /** The sessions `lines` show, in the order they started, each judged at `options.now`. */
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {
   const now = (options.now ?? new Date()).getTime();
@@ -139,9 +142,12 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
   const appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
   const appWords = new Map<string, Line & { kind: "session-described" }>();
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
-    const own = bySession.get(line.session);
-    if (own === undefined) bySession.set(line.session, [line]);
-    else own.push(line);
+    // A line about others is no work of its writer's: a person or the app that looked is no session (contract 4.20).
+    if (!ABOUT_OTHERS.has(line.kind)) {
+      const own = bySession.get(line.session);
+      if (own === undefined) bySession.set(line.session, [line]);
+      else own.push(line);
+    }
     if (line.kind === "branch-state") branchStates.set(line.of, line);
     else if (line.kind === "merged") branchStates.set(line.branch, { open: false, at: line.at });
     else if (line.kind === "session-archived" || line.kind === "session-unarchived") appRecords.set(line.of, line);

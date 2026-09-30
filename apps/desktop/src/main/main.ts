@@ -82,6 +82,8 @@ app.setPath("userData", home.electron);
 let postgres: LocalPostgres | undefined;
 let storytree: Storytree | undefined;
 let reads: PageReads | undefined;
+/** How often the app looks at each project's branches itself; the look is shared with the hooks', once a minute a machine. */
+const LOOK_EVERY_MS = 60_000;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
 let updates: ReturnType<typeof mainUpdates> | undefined;
@@ -231,6 +233,8 @@ async function run(): Promise<void> {
     showTray();
     addStartMenuShortcut();
     void keepBackups();
+    // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (agent link 4.21).
+    setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
     updates.start();
     const launchedAt = Date.now();
     releases = followReleases({

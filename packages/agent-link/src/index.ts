@@ -8,7 +8,7 @@ export { idleAfterMs, leaveAfterMs, readLibrary, readSettings, readSurfaceChoice
 export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
 export { ACTIVITY_DATABASE, currentBranch, lineText, NEW_LINE, openActivityLog, thisMachine } from "./activity/index.js";
 export type { ActivityLog, Agent, Line, LineKind, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
-export { closeOut, labelOf, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
+export { closeOut, labelOf, lookAsApp, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
 export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, readAttribution, readClaim, readClaims, release } from "./claims/index.js";
 export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, ReleaseAnswer, ClaimedWorkspace, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";

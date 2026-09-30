@@ -2,12 +2,15 @@
  * Capability 4 · Sessions, close-out (ADR-0758 D2, D3): a session ends its work by recording whether
  * it is safe to close, and why: the SAFE TO CLOSE statement, as a `closed-out` line. The command,
  * not the agent, counts the session's own runs still running on this machine and records that with
- * it, so the reading can check a "yes" against it (an agent never self-attests).
+ * it, so the reading can check a "yes" against it (an agent never self-attests). Given a look, it
+ * first asks whether the project's branches have merged, so a yes whose pull request merged is
+ * borne out whether or not a hook has looked since.
  */
 import { listRuns } from "@storytree/processes/listing";
 
 import type { ActivityLog, Line } from "../activity/index.js";
 import { rememberClosedOut } from "../hooks/close-out-reminder.js";
+import { resolveBranches, type BranchWatch } from "./branch-states.js";
 
 /** Who is closing out, and where. */
 export interface CloseOutContext {
@@ -22,10 +25,16 @@ export interface CloseOutContext {
 export interface CloseOutOptions {
   /** The process ledger's home; by default, the one under the storytree home. */
   readonly home?: string;
+  /** Look at the project's branches first, now (GitHub's merges, git's state), so a merge no hook recorded counts. No look when absent. */
+  readonly look?: BranchWatch;
 }
 
 /** Record `session`'s close-out, with how many of its own runs still run here, when the ledger could be read in full. */
 export async function closeOut(context: CloseOutContext, said: { safe: boolean; why: string }, options: CloseOutOptions = {}): Promise<{ line: Line; running: number | undefined }> {
+  if (options.look !== undefined && context.folder !== undefined) {
+    const watcher = { log: context.log, project: context.project, folder: context.folder, session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "tool" } as const;
+    await resolveBranches(watcher, { ...options.look, everyMs: 0 }).catch(() => []);
+  }
   const running = await ownRunning(context, options);
   const line = await context.log.append(context.project, {
     session: context.session,

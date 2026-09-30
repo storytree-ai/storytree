@@ -7,6 +7,7 @@
  * them into a directory of their own with buildBins().
  */
 import path from "node:path";
+import { writeFileSync } from "node:fs";
 import { cp, mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -55,6 +56,8 @@ export async function buildBins(outdir: string, { release }: { release?: { versi
     ],
   });
   await stageNativeProbes(outdir);
+  // The release beside the scripts, so the setup check can say when installed hooks lag the latest (contract 8.16).
+  if (release !== undefined) writeFileSync(path.join(outdir, "release.json"), `${JSON.stringify(release)}\n`);
   return Object.fromEntries(Object.keys(ENTRY_POINTS).map((name) => [name, path.join(outdir, `${name}.mjs`)]));
 }
 

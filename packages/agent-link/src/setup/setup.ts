@@ -15,7 +15,8 @@ import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { findProject, storytreeHome, suggestedName } from "../routing/index.js";
-import { defaultHomes, disconnectedHarnesses, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
+import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
+import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-release.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
@@ -55,6 +56,8 @@ export interface SetupOptions {
   readonly machine?: () => Promise<MachineState>;
   /** Where the Claude desktop app and Codex keep their session records (ADR-0754 D4). By default, where each app puts them for this user. */
   readonly appPlaces?: AppPlaces;
+  /** How to ask for the latest release, to compare the hooks' with (contract 8.16). By default, `gh release view`. */
+  readonly latestRelease?: LatestRelease;
 }
 
 export interface SetupReport {
@@ -75,6 +78,8 @@ export interface SetupReport {
   readonly machine: MachineState;
   /** Whether the Claude desktop app's and Codex's session records could be read, and how many sessions each keeps. */
   readonly archives: readonly AppReading[];
+  /** Which release the registered hooks run, against the latest release. */
+  readonly hooksRelease: HooksRelease;
 }
 
 /** Check `options.folder`, inside or outside a session, and fix what needs no user decision. Never creates a project. */
@@ -92,8 +97,13 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
   const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"));
-  const [gh, machine, archives] = await Promise.all([(options.gh ?? ghState)(), (options.machine ?? (() => machineState(homes.codex === undefined ? {} : { codexHome: homes.codex })))(), readAppRecords(options.appPlaces)]);
-  const report = { storytree, hooks, codexServer, project, command, gh, machine, archives };
+  const [gh, machine, archives, released] = await Promise.all([
+    (options.gh ?? ghState)(),
+    (options.machine ?? (() => machineState(homes.codex === undefined ? {} : { codexHome: homes.codex })))(),
+    readAppRecords(options.appPlaces),
+    hooksRelease(registeredHookScripts(homes), options.latestRelease),
+  ]);
+  const report = { storytree, hooks, codexServer, project, command, gh, machine, archives, hooksRelease: released };
   return { ...report, lines: setupLines(report) };
 }
 

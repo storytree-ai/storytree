@@ -117,11 +117,9 @@ test("7.9 the list prints no prose about a session: a row with a close-out why s
 
 test("7.15 an expanded row's worktree carries its label, unmerged or merged, beside its folder's name; a worktree with none carries none", () => {
   const worktrees: SessionRow["worktrees"] = [{ path: "/w/one", branches: ["fix-one"], state: "unmerged" }, { path: "/w/two", branches: ["fix-two"], state: "merged" }, { path: "/w/site", branches: [] }];
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees }], onHighlight() {} }));
-  const list = html.match(/<ul class="session-detail-worktrees".*?</ul>/s)?.[0] ?? "";
-  assert.match(list, /<li title="/w/one
-fix-one">one<span class="session-worktree-state" data-state="unmerged">unmerged</span></li>/, list);
-  assert.match(list, /<li title="/w/two
-fix-two">two<span class="session-worktree-state" data-state="merged">merged</span></li>/, list);
-  assert.match(list, /<li title="/w/site">site</li>/, list);
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees }], expanded: new Set(["parent"]), onHighlight() {} }));
+  const list = html.match(/<ul class="session-detail-worktrees".*?<\/ul>/s)?.[0] ?? "";
+  assert.match(list, /<li title="\/w\/one\nfix-one">one<span class="session-worktree-state" data-state="unmerged">unmerged<\/span><\/li>/, list);
+  assert.match(list, /<li title="\/w\/two\nfix-two">two<span class="session-worktree-state" data-state="merged">merged<\/span><\/li>/, list);
+  assert.match(list, /<li title="\/w\/site">site<\/li>/, list);
 });

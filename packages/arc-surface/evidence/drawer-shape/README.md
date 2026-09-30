@@ -1,12 +1,21 @@
 # Arc drawer shape — ADR-0660 D1–D3
 
+**2026-09-30 (increment_78fcaa473b06).** The harness reaches a ready page again: its bridge now
+answers any read the renderer makes (unknown ones fail as read errors), carries `readSurfaces`
+and `idleAfterMs`, serves every stylesheet the page links, and hides the self-opening app menu.
+Its geometry checks follow the full-width arc bar (its placement is [../arc-bar](../arc-bar/README.md)'s
+acceptance), and the relaunch runs after the first page closes. The four images were refreshed
+by this run. It stops at one real defect: a relaunch loses a picked parked arc
+([evidence](relaunch-selection-red.txt), increment_5d72c0f0c875), so `capture.json` is still
+the last full pass.
+
 The actual desktop renderer, captured unedited with headless Chromium over an isolated
 Postgres. The supplied owner snapshot has 1,307 records and **no arcs or questions** (it predates
 plan cutover). It supplies the real forest beneath the drawer; explicitly created fixture arcs
 exercise waiting, claimed, quiet, queued, parked and closed states. The temporary database is
 removed after capture, and the source snapshot and live library are never changed.
 
-- [Closed: centered top-edge handle](drawer-closed.png)
+- [Closed: the full-width arc bar](drawer-closed.png)
 - [Open: dense two-line rows](drawer-open.png)
 - [Queue: chips beneath the blocker](queue-expanded.png)
 - [Question: reading replaces the list](question-reading.png)

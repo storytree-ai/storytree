@@ -1,0 +1,8 @@
+2026-09-30, Mint box, origin/main 64bbbf7, after node apps/desktop/build.mjs:
+flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/capture.mjs
+
+page.waitForFunction: Timeout 120000ms exceeded.
+    at capture.mjs:96:14 (waiting for document.body.dataset.state === 'ready')
+
+The renderer calls window.storytree.readSurfaces() first (showForest); the harness's
+fixed method list has no readSurfaces, so the call throws and the page never becomes ready.

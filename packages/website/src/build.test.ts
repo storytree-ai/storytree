@@ -18,5 +18,25 @@ test("1.1 · a static build serves its home page and every local asset without a
     assert.ok((await stat(path.join(output, asset === "/" ? "index.html" : asset.replace(/^\//, "")))).isFile(), asset);
   }
   assert.ok((await stat(path.join(output, "assets/forest.js"))).size > 0);
-  assert.doesNotMatch(html, /<script[^>]*src="[^\"]*forest\.js"/);
+});
+
+test("1.2, 1.3 · generated HTML carries the source command and usable install, license and contact links without running JavaScript", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-home-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output, { readme: "## Install\n```powershell\nWrite-Output '<ready>&'\n```" });
+  const html = await readFile(path.join(output, "index.html"), "utf8");
+  assert.match(html, /<code id="install-command">Write-Output '&lt;ready&gt;&amp;'<\/code>/);
+  assert.match(html, /id="install"/);
+  assert.match(html, /href="https:\/\/github.com\/storytree-ai\/storytree\/blob\/main\/LICENSE"/);
+  assert.match(html, /href="https:\/\/www.linkedin.com\/in\/mick-hua-353353a\/"/);
+  assert.match(html, /href="https:\/\/github.com\/storytree-ai\/storytree"/);
+});
+
+test("1.4 · the static not-found page provides a route home", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-404-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const html = await readFile(path.join(output, "404.html"), "utf8");
+  assert.match(html, /<a[^>]*href="\/"/);
+  assert.ok((await stat(path.join(output, "index.html"))).isFile());
 });

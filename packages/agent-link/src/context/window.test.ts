@@ -81,13 +81,19 @@ test("9.10 a note named in a result still in the window but never opened is glim
   assert.deepEqual(claudeCodeWindow(text).glimpses, ["decision_000000000002", "principle_000000000003"]);
 });
 
-test("9.10 a shell call opens the files its own cat, head, tail or sed -n names, and never a word inside quoted text", () => {
+test("9.10 a shell call opens the files its own cat, head, tail or sed -n names, and never a word inside quoted text, a heredoc or another command's arguments", () => {
   const shell = (id: string, command: string) => calls(call(id, "Bash", { command }));
   const window = claudeCodeWindow(jsonl(
     shell("echo", 'echo "read more carefully before the next step"'),
     shell("single", "git commit -m 'tail end of the head of the plan'"),
-    shell("head", "head -5 packages/x/src/a.ts"),
+    shell("heredoc", "git commit -F - <<'EOF'\nThe gate writes its tail /tmp/cimerge-gate.log and fails, saying so; don't\nmore to say\nEOF"),
+    shell("bare", "echo read more carefully"),
+    shell("head", "head -5 packages/x/src/a.ts\ngit status"),
     shell("piped", 'grep -n "cat walks" packages/x/src/b.ts | tail -3'),
+    shell("written", "cat <<'EOF' > packages/x/notes.md\nhead of the notes\nEOF\ncd x && cat packages/x/src/c.ts"),
   ));
-  assert.deepEqual(window.opens.map(({ id, call }) => ({ id, call })), [{ id: "packages/x/src/a.ts", call: "head" }]);
+  assert.deepEqual(window.opens.map(({ id, call }) => ({ id, call })), [
+    { id: "packages/x/src/a.ts", call: "head" },
+    { id: "packages/x/src/c.ts", call: "written" },
+  ]);
 });

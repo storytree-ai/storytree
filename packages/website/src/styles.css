@@ -28,7 +28,8 @@ p { margin: 0; }
 .wordmark { font-size: 28px; font-weight: 650; letter-spacing: -.055em; text-decoration: none; }
 .wordmark span { color: var(--green); }
 .site-header nav { display: flex; gap: 34px; font-size: 14px; }
-.site-header nav a { text-decoration: none; }
+.site-header a, .site-footer a, .text-link { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
+.site-header nav a { gap: .3em; text-decoration: none; }
 .site-header nav a:hover { text-decoration: underline; }
 .hero { padding-block: 82px 64px; }
 .eyebrow { color: var(--green); font-size: 11px; font-weight: 600; line-height: 1.6; letter-spacing: .13em; text-transform: uppercase; }
@@ -69,23 +70,26 @@ h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -.02em
 .install-detail { min-width: 0; }
 .requirement { margin-bottom: 23px; }
 .command-box { background: #18211f; color: #edf0e7; border-radius: 4px; overflow: hidden; }
-.command-heading { padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; min-height: 55px; gap: 12px; border-bottom: 1px solid #394640; font-size: 11px; color: #c0cabb; }
+.command-heading { padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; min-height: 55px; gap: 12px; border-bottom: 1px solid #394640; font-size: 11px; color: #c0cabb; }
 .command-heading > span { text-transform: uppercase; letter-spacing: .1em; }
-.command-heading button { color: #edf0e7; background: transparent; padding: 5px 7px; border: 1px solid #788779; border-radius: 3px; cursor: pointer; font-size: 11px; }
+.command-heading button { color: #edf0e7; background: transparent; min-width: 116px; min-height: 44px; padding: 8px 12px; border: 1px solid #788779; border-radius: 3px; cursor: pointer; font-size: 12px; line-height: 1.5; }
+.command-heading button[aria-disabled="true"] { cursor: progress; }
+.paper .command-box :is(button, pre):focus-visible { outline-color: var(--green); outline-offset: -6px; }
 .command-heading button:hover { background: #344236; }
 pre { margin: 0; padding: 22px 20px 25px; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-size: 13px; line-height: 1.9; }
 code { font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace; user-select: text; }
 .copy-status { min-height: 26px; padding-top: 5px; font-size: 12px; color: #375535; }
 .install-step { margin-bottom: 23px; }
 .install-step strong { color: #202d23; font-weight: 600; }
-.text-link { font-size: 14px; line-height: 1.7; }
+.text-link { gap: .3em; font-size: 14px; line-height: 1.7; }
 .about { padding-block: 84px 87px; }
 .about-body { display: grid; grid-template-columns: 1fr 1.1fr; gap: 80px; margin-top: 24px; }
 .about h2 { margin: 0; }
 .about-copy { max-width: 475px; }
 .about-copy p { font-size: 17px; line-height: 1.8; color: var(--muted); margin-bottom: 19px; }
-.about-copy .text-link { display: inline-block; margin-top: 5px; color: var(--green); }
+.about-copy .text-link { margin-top: 5px; color: var(--green); }
 .site-footer { border-top: 1px solid var(--line); padding-block: 30px 37px; display: flex; align-items: center; justify-content: space-between; gap: 28px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+.site-footer > a:not(.wordmark) { gap: .3em; }
 .site-footer .wordmark { color: #f0f0e7; font-size: 23px; }
 .error-page { min-height: 100svh; display: flex; flex-direction: column; }
 .error-main { flex: 1; padding-block: 105px; }

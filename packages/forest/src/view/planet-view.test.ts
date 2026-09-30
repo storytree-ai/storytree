@@ -103,6 +103,7 @@ test("the globe's opening zoom: the whole planet fills 85% of the short side by 
 
 test("3.15 a click on a capability's territory picks its story with that capability; Unclaimed land picks the story alone", () => {
   const land = {
+    radius: 2,
     territories: [{ capability: "cap-a" }, {}],
     cells: [
       { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },

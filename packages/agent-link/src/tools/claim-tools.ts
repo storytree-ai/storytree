@@ -52,7 +52,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
       if (made.status === "prepared") {
         const { ref, name, base, status } = made;
         return {
-          text: `Work is available; nothing is claimed yet. Call the Codex app's create_worktree with ${JSON.stringify({ ref, name })} (the exact commit from freshly fetched ${base}), then call attach_workspace for ${id} with its returned folder, this ref and name, and your reason. Use the returned directory explicitly: the app does not change your cwd or permissions. If it returns a worktree with a registration error, attach that directory; do not create another as a retry. If create_worktree is unavailable, continue this setup in the Codex desktop app.`,
+          text: `Work is available; nothing is claimed yet. Call the Codex app's create_worktree with ${JSON.stringify({ ref, name })} (the exact commit from freshly fetched ${base}), then call attach_workspace for ${id} with its returned folder, this ref and name, and your reason. Use the returned directory explicitly: the app does not change your cwd or permissions. If it returns a worktree with a registration error, attach that directory; do not create another as a retry. If create_worktree is unavailable (a headless lane), make it yourself: git worktree add --detach <folder> ${ref}, then attach that folder the same way.`,
           data: { made: false, status, ref, name, base },
         };
       }

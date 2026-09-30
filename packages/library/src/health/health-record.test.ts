@@ -539,12 +539,16 @@ function withHealth(tree: ProjectTree, healthOf: (id: string) => NodeHealth): An
     stories: tree.stories.map((story) => ({
       ...story,
       health: healthOf(story.id),
-      capabilities: story.capabilities.map((capability) => ({
-        ...capability,
-        health: healthOf(capability.id),
-        contracts: capability.contracts.map((contract) => ({ ...contract, health: healthOf(contract.id) })),
-        status: capabilityStatus(capability.proposed, capability.contracts.map((contract) => healthOf(contract.id).verified.state)),
-      })),
+      capabilities: story.capabilities.map((capability) => {
+        const why = capabilityWhy(capability.proposed, capability.contracts.map((contract) => ({ id: contract.id, verified: healthOf(contract.id).verified })));
+        return {
+          ...capability,
+          health: healthOf(capability.id),
+          contracts: capability.contracts.map((contract) => ({ ...contract, health: healthOf(contract.id) })),
+          status: capabilityStatus(capability.proposed, capability.contracts.map((contract) => healthOf(contract.id).verified.state)),
+          ...(why === undefined ? {} : { why }),
+        };
+      }),
     })),
     arcs: tree.arcs,
   };

@@ -34,6 +34,19 @@ export interface HealthColumn {
   at?: string;
   /** The note written with the entry: on a contract's column only, and only when there is one. */
   note?: string;
+  /** The kind of skip that left it not checked, when a skip did (ADR-0825 D2). */
+  skip?: SkipKind;
+  /** The earlier verdict it did not reproduce, and when that was written: it is "not re-run". */
+  was?: EarlierVerdict;
+}
+
+/** Why a test was skipped, by who can run it: the owner, a run on another platform, or anyone. */
+export type SkipKind = "owner" | "other" | `platform:${string}`;
+
+/** A verdict an entry did not reproduce. */
+export interface EarlierVerdict {
+  state: "passing" | "failing";
+  at: string;
 }
 
 /** A node's health: the two columns, side by side. */
@@ -49,6 +62,8 @@ export interface NodeHealth {
 export interface HealthOptions extends WriteOptions {
   readonly by?: string;
   readonly note?: string;
+  readonly skip?: SkipKind;
+  readonly was?: EarlierVerdict;
 }
 
 /** One health entry, as it was written. */
@@ -61,6 +76,10 @@ export interface HealthEntry {
   at: string;
   /** The note written with it, when there is one. */
   note?: string;
+  /** The kind of skip that left it not checked, when one did. */
+  skip?: SkipKind;
+  /** The earlier verdict it did not reproduce, when there was one. */
+  was?: EarlierVerdict;
 }
 
 /** A contract in the annotated tree, with its own health. */
@@ -80,6 +99,24 @@ export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
   contracts: AnnotatedContract[];
   health: NodeHealth;
   status: CapabilityStatus;
+  /** Why it is not healthy, and who moves it; absent when it is healthy (ADR-0825 D1). */
+  why?: CapabilityWhy;
+}
+
+/**
+ * Why a capability is not healthy (ADR-0825 D1), from a closed set: `not built` while it is
+ * proposed; otherwise from its contracts' verified columns. Only `needs owner` is the owner's.
+ */
+export type HealthReason = "not built" | "failing" | "not re-run" | "no test names it" | "out of CI's reach" | "needs owner";
+
+/** A capability's reason, who moves it, the contracts that carry it, and since when, where a time was recorded. */
+export interface CapabilityWhy {
+  reason: HealthReason;
+  mover: "agent" | "owner";
+  /** The ids of its contracts carrying the reason, in the capability's order. */
+  contracts: string[];
+  /** The earliest time one of them was recorded so; absent when none was ever recorded. */
+  since?: string;
 }
 
 /** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
@@ -178,7 +215,8 @@ export class HealthRecord {
           const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) }));
           const health = rolledUp(contracts.map((contract) => contract.health));
           const status = capabilityStatus(capability.proposed, contracts.map((contract) => contract.health.verified.state));
-          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status };
+          const why = capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
+          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }) };
         });
         const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)));
         return { ...story, capabilities, health };
@@ -197,11 +235,19 @@ export class HealthRecord {
     if (target?.type !== "contract") {
       throw new MissingReferenceError("node", contractId, "contract", target?.type, target === null ? undefined : ROLLED_UP[target.type]);
     }
-    const { by, note } = options;
+    const { by, note, skip, was } = options;
     const actor = options.actor ?? by;
     const record = await this.#records.create(
       "health",
-      { node: contractId, column, state, ...(by === undefined ? {} : { by }), ...(note === undefined ? {} : { note }) },
+      {
+        node: contractId,
+        column,
+        state,
+        ...(by === undefined ? {} : { by }),
+        ...(note === undefined ? {} : { note }),
+        ...(skip === undefined ? {} : { skip }),
+        ...(was === undefined ? {} : { was: was.state, wasAt: was.at }),
+      },
       { id: healthId(contractId, column), ...(actor === undefined ? {} : { actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) },
     );
     return entryOf(record.fields, record.updatedAt);
@@ -269,8 +315,49 @@ export function capabilityStatus(proposed: boolean, verified: readonly HealthSta
   return state === "passing" ? "healthy" : state === "failing" ? "unhealthy" : "untested";
 }
 
-/** An entry: a health record's fields, and when they were written. `by` and `note` only when there is one. */
+/**
+ * Why a capability is not healthy, and who moves it (ADR-0825 D1); undefined when it is healthy.
+ * Proposed, it is `not built`, whatever its health. Otherwise each contract not verified passing
+ * has a reason: `failing`; not checked, `needs owner` for an owner-kind skip, `out of CI's reach`
+ * for a platform one, `not re-run` for any other skip or an earlier verdict it did not reproduce,
+ * and `no test names it` for one never recorded. The capability's is the first of those, in that
+ * order, its contracts have: the agent's work is ranked before the owner's, so the owner is asked
+ * only once nothing an agent can do remains.
+ */
+export function capabilityWhy(proposed: boolean, contracts: readonly { id: string; verified: HealthColumn }[]): CapabilityWhy | undefined {
+  if (proposed) return { reason: "not built", mover: "agent", contracts: [] };
+  if (contracts.length === 0) return { reason: "no test names it", mover: "agent", contracts: [] };
+  const reasons = contracts.map((contract) => ({ ...contract, reason: contractReason(contract.verified) }));
+  const reason = RANKED.find((candidate) => reasons.some((contract) => contract.reason === candidate));
+  if (reason === undefined) return undefined;
+  const carrying = reasons.filter((contract) => contract.reason === reason);
+  const since = carrying.flatMap(({ verified }) => (verified.at === undefined ? [] : [verified.at])).sort()[0];
+  return { reason, mover: reason === "needs owner" ? "owner" : "agent", contracts: carrying.map(({ id }) => id), ...(since === undefined ? {} : { since }) };
+}
+
+/** The reasons a built capability can have, the one it shows first. */
+const RANKED: readonly HealthReason[] = ["failing", "not re-run", "no test names it", "out of CI's reach", "needs owner"];
+
+/** Why one contract is not verified passing; undefined when it is. */
+function contractReason(verified: HealthColumn): HealthReason | undefined {
+  if (verified.state === "passing") return undefined;
+  if (verified.state === "failing") return "failing";
+  if (verified.skip === "owner") return "needs owner";
+  if (verified.skip?.startsWith("platform:")) return "out of CI's reach";
+  if (verified.skip !== undefined || verified.was !== undefined) return "not re-run";
+  return "no test names it";
+}
+
+/** An entry: a health record's fields, and when they were written. Each optional field only when there is one. */
 function entryOf(fields: FieldsOf<"health">, at: string): HealthEntry {
-  const { column, state, by, note } = fields;
-  return { column, state, ...(by === undefined ? {} : { by }), at, ...(note === undefined ? {} : { note }) };
+  const { column, state, by, note, skip, was, wasAt } = fields;
+  return {
+    column,
+    state,
+    ...(by === undefined ? {} : { by }),
+    at,
+    ...(note === undefined ? {} : { note }),
+    ...(skip === undefined ? {} : { skip: skip as SkipKind }),
+    ...(was === undefined || wasAt === undefined ? {} : { was: { state: was, at: wasAt } }),
+  };
 }

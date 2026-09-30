@@ -46,11 +46,15 @@ export type {
   AnnotatedStory,
   AnnotatedTree,
   CapabilityStatus,
+  CapabilityWhy,
+  EarlierVerdict,
   HealthColumn,
   HealthColumnName,
   HealthEntry,
   HealthOptions,
+  HealthReason,
   HealthState,
   NodeHealth,
+  SkipKind,
 } from "./health/index.js";
 export type { DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Ranked, RankOptions, Related, RelatedHit, RelatedOptions } from "./knowledge/index.js";

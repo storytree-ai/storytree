@@ -1,4 +1,4 @@
-.sessions-list { position:absolute; left:16px; top:16px; bottom:16px; z-index:45; width:min(525px, calc(100% - 32px)); overflow-x:hidden; overflow-y:auto; box-sizing:border-box; padding:10px 12px; color:#d9dedb; background:rgba(18,24,27,.62); backdrop-filter:blur(3px); border:1px solid #3d4748; border-radius:8px; font:13px/1.45 system-ui,sans-serif; box-shadow:0 5px 20px #0004; }
+.sessions-list { position:absolute; left:16px; top:68px; bottom:16px; z-index:45; width:min(525px, calc(100% - 32px)); overflow-x:hidden; overflow-y:auto; box-sizing:border-box; padding:10px 12px; color:#d9dedb; background:rgba(18,24,27,.62); backdrop-filter:blur(3px); border:1px solid #3d4748; border-radius:8px; font:13px/1.45 system-ui,sans-serif; box-shadow:0 5px 20px #0004; }
 .sessions-list { --group-injected:#8d9794; --group-grounding:#5c9fd6; --group-implementation:#e0a84a; --group-other:#566260; }
 .sessions-list[data-fresh="no"] { border-color:#b5771980; }
 .sessions-list header { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:2px 10px; font-size:11px; letter-spacing:.06em; color:#abb4b1; margin-bottom:5px; }
@@ -45,7 +45,7 @@
 .session-segment { background:var(--swatch); }
 .session-tick { position:absolute; top:-1px; bottom:-1px; width:1px; background:#d9dedb; opacity:.7; }
 .session-total { font-variant-numeric:tabular-nums; font-size:11px; width:38px; text-align:right; color:#abb4b1; flex-shrink:0; }
-@media(max-width:600px) { .sessions-list { left:8px; top:8px; bottom:8px; width:calc(100% - 16px); padding:7px; } .session-row { gap:4px; } .session-context-slot { width:59px; margin-left:0; } }
+@media(max-width:600px) { .sessions-list { left:8px; top:68px; bottom:8px; width:calc(100% - 16px); padding:7px; } .session-row { gap:4px; } .session-context-slot { width:59px; margin-left:0; } }
 .session-worktree-state { margin-left:8px; font-size:10px; border:1px solid #4a5654; border-radius:3px; padding:0 4px; color:#b3bdb9; white-space:nowrap; }
 .session-worktree-state[data-state="unmerged"] { color:#e8a07a; border-color:#8a5a43; }
 .session-detail-running li { display:flex; gap:8px; justify-content:space-between; color:#d9dedb; }

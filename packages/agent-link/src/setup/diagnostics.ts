@@ -64,8 +64,12 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
     case "no folder of the user's on the path":
       lines.push({ check: "command", state: "needs-attention", message: "storytree found no writable folder of the user's own on their PATH.", fix: "Add a writable folder inside your home to PATH (such as ~/.local/bin), then run the setup check again." });
       break;
-    default:
+    case undefined:
       lines.push({ check: "command", state: "skipped", message: "No command installation was requested." });
+      break;
+    default:
+      // An older storytree launcher, repointed at this build: say which file changed and what it ran.
+      lines.push({ check: "command", state: "fixed", message: `storytree put its storytree command on the user's path: ${command}.` });
   }
 
   const ghNow = gh === "not answering" ? "did not answer whether it is signed in" : gh === "missing" ? "is not installed" : "is not signed in";

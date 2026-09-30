@@ -25,8 +25,13 @@ export interface CommandPath {
   readonly home: string;
 }
 
-/** What putting the command on the path found. */
-export type CommandInstall = "installed" | "already installed" | "another storytree kept" | "no folder of the user's on the path";
+/** What putting the command on the path found; repointing an older launcher names it and what it ran. */
+export type CommandInstall =
+  | "installed"
+  | `installed (replaced ${string}, which ran ${string})`
+  | "already installed"
+  | "another storytree kept"
+  | "no folder of the user's on the path";
 
 /** Whether GitHub's `gh` is there and signed in. */
 export type GhState = "signed in" | "signed out" | "missing" | "not answering";
@@ -45,9 +50,10 @@ export function putCommandOnPath(where: CommandPath, node: string, target: strin
   if (found.some((file) => !isOurs(file))) return "another storytree kept";
   if (ours.length > 0) {
     const [file] = ours;
-    if (readFileSync(file!, "utf8") === launcher) return "already installed";
+    const before = readFileSync(file!, "utf8");
+    if (before === launcher) return "already installed";
     writeLauncher(file!, launcher); // an older install's, pointing elsewhere
-    return "installed";
+    return `installed (replaced ${file!}, which ran ${ranBy(before)})`;
   }
   const folder = onPath(where).find((candidate) => inside(candidate, where.home) && writable(candidate));
   if (folder === undefined) return "no folder of the user's on the path";
@@ -84,6 +90,11 @@ function launcherFor(node: string, target: string): string {
   return process.platform === "win32"
     ? `@echo off\r\nrem ${MARKER}\r\ngoto #_storytree_handoff_# 2>nul || "${node}" "${target}" %*\r\n`
     : `#!/bin/sh\n# ${MARKER}\nexec "${node}" "${target}" "$@"\n`;
+}
+
+/** The script an older launcher ran, read back from its text. */
+function ranBy(launcher: string): string {
+  return /"[^"]*" "([^"]*)" (?:"\$@"|%\*)/.exec(launcher)?.[1] ?? "a build storytree cannot read";
 }
 
 function writeLauncher(file: string, launcher: string): void {

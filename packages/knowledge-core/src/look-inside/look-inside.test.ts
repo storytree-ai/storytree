@@ -136,6 +136,21 @@ test("4.10 each session's reading path runs from one full read to that agent's n
   assert.deepEqual(trails(reads, [], undefined, present), [], "no running sessions draw no paths");
 });
 
+test("4.12 in a selected session's replay, a subagent's first read steps from the session's latest full read before it, so the head carries on from where it was spawned", () => {
+  const history = project();
+  const roster = [{ session: "b", label: "Billing", colour: "hsl(300, 80%, 68%)", members: ["b"] }];
+  const lines = [read("b", "cover", "whole", "orchestrator"), read("b", "old", "peek", "orchestrator"), read("b", "new", "whole", "orchestrator"),
+    read("b", "deep", "whole", { subagent: "h1" }), read("b", "loose", "whole", { subagent: "h1" }), read("b", "cover", "whole", "orchestrator")];
+  const { reads, knowledge: known } = input(history, lines);
+  const selected = trails(reads, roster, "b", new Set(known.notes.keys()));
+  assert.deepEqual(selected.map(({ from, to, mover }) => `${from}>${to} ${mover.split(" ")[1]}`),
+    ["cover>new orchestrator", "new>deep subagent:h1", "deep>loose subagent:h1", "new>cover orchestrator"],
+    "the subagent's first step leaves the orchestrator's latest full read before it; a peek is no spawn point");
+  assert.deepEqual(replayAt(selected, 1500, { step: 1000, rest: 0 }).head?.step.to, "deep", "the head walks it in its place");
+  assert.deepEqual(trails(reads, roster, undefined, new Set(known.notes.keys())).map(({ from, to }) => `${from}>${to}`),
+    ["cover>new", "deep>loose", "new>cover"], "with none selected a subagent still starts from its own first read");
+});
+
 test("4.11 each known agent's path ends at its latest full read and carries its reading steps in order; unknown agents and unlisted sessions have none", () => {
   const history = project();
   const roster = [

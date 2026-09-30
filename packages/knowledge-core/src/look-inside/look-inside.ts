@@ -266,14 +266,23 @@ export interface Trail {
 /**
  * The reading paths to draw (ADR-0740), in recorded order: every listed session's in its colour
  * with none selected, or the selected session's in its agents' colours. Each is the replay's jumps
- * (a known agent's full reads, one to the next); a peek or an unknown agent draws none, and a
- * repeated step of the same session draws once.
+ * (a known agent's full reads, one to the next, and in a selected session a subagent's first from
+ * where it was spawned); a peek or an unknown agent draws none, and a repeated step of the same
+ * session draws once.
  */
 export function trails(reads: ReadRecord, roster: readonly RosterEntry[], session: string | undefined,
   present: ReadonlySet<string>, windowed: ReadonlyMap<string, AgentReplay> = new Map()): Trail[] {
   const drawn = new Map<string, Trail>();
-  for (const { listed, member, replay, colour } of drawnAgents(reads, roster, session, present, windowed)) {
-    for (const { from, to, seq } of replay.jumps) {
+  const agents = drawnAgents(reads, roster, session, present, windowed);
+  // In a selected session's replay a subagent's first read steps from the session's latest full read before it,
+  // where it was spawned, so the head carries on from there (ADR-0797): a line meaning "read next", never a followed link.
+  const wholes = session === undefined ? [] : agents.flatMap(({ replay }) => replay.known ? replay.jumps.map(({ to, seq }) => ({ agent: replay.agent, to, seq })) : []);
+  const spawnedFrom = (agent: string, seq: number): string | undefined =>
+    wholes.filter((whole) => whole.agent !== agent && whole.seq < seq).sort((a, b) => a.seq - b.seq).at(-1)?.to;
+  for (const { listed, member, replay, colour } of agents) {
+    for (const jump of replay.jumps) {
+      const { to, seq } = jump;
+      const from = jump.from ?? (replay.agent.startsWith("subagent:") ? spawnedFrom(replay.agent, seq) : undefined);
       if (from === undefined || from === to || drawn.has(`${listed} ${from} ${to}`)) continue;
       drawn.set(`${listed} ${from} ${to}`, { from, to, colour, seq, mover: `${member} ${replay.agent}` });
     }

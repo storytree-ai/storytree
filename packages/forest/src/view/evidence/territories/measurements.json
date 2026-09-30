@@ -1,0 +1,1698 @@
+{
+  "front": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 1.6793655730057533,
+    "canvas": {
+      "w": 1440,
+      "h": 864,
+      "size": {
+        "width": 1440,
+        "height": 864,
+        "top": 96,
+        "left": 0
+      }
+    },
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "territoryMeshes": 8,
+        "claimed": 7,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_602c631d32a7",
+            "triangles": 0,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f3c4cf342304",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f5d1f85f2dd1",
+            "triangles": 37,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_05ff7e9f0f99",
+            "triangles": 28,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_4da153322012",
+            "triangles": 73,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2b2232e0345d",
+            "triangles": 15,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_644c46abf9fa",
+            "triangles": 67,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 175,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.0000018737094443450117,
+        "worstBorder": 6.735866958563073e-7,
+        "offending": [],
+        "borderSegments": 47,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.0000018737094443450117,
+        "groundTriangles": 772
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_9dedb2e237cb",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_b59e959e0da8",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_08d9ed39dc7a",
+            "triangles": 118,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dd7b2b7e8ba0",
+            "triangles": 114,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 115,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.4644128946917613,
+        "worstBorder": 0.000001068864240454028,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 53,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.4644128946917613,
+        "groundTriangles": 550
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_da68dca0d5f4",
+            "triangles": 64,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_3224f4ab8017",
+            "triangles": 32,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_60a15402b053",
+            "triangles": 104,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e0c02f9f5cfa",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_34349210675b",
+            "triangles": 53,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 198,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.3749285414688923,
+        "worstBorder": 0.0000011509660640938508,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1659,
+        "worstDistanceOutsideCoast": 0.3749285414688923,
+        "groundTriangles": 766
+      },
+      {
+        "story": "story_20549f1d48af",
+        "territoryMeshes": 3,
+        "claimed": 2,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_d52cb21878a8",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_6becd708350e",
+            "triangles": 4,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 468,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.9587620942859945,
+        "worstBorder": 2.8619116226667893e-7,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 12,
+        "borderMeshes": 1,
+        "verticesChecked": 1638,
+        "worstDistanceOutsideCoast": 1.9587620942859945,
+        "groundTriangles": 1166
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_cd33386156ad",
+            "triangles": 38,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9f02379a2e1a",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_5f85ed8b29a7",
+            "triangles": 135,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_01edc782b586",
+            "triangles": 11,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dda13a1b6f32",
+            "triangles": 136,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 241,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.5726593153835592,
+        "worstBorder": 0.0000011125857286221563,
+        "offending": [
+          "territory:capability_01edc782b586",
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1881,
+        "worstDistanceOutsideCoast": 0.5726593153835592,
+        "groundTriangles": 684
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "territoryMeshes": 2,
+        "claimed": 1,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_83d80a307e18",
+            "triangles": 353,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 80,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.2611229275630476,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_83d80a307e18"
+        ],
+        "borderSegments": 9,
+        "borderMeshes": 1,
+        "verticesChecked": 1317,
+        "worstDistanceOutsideCoast": 1.2611229275630476,
+        "groundTriangles": 526
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "territoryMeshes": 7,
+        "claimed": 6,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_2fa1a37e0d10",
+            "triangles": 143,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_625728b42886",
+            "triangles": 85,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_c7aada819094",
+            "triangles": 56,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_d6e345aa554a",
+            "triangles": 76,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e07dc33c510d",
+            "triangles": 29,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_741dcbce28ee",
+            "triangles": 111,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.12292237422998617,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_625728b42886"
+        ],
+        "borderSegments": 69,
+        "borderMeshes": 1,
+        "verticesChecked": 1794,
+        "worstDistanceOutsideCoast": 0.12292237422998617,
+        "groundTriangles": 614
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_10618c4fdcc4",
+            "triangles": 90,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_75abfdd699c0",
+            "triangles": 148,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9ee4ed8d31a4",
+            "triangles": 39,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2417a0fb5578",
+            "triangles": 167,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 124,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 3.7569614639407862,
+        "worstBorder": 1.8513546520002158e-7,
+        "offending": [
+          "territory:capability_10618c4fdcc4",
+          "territory:capability_75abfdd699c0"
+        ],
+        "borderSegments": 44,
+        "borderMeshes": 1,
+        "verticesChecked": 1792,
+        "worstDistanceOutsideCoast": 3.7569614639407862,
+        "groundTriangles": 1342
+      }
+    ]
+  },
+  "densest": "story_05e45963ca9f",
+  "densestFaced": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 1.6793655730057533,
+    "canvas": {
+      "w": 1440,
+      "h": 864,
+      "size": {
+        "width": 1440,
+        "height": 864,
+        "top": 96,
+        "left": 0
+      }
+    },
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "territoryMeshes": 8,
+        "claimed": 7,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_602c631d32a7",
+            "triangles": 0,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f3c4cf342304",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f5d1f85f2dd1",
+            "triangles": 37,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_05ff7e9f0f99",
+            "triangles": 28,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_4da153322012",
+            "triangles": 73,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2b2232e0345d",
+            "triangles": 15,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_644c46abf9fa",
+            "triangles": 67,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 175,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.0000018737094434041654,
+        "worstBorder": 6.735867081951973e-7,
+        "offending": [],
+        "borderSegments": 47,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.0000018737094434041654,
+        "groundTriangles": 772
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_9dedb2e237cb",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_b59e959e0da8",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_08d9ed39dc7a",
+            "triangles": 118,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dd7b2b7e8ba0",
+            "triangles": 114,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 115,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.46441289469175656,
+        "worstBorder": 0.0000010688642448281009,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 53,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.46441289469175656,
+        "groundTriangles": 550
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_da68dca0d5f4",
+            "triangles": 64,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_3224f4ab8017",
+            "triangles": 32,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_60a15402b053",
+            "triangles": 104,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e0c02f9f5cfa",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_34349210675b",
+            "triangles": 53,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 198,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.37492854146887145,
+        "worstBorder": 0.000001150966060408895,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1659,
+        "worstDistanceOutsideCoast": 0.37492854146887145,
+        "groundTriangles": 766
+      },
+      {
+        "story": "story_20549f1d48af",
+        "territoryMeshes": 3,
+        "claimed": 2,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_d52cb21878a8",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_6becd708350e",
+            "triangles": 4,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 468,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.9587620942859891,
+        "worstBorder": 2.8619116926744965e-7,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 12,
+        "borderMeshes": 1,
+        "verticesChecked": 1638,
+        "worstDistanceOutsideCoast": 1.9587620942859891,
+        "groundTriangles": 1166
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_cd33386156ad",
+            "triangles": 38,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9f02379a2e1a",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_5f85ed8b29a7",
+            "triangles": 135,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_01edc782b586",
+            "triangles": 11,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dda13a1b6f32",
+            "triangles": 136,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 241,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.5726593153835428,
+        "worstBorder": 0.0000011125857175957133,
+        "offending": [
+          "territory:capability_01edc782b586",
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1881,
+        "worstDistanceOutsideCoast": 0.5726593153835428,
+        "groundTriangles": 684
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "territoryMeshes": 2,
+        "claimed": 1,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_83d80a307e18",
+            "triangles": 353,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 80,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.2611229275630518,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_83d80a307e18"
+        ],
+        "borderSegments": 9,
+        "borderMeshes": 1,
+        "verticesChecked": 1317,
+        "worstDistanceOutsideCoast": 1.2611229275630518,
+        "groundTriangles": 526
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "territoryMeshes": 7,
+        "claimed": 6,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_2fa1a37e0d10",
+            "triangles": 143,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_625728b42886",
+            "triangles": 85,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_c7aada819094",
+            "triangles": 56,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_d6e345aa554a",
+            "triangles": 76,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e07dc33c510d",
+            "triangles": 29,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_741dcbce28ee",
+            "triangles": 111,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.12292237422998115,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_625728b42886"
+        ],
+        "borderSegments": 69,
+        "borderMeshes": 1,
+        "verticesChecked": 1794,
+        "worstDistanceOutsideCoast": 0.12292237422998115,
+        "groundTriangles": 614
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_10618c4fdcc4",
+            "triangles": 90,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_75abfdd699c0",
+            "triangles": 148,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9ee4ed8d31a4",
+            "triangles": 39,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2417a0fb5578",
+            "triangles": 167,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 124,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 3.756961463940792,
+        "worstBorder": 1.8513546830467412e-7,
+        "offending": [
+          "territory:capability_10618c4fdcc4",
+          "territory:capability_75abfdd699c0"
+        ],
+        "borderSegments": 44,
+        "borderMeshes": 1,
+        "verticesChecked": 1792,
+        "worstDistanceOutsideCoast": 3.756961463940792,
+        "groundTriangles": 1342
+      }
+    ]
+  },
+  "closeUp": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 4.366350489814959,
+    "canvas": {
+      "w": 1440,
+      "h": 864,
+      "size": {
+        "width": 1440,
+        "height": 864,
+        "top": 96,
+        "left": 0
+      }
+    },
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "territoryMeshes": 8,
+        "claimed": 7,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_602c631d32a7",
+            "triangles": 0,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f3c4cf342304",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f5d1f85f2dd1",
+            "triangles": 37,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_05ff7e9f0f99",
+            "triangles": 28,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_4da153322012",
+            "triangles": 73,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2b2232e0345d",
+            "triangles": 15,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_644c46abf9fa",
+            "triangles": 67,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 175,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.0000018737094434041654,
+        "worstBorder": 6.735867081951973e-7,
+        "offending": [],
+        "borderSegments": 47,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.0000018737094434041654,
+        "groundTriangles": 772
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_9dedb2e237cb",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_b59e959e0da8",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_08d9ed39dc7a",
+            "triangles": 118,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dd7b2b7e8ba0",
+            "triangles": 114,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 115,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.46441289469175656,
+        "worstBorder": 0.0000010688642448281009,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 53,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.46441289469175656,
+        "groundTriangles": 550
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_da68dca0d5f4",
+            "triangles": 64,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_3224f4ab8017",
+            "triangles": 32,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_60a15402b053",
+            "triangles": 104,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e0c02f9f5cfa",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_34349210675b",
+            "triangles": 53,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 198,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.37492854146887145,
+        "worstBorder": 0.000001150966060408895,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1659,
+        "worstDistanceOutsideCoast": 0.37492854146887145,
+        "groundTriangles": 766
+      },
+      {
+        "story": "story_20549f1d48af",
+        "territoryMeshes": 3,
+        "claimed": 2,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_d52cb21878a8",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_6becd708350e",
+            "triangles": 4,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 468,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.9587620942859891,
+        "worstBorder": 2.8619116926744965e-7,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 12,
+        "borderMeshes": 1,
+        "verticesChecked": 1638,
+        "worstDistanceOutsideCoast": 1.9587620942859891,
+        "groundTriangles": 1166
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_cd33386156ad",
+            "triangles": 38,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9f02379a2e1a",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_5f85ed8b29a7",
+            "triangles": 135,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_01edc782b586",
+            "triangles": 11,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dda13a1b6f32",
+            "triangles": 136,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 241,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.5726593153835428,
+        "worstBorder": 0.0000011125857175957133,
+        "offending": [
+          "territory:capability_01edc782b586",
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1881,
+        "worstDistanceOutsideCoast": 0.5726593153835428,
+        "groundTriangles": 684
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "territoryMeshes": 2,
+        "claimed": 1,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_83d80a307e18",
+            "triangles": 353,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 80,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.2611229275630518,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_83d80a307e18"
+        ],
+        "borderSegments": 9,
+        "borderMeshes": 1,
+        "verticesChecked": 1317,
+        "worstDistanceOutsideCoast": 1.2611229275630518,
+        "groundTriangles": 526
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "territoryMeshes": 7,
+        "claimed": 6,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_2fa1a37e0d10",
+            "triangles": 143,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_625728b42886",
+            "triangles": 85,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_c7aada819094",
+            "triangles": 56,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_d6e345aa554a",
+            "triangles": 76,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e07dc33c510d",
+            "triangles": 29,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_741dcbce28ee",
+            "triangles": 111,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.12292237422998115,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_625728b42886"
+        ],
+        "borderSegments": 69,
+        "borderMeshes": 1,
+        "verticesChecked": 1794,
+        "worstDistanceOutsideCoast": 0.12292237422998115,
+        "groundTriangles": 614
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_10618c4fdcc4",
+            "triangles": 90,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_75abfdd699c0",
+            "triangles": 148,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9ee4ed8d31a4",
+            "triangles": 39,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2417a0fb5578",
+            "triangles": 167,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 124,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 3.756961463940792,
+        "worstBorder": 1.8513546830467412e-7,
+        "offending": [
+          "territory:capability_10618c4fdcc4",
+          "territory:capability_75abfdd699c0"
+        ],
+        "borderSegments": 44,
+        "borderMeshes": 1,
+        "verticesChecked": 1792,
+        "worstDistanceOutsideCoast": 3.756961463940792,
+        "groundTriangles": 1342
+      }
+    ]
+  },
+  "worstOutside": {
+    "story": "story_eb7d623fb9c8",
+    "distance": 3.7569614639407862,
+    "offending": [
+      "territory:capability_10618c4fdcc4",
+      "territory:capability_75abfdd699c0"
+    ]
+  },
+  "click": {
+    "target": {
+      "name": "territory:capability_4da153322012",
+      "capability": "capability_4da153322012",
+      "x": 697.0266618031172,
+      "y": 552.8833371350602
+    },
+    "opened": {
+      "selected": "story_05e45963ca9f",
+      "detail": [
+        {
+          "capability": "capability_4da153322012",
+          "heading": "6 · Agent tools (the MCP server) undefined"
+        }
+      ],
+      "marked": [
+        "capability_4da153322012"
+      ]
+    },
+    "opensOnClickedCapability": true
+  },
+  "clickView": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "zoom": 4.366350489814959,
+    "canvas": {
+      "w": 1440,
+      "h": 864,
+      "size": {
+        "width": 1440,
+        "height": 864,
+        "top": 96,
+        "left": 0
+      }
+    },
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "territoryMeshes": 8,
+        "claimed": 7,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_602c631d32a7",
+            "triangles": 0,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f3c4cf342304",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_f5d1f85f2dd1",
+            "triangles": 37,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_05ff7e9f0f99",
+            "triangles": 28,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_4da153322012",
+            "triangles": 73,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2b2232e0345d",
+            "triangles": 15,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_644c46abf9fa",
+            "triangles": 67,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 175,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.0000018737094443450117,
+        "worstBorder": 6.735866958563073e-7,
+        "offending": [],
+        "borderSegments": 47,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.0000018737094443450117,
+        "groundTriangles": 772
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_9dedb2e237cb",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_b59e959e0da8",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_08d9ed39dc7a",
+            "triangles": 118,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dd7b2b7e8ba0",
+            "triangles": 114,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 115,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.4644128946917613,
+        "worstBorder": 0.000001068864240454028,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 53,
+        "borderMeshes": 1,
+        "verticesChecked": 1435,
+        "worstDistanceOutsideCoast": 0.4644128946917613,
+        "groundTriangles": 550
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_da68dca0d5f4",
+            "triangles": 64,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_3224f4ab8017",
+            "triangles": 32,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_60a15402b053",
+            "triangles": 104,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e0c02f9f5cfa",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_34349210675b",
+            "triangles": 53,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 198,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.3749285414688923,
+        "worstBorder": 0.0000011509660640938508,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1659,
+        "worstDistanceOutsideCoast": 0.3749285414688923,
+        "groundTriangles": 766
+      },
+      {
+        "story": "story_20549f1d48af",
+        "territoryMeshes": 3,
+        "claimed": 2,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_d52cb21878a8",
+            "triangles": 66,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_6becd708350e",
+            "triangles": 4,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 468,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.9587620942859945,
+        "worstBorder": 2.8619116226667893e-7,
+        "offending": [
+          "territory:unclaimed"
+        ],
+        "borderSegments": 12,
+        "borderMeshes": 1,
+        "verticesChecked": 1638,
+        "worstDistanceOutsideCoast": 1.9587620942859945,
+        "groundTriangles": 1166
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "territoryMeshes": 6,
+        "claimed": 5,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_cd33386156ad",
+            "triangles": 38,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9f02379a2e1a",
+            "triangles": 30,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_5f85ed8b29a7",
+            "triangles": 135,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_01edc782b586",
+            "triangles": 11,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_dda13a1b6f32",
+            "triangles": 136,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 241,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.5726593153835592,
+        "worstBorder": 0.0000011125857286221563,
+        "offending": [
+          "territory:capability_01edc782b586",
+          "territory:unclaimed"
+        ],
+        "borderSegments": 54,
+        "borderMeshes": 1,
+        "verticesChecked": 1881,
+        "worstDistanceOutsideCoast": 0.5726593153835592,
+        "groundTriangles": 684
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "territoryMeshes": 2,
+        "claimed": 1,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_83d80a307e18",
+            "triangles": 353,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 80,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 1.2611229275630476,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_83d80a307e18"
+        ],
+        "borderSegments": 9,
+        "borderMeshes": 1,
+        "verticesChecked": 1317,
+        "worstDistanceOutsideCoast": 1.2611229275630476,
+        "groundTriangles": 526
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "territoryMeshes": 7,
+        "claimed": 6,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_2fa1a37e0d10",
+            "triangles": 143,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_625728b42886",
+            "triangles": 85,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_c7aada819094",
+            "triangles": 56,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_d6e345aa554a",
+            "triangles": 76,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_e07dc33c510d",
+            "triangles": 29,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_741dcbce28ee",
+            "triangles": 111,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 52,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 0.12292237422998617,
+        "worstBorder": 0,
+        "offending": [
+          "territory:capability_625728b42886"
+        ],
+        "borderSegments": 69,
+        "borderMeshes": 1,
+        "verticesChecked": 1794,
+        "worstDistanceOutsideCoast": 0.12292237422998617,
+        "groundTriangles": 614
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "territoryMeshes": 5,
+        "claimed": 4,
+        "unclaimed": 1,
+        "territories": [
+          {
+            "name": "territory:capability_10618c4fdcc4",
+            "triangles": 90,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_75abfdd699c0",
+            "triangles": 148,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_9ee4ed8d31a4",
+            "triangles": 39,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:capability_2417a0fb5578",
+            "triangles": 167,
+            "opacity": 0.22,
+            "depthWrite": false
+          },
+          {
+            "name": "territory:unclaimed",
+            "triangles": 124,
+            "opacity": 0.22,
+            "depthWrite": false
+          }
+        ],
+        "worstTerritory": 3.756961463940785,
+        "worstBorder": 1.8513546520002158e-7,
+        "offending": [
+          "territory:capability_10618c4fdcc4",
+          "territory:capability_75abfdd699c0"
+        ],
+        "borderSegments": 44,
+        "borderMeshes": 1,
+        "verticesChecked": 1792,
+        "worstDistanceOutsideCoast": 3.756961463940785,
+        "groundTriangles": 1342
+      }
+    ]
+  },
+  "insideCoast": {
+    "front": false,
+    "densestFaced": false,
+    "closeUp": false,
+    "clickView": false
+  },
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  }
+}

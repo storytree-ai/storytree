@@ -1,19 +1,15 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, type ReactNode } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
-import { DirectionalLight, Group, Quaternion, Vector3, type Camera } from 'three';
+import type { Camera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
-import { CellGround, KitProps, SHIPPED_GROUND_INPUT, preloadKit } from '../ForestWorldCanvas.js';
 import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
 import { Pathways } from './PlanetTrailRibbons.js';
 import type { Descriptor3D } from '../world-to-3d.js';
-import { createGroundInputCache } from '../ground-dependency.js';
-import { createGrowthTexture } from '../ForestWorldCanvas.growth-material.js';
 import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
-import { calibrateLights, intensitiesFor } from '../light-calibration.js';
 import { SHIPPED_ELEVATION_DEG, orthographicZoomFor } from '../camera-framing.js';
-import { createPlanetSurface, lightForCamera, plateTransform, type PlanetSpot } from './planet.js';
-import type { KitPlacement } from '../kit-vocabulary.js';
+import { createPlanetSurface, plateTransform, type PlanetSpot } from './planet.js';
+import { disposeIslandSurface, islandSurface } from './island-surface.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -24,7 +20,6 @@ export interface PlanetWorldCanvasProps {
   spots: ReadonlyMap<string, PlanetSpot>;
   /** Fixed radius from the placement rule, in the ported engine's ground units. */
   radius: number;
-  kitBytes?: Uint8Array;
   /** A host can turn the globe toward a failing story without rebuilding the plates. */
   rotation?: [number, number, number, number];
   /** Names, selection and claim markers mount in each plate's local ground coordinates. */
@@ -39,47 +34,20 @@ export interface PlanetWorldCanvasProps {
   framing?: number | undefined;
 }
 
-const ALPHA: ReadonlyMap<KitPlacement, number> = new Map();
-const settled = () => {};
-
 const Plate = memo(function Plate({ island, spot, radius, plate, children }: {
   island: Island; spot: PlanetSpot; radius: number; plate: PlanetPathwayPlate;
   children: PlanetWorldCanvasProps['plateChildren'];
 }) {
-  const group = useRef<Group>(null);
   const transform = useMemo(() => plateTransform(spot, radius), [spot.x, spot.y, spot.z, radius]);
-  const { descriptors, paths } = plate;
-  const cache = useMemo(() => createGroundInputCache(SHIPPED_GROUND_INPUT), []);
-  const ground = cache(descriptors);
-  const growth = useMemo(() => createGrowthTexture(ground.growthLayout.size + 1), [ground]);
-  useEffect(() => () => growth.texture.dispose(), [growth]);
-  const localLight = useMemo(() => new Vector3(), []);
-  const inversePlate = useMemo(() => new Quaternion(), []);
-  // Controls update at -1; lights then follow the new eye before the renderer draws.
-  useFrame(({ camera }) => {
-    if (group.current === null) return;
-    group.current.getWorldQuaternion(inversePlate).invert();
-    lightForCamera(camera.quaternion, localLight).applyQuaternion(inversePlate);
-  });
-  return <group ref={group} position={transform.position} quaternion={transform.quaternion} name={`planet:${island.story}`}>
-    <CellGround ground={ground} growth={growth} plateLight={localLight} paths={paths} />
-    <KitProps placements={ground.placements} alphaByPlacement={ALPHA} islandByPlacement={ground.islandByPlacement}
-      layout={ground.growthLayout} growth={growth} targets={null} onTargets={undefined} onSettled={settled} />
+  const { descriptors, coast } = plate;
+  // ADR-0804 D1: the island is one flat, pale, see-through surface with a coast line, and nothing else.
+  const ground = useMemo(() => islandSurface(coast, radius, island.story), [coast, radius, island.story]);
+  useEffect(() => () => disposeIslandSurface(ground), [ground]);
+  return <group position={transform.position} quaternion={transform.quaternion} name={`planet:${island.story}`}>
+    <primitive object={ground} />
     {children?.(island, descriptors)}
   </group>;
 });
-
-function Lights() {
-  const gl = useThree(s => s.gl);
-  const lit = useMemo(() => intensitiesFor(calibrateLights(gl)), [gl]);
-  const key = useRef<DirectionalLight>(null);
-  useFrame(({ camera }) => {
-    if (key.current === null) return;
-    lightForCamera(camera.quaternion, key.current.position).multiplyScalar(1000);
-    key.current.updateMatrixWorld();
-  });
-  return <><ambientLight intensity={lit.ambient} /><directionalLight ref={key} intensity={lit.directional} /></>;
-}
 
 function Surface({ radius }: { radius: number }) {
   const surface = useMemo(() => createPlanetSurface(radius), [radius]);
@@ -97,23 +65,17 @@ function Framing({ radius, framing }: { radius: number; framing: number }) {
   return null;
 }
 
-/** A second mount of 0.2's ground and pines: one Canvas and one calibrated sun for all plates.
- * The flat ForestWorldCanvas retains its own camera, controls, material defaults and lighting. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], kitBytes, plateChildren, children, surface = true, inside, framing = 1.18 }: PlanetWorldCanvasProps) {
+/** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
+ * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, inside, framing = 1.18 }: PlanetWorldCanvasProps) {
   const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
   const pathways = drawing.plan;
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
-  const onCreated = useCallback(({ camera }: { camera: Camera }) => {
-    camera.lookAt(0, 0, 0);
-    // Canvas has configured exact colour before parsing the shared kit's materials.
-    // KitProps reports a load failure and still lets the ground draw, as the flat mount does.
-    if (kitBytes !== undefined) void preloadKit(kitBytes).catch(() => {});
-  }, [kitBytes]);
+  const onCreated = useCallback(({ camera }: { camera: Camera }) => camera.lookAt(0, 0, 0), []);
   return <Canvas orthographic {...EXACT_COLOUR_CANVAS_PROPS} frameloop="demand"
     camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
     <color attach="background" args={['#101418']} />
-    <Lights />
     <Framing radius={radius} framing={framing} />
     <group quaternion={rotation}>
       {surface && <Surface radius={radius} />}

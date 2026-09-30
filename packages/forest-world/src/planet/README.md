@@ -2,14 +2,14 @@
 
 `PlanetWorldCanvas` is the browser entry at `@storytree/forest-world/planet`.
 It accepts the existing `ForestScene`, a `ReadonlyMap<storyId, { x, y, z }>` of
-unit directions, the placement rule's fixed `radius` in ground units, and the
-same exported pine `kitBytes` as `ForestWorldCanvas`.
+unit directions and the placement rule's fixed `radius` in ground units.
 
-Each island is centred before `forestDescriptors` builds it, then the existing
-`CellGround` and `KitProps` draw it under a rigid tangent group. There is one
-orthographic canvas, one calibrated ambient/directional light pair and one
-parsed kit. Plates own and dispose their ground textures and kit material
-clones. Drag orbits the camera; wheel/pinch zooms. Rendering runs on demand.
+Each island is centred before `forestDescriptors` builds it; its clipped coast then becomes one
+flat, pale, see-through surface with a coast band (`island-surface.ts`, ADR-0804 D1), bent onto the
+globe's sphere under a rigid tangent group. There is no ground colouring, no pines or plants, and so
+no kit to parse and no sun to calibrate. There is one orthographic canvas. Plates own and dispose
+their surface geometry. Drag orbits the camera; wheel/pinch zooms. Rendering runs on demand. The
+`kitBytes` prop is gone.
 
 `plateChildren(island, descriptors)` puts the page's names, selection and claim
 markers in the plate's local coordinates. `parcelSpots(descriptors)` and
@@ -18,20 +18,15 @@ R3F `children` can read the default orbit controls. The optional `rotation`
 quaternion turns the globe as a whole for host-driven focus. The page, its
 selection handling and its failing-story markers are lane D's work.
 
-L1 (ADR-0646) keeps the flat forest's lamp fixed relative to the eye. Each
-plate inverse-rotates that world direction into its ground shader; the kit
-uses the same world sun through Three's ordinary directional light. At the
-flat forest's viewing angle relative to a plate, its local light is the
-original `LIGHT_DIRECTION`. Paint, terrain slope and atlases stay in plate
-coordinates. The baked shadows and skirt colours stay as approved; they do
-not become a moving-sun simulation. Clearance of 1.692108 ground units keeps
-negative relief above the shell. ADR-0648 replaces the opaque sea with a light grey
+L1 (ADR-0646) kept the flat forest's lamp fixed relative to the eye for the ground and the kit;
+ADR-0804 removed both, so only the glass ball's highlight still follows that lamp. Clearance of 1.692108 ground units keeps
+the plate's origin above the shell (so the flat surface rests on it). ADR-0648 replaces the opaque sea with a light grey
 transparent shell, tuned after #93 at the owner’s request to read as glass. The same
 sphere uses a small shader: 0.012 base opacity, a Fresnel rim and a single soft
 highlight from L1’s view-space lamp. It keeps both face draws and depth writing off,
 without a transmission buffer or refraction. The far side remains visible through it. It still answers rays, so the page keeps its
 near-side names, claims and picking rule. The surface owns and disposes its
-geometry and material. The islands and L1 light are unchanged.
+geometry and material.
 
 The flat canvas keeps its camera, controls and material defaults. Existing
 tests were left unchanged. A comparison against the red commit's shipped

@@ -43,7 +43,7 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
         : "storytree's status line is installed in Claude Code." });
   }
 
-  // The app updates the hooks it installed only while it runs: say when they run an older release (contract 8.16).
+  // The app updates the hooks it installed only while it runs: say when they run an older release (contract 8.18).
   const { running, latest } = report.hooksRelease;
   if (running !== undefined && latest !== undefined) lines.push(compareVersions(running, latest) < 0
     ? {

@@ -56,7 +56,7 @@ export async function buildBins(outdir: string, { release }: { release?: { versi
     ],
   });
   await stageNativeProbes(outdir);
-  // The release beside the scripts, so the setup check can say when installed hooks lag the latest (contract 8.16).
+  // The release beside the scripts, so the setup check can say when installed hooks lag the latest (contract 8.18).
   if (release !== undefined) writeFileSync(path.join(outdir, "release.json"), `${JSON.stringify(release)}\n`);
   return Object.fromEntries(Object.keys(ENTRY_POINTS).map((name) => [name, path.join(outdir, `${name}.mjs`)]));
 }

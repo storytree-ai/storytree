@@ -56,7 +56,7 @@ export interface SetupOptions {
   readonly machine?: () => Promise<MachineState>;
   /** Where the Claude desktop app and Codex keep their session records (ADR-0754 D4). By default, where each app puts them for this user. */
   readonly appPlaces?: AppPlaces;
-  /** How to ask for the latest release, to compare the hooks' with (contract 8.16). By default, `gh release view`. */
+  /** How to ask for the latest release, to compare the hooks' with (contract 8.18). By default, `gh release view`. */
   readonly latestRelease?: LatestRelease;
 }
 

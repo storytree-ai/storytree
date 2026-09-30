@@ -1,5 +1,5 @@
 /**
- * Which release the registered hooks run, against the latest release (contract 8.16). The desktop
+ * Which release the registered hooks run, against the latest release (contract 8.18). The desktop
  * app installs the hooks and updates them only while it runs, so a machine where it stays closed
  * keeps running an old build with nothing saying so (friction_f42b5554bbad: the laptop's hooks ran
  * v0.3.309 while v0.3.333 was out, and a merged fix never reached them). A build states its release

@@ -791,7 +791,7 @@ test("8.15 with no desktop app, a session whose tool server runs from a checkout
   });
 });
 
-test("8.16 the check says when the hooks run an older release than the latest, since the app updates them only while it runs, and says nothing is wrong when they run the latest (regression: the laptop's hooks ran v0.3.309 with v0.3.333 out, 2026-09-30)", async () => {
+test("8.18 the check says when the hooks run an older release than the latest, since the app updates them only while it runs, and says nothing is wrong when they run the latest (regression: the laptop's hooks ran v0.3.309 with v0.3.333 out, 2026-09-30)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const tools = path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools");

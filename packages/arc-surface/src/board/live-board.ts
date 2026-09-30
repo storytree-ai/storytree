@@ -6,7 +6,7 @@ import { readBoard, type BoardReads } from "./reads.js";
 
 /** "refreshing": the kept last board, drawn before this start's first read lands. */
 export interface BoardState { status: "loading" | "refreshing" | "ready" | "error"; board?: BoardView; error?: string }
-export interface WatchBoardOptions { project: string; reads: BoardReads; timers?: Timers; kept?: Kept<BoardSnapshot>; onState(state: BoardState): void }
+export interface WatchBoardOptions { project: string; reads: BoardReads; timers?: Timers; kept?: Kept<BoardSnapshot>; /** The scope drawn first, so a kept board opens at the saved scope. */ scope?: BoardScope; onState(state: BoardState): void }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 /** Whether a kept value has a board snapshot's shape, so one kept by an older build is not drawn. */
@@ -15,12 +15,12 @@ export function isBoardSnapshot(value: unknown): value is BoardSnapshot {
     && value.arcs.every((view) => isRecord(view) && isRecord(view.arc) && Array.isArray(view.increments) && Array.isArray(view.questions) && typeof view.state === "string");
 }
 
-export function watchBoard({ project, reads, timers, kept, onState }: WatchBoardOptions) {
+export function watchBoard({ project, reads, timers, kept, scope: startScope = "active", onState }: WatchBoardOptions) {
   let snapshot = kept?.read();
   let fresh = false;
   let lines: Line[] = [];
   let now = timers?.now() ?? Date.now();
-  let scope: BoardScope = "active";
+  let scope: BoardScope = startScope;
   let stopped = false;
   let error: string | undefined;
   let quietMs: number | undefined;

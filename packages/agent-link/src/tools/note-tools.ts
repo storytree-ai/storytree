@@ -9,6 +9,7 @@
  *   opened without having been shown was found by its id. Each read names the agent that made it,
  *   as the harness revealed it (ADR-0629 D2). The record says what was reached, never what helped
  *   (ADR-0624 D3).
+ * - A contract opens whole too: its promise and the capability it belongs to. An arc is refused.
  * - An artifact is corrected in place through the library's editNote (ADR-0641 D2 step 3): only the
  *   fields given change, and its old wording stays in its history.
  * - A new artifact with no place named goes onto the shelf of the capability the session claimed most
@@ -26,6 +27,8 @@ import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { firstLineOf, quoted, spineOf, wholeOf, type Findable } from "./text.js";
 
 type Found = Extract<NewLine, { kind: "note-read" }>["found"];
+type CapabilityNode = Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["capabilities"][number];
+type ContractNode = CapabilityNode["contracts"][number];
 
 export function registerNoteTools(define: Define): void {
   define(
@@ -52,8 +55,8 @@ export function registerNoteTools(define: Define): void {
 
   define(
     "open",
-    "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act.",
-    z.object({ id: z.string().min(1).describe("The id of a story, a capability or an artifact") }),
+    "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read its promise and the capability it belongs to; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act.",
+    z.object({ id: z.string().min(1).describe("The id of a story, a capability, a contract or an artifact") }),
     async ({ id }, call) => openRecord(id, call),
   );
 
@@ -98,15 +101,18 @@ async function openRecord(id: string, call: Call): Promise<Answer> {
   const tree = await library.projectTree();
   for (const story of tree.stories) {
     if (story.id === id) return openShelf("Story", story.title, id, call);
-    const capability = story.capabilities.find((node) => node.id === id);
-    if (capability !== undefined) return openShelf("Capability", capability.title, id, call);
+    for (const capability of story.capabilities) {
+      if (capability.id === id) return openShelf("Capability", capability.title, id, call);
+      const contract = capability.contracts.find((node) => node.id === id);
+      if (contract !== undefined) return openContract(contract, capability);
+    }
   }
   const notes = await library.search("");
   const note = notes.find((candidate) => candidate.id === id);
   if (note === undefined) {
-    const planned = tree.arcs.some((arc) => arc.id === id) || tree.stories.some((story) => story.capabilities.some((node) => node.contracts.some((contract) => contract.id === id)));
+    const arc = tree.arcs.some((node) => node.id === id);
     return {
-      text: planned ? `${id} is an arc or a contract: open a story, a capability or an artifact.` : `Nothing in this project has the id ${id}.`,
+      text: arc ? `${id} is an arc: open a story, a capability, a contract or an artifact.` : `Nothing in this project has the id ${id}.`,
       refused: true,
     };
   }
@@ -121,6 +127,17 @@ async function openRecord(id: string, call: Call): Promise<Answer> {
   if (linksTo.length > 0) out.push("It links to:", ...linksTo.map(spineLine));
   if (linkedFrom.length > 0) out.push("Linked from:", ...linkedFrom.map(spineLine));
   return { text: out.join("\n"), data: { note: { id, kind: note.type, ...note.fields }, linksTo: linksTo.map(spineData), linkedFrom: linkedFrom.map(spineData) } };
+}
+
+/** A contract whole: its title, its description, and the capability it belongs to. */
+function openContract(contract: ContractNode, capability: CapabilityNode): Answer {
+  const out = [`Contract ${quoted(contract.title)} (${contract.id}):`];
+  if (contract.description !== undefined) out.push(contract.description);
+  out.push(`It belongs to Capability ${quoted(capability.title)} (${capability.id}).`);
+  return {
+    text: out.join("\n"),
+    data: { contract: { id: contract.id, title: contract.title, ...(contract.description === undefined ? {} : { description: contract.description }), capability: { id: capability.id, title: capability.title } } },
+  };
 }
 
 async function openShelf(kind: "Story" | "Capability", title: string, id: string, call: Call): Promise<Answer> {

@@ -93,3 +93,14 @@ test("4.12 a yes is checked, never trusted: it leaves the list at once when its 
     assert.deepEqual({ closeOut: back?.closeOut, listing: back?.listing }, { closeOut: undefined, listing: "listed" });
   });
 });
+
+test("4.12 closing out asks GitHub whether the session's branch has merged, so a merge no hook recorded lets a yes leave the list", async () => {
+  await withProject(async (log, project, home) => {
+    const at = { ...CLAUDE, session: "landed", folder: home, branch: "fix-landed" } as const;
+    await log.append(project, { ...at, kind: "file-edited", files: ["a.ts"] });
+    const allMergedPulls = async () => new Map([["fix-landed", [{ number: 9, mergedAt: new Date(Date.now() + 1_000).toISOString() }]]]);
+    const { line } = await closeOut({ log, project, session: "landed", harness: "claude-code", folder: home, branch: "fix-landed" }, { safe: true, why: "PR 9 merged" }, { home, look: { allMergedPulls } });
+    const landed = (await readSessions(log, project, { now: after(line, 1_000) })).find((one) => one.session === "landed");
+    assert.deepEqual({ verified: landed?.closeOut?.verified, listing: landed?.listing }, { verified: true, listing: "hidden" });
+  });
+});

@@ -1,10 +1,13 @@
 /**
  * Capability 4 · Sessions, the listing (contract 4.13): the running-sessions list as the command
  * line shows it, one block per session, or as JSON. By default the sessions the list shows (listed
- * and done); with `all`, the hidden ones too.
+ * and done); with `all`, the hidden ones too. Given a `look`, it first asks whether each branch has
+ * merged, as the board does for claims, so the list never waits on a hook to have recorded a merge.
  */
 import type { ActivityLog } from "../activity/index.js";
+import type { MergeContext } from "../claims/merges.js";
 import type { Session, SessionOptions } from "../readings.js";
+import { resolveBranches, type BranchWatch } from "./branch-states.js";
 import { readSessions } from "./sessions.js";
 
 export interface ListingOptions extends SessionOptions {
@@ -12,10 +15,13 @@ export interface ListingOptions extends SessionOptions {
   readonly all?: boolean;
   /** The sessions as JSON, instead of text. */
   readonly json?: boolean;
+  /** Who reads, and where: the project's branches are looked at first, now, whenever a hook last looked. */
+  readonly look?: { readonly context: MergeContext; readonly watch?: BranchWatch };
 }
 
 /** `project`'s sessions, as text or JSON, in the order they started. */
 export async function sessionsListing(log: ActivityLog, project: string, options: ListingOptions = {}): Promise<string> {
+  if (options.look !== undefined) await resolveBranches(options.look.context, { ...options.look.watch, everyMs: 0 }).catch(() => []);
   const sessions = await readSessions(log, project, options);
   const shown = options.all === true ? sessions : sessions.filter((session) => session.listing !== "hidden");
   if (options.json === true) return JSON.stringify(shown, undefined, 2);

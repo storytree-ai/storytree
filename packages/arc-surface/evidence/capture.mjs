@@ -202,6 +202,7 @@ try {
   await relaunched.waitForSelector('.arc-overlay[data-arc-state=ready]');
   assert.equal(await relaunched.locator('[data-arc-scope="parked"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await relaunched.locator(`[data-arc-select="${parked.id}"]`).getAttribute('aria-pressed'), 'true');
+  await relaunched.screenshot({ path: path.join(output, 'relaunch-parked-picked.png') });
   await relaunched.keyboard.press('Escape');
   await relaunched.reload();
   await relaunched.waitForFunction(() => document.body.dataset.state === 'ready');

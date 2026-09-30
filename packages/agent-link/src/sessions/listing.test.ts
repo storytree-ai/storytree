@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { openActivityLog } from "../activity/index.js";
+import { withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { sessionsListing } from "./index.js";
 
@@ -34,6 +35,27 @@ test("4.13 the sessions listing shows each listed session's state and why it nee
 
     const json = JSON.parse(await sessionsListing(log, project, { now, quietMs: 60_000, leaveMs: 60_000, json: true })) as { session: string; closeOut?: { needsYou?: string } }[];
     assert.deepEqual(json.map((one) => [one.session, one.closeOut?.needsYou]), [["login", "says safe, but fix-login is unmerged"]]);
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.13 the sessions listing asks GitHub about merges itself, so a merge no hook recorded never reads unmerged", async () => {
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (folder) => {
+      const project = uniqueProjectName();
+      const at = { session: "login", harness: "claude-code", source: "hook", folder: "/work/site/.claude/worktrees/fix-login", branch: "fix-login" } as const;
+      await log.append(project, { ...at, kind: "prompt-submitted" });
+      await log.append(project, { ...at, kind: "turn-ended" });
+      const last = await log.append(project, { ...at, kind: "closed-out", safe: true, why: "PR 7 merged", running: 0 });
+      const now = new Date(Date.parse(last.at) + 1_000);
+      const allMergedPulls = async () => new Map([["fix-login", [{ number: 7, mergedAt: now.toISOString() }]]]);
+      const look = { context: { log, project, folder, session: "reader", source: "tool" }, watch: { allMergedPulls } } as const;
+
+      const json = JSON.parse(await sessionsListing(log, project, { now, quietMs: 60_000, leaveMs: 60_000, all: true, json: true, look })) as { session: string; closeOut?: { verified: boolean } }[];
+      assert.deepEqual(json.filter((one) => one.session === "login").map((one) => one.closeOut?.verified), [true]);
+    });
   } finally {
     await log.close();
   }

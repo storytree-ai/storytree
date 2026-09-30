@@ -85,6 +85,14 @@ test("7.14 an unclaimed row is named by its app's title; every row carries up to
   assert.deepEqual([plain.label, plain.description], ["Codex · site", []], "no app words, the place names it and nothing describes it");
 });
 
+test("7.13 each row names the machine its session runs on only when the listed sessions span more than one machine", () => {
+  const lines = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "mint" },
+    { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });
+  assert.deepEqual(sessionRows(tree, lines, [], now).map(row => row.machine), ["laptop", "mint", undefined]);
+  const one = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "laptop" });
+  assert.deepEqual(sessionRows(tree, one, [], now).map(row => row.machine), [undefined, undefined], "one machine is not worth naming");
+});
+
 test("a session whose hooks report no turns is judged by the idle-after setting the list is given, not a fixed 30 minutes", () => {
   const lines = log({ ...off, kind: "claimed", increment: "tidy", reason: "Tidy", at: "2026-09-28T11:45:00Z" });
   assert.equal(sessionRows(tree, lines, [], now)[0]?.state, "working", "15 minutes quiet is working at the 30-minute default");

@@ -311,7 +311,8 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
   const traversal = useMemo(() => window?.steps.map(({ from, to, edge, faded }, seq): Trail => ({ from, to, colour, seq, mover: state.session!, step: { edge, faded } })),
     [window, colour, state.session]);
   const drawnPaths = state.session === undefined || window?.status !== undefined ? paths : traversal ?? [];
-  const glows = state.session === undefined || window?.status !== undefined ? replays : [];
+  // A selected session replays as one head over its drawn steps instead of a glow per agent (ADR-0797); with none selected every agent glows (ADR-0742 D3).
+  const glows = state.session === undefined ? replays : [];
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
-  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} />;
+  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} replay={state.session !== undefined} />;
 }

@@ -10,7 +10,8 @@ import { installCommand } from "../src/install-command.ts";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const output = path.join(here, process.argv[2] ?? "scaffold");
 const dist = path.resolve(here, "../dist");
-const verifyControls = process.argv.includes("--verify-controls");
+const verifyEnlarged = process.argv.includes("--verify-enlarged");
+const verifyControls = process.argv.includes("--verify-controls") || verifyEnlarged;
 const verifyHome = process.argv.includes("--verify-home") || verifyControls;
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".json": "application/json" };
 const server = createServer(async (req, res) => {
@@ -85,6 +86,72 @@ try {
       await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
     }
     await copy.close();
+  }
+  if (verifyEnlarged) {
+    // Contract 1.7: injected text enlargement, not native browser zoom.
+    const enlarged = [];
+    const problems = [];
+    for (const width of [320, 390, 1280]) for (const route of ["home", "404"]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, permissions: ["clipboard-read", "clipboard-write"] });
+      await page.goto(url + (route === "404" ? "missing-page" : ""));
+      await page.evaluate(() => {
+        const sizes = [...document.querySelectorAll("body, body *")].map(element => [element, parseFloat(getComputedStyle(element).fontSize)]);
+        for (const [element, size] of sizes) element.style.setProperty("font-size", `${size * 2}px`, "important");
+      });
+      const measured = await page.evaluate(() => {
+        const textRects = element => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          return [...range.getClientRects()].map(rect => rect.toJSON());
+        };
+        const header = [...document.querySelectorAll(".site-header a")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
+        const issues = [];
+        for (let i = 0; i < header.length; i++) for (let j = i + 1; j < header.length; j++) {
+          if (header[i].rects.some(a => header[j].rects.some(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1))) issues.push(`${header[i].text} overlaps ${header[j].text}`);
+        }
+        const headings = [...document.querySelectorAll("h1, #install-title")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
+        for (const element of [...header, ...headings]) if (element.rects.some(rect => rect.left < 0 || rect.right > innerWidth + 1)) issues.push(`${element.text} extends beyond the viewport`);
+        const button = document.querySelector("#copy-command");
+        let copy;
+        if (button) {
+          const box = button.closest(".command-box").getBoundingClientRect();
+          copy = { control: button.getBoundingClientRect().toJSON(), text: textRects(button), panel: box.toJSON() };
+          if ([copy.control, ...copy.text].some(rect => rect.left < box.left || rect.right > box.right || rect.top < box.top || rect.bottom > box.bottom)) issues.push("Copy control or label is clipped by the command panel");
+        }
+        if (document.documentElement.scrollWidth > innerWidth) issues.push("Page overflows horizontally");
+        return { viewport: innerWidth, document: document.documentElement.scrollWidth, header, headings, copy, issues };
+      });
+      enlarged.push({ route, ...measured });
+      problems.push(...measured.issues.map(issue => `${route} at ${width}px: ${issue}`));
+      const prefix = `${route}-text200-${width}`;
+      await page.locator(".site-header").screenshot({ path: path.join(output, `${prefix}-header.png`) });
+      await page.locator("h1").screenshot({ path: path.join(output, `${prefix}-heading.png`) });
+      if (route === "home") {
+        await page.locator("#install-title").screenshot({ path: path.join(output, `${prefix}-install.png`) });
+        await page.locator(".command-box").screenshot({ path: path.join(output, `${prefix}-command.png`) });
+      }
+      if (measured.issues.length === 0) {
+        const nav = page.locator(".site-header nav a").first();
+        await nav.focus();
+        await page.keyboard.press("Enter");
+        await page.waitForURL(route === "home" ? url + "#install" : url);
+        if (route === "home") {
+          assert.equal(new URL(page.url()).hash, "#install");
+          const button = page.locator("#copy-command");
+          await button.click();
+          await page.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
+          await button.focus();
+          await page.keyboard.press("Enter");
+          await page.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
+          assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await page.locator("#install-command").textContent());
+        }
+        await page.locator(".site-header .wordmark").click();
+        await page.waitForURL(url);
+      }
+      await page.close();
+    }
+    await writeFile(path.join(output, "enlarged-measurements.json"), JSON.stringify(enlarged, null, 2) + "\n");
+    assert.deepEqual(problems, [], "Enlarged text remains readable and usable");
   }
   const measures = [];
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }, ...(verifyControls ? [{ width: 320, height: 720 }] : [])]) {

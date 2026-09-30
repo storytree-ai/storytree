@@ -57,10 +57,16 @@ export function coastArcs(wisps: readonly SessionWisp[], story: string): CoastAr
   return here.map((wisp, at) => ({ session: wisp.session, colour: wisp.colour, faded: wisp.faded, from: at / here.length, to: (at + 1) / here.length }));
 }
 
-/** Each claimed capability's claimant colour; the first listed session's, when two hold it. */
-export function claimTints(wisps: readonly SessionWisp[]): Map<string, string> {
-  const tints = new Map<string, string>();
-  for (const wisp of wisps) for (const capability of wisp.capabilities) if (!tints.has(capability)) tints.set(capability, wisp.colour);
+/** A claimed capability's tint: its claimant's colour, and whether the claimant has gone quiet. */
+export interface ClaimTint {
+  colour: string;
+  faded: boolean;
+}
+
+/** Each claimed capability's tint; the first listed session's, when two hold it. */
+export function claimTints(wisps: readonly SessionWisp[]): Map<string, ClaimTint> {
+  const tints = new Map<string, ClaimTint>();
+  for (const wisp of wisps) for (const capability of wisp.capabilities) if (!tints.has(capability)) tints.set(capability, { colour: wisp.colour, faded: wisp.faded });
   return tints;
 }
 

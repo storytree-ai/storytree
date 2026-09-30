@@ -15,7 +15,7 @@ export type { Arrow, CapabilityLine, ContractLine, StoryPanel } from "./drill-do
 export { CARD, layoutTree, OUTSIDE_CARD } from "./drill-down/tree-layout.js";
 export type { Card, Link, TreeLayout } from "./drill-down/tree-layout.js";
 export { claimTints, coastArcs, sessionColour, sessionWisps } from "./agent-claims/agent-claims.js";
-export type { CoastArc, SessionWisp } from "./agent-claims/agent-claims.js";
+export type { ClaimTint, CoastArc, SessionWisp } from "./agent-claims/agent-claims.js";
 export { edgeMarkers, openingTurn, turnToIsland, type EdgeMarker, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";
 
 export { sessionRoster, sessionRows, type SessionRow, type SessionDetails } from "./sessions-list/sessions-list.js";

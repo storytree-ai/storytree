@@ -2,7 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Vector3 } from "three";
-import { claimTints, coastArcs, openingTurn, PLANET_RADIUS, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, coastArcs, openingTurn, PLANET_RADIUS, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
@@ -66,7 +66,7 @@ const TERRITORY_LIFT = 0.05;
  * An island's territories (3.14) and its files' circles (3.16), cut to its coast and laid on its surface,
  * all in the plate's own units.
  */
-function Territories({ land, coast, claimed }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[]; claimed: ReadonlyMap<string, string> }) {
+function Territories({ land, coast, claimed }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[]; claimed: ReadonlyMap<string, ClaimTint> }) {
   const group = useMemo(() => {
     const map = territories(land.territories, coast);
     const group = territoryLand(map, onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT), coast, claimed);

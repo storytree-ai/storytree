@@ -111,10 +111,15 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
  */
 export async function lookAsApp(log: ActivityLog, project: string, watch: BranchWatch = {}): Promise<Line[]> {
   const machine = watch.machine ?? thisMachine();
-  const { lines } = await log.since(project, 0);
-  const folder = lines.findLast((line) => line.machine === machine && line.folder !== undefined && existsSync(line.folder))?.folder;
+  const folder = await projectFolder(log, project, machine);
   if (folder === undefined) return [];
   return resolveBranches({ log, project, folder, session: `app:${machine ?? "this machine"}`, source: "tool" }, watch);
+}
+
+/** The latest folder a session of `project` worked in on this machine that is still there; undefined when there is none. */
+export async function projectFolder(log: ActivityLog, project: string, machine = thisMachine()): Promise<string | undefined> {
+  const { lines } = await log.since(project, 0);
+  return lines.findLast((line) => line.machine === machine && line.folder !== undefined && existsSync(line.folder))?.folder;
 }
 
 /** What is known of a branch worth looking at: when it was first worked on, its latest folder on this machine, and whether its own machine has found it ahead. */

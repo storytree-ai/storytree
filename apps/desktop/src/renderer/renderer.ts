@@ -196,7 +196,8 @@ async function showForest(name: string): Promise<void> {
     delete document.body.dataset.note;
     if (selection?.kind === "story") document.body.dataset.selected = selection.id;
     if (selection?.kind === "note") document.body.dataset.note = selection.id;
-    chosen = undefined;
+    // A click on a territory opens its story on that capability (forest 3.15).
+    chosen = selection?.kind === "story" ? selection.capability : undefined;
     showPanel();
   }, core, session => mine.sessions?.hover(session), { library: surfaceOn(surfaces, "library"), opening: globeOpening });
   if (showing !== mine) return view.dispose();
@@ -226,12 +227,12 @@ async function showForest(name: string): Promise<void> {
   mine.reading = forestReading({
     project: name,
     reads: window.storytree,
-    onTree: (read, news) => {
+    onTree: (read, news, survey) => {
       if (showing !== mine) return;
       tree = read;
       history.push(...news.changes);
       lines.push(...news.lines);
-      const scene = forestScene(tree, history, workStates(lines));
+      const scene = forestScene(tree, history, workStates(lines), survey);
       view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
       core.take(history, news.lines);
       sayWhatWasDrawn(forestDrawn(scene));

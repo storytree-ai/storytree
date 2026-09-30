@@ -5,6 +5,7 @@
 import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
 import type { ProjectSelection, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
+import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import type { AnnotatedTree, ArcView, Holds, Changes, Note, SchemaRecord } from "@storytree/library";
 
 export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
@@ -41,6 +42,8 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   frontCovers(name: string, nodeId: string): Promise<SchemaRecord<"decision">[]>;
   /** The notes that link to a note. Refused for a name that is not a project. */
   relatedNotes(name: string, noteId: string): Promise<Note[]>;
+  /** Each story's code, surveyed now from the project's checkout on this machine (forest 8); none when there is no checkout here. */
+  codeSurvey(name: string): Promise<ProjectSurvey>;
 }
 
 /** The IPC channels the functions travel on. */
@@ -66,4 +69,5 @@ export const CHANNELS = {
   linesSince: "storytree:lines-since",
   frontCovers: "storytree:front-covers",
   relatedNotes: "storytree:related-notes",
+  codeSurvey: "storytree:code-survey",
 } as const;

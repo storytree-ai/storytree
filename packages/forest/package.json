@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./surfaces": "./src/surfaces/surfaces.ts",
     "./view": "./src/view/index.ts",
-    "./view/styles.css": "./src/view/styles.css"
+    "./view/styles.css": "./src/view/styles.css",
+    "./code-survey": "./src/code-survey/read-survey.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

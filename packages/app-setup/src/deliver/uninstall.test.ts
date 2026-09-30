@@ -82,6 +82,7 @@ test("1.8: uninstalling removes everything storytree added, and leaves the user'
   assert.deepEqual(settings, { theme: "dark", hooks: { Stop: [{ hooks: [{ type: "command", command: "the user's own hook" }] }] } });
   assert.equal(readFileSync(path.join(m.codex, "config.toml"), "utf8"), '# the user\'s own\nmodel = "kept"\n');
   assert.equal(existsSync(path.join(m.codex, "hooks.json")), false);
+  assert.equal(existsSync(path.join(m.codex, "AGENTS.md")), false, "connecting Codex wrote a storytree section there; it held nothing else");
 
   assert.equal(m.userPath(), "C:\\Windows;C:\\Users\\me\\.local\\bin");
   assert.equal(existsSync(m.home), false);

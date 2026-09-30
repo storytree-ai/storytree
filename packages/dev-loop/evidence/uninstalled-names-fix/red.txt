@@ -1,0 +1,27 @@
+✖ before a storytree command, an uninstalled worktree is refused with the command that installs it (925.772838ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 980.196403
+
+✖ failing tests:
+
+test at packages/dev-loop/src/provision-worktree.test.mjs:83:1
+✖ before a storytree command, an uninstalled worktree is refused with the command that installs it (925.772838ms)
+  AssertionError [ERR_ASSERTION]: fresh: it names the fix
+      at TestContext.<anonymous> (file:///home/mickh/code/storytree03/.claude/worktrees/increment-93cb07509206-abebc3/packages/dev-loop/src/provision-worktree.test.mjs:90:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'provision-worktree: fresh worktree at /tmp/provision-WLdbZv; pnpm install (attempt 1 of 2)\n[ERR_PNPM_NO_PKG_MANIFEST] No package.json found in /tmp/provision-WLdbZv\nprovision-worktree: fresh worktree at /tmp/provision-WLdbZv; pnpm install (attempt 2 of 2)\n[ERR_PNPM_NO_PKG_MANIFEST] No package.json found in /tmp/provision-WLdbZv\nprovision-worktree: pnpm install failed 2 times (exit 1)\n',
+    expected: /node packages\/dev-loop\/src\/provision-worktree\.mjs/,
+    operator: 'match',
+    diff: 'simple'
+  }

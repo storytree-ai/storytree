@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "storytree": "node --import tsx packages/cli/src/bins/storytree.ts",
+    "storytree": "node packages/dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/cli/src/bins/storytree.ts",
     "test": "node --import tsx packages/dev-loop/src/test.mjs",
     "gate": "node packages/dev-loop/src/gate.mjs",
     "typecheck": "pnpm -r typecheck",

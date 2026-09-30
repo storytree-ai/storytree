@@ -80,6 +80,21 @@ test("as a session-start hook it exits 0 and says nothing on a healthy worktree"
   assert.equal(run.stdout, "");
 });
 
+test("before a storytree command, an uninstalled worktree is refused with the command that installs it", (t) => {
+  for (const condition of ["fresh", "unlinked"]) {
+    const root = worktree(t, condition);
+    const run = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
+    assert.equal(run.status, 1, condition);
+    assert.equal(run.stdout, "");
+    assert.ok(run.stderr.includes(root), `${condition}: it names the worktree`);
+    assert.match(run.stderr, /node packages\/dev-loop\/src\/provision-worktree\.mjs/, `${condition}: it names the fix`);
+    assert.equal(run.stderr.trim().split("\n").length, 1, `${condition}: in one line`);
+  }
+  const current = spawnSync(process.execPath, [script, "--check", "--root", worktree(t, "current")], { encoding: "utf8" });
+  assert.equal(current.status, 0);
+  assert.equal(current.stdout + current.stderr, "", "an installed worktree runs the command with nothing said");
+});
+
 test("the tool server starts in a fresh worktree once the session-start install has finished", async (t) => {
   const root = worktree(t, "fresh");
   let started = 0;

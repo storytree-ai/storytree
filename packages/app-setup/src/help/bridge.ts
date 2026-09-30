@@ -27,6 +27,8 @@ export interface SetupHelpBridge {
   checkSetupFolder(): Promise<readonly SetupLine[] | null>;
   /** Pick a folder and make it a project (ADR-0752 D2), or null when the picker was cancelled. */
   addProject(): Promise<AddedFolder | null>;
+  /** Take a project off this computer's list; its records stay in the library, and adding its folder brings it back. */
+  removeProject(name: unknown): Promise<{ status: "removed"; project: string }>;
   openFeedbackDraft(draft: unknown): Promise<DraftResult>;
   copyHelpText(text: string): Promise<void>;
 }

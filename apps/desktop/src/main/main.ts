@@ -59,7 +59,7 @@ import {
   type Launch,
   type PageReads,
 } from "@storytree/app";
-import { setupHelpActions } from "@storytree/app-setup";
+import { projectsOnThisComputer, setupHelpActions } from "@storytree/app-setup";
 import { settingsActions, SETTINGS_CHANNELS } from "@storytree/agent-link/settings";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
 import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
@@ -161,6 +161,7 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.agentConnections, () => help.agentConnections());
   ipcMain.handle(CHANNELS.checkSetupFolder, () => help.checkSetupFolder());
   ipcMain.handle(CHANNELS.addProject, () => help.addProject());
+  ipcMain.handle(CHANNELS.removeProject, (_event, name: unknown) => help.removeProject(name));
   ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));
   ipcMain.handle(CHANNELS.copyHelpText, (_event, text: string) => help.copyHelpText(text));
 
@@ -200,7 +201,7 @@ async function run(): Promise<void> {
     ({ storytree, postgres } = opened);
     console.log(`library: ${opened.where}`);
     reads = pageReads({ storytree });
-    projects = projectSelection({ listProjects: () => open().listProjects(), file: path.join(home.dir, "project-choice.json") });
+    projects = projectSelection({ listProjects: async () => projectsOnThisComputer(await open().listProjects(), home.dir), file: path.join(home.dir, "project-choice.json") });
     project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();
   } catch (error) {

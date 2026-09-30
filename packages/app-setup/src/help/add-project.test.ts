@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { randomBytes } from "node:crypto";
 import { connect } from "@storytree/library";
 import pg from "pg";
+import { projectsOnThisComputer } from "../project/index.js";
 import { setupHelpActions } from "./actions.js";
 
 test("3.4 Add project: the picked folder becomes a project under its own name (kept apart from an existing one of that name) and is shown; a folder already a project is simply selected; cancelling does nothing", async (t) => {
@@ -53,4 +54,10 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   const projects = await library.listProjects();
   assert.deepEqual([blog, site, `${site}-2`].filter((name) => projects.includes(name)).length, 3, "an existing project creates nothing");
   assert.deepEqual(await library.listProjects(), projects, "the app's library stays open");
+
+  assert.deepEqual(await actions.removeProject(blog), { status: "removed", project: blog });
+  assert.equal(projectsOnThisComputer(await library.listProjects(), home).includes(blog), false, "a removed project leaves this computer's list");
+  assert.deepEqual(await actions.addProject(), { status: "already a project", project: blog, folder: picked });
+  assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(blog), "adding its folder again brings it back");
+  await assert.rejects(actions.removeProject(`nothing-${token}`), /no project called/);
 });

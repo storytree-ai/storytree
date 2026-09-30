@@ -15,6 +15,7 @@
   "dependencies": {
     "@storytree/agent-link": "workspace:*",
     "@storytree/app": "workspace:*",
+    "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:*",
     "@storytree/forest": "workspace:*",
     "@storytree/librarian": "workspace:*",

@@ -214,6 +214,9 @@ importers:
       '@storytree/app':
         specifier: workspace:*
         version: link:../app
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../app-setup
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
@@ -230,9 +233,6 @@ importers:
         specifier: workspace:*
         version: link:../processes
     devDependencies:
-      '@storytree/app-setup':
-        specifier: workspace:*
-        version: link:../app-setup
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

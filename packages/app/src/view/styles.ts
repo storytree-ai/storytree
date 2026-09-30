@@ -11,7 +11,7 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-menu {
   position: fixed; inset: var(--app-bar-height) 0 0; width: 100%; height: calc(100dvh - var(--app-bar-height)); max-width: none; max-height: none; margin: 0; padding: 32px; border: 0;
   background: rgb(0 0 0 / .25); color: #eceae3; color-scheme: dark; font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
-  --bg: #101418; --surface: #101418; --text: #eceae3; --muted: #a9b0ba; --line: #485159; --row-hover: #262a2f; --code-bg: #262a2f;
+  --bg: #101418; --surface: #101418; --text: #eceae3; --muted: #a9b0ba; --line: #485159; --row-hover: #262a2f; --code-bg: #262a2f; --fail-text: #ffaaaa;
 }
 .app-menu::backdrop { background: transparent; pointer-events: none; }
 .app-menu, .app-menu * { box-sizing: border-box; }

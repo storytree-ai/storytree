@@ -66,3 +66,15 @@
 .setup-add-project { margin-top: .75rem; }
 .setup-add-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
 .setup-add-project-status:empty { display: none; }
+/* Remove project sits beside Add project but is quiet: an outline button, and a cautionary line only while confirming. */
+.setup-remove-project { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.setup-help .setup-remove-project-ask { color: var(--muted, #a9b0ba); }
+.setup-help .setup-remove-project-ask:hover:not(:disabled) { color: var(--text); }
+.setup-help .setup-remove-project-ask:disabled { cursor: default; }
+.setup-remove-project-confirm { margin-top: .75rem; padding: .65rem .85rem; max-width: 34rem; border: 1px solid var(--line); border-left: 4px solid var(--fail-text, #e0a09a); border-radius: 6px; background: var(--code-bg); }
+.setup-remove-project-confirm p { margin: 0 0 .65rem; }
+.setup-remove-project-actions { display: flex; gap: .5rem; }
+.setup-help .setup-remove-project-yes { border-color: var(--fail-text, #e0a09a); }
+.setup-remove-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
+.setup-remove-project-status:empty { display: none; }
+.setup-remove-project-status[role="alert"] { color: var(--fail-text, #e0a09a); }

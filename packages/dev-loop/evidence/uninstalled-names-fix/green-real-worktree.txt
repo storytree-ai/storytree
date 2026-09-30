@@ -1,0 +1,7 @@
+
+> storytree@ storytree /home/mickh/code/storytree03/.claude/worktrees/increment-93cb07509206-abebc3
+> node packages/dev-loop/src/provision-worktree.mjs --check && node --import tsx packages/cli/src/bins/storytree.ts "adr" "list"
+
+storytree: this worktree (/home/mickh/code/storytree03/.claude/worktrees/increment-93cb07509206-abebc3/) is FRESH, not installed, so the command line cannot start: run `node packages/dev-loop/src/provision-worktree.mjs` in it, then run the command again.
+ ELIFECYCLE  Command failed with exit code 1.
+ WARN   Local package.json exists, but node_modules missing, did you mean to install?

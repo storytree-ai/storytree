@@ -21,6 +21,12 @@
 // so in a worktree still being installed it waits for that install, then runs the server from this
 // worktree's source. It never installs itself, so two installs never run in one worktree at once.
 //
+// With --check it is what `pnpm storytree` runs first: a worktree that is FRESH or UNLINKED cannot
+// start the command line at all, and the crash names a missing module (often @storytree/app), not
+// the cause, so it is refused in one line that names the command to run. A session reaches it when
+// its start hook never ran in this worktree (a launch path that skips it). STALE is let through: the
+// command line usually still runs, and the session-start refresh or `pnpm install` is its fix.
+//
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
 // agent, as SessionStart additionalContext; pnpm's own output goes to stderr.
@@ -140,6 +146,16 @@ const WHAT_HAPPENED = {
     "that the packages have a node_modules afterwards",
 };
 
+/** The one line --check writes to stderr for an uninstalled root, or "" when the command line can run. */
+export function checkOutput(root) {
+  const condition = conditionOf(root);
+  if (condition !== "fresh" && condition !== "unlinked") return "";
+  return (
+    `storytree: this worktree (${root}) is ${condition.toUpperCase()}, not installed, so the command line cannot start: ` +
+    "run `node packages/dev-loop/src/provision-worktree.mjs` in it, then run the command again."
+  );
+}
+
 /** What the hook writes to stdout for a result: the agent's heads-up when the install failed, else "". */
 export function hookOutput(result, root) {
   if (result.ok) return "";
@@ -165,6 +181,10 @@ if (isEntry()) {
   const root = at === -1 ? repoRoot : path.resolve(args[at + 1]);
   if (args.includes("--serve")) {
     process.exitCode = await serve({ root });
+  } else if (args.includes("--check")) {
+    const refusal = checkOutput(root);
+    if (refusal) process.stderr.write(`${refusal}\n`);
+    process.exitCode = refusal ? 1 : 0;
   } else {
     const result = provision({ root, log: (line) => process.stderr.write(`${line}\n`) });
     const output = hook ? hookOutput(result, root) : "";

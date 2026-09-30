@@ -8,6 +8,7 @@ import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
 import { addProject, projectFolder } from "../project/index.js";
 import { verifyPayload, type Architecture } from "./payload.js";
+import { openUninstaller, uninstall, uninstallAsks } from "./uninstall.js";
 
 interface DeliveryOptions {
   installDir: string;
@@ -86,6 +87,23 @@ export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<
   }
   if (args[0] === "add-project" && args.length === 3) {
     process.stdout.write(JSON.stringify(await addProject(args[1]!, args[2]!)) + "\n");
+    return;
+  }
+  // Leaving storytree: the NSIS uninstaller asks, then removes, from this installation's own Node.
+  if (args[0] === "uninstall-asks" && args.length === 2) {
+    const asks = uninstallAsks(args[1]!, storytreeHome());
+    process.stdout.write(asks + "\n");
+    process.exitCode = asks === "ask" ? 0 : asks === "no library" ? 10 : 11;
+    return;
+  }
+  if (args[0] === "uninstall" && args.length === 3 && (args[2] === "keep" || args[2] === "remove")) {
+    const report = await uninstall({ installDir: args[1]!, home: storytreeHome(), library: args[2] });
+    process.stdout.write(report.lines.join("\n") + "\n");
+    if (!report.complete) process.exitCode = 1;
+    return;
+  }
+  if (args[0] === "open-uninstaller" && args.length <= 2) {
+    process.stdout.write(await openUninstaller(args[1]) + "\n");
     return;
   }
   const [action, installDir, arch] = args;

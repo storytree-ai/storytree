@@ -170,6 +170,41 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
   return { harnesses, command, next: command === "kept" ? "Shared command kept while another connection exists or cleanup cannot be confirmed; retry Disconnect for cleanup when no connection remains." : "All user connections removed. Project libraries and unrelated settings were kept." };
 }
 
+export interface RemovalResult {
+  readonly harness: Harness;
+  readonly tools: "removed" | "none" | "kept";
+  readonly next?: string;
+}
+
+/**
+ * Uninstalling: take out this installation's registration, hooks and status line from both agents,
+ * whichever were chosen. Anything that does not run this installation's tools (another build's, 0.2's,
+ * the user's own) is not ours and stays, silently. Records no disconnection, since the home goes too.
+ */
+export async function removeConnections(options: Omit<ConnectionOptions, "harnesses">): Promise<RemovalResult[]> {
+  const where = locations({ ...options, harnesses: [] });
+  const hook = hookCommand(options.installed);
+  const results: RemovalResult[] = [];
+  for (const harness of ["claude-code", "codex"] as const) {
+    let settings: Settings | undefined;
+    try {
+      removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+      // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
+      if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
+      settings = await openSettings(harness, { ...options, harnesses: [] });
+      const ours = settings.current !== undefined && settings.compatible(options.installed);
+      if (ours) await settings.remove();
+      results.push({ harness, tools: ours ? "removed" : "none" });
+    } catch {
+      const next = harness === "claude-code"
+        ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks and status line in ${path.join(where.claude, "settings.json")}.`
+        : `run codex mcp remove storytree, or delete the [mcp_servers.storytree] table in ${where.files[harness]}; storytree's hooks are in ${path.join(where.codex, "hooks.json")}.`;
+      results.push({ harness, tools: "kept", next: `storytree could not remove its connection; ${next}` });
+    } finally { settings?.close(); }
+  }
+  return results;
+}
+
 function removeInstalledCommand(home: string, env: NodeJS.ProcessEnv, installed: InstalledToolServerCommand): "removed" | "none" {
   const target = path.join(path.dirname(installed.args[0]), "storytree.mjs");
   const marker = "storytree 0.3's command (put here by its setup check)";

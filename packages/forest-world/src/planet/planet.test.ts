@@ -13,7 +13,7 @@ const sun = new Vector3(LIGHT_DIRECTION.x, LIGHT_DIRECTION.y, LIGHT_DIRECTION.z)
 const close = (actual: Vector3, expected: Vector3) =>
   assert.ok(actual.distanceTo(expected) < 1e-10, `${actual.toArray()} != ${expected.toArray()}`);
 
-test('each island is a flat tangent plate at its spot, with its low ground above the shell', () => {
+test('6.1 each island is a flat tangent plate at its spot, with its low ground above the shell', () => {
   const radius = 390;
   for (const spot of [up, new Vector3(0, -1, 0), new Vector3(2, 3, -4).normalize()]) {
     const { position, quaternion } = plateTransform(spot, radius);
@@ -30,7 +30,7 @@ test('each island is a flat tangent plate at its spot, with its low ground above
   }
 });
 
-test('L1 gives the island under the flat viewing angle its original local light, wherever it sits', () => {
+test('6.2 L1 gives the island under the flat viewing angle its original local light, wherever it sits', () => {
   const flatEye = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -SHIPPED_ELEVATION_DEG * Math.PI / 180);
   for (const spot of [up, new Vector3(0, -1, 0), new Vector3(2, 3, -4).normalize()]) {
     const { quaternion } = plateTransform(spot, 390);
@@ -45,7 +45,7 @@ test('L1 gives the island under the flat viewing angle its original local light,
 });
 
 // The globe mounts this actual Three mesh; material/depth behaviour is observable without WebGL.
-test('3.5 the glass has a nearly clear middle, retaining the 80% far-side minimum through both faces', () => {
+test('6.3 the glass has a nearly clear middle, retaining the 80% far-side minimum through both faces', () => {
   const surface = planet.createPlanetSurface(160);
   try {
     const material = surface.material;
@@ -66,7 +66,7 @@ test('3.5 the glass has a nearly clear middle, retaining the 80% far-side minimu
   }
 });
 
-test('the globe occluder hides what sits behind the sphere, and only that, without a mesh', () => {
+test('6.3 the globe occluder hides what sits behind the sphere, and only that, without a mesh', () => {
   const radius = 390;
   const occluder = planet.globeOccluder(radius);
   const raycaster = new Raycaster();

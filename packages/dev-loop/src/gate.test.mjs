@@ -29,7 +29,7 @@ function checkout(t) {
   return { root, git, write, claude };
 }
 
-test("the gate runs typecheck and scoped tests, and explains guidance NOT RUN without failing", async (t) => {
+test("7.1 the gate runs typecheck and scoped tests, and explains guidance NOT RUN without failing", async (t) => {
   const { root, write } = checkout(t);
   write("packages/example/src/change.ts", "changed\n");
   const calls = [];
@@ -63,7 +63,7 @@ test("library-only guidance edits can request all three checks, continuing past 
   }
 });
 
-test("interruption leaves the current and remaining checks NOT RUN and exits nonzero", async (t) => {
+test("7.3 interruption leaves the current and remaining checks NOT RUN and exits nonzero", async (t) => {
   const { root } = checkout(t);
   const controller = new AbortController();
   const output = [];
@@ -102,7 +102,7 @@ test("guidance follows branch and working-tree role edits, including added and d
   assert.equal(guidanceFor(root).run, true);
 });
 
-test("unreadable change scope requires guidance instead of guessing that nothing changed", (t) => {
+test("7.2 unreadable change scope requires guidance instead of guessing that nothing changed", (t) => {
   const { root, git } = checkout(t);
   git("update-ref", "-d", "refs/remotes/origin/main");
   const decision = guidanceFor(root);
@@ -110,7 +110,7 @@ test("unreadable change scope requires guidance instead of guessing that nothing
   assert.match(decision.reason, /could not.*read/);
 });
 
-test("cancelling the foreground gate stops the typecheck process and its compiler descendant", { timeout: 15_000 }, async (t) => {
+test("7.3 cancelling the foreground gate stops the typecheck process and its compiler descendant", { timeout: 15_000 }, async (t) => {
   const { root, write } = checkout(t);
   // A package manager starting a compiler, as pnpm typecheck does. Use real processes here:
   // a callback-only cancellation test cannot detect an abandoned compiler.

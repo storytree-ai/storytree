@@ -49,7 +49,7 @@ function fixture(t: { after(fn: () => void): void }) {
 }
 
 for (const harnesses of [["claude-code"], ["codex"], ["claude-code", "codex"]] as const) {
-  test(`2.1/2.3: choosing ${harnesses.join(" and ")} preserves settings and repeats once`, async (t) => {
+  test(`2.1/2.3 choosing ${harnesses.join(" and ")} preserves settings and repeats once`, async (t) => {
     const f = fixture(t);
     const original = { theme: "dark", projects: { elsewhere: { mcpServers: { storytree: { command: "0.2" } } } }, mcpServers: { legacy: { command: "storytree-02" }, other: { type: "http", url: "https://example.test/mcp" } } };
     writeFileSync(f.claudeFile, JSON.stringify(original));
@@ -72,7 +72,7 @@ for (const harnesses of [["claude-code"], ["codex"], ["claude-code", "codex"]] a
   });
 }
 
-test("2.2: connecting registers the chosen harness's hooks, so its first session's start hook already runs", async (t) => {
+test("2.2 connecting registers the chosen harness's hooks, so its first session's start hook already runs", async (t) => {
   const f = fixture(t);
   const hookScript = path.join(f.tools, "storytree-hook.mjs");
   const settingsFile = path.join(f.claude, "settings.json");
@@ -85,7 +85,7 @@ test("2.2: connecting registers the chosen harness's hooks, so its first session
   assert.ok(readFileSync(codexHooks, "utf8").includes("storytree-hook.mjs"));
 });
 
-test("2.2: connecting Codex tells its first session, hooks trusted or not, to call check_setup first in a project; disconnecting takes that out", async (t) => {
+test("2.2 connecting Codex tells its first session, hooks trusted or not, to call check_setup first in a project; disconnecting takes that out", async (t) => {
   const f = fixture(t);
   const agents = path.join(f.codex, "AGENTS.md");
   await connectAgents({ ...f.options, harnesses: ["claude-code"] });
@@ -96,7 +96,7 @@ test("2.2: connecting Codex tells its first session, hooks trusted or not, to ca
   assert.equal(existsSync(agents), false);
 });
 
-test("2.6: connecting Codex names the one-time trust step until one of its hooks has run, then says its hooks run", async (t) => {
+test("2.6 connecting Codex names the one-time trust step until one of its hooks has run, then says its hooks run", async (t) => {
   const f = fixture(t);
   const [first] = await connectAgents({ ...f.options, harnesses: ["codex"] });
   assert.equal(first!.hooks, "waiting for you to trust them in Codex");
@@ -110,7 +110,7 @@ test("2.6: connecting Codex names the one-time trust step until one of its hooks
   assert.equal(claude!.hooks, "not verified", "Claude Code runs hooks without asking; its session check verifies them");
 });
 
-test("2.6: connecting Codex from an administrator terminal says Codex cannot run commands from one and to open it from a normal terminal; Claude Code, or a normal terminal, hears nothing of it", async (t) => {
+test("2.6 connecting Codex from an administrator terminal says Codex cannot run commands from one and to open it from a normal terminal; Claude Code, or a normal terminal, hears nothing of it", async (t) => {
   const f = fixture(t);
   const [codex, claude] = await connectAgents({ ...f.options, elevated: async () => true, harnesses: ["codex", "claude-code"] });
   assert.match(codex!.next, /administrator/);
@@ -120,7 +120,7 @@ test("2.6: connecting Codex from an administrator terminal says Codex cannot run
   assert.doesNotMatch(normal!.next, /administrator/);
 });
 
-test("2.3/2.4: a conflicting 0.2 entry, missing harness and invalid settings get separate recovery actions", async (t) => {
+test("2.3/2.4 a conflicting 0.2 entry, missing harness and invalid settings get separate recovery actions", async (t) => {
   const f = fixture(t);
   const old = JSON.stringify({ mcpServers: { storytree: { command: "storytree-02" } } });
   writeFileSync(f.claudeFile, old);
@@ -144,7 +144,7 @@ test("2.3/2.4: a conflicting 0.2 entry, missing harness and invalid settings get
   assert.equal(readFileSync(f.codexFile, "utf8"), "INVALID TOML");
 });
 
-test("2.2/2.6: the registered launch keeps the session folder and reaches its existing setup check; registration cannot verify hooks", async (t) => {
+test("2.2/2.6 the registered launch keeps the session folder and reaches its existing setup check; registration cannot verify hooks", async (t) => {
   const f = fixture(t);
   const folders = [path.join(f.home, "first project"), path.join(f.home, "second project")];
   for (const folder of folders) mkdirSync(folder);
@@ -163,7 +163,7 @@ test("2.2/2.6: the registered launch keeps the session folder and reaches its ex
   assert.equal(verification.verified, false);
 });
 
-test("2.2: with its own CODEX_HOME, Codex's registration hands the tool server that home, which Codex would otherwise strip, so its setup check registers and reads hooks where Codex reads them", async (t) => {
+test("2.2 with its own CODEX_HOME, Codex's registration hands the tool server that home, which Codex would otherwise strip, so its setup check registers and reads hooks where Codex reads them", async (t) => {
   const f = fixture(t);
   const custom = path.join(f.home, "custom codex");
   mkdirSync(custom);
@@ -175,7 +175,7 @@ test("2.2: with its own CODEX_HOME, Codex's registration hands the tool server t
   assert.doesNotMatch(readFileSync(f.codexFile, "utf8"), /CODEX_HOME/, "the default home needs no hand-off");
 });
 
-test("2.2: a custom-home Codex registration storytree wrote before it handed over CODEX_HOME is updated in place, keeping the user's other settings", async (t) => {
+test("2.2 a custom-home Codex registration storytree wrote before it handed over CODEX_HOME is updated in place, keeping the user's other settings", async (t) => {
   const f = fixture(t);
   const custom = path.join(f.home, "custom codex");
   mkdirSync(custom);
@@ -189,7 +189,7 @@ test("2.2: a custom-home Codex registration storytree wrote before it handed ove
   assert.ok(source.includes(`\nenv = { CODEX_HOME = ${JSON.stringify(custom)} }\n`), source);
 });
 
-test("2.5: disconnect one keeps the other and command; disconnect all removes only this installation's hooks and launcher", async (t) => {
+test("2.5 disconnect one keeps the other and command; disconnect all removes only this installation's hooks and launcher", async (t) => {
   const f = fixture(t);
   await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });
   const hook = { node: process.execPath, script: path.join(f.tools, "storytree-hook.mjs") };
@@ -220,7 +220,7 @@ test("2.5: disconnect one keeps the other and command; disconnect all removes on
   assert.equal(readFileSync(library, "utf8"), "project data");
 });
 
-test("2.5: a disconnected harness stays disconnected: the other harness's next setup check does not register its hooks again, and connecting it again does", async (t) => {
+test("2.5 a disconnected harness stays disconnected: the other harness's next setup check does not register its hooks again, and connecting it again does", async (t) => {
   const f = fixture(t);
   await connectAgents({ ...f.options, harnesses: ["claude-code", "codex"] });
   const hook = { node: process.execPath, script: path.join(f.tools, "storytree-hook.mjs") };
@@ -244,7 +244,7 @@ test("2.5: a disconnected harness stays disconnected: the other harness's next s
   assert.equal(existsSync(codexHooks), true, "connected again, Codex gets its hooks at the next check");
 });
 
-test("2.3: incompatible Codex command and disabled tools are explained without overwriting", async (t) => {
+test("2.3 incompatible Codex command and disabled tools are explained without overwriting", async (t) => {
   const f = fixture(t);
   const original = `${legacy}\n[mcp_servers.storytree]\ncommand = "storytree-02"\nargs = []\n`;
   writeFileSync(f.codexFile, original);
@@ -263,7 +263,7 @@ test("2.3: incompatible Codex command and disabled tools are explained without o
   assert.equal(readFileSync(f.codexFile, "utf8"), registered);
 });
 
-test("2.4: invalid JSON shapes are preserved and an interrupted settings edit can safely retry", async (t) => {
+test("2.4 invalid JSON shapes are preserved and an interrupted settings edit can safely retry", async (t) => {
   const f = fixture(t);
   for (const invalid of ["null", "[]", '{"mcpServers":[]}']) {
     writeFileSync(f.claudeFile, invalid);
@@ -281,7 +281,7 @@ test("2.4: invalid JSON shapes are preserved and an interrupted settings edit ca
   assert.equal((await connectAgents({ ...f.options, harnesses: ["codex"] }))[0]!.tools, "connected");
 });
 
-test("2.5: a Claude-only machine finishes cleanup without requiring Codex", async (t) => {
+test("2.5 a Claude-only machine finishes cleanup without requiring Codex", async (t) => {
   const f = fixture(t);
   const onlyClaude: RunHarness = async (exe, args, opts) => {
     if (exe === "codex") throw Object.assign(new Error("not found"), { code: "ENOENT" });
@@ -296,7 +296,7 @@ test("2.5: a Claude-only machine finishes cleanup without requiring Codex", asyn
   assert.equal(JSON.parse(readFileSync(path.join(f.claude, "settings.json"), "utf8")).hooks, undefined);
 });
 
-test("2.5: damaged hook settings keep the connection for a safe retry; a replaced registration is left alone", async (t) => {
+test("2.5 damaged hook settings keep the connection for a safe retry; a replaced registration is left alone", async (t) => {
   const f = fixture(t);
   const options = { ...f.options, harnesses: ["claude-code"] as const };
   await connectAgents(options);
@@ -317,7 +317,7 @@ test("2.5: damaged hook settings keep the connection for a safe retry; a replace
   assert.equal(readFileSync(f.claudeFile, "utf8"), replaced);
 });
 
-test("2.4: invalid hook settings block only that harness; missing installed tools direct a reinstall", async (t) => {
+test("2.4 invalid hook settings block only that harness; missing installed tools direct a reinstall", async (t) => {
   const f = fixture(t);
   const hookFile = path.join(f.claude, "settings.json");
   writeFileSync(hookFile, "{ invalid");
@@ -332,7 +332,7 @@ test("2.4: invalid hook settings block only that harness; missing installed tool
   assert.match(missing[0]!.next, /installer.*bundled Node/);
 });
 
-test("2.1: before finish has recorded the delivery, connect uses the tools installed beside its own helper", (t) => {
+test("2.1 before finish has recorded the delivery, connect uses the tools installed beside its own helper", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree unfinished "));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const tools = path.join(dir, "resources", "agent-tools");

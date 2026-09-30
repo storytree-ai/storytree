@@ -29,7 +29,7 @@ function fakeRenderer(
   return { outputColorSpace, toneMapping };
 }
 
-test('exact-colour mode is: no output transform, no tone curve, no input conversion', () => {
+test('2.3 exact-colour mode is: no output transform, no tone curve, no input conversion', () => {
   // ⚠ THE GOLDENS ARE HERE AND NOT ONLY THE PROPERTIES. A property ("the three fields are set
   // consistently") is satisfied by any three consistent values, including three's own defaults —
   // which is the state this module exists to move the map OFF. The instance has to be pinned.
@@ -87,7 +87,7 @@ test('configureExactColour writes all three, from any starting state', () => {
   }
 });
 
-test('isExactColour answers no when ANY ONE of the three is wrong', () => {
+test('2.3 isExactColour answers no when ANY ONE of the three is wrong', () => {
   const before = THREE.ColorManagement.enabled;
   try {
     // ⚠ EACH FIELD IS FLIPPED ON ITS OWN. A predicate reading only two of the three answers

@@ -26,7 +26,7 @@ function restore(args) {
   }
 }
 
-test("a snapshot path alone is read as the snapshot, not answered with the usage line", () => {
+test("5.3 a snapshot path alone is read as the snapshot, not answered with the usage line", () => {
   const missing = path.join(tmpdir(), "no-such-snapshot-4f1c.json");
   const run = restore([missing]);
   assert.equal(run.status, 1);
@@ -34,7 +34,7 @@ test("a snapshot path alone is read as the snapshot, not answered with the usage
   assert.match(run.stderr, /no-such-snapshot-4f1c\.json/);
 });
 
-test("a snapshot path before or after --project is read as the snapshot", () => {
+test("5.3 a snapshot path before or after --project is read as the snapshot", () => {
   const missing = path.join(tmpdir(), "no-such-snapshot-4f1c.json");
   for (const args of [[missing, "--project", "p"], ["--project", "p", missing]]) {
     const run = restore(args);
@@ -43,7 +43,7 @@ test("a snapshot path before or after --project is read as the snapshot", () => 
   }
 });
 
-test("no snapshot path is answered with the usage line", () => {
+test("5.3 no snapshot path is answered with the usage line", () => {
   assert.match(restore([]).stderr, /usage:/);
   assert.match(restore(["--project", "p"]).stderr, /usage:/);
 });

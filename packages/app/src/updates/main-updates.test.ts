@@ -8,7 +8,7 @@ const running: RunningBuild = { slot: "a", dir: "/runtime/a", sha: "1234567890" 
 const next: RunningBuild = { slot: "b", dir: "/runtime/b", sha: "abcdef1234" };
 const base = { runtimeDir: "/runtime", running, runningBuild: "main 1234567", canRestart: async () => true };
 
-test("asking checks now, joins an ongoing automatic check, and reports up to date with the running build", async () => {
+test("4.7 asking checks now, joins an ongoing automatic check, and reports up to date with the running build", async () => {
   let calls = 0;
   const fetched = deferred<undefined>();
   const updates = mainUpdates({ ...base, update: async () => { calls++; return fetched.promise; }, restart: async () => assert.fail("no restart") });
@@ -23,7 +23,7 @@ test("asking checks now, joins an ongoing automatic check, and reports up to dat
   updates.stop();
 });
 
-test("a new build reports building, waits for a library seed, then restarts once without rebuilding", async () => {
+test("4.8 a new build reports building, waits for a library seed, then restarts once without rebuilding", async () => {
   let writing = true, calls = 0;
   const built = deferred<RunningBuild>();
   const restarted: RunningBuild[] = [];
@@ -45,7 +45,7 @@ test("a new build reports building, waits for a library seed, then restarts once
   updates.stop();
 });
 
-test("a failed build reports its reason, leaves the running app alone, and can be retried", async () => {
+test("4.9 a failed build reports its reason, leaves the running app alone, and can be retried", async () => {
   let calls = 0;
   const updates = mainUpdates({ ...base, update: async () => { if (++calls === 1) throw new Error("pnpm build: missing module"); return undefined; }, restart: async () => assert.fail("no restart") });
   assert.deepEqual(await updates.check(), { phase: "failed", runningBuild: "main 1234567", reason: "pnpm build: missing module" });
@@ -53,7 +53,7 @@ test("a failed build reports its reason, leaves the running app alone, and can b
   updates.stop();
 });
 
-test("a checkout explains that it does not update itself and never fetches or restarts", async () => {
+test("4.10 a checkout explains that it does not update itself and never fetches or restarts", async () => {
   const updates = mainUpdates({ runtimeDir: "/runtime", runningBuild: "development build", canRestart: async () => true,
     update: async () => assert.fail("no fetch"), restart: async () => assert.fail("no restart") });
   assert.deepEqual(await updates.check(), { phase: "unavailable", runningBuild: "development build" });
@@ -92,7 +92,7 @@ test("background checks remain periodic, wait for the initial health write, and 
   assert.equal(calls, 2);
 });
 
-test("a seed that starts during the restart notice also holds the ready build", async () => {
+test("4.8 a seed that starts during the restart notice also holds the ready build", async () => {
   let guards = 0, restarts = 0;
   const updates = mainUpdates({ ...base, update: async () => next,
     canRestart: async () => ++guards !== 2, restart: async () => { restarts++; } });

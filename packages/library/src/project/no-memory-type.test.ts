@@ -7,14 +7,14 @@ import { MemoryTransactions } from "../transactions/memory.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { connect } from "./storytree.js";
 
-test("saving memory is refused with the reason and writes nothing", async () => {
+test("6.8 saving memory is refused with the reason and writes nothing", async () => {
   const transactions = new MemoryTransactions();
   const records = new SchemaRecords(transactions);
   await assert.rejects(records.create("memory" as never, { text: "Keep this" } as never), /memory.*harness.*artifact/i);
   assert.deepEqual(await transactions.history(), []);
 });
 
-test("opening an old project converts explicit kinds once and reports unclassified memories without losing history", async (t) => {
+test("6.9 opening an old project converts explicit kinds once and reports unclassified memories without losing history", async (t) => {
   const name = uniqueProjectName();
   const server = await connect({ url: testServerUrl() });
   try {

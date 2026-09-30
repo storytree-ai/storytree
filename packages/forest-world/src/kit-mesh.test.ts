@@ -142,7 +142,7 @@ function placement(over: Partial<KitPlacement> = {}): KitPlacement {
 // scale and footprint
 // ---------------------------------------------------------------------------
 
-test('a role is scaled by the axis it DECLARES, not always by its height', () => {
+test('3.1 a role is scaled by the axis it DECLARES, not always by its height', () => {
   // ⚠ Scaling a wide flat prop by its height multiplies its footprint by the same factor, so the
   // bloom is sized by WIDTH. A `placementScale` that always read height would put a marker on the
   // island several times the size the vocabulary asked for, and every overlap check would pass —
@@ -181,7 +181,7 @@ test('a role’s footprint is its WIDEST arm, so the clearance is enough for eit
   assert.ok(Math.abs(foot.bloom - KIT_ROLE_SIZE.bloom.units) < 1e-9);
 });
 
-test('a missing assembly is refused rather than skipped', () => {
+test('3.1 a missing assembly is refused rather than skipped', () => {
   // Every count and placement is per assembly FOUND, so an asset that lost one would draw a
   // quietly emptier island. The refusals name the assembly.
   const thin = { ...KIT, assemblies: new Map(KIT.assemblies) };

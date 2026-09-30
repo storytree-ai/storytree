@@ -141,7 +141,7 @@ test("7.16 an expanded row's Running block, between its worktrees and its files,
   assert.equal(isSessionRows([{ ...row, children: [], running: undefined }]), false, "rows kept by an older build are not drawn");
 });
 
-test("7.17 the quiet sessions stay folded into one N idle row by default, opening on its button", () => {
+test("7.10, 7.17 the quiet sessions stay folded into one N idle row by default, opening on its button", () => {
   const idle: SessionRow = { ...row, id: "quiet", label: "Quiet one", children: [], idle: true };
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }, idle], onHighlight() {} }));
   assert.doesNotMatch(html, /data-session-id="quiet"/);

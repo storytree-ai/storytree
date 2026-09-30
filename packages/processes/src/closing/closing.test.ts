@@ -24,7 +24,7 @@ async function save(home: string, ...runs: RunRecord[]) {
 }
 const uncertain = { state: 'unknown', reason: 'native birth identity unavailable' } as const;
 
-test('5.1: clear removes only caller records whose original lifetime and registered descendants are gone', async t => {
+test('5.1 clear removes only caller records whose original lifetime and registered descendants are gone', async t => {
   const home = await ledger(t);
   const gone = record();
   const parent = record();
@@ -47,7 +47,7 @@ test('5.1: clear removes only caller records whose original lifetime and registe
     new Set([grandchild, other, otherHarness].map(run => `${run.id}.json`)));
 });
 
-test('5.2: live, unknown and foreign records remain; a named subagent cannot clear its siblings', async t => {
+test('5.2 live, unknown and foreign records remain; a named subagent cannot clear its siblings', async t => {
   const home = await ledger(t);
   const live = record({ birth: { state: 'live', identity: {
     pid: 12345, platform: process.platform, boot: 'boot', started: 'original-lifetime',
@@ -65,7 +65,7 @@ test('5.2: live, unknown and foreign records remain; a named subagent cannot cle
   await assert.rejects(closing.clearOwned({ home, owner: { session: ' ' } }), /session|String|small/i);
 });
 
-test('5.2/5.4: unreadable records and known registration gaps survive clear and prevent unproved child clearance', async t => {
+test('5.2/5.4 unreadable records and known registration gaps survive clear and prevent unproved child clearance', async t => {
   const home = await ledger(t);
   const gone = record();
   await save(home, gone);
@@ -84,7 +84,7 @@ test('5.2/5.4: unreadable records and known registration gaps survive clear and 
   assert.equal(await readFile(gapFile, 'utf8'), gap);
 });
 
-test('5.2: failed removals are reported and never counted as cleared', async t => {
+test('5.2 failed removals are reported and never counted as cleared', async t => {
   const home = await ledger(t);
   const gone = record();
   await save(home, gone);
@@ -98,7 +98,7 @@ test('5.2: failed removals are reported and never counted as cleared', async t =
   assert.equal(JSON.parse(await readFile(path.join(home, 'runs', `${gone.id}.json`), 'utf8')).id, gone.id);
 });
 
-test('5.1/5.2: clear rereads ownership and child membership after probing, before removing a record', async t => {
+test('5.1/5.2 clear rereads ownership and child membership after probing, before removing a record', async t => {
   const home = await ledger(t);
   const root = record({ birth: { state: 'live', identity: {
     pid: 12345, platform: process.platform, boot: 'boot', started: 'original-lifetime',
@@ -121,7 +121,7 @@ test('5.1/5.2: clear rereads ownership and child membership after probing, befor
   assert.match(changed.retained[0]?.reason ?? '', /changed|owner/i);
 });
 
-test('5.1/5.2: a child disappearing or being reparented during a probe cannot make its parent clearable', async t => {
+test('5.1/5.2 a child disappearing or being reparented during a probe cannot make its parent clearable', async t => {
   const home = await ledger(t);
   const parent = record({ birth: { state: 'live', identity: {
     pid: 12345, platform: process.platform, boot: 'boot', started: 'original-lifetime',
@@ -142,7 +142,7 @@ test('5.1/5.2: a child disappearing or being reparented during a probe cannot ma
   }
 });
 
-test('5.3: the closing reading still names live and unknown work belonging to old and other sessions', async t => {
+test('5.3 the closing reading still names live and unknown work belonging to old and other sessions', async t => {
   const home = await ledger(t);
   const live = record({ owner: { session: 'ended-session', harness: 'claude-code' },
     birth: { state: 'live', identity: { pid: 12345, platform: process.platform, boot: 'boot', started: 'start' } } });
@@ -161,7 +161,7 @@ test('5.3: the closing reading still names live and unknown work belonging to ol
   assert.equal((await closing.readClosing({ home, probe: async identity => ({ state: 'live', identity }) })).status, 'remaining');
 });
 
-test('5.4: empty observations with persisted, unreadable or caller-carried missing evidence are incomplete', async t => {
+test('5.4 empty observations with persisted, unreadable or caller-carried missing evidence are incomplete', async t => {
   const home = await ledger(t);
   const gap = { kind: 'registration', reason: 'launch succeeded but registration and gap persistence failed', pid: 23456 } as const;
   const carried = await closing.readClosing({ home, knownGaps: [gap] });
@@ -182,7 +182,7 @@ test('5.4: empty observations with persisted, unreadable or caller-carried missi
   assert.match(closing.renderClosing(persisted), /broken.json/);
 });
 
-test('5.5: an empty or confirmed-gone inventory has bounded local coverage and leaves shared work alone', async t => {
+test('5.5 an empty or confirmed-gone inventory has bounded local coverage and leaves shared work alone', async t => {
   const home = await ledger(t);
   const empty = await closing.readClosing({ home });
   assert.equal(empty.status, 'empty');

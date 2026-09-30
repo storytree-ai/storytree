@@ -5,7 +5,7 @@
  * `pnpm test` provides; running work is a real process registered in a throwaway ledger.
  */
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -14,6 +14,7 @@ import { launchOwned } from "@storytree/processes";
 import { stopOwned } from "@storytree/processes/stopping";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
+import { removeTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { closeOut, LEAVE_MS, readSessions } from "./index.js";
 
@@ -24,7 +25,7 @@ async function withProject(body: (log: ActivityLog, project: string, home: strin
     await body(log, uniqueProjectName(), home);
   } finally {
     await log.close();
-    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeTempDir(home);
   }
 }
 

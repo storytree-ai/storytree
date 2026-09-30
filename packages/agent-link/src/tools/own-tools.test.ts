@@ -12,6 +12,7 @@ import { launchOwned, readProcess } from '@storytree/processes';
 import { listRuns } from '@storytree/processes/listing';
 import { createAgentTools } from './server.js';
 import { openActivityLog } from '../activity/index.js';
+import { removeTempDir } from '../testing/folders.js';
 import { testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects } from '../testing/pg.js';
 
 for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
@@ -23,7 +24,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
     await client.close();
     await tools?.close();
     await Promise.all(children.map(stopChild));
-    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeTempDir(home);
   });
   if (installed) {
     const bins = await buildBins(path.join(home, 'bin'));
@@ -105,7 +106,7 @@ test('own 3.6: offline Claude MCP refuses self authority from a stale server env
   const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: { CLAUDE_CODE_SESSION_ID: 'stale' } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'claude-code', version: 'test' });
-  t.after(async () => { await client.close(); await tools.close(); await rm(home, { recursive: true, force: true }); });
+  t.after(async () => { await client.close(); await tools.close(); await removeTempDir(home); });
   await tools.server.connect(serverSide);
   await client.connect(clientSide);
   const all = await client.callTool({ name: 'list_all_runs', arguments: {} });
@@ -131,7 +132,7 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
     await Promise.all(children.map(stopChild));
     await log?.close();
     await dropTestProjects([project]);
-    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeTempDir(home);
   });
   await writeFile(path.join(home, '.storytree.json'), JSON.stringify({ project }));
   await copyFile(`${testServerDataDir()}.owner.json`, path.join(home, 'pgdata.owner.json'));

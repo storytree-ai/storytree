@@ -47,6 +47,7 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
 export const CHANNELS = {
   checkForUpdates: "storytree:check-for-updates",
   readSetupLicense: "storytree:read-setup-license",
+  agentConnections: "storytree:agent-connections",
   checkSetupFolder: "storytree:check-setup-folder",
   addProject: "storytree:add-project",
   openFeedbackDraft: "storytree:open-feedback-draft",

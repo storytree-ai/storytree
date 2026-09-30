@@ -43,12 +43,19 @@ export function verifyHooks(lines: readonly Line[], session: string, harness: st
   return { verified: missing.length === 0, missing, fixes };
 }
 
+/**
+ * The one step that lets Codex run storytree's hooks, in words for the user: shown at connect, in the
+ * app and by the setup check alike (8.16). Codex asks by itself when it starts; /hooks asks again.
+ */
+export const CODEX_TRUST_STEP =
+  'In Codex, type /hooks and trust storytree\'s hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.';
+
 /** What each fix says to do. */
 export const FIX_SENTENCES: Readonly<Record<Fix, string>> = {
   "new-session":
     "A session's start reaches storytree only when the session starts in a storytree project with storytree's hooks already registered, so a session that set up its project or its hooks cannot show it. Once this session's work is done, start a new session here and call check_setup again. The hook before storytree's own tools fires only when its tool server is registered under the name storytree.",
   "codex-approval":
-    "Codex runs storytree's hooks only once the user approves them: ask the user to run `codex` in a terminal and trust the storytree hooks when it asks (or use /hooks there), then start a new session.",
+    `Codex runs storytree's hooks only once the user has trusted them, so until then storytree cannot see this session's work. Tell the user, in these words: ${CODEX_TRUST_STEP}`,
   "edit-check-file": `To fire the edit hook, write any text to the file ${CHECK_FILE} in this folder.`,
   "run-check-command": `To fire the command hook, run the command \`${CHECK_COMMAND}\`.`,
 };

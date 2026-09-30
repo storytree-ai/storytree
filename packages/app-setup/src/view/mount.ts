@@ -26,7 +26,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
       <button type="button" data-page="license" aria-pressed="false">License</button>
       <button type="button" data-page="feedback" aria-pressed="false">Send feedback</button>
     </nav>
-    <div data-content="guide">${guide}
+    <div data-content="guide"><div class="setup-help-agents" data-agents role="status" hidden></div>${guide}
       <div class="setup-help-actions"><button type="button" data-check>Check a folder…</button><button type="button" data-recover>Copy request for your agent</button></div>
       <p data-check-status role="status"></p>
       <div class="setup-help-diagnostics" data-diagnostics hidden></div>
@@ -63,6 +63,23 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
     for (const node of panel.querySelectorAll<HTMLElement>("[data-page]")) node.setAttribute("aria-pressed", String(node.dataset.page === name));
     panel.scrollTop = 0;
     if (name === "license") void license();
+    if (name === "guide") void agents();
+  }
+  /** Each connected agent still waiting on a step from the user, or past it, read afresh whenever the guide shows. */
+  async function agents(): Promise<void> {
+    const box = get("[data-agents]");
+    let connections: Awaited<ReturnType<SetupHelpBridge["agentConnections"]>> = [];
+    try { connections = await bridge.agentConnections(); } catch { /* The guide stands without it. */ }
+    box.replaceChildren(...connections.map((connection) => {
+      const item = document.createElement("p");
+      item.className = `setup-help-agent setup-help-agent-${connection.state}`;
+      const name = document.createElement("strong");
+      name.textContent = `${connection.agent}: `;
+      item.append(name, connection.message);
+      if (connection.step) { const step = document.createElement("span"); step.className = "setup-help-agent-step"; step.textContent = connection.step; item.append(" ", step); }
+      return item;
+    }));
+    box.hidden = connections.length === 0;
   }
   async function license(): Promise<void> {
     const retry = get<HTMLButtonElement>("[data-license-retry]");
@@ -140,6 +157,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
   function open(): void {
     if (stopped || !panel.hidden) return;
     panel.hidden = false; launch?.setAttribute("aria-expanded", "true");
+    void agents();
     get("#setup-help-title").focus();
   }
   function close(): void {

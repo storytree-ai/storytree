@@ -1,10 +1,11 @@
 /** The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
 import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js";
+import { CODEX_TRUST_STEP } from "./verify.js";
 import type { SetupReport } from "./setup.js";
 import type { AppReading } from "../sessions/app-records.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "codex-server" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
+  readonly check: "storytree" | "hooks" | "codex-server" | "codex-hooks" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -49,6 +50,15 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
         state: "needs-attention",
         message: `Codex has no storytree tool server ([mcp_servers.storytree] in ${codexServer.config}), so Codex sessions get no storytree tools.`,
         fix: "Run `storytree setup connect --codex`, then start a new Codex session.",
+      });
+
+  if (report.codexHooks !== undefined) lines.push(report.codexHooks === "running"
+    ? { check: "codex-hooks", state: "ok", message: "Codex runs storytree's hooks: one has reached storytree since they were registered." }
+    : {
+        check: "codex-hooks",
+        state: "needs-attention",
+        message: "Codex has storytree's hooks but has not run one yet: Codex runs them only once you have trusted them, so until then storytree cannot see Codex's work.",
+        fix: CODEX_TRUST_STEP,
       });
 
   switch (command) {

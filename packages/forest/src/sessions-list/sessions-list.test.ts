@@ -137,7 +137,7 @@ test("7.8 a row's files are its window's opened files, each once in the order fi
     { absent: "no hook has named this session's transcript" });
 });
 
-test("7.9-7.11 the header counts sessions at work; quiet sessions that never closed out fold as idle; a close-out that needs you says why; a verified one is gone (ADR-0758)", () => {
+test("7.9-7.11 the header counts sessions at work; quiet sessions that never closed out fold as idle; a close-out that needs you stays listed, unworded; a verified one is gone (ADR-0758)", () => {
   const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
   const lines = log(
@@ -151,7 +151,8 @@ test("7.9-7.11 the header counts sessions at work; quiet sessions that never clo
   assert.deepEqual(rows.map(row => [row.id, row.idle]), [["busy", false], ["asking", false], ["idle", true], ["unsure", false]], "a verified close-out leaves at once");
   assert.equal(atWork(rows), 3, "working, waiting for you, and needing you count; idle does not");
   const unsure = rows.find(row => row.id === "unsure");
-  assert.deepEqual({ needsYou: unsure?.needsYou, why: unsure?.needsYouWhy }, { needsYou: true, why: "says safe, but fix-login is unmerged" });
+  assert.equal(unsure?.needsYou, true, "a close-out that disagrees with the facts keeps its row out of the idle fold");
+  assert.equal("needsYouWhy" in unsure!, false, "the row carries no why: the list shows facts, not prose");
 });
 
 test("7.12 a session holding unmerged work is marked with its branches; the list leaves by the leave-after it is given; a finished desktop window folds as idle (ADR-0754 D4, ADR-0758 D5)", () => {

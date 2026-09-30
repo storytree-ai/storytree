@@ -19,7 +19,6 @@ test("7.1–7.5 rows start folded, show safe words and available total beside it
   assert.match(html, /aria-expanded="false"/);
   assert.match(html, /class="session-children"[^>]*>\+1<\/span>/);
   assert.doesNotMatch(html, /data-session-id="child"/);
-  assert.match(html, /class="session-needs-you">needs you/);
   assert.match(html, /class="session-context-slot" title="120,000 tokens"/);
   assert.match(html, /120,000 context tokens/);
   assert.match(html, />120K<\/span>/);
@@ -110,9 +109,8 @@ test("7.13 a row named with its machine shows it beside the label; a row without
   assert.equal(html.match(/class="session-machine"[^>]*>mint<\/span>/g)?.length, 1, html);
 });
 
-test("7.12 a row holding unmerged work says so under it, naming its branches; a row without says nothing (ADR-0754 D4)", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], unmerged: ["fix-login", "tidy-readme"] }], onHighlight() {} }));
-  assert.match(html, /class="session-unmerged">Holding unmerged work: fix-login, tidy-readme</);
-  assert.match(html, /aria-label="[^"]* · holding unmerged work: fix-login, tidy-readme"/);
-  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} })), /unmerged/i);
+test("7.9 the list prints no prose about a session: a row that needs you, holds unmerged work or has a close-out why shows none of it, and the header count names no such need", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], needsYou: true, needsYouWhy: "says safe, but fix-login is unmerged", unmerged: ["fix-login", "tidy-readme"] } as SessionRow], onHighlight() {} }));
+  assert.match(html, /Build &lt;signup&gt;/);
+  assert.doesNotMatch(html, /needs you|unmerged|says safe|fix-login|needing/i);
 });

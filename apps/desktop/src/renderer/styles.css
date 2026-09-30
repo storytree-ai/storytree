@@ -502,6 +502,31 @@ body[data-surface="forest"] main {
   margin: 0.2rem 0;
 }
 
+/* Why the selected capability is not green, and who moves it (forest 4.12, ADR-0825 D1): plain words
+   under its word, no colour of its own, so "needs you" is carried by the sentence, not a tint. */
+
+.panel-detail p.panel-why {
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.25rem 0 0.25rem 0.6rem;
+  border-left: 3px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.panel-why .panel-mover {
+  color: var(--muted);
+}
+
+.panel-why.mover-owner .panel-mover {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.panel-last-seen {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .panel-health {
   display: flex;
   flex-wrap: wrap;

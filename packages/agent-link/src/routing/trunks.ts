@@ -127,6 +127,13 @@ export async function registerTrunk(storytree: Storytree, trunk: Trunk): Promise
   return rowCount === 1;
 }
 
+/** Forget `project`'s trunk on `machine`, as when the project is removed from it; false when there was none. */
+export async function forgetTrunk(storytree: Storytree, { project, machine }: { project: string; machine: string }): Promise<boolean> {
+  const pool = await trunksPool(storytree);
+  const { rowCount } = await pool.query("DELETE FROM trunks WHERE project = $1 AND machine = $2", [project, machine]);
+  return rowCount === 1;
+}
+
 /** `name`, or the first of `name-2`, `name-3`… that is no project yet, within the project-name length. */
 export function unusedName(name: string, taken: readonly string[]): string {
   for (let n = 1; ; n++) {

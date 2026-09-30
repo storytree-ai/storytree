@@ -1,15 +1,15 @@
 import type { SetupHelpBridge } from "../help/bridge.js";
 
-type Removal = { removed: string | null } | { failed: string };
+type Removal = { removed: string | null; kept?: string } | { failed: string };
 
 /** Take the project on show off this computer's list, then let the frame refresh; nothing on show removes nothing. */
 export async function removeCurrentProject(bridge: Pick<SetupHelpBridge, "removeProject">, options: { current(): string | undefined; onRemoved(project: string): Promise<void> }): Promise<Removal> {
   const project = options.current();
   if (project === undefined) return { removed: null };
   try {
-    await bridge.removeProject(project);
+    const { kept } = await bridge.removeProject(project);
     await options.onRemoved(project);
-    return { removed: project };
+    return kept === undefined ? { removed: project } : { removed: project, kept };
   } catch (error: unknown) {
     return { failed: `The project could not be removed: ${error instanceof Error ? error.message : String(error)}` };
   }
@@ -49,7 +49,7 @@ export function mountRemoveProject(host: HTMLElement, bridge: Pick<SetupHelpBrid
     if (project === undefined) return;
     asked = project;
     say("");
-    question.textContent = `“${project}” leaves this computer’s list. Its records stay in the library, and adding its folder again brings it back.`;
+    question.textContent = `“${project}” leaves this computer’s list, and its folder is no longer a storytree project here. Its records stay in the library.`;
     confirm.hidden = false;
     cancel.focus();
   });
@@ -60,6 +60,7 @@ export function mountRemoveProject(host: HTMLElement, bridge: Pick<SetupHelpBrid
     void removeCurrentProject(bridge, { current: () => asked, onRemoved: options.onRemoved }).then((result) => {
       close();
       if ("failed" in result) say(result.failed, true);
+      else if (result.removed !== null && result.kept !== undefined) say(`“${result.removed}” is off this computer’s list. Its folder still names it in .storytree.json, which git tracks, so that file was left for you: delete it to free the folder.`);
       else if (result.removed !== null) say(`“${result.removed}” is off this computer’s list.`);
     }).finally(() => { yes.disabled = cancel.disabled = false; refresh(); });
   });

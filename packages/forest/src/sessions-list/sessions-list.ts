@@ -27,9 +27,8 @@ export interface SessionRow {
   agent: string;
   /** A subagent start alone does not tell us whether the subagent is still running. */
   state: SessionState | "observed";
+  /** An open arc question holds its work, or its close-out says it is not done (ADR-0758 D3): keeps it out of the idle fold. Never drawn; owner decisions surface as open questions on the arc surface. */
   needsYou: boolean;
-  /** Why it needs you, when its close-out says so (ADR-0758 D3): its own why, or where a yes disagrees with the facts. */
-  needsYouWhy?: string;
   /**
    * Folded into the list's "N idle" row, and not counted (ADR-0758 D1, D5): neither working, nor
    * waiting for you (a turn ended within the idle-after time), nor needing you.
@@ -90,7 +89,6 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     rows.set(session.session, { id: session.session, label,
       description: [session.title === label ? undefined : session.title, objective || undefined, session.status].filter((said): said is string => said !== undefined),
       agent: session.label, state: session.state, needsYou: question || session.closeOut?.needsYou !== undefined,
-      ...(session.closeOut?.needsYou === undefined ? {} : { needsYouWhy: session.closeOut.needsYou }),
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees,

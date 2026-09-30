@@ -284,7 +284,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   });
   return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} aria-label="Running sessions">
     <header>
-      <span>Sessions <span className="sessions-count" title="Working, waiting for you, or needing you">{atWork(rows)}</span></span>
+      <span>Sessions <span className="sessions-count" title="Sessions at work or waiting for you">{atWork(rows)}</span></span>
       <span className="session-legend" aria-label="Bar colours">
         {GROUPS.map(([group, name]) => <span key={group} data-group={group}><span className="session-swatch" aria-hidden="true" />{name}</span>)}
       </span>
@@ -302,7 +302,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           onClick={() => { const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); }}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
             event.preventDefault(); const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); } }}
-          aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}${row.needsYou ? ` · needs you${row.needsYouWhy === undefined ? "" : `: ${row.needsYouWhy}`}` : ""}${row.unmerged.length > 0 ? ` · holding unmerged work: ${row.unmerged.join(", ")}` : ""}`}
+          aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
           {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted by the "+N" after its name. */}
@@ -315,13 +315,10 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           {row.children.length > 0 && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
           {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.join("\n")}
             aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
-          {row.needsYou && <span className="session-needs-you" title={row.needsYouWhy}>needs you</span>}
           <ContextBar row={row} />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
             {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
         </div>
-        {row.needsYouWhy !== undefined && <p className="session-why">{row.needsYouWhy}</p>}
-        {row.unmerged.length > 0 && <p className="session-unmerged">{`Holding unmerged work: ${row.unmerged.join(", ")}`}</p>}
         {expanded.has(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
       </li></Fragment>)}
       {atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}

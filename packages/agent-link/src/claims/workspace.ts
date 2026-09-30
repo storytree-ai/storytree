@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import { claim, claimRefusal, reasonRefusal, readClaim, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
-import { endIfMerged, type MergeWatch } from "./merges.js";
+import { endIfMerged, inMergeQueue, type MergeWatch } from "./merges.js";
 
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
@@ -64,7 +64,8 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   }
 
   const where = placeFor(repository, id);
-  const claimed = await claim({ ...context, branch: where.branch }, id, reason);
+  // A claim this session still holds is on a branch in the merge queue (workspaceRefusal): it moves to the new one.
+  const claimed = await claim({ ...context, branch: where.branch }, id, reason, { moveBranch: true });
   if (!claimed.ok) return claimed;
   try {
     mkdirSync(path.dirname(where.folder), { recursive: true });
@@ -119,10 +120,16 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
   return { ok: true, status: "ready", claim: claimed.claim, folder, branch, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
 }
 
-/** Why this session may not have a workspace for `id`; a claim it holds on a branch that has since merged is ended first, not pointed back at. */
+/**
+ * Why this session may not have a workspace for `id`. A claim it holds on a branch that has since
+ * merged is ended first, and one on a branch waiting in the merge queue, which can take no more
+ * commits, is not pointed back at either.
+ */
 async function workspaceRefusal(context: WorkspaceContext, id: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
   const mine = await readClaim(context.log, context.project, id);
-  if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch))) return { ok: false, refused: "yours", claim: mine };
+  if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch)) && !(await inMergeQueue(context.folder, mine, watch))) {
+    return { ok: false, refused: "yours", claim: mine };
+  }
   return claimRefusal(context, id);
 }
 

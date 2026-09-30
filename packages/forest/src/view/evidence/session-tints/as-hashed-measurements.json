@@ -1,0 +1,435 @@
+{
+  "now": "2026-10-01T12:00:00.000Z",
+  "sessions": {
+    "A": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+    "B": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+    "C": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2"
+  },
+  "capabilities": {
+    "agentTools": "capability_4da153322012",
+    "claims": "capability_05ff7e9f0f99",
+    "libraryTransactions": "capability_75abfdd699c0",
+    "storyNodeRender": "capability_9f02379a2e1a"
+  },
+  "logLines": 13,
+  "sessionRows": {
+    "key": "storytree.forest.sessions.v1:storytree",
+    "rows": [
+      {
+        "id": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+        "label": "tool call arguments",
+        "agent": "Claude Code",
+        "state": "working",
+        "idle": false,
+        "stories": [
+          "story_05e45963ca9f",
+          "story_eb7d623fb9c8"
+        ]
+      },
+      {
+        "id": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+        "label": "takeover of an idle claim",
+        "agent": "Claude Code",
+        "state": "working",
+        "idle": false,
+        "stories": [
+          "story_05e45963ca9f"
+        ]
+      },
+      {
+        "id": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
+        "label": "territory colours",
+        "agent": "Claude Code",
+        "state": "waiting",
+        "idle": true,
+        "stories": [
+          "story_be32e99ed54f"
+        ]
+      }
+    ]
+  },
+  "front": {
+    "zoom": 1.6793655730057533,
+    "wispObjects": 0,
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "colour": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.9,
+            "vertices": 202
+          },
+          {
+            "name": "coast-tint:5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+            "session": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+            "colour": "hsl(335, 80%, 68%)",
+            "drawnColour": "#ef6ca3",
+            "opacity": 0.9,
+            "vertices": 204
+          }
+        ],
+        "territories": 8,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_05ff7e9f0f99",
+            "capability": "capability_05ff7e9f0f99",
+            "title": "5 · Claims",
+            "claimedBy": "hsl(335, 80%, 68%)",
+            "drawnColour": "#ef6ca3",
+            "opacity": 0.32
+          },
+          {
+            "name": "territory:capability_4da153322012",
+            "capability": "capability_4da153322012",
+            "title": "6 · Agent tools (the MCP server)",
+            "claimedBy": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.32
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "coastTintBands": [],
+        "territories": 5,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "coastTintBands": [],
+        "territories": 6,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_20549f1d48af",
+        "coastTintBands": [],
+        "territories": 3,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
+            "session": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
+            "colour": "hsl(336, 80%, 68%)",
+            "drawnColour": "#ef6ca0",
+            "opacity": 0.35,
+            "vertices": 362
+          }
+        ],
+        "territories": 6,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_9f02379a2e1a",
+            "capability": "capability_9f02379a2e1a",
+            "title": "3 · Story node render",
+            "claimedBy": "hsl(336, 80%, 68%)",
+            "drawnColour": "#ef6ca0",
+            "opacity": 0.14
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "coastTintBands": [],
+        "territories": 2,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "coastTintBands": [],
+        "territories": 7,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "colour": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.9,
+            "vertices": 522
+          }
+        ],
+        "territories": 5,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_75abfdd699c0",
+            "capability": "capability_75abfdd699c0",
+            "title": "2 · Library transactions",
+            "claimedBy": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.32
+          }
+        ]
+      }
+    ]
+  },
+  "closeUpAgentLink": {
+    "zoom": 4.366350489814959,
+    "wispObjects": 0,
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "colour": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.9,
+            "vertices": 202
+          },
+          {
+            "name": "coast-tint:5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+            "session": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+            "colour": "hsl(335, 80%, 68%)",
+            "drawnColour": "#ef6ca3",
+            "opacity": 0.9,
+            "vertices": 204
+          }
+        ],
+        "territories": 8,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_05ff7e9f0f99",
+            "capability": "capability_05ff7e9f0f99",
+            "title": "5 · Claims",
+            "claimedBy": "hsl(335, 80%, 68%)",
+            "drawnColour": "#ef6ca3",
+            "opacity": 0.32
+          },
+          {
+            "name": "territory:capability_4da153322012",
+            "capability": "capability_4da153322012",
+            "title": "6 · Agent tools (the MCP server)",
+            "claimedBy": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.32
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "coastTintBands": [],
+        "territories": 5,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "coastTintBands": [],
+        "territories": 6,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_20549f1d48af",
+        "coastTintBands": [],
+        "territories": 3,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
+            "session": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
+            "colour": "hsl(336, 80%, 68%)",
+            "drawnColour": "#ef6ca0",
+            "opacity": 0.35,
+            "vertices": 362
+          }
+        ],
+        "territories": 6,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_9f02379a2e1a",
+            "capability": "capability_9f02379a2e1a",
+            "title": "3 · Story node render",
+            "claimedBy": "hsl(336, 80%, 68%)",
+            "drawnColour": "#ef6ca0",
+            "opacity": 0.14
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "coastTintBands": [],
+        "territories": 2,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "coastTintBands": [],
+        "territories": 7,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "colour": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.9,
+            "vertices": 522
+          }
+        ],
+        "territories": 5,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_75abfdd699c0",
+            "capability": "capability_75abfdd699c0",
+            "title": "2 · Library transactions",
+            "claimedBy": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.32
+          }
+        ]
+      }
+    ]
+  },
+  "closeUpForest": {
+    "zoom": 4.366350489814959,
+    "wispObjects": 0,
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "colour": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.9,
+            "vertices": 202
+          },
+          {
+            "name": "coast-tint:5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+            "session": "5be07d94-1c28-4f6a-b3d9-e8a4c60f2117",
+            "colour": "hsl(335, 80%, 68%)",
+            "drawnColour": "#ef6ca3",
+            "opacity": 0.9,
+            "vertices": 204
+          }
+        ],
+        "territories": 8,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_05ff7e9f0f99",
+            "capability": "capability_05ff7e9f0f99",
+            "title": "5 · Claims",
+            "claimedBy": "hsl(335, 80%, 68%)",
+            "drawnColour": "#ef6ca3",
+            "opacity": 0.32
+          },
+          {
+            "name": "territory:capability_4da153322012",
+            "capability": "capability_4da153322012",
+            "title": "6 · Agent tools (the MCP server)",
+            "claimedBy": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.32
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "coastTintBands": [],
+        "territories": 5,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "coastTintBands": [],
+        "territories": 6,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_20549f1d48af",
+        "coastTintBands": [],
+        "territories": 3,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
+            "session": "c91d6e08-42fa-4a7b-95c3-0d7b18e3a5d2",
+            "colour": "hsl(336, 80%, 68%)",
+            "drawnColour": "#ef6ca0",
+            "opacity": 0.35,
+            "vertices": 362
+          }
+        ],
+        "territories": 6,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_9f02379a2e1a",
+            "capability": "capability_9f02379a2e1a",
+            "title": "3 · Story node render",
+            "claimedBy": "hsl(336, 80%, 68%)",
+            "drawnColour": "#ef6ca0",
+            "opacity": 0.14
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "coastTintBands": [],
+        "territories": 2,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "coastTintBands": [],
+        "territories": 7,
+        "claimedTerritories": []
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "coastTintBands": [
+          {
+            "name": "coast-tint:a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "session": "a3f81c52-7d0e-4b96-8a14-2c5e9d10b7f3",
+            "colour": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.9,
+            "vertices": 522
+          }
+        ],
+        "territories": 5,
+        "claimedTerritories": [
+          {
+            "name": "territory:capability_75abfdd699c0",
+            "capability": "capability_75abfdd699c0",
+            "title": "2 · Library transactions",
+            "claimedBy": "hsl(356, 80%, 68%)",
+            "drawnColour": "#ef6c75",
+            "opacity": 0.32
+          }
+        ]
+      }
+    ]
+  },
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "seed": {
+    "stories": 8,
+    "capabilities": 58,
+    "within": 75,
+    "cross": 28,
+    "links": 103
+  }
+}

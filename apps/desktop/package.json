@@ -28,6 +28,7 @@
     "electron-builder": "26.15.3",
     "esbuild": "^0.28.2",
     "google-auth-library": "^10.6.2",
+    "playwright-core": "1.60.0",
     "typescript": "~7.0.2"
   },
   "optionalDependencies": {

@@ -1,6 +1,7 @@
 // ADR-0760 D1 on the actual desktop renderer and app reads: lanes roll up their increments and
 // fold under what they wait on. Run under the heavy lock, after apps/desktop/build.mjs.
-// Uses the same harness as ../capture.mjs; no live project is opened or changed.
+// Its fake bridge and Chromium come from the capture kit (apps/desktop/src/capture); no live
+// project is opened or changed. CAPTURE_PLAYWRIGHT and CAPTURE_CHROMIUM name others by path.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
@@ -11,8 +12,8 @@ import { connect } from '@storytree/library';
 import { openActivityLog, claim } from '@storytree/agent-link';
 import { pageReads } from '@storytree/app';
 import { start } from '@storytree/local-postgres';
+import { fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts';
 
-const { chromium } = await import(process.env.ARC_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const output = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(output, '../../../../apps/desktop/dist/renderer');
 const temporary = mkdtempSync(path.join(tmpdir(), 'storytree-lane-rollup-'));
@@ -58,9 +59,16 @@ try {
   const held = await work(surface, 'Lanes roll up');
 
   reads = pageReads({ storytree: store });
-  // The renderer now asks for its surfaces setting too; an unread setting means every surface is on.
-  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), readSurfaces: async () => undefined };
-  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds', 'readSurfaces'];
+  // The renderer's own reads (updates, setup) are answered as idle here; they are not under test.
+  const pick = (names) => Object.fromEntries(names.map((name) => [name, reads[name]]));
+  const bridge = fakeBridge({
+    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds']),
+    projectSelection: async () => ({ current: project, projects: [project] }),
+    readSurfaces: async () => undefined,
+    agentConnections: async () => [],
+    codeSurvey: async () => ({}),
+    checkForUpdates: async () => ({ phase: 'unavailable', runningBuild: 'capture', reason: 'not under test' }),
+  });
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
     if (!['index.html', 'renderer.js', 'arc-surface.css', 'styles.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -68,15 +76,12 @@ try {
     res.end(readFileSync(path.join(dist, name)));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  browser = await chromium.launch({ executablePath: process.env.ARC_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell', headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, colorScheme: 'dark', deviceScaleFactor: 1 });
   const errors = []; page.on('pageerror', error => { errors.push(String(error)); console.error('pageerror', String(error)); }); page.on('console', m => process.env.ARC_DEBUG && console.error('console', m.text()));
-  // A read the renderer makes beyond these (another surface's) fails as a read error there, never a write.
-  await page.exposeFunction('arcRead', (method, args) => { if (!allowed.includes(method) || !bridge[method]) throw new Error(`not carried: ${method}`); return bridge[method](...args); });
-  await page.addInitScript(() => { window.storytree = new Proxy({}, { get: (_, method) => (...args) => window.arcRead(String(method), args) }); });
+  await bridge.install(page);
   await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 60000 });
+  await bridge.ready(page);
   await log.append(project, { kind: 'session-started', source: 'hook', harness: 'codex', session: 'capture-agent' });
   assert.equal((await claim({ library, log, project, session: 'capture-agent', harness: 'codex' }, held.id, 'Build the roll-up.')).ok, true);
   // The app menu opens itself when the app's own reads (updates, setup) are not carried here; it is not under test.

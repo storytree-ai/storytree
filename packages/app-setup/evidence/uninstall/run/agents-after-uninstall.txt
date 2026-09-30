@@ -1,0 +1,14 @@
+claude exit: 0
+codex exit: 0
+claude result: PONG
+claude init mcp servers: 
+claude lines naming storytree: 0
+claude hook events: 0
+codex output lines naming storytree or hook: 0
+codex tail:
+Reply with the single word PONG and nothing else. Do not run any commands.
+codex
+PONG
+tokens used
+2,037
+PONG

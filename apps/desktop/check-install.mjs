@@ -48,13 +48,13 @@ function checkUninstall(tools) {
   const asks = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-deliver.mjs"), "uninstall-asks", installed], { encoding: "utf8", env });
   assert.equal(asks.status, 0, `the installation owns the home it delivered: ${asks.stdout}${asks.stderr}`);
 
-  // _?= keeps the uninstaller in place, so this waits for it to finish. NSIS reads it only last and
-  // unquoted, even with spaces; quoted, the uninstaller relaunches from a copy and returns at once.
-  const uninstaller = path.join(installed, "Uninstall storytree-0.3.exe");
-  const removed = spawnSync(uninstaller, [`/S --remove-library _?=${installed}`], { timeout: 180_000, env, argv0: `"${uninstaller}"`, windowsVerbatimArguments: true });
-  assert.equal(removed.status, 0, `the uninstaller exits cleanly: ${removed.error ?? ""}`);
-  const left = existsSync(user) ? readdirSync(user, { recursive: true }).join("\n  ") : "(none)";
-  console.log(`after uninstall, the user's folder holds:\n  ${left}\n.claude.json: ${readFileSync(claudeFile, "utf8")}\ninstalled: ${readdirSync(installed).join(", ")}`);
+  // What `storytree setup uninstall --remove-library` runs. The uninstaller it starts relaunches from a
+  // copy and returns at once, so the proof waits for the app's own files to go.
+  const opened = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-deliver.mjs"), "open-uninstaller", "remove"], { encoding: "utf8", env });
+  assert.equal(opened.status, 0, `the uninstall command starts the uninstaller: ${opened.stdout}${opened.stderr}`);
+  const deadline = Date.now() + 180_000;
+  while ((existsSync(path.join(installed, "storytree-0.3.exe")) || existsSync(home)) && Date.now() < deadline) execFileSync(process.execPath, ["-e", "setTimeout(() => {}, 1000)"]);
+  if (existsSync(home)) console.log(`after uninstall, the user's folder holds:\n  ${readdirSync(user, { recursive: true }).join("\n  ")}\n.claude.json: ${readFileSync(claudeFile, "utf8")}`);
   assert.ok(!existsSync(home) && !existsSync(path.join(user, ".storytree")), "the home and library are removed");
   assert.ok(!existsSync(cache), "the update cache is removed");
   assert.deepEqual(JSON.parse(readFileSync(claudeFile, "utf8")), { theme: "dark", mcpServers: { other } }, "only storytree's connection is removed");

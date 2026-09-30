@@ -58,7 +58,7 @@ test("library-only guidance edits can request all three checks, continuing past 
     assert.deepEqual(calls, ["typecheck", "test", "check:guidance"]);
     assert.equal(code, 1);
     assert.ok(output.at(-1).includes(`FAIL    ${broken}`));
-    assert.match(output.at(-1), /rerun: pnpm gate -- --guidance/);
+    assert.match(output.at(-1), /rerun: pnpm run gate --guidance/);
     assert.doesNotMatch(output.at(-1), /rerun-failed/);
   }
 });

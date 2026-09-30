@@ -12,10 +12,14 @@
 // the one Postgres, and a failure never stops the rest: the run ends with a PASS / FAIL / NOT RUN
 // table, and exits non-zero if any unit did not pass.
 //
-//   pnpm test -- --scope            print the decision and the units, and run nothing
-//   pnpm test -- --full             run everything, whatever changed
-//   pnpm test -- --only=cli,forest  run the named packages (dir, dir name or package name; `scripts`)
-//   pnpm test -- --rerun-failed     run what the last run in this checkout failed or never reached
+//   pnpm run test --scope            print the decision and the units, and run nothing
+//   pnpm run test --full             run everything, whatever changed
+//   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name; `scripts`)
+//   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
+//
+// Give flags as `pnpm run test --flag`: `pnpm run` passes what follows the script name to it in
+// every shell. Windows PowerShell 5.1 drops a bare `--` before pnpm sees it, so the older
+// `pnpm test -- --flag` fails there with "Unknown option"; a literal `--` is still ignored here.
 //
 // The last result of each unit is kept in .pgtest/last-run.json for --rerun-failed; a run updates
 // the units it ran and leaves the others' results as they were.
@@ -30,7 +34,7 @@
 // is refused while another live run holds .pgtest/data, and a server that an interrupted run left
 // running is stopped before this one starts.
 //
-// Other arguments go to `node --test`, in every unit: `pnpm test -- <file>` runs just that file,
+// Other arguments go to `node --test`, in every unit: `pnpm run test <file>` runs just that file,
 // with no scope and no record. Give options in --name=value form, so that a value is never mistaken
 // for a file.
 //
@@ -46,8 +50,8 @@
 // row gives the unit's time, its deadline and where the deadline came from. Any agent may set a
 // unit's deadline on this machine, and clear it again:
 //
-//   pnpm test -- --set-limit=cli=300 --reason="two gates at once on this laptop"
-//   pnpm test -- --clear-limit=cli
+//   pnpm run test --set-limit=cli=300 --reason="two gates at once on this laptop"
+//   pnpm run test --clear-limit=cli
 //
 // One heavy run at a time on a machine (scripts/heavy-lock.mjs): past the scope decision, a run
 // takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its

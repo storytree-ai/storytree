@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "storytree": {
+      "command": "node",
+      "args": ["scripts/provision-worktree.mjs", "--serve"]
+    }
+  }
+}

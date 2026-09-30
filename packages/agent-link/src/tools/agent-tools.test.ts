@@ -50,6 +50,7 @@ const TOOLS = [
   "list_own_runs",
   "make_workspace",
   "mark_built",
+  "move_increment",
   "open",
   "park_arc",
   "park_increment",
@@ -433,6 +434,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["park_increment", { arc: "arc_000000000000", title: "Email form", objective: "Build it", body: "Red then green" }],
         ["ready_increment", { increment: "increment_000000000000" }],
         ["close_increment", { increment: "increment_000000000000", disposition: "landed", pr: "#1" }],
+        ["move_increment", { increment: "increment_000000000000", to: "arc_000000000000", reason: "belongs there" }],
         ["park_arc", { arc: "arc_000000000000", parked: true }],
         ["mark_built", { capability: "capability_000000000000", built: true }],
         ["set_wait", { waiter: "increment_000000000000", on: "increment_000000000001", reason: "it comes first" }],
@@ -1326,6 +1328,39 @@ test("6.26 open on a contract shows it whole: its title, its description and the
       const refused = await agent.call("open", { id: arc.id });
       assert.equal(refused.isError, true);
       assert.match(refused.text, /is an arc/);
+    });
+  });
+});
+
+test("6.28 move_increment moves an open increment to another arc keeping its id, with the session as writer and the reason in its history; a closed increment, a closed or missing arc and a missing increment get a readable refusal, with nothing written", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const target = idOf(await agent.call("plan_arc", { title: "Launch v2", intent: "Ship more", end_state: "More visitors" }));
+      const ids = async (on: string) => (await library.arcView(on))?.increments.map((one) => one.id) ?? [];
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green" }));
+
+      const moved = await agent.call("move_increment", { increment, to: target, reason: "belongs to v2" });
+      assert.equal(moved.isError, false, moved.text);
+      assert.ok((await ids(target)).includes(increment), "the target arc lists it");
+      assert.ok(!(await ids(arc)).includes(increment), "the old arc no longer does");
+      const last = (await library.history({ id: increment })).at(-1);
+      assert.equal(last?.actor, "session:claude-1");
+      assert.equal(last?.reason, "belongs to v2");
+
+      const closedArc = idOf(await agent.call("plan_arc", { title: "Done", intent: "Was done", end_state: "Done" }));
+      await agent.call("park_increment", { arc: closedArc, title: "Old", objective: "Done", body: "Done", outcome: { disposition: "landed", pr: "#1" } });
+      const done = idOf(await agent.call("park_increment", { arc: target, title: "Shipped", objective: "Done", body: "Done", outcome: { disposition: "landed", pr: "#2" } }));
+      for (const [args, why] of [
+        [{ increment, to: closedArc, reason: "r" }, "a closed arc"],
+        [{ increment, to: "arc_000000000000", reason: "r" }, "a missing arc"],
+        [{ increment: done, to: arc, reason: "r" }, "a closed increment"],
+        [{ increment: "increment_000000000000", to: arc, reason: "r" }, "a missing increment"],
+      ] as const) {
+        const refused = await agent.call("move_increment", args);
+        assert.equal(refused.isError, true, `${why} is refused: ${refused.text}`);
+      }
+      assert.ok((await ids(target)).includes(increment) && (await ids(target)).includes(done), "nothing moved");
     });
   });
 });

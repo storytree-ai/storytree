@@ -290,3 +290,17 @@ test("5.13 a claim taken by this session during attachment is refused as already
     assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
   });
 });
+
+test("5.13 a session that holds work on a branch GitHub reports merged, before the merge watch has run, gets a fresh workspace instead of being pointed at the merged branch", async () => {
+  await withWorld(async ({ log, project, park, as }) => {
+    const increment = await park("email form");
+    assert.equal((await claim({ ...as("A"), branch: "claude/landed" }, increment, "first unit")).ok, true);
+    const mergedPulls = async (_folder: string, branch: string) => branch === "claude/landed" ? [{ number: 7, mergedAt: new Date(Date.now() + 1_000).toISOString() }] : [];
+
+    const made = await makeWorkspace(as("A"), increment, "next unit", { mergedPulls });
+
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    assert.notEqual(made.branch, "claude/landed");
+    assert.deepEqual((await readClaims(log, project)).map(({ session, branch }) => ({ session, branch })), [{ session: "A", branch: made.branch }]);
+  });
+});

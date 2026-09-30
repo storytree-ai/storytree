@@ -65,19 +65,19 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
 
   define(
     "attach_workspace",
-    "Attach the Codex app's returned worktree after make_workspace and the app's create_worktree. Verifies this repository and the exact prepared commit, names a detached branch codex/<name>, and claims the work. A refusal keeps the app's folder; do not recreate it.",
+    "Attach an app-made worktree and claim the work there. Codex: after make_workspace and the app's create_worktree, pass the returned folder, ref and name; it verifies the exact prepared commit and names a detached branch codex/<name>. Claude Code: attach the linked worktree this session is already in (folder defaults to the session's), claimed on the branch it is on; no ref or name. A refusal keeps the folder; do not recreate it.",
     z.object({
       ...part,
       reason: z.string().min(1),
-      folder: z.string().min(1).describe("The directory returned by the app's create_worktree"),
-      ref: z.string().min(1).describe("The exact commit returned by make_workspace and passed to create_worktree"),
-      name: z.string().min(1).describe("The work-derived name returned by make_workspace"),
+      folder: z.string().min(1).optional().describe("Codex: the directory returned by the app's create_worktree. Claude Code: the linked worktree this session is in; defaults to the session's folder"),
+      ref: z.string().min(1).optional().describe("Codex only: the exact commit returned by make_workspace and passed to create_worktree"),
+      name: z.string().min(1).optional().describe("Codex only: the work-derived name returned by make_workspace"),
     }),
     async ({ capability, increment, reason, folder, ref, name }, call) => {
       const id = capability ?? increment;
       if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { attached: false } };
-      const attached = await attachWorkspace(claimContext(call), id, reason, { folder, ref, name });
-      if (!attached.ok) return { text: `${await workspaceRefusalText(call.library, id, attached)} The app's worktree is kept.`, refused: true, data: { attached: false } };
+      const attached = await attachWorkspace(claimContext(call), id, reason, { folder: folder ?? call.folder, ...(ref === undefined ? {} : { ref }), ...(name === undefined ? {} : { name }) });
+      if (!attached.ok) return { text: `${await workspaceRefusalText(call.library, id, attached)} The worktree is kept.`, refused: true, data: { attached: false } };
       return {
         text: `Attached ${attached.folder}, on branch ${attached.branch} at ${attached.base}; you hold ${await titleOf(call.library, id)} there. Use that directory explicitly for your commands and set it up as this project does at session start (install its packages).`,
         data: { attached: true, folder: attached.folder, branch: attached.branch, base: attached.base },

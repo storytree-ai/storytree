@@ -1,0 +1,9 @@
+
+This folder is set up as storytree project "hb-b9" now.
+
+
+
+Codex: tools connected; hooks waiting for you to trust them in Codex.
+
+trial B9, arm C:\Users\mickh\AppData\Local\Programs\storytree-0.3\resources\agent-tools\storytree-mcp-armB.mjs: tool server args = ["C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-mcp-armB.mjs"]
+hook trust entries: 0; AGENTS.md: True

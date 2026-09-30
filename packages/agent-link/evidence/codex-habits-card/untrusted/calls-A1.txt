@@ -1,0 +1,18 @@
+CMD
+st:check_setup [completed] 
+st:show_plan [completed] 
+CMD
+st:claim [completed] 
+st:open [completed] 
+EDIT tests.js
+CMD
+CMD
+st:report [completed] result=red
+EDIT app.js,index.html,todo.js,tests.html,style.css,README.md
+CMD
+CMD
+st:report [completed] result=green
+st:land [completed] 
+st:mark_built [completed] 
+st:park_increment [completed] title=Deliver browser page in empty workspace
+st:close_out [completed] safe=True

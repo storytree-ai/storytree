@@ -1,0 +1,24 @@
+CMD
+st:check_setup [completed] 
+st:show_plan [completed] 
+st:plan_story [completed] title=Manage a personal to-do list
+CMD
+st:plan_capability [completed] title=Browser task list and tested logic
+CMD
+st:plan_contract [completed] title=Task lifecycle preserves independent tas
+st:claim [completed] 
+st:open [completed] 
+EDIT logic.test.js,tests.html
+CMD
+CMD
+st:report [completed] result=red
+EDIT .gitignore,logic.js,index.html,app.js,README.md,styles.css
+CMD
+st:report [completed] result=green
+st:mark_built [completed] 
+st:land [completed] 
+CMD
+st:plan_arc [completed] title=Deliver Little List
+CMD
+st:park_increment [completed] title=Build and test local task list
+st:close_out [completed] safe=True

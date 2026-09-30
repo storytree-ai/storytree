@@ -1,0 +1,17 @@
+CMD
+st:check_setup [completed] 
+EDIT 
+st:check_setup [failed] 
+st:show_plan [failed] 
+CMD
+CMD
+CMD
+EDIT 
+CMD
+CMD
+EDIT 
+CMD
+CMD
+CMD
+st:close_out [failed] safe=False
+CMD

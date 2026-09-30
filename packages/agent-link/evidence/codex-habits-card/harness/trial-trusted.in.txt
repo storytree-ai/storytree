@@ -1,0 +1,6 @@
+$env:CODEX_HOME = "$HOME\st-habits\home-LABEL"
+Set-Location -LiteralPath "$HOME\HB Trial LABEL"
+# Stands in for a user who has trusted storytree's hooks (only a test may bypass the trust).
+$null | codex exec --skip-git-repo-check --approve-for-me --dangerously-bypass-hook-trust "Build me a small to-do list web page I can open in my browser, with a test for its logic." 2>&1 | Out-String -Width 220
+"--- folder after:"
+Get-ChildItem -Force -Name

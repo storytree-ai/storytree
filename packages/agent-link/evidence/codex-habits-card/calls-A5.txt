@@ -1,0 +1,30 @@
+CMD
+st:check_setup [completed] 
+EDIT .storytree-check
+st:check_setup [completed] 
+st:show_plan [completed] 
+CMD
+st:plan_story [completed] title=Manage a personal to-do list
+CMD
+st:plan_capability [completed] title=Browser task list with tested logic
+st:plan_contract [completed] title=Task lifecycle and saved data behave cor
+st:claim [completed] 
+st:open [completed] 
+EDIT tests.html,tests.js
+CMD
+CMD
+CMD
+st:report [completed] result=red
+EDIT README.md,style.css,index.html,app.js,todo.js
+CMD
+st:report [completed] result=green
+st:mark_built [completed] 
+st:land [completed] 
+st:plan_arc [completed] title=Deliver small browser to-do page
+CMD
+st:park_increment [completed] title=Build and verify local to-do page
+st:read_context [completed] 
+CMD
+CMD
+st:close_out [completed] safe=True
+CMD

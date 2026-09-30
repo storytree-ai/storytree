@@ -1,0 +1,5 @@
+$env:CODEX_HOME = "$HOME\st-habits\home-LABEL"
+Set-Location -LiteralPath "$HOME\HB Trial LABEL"
+$null | codex exec --skip-git-repo-check --approve-for-me "Build me a small to-do list web page I can open in my browser, with a test for its logic." 2>&1 | Out-String -Width 220
+"--- folder after:"
+Get-ChildItem -Force -Name

@@ -1,0 +1,64 @@
+diff --git a/packages/agent-link/src/setup/setup-check.test.ts b/packages/agent-link/src/setup/setup-check.test.ts
+index a75a813..cfa7f2f 100644
+--- a/packages/agent-link/src/setup/setup-check.test.ts
++++ b/packages/agent-link/src/setup/setup-check.test.ts
+@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
+ 
+ import { connect } from "@storytree/library";
+ 
+-import { runSetupCheck, setUpProject } from "../index.js";
++import { habitsCard, runSetupCheck, setUpProject } from "../index.js";
+ import { buildBins } from "../bins/build.js";
+ import { noteCodexHookRan } from "../hooks/index.js";
+ import type { Line } from "../activity/index.js";
+@@ -426,6 +426,27 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
+   });
+ });
+ 
++test("7.5 in a storytree project, a Codex session's check_setup answer carries the habits card, which Codex never shows its model as the server's instructions; a Claude Code session's, which has them, does not", async () => {
++  const project = uniqueProjectName();
++  await withTempDir(async (dir) => {
++    const home = throwawayHome(dir);
++    const folder = path.join(dir, "site");
++    mkdirSync(folder);
++    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
++    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
++    try {
++      await withAgent(folder, codex("codex-1", setup), async (agent) => {
++        assert.ok((await agent.call("check_setup")).text.includes(habitsCard()), "Codex's answer carries the card");
++      });
++      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
++        assert.ok(!(await agent.call("check_setup")).text.includes(habitsCard()), "Claude Code's does not");
++      });
++    } finally {
++      await dropTestProjects([project]);
++    }
++  });
++});
++
+ /** A port nothing on 127.0.0.1 listens on just now. */
+ function freePort(): Promise<number> {
+   return new Promise((resolve, reject) => {
+diff --git a/packages/agent-link/src/tools/setup-tools.ts b/packages/agent-link/src/tools/setup-tools.ts
+index 1873c61..031c465 100644
+--- a/packages/agent-link/src/tools/setup-tools.ts
++++ b/packages/agent-link/src/tools/setup-tools.ts
+@@ -10,6 +10,7 @@ import path from "node:path";
+ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
+ import { z } from "zod";
+ 
++import { habitsCard } from "../instructions/index.js";
+ import { findProject, notAProjectYet, setUpProject, suggestProjectName } from "../routing/index.js";
+ import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
+ import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
+@@ -69,7 +70,9 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
+           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);
+           said.push(...verification.fixes.map((fix) => FIX_SENTENCES[fix]), "Then call check_setup again.");
+         }
+-        return result({ text: said.join(" "), data: { ...data, ...verification } });
++        // Codex never shows its model a tool server's instructions, so its agent reads the habits card here or nowhere (7.5).
++        const card = caller.harness === "codex" ? `\n\nstorytree's habits, which Codex does not show you otherwise:\n\n${habitsCard()}` : "";
++        return result({ text: `${said.join(" ")}${card}`, data: { ...data, ...verification } });
+       } catch (error) {
+         if (isUnreachable(error)) {
+           await connections.close();

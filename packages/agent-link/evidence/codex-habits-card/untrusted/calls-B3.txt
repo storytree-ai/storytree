@@ -1,0 +1,2 @@
+CMD
+st:check_setup [completed] 

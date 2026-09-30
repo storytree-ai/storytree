@@ -18,13 +18,12 @@ import { placeOnPackedGlobe, PLANET_RADIUS, type PlanetPoint } from "./planet-pl
 /**
  * Ground units² of land per line of code in a surveyed story.
  *
- * Derived so a typical story's island stays near today's: over the eight-story seed and its real code survey
- * (`view/evidence/growth/measurements.json`), the islands' land today is capabilities x 318 ground units²
- * (10,584 in all) over 24,122 non-test lines in all, 0.44 a line, or 0.73 in the units the ground is sized
- * in (the cells' area, before the coast's outset adds about a fifth). The per-story ratios run from 0.29 to
- * 2.6 with a median of 0.86; 0.75 keeps the total land within 3% of today's while letting the
- * story with the most code (The agent link) grow to 2.6 times its old island and a story with little
- * shrink to a third of its.
+ * Derived so the islands keep today's total land. Over the eight-story seed and its real code survey
+ * (`view/evidence/growth/measurements.json`), today's land is capabilities x 318 ground units², 58
+ * capabilities and 18,444 units² in all, over 25,122 non-test lines in all: 0.734 units² a line. The
+ * per-story ratios run from 0.29 (The agent link) to 2.6 (The librarian), with a median of 0.86. 0.75 rounds
+ * the total's ratio up, so the seed's total land moves by +2% (drawn: 22,794 to 22,965 units², coasts
+ * included), while The agent link grows to 2.6 times its old island and a story with little code shrinks.
  */
 export const LAND_PER_LINE = 0.75;
 
@@ -37,8 +36,9 @@ export function islandArea(lines: number): number {
 }
 
 /**
- * The farthest an island may be nudged from its anchor, in radians of arc (about 65 ground units on the
- * shipped globe): under half the front of the globe's spacing, so an island never trades places with a neighbour.
+ * The farthest an island may be nudged from its anchor, in radians of arc: about 65 ground units on the
+ * shipped globe, the spacing of the two closest places. A judgement, not a measurement: it keeps an island
+ * near enough to its place to be found there, and when nudging would need more, the globe grows instead.
  */
 export const MAX_NUDGE = 0.3;
 

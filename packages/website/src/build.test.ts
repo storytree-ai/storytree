@@ -15,7 +15,7 @@ test("1.1 · a static build serves its home page and every local asset without a
   assert.match(html, /id="website-forest"/);
   for (const [, asset] of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
     if (!asset || /^(?:https?:|mailto:)/.test(asset)) continue;
-    assert.ok((await stat(path.join(output, asset.replace(/^\//, "")))).isFile(), asset);
+    assert.ok((await stat(path.join(output, asset === "/" ? "index.html" : asset.replace(/^\//, "")))).isFile(), asset);
   }
   assert.ok((await stat(path.join(output, "assets/forest.js"))).size > 0);
   assert.doesNotMatch(html, /<script[^>]*src="[^\"]*forest\.js"/);

@@ -440,6 +440,12 @@ export function glowAt(steps: number, elapsed: number, timing: { step: number; p
   return { step: Math.floor(at / timing.step), t: (at % timing.step) / timing.step };
 }
 
+/** A selected session's replay at `elapsed` (ADR-0798): not built yet. */
+export function replayAt<S extends { from: string; to: string; seq: number }>(_steps: readonly S[], _elapsed: number,
+  _timing: { step: number; rest: number }): { drawn: S[]; head: { step: S; t: number } | undefined; lit: Set<string>; over: boolean } {
+  return { drawn: [], head: undefined, lit: new Set(), over: true };
+}
+
 /**
  * When each new step starts growing (ADR-0742 D2): one agent's steps one after another in recorded
  * order, each waiting for that agent's step already growing; different agents at once.

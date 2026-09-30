@@ -491,14 +491,16 @@ test("8.7 a status line of the user's own is kept: storytree's is installed only
   });
 });
 
-test("8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it", async () => {
+test("8.8 with gh missing, signed out or signed in, the agent is never asked to install or sign in to it, in check_setup's text or its data", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const said = async (gh: GhState): Promise<string> => {
       let text = "";
       const setup = { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => gh };
       await withAgent(dir, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (agent) => {
-        text = (await agent.call("check_setup")).text;
+        const checked = await agent.call("check_setup");
+        // The data too: an agent reads it as closely as the text (Claude Code repeated a note from it, PR #263).
+        text = `${checked.text} ${JSON.stringify(checked.data)}`;
       });
       return text;
     };

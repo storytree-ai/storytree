@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { CODEX_TRUST_STEP, codexHookTrust, runSetupCheck } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
-import { addProject, projectFolder } from "../project/index.js";
+import { addProject, keepOnThisComputer, projectFolder, removeProject } from "../project/index.js";
 import type { AgentConnection, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "./feedback.js";
 import { readShippedLicense } from "./license.js";
@@ -16,7 +16,7 @@ export function setupHelpActions(options: {
   chooseFolder(): Promise<string | undefined>;
   openExternal(url: string): Promise<void>;
   copyText(text: string): Promise<void>;
-  /** The app's open library, which Add project writes to. */
+  /** The app's open library, which Add project writes to and Remove reads. */
   library(): Storytree;
 }): SetupHelpBridge {
   return {
@@ -42,11 +42,20 @@ export function setupHelpActions(options: {
       if (folder === undefined) return null;
       const library = options.library();
       const found = await projectFolder(folder, { library });
-      if ("project" in found) return { status: "already a project", project: found.project, folder: found.folder };
+      if ("project" in found) {
+        keepOnThisComputer(found.project, options.storytreeHome);
+        return { status: "already a project", project: found.project, folder: found.folder };
+      }
       // The folder's own name, unless a project has it already: a second folder never joins it silently (ADR-0757).
       const added = await addProject(found.folder, found.suggestion, { home: options.storytreeHome, library });
       if (added.status === "name refused" || added.status === "folder refused") throw new Error(added.message);
       return added;
+    },
+    async removeProject(name) {
+      if (typeof name !== "string") throw new Error("There is no project with that name.");
+      const removed = await removeProject(name, { home: options.storytreeHome, library: options.library() });
+      if (removed.status === "no such project") throw new Error(removed.message);
+      return removed;
     },
     openFeedbackDraft: (draft) => openFeedbackDraft(draft, options.openExternal),
     async copyHelpText(text) {

@@ -68,7 +68,8 @@ import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
 import { TRAY_ICON_PNG } from "./tray-icon.js";
-import { followReleases } from "./releases.js";
+import { followReleases, installedApp } from "./releases.js";
+import { signIn } from "./sign-in.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();
@@ -232,6 +233,10 @@ async function run(): Promise<void> {
     log: line => console.log(line),
   });
   ipcMain.handle(CHANNELS.checkForUpdates, (_event, action: unknown) => (releases ?? updates!).request(action));
+  // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12).
+  const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: { set: (item) => app.setLoginItemSettings(item) } });
+  ipcMain.handle(CHANNELS.readSignIn, () => signingIn.read());
+  ipcMain.handle(CHANNELS.setSignIn, (_event, on: unknown) => signingIn.set(on));
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };
   if (args.smoke) await smoke(openWindow(windowQuery), project);
@@ -239,6 +244,7 @@ async function run(): Promise<void> {
     if (!args.background) openWindow(windowQuery);
     showTray();
     addStartMenuShortcut();
+    try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     void keepBackups();
     // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (agent link 4.21).
     setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();

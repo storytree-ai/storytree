@@ -6,12 +6,19 @@ import { format } from "node:util";
 import { app } from "electron";
 import { ReleaseUpdater, type ReleaseOptions } from "@storytree/app";
 
+/**
+ * Whether this is the app the installer put here. The installer writes a marker; unpacked
+ * development bundles, portable executables and smoke runs must never replace themselves with an
+ * installed release, nor register themselves to open at sign-in.
+ */
+export function installedApp(): boolean {
+  return app.isPackaged && process.platform === "win32" && process.env.PORTABLE_EXECUTABLE_FILE === undefined &&
+    existsSync(path.join(process.resourcesPath, "storytree-installed"));
+}
+
 /** The updater, for the gear's Updates panel; undefined where the app does not update from releases. */
 export function followReleases(options: ReleaseOptions, home: string): ReleaseUpdater | undefined {
-  // The installer writes a marker. Unpacked development bundles, portable
-  // executables and smoke runs must never replace themselves with an installed release.
-  if (!app.isPackaged || process.platform !== "win32" || process.env.PORTABLE_EXECUTABLE_FILE !== undefined ||
-      !existsSync(path.join(process.resourcesPath, "storytree-installed"))) return undefined;
+  if (!installedApp()) return undefined;
 
   const updater = new ReleaseUpdater(options);
   const log = (...parts: unknown[]): void => {

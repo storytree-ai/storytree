@@ -87,6 +87,11 @@ A visitor gets the introduction, install command, license and contact from a sta
    after the clipboard write resolves (`contract_088958bd3a2c`). A denied write reports failure
    and leaves the command manually selectable. Prove pending, resolved and rejected writes
    with a controlled clipboard writer.
+6. Keyboard focus remains visible and unclipped, and standalone controls remain easy to tap
+   on a narrow page (`contract_4ad22389d89f`). The browser proof checks 320 px and 390 px views,
+   at least 44 px target heights and a focus contrast of at least 3:1. Pending copies keep
+   focus, prevent duplicate writes, and never take focus back from a visitor who tabs away.
+   Captures witness the focus indicator as well as the resting page.
 
 ## 2 · The forest on the site
 

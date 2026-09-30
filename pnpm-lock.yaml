@@ -75,6 +75,9 @@ importers:
       google-auth-library:
         specifier: ^10.6.2
         version: 10.9.1
+      playwright-core:
+        specifier: 1.60.0
+        version: 1.60.0
       typescript:
         specifier: ~7.0.2
         version: 7.0.2

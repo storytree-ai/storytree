@@ -1,0 +1,100 @@
+✖ a call the fake bridge cannot answer fails at once, naming the method (2.722061ms)
+✖ on Windows, launch finds Playwright and Chromium from the checkout, with no /home path (0.439845ms)
+✖ on Windows, a Playwright named by path is imported by its file URL (0.209668ms)
+✖ seeding a capability landed makes the work states read it landed (0.328934ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109.815313
+
+✖ failing tests:
+
+test at apps/desktop/src/capture/capture.test.ts:1:290
+✖ a call the fake bridge cannot answer fails at once, naming the method (2.722061ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - [
+  -   'storytree'
+  - ]
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03/.claude/worktrees/increment-aa65de51784e-0c57d0/apps/desktop/src/capture/capture.test.ts:16:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: [ 'storytree' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/desktop/src/capture/capture.test.ts:1:689
+✖ on Windows, launch finds Playwright and Chromium from the checkout, with no /home path (0.439845ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '/home/mickh/code/Storytree/node_modules/playwright-core/index.mjs'
+  - 'playwright-core'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03/.claude/worktrees/increment-aa65de51784e-0c57d0/apps/desktop/src/capture/capture.test.ts:23:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/home/mickh/code/Storytree/node_modules/playwright-core/index.mjs',
+    expected: 'playwright-core',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/desktop/src/capture/capture.test.ts:1:985
+✖ on Windows, a Playwright named by path is imported by its file URL (0.209668ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '/home/mickh/code/Storytree/node_modules/playwright-core/index.mjs'
+  - 'file:///C:/tools/playwright-core/index.mjs'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03/.claude/worktrees/increment-aa65de51784e-0c57d0/apps/desktop/src/capture/capture.test.ts:30:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/home/mickh/code/Storytree/node_modules/playwright-core/index.mjs',
+    expected: 'file:///C:/tools/playwright-core/index.mjs',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/desktop/src/capture/capture.test.ts:1:1351
+✖ seeding a capability landed makes the work states read it landed (0.328934ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'planned'
+  - 'landed'
+  
+      at TestContext.<anonymous> (/home/mickh/code/storytree03/.claude/worktrees/increment-aa65de51784e-0c57d0/apps/desktop/src/capture/capture.test.ts:39:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'planned',
+    expected: 'landed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

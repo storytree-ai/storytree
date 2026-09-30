@@ -1,0 +1,12 @@
+✔ a call the fake bridge cannot answer fails at once, naming the method (2.117863ms)
+✔ on Windows, launch finds Playwright and Chromium from the checkout, with no /home path (0.358271ms)
+✔ on Windows, a Playwright named by path is imported by its file URL (0.260966ms)
+✔ seeding a capability landed makes the work states read it landed (0.753251ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1052.076638

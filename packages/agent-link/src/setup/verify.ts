@@ -38,6 +38,9 @@ export function verifyHooks(lines: readonly Line[], session: string, harness: st
   const fixes: Fix[] = [];
   // Hooks that fire without the agent doing anything: missing, they need a new session or Codex's approval.
   if (missing.includes("session start") || missing.includes("storytree tool call")) fixes.push(harness === "codex" ? "codex-approval" : "new-session");
+  // Codex runs none of them until the user trusts them: an edit or a command the agent made now could
+  // not reach storytree, and would only leave the check file in the user's folder.
+  if (harness === "codex" && fired.size === 0) return { verified: false, missing, fixes: machine.elevated === true ? [...fixes, "codex-elevated"] : fixes };
   if (missing.includes("file edit")) fixes.push("edit-check-file");
   // Codex in an administrator terminal cannot run any command (its sandbox times out), so the test cannot fire (8.17).
   if (missing.includes("command")) fixes.push(harness === "codex" && machine.elevated === true ? "codex-elevated" : "run-check-command");

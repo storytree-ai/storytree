@@ -36,10 +36,15 @@ export type MergedPulls = (folder: string, branch: string) => Promise<MergedPull
 /** Every merged pull request of the project's repository, by the branch it came from, asked of GitHub from the project's `folder`. */
 export type AllMergedPulls = (folder: string) => Promise<Map<string, MergedPull[]>>;
 
+/** The open pull requests from `branch` that wait in the merge queue, by number, asked of GitHub from the project's `folder`. */
+export type QueuedPulls = (folder: string, branch: string) => Promise<number[]>;
+
 /** How merges are watched for. */
 export interface MergeWatch {
   /** How to ask GitHub. By default, through `gh`. */
   readonly mergedPulls?: MergedPulls;
+  /** How to ask GitHub which pull requests wait in the merge queue (ADR-0796). By default, through `gh`. */
+  readonly queuedPulls?: QueuedPulls;
   /** How often a project is asked about, at most. By default, once a minute. */
   readonly everyMs?: number;
 }
@@ -125,6 +130,30 @@ export const mergedPullsThrough = (command: string, prefix: readonly string[] = 
     return [];
   }
 };
+
+/**
+ * The pull requests from `branch` waiting in the merge queue, through `gh`'s GraphQL (its `pr` commands
+ * do not say): nothing when `gh` is missing, signed out or slow. A push to a queued branch takes its
+ * pull request out of the queue, so such a branch can take no more commits.
+ */
+export const ghQueuedPulls: QueuedPulls = async (folder, branch) => {
+  const query = "query($owner:String!,$name:String!,$branch:String!){repository(owner:$owner,name:$name){pullRequests(headRefName:$branch,states:OPEN,first:10){nodes{number isInMergeQueue}}}}";
+  const args = ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-f", `branch=${branch}`, "-f", `query=${query}`];
+  const answer = await ask("gh", args, process.env, GH_TIMEOUT_MS, { cwd: folder, shell: false });
+  if (!answer.answered || answer.code !== 0) return [];
+  try {
+    const nodes = (JSON.parse(answer.out) as { data?: { repository?: { pullRequests?: { nodes?: unknown } } } }).data?.repository?.pullRequests?.nodes;
+    return Array.isArray(nodes) ? nodes.filter((pull) => pull?.isInMergeQueue === true && typeof pull.number === "number").map((pull) => pull.number as number) : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Whether `claim`'s branch has a pull request waiting in the merge queue. */
+export async function inMergeQueue(folder: string, claim: Claim, watch: MergeWatch = {}): Promise<boolean> {
+  if (claim.branch === undefined) return false;
+  return ((await (watch.queuedPulls ?? ghQueuedPulls)(folder, claim.branch).catch(() => [])).length > 0);
+}
 
 /** How many merged pull requests one look reads, newest first, and how long `gh` may take to list them. */
 const ALL_LIMIT = 1_000;

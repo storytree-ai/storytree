@@ -1,0 +1,3 @@
+storytree is uninstalling in the background (removing your library).
+command exit: 0 after 324 ms
+uninstalled in 15 s

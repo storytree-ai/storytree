@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -95,11 +95,16 @@ test("1.8: uninstalling removes everything storytree added, and leaves the user'
 
 test("1.8: keeping the library leaves only the library behind", async (t) => {
   const m = await installedMachine(t);
+  // What the app leaves in its home beside the library: its browser data, logs and launch record.
+  mkdirSync(path.join(m.home, "electron", "Cache"), { recursive: true });
+  writeFileSync(path.join(m.home, "electron", "Cache", "data_0"), "cached");
+  for (const file of ["releases.log", "pgdata.log", "app.json"]) writeFileSync(path.join(m.home, file), "the app's");
+  // What finds the library again: this machine's identity (its projects' folders are recorded under it) and the chosen project.
+  for (const file of ["machine.json", "project-choice.json"]) writeFileSync(path.join(m.home, file), "{}");
   const report = await uninstall({ ...m.options, library: "keep" });
   assert.equal(report.complete, true, report.lines.join("\n"));
+  assert.deepEqual(readdirSync(m.home).sort(), ["machine.json", "pgdata", "project-choice.json"]);
   assert.equal(readFileSync(path.join(m.home, "pgdata", "PG_VERSION"), "utf8"), "17");
-  assert.equal(existsSync(path.join(m.home, "bin")), false);
-  assert.equal(existsSync(path.join(m.home, "delivery.json")), false);
   assert.equal(m.userPath(), "C:\\Windows;C:\\Users\\me\\.local\\bin");
   assert.equal(JSON.parse(readFileSync(m.claudeFile, "utf8")).mcpServers.storytree, undefined);
   assert.ok(report.lines.some((line) => line.includes(m.home)), "the user is told where the kept library is");

@@ -1,0 +1,1 @@
+& C:\Users\mickh\st-uninstall\drive-uninstall.ps1 -Out C:\Users\mickh\st-uninstall\roundA -Library Yes

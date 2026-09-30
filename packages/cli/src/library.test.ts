@@ -73,7 +73,7 @@ test("3.2 `edit` changes only the named fields", async () => {
     writeFileSync(path.join(world.folder, "title.txt"), "\uFEFFSaved by PowerShell");
     const marked = await world.run(["library", "edit", definition.id, "--term", "@title.txt"]);
     assert.equal(marked.code, 0, marked.stderr);
-    assert.equal((await library.get(definition.id))?.fields.term, "Saved by PowerShell");
+    assert.deepEqual((await library.get(definition.id))?.fields, { ...definition.fields, meaning: body, term: "Saved by PowerShell" });
   });
 });
 

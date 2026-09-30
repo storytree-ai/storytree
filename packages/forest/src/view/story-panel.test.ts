@@ -130,3 +130,37 @@ test("with the capability tree switched off, the panel is the story's sentences 
   assert.doesNotMatch(html, /panel-tree/, "no tree space and no pop-out");
   assert.doesNotMatch(html, /data-capability-id/, "no capability to pick or show");
 });
+
+function notGreen(why: CapabilityLine["why"], lastSeen?: { state: "passing" | "failing"; at: string }): StoryPanel {
+  const base = line("cap", "in-progress", "not-checked", "untested");
+  const contract = { ...base.contracts[0]!, ...(lastSeen === undefined ? {} : { lastSeen }) };
+  return { ...panel, capabilities: [{ ...base, contracts: [contract], ...(why === undefined ? {} : { why }) }] };
+}
+
+/** The sentence under the selected capability's word. */
+function whyLine(html: string): string {
+  const found = /<p class="panel-why[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(html);
+  assert.ok(found !== null, "a line saying why");
+  return found[1]!.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+test("4.12 a capability that is not healthy says why under its word, who moves it, and its contracts by number", () => {
+  const agent = renderStoryPanel(notGreen({ reason: "no test names it", mover: "agent", contracts: ["1.2", "1.3"] }), "cap");
+  assert.equal(whyLine(agent), "Why not green: no test names 1.2 and 1.3. The agent moves this one.");
+  assert.ok(agent.indexOf("panel-why") > agent.indexOf("panel-state") && agent.indexOf("panel-why") < agent.indexOf("<details>"), "under its word, above its contracts");
+  const owner = renderStoryPanel(notGreen({ reason: "needs owner", mover: "owner", contracts: ["8.1"], since: "2026-09-27T10:00:00.000Z" }), "cap");
+  assert.equal(whyLine(owner), "Why not green: 8.1 needs something only you can give, since 27 Sep. You move this one.");
+  assert.match(owner, /class="panel-why mover-owner"/);
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not built", mover: "agent", contracts: [] }), "cap")), "Why not green: it is not built yet. The agent moves this one.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "failing", mover: "agent", contracts: ["2.1"] }), "cap")), "Why not green: 2.1 is failing. The agent moves this one.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"] }), "cap")), "Why not green: 2.1 was not re-run. The agent moves this one.");
+  assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "out of CI's reach", mover: "agent", contracts: ["3.4"] }), "cap")), "Why not green: 3.4 can only run on another platform. The agent moves this one.");
+});
+
+test("4.12 a healthy capability says nothing more, and a contract not re-run says what it last saw", () => {
+  assert.doesNotMatch(renderStoryPanel(notGreen(undefined), "cap"), /panel-why|Why not green/);
+  const html = renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"] }, { state: "failing", at: "2026-09-27T10:00:00.000Z" }), "cap");
+  assert.match(html, /<li data-contract-id="cap-k">[\s\S]*last seen failing 27 Sep, not re-run since/);
+  assert.match(renderStoryPanel(notGreen(undefined, { state: "passing", at: "2026-10-01T23:59:00.000Z" }), "cap"), /last seen passing 1 Oct, not re-run since/);
+  assert.doesNotMatch(renderStoryPanel(notGreen(undefined), "cap"), /not re-run since/);
+});

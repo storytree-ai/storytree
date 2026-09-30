@@ -130,3 +130,30 @@ test("4.10 each capability, and each other story's capability it points at, carr
   assert.equal(panel?.capabilities[0]?.status, "unhealthy");
   assert.equal(panel?.arrows[0]?.toStatus, "healthy");
 });
+
+function numbered(id: string, title: string, verified: HealthColumn): AnnotatedContract {
+  return { id, title, health: { reported: { state: "not-checked" }, verified } };
+}
+
+test("4.12 a capability that is not healthy carries its reason, who moves it, and its contracts by number; a healthy one carries nothing", () => {
+  const stuck = capability("stuck", [], [numbered("c1", "8.1 · The live proof", { state: "not-checked", skip: "owner", at: "2026-09-27T10:00:00.000Z" }), numbered("c2", "Untitled promise", { state: "not-checked" })], null, "untested");
+  const owners = { ...stuck, why: { reason: "needs owner" as const, mover: "owner" as const, contracts: ["c1"], since: "2026-09-27T10:00:00.000Z" } };
+  const naming = { ...capability("naming", [], [numbered("c3", "Plain title", { state: "not-checked" }), numbered("c4", "1.2 · Numbered", { state: "not-checked" })], null, "untested"), why: { reason: "no test names it" as const, mover: "agent" as const, contracts: ["c3", "c4"] } };
+  const built = { ...capability("built", [], [numbered("c5", "2.1 · Green", { state: "passing", at: "2026-09-27T10:00:00.000Z" })], null, "healthy") };
+  const tree: AnnotatedTree = { stories: [story("s", owners, naming, built)], arcs: [] };
+  const [a, b, c] = drillDown(tree, "s", workStates([]), [])?.capabilities ?? [];
+  assert.deepEqual(a?.why, { reason: "needs owner", mover: "owner", contracts: ["8.1"], since: "2026-09-27T10:00:00.000Z" });
+  assert.deepEqual(b?.why, { reason: "no test names it", mover: "agent", contracts: ["Plain title", "1.2"] }, "the number its title starts with, else the title");
+  assert.equal(c?.why, undefined, "a healthy capability says nothing more");
+});
+
+test("4.12 a contract whose last verdict was not re-run carries what it last saw and when", () => {
+  const was = { state: "failing" as const, at: "2026-09-27T10:00:00.000Z" };
+  const tree: AnnotatedTree = {
+    stories: [story("s", capability("cap", [], [numbered("c1", "8.1 · Proof", { state: "not-checked", skip: "other", at: "2026-10-01T00:00:00.000Z", was }), numbered("c2", "8.2 · Seen", { state: "passing", at: "2026-10-01T00:00:00.000Z" })], null, "untested"))],
+    arcs: [],
+  };
+  const [first, second] = drillDown(tree, "s", workStates([]), [])?.capabilities[0]?.contracts ?? [];
+  assert.deepEqual(first?.lastSeen, was);
+  assert.equal(second?.lastSeen, undefined);
+});

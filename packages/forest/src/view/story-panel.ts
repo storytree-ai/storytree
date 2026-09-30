@@ -38,8 +38,8 @@ function capability(line: CapabilityLine): string {
               <span class="panel-health">
                 ${badge("the agent reports", contract.reported)}
                 <span class="panel-trail">${text(contract.trail)}</span>
-                ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
                 ${contract.verified === undefined ? "" : badge("storytree saw", contract.verified)}
+                ${contract.lastSeen === undefined ? "" : `<span class="panel-last-seen">last seen ${contract.lastSeen.state === "passing" ? "passing" : "failing"} ${day(contract.lastSeen.at)}, not re-run since</span>`}
               </span>
             </li>`,
         )
@@ -71,7 +71,7 @@ const REASON: Readonly<Record<WhyLine["reason"], (named: string) => string>> = {
 function why({ reason, mover, contracts, since }: WhyLine): string {
   const named = contracts.length < 2 ? (contracts[0] ?? "it") : `${contracts.slice(0, -1).join(", ")} and ${contracts.at(-1)}`;
   const sentence = REASON[reason](reason === "not built" ? "" : named);
-  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${since === undefined ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
+  return `<p class="panel-why mover-${mover}"><strong>Why not green:</strong> ${text(sentence)}${since === undefined || reason === "not re-run" ? "" : `, since ${day(since)}`}. <span class="panel-mover">${mover === "owner" ? "You move this one." : "The agent moves this one."}</span></p>`;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

@@ -1,0 +1,36 @@
+﻿Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Skipped agent connection. Later run storytree setup connect --claude or --codex (or both).
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\AppData\Local\Temp\folder with spaces is now storytree project 'folder-with-spaces', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\AppData\Local\Temp\folder with spaces is now storytree project 'folder-with-spaces', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\AppData\Local\Temp\folder with spaces\my site is now storytree project 'site-x', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\AppData\Local\Temp\elsewhere is now storytree project 'folder-with-spaces', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+No project was set up. Add a project later with Add project in the storytree app, storytree doctor --set-up <name> in a terminal in its folder, or by asking your agent there.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+C:\Users\mickh\AppData\Local\Temp\folder with spaces is already storytree project 'site'. Nothing new was set up.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+project name is not allowed
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\AppData\Local\Temp\folder with spaces is now storytree project 'folder-with-spaces', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+Choose your project folder: type its path (created if missing), or press Enter or S to skip.
+No project was set up. Add a project later with Add project in the storytree app, storytree doctor --set-up <name> in a terminal in its folder, or by asking your agent there.
+Choose your project folder: type its path (created if missing), or press Enter or S to skip.
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\AppData\Local\Temp\the user\code is now storytree project 'code', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+Choose your project folder: press Enter for C:\Users\mickh\AppData\Local\Temp\folder with spaces, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'folder-with-spaces', or type your own (lower-case letters, digits and single hyphens).
+delivery bootstrap PASS

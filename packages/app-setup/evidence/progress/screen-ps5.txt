@@ -1,0 +1,97 @@
+﻿PowerShell 5.1.26100.9457: top of the console window as the user saw it
+--- 20:53:01
+Finding the latest storytree release.
+
+
+ Downloading storytree
+    0.0 MB of 353.6 MB, 0.1 MB/s, estimating time left
+    [                                                                                                            ]
+
+--- 20:53:03
+Finding the latest storytree release.
+
+
+ Downloading storytree
+    75.0 MB of 353.6 MB, 32.8 MB/s, about 9 s left
+    [oooooooooooooooooooooo                                                                                      ]
+
+--- 20:53:05
+Finding the latest storytree release.
+
+
+ Downloading storytree
+    140.0 MB of 353.6 MB, 32.7 MB/s, about 7 s left
+    [oooooooooooooooooooooooooooooooooooooooooo                                                                  ]
+
+--- 20:53:07
+Finding the latest storytree release.
+
+
+ Downloading storytree
+    208.2 MB of 353.6 MB, 31.8 MB/s, about 5 s left
+    [oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo                                              ]
+
+--- 20:53:09
+Finding the latest storytree release.
+
+
+ Downloading storytree
+    281.3 MB of 353.6 MB, 32.9 MB/s, about 3 s left
+    [ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo                       ]
+
+--- 20:53:18
+Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+
+ Installing storytree
+    Still installing: 00:01 so far. This may take a few minutes.
+
+
+--- 20:53:20
+Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+
+ Installing storytree
+    Still installing: 00:03 so far. This may take a few minutes.
+
+
+--- 20:53:22
+Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+
+ Installing storytree
+    Still installing: 00:05 so far. This may take a few minutes.
+
+
+--- 20:53:24
+Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+
+ Installing storytree
+    Still installing: 00:07 so far. This may take a few minutes.
+
+
+--- 20:53:26
+Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+
+ Installing storytree
+    Still installing: 00:09 so far. This may take a few minutes.
+
+
+--- 20:53:28
+Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+
+ Installing storytree
+    Still installing: 00:11 so far. This may take a few minutes.
+
+
+--- 20:53:30
+Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+
+ Installing storytree
+    Still installing: 00:13 so far. This may take a few minutes.
+
+

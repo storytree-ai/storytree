@@ -1,0 +1,13 @@
+﻿powershell.exe : clean install names each stage before it runs
+At line:1 char:548
++ ... t.ps1 $red; powershell.exe -NoProfile -File "$red/bootstrap.test.ps1" ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (clean install n... before it runs:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+At C:\Users\mickh\AppData\Local\Temp\st-red-415859491\bootstrap.test.ps1:3 char:64
++ ... ert($Condition, $Message) { if (-not $Condition) { throw $Message } }
++                                                        ~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (clean install n... before it runs:String) [], RuntimeException
+    + FullyQualifiedErrorId : clean install names each stage before it runs
+ 

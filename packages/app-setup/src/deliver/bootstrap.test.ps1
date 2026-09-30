@@ -9,7 +9,8 @@ $script:Calls = [Collections.Generic.List[string]]::new()
 $script:Usable = $false
 $script:Fail = ''
 $ops = @{
-  Probe = { param($Dir, $Arch) $script:Calls.Add("probe:$Arch"); return $script:Usable }
+  Stage = { param($Step) $script:Calls.Add("stage:$Step") }
+  Probe ={ param($Dir, $Arch) $script:Calls.Add("probe:$Arch"); return $script:Usable }
   Download = { param($Arch) $script:Calls.Add("download:$Arch"); if ($script:Fail -eq 'download') { throw 'offline' }; return 'verified installer' }
   Install = { param($Installer, $Dir) $script:Calls.Add('install'); if ($script:Fail -eq 'install') { throw 'refused' }; $script:Usable = $true }
   Finish = { param($Dir, $Arch) $script:Calls.Add('finish'); if ($script:Fail -eq 'finish') { throw 'database did not start' }; return @{ command = @{ status = 'installed'; pathEntry = 'new bin' } } }
@@ -19,12 +20,37 @@ foreach ($arch in @('x64', 'arm64')) {
   $script:Usable = $false; $script:Calls.Clear()
   $answer = Invoke-StorytreeDelivery 'app with spaces' $arch $ops
   Assert ($answer.state -eq 'ready') 'clean install ready'
-  Assert (($script:Calls -join ',') -eq "probe:$arch,download:$arch,install,probe:$arch,finish,path") 'clean install sequence'
+  Assert (($script:Calls -join ',') -eq "probe:$arch,stage:download,download:$arch,stage:install,install,stage:verify,probe:$arch,stage:finish,finish,stage:path,path") 'clean install names each stage before it runs'
   $script:Calls.Clear()
   $answer = Invoke-StorytreeDelivery 'app with spaces' $arch $ops
   Assert ($answer.state -eq 'ready') 'repeat ready'
-  Assert (($script:Calls -join ',') -eq "probe:$arch,finish,path") 'repeat must not download or reinstall'
+  Assert (($script:Calls -join ',') -eq "probe:$arch,stage:finish,finish,stage:path,path") 'repeat must not download or reinstall'
 }
+# A download reports its size, speed and time left while it runs, and ends on the whole size.
+$payload = New-Object byte[] (3MB + 17)
+$script:Reports = [Collections.Generic.List[object]]::new()
+$target = [IO.MemoryStream]::new()
+Copy-StorytreeStream ([IO.MemoryStream]::new($payload)) $target $payload.Length { param($Progress) $script:Reports.Add($Progress) } | Out-Null
+Assert ($target.Length -eq $payload.Length) 'every byte copied'
+$last = $script:Reports[$script:Reports.Count - 1]
+Assert ($last.percent -eq 100) "final report is complete: $($last.percent)"
+Assert ($last.status -match '3\.0 MB of 3\.0 MB' -and $last.status -match 'MB/s' -and $last.status -match 'left') "report carries size, speed and time left: $($last.status)"
+$half = Get-StorytreeProgress 50MB 100MB 10
+Assert ($half.percent -eq 50 -and $half.status -match '50\.0 MB of 100\.0 MB, 5\.0 MB/s, about 10 s left') "half-way estimate: $($half.status)"
+Assert ((Get-StorytreeProgress 10MB 370MB 2).status -match 'about 1 min 12 s left') 'minutes shown for a long wait'
+Assert ((Get-StorytreeProgress 1MB 370MB 0.1).status -match 'estimating') 'no wild estimate from the first fraction of a second'
+Assert ((Get-StorytreeProgress 5MB -1 1).percent -eq -1) 'unknown size shows no false percentage'
+try { Copy-StorytreeStream ([IO.MemoryStream]::new($payload, 0, 1024)) ([IO.MemoryStream]::new()) $payload.Length { param($p) } | Out-Null; throw 'accepted short download' }
+catch { Assert ($_.Exception.Message -match 'ended early') "a cut-off download is refused: $($_.Exception.Message)" }
+# The silent install shows it is still working while the installer runs.
+$script:Ticks = 0
+$start = [Diagnostics.ProcessStartInfo]::new([Diagnostics.Process]::GetCurrentProcess().Path, '-NoProfile -Command Start-Sleep -Milliseconds 2500')
+$start.UseShellExecute = $false; $start.CreateNoWindow = $true
+$sleeper = [Diagnostics.Process]::Start($start)
+$null = $sleeper.Handle
+Wait-StorytreeProcess $sleeper { param($Elapsed) $script:Ticks++ } | Out-Null
+Assert ($sleeper.HasExited -and $sleeper.ExitCode -eq 0) 'waited for the installer and kept its exit code'
+Assert ($script:Ticks -ge 1) "install wait ticked while running: $script:Ticks"
 foreach ($step in @('download', 'install', 'finish', 'path')) {
   $script:Usable = $false; $script:Calls.Clear(); $script:Fail = $step
   try { Invoke-StorytreeDelivery 'app with spaces' 'arm64' $ops; throw 'accepted failure' }

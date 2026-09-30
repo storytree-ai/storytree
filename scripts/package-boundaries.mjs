@@ -1,8 +1,8 @@
 // Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
 // decision log). scripts/package-boundaries.test.mjs runs it over the repo in `pnpm test` and CI.
 //
-// - Every story has its own package, `packages/<id>`. Every other package is a
-//   shared engine that belongs to no story, declared below, or the frame's `apps/desktop`.
+// - Every story has its own package, `packages/<id>`, and the only other package is the frame's
+//   `apps/desktop`: no package belongs to no story (ADR-0805 D5, which narrows ADR-0649 D1).
 // - The frame (the app story's `packages/app` and `apps/desktop`: startup, lifecycle, updates and
 //   mounting each story's surface) holds no other story's code, and neither does the front door
 //   (the cli story's `packages/cli`: command families that call the story package owning the
@@ -10,8 +10,7 @@
 //   story, or a folder in the front door (a command family is one file, named after the story it
 //   fronts, so the front door's files may carry a story's name).
 // - No package reaches into another story's files: not by a relative path into its folder, and not
-//   by a subpath of `@storytree/<story>` that its package.json does not export. A shared engine's
-//   files are no story's, so they are not covered.
+//   by a subpath of `@storytree/<story>` that its package.json does not export.
 // - No workspace packages depend on each other in a cycle, not even through a devDependency. pnpm
 //   links each workspace dependency into the dependent's node_modules, as a directory junction on
 //   Windows, and git walks a junction as an ordinary folder, so a cycle is a folder loop: the
@@ -25,12 +24,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "knowledge-core", "librarian", "library", "processes"];
+export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "forest-world", "knowledge-core", "librarian", "library", "local-postgres", "processes"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
-
-/** Packages that belong to no story and hold no story's code (ADR-0649 D1). */
-export const SHARED_ENGINES = ["forest-world", "local-postgres"];
+// forest-world: The world; local-postgres: The local database (ADR-0805 D1, D2).
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that
@@ -45,7 +42,7 @@ const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 const SKIP = new Set(["node_modules", "dist", ".turbo"]);
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
-export function boundaryProblems(root, { stories = STORIES, sharedEngines = SHARED_ENGINES, notYetMoved = NOT_YET_MOVED } = {}) {
+export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YET_MOVED } = {}) {
   const problems = [];
   const packages = [...packageDirs(root, "packages"), ...packageDirs(root, "apps")];
 
@@ -57,8 +54,8 @@ export function boundaryProblems(root, { stories = STORIES, sharedEngines = SHAR
   const frameDirs = new Set([...FRAME.dirs, ...FRONT_DOOR.dirs]);
   for (const dir of packages) {
     const name = dir.slice(dir.indexOf("/") + 1);
-    const known = frameDirs.has(dir) || (dir.startsWith("packages/") && (stories.includes(name) || sharedEngines.includes(name)));
-    if (!known) problems.push(`${dir} is neither a story's package, a declared shared engine, nor the frame`);
+    const known = frameDirs.has(dir) || (dir.startsWith("packages/") && stories.includes(name));
+    if (!known) problems.push(`${dir} is neither a story's package nor the frame: every package belongs to a story (ADR-0805 D5)`);
   }
 
   const moved = new Map(notYetMoved.map((entry) => [entry.path, { ...entry, holds: false }]));

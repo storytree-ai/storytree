@@ -4,12 +4,8 @@ import test from 'node:test';
 import { Vector3, Vector2 } from 'three';
 import { forestScene, placeOnGlobe, PLANET_RADIUS } from '../index.js';
 import { workStates } from '@storytree/arc-surface';
-import { forestDescriptors } from '@storytree/forest-world';
-import { clipToCoast, rimLoops, SHIPPED_COAST } from '../../../forest-world/src/coast-clip.js';
-import { plateTransform } from '../../../forest-world/src/planet/planet.js';
-import { trailFillWidth } from '../../../forest-world/src/core/routing.js';
-import { RIBBON_GROUND_SCALE } from '../../../forest-world/src/trail-ribbon-width.js';
-import type { InstanceDescriptor } from '../../../forest-world/src/world-to-3d.js';
+import { forestDescriptors, type InstanceDescriptor } from '@storytree/forest-world';
+import { clipToCoast, plateTransform, RIBBON_GROUND_SCALE, rimLoops, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 // Actual story ids and counts from spike/globe-land's spacing.json. Coast shape depends on id.

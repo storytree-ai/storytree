@@ -10,8 +10,8 @@
 // passing, and one whose tests were all skipped, or that has none, is not checked. A test file
 // that produced no results (its process died before running any test) proves nothing either way:
 // the contracts it holds are left not checked, never failed on the strength of a crash.
-// Not checked is written only when it says something (ADR-0825 D2): the kind of a skip, or an
-// earlier verdict the run did not reproduce, marked "not re-run". Otherwise the column's absence of
+// Not checked is written only when a contract's tests were skipped or crashed (ADR-0825 D2): with
+// the kind of the skip, and any earlier verdict the run did not reproduce, marked "not re-run". Otherwise the column's absence of
 // an entry already reads not-checked.
 
 import { readFileSync, statSync } from "node:fs";
@@ -142,7 +142,7 @@ function moduleFile(target) {
 }
 
 /**
- * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}` }} Verdict
+ * @typedef {{ number: string, state: "passing" | "failing" | "not-checked", passed: number, failed: number, skipped: number, total: number, note?: string, reason?: string, skip?: "owner" | "other" | `platform:${string}`, crashed?: true }} Verdict
  */
 
 /**
@@ -193,7 +193,7 @@ export function judge({ contracts, results, coverage, show = (file) => file }) {
     let verdict;
     if (counts.failed > 0) verdict = { number, state: "failing", ...counts, note: tally };
     else if (crashedUnder.has(number)) {
-      verdict = { number, state: "not-checked", ...counts, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
+      verdict = { number, state: "not-checked", ...counts, crashed: true, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
     } else if (counts.total === 0) verdict = { number, state: "not-checked", ...counts, reason: "no tests" };
     else if (counts.skipped > 0) {
       const why = skipReasons.length > 0 ? ` (${skipReasons.join("; ")})` : "";
@@ -306,9 +306,10 @@ function optional(field, value) {
 /**
  * Write each verdict to its contract's VERIFIED column: passing or failing, by `writer` (a test
  * run), with its tally as the note, and the commit it ran on when the writer names one. A
- * not-checked verdict is written only when it has something to say (ADR-0825 D2): the kind of its
- * skip, or an earlier passing or failing it did not reproduce, which it carries as "not re-run at
- * <commit>" (history keeps the old verdict). One whose column already says the same is not written
+ * not-checked verdict is written only when its tests were skipped or crashed (ADR-0825 D2): with
+ * the kind of its skip, and any earlier passing or failing it did not reproduce, which it carries as
+ * "not re-run at <commit>" (history keeps the old verdict). With no tests there is nothing to re-run,
+ * and a verdict from elsewhere stands. One whose column already says the same is not written
  * again, so its note keeps the commit it was first not re-run at. The reported column is never
  * touched: that is what an agent says, and no agent has spoken here.
  * @param {import("@storytree/library").Library} library
@@ -335,13 +336,16 @@ export async function recordHealth(library, contractIds, verdicts, writer = { by
 
 
 /**
- * Mark contract `id` not checked when there is something to say: its skip's kind, or the earlier
- * verdict it did not reproduce (carried over from a mark already standing). True if it wrote.
+ * Mark contract `id` not checked when its tests were skipped or crashed: with its skip's kind, and
+ * the earlier verdict it did not reproduce (carried over from a mark already standing). True if it
+ * wrote.
  */
 async function markNotChecked(library, id, verdict, writer) {
+  // Only a run that had tests for it, skipped or crashed, failed to reproduce a verdict: with none,
+  // a verdict from elsewhere (an acceptance run, ADR-0825 D5) stands.
+  if (verdict.skip === undefined && verdict.crashed !== true) return false;
   const earlier = (await library.health(id)).verified;
   const was = earlier.state === "not-checked" ? earlier.was : { state: earlier.state, at: earlier.at };
-  if (verdict.skip === undefined && was === undefined) return false;
   const same = earlier.state === "not-checked" && earlier.skip === verdict.skip && earlier.was?.state === was?.state && earlier.was?.at === was?.at;
   if (same) return false;
   const at = writer.commit === undefined ? "" : ` at commit ${writer.commit}`;

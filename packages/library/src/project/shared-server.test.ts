@@ -59,3 +59,35 @@ test("8.3 two accounts sharing the creator role both open, write and read one pr
     await dropTestRoles([laptop, mint, creator]);
   }
 });
+
+test("8.4 a library read refused for want of a connection slot waits for one and then succeeds", async () => {
+  const run = uniqueProjectName();
+  const lane = `${run}-lane@storytree.test`;
+  const project = `${run}-busy`;
+  const opened: Storytree[] = [];
+  try {
+    await createTestRole(lane, { createdb: true });
+    const first = await connect({ url: as(lane) });
+    opened.push(first);
+    await (await first.openProject(project)).addStory({ title: "Written before the rush", description: "Read back under it." });
+    await first.close();
+    // One slot on the project's database, and another client holds it for a moment: Postgres
+    // refuses a new connection there (SQLSTATE 53300) as a full server does.
+    await withTestClient((client) => client.query(`ALTER DATABASE "storytree_${project}" CONNECTION LIMIT 1`));
+
+    const second = await connect({ url: as(lane) });
+    opened.push(second);
+    let reading: Promise<string[]> | undefined;
+    await withTestClient(async () => {
+      reading = second.openProject(project).then(async (library) => (await library.projectTree()).stories.map((story) => story.title));
+      reading.catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }, `storytree_${project}`);
+
+    assert.deepEqual(await reading, ["Written before the rush"]);
+  } finally {
+    await Promise.allSettled(opened.map((storytree) => storytree.close()));
+    await dropTestDatabases([`storytree_${project}`]);
+    await dropTestRoles([lane]);
+  }
+});

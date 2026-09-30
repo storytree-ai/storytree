@@ -23,25 +23,25 @@ import { z } from "zod";
 import type { Line, NewLine } from "../activity/index.js";
 import { claimsFrom } from "../claims/index.js";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
-import { firstLineOf, quoted, spineOf, wholeOf } from "./text.js";
+import { firstLineOf, quoted, spineOf, wholeOf, type Findable } from "./text.js";
 
 type Found = Extract<NewLine, { kind: "note-read" }>["found"];
 
 export function registerNoteTools(define: Define): void {
   define(
     "search_notes",
-    "Search the project's artifacts (decisions, definitions and other artifact kinds): the ones closest in meaning to your question, best first; you see each one's spine. Ask in plain words. Open one to read it whole.",
+    "Search the project's artifacts (decisions, definitions and other artifact kinds) and its stories, capabilities and contracts: the ones closest in meaning to your question, best first; you see each one's spine. Ask in plain words. Open one to read it whole.",
     z.object({
       query: z.string().min(1).describe("What you want to know, in plain words"),
       limit: z.number().int().min(1).optional().describe("How many to give back; 10 unless given"),
     }),
     async ({ query, limit }, call) => {
-      const ranked = await call.library.rank(query, limit === undefined ? {} : { limit });
+      const ranked = await call.library.rankAll(query, limit === undefined ? {} : { limit });
       const notes = ranked.hits.map(({ note }) => note);
       await recordReads(call, notes.map((note) => ({ note: note.id, found: "search", read: "peek" })));
       const heading = ranked.by === "meaning"
         ? `closest in meaning to ${quoted(query)}:`
-        : `ranked by words: ${ranked.why}; the artifacts holding every word of ${quoted(query)}:`;
+        : `ranked by words: ${ranked.why}; the records holding every word of ${quoted(query)}:`;
       if (notes.length === 0) return { text: `${heading}\n(none)`, data: { by: ranked.by, notes: [] } };
       return {
         text: [heading, ...notes.map(spineLine)].join("\n"),
@@ -237,11 +237,11 @@ async function recordReads(call: Call, reads: readonly { note: string; found: Fo
   }
 }
 
-function spineLine(note: Note): string {
+function spineLine(note: Findable): string {
   const first = firstLineOf(note);
   return `- ${quoted(spineOf(note))} (${note.id})${first === "" ? "" : `: ${first}`}`;
 }
 
-function spineData(note: Note): { id: string; kind: string; spine: string; firstLine: string } {
+function spineData(note: Findable): { id: string; kind: string; spine: string; firstLine: string } {
   return { id: note.id, kind: note.type, spine: spineOf(note), firstLine: firstLineOf(note) };
 }

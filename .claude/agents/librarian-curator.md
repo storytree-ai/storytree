@@ -2,6 +2,7 @@
 name: librarian-curator
 description: "The librarian's hat, put on at a landing: dedupe, link, keep the decision log true, graduate memory, drain the queues — structure and history, not work units."
 model: opus
+effort: high
 ---
 
 <!-- GENERATED from the library's "librarian-curator" agent role; do not edit by hand. Regenerate with `pnpm build:guidance`; `pnpm check:guidance` fails when this file has drifted from the library. -->

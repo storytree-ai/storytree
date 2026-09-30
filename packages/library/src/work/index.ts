@@ -1,5 +1,5 @@
 export { LifecycleError, RetireRefusedError, WaitLoopError, WorkInFlight } from "./work-in-flight.js";
-export type { ArcState, ArcView, CloseInput, Disposition, Hold, Holds, IncrementEdit, IncrementStatus, NewIncrement, NewQuestion, QuestionLease, Settlement } from "./work-in-flight.js";
+export type { ArcState, ArcView, CloseInput, Disposition, Hold, Holds, IncrementEdit, IncrementStatus, NewIncrement, NewQuestion, QuestionEdit, QuestionLease, Settlement } from "./work-in-flight.js";
 export { WorkModel } from "./work-model.js";
 export type {
   ArcEdit,

@@ -1230,3 +1230,25 @@ test("6.22 search_notes answers with the library's ranked search (capability 14)
     });
   });
 });
+
+test("6.25 search_notes finds a story, a capability and a contract by their own words, each labelled by its type, as `storytree library search` does", async () => {
+  await withProject(async ({ folder, library }) => {
+    const story = await library.addStory({ title: "Visitor can sign up", description: "A visitor leaves a postcode" });
+    const capability = await library.addCapability({ title: "Postcode form", story: story.id, description: "Takes a postcode" });
+    const contract = await library.addContract({ title: "Rejects a postcode with letters only", capability: capability.id, description: "A bad postcode is refused" });
+
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const answer = await agent.call("search_notes", { query: "postcode" });
+
+      assert.deepEqual(
+        (answer.data.notes as { id: string; kind: string; spine: string; firstLine: string }[]).map(({ id, kind, spine, firstLine }) => ({ id, kind, spine, firstLine })).sort((a, b) => a.kind.localeCompare(b.kind)),
+        [
+          { id: capability.id, kind: "capability", spine: "Postcode form", firstLine: "Takes a postcode" },
+          { id: contract.id, kind: "contract", spine: "Rejects a postcode with letters only", firstLine: "A bad postcode is refused" },
+          { id: story.id, kind: "story", spine: "Visitor can sign up", firstLine: "A visitor leaves a postcode" },
+        ],
+      );
+      assert.match(answer.text, /"Rejects a postcode with letters only" \(contract_\w+\): A bad postcode is refused/);
+    });
+  });
+});

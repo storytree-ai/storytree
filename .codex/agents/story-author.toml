@@ -1,6 +1,6 @@
 name = "story-author"
 description = "Authors and amends the plan — story › capability › contract — bounding one journey per story in one package, wiring real dependencies, and never implementing."
-model_reasoning_effort = "medium"
+model_reasoning_effort = "high"
 developer_instructions = """
 <!-- GENERATED from the library's "story-author" agent role; do not edit by hand. Regenerate with `pnpm build:guidance`; `pnpm check:guidance` fails when this file has drifted from the library. -->
 

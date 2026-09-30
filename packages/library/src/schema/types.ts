@@ -248,6 +248,8 @@ export const RECORD_SCHEMAS = {
       /** Workflow steps, each with the artifacts it reads just in time. */
       stepRefs: z.array(z.object({ step: nonEmpty, refs: ids }).strict()).optional(),
       model: z.enum(["inherit", "sonnet", "opus"]).optional(),
+      /** How hard the role reasons: the levels Claude Code and Codex both accept. */
+      effort: z.enum(["low", "medium", "high", "xhigh"]).optional(),
       aliases: z.array(nonEmpty).optional(),
     })
     .strict(),

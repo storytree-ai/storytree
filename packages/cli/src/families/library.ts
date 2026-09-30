@@ -151,12 +151,18 @@ const create: Verb = {
 
 const read: Verb = {
   name: "read",
-  usage: "library read <id>",
-  summary: "a record, whole",
+  usage: "library read <id> [--field <name>]",
+  summary: "a record, whole; or one field exactly as stored, nothing else",
   async act(args, context) {
     const id = args.word(0, "the record's id", this.usage);
     const record = await (await context.library()).get(id);
     if (record === null) throw new Refusal(`no record "${id}" in this project`);
+    const field = args.text("field");
+    if (field !== undefined) {
+      const value = Object.hasOwn(record.fields, field) ? (record.fields as Record<string, unknown>)[field] : undefined;
+      if (value === undefined) throw new Refusal(`${id} has no field "${field}"; its fields are ${Object.keys(record.fields).join(", ")}`);
+      return { text: typeof value === "string" ? value : JSON.stringify(value, null, 2), raw: true };
+    }
     const fields = Object.entries(record.fields).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
     return {
       text: [`${record.id}  [${record.type}]  schema ${record.version}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields].join("\n"),
@@ -173,7 +179,9 @@ const edit: Verb = {
     const library = await context.library();
     const record = await library.get(id);
     if (record === null) throw new Refusal(`no record "${id}" in this project`);
-    if (record.type === "question") throw new Refusal("editing question fields waits on a public editor in the library; use `storytree question settle` to answer it");
+    if (record.type === "question" && record.fields.lifecycle === "settled") {
+      throw new Refusal(`question ${id} is settled, so its wording cannot change: its answer stands`);
+    }
     const fields = fieldsOf(args);
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     const writer = context.writer();
@@ -184,6 +192,7 @@ const edit: Verb = {
         case "contract": return library.editContract(id, fields as never, writer);
         case "arc": return library.editArc(id, fields as never, writer);
         case "increment": return library.editIncrement(id, fields as never, writer);
+        case "question": return library.editQuestion(id, fields as never, writer);
         default: return library.editNote(id, fields as never, writer);
       }
     })();

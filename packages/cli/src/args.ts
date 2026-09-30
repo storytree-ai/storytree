@@ -54,12 +54,15 @@ export class Args {
     return word;
   }
 
-  /** `value`, or the text of the file it names when it is `@file` (relative to the folder the command runs in). */
+  /**
+   * `value`, or the text of the file it names when it is `@file` (relative to the folder the command
+   * runs in), without a leading byte-order mark: PowerShell 5.1's `Set-Content -Encoding utf8` writes one.
+   */
   read(value: string): string {
     if (!value.startsWith("@") || value.length === 1) return value;
     const file = path.resolve(this.#cwd, value.slice(1));
     try {
-      return readFileSync(file, "utf8");
+      return readFileSync(file, "utf8").replace(/^\uFEFF/, "");
     } catch (error) {
       throw new Refusal(`cannot read ${file}: ${(error as Error).message}`);
     }

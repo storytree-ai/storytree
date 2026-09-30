@@ -1,5 +1,5 @@
 /**
- * The work tools (ADR-0643 D1, 6): park, ready and close increments, park and unpark arcs, set and
+ * The work tools (ADR-0643 D1, 6): park, ready, move and close increments, park and unpark arcs, set and
  * clear waits, raise, correct, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
  * functions, or this story's capture functions over them, so no library rule is kept here twice.
  * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is.
@@ -67,6 +67,17 @@ export function registerWorkTools(define: Define): void {
       const view = await call.library.arcView(done.fields.arc);
       const arc = view?.state === "closed" ? ` Its arc ${await arcName(call.library, done.fields.arc)} now reads closed: that was its last open increment.` : "";
       return { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.${arc}`, data: { id: increment } };
+    },
+  );
+
+  define(
+    "move_increment",
+    "Move an open increment to another arc, with the reason: it keeps its id, status, waits and claims, and its history records the move. A closed increment stays on the arc it closed on, and a closed arc takes nothing new.",
+    z.object({ increment: id("increment"), to: id("arc it moves to"), reason: z.string().min(1).describe("Why it moves, in a line") }),
+    async ({ increment, to, reason }, { library, writer }) => {
+      const moved = await library.moveIncrement(increment, to, reason, writer);
+      if (moved === null) return noIncrement(increment);
+      return { text: `Moved ${quoted(moved.fields.title)} (${increment}) to arc ${await arcName(library, to)}.`, data: { id: increment } };
     },
   );
 

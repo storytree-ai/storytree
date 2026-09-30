@@ -37,6 +37,8 @@ export interface PageReads {
   leaveAfterMs(): Promise<number>;
   /** A session's window in a project (agent link 9.10), parsed now from the transcript records in the shared log. */
   windowReading(project: unknown, session: unknown): Promise<SessionWindow>;
+  /** Several sessions' windows in one ask, in the order asked: the log is read once for all of them, not once each. */
+  windowReadings(project: unknown, sessions: unknown): Promise<SessionWindow[]>;
   /** The latest folder a session of the project worked in on this machine, still there: where its code can be read. */
   projectFolder(project: unknown): Promise<string | undefined>;
   /** The app's own look at every project's branches (agent link 4.21), so the sessions list never waits on a hook's. Never throws. */
@@ -119,6 +121,13 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       const opened = await activityLog();
       const { lines } = await opened.since(known, 0);
       return storedSessionWindow(opened, known, lines, session, { cache: transcripts });
+    },
+    windowReadings: async (name, sessions) => {
+      const known = await project(name);
+      if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
+      const opened = await activityLog();
+      const { lines } = await opened.since(known, 0);
+      return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache: transcripts })));
     },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
     lookAround: async () => {

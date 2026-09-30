@@ -128,6 +128,7 @@ try {
       linesSince: async (_, cursor) => cursor === 0 ? copy(data.lines) : { lines: [], cursor: data.lines.cursor },
       frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [], readSurfaces: async () => undefined,
       codeSurvey: async () => copy(survey),
+      windowReadings(project, sessions) { return Promise.all(sessions.map((one) => this.windowReading(project, one))); },
       windowReading: async (_, id) => { window.__asked.push(id); return copy(reading); },
     };
   }, { data: seed, survey, reading });

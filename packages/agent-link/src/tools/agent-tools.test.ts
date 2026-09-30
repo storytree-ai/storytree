@@ -1217,6 +1217,27 @@ test("6.19 Codex gets app creation arguments then attaches the returned worktree
   });
 });
 
+test("6.19 a Claude Code session attaches the linked worktree it is in through the tool, on that worktree's branch, with no ref or name", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "first");
+    const ownFolder = path.join(path.dirname(folder), "desktop worktree");
+    git(folder, "worktree", "add", "-b", "claude/desktop-own", ownFolder);
+    await withAgent(folder, claudeCode("claude-desktop"), async (agent) => {
+      const { arc } = await planned(agent);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Form", objective: "Build form", body: "Red then green" }));
+      const attached = await agent.call("attach_workspace", { increment, reason: "build form", folder: ownFolder });
+      assert.equal(attached.isError, false, attached.text);
+      assert.equal(attached.data.branch, "claude/desktop-own");
+      assert.deepEqual(
+        (await readClaims(log, project)).map(({ increment, session, branch }) => ({ increment, session, branch })),
+        [{ increment, session: "claude-desktop", branch: "claude/desktop-own" }],
+      );
+    });
+  });
+});
+
 test("6.22 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words", async () => {
   await withProject(async ({ folder, library }) => {
     for (const n of [1, 2, 3]) await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });

@@ -102,6 +102,11 @@ A visitor gets the introduction, install command, license and contact from a sta
    at least 44 px target heights and a focus contrast of at least 3:1. Pending copies keep
    focus, prevent duplicate writes, and never take focus back from a visitor who tabs away.
    Captures witness the focus indicator as well as the resting page.
+7. With text doubled at 320 px and 390 px, the home and not-found headers remain readable
+   without overlap; home headings and the copy control remain visible and usable without
+   clipping or horizontal page overflow (`contract_3c3dca34024f`). Prove rendered text bounds
+   and keyboard/pointer activation, preserving ordinary 320 px and enlarged-text 1280 px
+   behavior. The browser proof injects text sizes; it does not claim native browser-zoom coverage.
 
 ## 2 · The forest on the site
 

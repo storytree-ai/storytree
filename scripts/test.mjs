@@ -49,6 +49,12 @@
 //   pnpm test -- --set-limit=cli=300 --reason="two gates at once on this laptop"
 //   pnpm test -- --clear-limit=cli
 //
+// One heavy run at a time on a machine (scripts/heavy-lock.mjs): past the scope decision, a run
+// takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
+// Postgres has stopped. While another session's run holds it, this one prints who holds it and
+// waits (at most an hour), and it takes over a lock whose holder's process has gone. Under
+// `pnpm gate`, the gate holds the lock and its test step runs under that hold. No flock wrapper.
+//
 // Logs: .pgtest/pg.log (the server, last run) and .pgtest/tools.log (initdb and pg_ctl).
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -57,6 +63,7 @@ import { fileURLToPath } from "node:url";
 
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
+import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { planRun, readWorkspace, resultsTable, scopeFor, scopeLine, unitGlobs } from "./test-scope.mjs";
 import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
@@ -132,6 +139,17 @@ async function main() {
     }
     units = plan.units;
   }
+  const release = await acquireHeavyLock({ root, what: "pnpm test", stopped: () => interrupted });
+  try {
+    return await runHeavy(units);
+  } finally {
+    release();
+  }
+}
+
+/** The heavy part, run under the machine's heavy-run lock: the test Postgres and the units. */
+async function runHeavy(units) {
+  if (interrupted) return 130;
   if (process.env.STORYTREE_TEST_PG_URL) {
     console.log("test Postgres: STORYTREE_TEST_PG_URL is set; using that server");
     return runTests(process.env, units);

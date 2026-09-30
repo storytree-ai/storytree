@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
-import { addProject, projectFolder } from "./index.js";
+import { addProject, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
 
 /** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */
 async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects: string[]): Promise<Storytree> {
@@ -59,4 +59,27 @@ test("1.7 / 3.4: a chosen folder becomes a project (created if missing, suggeste
   const holding = await addProject(dir, `other-${token}`, { home, library });
   assert.equal(holding.status, "folder refused", "a folder holding another project's folder is no project of its own");
   assert.equal(existsSync(path.join(dir, ".storytree.json")), false);
+});
+
+test("removing a project takes it off this computer's list and keeps its records; adding its folder again brings it back; an unknown name is refused", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-remove-project-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const token = randomBytes(4).toString("hex");
+  const name = `downloads-${token}`;
+  const library = await testLibrary(t, [name]);
+  const home = path.join(dir, "home");
+  const folder = path.join(dir, name);
+  assert.equal((await addProject(folder, name, { home, library })).status, "set up");
+  assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name));
+
+  assert.deepEqual(await removeProject(name, { home, library }), { status: "removed", project: name });
+  assert.ok((await library.listProjects()).includes(name), "its records stay in the library");
+  assert.equal(projectsOnThisComputer(await library.listProjects(), home).includes(name), false, "it leaves this computer's list");
+  assert.equal(existsSync(path.join(folder, ".storytree.json")), true, "its folder is left as it is");
+
+  assert.deepEqual(await addProject(folder, "anything", { home, library }), { status: "already a project", folder, project: name });
+  assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name), "adding its folder again brings it back");
+
+  const unknown = await removeProject(`nothing-${token}`, { home, library });
+  assert.equal(unknown.status, "no such project");
 });

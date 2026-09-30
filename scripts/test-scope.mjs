@@ -211,11 +211,11 @@ export function planRun({ root, workspace, decision, flags = {}, record }) {
 /** The test files a unit runs, as the globs node --test is given: a unit may be one file. */
 export function unitGlobs(unit) {
   if (unit === SCRIPTS_UNIT) return ["scripts/*.test.mjs"];
-  return /\.test\.m?[jt]s$/.test(unit) ? [unit] : [`${unit}/src/**/*.test.ts`];
+  return /\.test\.m?[jt]s$/.test(unit) ? [unit] : [`${unit}/src/**/*.test.ts`, `${unit}/src/**/*.test.mjs`];
 }
 
 function hasTests(root, dir) {
-  return globSync(`${dir}/src/**/*.test.ts`, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" }).length > 0;
+  return globSync(`${dir}/src/**/*.test.{ts,mjs}`, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" }).length > 0;
 }
 
 function hasScriptTests(root) {

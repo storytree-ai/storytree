@@ -151,6 +151,21 @@ clear skip, not a failed merge or a claim that the site was published.
    (`contract_ee93043de567`). Exercise representative event/path selection and inspect the
    actual merged workflow run; do not pin YAML text.
 
+**Delivery.** `.github/workflows/website.yml` follows completed CI because CI's own automatic
+merge does not trigger a push workflow. Selection runs from trusted main and accepts only a
+successful main push or the matching, merged pull request. Website files, the forest engine,
+the README command source and workspace build inputs trigger publication. The publish job
+builds the selected merge, checks that main has no newer website inputs, and serializes uploads.
+Unrelated CI runs never enter the publish queue. No pull-request artifacts supply executable code.
+
+**Enable publishing.** The owner adds `HERENOW_TOKEN` under the repository's Actions secrets,
+using a key for the account that owns the existing site, then runs **Publish website** on main.
+That manual run is also the retry path. Without the secret the build still verifies, and the
+publish log explicitly says it was skipped. The uploader follows the [here.now API](https://here.now/docs):
+declare the complete file manifest, upload changed bytes, and finalize the same version. It
+reports publication only after the service confirms that version is live. It creates no site,
+changes no domain, and logs no token or signed upload URL.
+
 ## Landing order and deferred work
 
 1. Plan and minimal static scaffold: `increment_2b67ca01952c`.

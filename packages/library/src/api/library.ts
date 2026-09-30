@@ -25,6 +25,7 @@ import type {
   Hold,
   Holds,
   NewQuestion,
+  QuestionEdit,
   QuestionLease,
   Settlement,
   IncrementEdit,
@@ -192,6 +193,12 @@ export interface Library {
    * settled question is refused (RangeError). Null if `id` is not a live question.
    */
   renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null>;
+  /**
+   * Correct an open question's wording in place, only the named fields; an optional one set to
+   * undefined is removed. Anything but its wording, or a settled question, is refused (RangeError)
+   * with nothing written. Null if `id` is not a live question.
+   */
+  editQuestion(id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null>;
   /** The open questions whose lease has lapsed at `at` (now, unless given), longest lapsed first. */
   lapsedQuestions(at?: Date): Promise<SchemaRecord<"question">[]>;
 
@@ -484,6 +491,10 @@ class LibraryHandle implements Library {
 
   renewQuestion(id: string, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
     return this.#project.flight.renewQuestion(id, options);
+  }
+
+  editQuestion(id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#project.flight.editQuestion(id, fields, options);
   }
 
   lapsedQuestions(at?: Date): Promise<SchemaRecord<"question">[]> {

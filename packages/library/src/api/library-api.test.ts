@@ -66,6 +66,7 @@ const LIBRARY_API = [
   "heldOnQuestion",
   "checkQuestion",
   "renewQuestion",
+  "editQuestion",
   "lapsedQuestions",
   "reportHealth",
   "recordVerified",

@@ -205,7 +205,7 @@ test("recordHealth writes each passing or failing verdict to the verified column
       ["1.3", { number: "1.3", state: "not-checked", reason: "no tests" }],
     ]);
     const written = await recordHealth(lib, contractIds, verdicts);
-    assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 1 });
+    assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 1, marked: 0 });
 
     const passing = await lib.health(contractIds.get("1.1"));
     assert.equal(passing.verified.state, "passing");

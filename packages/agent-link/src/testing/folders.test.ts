@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { removeTempDir } from "./folders.js";
 
 test("a test's temp folder that a child still holds for a moment is removed once the child lets go, without failing the test", {
-  skip: process.platform !== "win32" && "only Windows refuses to remove a folder a live process runs in (EBUSY/EPERM)",
+  skip: process.platform !== "win32" && "platform:win32: only Windows refuses to remove a folder a live process runs in (EBUSY/EPERM)",
 }, async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-held-"));
   const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 1500)"], { cwd: dir, stdio: "ignore" });

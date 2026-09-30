@@ -766,7 +766,7 @@ test("3.17 a Claude Code session's end is recorded though Claude Code stops its 
   }
 });
 
-test("4.10 a pull request's merge is recorded on its branch by the hooks though GitHub takes longer to answer than a hook may run (regression: no hook had ever recorded one, 2026-09-30)", { skip: process.platform === "win32" && "a stand-in gh on PATH must be an .exe on Windows", timeout: 30_000 }, async () => {
+test("4.10 a pull request's merge is recorded on its branch by the hooks though GitHub takes longer to answer than a hook may run (regression: no hook had ever recorded one, 2026-09-30)", { skip: process.platform === "win32" && "platform:posix: a stand-in gh on PATH must be an .exe on Windows", timeout: 30_000 }, async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = projectFolder(dir, project);

@@ -6,8 +6,8 @@ export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddres
 export { readProjectChoice, recordProjectChoice } from "./routing/project-choice.js";
 export { idleAfterMs, leaveAfterMs, readLibrary, readSettings, readSurfaceChoices, setLibrary, setSetting, setSurfaceChoice } from "./settings/settings.js";
 export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
-export { ACTIVITY_DATABASE, currentBranch, lineText, NEW_LINE, openActivityLog, thisMachine } from "./activity/index.js";
-export type { ActivityLog, Agent, Line, LineKind, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
+export { ACTIVITY_DATABASE, cachedLines, currentBranch, lineText, NEW_LINE, openActivityLog, thisMachine } from "./activity/index.js";
+export type { ActivityLog, Agent, Line, LineKind, LinesCache, LinesSince, LockedLog, NewLine, OpenOptions } from "./activity/index.js";
 export { closeOut, labelOf, lookAsApp, projectFolder, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
 export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, readAttribution, readClaim, readClaims, release } from "./claims/index.js";

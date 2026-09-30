@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { CODEX_TRUST_STEP, codexHookTrust, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, writeCodexInstructions } from "@storytree/agent-link";
+import { CODEX_TRUST_STEP, codexHookTrust, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, runsElevated, writeCodexInstructions } from "@storytree/agent-link";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };
@@ -14,6 +14,8 @@ export interface ConnectionOptions {
   readonly home?: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly run?: RunHarness;
+  /** Whether this runs as a Windows administrator, where Codex cannot run commands. By default, asked of Windows. */
+  readonly elevated?: () => Promise<boolean>;
 }
 export interface ConnectionResult {
   readonly harness: Harness;
@@ -56,6 +58,7 @@ async function openSettings(harness: Harness, options: ConnectionOptions): Promi
   const where = locations(options);
   return harness === "claude-code" ? claudeSettings(where.files[harness]) : codexSettings(where.files[harness], options.run ?? runHarness, where.env);
 }
+const ELEVATED = "This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not \"Run as administrator\".";
 const conflict = (file: string) => `The existing storytree entry in ${file} is incompatible and was kept (including any 0.2 entry). Review or move that entry yourself before retrying. The name storytree is required by the existing hooks.`;
 
 /**
@@ -67,10 +70,12 @@ const conflict = (file: string) => `The existing storytree entry in ${file} is i
 export async function connectAgents(options: ConnectionOptions): Promise<ConnectionResult[]> {
   const where = locations(options);
   const results: ConnectionResult[] = [];
+  // Codex's own limit, which storytree only names: started from an administrator terminal, it runs no command (agent link 8.17).
+  const elevated = options.harnesses.includes("codex") && await (options.elevated ?? runsElevated)().catch(() => false);
   const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {
     const settingsFile = where.files[harness];
-    const result = (tools: ConnectionResult["tools"], next: string, hooks: ConnectionResult["hooks"] = "not verified") => results.push({ harness, settingsFile, tools, hooks, next });
+    const result = (tools: ConnectionResult["tools"], next: string, hooks: ConnectionResult["hooks"] = "not verified") => results.push({ harness, settingsFile, tools, hooks, next: harness === "codex" && elevated ? `${next} ${ELEVATED}` : next });
     try {
       const installed = installedToolServerCommand(options.installed.command, options.installed.args[0]);
       if (options.installed.args.length !== 1 || ![installed.command, installed.args[0]].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");

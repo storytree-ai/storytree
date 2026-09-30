@@ -5,7 +5,7 @@ import type { SetupReport } from "./setup.js";
 import type { AppReading } from "../sessions/app-records.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "codex-server" | "codex-hooks" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
+  readonly check: "storytree" | "hooks" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -60,6 +60,14 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
         message: "Codex has storytree's hooks but has not run one yet: Codex runs them only once you have trusted them, so until then storytree cannot see Codex's work.",
         fix: CODEX_TRUST_STEP,
       });
+
+  // Codex's own limit, not storytree's: from an administrator terminal its sandbox runs no command (8.17).
+  if (machine.elevated === true && machine.codex !== "missing") lines.push({
+    check: "elevated",
+    state: "needs-attention",
+    message: "This runs in an administrator (elevated) terminal, and Codex cannot run commands from one: its Windows sandbox times out on every command, so storytree never sees them.",
+    fix: "Close this terminal, open a normal one (not \"Run as administrator\"), and start Codex from there.",
+  });
 
   switch (command) {
     case "installed":

@@ -5,7 +5,8 @@
 //
 // 1. The library's `session-orchestrator` role becomes CLAUDE.md's generated region and AGENTS.md,
 //    one digest in both; every other role becomes .claude/agents/<name>.md and .codex/agents/<name>.toml.
-//    A role's links print as the titles of the notes they name.
+//    A role's links print as the titles of the notes they name, and its model and effort, when set,
+//    reach its files (Codex takes the effort alone, since it names no Claude model).
 // 2. With no `session-orchestrator` role in the library, the region and AGENTS.md say so plainly.
 // 3. The drift check names a stale region, a missing or stale file, and an orphan role file, and
 //    ignores line endings; a tree just built has no drift.
@@ -55,7 +56,7 @@ async function withRoles(body) {
         ...extra,
       });
     await role("Session orchestrator", { antiPatterns: [refuse.id], escalation: "Ask the owner" });
-    await role("Story author", { model: "opus" });
+    await role("Story author", { model: "opus", effort: "xhigh" });
     await body(await readRoles(library));
   });
 }
@@ -77,11 +78,11 @@ test("1. the session-orchestrator role is CLAUDE.md's region and AGENTS.md; ever
     assert.ok(!region.includes("Story author"), "other roles are not in the region");
 
     const md = files.get(".claude/agents/story-author.md");
-    assert.match(md, /^---\nname: story-author\ndescription: "The Story author does its one job"\nmodel: opus\n---\n/);
+    assert.match(md, /^---\nname: story-author\ndescription: "The Story author does its one job"\nmodel: opus\neffort: xhigh\n---\n/);
     for (const text of ["Role of Story author", "Workflow of Story author", "Read, Edit", "Red before green"]) assert.ok(md.includes(text), `the role file holds "${text}"`);
 
     const toml = files.get(".codex/agents/story-author.toml");
-    assert.match(toml, /^name = "story-author"\ndescription = "The Story author does its one job"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = """\n/);
+    assert.match(toml, /^name = "story-author"\ndescription = "The Story author does its one job"\nmodel_reasoning_effort = "xhigh"\ndeveloper_instructions = """\n/);
     assert.ok(toml.includes("Workflow of Story author"));
   });
 });

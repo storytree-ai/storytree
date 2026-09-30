@@ -1,7 +1,8 @@
 ---
 name: explorer
 description: "Read-only search subagent: sweeps the repo and the library for a question whose answer's shape is unknown, and returns a short digest with file:line citations."
-model: inherit
+model: sonnet
+effort: medium
 ---
 
 <!-- GENERATED from the library's "explorer" agent role; do not edit by hand. Regenerate with `pnpm build:guidance`; `pnpm check:guidance` fails when this file has drifted from the library. -->

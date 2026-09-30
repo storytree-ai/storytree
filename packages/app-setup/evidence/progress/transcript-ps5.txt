@@ -1,0 +1,9 @@
+﻿Finding the latest storytree release.
+Downloaded 353.6 MB in 10 s.
+Checksum matches release v0.3.337.
+Installing the app silently. This may take a few minutes; a timer shows it is still working.
+Installed in 15 s. (stand-in process, exit code 0)
+Checking the installed app and its bundled tools.
+Opening the app and starting its database.
+Adding the storytree command to your PATH.
+Result: ready; download stage 16.8 s.

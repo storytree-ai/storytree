@@ -122,6 +122,11 @@ test("3.6 the page can ask the app for a session's window (agent link 9.10), or 
     const both = await reads.windowReadings(shown, ["A", "B"]);
     assert.deepEqual(both.map((one) => [one.session, "opens" in one ? one.opens.length : one.absent]), [["A", 1], ["B", "no hook has named this session's transcript"]]);
     await assert.rejects(reads.windowReadings(shown, "A"), /sessions must be a list of session ids/);
+
+    // The app keeps the log's lines between reads: a session named since the last read is still seen.
+    await ranElsewhere(log, shown, "B", [{ type: "user", message: { content: "hello" } }]);
+    const named = await reads.windowReading(shown, "B");
+    assert.ok("opens" in named, "a session named since the last read has its window");
   });
 });
 

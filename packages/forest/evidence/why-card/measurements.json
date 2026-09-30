@@ -1,0 +1,146 @@
+[
+  {
+    "shot": "needs-you",
+    "name": "needs-you",
+    "selected": "cloud",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "dark",
+    "why": [
+      "Why not green: 8.1 needs something only you can give, since 27 Sep. You move this one."
+    ],
+    "lastSeen": [
+      "last seen failing 27 Sep, not re-run since"
+    ],
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "needs-you-light",
+    "name": "needs-you-light",
+    "selected": "cloud",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "light",
+    "why": [
+      "Why not green: 8.1 needs something only you can give, since 27 Sep. You move this one."
+    ],
+    "lastSeen": [
+      "last seen failing 27 Sep, not re-run since"
+    ],
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "agent-no-test",
+    "name": "agent-no-test",
+    "selected": "search",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "dark",
+    "why": [
+      "Why not green: no test names 1.2 and 1.3. The agent moves this one."
+    ],
+    "lastSeen": [],
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "not-re-run",
+    "name": "not-re-run",
+    "selected": "sync",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "dark",
+    "open": true,
+    "why": [
+      "Why not green: 9.1 was not re-run. The agent moves this one."
+    ],
+    "lastSeen": [
+      "last seen failing 27 Sep, not re-run since"
+    ],
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "healthy",
+    "name": "healthy",
+    "selected": "notes",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "dark",
+    "why": [],
+    "lastSeen": [],
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "15px"
+  },
+  {
+    "shot": "needs-you-narrow",
+    "name": "needs-you-narrow",
+    "selected": "cloud",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scheme": "dark",
+    "open": true,
+    "why": [
+      "Why not green: 8.1 needs something only you can give, since 27 Sep. You move this one."
+    ],
+    "lastSeen": [
+      "last seen failing 27 Sep, not re-run since"
+    ],
+    "panel": {
+      "width": 364,
+      "scrollWidth": 364
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "not-re-run-narrow",
+    "name": "not-re-run-narrow",
+    "selected": "sync",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scheme": "dark",
+    "open": true,
+    "why": [
+      "Why not green: 9.1 was not re-run. The agent moves this one."
+    ],
+    "lastSeen": [
+      "last seen failing 27 Sep, not re-run since"
+    ],
+    "panel": {
+      "width": 364,
+      "scrollWidth": 364
+    },
+    "fontPx": "14.4px"
+  }
+]

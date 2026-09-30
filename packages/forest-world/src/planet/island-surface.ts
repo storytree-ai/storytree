@@ -4,7 +4,7 @@
  * in the plate's local frame: origin at PLATE_CLEARANCE above the shell, +y out of the sphere.
  * Later increments lay capability territories and file circles on it, and dive lines through it into
  * the knowledge core, so it writes no depth and stays faint. */
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, ShapeUtils, Vector2 } from 'three';
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, Vector3 } from 'three';
 import type { CoastPoint } from '../coast-clip.js';
 import { PLATE_CLEARANCE } from './planet.js';
 
@@ -86,6 +86,12 @@ function tessellate(coast: readonly (readonly Pt[])[]): { points: Pt[]; triangle
     triangles = next;
   }
   return { points, triangles };
+}
+
+/** Where a plate point (x, z) lies on the island's surface, `lift` above it: for marks laid flat on the land. */
+export function onIslandSurface(radius: number, lift = 0): (point: { x: number; z: number }) => Vector3 {
+  const sphere = radius + PLATE_CLEARANCE;
+  return ({ x, z }) => new Vector3(x, Math.sqrt(Math.max(sphere * sphere - x * x - z * z, 0)) - sphere + lift, z);
 }
 
 export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius: number, story: string): Group {

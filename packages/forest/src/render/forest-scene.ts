@@ -114,6 +114,7 @@ function landOf(capabilities: readonly { id: string }[], survey: StorySurvey | u
   const shares = [...capabilities.map(({ id }) => ({ capability: id, lines: linesOf(id) })), { lines: linesOf(undefined) }];
   const map = territories(shares, radius);
   return {
+    radius,
     territories: map.territories.map(({ capability, lines }) => (capability === undefined ? { lines } : { capability, lines })),
     cells: map.cells.map(({ polygon, territory }) => ({ polygon, territory })),
     borders: map.borders.map(({ from, to }) => ({ from, to })),

@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Vector3 } from "three";
 import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
+import { onIslandSurface, PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
+import { territoryLand } from "./territory-land.js";
 import { Names, Overlay, SelectionRing, Wisps } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
 
@@ -25,17 +26,18 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   /** The session whose row or wisp is hovered: its wisps swell. */
   highlightedSession?: string | undefined;
   /** Hears a click on an island, or undefined for empty space. */
-  onPick: (story: string | undefined) => void;
+  onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
   onWispHover: (session: string | undefined) => void;
 }) {
   const layout = useMemo(() => planetLayout(scene, places), [scene, places]);
   const [rotation, setRotation] = useState(() => new Quaternion());
-  const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[]) => {
+  const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
     const local = { ...island, x: 0, z: 0 };
     const emphasis = highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
+      {island.land !== undefined && <Territories land={island.land} coast={coast} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       <Names islands={[local]} selected={selected} dimmed={emphasis === "dimmed"} onGlobe />
@@ -52,6 +54,29 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   </PlanetWorldCanvas>;
 }
 
+/** Lifted just off the surface, so a territory's tint never fights the ground it lies on. */
+const TERRITORY_LIFT = 0.05;
+
+/**
+ * An island's territories (3.14), laid on its surface and cut to its coast. The territories were cut from
+ * a round island in world units; they are scaled to reach the coast's furthest point, in plate units.
+ */
+function Territories({ land, coast }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[] }) {
+  const group = useMemo(() => {
+    const reach = Math.max(0, ...coast.flat().map(({ x, z }) => Math.hypot(x, z)));
+    const scale = land.radius > 0 ? reach / land.radius : 1;
+    const scaled = (p: { x: number; z: number }) => ({ x: p.x * scale, z: p.z * scale });
+    const place = onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT);
+    return territoryLand({ ...land, cells: land.cells.map((cell) => ({ ...cell, polygon: cell.polygon.map(scaled) })), borders: land.borders.map(({ from, to }) => ({ from: scaled(from), to: scaled(to) })) }, place, coast);
+  }, [land, coast]);
+  useEffect(() => () => group.traverse((object) => {
+    const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
+    mark.geometry?.dispose();
+    mark.material?.dispose();
+  }), [group]);
+  return <primitive object={group} />;
+}
+
 type ScreenMarker = EdgeMarker & { left: number; top: number };
 
 function Navigation({ islands, titles, rotation, onRotate, onPick, onNote, mode }: {
@@ -60,7 +85,7 @@ function Navigation({ islands, titles, rotation, onRotate, onPick, onNote, mode 
   titles: ReadonlyMap<string, string>;
   rotation: Quaternion;
   onRotate: (rotation: Quaternion) => void;
-  onPick: (story: string | undefined) => void;
+  onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
 }) {
   const { camera, gl, scene, size } = useThree();
@@ -119,7 +144,7 @@ function Navigation({ islands, titles, rotation, onRotate, onPick, onNote, mode 
       clearHover();
       const hit = pick(event);
       if (hit?.kind === "note") onNote(hit.id);
-      else onPick(hit?.id);
+      else onPick(hit?.id, hit?.capability);
     };
     element.addEventListener("pointerdown", onDown);
     element.addEventListener("pointerup", onUp);

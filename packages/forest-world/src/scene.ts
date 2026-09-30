@@ -42,6 +42,8 @@ export interface Island {
 
 /** An island cut into territories (ADR-0804 D2): its cells, each in a territory, and the borders between territories. */
 export interface IslandLand {
+  /** The round island the territories were cut from, in world units. */
+  radius: number;
   /** Each territory's capability; absent for Unclaimed code. */
   territories: readonly { capability?: string }[];
   cells: readonly { polygon: readonly { x: number; z: number }[]; territory: number }[];

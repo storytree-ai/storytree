@@ -13,6 +13,7 @@ import { disposeIslandSurface, islandSurface } from './island-surface.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
+export { onIslandSurface } from './island-surface.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -23,7 +24,7 @@ export interface PlanetWorldCanvasProps {
   /** A host can turn the globe toward a failing story without rebuilding the plates. */
   rotation?: [number, number, number, number];
   /** Names, selection and claim markers mount in each plate's local ground coordinates. */
-  plateChildren?: (island: Island, descriptors: readonly Descriptor3D[]) => ReactNode;
+  plateChildren?: (island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => ReactNode;
   /** R3F children can use the default orbit controls for host-driven focus. */
   children?: ReactNode;
   /** False hides the sea and every plate, for looking inside the globe (the knowledge core, E1). */
@@ -45,7 +46,7 @@ const Plate = memo(function Plate({ island, spot, radius, plate, children }: {
   useEffect(() => () => disposeIslandSurface(ground), [ground]);
   return <group position={transform.position} quaternion={transform.quaternion} name={`planet:${island.story}`}>
     <primitive object={ground} />
-    {children?.(island, descriptors)}
+    {children?.(island, descriptors, coast)}
   </group>;
 });
 

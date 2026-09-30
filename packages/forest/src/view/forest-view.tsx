@@ -80,7 +80,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     render({ mode });
     if (mode === "library" && selection.current?.kind === "story") selection.close();
   };
-  const pick = (story: string | undefined): void => selection.story(story);
+  const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);
   const onKey = (event: KeyboardEvent): void => selection.key(event.key);
   window.addEventListener("keydown", onKey);

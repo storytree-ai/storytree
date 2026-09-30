@@ -8,7 +8,8 @@
  *   drains in one look: a merge is the same everywhere. In a second call, made alongside, it is
  *   asked for every open pull request (contract 4.24): an open branch's line carries its pull
  *   request, whether it is a draft, its checks and whether it waits in the merge queue, and is
- *   written again when any of those changes. GitHub not answering erases none of them. Whether a branch is ahead of the main line,
+ *   written again when any of those changes. GitHub not answering erases none of them. Whether a
+ *   branch is ahead of the main line,
  *   or deleted, is asked of git on the machine its lines were written on, in the folder they name
  *   (or the nearest one still there: a cleaned-up worktree's repository).
  * - A branch worked on only on other machines is deleted once it exists nowhere this machine can

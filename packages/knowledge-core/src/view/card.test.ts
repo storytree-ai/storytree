@@ -6,21 +6,16 @@ import { Children, isValidElement, type ReactNode } from "react";
 import type { Card } from "../look-inside/look-inside.js";
 import * as drawing from "./drawing.js";
 
-test("4.1 the shared artifact card shows kind, title and summary without inspection metadata; Close dismisses it", () => {
-  const card: Card = {
-    id: "note", kind: "principle", title: "Protect a behaviour", summary: "Write the minimum test.", text: "The full detailed explanation.",
-    home: "Hidden home", depth: "depth 17", entrances: ["Hidden entrance", "Another entrance"], replacement: "Hidden replacement",
-    visits: 29, peeks: 31, wholes: 37, linksToReplaced: ["Hidden linked decision"],
-  };
+test("4.1 the artifact card shows kind, title and summary without inspection metadata; Close dismisses it", () => {
+  const card: Card = { id: "note", kind: "principle", title: "Protect a behaviour", summary: "Write the minimum test.", text: "The full detailed explanation." };
   let closed = false;
-  assert.equal(typeof drawing.NoteCard, "function", "the globe and inside view share the built card");
   const rendered = drawing.NoteCard({ card, onClose: () => { closed = true; } });
   const nodes = descendants(rendered);
   const words = nodes.filter((node): node is string => typeof node === "string").join(" ");
   assert.match(words, /principle/);
   assert.match(words, /Protect a behaviour/);
   assert.match(words, /Write the minimum test\./);
-  assert.doesNotMatch(words, /full detailed|Hidden|Another entrance|29|31|37|Links|Recorded|Depth|Entrances|depth 17/);
+  assert.doesNotMatch(words, /full detailed|Links|Recorded|Depth|Entrances/);
   const close = nodes.find((node) => isValidElement(node) && node.type === "button");
   assert.ok(isValidElement<{ onClick: () => void; "aria-label": string }>(close));
   assert.match(close.props["aria-label"], /Close/);

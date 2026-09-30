@@ -2,8 +2,8 @@
  * Capability 4's surface (the knowledge core story): everything the knowledge core shows, owned
  * here so the app only mounts it (ADR-0649 D2). The app makes one core per project it shows,
  * hands it the library's change history and the activity log's new lines as they come, and mounts
- * the two pieces while looking inside: `KnowledgeCoreInside` in the turning globe and
- * `KnowledgeCorePanel` beside it. The core keeps its own reads, session, size, replay and pin.
+ * `KnowledgeGlobePoints` under the globe's islands and `KnowledgeNoteCard` in the story-panel slot.
+ * The core keeps its own reads, selected session, windows and pin.
  */
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
@@ -11,15 +11,13 @@ import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
-import { ORCHESTRATOR, coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, stampOpens, traversalTrails, windowReplays, windowView, fileStop, type CodePlaces, type CodeState, type CoreInput, type Point, type RosterEntry, type SizeBy, type Trail } from "../look-inside/look-inside.js";
-import { ReadRecord, type AgentReplay } from "../reads/reads.js";
+import { ORCHESTRATOR, lighting, noteCard, trails as readingPaths, agentPaths, stampOpens, traversalTrails, windowReplays, windowView, fileStop, type CodePlaces, type CodeState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
+import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
 import { GlobePoints } from "./globe-points.js";
-import { CoreInside, CorePanel, NoteCard } from "./drawing.js";
+import { NoteCard } from "./drawing.js";
 
-/** How fast the replay steps, one read a step. */
-const REPLAY_STEP_MS = 700;
 /** How often the selected session's window, or every listed session's with none selected, is read again, as often as the sessions list's bars. */
 const WINDOW_EVERY_MS = 10_000;
 
@@ -36,11 +34,6 @@ interface State {
   /** Undefined shows every listed running session at once (ADR-0738 D1). */
   session: string | undefined;
   roster: readonly RosterEntry[];
-  sizeBy: SizeBy;
-  /** How far the replay has gone; Infinity shows the whole session. */
-  step: number;
-  playing: boolean;
-  hidden: ReadonlySet<string>;
   pinned: string | undefined;
   /** The selected session's window, once read. */
   window: SessionWindow | undefined;
@@ -54,15 +47,15 @@ interface State {
 export interface KnowledgeCore {
   /** The library's whole change history and the activity log's lines since the last call. */
   take(history: readonly Change[], lines: readonly Line[]): void;
-  /** The same pin is shared by the globe card and the inspection view. */
+  /** The note whose card is open, shared by the globe's dots and the card. */
   pin(note: string | undefined): void;
   /** The running sessions the host lists, lit together while none is selected (ADR-0738 D2), each from its window when the host reads one (ADR-0754 D1). */
   showRoster(roster: readonly RosterEntry[]): void;
-  /** Drill into one session's replay, or back to every running session with undefined (ADR-0738 D5). */
+  /** Drill into one session's traversal, or back to every running session with undefined (ADR-0738 D5). */
   select(session: string | undefined): void;
   /** Hears the selection, wherever it was made. */
   onSelect(listener: (session: string | undefined) => void): () => void;
-  /** Stop the replay's timer. */
+  /** Stop the window reads' timers. */
   dispose(): void;
 }
 
@@ -71,8 +64,6 @@ interface Store extends KnowledgeCore {
   get(): State;
   set(next: Partial<State>): void;
   subscribe(listener: () => void): () => void;
-  play(): void;
-  stop(): void;
 }
 
 /** A knowledge core for `project`; with `reads`, a selected session's window is drawn too (ADR-0746 D1). */
@@ -81,10 +72,9 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   const listeners = new Set<() => void>();
   const selections = new Set<(session: string | undefined) => void>();
   let state: State = {
-    history: [], version: 0, session: undefined, roster: [], sizeBy: "visits", step: Infinity, playing: false, hidden: new Set(), pinned: undefined, window: undefined,
+    history: [], version: 0, session: undefined, roster: [], pinned: undefined, window: undefined,
     windows: new Map(), stamps: new Map(),
   };
-  let timer: ReturnType<typeof setInterval> | undefined;
   let windowTimer: ReturnType<typeof setInterval> | undefined;
   let rosterTimer: ReturnType<typeof setInterval> | undefined;
   /** The latest log line or window open seen, after which a newly seen open is stamped. */
@@ -148,10 +138,9 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
     },
     select(session) {
       if (session === state.session) return;
-      store.stop();
       if (windowTimer !== undefined) clearInterval(windowTimer);
       windowTimer = undefined;
-      store.set({ session, step: Infinity, playing: false, hidden: new Set(), window: undefined });
+      store.set({ session, window: undefined });
       if (session !== undefined && host !== undefined) {
         readWindow(session);
         windowTimer = setInterval(() => readWindow(session), WINDOW_EVERY_MS);
@@ -176,24 +165,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       for (const { seq } of lines) clock = Math.max(clock, seq);
       store.set({ history: [...history], version: state.version + 1 });
     },
-    play() {
-      store.stop();
-      store.set({ playing: true, step: state.step === Infinity ? 0 : state.step });
-      timer = setInterval(() => {
-        const present = new Set(knowledge(state.history).notes.keys());
-        const steps = state.session === undefined ? 0 : replayFrame(reads.replay(state.session, present).agents, 0, state.hidden).steps;
-        if (state.step >= steps) {
-          store.stop();
-          store.set({ playing: false });
-        } else store.set({ step: state.step + 1 });
-      }, REPLAY_STEP_MS);
-    },
-    stop() {
-      if (timer !== undefined) clearInterval(timer);
-      timer = undefined;
-    },
     dispose() {
-      store.stop();
       if (windowTimer !== undefined) clearInterval(windowTimer);
       if (rosterTimer !== undefined) clearInterval(rosterTimer);
       listeners.clear();
@@ -203,92 +175,17 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   return store;
 }
 
-/** Everything both pieces draw, worked out from the core's state. */
-function useCore(core: KnowledgeCore, spots: ReadonlyMap<string, Point>, radius: number) {
-  const store = core as Store;
-  const state = useSyncExternalStore(store.subscribe, store.get);
-  const known = useMemo(() => knowledge(state.history), [state.history]);
-  const placed = useMemo(() => underShelves(state.history, known), [state.history, known]);
-  const present = new Set(known.notes.keys());
-  const replay = state.session === undefined ? undefined : store.reads.replay(state.session, present);
-  const frame = replay === undefined ? undefined : replayFrame(replay.agents, state.step, state.hidden);
-  const windowed = useMemo(() => windowReplays(state.windows, new Set(known.notes.keys()), state.stamps), [state.windows, state.stamps, known]);
-  const input: CoreInput = {
-    changes: state.history, knowledge: known, core: placed, reads: store.reads, spots, radius, session: state.session, sizeBy: state.sizeBy, roster: state.roster, windowed,
-    ...(frame === undefined ? {} : { frame }),
-  };
-  return { store, state, known, placed, present, frame, input, key: replay === undefined ? [] : legend(replay.agents, colourOf(state.roster, state.session)), links: pinnedLinks(state.pinned, known) };
-}
-
-/** The core inside the turning globe, in its coordinates: `spots` are each story's unit direction. */
-export function KnowledgeCoreInside({ core, spots, radius, selected }: {
-  core: KnowledgeCore;
-  spots: ReadonlyMap<string, Point>;
-  radius: number;
-  /** The selected story, whose capabilities' entrances are named too. */
-  selected: string | undefined;
-}) {
-  const { store, state, frame, input, key, links } = useCore(core, spots, radius);
-  // Leaving the core lets the pin go, so the globe comes back as it was.
-  useEffect(() => () => store.set({ pinned: undefined }), [store]);
-  return <CoreInside scene={coreScene(input)} radius={radius} pinned={state.pinned} links={links} frame={frame} legend={key}
-    selected={selected} onPin={(pinned) => store.set({ pinned })} />;
-}
-
-/** The panel beside the core: what is drawn, the session, the size, the replay, the legend and the card. */
-export function KnowledgeCorePanel({ core }: { core: KnowledgeCore }) {
-  const none = useMemo(() => new Map<string, Point>(), []);
-  const { store, state, known, placed, present, frame, input, key, links } = useCore(core, none, 1);
-  useEffect(() => () => store.stop(), [store]);
-  const titles = new Map([...known.notes.values()].map((note) => [note.id, noteTitle(note)]));
-  const listed = new Map(state.roster.map(({ session, label }) => [session, label]));
-  const sessions = [...new Set([...listed.keys(), ...store.reads.sessions()])]
-    .map((id) => ({ id, label: listed.get(id) ?? sessionLabel(id, store.reads.replay(id, present).agents) }));
-  return <CorePanel scene={coreScene(input)}
-    counts={{ placed: placed.placed.size, outside: placed.outside.length, ghosts: known.ghosts.size, loops: placed.loops.length }}
-    sessions={sessions} roster={state.roster} session={state.session} sizeBy={state.sizeBy} frame={frame} step={state.step} playing={state.playing}
-    legend={key} hidden={state.hidden} card={state.pinned === undefined ? undefined : noteCard(state.pinned, input)}
-    links={links} titles={titles}
-    on={{
-      session: (session) => core.select(session),
-      sizeBy: (sizeBy) => store.set({ sizeBy }),
-      play: () => store.play(),
-      pause: () => {
-        store.stop();
-        store.set({ playing: false });
-      },
-      restart: () => {
-        store.stop();
-        store.set({ step: 0, playing: false });
-      },
-      toggleAgent: (agent) => {
-        const hidden = new Set(state.hidden);
-        if (!hidden.delete(agent)) hidden.add(agent);
-        store.set({ hidden });
-      },
-      unpin: () => store.set({ pinned: undefined }),
-    }} />;
-}
-
 /** A listed session's colour, found by its own id or a child's. */
 function colourOf(roster: readonly RosterEntry[], session: string | undefined): string | undefined {
   return session === undefined ? undefined : roster.find(({ members }) => members.includes(session))?.colour;
 }
 
-/** A session as the picker names it: when its first read was, and how many reads and agents it has. */
-function sessionLabel(id: string, agents: readonly AgentReplay[]): string {
-  const reads = agents.flatMap(({ lit }) => lit).sort((a, b) => a.seq - b.seq);
-  const when = reads[0] === undefined ? id.slice(0, 8)
-    : new Date(reads[0].at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-  return `${when} · ${plural(reads.length, "read")} · ${plural(agents.length, "agent")}`;
-}
-
-/** The shared card alone, mounted in the globe's right-side story-panel slot. */
+/** The pinned note's card, mounted in the globe's right-side story-panel slot. */
 export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onClose: () => void }) {
-  const none = useMemo(() => new Map<string, Point>(), []);
-  const { state, input } = useCore(core, none, 1);
-  const card = state.pinned === undefined ? undefined : noteCard(state.pinned, input);
+  const store = core as Store;
+  const state = useSyncExternalStore(store.subscribe, store.get);
+  const known = useMemo(() => knowledge(state.history), [state.history]);
+  const card = state.pinned === undefined ? undefined : noteCard(state.pinned, known);
   useEffect(() => {
     // A live retirement removes the card as well as its dot. Defer until React's commit ends.
     let mounted = true;

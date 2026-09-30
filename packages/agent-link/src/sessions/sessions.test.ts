@@ -45,6 +45,8 @@ test('4.1 a start line makes a live session labelled "Claude Code", with its fol
         branches: [],
         openWork: [],
         archived: false,
+        branchesByFolder: [],
+        running: [],
         listing: "listed",
       },
     ]);

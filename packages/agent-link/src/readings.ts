@@ -73,6 +73,13 @@ export type SessionApp = "claude-desktop" | "codex";
 /** Branches that are a project's main line, never a session's own work. */
 const MAIN_BRANCHES = new Set(["main", "master"]);
 
+/** A command a session started and has not seen finish: its text, and when it started. */
+export interface RunningCommand {
+  command: string;
+  /** When its start line was written. */
+  since: string;
+}
+
 /** One agent window, as the activity log shows it. */
 export interface Session {
   /** The harness's own id for the session. */
@@ -96,6 +103,14 @@ export interface Session {
   branches: string[];
   /** Those of its branches that still hold open work: not merged, still ahead of the main line, and not deleted. */
   openWork: string[];
+  /**
+   * Each branch its lines recorded in a folder, with whether it still holds open work (contract 4.22), in the
+   * order first recorded. A line naming a branch but no folder counts in the folder the session last worked in.
+   * The main line is no branch. A branch recorded with no folder at all, and none to place it in, has none.
+   */
+  branchesByFolder: { folder?: string; branch: string; open: boolean }[];
+  /** The commands it started and has not seen finish, oldest first (contract 4.23): the commands that keep it working. */
+  running: RunningCommand[];
   /** The app that keeps this session in its own record, when one does. */
   app?: SessionApp;
   /** Whether that app has it archived. */
@@ -164,6 +179,7 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     // A merged line names the claim's branch, not its writer's.
     const branches = [...new Set(own.flatMap((line) => (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch) ? [] : [line.branch])))];
     const openWork = branches.filter((branch) => branchStates.get(branch)?.open !== false);
+    const branchesByFolder = branchesInFolders(own, (branch) => branchStates.get(branch)?.open !== false);
     const record = appRecords.get(session);
     const archived = record?.kind === "session-archived";
     const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(branchStates.get(branch)?.at ?? latest.at)));
@@ -186,6 +202,8 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
       hooksRunning: own.some((line) => line.source === "hook"),
       branches,
       openWork,
+      branchesByFolder,
+      running: commandsRunning(own, now).map(({ command, since }) => ({ command, since })),
       ...(record === undefined ? {} : { app: record.app }),
       archived,
       ...(appWords.get(session)?.title === undefined ? {} : { title: appWords.get(session)!.title! }),
@@ -194,6 +212,19 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
       listing,
     };
   });
+}
+
+/** Each branch `own` (a session's lines, oldest first) recorded in a folder, once each, with whether it is open by `isOpen`. */
+function branchesInFolders(own: readonly Line[], isOpen: (branch: string) => boolean): { folder?: string; branch: string; open: boolean }[] {
+  const placed = new Map<string, { folder?: string; branch: string; open: boolean }>();
+  let folder: string | undefined;
+  for (const line of own) {
+    if (line.folder !== undefined) folder = line.folder;
+    if (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch)) continue;
+    const key = `${folder ?? ""} ${line.branch}`;
+    if (!placed.has(key)) placed.set(key, { ...(folder === undefined ? {} : { folder }), branch: line.branch, open: isOpen(line.branch) });
+  }
+  return [...placed.values()];
 }
 
 /** A session's standing close-out, by its own lines `own` (oldest first) and its branches still open. */
@@ -253,18 +284,28 @@ export function isQuiet(own: readonly Line[], now: number, quietMs: number): boo
  * (each is written by its own hook process), so a finish anywhere closes it.
  */
 export function commandRunning(own: readonly Line[], now: number): boolean {
+  return commandsRunning(own, now).length > 0;
+}
+
+/** A command still running: what it was, when it started, and when its limit passes. */
+interface CommandRunning extends RunningCommand {
+  until: number;
+}
+
+/** The commands `commandRunning` counts, each with its text and when it started, oldest first: the same reading, not a second one. */
+function commandsRunning(own: readonly Line[], now: number): CommandRunning[] {
   const finished = new Set(own.flatMap((line) => (line.kind === "command-run" && line.call !== undefined ? [line.call] : [])));
-  let running: { startedAt: number; until: number }[] = []; // each running command, and when its limit passes
+  let running: CommandRunning[] = []; // each running command, and when its limit passes
   for (const line of own) {
     if (line.kind === "command-started" && !finished.has(line.call)) {
       const startedAt = Date.parse(line.at);
-      running.push({ startedAt, until: startedAt + (line.limitMs ?? (line.harness === "claude-code" ? CLAUDE_CODE_COMMAND_MS : LONGEST_COMMAND_MS)) });
+      running.push({ command: line.command, since: line.at, until: startedAt + (line.limitMs ?? (line.harness === "claude-code" ? CLAUDE_CODE_COMMAND_MS : LONGEST_COMMAND_MS)) });
     } else if (line.kind === "turn-ended" && line.background !== undefined && line.background > 0) {
       // Left running in the background, a command is past its harness's limit on one it waits for.
-      running = running.map(({ startedAt }) => ({ startedAt, until: startedAt + LONGEST_COMMAND_MS }));
+      running = running.map((one) => ({ ...one, until: Date.parse(one.since) + LONGEST_COMMAND_MS }));
     } else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") running = [];
   }
-  return running.some(({ until }) => now <= until);
+  return running.filter(({ until }) => now <= until);
 }
 
 /** A capability, or an increment (ADR-0643 D1), held by a session, as the log shows it. */

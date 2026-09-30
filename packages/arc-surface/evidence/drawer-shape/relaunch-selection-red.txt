@@ -15,3 +15,8 @@ picked arc to an active one and saves that. Filed as increment_5d72c0f0c875.
 With only this assertion disabled, every other check passes (claim seen in 1004 ms, idle chip
 "idle · 42 min", smoke problems [], page errors []). capture.json is left at its last full pass
 because this run did not complete.
+
+GREEN, 2026-09-30, Mint box (increment_5d72c0f0c875): watchBoard now takes the starting scope, so the
+kept board's first draw is at the saved scope. The same capture run completes with every check,
+including 'open/scope/selection persist across launch'; capture.json refreshed, and
+relaunch-parked-picked.png shows the relaunched drawer on Parked with the picked arc pressed.

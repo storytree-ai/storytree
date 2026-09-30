@@ -440,6 +440,36 @@ export function glowAt(steps: number, elapsed: number, timing: { step: number; p
   return { step: Math.floor(at / timing.step), t: (at % timing.step) / timing.step };
 }
 
+/** Where a selected session's replay is, `elapsed` ms into it (ADR-0797). */
+export interface ReplayMoment<S> {
+  /** Steps the head has passed, drawn whole, in the order it walked them. */
+  drawn: S[];
+  /** The step whose line is growing, `t` of the way along; none while the finished picture holds. */
+  head: { step: S; t: number } | undefined;
+  /** The notes reached so far: both ends of each drawn step, and where the head set out from. */
+  lit: Set<string>;
+  /** The picture has held for its rest: start again from nothing. */
+  over: boolean;
+}
+
+/**
+ * A selected session's replay (ADR-0797 D1): one head walks every step of all its agents in
+ * recorded order (seq), `step` ms each, growing each line and lighting each note as it arrives;
+ * the finished picture holds for `rest`, then the replay is over. A step recorded meanwhile joins
+ * the end, since the order is by seq.
+ */
+export function replayAt<S extends { from: string; to: string; seq: number }>(steps: readonly S[], elapsed: number,
+  timing: { step: number; rest: number }): ReplayMoment<S> {
+  const order = [...steps].sort((a, b) => a.seq - b.seq);
+  const index = Math.max(0, Math.floor(elapsed / timing.step));
+  const drawn = order.slice(0, index);
+  const next = order[index];
+  const head = next === undefined ? undefined : { step: next, t: (elapsed - index * timing.step) / timing.step };
+  const lit = new Set(drawn.flatMap(({ from, to }) => [from, to]));
+  if (head !== undefined) lit.add(head.step.from);
+  return { drawn, head, lit, over: order.length === 0 || elapsed >= order.length * timing.step + timing.rest };
+}
+
 /**
  * When each new step starts growing (ADR-0742 D2): one agent's steps one after another in recorded
  * order, each waiting for that agent's step already growing; different agents at once.

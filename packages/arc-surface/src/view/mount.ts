@@ -67,8 +67,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       if (!drawer.hidden) return;
       drawer.hidden = false; launch.hidden = true; launch.setAttribute("aria-expanded", "true");
       remember();
-      watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), onState: draw });
-      watching.setScope(scope);
+      watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, onState: draw });
       drawer.querySelector<HTMLButtonElement>("[data-close-arcs]")!.focus();
     },
     close() {

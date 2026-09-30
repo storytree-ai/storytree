@@ -1,7 +1,7 @@
 /** Names, wisps and selection use the same drawing on flat ground and on a globe plate. */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef, useState, type ComponentProps } from "react";
+import { useMemo, useRef, useState, type ComponentProps } from "react";
 import { DoubleSide, type Group } from "three";
 import { PLANET_RADIUS, type Island, type SessionWisp } from "@storytree/forest";
 import { globeOccluder } from "@storytree/forest-world/planet";
@@ -9,8 +9,6 @@ import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytre
 import { WispBody, WISP_LIFT } from "@storytree/forest-world/canvas";
 
 const NAME_HEIGHT = 30;
-/** Names on the globe hide behind the sphere only: one exact test each, not a raycast of every pine. */
-const GLOBE_OCCLUDER = [{ current: globeOccluder(PLANET_RADIUS) }];
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
 export function Overlay(props: ComponentProps<typeof Html>) {
@@ -23,11 +21,13 @@ export function Overlay(props: ComponentProps<typeof Html>) {
 const centreOf = (island: Island): { x: number; z: number } => ({ x: island.x * GROUND_PER_WORLD_UNIT, z: island.z * GROUND_PER_WORLD_UNIT });
 
 /** Each story's name over its island, facing the viewer as the camera pans and zooms (3.4). */
-export function Names({ islands, selected, onGlobe = false, dimmed = false }: { islands: readonly Island[]; selected: string | undefined; onGlobe?: boolean; dimmed?: boolean }) {
+export function Names({ islands, selected, onGlobe = false, dimmed = false, radius = PLANET_RADIUS }: { islands: readonly Island[]; selected: string | undefined; onGlobe?: boolean; dimmed?: boolean; radius?: number }) {
+  // Names on the globe hide behind the sphere only (whatever radius it has grown to): one exact test each, not a raycast of every pine.
+  const occluder = useMemo(() => [{ current: globeOccluder(radius) }], [radius]);
   return islands.map((island) => {
     const { x, z } = centreOf(island);
     return (
-      <Overlay occlude={onGlobe ? GLOBE_OCCLUDER : false} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
+      <Overlay occlude={onGlobe ? occluder : false} key={island.story} position={[x, NAME_HEIGHT, z]} center zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
         <div className={`forest-label${onGlobe ? " planet-label" : ""}${island.story === selected ? " selected" : ""}`} data-story-id={island.story} style={{ opacity: dimmed ? 0.24 : 1 }}>
           {island.title}
         </div>

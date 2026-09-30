@@ -67,6 +67,11 @@ function prepareGround(island: Island): PreparedGround {
   return prepared;
 }
 
+/** How far the island's coast reaches from its middle, in ground units: what the globe leaves room for (ADR-0804 D7). */
+export function islandCoastReach(island: Island): number {
+  return Math.max(0, ...prepareGround(island).rings.flat().map(point => Math.hypot(point.x, point.z)));
+}
+
 const keyOf = (edge: TrailEdgeIn) => JSON.stringify([edge.from, edge.to]);
 const displayKey = (edge: TrailEdgeIn) => `${edge.from}->${edge.to}`;
 const refPrefix = (prefix: string, edge: TrailEdgeOut) => edge.segments.map(ref => ({ ...ref, id: prefix + ref.id }));

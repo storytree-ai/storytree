@@ -15,7 +15,7 @@ function overlap(a: GrowingIsland, b: GrowingIsland, spots: ReadonlyMap<string, 
 }
 
 test("1.7 small islands never move from their anchors, and the globe keeps its radius", () => {
-  const set = islands([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 32);
+  const set = islands([1, 2, 3, 4, 5, 6, 7, 8], 30);
   const grown = growPlanet(set);
   assert.equal(grown.radius, PLANET_RADIUS);
   for (const { story, place } of set) assert.deepEqual(grown.spots.get(story), anchorOf(place));

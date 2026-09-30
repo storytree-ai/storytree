@@ -196,9 +196,10 @@ export function groundInput(scene: ForestScene): SceneInput {
   };
 }
 
-/** The 3D stream 0.2's canvas draws for `scene`: its ground, coast and parcels, sized per capability as 0.2 sized them. */
+/** The 3D stream 0.2's canvas draws for `scene`: its ground, coast and parcels, sized per capability as 0.2 sized them, except an island whose land is set (`Island.area`, from its story's lines). */
 export function forestDescriptors(scene: ForestScene): Descriptor3D[] {
-  return worldTo3D(buildScene(groundInput(scene)));
+  const islandAreas = new Map(scene.islands.flatMap((island) => (island.area === undefined ? [] : [[island.story, island.area] as const])));
+  return worldTo3D(buildScene(groundInput(scene)), { islandAreas });
 }
 
 function groundCells(descriptors: readonly Descriptor3D[]): InstanceDescriptor[] {

@@ -109,8 +109,8 @@ async function checkStory(library, story, writer) {
     console.log(`\n"${story.title}" has no tests yet (no packages/${name}), so its ${numbers.length} contracts are left not checked.`);
     return true;
   }
-  const tests = `packages/${name}/src/**/*.test.ts`;
-  console.log(`\nrunning the tests of "${story.title}" (${tests}, junit reporter) …`);
+  const tests = [`packages/${name}/src/**/*.test.ts`, `packages/${name}/src/**/*.test.mjs`];
+  console.log(`\nrunning the tests of "${story.title}" (${tests.join(", ")}, junit reporter) …`);
   const run = await runTests(tests);
   if (run.results === undefined) {
     console.error(`\nThe test run (exit code ${run.code}) produced no report, so no health was recorded for "${story.title}".`);
@@ -159,15 +159,15 @@ async function checkStory(library, story, writer) {
   return true;
 }
 
-/** Run the tests `glob` names through the test harness (its own throwaway Postgres), reading their junit report. */
-async function runTests(glob) {
+/** Run the tests `globs` name through the test harness (its own throwaway Postgres), reading their junit report. */
+async function runTests(globs) {
   const work = mkdtempSync(path.join(tmpdir(), "storytree-health-"));
   const report = path.join(work, "tests.xml");
   try {
     const code = await new Promise((resolve, reject) => {
       const child = spawn(
         process.execPath,
-        ["--import", "tsx", path.join(root, "scripts", "test.mjs"), "--test-reporter=junit", `--test-reporter-destination=${report}`, glob],
+        ["--import", "tsx", path.join(root, "packages", "dev-loop", "src", "test.mjs"), "--test-reporter=junit", `--test-reporter-destination=${report}`, ...globs],
         { cwd: root, stdio: "inherit", env: withoutGoogleSignIn(process.env) },
       );
       child.on("error", reject);

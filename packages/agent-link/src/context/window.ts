@@ -51,19 +51,44 @@ type Step =
 const NOTE_ID = /\b[a-z]+_[0-9a-f]{12}\b/;
 const NOTE_IDS = new RegExp(NOTE_ID.source, "g");
 const LIBRARY_READ = new RegExp(`storytree\\s+library\\s+read\\s+(${NOTE_ID.source})`, "g");
-const FILE_READERS = /(?:^|[|;&(]\s*|\s)(?:cat|head|tail|less|more)((?:\s+[^\s|;&>]+)+)/g;
-const SED_PRINT = /(?:^|[|;&(]\s*|\s)sed\s+-n\s+\S+\s+([^\s|;&>]+)/g;
+/** A reader in command position (a line's start, or after |, ;, & or a subshell's paren), with its arguments on that line. */
+const FILE_READERS = /(?:^|[|;&(])[ \t]*(?:cat|head|tail|less|more)((?:[ \t]+[^\s|;&>]+)+)/gm;
+const SED_PRINT = /(?:^|[|;&(])[ \t]*sed[ \t]+-n[ \t]+\S+[ \t]+([^\s|;&>]+)/gm;
+const HEREDOC = /^<<(-?)[ \t]*(['"]?)([A-Za-z_][\w-]*)\2/;
 
 /**
- * A command line with every quoted span's characters (quotes included) hidden behind a mark of the same
- * length, so a reader named inside quoted text (an echo, a commit message) is never read as a call, and
- * a quoted path stays one word.
+ * A command line with every quoted span's characters (quotes included), and every heredoc's operator and
+ * body, hidden behind a mark of the same length (line breaks kept), so a reader named inside quoted text or
+ * a heredoc (an echo, a commit message) is never read as a call, and a quoted path stays one word.
  */
 function hideQuoted(command: string): string {
   let hidden = "";
   let quote: string | undefined;
+  const heredocs: { word: string; tabs: boolean }[] = [];
   for (let at = 0; at < command.length; at++) {
     const char = command[at]!;
+    const heredoc = quote === undefined && command[at - 1] !== "<" && command[at + 2] !== "<" ? HEREDOC.exec(command.slice(at)) : null;
+    if (heredoc) {
+      heredocs.push({ word: heredoc[3]!, tabs: heredoc[1] === "-" });
+      hidden += "\0".repeat(heredoc[0].length);
+      at += heredoc[0].length - 1;
+      continue;
+    }
+    if (quote === undefined && char === "\n" && heredocs.length > 0) {
+      // Each body runs from the next line through its delimiter's own line, the bodies one after another.
+      let end = at + 1;
+      for (const { word, tabs } of heredocs.splice(0)) {
+        for (let line = end; line < command.length; line = end) {
+          const eol = command.indexOf("\n", line);
+          end = eol === -1 ? command.length : eol + 1;
+          const text = command.slice(line, eol === -1 ? command.length : eol);
+          if ((tabs ? text.replace(/^\t+/, "") : text) === word) break;
+        }
+      }
+      hidden += `\n${command.slice(at + 1, end).replace(/[^\n]/g, "\0")}`;
+      at = end - 1;
+      continue;
+    }
     if (quote === undefined && (char === "'" || char === '"')) quote = char;
     else if (quote === '"' && char === "\\") { hidden += "\0"; at++; if (at < command.length) hidden += "\0"; continue; }
     else if (char === quote) { quote = undefined; hidden += "\0"; continue; }
@@ -82,7 +107,7 @@ function shellOpens(command: string): WindowTarget[] {
     return [...match[1]!.matchAll(/\S+/g)].map((word) => command.slice(start + word.index!, start + word.index! + word[0].length).replace(/^["']|["']$/g, ""));
   };
   for (const match of hidden.matchAll(FILE_READERS)) {
-    for (const word of words(match)) if (!word.startsWith("-") && !/^\d+$/.test(word)) opens.push({ kind: "file", id: word });
+    for (const word of words(match)) if (!/^[-<]/.test(word) && !/^\d+$/.test(word)) opens.push({ kind: "file", id: word });
   }
   for (const match of hidden.matchAll(SED_PRINT)) opens.push({ kind: "file", id: words(match)[0]! });
   return opens;

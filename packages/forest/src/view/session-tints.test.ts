@@ -31,15 +31,17 @@ test("5.7 two sessions on one island split its coast into two arcs, one each, in
 });
 
 test("5.8 a capability a session has claimed has its territory filled faintly in that session's colour", () => {
-  const tints = claimTints([wisp("A", "shop", "hsl(200, 80%, 68%)", ["cap-a"])]);
-  assert.deepEqual([...tints], [["cap-a", "hsl(200, 80%, 68%)"]]);
+  const tints = claimTints([wisp("A", "shop", "hsl(200, 80%, 68%)", ["cap-a"]), { ...wisp("C", "shop", "hsl(300, 80%, 68%)", ["cap-c"]), faded: true }]);
+  assert.deepEqual([...tints], [["cap-a", { colour: "hsl(200, 80%, 68%)", faded: false }], ["cap-c", { colour: "hsl(300, 80%, 68%)", faded: true }]]);
   const land = {
-    territories: [{ capability: "cap-a" }, { capability: "cap-b" }],
-    cells: [{ polygon: square[0]!, territory: 0 }, { polygon: square[0]!.map(({ x, z }) => ({ x: x + 2, z })), territory: 1 }],
+    territories: [{ capability: "cap-a" }, { capability: "cap-b" }, { capability: "cap-c" }],
+    cells: [0, 1, 2].map((territory) => ({ polygon: square[0]!.map(({ x, z }) => ({ x: x + 2 * territory, z })), territory })),
     borders: [],
   };
   const drawn = territoryLand(land, flat, undefined, tints);
   assert.equal(drawn.getObjectByName("territory:cap-a")!.userData.claimedBy, "hsl(200, 80%, 68%)");
   assert.ok(((drawn.getObjectByName("territory:cap-a") as Mesh).material as MeshBasicMaterial).color.equals(new Color("hsl(200, 80%, 68%)")));
   assert.equal(drawn.getObjectByName("territory:cap-b")!.userData.claimedBy, undefined);
+  const opacity = (name: string) => ((drawn.getObjectByName(name) as Mesh).material as MeshBasicMaterial).opacity;
+  assert.ok(opacity("territory:cap-c") < opacity("territory:cap-a"), "a quiet claimant's fill fades as its coast does");
 });

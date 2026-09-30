@@ -3,7 +3,7 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { isSessionRows, SessionsList } from "./sessions-list.js";
+import { isSessionRows, keptPanelOpen, SessionsList } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
@@ -141,9 +141,32 @@ test("7.16 an expanded row's Running block, between its worktrees and its files,
   assert.equal(isSessionRows([{ ...row, children: [], running: undefined }]), false, "rows kept by an older build are not drawn");
 });
 
-test("7.17 the quiet sessions stay folded into one N idle row by default, opening on its button", () => {
+test("7.18 the quiet sessions stay folded into one N idle row by default, opening on its button", () => {
   const idle: SessionRow = { ...row, id: "quiet", label: "Quiet one", children: [], idle: true };
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }, idle], onHighlight() {} }));
   assert.doesNotMatch(html, /data-session-id="quiet"/);
   assert.match(html, /class="session-idle-fold" aria-expanded="false"[^>]*>1 idle</);
+});
+
+test("7.17 the list is a bottom strip whose header toggles it, like the arcs bar's: it starts expanded; collapsed it leaves only the header (name, count, legend and a caret pointing up), drawing no rows; the choice is kept per project and a missing or foreign value means expanded", () => {
+  const open = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], onHighlight() {} }));
+  assert.match(open, /<button type="button" class="sessions-handle" aria-expanded="true" aria-controls="sessions-body" aria-label="Hide sessions"/);
+  assert.match(open, /class="sessions-caret" aria-hidden="true">▾</);
+  assert.match(open, /id="sessions-body"(?! hidden)/);
+  assert.match(open, /data-session-id="parent"/);
+  const shut = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [] }], open: false, onHighlight() {} }));
+  assert.match(shut, /aria-expanded="false" aria-controls="sessions-body" aria-label="Show sessions"/);
+  assert.match(shut, /class="sessions-caret" aria-hidden="true">▴</);
+  assert.match(shut, /class="sessions-count"[^>]*>1</, "the count and legend stay on the strip");
+  assert.match(shut, /class="session-legend"/);
+  assert.doesNotMatch(shut, /data-session-id|session-detail/);
+
+  const store = new Map<string, string>();
+  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) };
+  assert.equal(keptPanelOpen("demo", storage).read(), true, "nothing kept: expanded");
+  keptPanelOpen("demo", storage).write(false);
+  assert.equal(keptPanelOpen("demo", storage).read(), false, "a folded strip stays folded next start");
+  assert.equal(keptPanelOpen("other", storage).read(), true, "kept per project");
+  store.set("storytree.forest.sessions-open.v1:demo", "\"maybe\"");
+  assert.equal(keptPanelOpen("demo", storage).read(), true, "a foreign value is ignored");
 });

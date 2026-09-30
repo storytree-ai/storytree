@@ -52,15 +52,39 @@ const NOTE_ID = /\b[a-z]+_[0-9a-f]{12}\b/;
 const NOTE_IDS = new RegExp(NOTE_ID.source, "g");
 const LIBRARY_READ = new RegExp(`storytree\\s+library\\s+read\\s+(${NOTE_ID.source})`, "g");
 const FILE_READERS = /(?:^|[|;&(]\s*|\s)(?:cat|head|tail|less|more)((?:\s+[^\s|;&>]+)+)/g;
-const SED_PRINT = /(?:^|[|;&(]\s*|\s)sed\s+-n\s+(?:'[^']*'|"[^"]*"|\S+)\s+([^\s|;&>]+)/g;
+const SED_PRINT = /(?:^|[|;&(]\s*|\s)sed\s+-n\s+\S+\s+([^\s|;&>]+)/g;
 
-/** What a shell command line opens: notes it reads from the library, and files it prints. */
+/**
+ * A command line with every quoted span's characters (quotes included) hidden behind a mark of the same
+ * length, so a reader named inside quoted text (an echo, a commit message) is never read as a call, and
+ * a quoted path stays one word.
+ */
+function hideQuoted(command: string): string {
+  let hidden = "";
+  let quote: string | undefined;
+  for (let at = 0; at < command.length; at++) {
+    const char = command[at]!;
+    if (quote === undefined && (char === "'" || char === '"')) quote = char;
+    else if (quote === '"' && char === "\\") { hidden += "\0"; at++; if (at < command.length) hidden += "\0"; continue; }
+    else if (char === quote) { quote = undefined; hidden += "\0"; continue; }
+    hidden += quote === undefined ? char : "\0";
+  }
+  return hidden;
+}
+
+/** What a shell command line opens: notes it reads from the library, and files it prints outside quoted text. */
 function shellOpens(command: string): WindowTarget[] {
   const opens: WindowTarget[] = [...command.matchAll(LIBRARY_READ)].map(([, id]) => ({ kind: "note", id: id! }));
-  for (const [, args] of command.matchAll(FILE_READERS)) {
-    for (const word of args!.trim().split(/\s+/)) if (!word.startsWith("-") && !/^\d+$/.test(word)) opens.push({ kind: "file", id: word.replace(/^["']|["']$/g, "") });
+  const hidden = hideQuoted(command);
+  /** The words of a match's last group, as the command wrote them. */
+  const words = (match: RegExpMatchArray): string[] => {
+    const start = match.index! + match[0].length - match[1]!.length;
+    return [...match[1]!.matchAll(/\S+/g)].map((word) => command.slice(start + word.index!, start + word.index! + word[0].length).replace(/^["']|["']$/g, ""));
+  };
+  for (const match of hidden.matchAll(FILE_READERS)) {
+    for (const word of words(match)) if (!word.startsWith("-") && !/^\d+$/.test(word)) opens.push({ kind: "file", id: word });
   }
-  for (const [, file] of command.matchAll(SED_PRINT)) opens.push({ kind: "file", id: file!.replace(/^["']|["']$/g, "") });
+  for (const match of hidden.matchAll(SED_PRINT)) opens.push({ kind: "file", id: words(match)[0]! });
   return opens;
 }
 

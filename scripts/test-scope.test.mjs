@@ -197,6 +197,17 @@ test("a run is one unit per selected package with tests, plus scripts/ when ever
   ], "a package with no test files is no unit");
 });
 
+test("a package whose tests are .test.mjs files is a unit, and its unit runs them", (t) => {
+  const root = fixture(t);
+  write(root, "packages/loop/package.json", JSON.stringify({ name: "@x/loop" }));
+  write(root, "packages/loop/src/gate.test.mjs", "");
+  const ws = readWorkspace(root);
+
+  const all = planRun({ root, workspace: ws, decision: classify(["README.md"], ws) }).units;
+  assert.ok(all.includes("packages/loop"), all.join(", "));
+  assert.ok(unitGlobs("packages/loop").includes("packages/loop/src/**/*.test.mjs"));
+});
+
 test("the package-boundary check runs in every scoped run, since a change inside any one package can break it", (t) => {
   const root = fixture(t);
   const ws = readWorkspace(root);

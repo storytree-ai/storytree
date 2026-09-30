@@ -1205,6 +1205,8 @@ test("6.19 Codex gets app creation arguments then attaches the returned worktree
       assert.equal(ref, git(folder, "rev-parse", "HEAD").trim());
       assert.match(prepared.text, /create_worktree/);
       assert.match(prepared.text, /attach_workspace/);
+      assert.ok(prepared.text.includes(`git worktree add --detach <folder> ${ref}`), prepared.text);
+      assert.doesNotMatch(prepared.text, /desktop app/);
       assert.deepEqual(await readClaims(log, project), []);
       const returnedFolder = path.join(path.dirname(folder), "app returned");
       git(folder, "worktree", "add", "--detach", returnedFolder, ref);

@@ -14,7 +14,7 @@ const plan = {
       status: "untested", health, contracts: [{ id: "contract_example", title: "Works", health }],
       credential: "PRIVATE_CREDENTIAL", session: "PRIVATE_SESSION", path: "PRIVATE_PATH" }],
   }],
-} as AnnotatedTree;
+} as unknown as AnnotatedTree;
 const states = { part: () => "landed" as const, story: () => "landed" as const };
 
 test("3.1 · refresh saves only public drawing fields with capture time and agent-reported forms", async (t) => {

@@ -6,8 +6,8 @@ import { edgeMarkers, openingTurn, turnToIsland, type FacingIsland, type GlobeDi
 
 const FRONT = { x: 0, y: 0, z: 1 };
 const BACK = { x: 0, y: 0, z: -1 };
-const island = (story: string, spot: GlobeDirection, ...forms: FacingIsland["trees"][number]["form"][]): FacingIsland => ({
-  story, spot, trees: forms.map((form) => ({ form })),
+const island = (story: string, spot: GlobeDirection, ...words: NonNullable<FacingIsland["trees"][number]["status"]>[]): FacingIsland => ({
+  story, spot, trees: words.map((status) => ({ status })),
 });
 
 function close(actual: number, expected: number): void {
@@ -24,19 +24,19 @@ function facesFront(spot: GlobeDirection, { yaw, pitch }: GlobeTurn): void {
 }
 
 test("3.11 the globe opens facing a failing island, even when its other trees are healthy or being built", () => {
-  const healthy = island("healthy", FRONT, "green");
-  const failing = island("failing", { x: 2, y: -1, z: -3 }, "green", "dead", "seedling");
+  const healthy = island("healthy", FRONT, "healthy");
+  const failing = island("failing", { x: 2, y: -1, z: -3 }, "healthy", "unhealthy", "proposed");
   facesFront(failing.spot, openingTurn([healthy, failing]));
   // Opposite failures cannot both face the eye: keep the first, rather than averaging to no direction.
-  const opposite = island("also-failing", { x: -2, y: 1, z: 3 }, "dead");
+  const opposite = island("also-failing", { x: -2, y: 1, z: 3 }, "unhealthy");
   facesFront(failing.spot, openingTurn([healthy, failing, opposite]));
 });
 
 test("3.11 each failing island behind the globe gets a rim marker whose turn brings it to the front", () => {
-  const failing = island("failing", { x: 3, y: 4, z: -12 }, "dead", "dead");
-  const healthy = island("healthy", BACK, "green", "pale", "seedling");
+  const failing = island("failing", { x: 3, y: 4, z: -12 }, "unhealthy", "unhealthy");
+  const healthy = island("healthy", BACK, "healthy", "untested", "proposed");
   const markers = edgeMarkers([failing, healthy], FRONT);
-  assert.equal(markers.length, 1, "one marker per failing story, not per dead tree");
+  assert.equal(markers.length, 1, "one marker per failing story, not per unhealthy capability");
   const marker = markers[0]!;
   assert.equal(marker.story, failing.story);
   close(marker.at.x, 0.6);
@@ -44,30 +44,30 @@ test("3.11 each failing island behind the globe gets a rim marker whose turn bri
   facesFront(failing.spot, marker.turn);
   assert.deepEqual(edgeMarkers([failing], failing.spot), [], "the chosen marker goes when its island is in front");
 
-  const centredBack = edgeMarkers([island("opposite", BACK, "dead")], FRONT)[0]!;
+  const centredBack = edgeMarkers([island("opposite", BACK, "unhealthy")], FRONT)[0]!;
   assert.deepEqual(centredBack.at, { x: 0, y: 1 }, "straight behind has a stable marker at the top, not an undefined bearing");
   facesFront(BACK, centredBack.turn);
 });
 
 test("3.11 turning the view removes front-side markers and places hidden ones on the correct rim, including at a pole", () => {
-  const failing = island("failing", { x: 3, y: 4, z: -12 }, "dead");
+  const failing = island("failing", { x: 3, y: 4, z: -12 }, "unhealthy");
   assert.deepEqual(edgeMarkers([failing], { x: 1, y: 0, z: 0 }), [], "failing but in front needs no marker");
   const marker = edgeMarkers([failing], { x: -1, y: 0, z: 0 })[0]!;
   close(marker.at.x, -12 / Math.hypot(12, 4));
   close(marker.at.y, 4 / Math.hypot(12, 4));
 
   const north = { x: 0, y: 1, z: 0 };
-  const south = island("south", { x: 0, y: -1, z: 0 }, "dead");
+  const south = island("south", { x: 0, y: -1, z: 0 }, "unhealthy");
   const polar = edgeMarkers([south], north)[0]!;
   assert.deepEqual(polar.at, { x: 0, y: 1 });
   facesFront(south.spot, polar.turn);
   assert.deepEqual(edgeMarkers([south], south.spot), []);
-  assert.equal(edgeMarkers([island("on-rim", FRONT, "dead")], north).length, 1, "an edge-on island still has a marker");
+  assert.equal(edgeMarkers([island("on-rim", FRONT, "unhealthy")], north).length, 1, "an edge-on island still has a marker");
 });
 
 test("without failures the first story is faced, and an empty globe keeps its neutral turn", () => {
-  const first = island("first", { x: -5, y: 2, z: 1 }, "seedling", "pale", "green");
-  facesFront(first.spot, openingTurn([first, island("second", FRONT, "green")]));
+  const first = island("first", { x: -5, y: 2, z: 1 }, "proposed", "untested", "healthy");
+  facesFront(first.spot, openingTurn([first, island("second", FRONT, "healthy")]));
   facesFront(first.spot, turnToIsland(first.spot));
   assert.deepEqual(openingTurn([]), { yaw: 0, pitch: 0 });
   assert.deepEqual(edgeMarkers([], FRONT), []);

@@ -66,8 +66,8 @@ test("a click picks the rotated island mesh, while the see-through shell keeps f
 
 test("3.11 a hidden failure has a marker in the camera's frame, and its click turns it to the eye after orbiting", () => {
   const islands: FacingIsland[] = [
-    { story: "first", spot: { x: 0, y: 0, z: 1 }, trees: [{ form: "dead" }] },
-    { story: "behind", spot: { x: 3, y: 4, z: -12 }, trees: [{ form: "dead" }] },
+    { story: "first", spot: { x: 0, y: 0, z: 1 }, trees: [{ status: "unhealthy" }] },
+    { story: "behind", spot: { x: 3, y: 4, z: -12 }, trees: [{ status: "unhealthy" }] },
   ];
   const eye = new Quaternion().setFromEuler(new Euler(-0.65, 0.8, 0.2));
   const rotation = focusRotation(openingTurn(islands), eye);
@@ -82,9 +82,23 @@ test("3.11 a hidden failure has a marker in the camera's frame, and its click tu
   assert.ok(hiddenMarkers(islands, focused, orbitedEye).every(m => m.story !== "behind"));
 });
 
+test("3.11 the rim marker reads storytree's verified word, never the agent's report alone", () => {
+  const health = (reported: "passing" | "failing" | "not-checked", verified: "passing" | "failing" | "not-checked") => ({ reported: { state: reported }, verified: { state: verified } });
+  const capability = (id: string, status: "healthy" | "unhealthy" | "untested", reported: "passing" | "failing" | "not-checked") =>
+    ({ id, title: id, dependsOn: [], proposed: false, status, contracts: [], health: health(reported, status === "unhealthy" ? "failing" : "not-checked") });
+  const tree: AnnotatedTree = { arcs: [], stories: [
+    { id: "verified", title: "Verified failing", health: health("not-checked", "failing"), capabilities: [capability("cap-v", "unhealthy", "not-checked")] },
+    { id: "reported", title: "Reported failing", health: health("failing", "not-checked"), capabilities: [capability("cap-r", "untested", "failing")] },
+  ] };
+  const scene = forestScene(tree, [], workStates([]));
+  const layout = planetLayout(scene, new Map([["verified", 0], ["reported", 1]]));
+  const behind = layout.islands.map(island => ({ ...island, spot: { x: island.spot.x, y: island.spot.y, z: -Math.abs(island.spot.z) - 1 } }));
+  assert.deepEqual(hiddenMarkers(behind, new Quaternion(), new Quaternion()).map(m => m.story), ["verified"]);
+});
+
 test("3.11 Forest never hides a failing island; only an explicit Library choice suppresses its marker", () => {
   const islands: FacingIsland[] = [
-    { story: "failure", spot: { x: 0, y: 0, z: -1 }, trees: [{ form: "dead" }] },
+    { story: "failure", spot: { x: 0, y: 0, z: -1 }, trees: [{ status: "unhealthy" }] },
   ];
   const rotation = new Quaternion(), eye = new Quaternion();
   assert.deepEqual(hiddenMarkers(islands, rotation, eye).map(m => m.story), ["failure"], "Forest is the default");
@@ -256,4 +270,35 @@ test("3.18 a capability the selected session opened fills its territory in the s
   assert.deepEqual([colourOf(a!), (a!.material as MeshBasicMaterial).opacity], resting, "the tint itself is untouched");
   lightTerritories(drawn, new Map(), "#e69f00");
   assert.deepEqual([a!.getObjectByName("territory-lit:cap-a"), b!.getObjectByName("territory-lit:cap-b"), a!.userData.window], [undefined, undefined, undefined]);
+});
+
+test("3.20 each territory is filled by its capability's word, green, red or yellow, never grey, and a claim leaves the fill alone", () => {
+  const words = ["healthy", "unhealthy", "proposed", "untested"] as const;
+  const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "story", title: "The shop", health, capabilities: words.map((status, at) =>
+    ({ id: `cap-${status}`, title: `${at + 1} · ${status}`, dependsOn: [], proposed: status === "proposed", status, contracts: [], health })) }] };
+  const survey = { story: { files: [...words.map((status) => ({ path: `src/${status}.ts`, lines: 10, capability: `cap-${status}` })), { path: "src/loose.ts", lines: 10 }], imports: [] } };
+  const land = forestScene(tree, [], workStates([]), survey).islands[0]!.land!;
+  assert.deepEqual(land.territories.map(({ status }) => status), [...words, undefined], "the scene carries each capability's word to its territory");
+
+  const cells = land.territories.map((_, territory) => ({ polygon: [{ x: 2 * territory, z: 0 }, { x: 2 * territory + 2, z: 0 }, { x: 2 * territory + 2, z: 2 }, { x: 2 * territory, z: 2 }], territory }));
+  const flat = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
+  const fill = (group: Group, name: string) => (group.getObjectByName(name) as Mesh).material as MeshBasicMaterial;
+  const drawn = territoryLand({ territories: land.territories, cells, borders: [] }, flat);
+  const expected = { healthy: "#97c459", unhealthy: "#e24b4a", proposed: "#f2d16b", untested: "#f2d16b" };
+  for (const word of words) {
+    assert.equal(`#${fill(drawn, `territory:cap-${word}`).color.getHexString()}`, expected[word], `${word} fills its territory`);
+    assert.equal(drawn.getObjectByName(`territory:cap-${word}`)!.userData.word, word);
+  }
+  drawn.traverse((object) => {
+    const material = (object as Mesh).material as MeshBasicMaterial | undefined;
+    if (!(object instanceof Mesh) || material === undefined || material.opacity === 0) return;
+    const hsl = material.color.getHSL({ h: 0, s: 0, l: 0 });
+    assert.ok(hsl.s > 0.3, `${object.name} is drawn in a colour, not grey`);
+  });
+  assert.equal(fill(drawn, "territory:unclaimed").opacity, 0, "Unclaimed code's land is left bare, neither grey nor a word's colour");
+
+  const claimed = territoryLand({ territories: land.territories, cells, borders: [] }, flat, undefined, new Map([["cap-healthy", { colour: "hsl(200, 80%, 68%)", faded: false }]]));
+  assert.ok(fill(claimed, "territory:cap-healthy").color.equals(fill(drawn, "territory:cap-healthy").color), "a claim never changes the fill");
+  assert.equal(fill(claimed, "territory:cap-healthy").opacity, fill(drawn, "territory:cap-healthy").opacity);
 });

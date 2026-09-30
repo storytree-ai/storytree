@@ -173,12 +173,16 @@ test('3.1: the inventory observes a real owned process live and then gone throug
   assert.equal(inventory.rows[0]?.endedWithoutReport, true);
 });
 
-test('the shared app row advises only commands the app family has', () => {
+test('a clean machine reads complete: the app lifecycle reading is an observation, whichever way it says', async t => {
+  const home = await ledger(t);
   for (const running of [true, false]) {
     const row = listing.appDatabaseWork(running);
-    assert.equal(row.state, 'unknown');
+    assert.equal(row.state, running ? 'live' : 'gone');
     assert.match(row.reason, running ? /database running/ : /database not running/);
     assert.match(row.reason, /storytree app quit/);
     assert.doesNotMatch(row.reason, /storytree app status/);
+    const inventory = await listing.listRuns({ home, scope: 'all', now, shared: [row] });
+    assert.equal(inventory.complete, true);
+    assert.match(listing.renderInventory(inventory), /Reading complete/);
   }
 });

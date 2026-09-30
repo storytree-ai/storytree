@@ -1,13 +1,16 @@
 /** How the agent tools put records into their short sentences. */
-import type { Note } from "@storytree/library";
+import type { Note, SchemaRecord } from "@storytree/library";
+
+/** What a search finds: an artifact, or a story, capability or contract of the plan, found by its own words. */
+export type Findable = Note | SchemaRecord<"story" | "capability" | "contract">;
 
 /** A title, quoted as the tools quote names. */
 export function quoted(title: string): string {
   return `"${title}"`;
 }
 
-/** An artifact's spine: what it is called, the way a shelf or a search result shows it. */
-export function spineOf(note: Note): string {
+/** A record's spine: what it is called, the way a shelf or a search result shows it. */
+export function spineOf(note: Findable): string {
   switch (note.type) {
     case "decision":
       return note.fields.title;
@@ -18,15 +21,15 @@ export function spineOf(note: Note): string {
   }
 }
 
-/** An artifact's first line, below its spine: the decision's text or the definition's meaning, begun. */
-export function firstLineOf(note: Note): string {
+/** A record's first line, below its spine: the decision's text, the definition's meaning, or the description, begun. */
+export function firstLineOf(note: Findable): string {
   switch (note.type) {
     case "decision":
       return firstLine(note.fields.text);
     case "definition":
       return firstLine(note.fields.meaning);
     default:
-      return firstLine(note.fields.description);
+      return firstLine(note.fields.description ?? "");
   }
 }
 

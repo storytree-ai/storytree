@@ -12,6 +12,11 @@
  * one at the end of each turn, ADR-0636 D2) is run with `--background`: once it knows it has a line
  * to write, it hands its input to a copy of itself that it leaves running, and exits.
  *
+ * The once-a-minute look around the machine (which branches still hold open work, worktrees to reap,
+ * which sessions the apps keep) takes longer than a hook may run: asking GitHub alone may take 10 s.
+ * So a hook hands it, when due, to a copy of itself run with `--upkeep`, which may run longer and
+ * writes nothing but what that look finds.
+ *
  * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions for the terms the
  * prompt names (definitions.ts), and once-per-session advice to start fresh when a Claude Code
  * session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
@@ -27,7 +32,7 @@
  * inside one try: a failure anywhere means nothing is written, never an error the agent sees.
  */
 import type { NewLine } from "../activity/index.js";
-import type { MergeWatch } from "../claims/index.js";
+import type { MergeContext, MergeWatch } from "../claims/index.js";
 import { route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
@@ -40,10 +45,11 @@ export interface HookInput {
   readonly argv: readonly string[];
   readonly input: string;
   /**
-   * With `--background`, how the hook hands its work on: start a copy of itself for `harness`,
-   * with `input` on its stdin, that outlives this one. Resolves once the input is handed over.
+   * With `--background`, and for the look around the machine, how the hook hands its work on: start
+   * a copy of itself for `harness` with `flags`, and `input` on its stdin, that outlives this one.
+   * Resolves once the input is handed over. Without it, the look is taken in this hook.
    */
-  readonly handOff?: (harness: string, input: string) => Promise<void>;
+  readonly handOff?: (harness: string, input: string, flags?: readonly string[]) => Promise<void>;
   /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
   readonly merges?: MergeWatch;
   /** Where storytree is. By default, where the app keeps its owner record. */
@@ -52,6 +58,8 @@ export interface HookInput {
 
 /** The flag that makes a hook hand its writing to the background instead of doing it. */
 export const BACKGROUND = "--background";
+/** The flag that makes a hook take only the once-a-minute look around the machine, which may run longer than a hook. */
+export const UPKEEP = "--upkeep";
 /** The flag of the session-start hook installs before ADR-0752 registered to ask the setup question; now it does nothing. */
 export const ASK_SETUP = "--ask-setup";
 
@@ -102,6 +110,7 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
     const made = hookLines(harness, parsed);
+    if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);
     // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) return (await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate)]))[0];
@@ -162,6 +171,13 @@ async function writeLines(harness: string, input: string, flags: readonly string
       // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;
       if (first !== undefined && first.kind !== "tool-requested" && first.kind !== "prompt-submitted") {
+        const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" } as const;
+        // The look around the machine, when due, goes to a copy that may run longer (ADR-0754 D4); never at a session's end, which the harness cuts short.
+        const looks = first.kind !== "session-ended";
+        if (looks && handOff !== undefined) {
+          const { due } = await import("../claims/merges.js");
+          if (due(`${where.project}-upkeep`, merges?.everyMs ?? UPKEEP_EVERY_MS)) await handOff(harness, input, [UPKEEP]);
+        }
         const { endMergedClaims } = await import("../claims/index.js");
         await endMergedClaims({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, merges);
         // What the session's transcript gained since the last hook streams into the shared log, scrubbed (ADR-0749 D3, D4).
@@ -169,18 +185,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
           const { shipTranscript } = await import("../transcripts/index.js");
           await shipTranscript(log, where.project, first.session, first.transcript);
         }
-        // Whether each session's branches still hold open work (ADR-0754 D4); never at a session's end, which the harness cuts short.
-        if (first.kind !== "session-ended") {
-          const { resolveBranches } = await import("../sessions/branch-states.js");
-          const watcher = { log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" } as const;
-          await resolveBranches(watcher, merges).catch(() => []);
-          // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
-          const { reapWorktrees } = await import("../sessions/worktree-reaper.js");
-          await reapWorktrees(watcher).catch(() => []);
-          // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
-          const { recordAppStates } = await import("../sessions/app-records.js");
-          await recordAppStates(watcher).catch(() => []);
-        }
+        if (looks && handOff === undefined) await lookAround(watcher, merges);
       }
     } catch {
       // The log went away mid-hook: what it did not take waits for the next hook.
@@ -192,6 +197,42 @@ async function writeLines(harness: string, input: string, flags: readonly string
   } catch {
     // Whatever went wrong, nothing is written.
   }
+}
+
+/** How often a hook hands the look around the machine on, at most. */
+const UPKEEP_EVERY_MS = 60_000;
+
+/** The look around the machine, handed on by a hook: open the log of the project `made`'s folder belongs to, and look. Never throws. */
+async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: LocateOptions | undefined): Promise<void> {
+  const [first] = made.lines;
+  const where = route(made.folder, locate);
+  if (first === undefined || where.status !== "routed") return;
+  const [{ openActivityLog, currentBranch, thisMachine }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
+  const machine = thisMachine();
+  const storytree = await connect(withConnectTimeout(where.library, CONNECT_TIMEOUT_MS));
+  try {
+    const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
+    try {
+      // The hook that handed it on found it due: each look is taken now.
+      await lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 });
+    } finally {
+      await log.close();
+    }
+  } finally {
+    await storytree.close();
+  }
+}
+
+/** Whether each session's branches still hold open work (ADR-0754 D4), worktrees to reap (ADR-0790), and the sessions the apps keep, each at most once a minute unless `watch` says otherwise. */
+async function lookAround(watcher: MergeContext, watch: MergeWatch | undefined): Promise<void> {
+  const { resolveBranches } = await import("../sessions/branch-states.js");
+  await resolveBranches(watcher, watch).catch(() => []);
+  // Worktrees whose sessions have left and whose work is in main are removed (ADR-0790).
+  const { reapWorktrees } = await import("../sessions/worktree-reaper.js");
+  await reapWorktrees(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
+  // Which sessions the Claude desktop app and Codex keep on this machine, and whether each is archived there.
+  const { recordAppStates } = await import("../sessions/app-records.js");
+  await recordAppStates(watcher, watch?.everyMs === undefined ? {} : { everyMs: watch.everyMs }).catch(() => []);
 }
 
 /** The prompt in a prompt hook's input from `harness`, or undefined for any other input. */

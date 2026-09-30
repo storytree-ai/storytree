@@ -9,16 +9,20 @@
  * project, the setup question for the agent to ask: whatever happens, the agent it runs beside is untouched. It
  * also never outlives DEADLINE_MS, whatever it is waiting on. With `--background` (Codex's hooks
  * before a shell command and at the end of a turn) it hands the writing to a copy of itself that it
- * leaves running, detached and with nothing of the harness's open, and exits at once.
+ * leaves running, detached and with nothing of the harness's open, and exits at once. The look around
+ * the machine a hook hands on, once a minute, goes the same way, to a copy run with `--upkeep` that
+ * may run for UPKEEP_DEADLINE_MS.
  */
 import { spawn } from "node:child_process";
 
-import { runHook, statusLine } from "../hooks/index.js";
+import { runHook, statusLine, UPKEEP } from "../hooks/index.js";
 
 /** The longest a hook may run, start to finish. Reaching storytree is given up well before this. */
 const DEADLINE_MS = 5_000;
+/** The longest the look around the machine a hook hands on may run: asking GitHub alone may take 10 s. */
+const UPKEEP_DEADLINE_MS = 20_000;
 
-setTimeout(() => process.exit(0), DEADLINE_MS).unref();
+setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
 process.on("uncaughtException", () => process.exit(0));
 process.on("unhandledRejection", () => process.exit(0));
 
@@ -38,10 +42,10 @@ process.stdin.on("end", () => {
   );
 });
 
-/** Start this script again for `harness`, detached, with `input` on its stdin, and resolve once it has the input. */
-function handOff(harness: string, input: string): Promise<void> {
+/** Start this script again for `harness` with `flags`, detached, with `input` on its stdin, and resolve once it has the input. */
+function handOff(harness: string, input: string, flags: readonly string[] = []): Promise<void> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [process.argv[1]!, harness], { detached: true, stdio: ["pipe", "ignore", "ignore"], windowsHide: true, shell: false });
+    const child = spawn(process.execPath, [process.argv[1]!, harness, ...flags], { detached: true, stdio: ["pipe", "ignore", "ignore"], windowsHide: true, shell: false });
     child.on("error", () => resolve());
     child.stdin.on("error", () => resolve());
     child.stdin.end(input, () => {

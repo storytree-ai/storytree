@@ -645,15 +645,18 @@ function noteOf(lines: readonly { check: string; state: string; fix?: string }[]
 /**
  * A command named `name` in `bin` that answers each argument line in `answers` with its output and
  * exit code, and waits without end for any other: a shell script on macOS and Linux, a batch file on
- * Windows, run by name as the check runs the user's own tools.
+ * Windows, run by name as the check runs the user's own tools. It answers after `delaySeconds`, as a
+ * tool does on a loaded machine.
  */
-function fakeTool(bin: string, name: string, answers: Record<string, { out?: string; code: number }>): void {
+function fakeTool(bin: string, name: string, answers: Record<string, { out?: string; code: number }>, delaySeconds = 0): void {
   if (process.platform === "win32") {
     const cases = Object.entries(answers).map(([args, { out, code }]) => `if "%*"=="${args}" (${out === undefined ? "" : `echo ${out}& `}exit /b ${code})`);
-    writeFileSync(path.join(bin, `${name}.cmd`), `@echo off\r\n${cases.join("\r\n")}\r\n"%SystemRoot%\\System32\\PING.EXE" -n 60 127.0.0.1 >nul\r\n`);
+    const delay = delaySeconds > 0 ? `"%SystemRoot%\\System32\\PING.EXE" -n ${delaySeconds + 1} 127.0.0.1 >nul\r\n` : "";
+    writeFileSync(path.join(bin, `${name}.cmd`), `@echo off\r\n${delay}${cases.join("\r\n")}\r\n"%SystemRoot%\\System32\\PING.EXE" -n 60 127.0.0.1 >nul\r\n`);
   } else {
     const cases = Object.entries(answers).map(([args, { out, code }]) => `if [ "$*" = "${args}" ]; then ${out === undefined ? "" : `echo '${out}'; `}exit ${code}; fi`);
-    writeFileSync(path.join(bin, name), `#!/bin/sh\n${cases.join("\n")}\nexec /bin/sleep 60\n`);
+    const delay = delaySeconds > 0 ? `/bin/sleep ${delaySeconds}\n` : "";
+    writeFileSync(path.join(bin, name), `#!/bin/sh\n${delay}${cases.join("\n")}\nexec /bin/sleep 60\n`);
     chmodSync(path.join(bin, name), 0o755);
   }
 }
@@ -667,10 +670,10 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 1 } });
     fakeTool(bin, "codex", {});
     fakeTool(bin, "node", { "--version": { out: "v20.11.0", code: 0 } });
-    const check = () => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs: 2_000 }) });
+    const check = (waitMs: number) => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs }) });
 
     const started = Date.now();
-    const report = await check();
+    const report = await check(2_000);
     assert.ok(Date.now() - started < 15_000, `a tool that never answers is not waited on: ${Date.now() - started}ms`);
     const line = (name: string) => report.lines.find((each) => each.check === name);
     assert.equal(line("agent-cli")?.state, "needs-attention");
@@ -682,10 +685,13 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     assert.deepEqual(noteOf(report.lines, "node"), { state: "note", fix: undefined });
 
     // Claude Code signed in, git and Node 24 there: nothing to fix, and Codex is not needed as well.
-    fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 0 } });
+    // Claude Code answers slower than the short bound above, as it does on a loaded machine starting
+    // it, so this half waits as long as a busy machine needs; with no Codex there is nothing silent to wait on.
+    fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 0 } }, 3);
     fakeTool(bin, "git", { "--version": { out: "git version 2.50.0", code: 0 } });
     fakeTool(bin, "node", { "--version": { out: "v24.1.0", code: 0 } });
-    const ready = await check();
+    rmSync(path.join(bin, process.platform === "win32" ? "codex.cmd" : "codex"));
+    const ready = await check(15_000);
     for (const name of ["agent-cli", "git", "node"]) {
       assert.equal(ready.lines.find((each) => each.check === name)?.state, "ok", `${name}: ${JSON.stringify(ready.lines)}`);
     }

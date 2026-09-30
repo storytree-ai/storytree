@@ -61,3 +61,12 @@ test("nothing kept is loading as before; a kept value of another shape is not a 
   assert.equal(isBoardSnapshot({ arcs: [{}], waits: {} }), false);
   assert.equal(isBoardSnapshot([arc]), false);
 });
+
+test("a kept board's first draw is already at the starting scope, so a parked pick is not overwritten by the active board", () => {
+  const parked = record("arc_2", "arc", { title: "Later", intent: "Wait", endState: "Done" });
+  const both: BoardSnapshot = { ...snapshot, arcs: [...snapshot.arcs, { arc: parked, increments: [], questions: [], state: "parked" }] };
+  const states: BoardState[] = [];
+  watchBoard({ project: "p", reads: reads(() => true), timers, kept: kept(both), scope: "parked", onState: (state) => states.push(state) }).stop();
+  assert.equal(states[0]?.board?.scope, "parked");
+  assert.deepEqual(states[0]?.board?.lanes.map(({ id }) => id), ["arc_2"]);
+});

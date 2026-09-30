@@ -1,8 +1,11 @@
 name: Release installed app
 
-# CI's automatic merge uses GITHUB_TOKEN, which does not trigger push workflows.
-# workflow_run fires after the whole CI run (including automerge) completes. Source selection
-# refuses unmerged PRs; the jobs below verify the exact merged commit again before it can ship.
+# workflow_run fires after each whole CI run completes. Through the merge queue (ADR-0796), the
+# queue's merge is a push to main, so CI's run on that push is the one that releases; the pull
+# request's run (not yet merged) and the queue's own run (merge_group) select nothing. A direct
+# merge by CI uses GITHUB_TOKEN, which starts no push workflow, so then the pull request's run,
+# including automerge, is the one. Source selection refuses unmerged PRs; the jobs below verify the
+# exact merged commit again before it can ship.
 on:
   workflow_run:
     workflows: [CI]

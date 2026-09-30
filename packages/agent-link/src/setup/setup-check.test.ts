@@ -670,10 +670,10 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 1 } });
     fakeTool(bin, "codex", {});
     fakeTool(bin, "node", { "--version": { out: "v20.11.0", code: 0 } });
-    const check = () => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs: 2_000 }) });
+    const check = (waitMs: number) => runSetupCheck({ folder: dir, homes: home.homes, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const, machine: () => machineState({ path: bin, waitMs }) });
 
     const started = Date.now();
-    const report = await check();
+    const report = await check(2_000);
     assert.ok(Date.now() - started < 15_000, `a tool that never answers is not waited on: ${Date.now() - started}ms`);
     const line = (name: string) => report.lines.find((each) => each.check === name);
     assert.equal(line("agent-cli")?.state, "needs-attention");
@@ -685,11 +685,13 @@ test("8.11 the check says whether Claude Code or Codex is installed and signed i
     assert.deepEqual(noteOf(report.lines, "node"), { state: "note", fix: undefined });
 
     // Claude Code signed in, git and Node 24 there: nothing to fix, and Codex is not needed as well.
-    // Claude Code answers slower than the bound above, as it does on a loaded machine starting it.
+    // Claude Code answers slower than the short bound above, as it does on a loaded machine starting
+    // it, so this half waits as long as a busy machine needs; with no Codex there is nothing silent to wait on.
     fakeTool(bin, "claude", { "--version": { out: "2.0.0 (Claude Code)", code: 0 }, "auth status": { code: 0 } }, 3);
     fakeTool(bin, "git", { "--version": { out: "git version 2.50.0", code: 0 } });
     fakeTool(bin, "node", { "--version": { out: "v24.1.0", code: 0 } });
-    const ready = await check();
+    rmSync(path.join(bin, process.platform === "win32" ? "codex.cmd" : "codex"));
+    const ready = await check(15_000);
     for (const name of ["agent-cli", "git", "node"]) {
       assert.equal(ready.lines.find((each) => each.check === name)?.state, "ok", `${name}: ${JSON.stringify(ready.lines)}`);
     }

@@ -45,6 +45,8 @@ test('4.1 a start line makes a live session labelled "Claude Code", with its fol
         branches: [],
         openWork: [],
         archived: false,
+        branchesByFolder: [],
+        running: [],
         listing: "listed",
       },
     ]);
@@ -219,5 +221,44 @@ test("4.20 a line about other sessions (a branch's state, what an app keeps) nev
     await log.append(project, { ...looker, kind: "session-archived", of: "claude-1", app: "claude-desktop" });
     const sessions = await readSessions(log, project, { now: after(worker, 1_000) });
     assert.deepEqual(sessions.map((one) => [one.session, one.openWork]), [["claude-1", []]]);
+  });
+});
+
+test("4.22 a session reads, for each folder it worked in, the branches it recorded there and whether each still holds open work: the main line is no branch, and a branch recorded with no folder is placed in the folder it last worked in", async () => {
+  await withProject(async (log, project) => {
+    const fix = "/work/site/.claude/worktrees/fix";
+    const old = "/work/site/.claude/worktrees/old";
+    const observer = { session: "observer", harness: "claude-code", source: "hook", folder: "/work/site", branch: "main" } as const;
+    await log.append(project, { ...CLAUDE, folder: "/work/site", branch: "main", kind: "session-started", how: "startup" });
+    await log.append(project, { ...CLAUDE, folder: old, branch: "claude/old", kind: "file-edited", files: ["a.ts"] });
+    await log.append(project, { ...CLAUDE, folder: fix, branch: "claude/fix", kind: "file-edited", files: ["b.ts"] });
+    // A line that names a branch but no folder (written by a tool with none to name).
+    const last = await log.append(project, { session: CLAUDE.session, harness: "claude-code", source: "tool", branch: "claude/stray", kind: "claimed", increment: "inc-1", reason: "stray" });
+    await log.append(project, { ...observer, kind: "branch-state", of: "claude/old", open: false, how: "merged", pr: 9 });
+    const [session] = await readSessions(log, project, { now: after(last, 1_000) });
+    assert.deepEqual(session?.branchesByFolder, [
+      { folder: old, branch: "claude/old", open: false },
+      { folder: fix, branch: "claude/fix", open: true },
+      { folder: fix, branch: "claude/stray", open: true },
+    ]);
+  });
+});
+
+test("4.23 a session reads the commands it started and has not seen finish, each with its command and when it started, background ones a turn left running included; a finished command, or one a turn ended without leaving background tasks, is not listed (the same reading that keeps a session working, 4.5, 4.8)", async () => {
+  await withProject(async (log, project) => {
+    await log.append(project, { ...CLAUDE, kind: "prompt-submitted" });
+    const test = await log.append(project, { ...CLAUDE, kind: "command-started", command: "pnpm run test --full", call: "call-test" });
+    await log.append(project, { ...CLAUDE, kind: "command-started", command: "git status", call: "call-git" });
+    await log.append(project, { ...CLAUDE, kind: "command-run", command: "git status", call: "call-git" });
+    const background = await log.append(project, { ...CLAUDE, kind: "command-started", command: "gh pr checks --watch", call: "call-watch" });
+    const running = async (line: Line, ms: number) => (await readSessions(log, project, { now: after(line, ms) }))[0]?.running.map(({ command, since }) => [command, since]);
+    assert.deepEqual(await running(background, 1_000), [["pnpm run test --full", test.at], ["gh pr checks --watch", background.at]], "a finished command is not listed");
+    const turn = await log.append(project, { ...CLAUDE, kind: "turn-ended", background: 2 });
+    assert.deepEqual(await running(turn, 3 * QUIET_MS), [["pnpm run test --full", test.at], ["gh pr checks --watch", background.at]], "left running in the background, past the limit on one a turn waits for");
+    const done = await log.append(project, { ...CLAUDE, kind: "command-run", command: "pnpm run test --full", call: "call-test" });
+    assert.deepEqual(await running(done, 1_000), [["gh pr checks --watch", background.at]]);
+    await log.append(project, { ...CLAUDE, kind: "prompt-submitted" });
+    const ended = await log.append(project, { ...CLAUDE, kind: "turn-ended", background: 0 });
+    assert.deepEqual(await running(ended, 1_000), [], "a turn that leaves no background task closes every command");
   });
 });

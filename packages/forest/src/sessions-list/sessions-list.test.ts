@@ -31,13 +31,12 @@ test("one row per non-ended claiming session, plain idle, reason and held island
   assert.equal(rows[0]!.label, "Build signup");
   assert.deepEqual(rows[0]!.stories, ["one", "two"]);
   assert.equal(rows[1]!.state, "waiting");
-  assert.equal(rows[1]!.needsYou, false);
   assert.equal(rows[0]!.totalTokens, undefined, "an unavailable total is not zero");
   lines.push(...log({ ...parent, kind: "released", capability: "cap-one" }).map(line => ({ ...line, seq: 5 })));
   assert.deepEqual(sessionRows(tree, lines, [], now)[0]!.stories, ["two"]);
 });
 
-test("explicit children nest once, propagate needs-you and islands; ending a parent promotes its living child", () => {
+test("explicit children nest once and pass their islands up; ending a parent promotes its living child", () => {
   const lines = log(claimed("cap-one", "Build signup"),
     { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },
     { ...child, kind: "claimed", increment: "inc", reason: "Finish signup" },
@@ -47,11 +46,7 @@ test("explicit children nest once, propagate needs-you and islands; ending a par
   assert.equal(row!.children[0]!.id, "child");
   assert.equal(row!.children[1]!.label, "Read the library");
   assert.equal(row!.children[1]!.totalTokens, 123, "observed subagents use the supplied reading too");
-  assert.equal(row!.needsYou, true, "a folded child's question remains visible");
   assert.deepEqual(row!.stories, ["one", "two"]);
-  const settled = structuredClone(arc);
-  settled.questions[0]!.fields.lifecycle = "settled";
-  assert.equal(sessionRows(tree, lines, [settled], now)[0]!.needsYou, false);
   lines.push({ ...parent, kind: "session-ended", project: "demo", seq: 5, at: now.toISOString() });
   assert.deepEqual(sessionRows(tree, lines, [arc], now).map(row => row.id), ["child"]);
 });
@@ -61,9 +56,9 @@ test("7.1 a session holding no claim still gets a plain row, named from the work
     { ...off, folder: "/home/me/code/site/.claude/worktrees/fix-login", kind: "command-run", command: "gh pr create --fill" });
   const [row] = sessionRows(tree, lines, [], now);
   assert.equal(row?.label, "Codex · fix-login");
-  assert.equal(row?.needsYou, false);
   assert.deepEqual(row?.stories, []);
-  assert.deepEqual(row?.worktrees, ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
+  assert.deepEqual(row?.worktrees.map(({ path }) => path), ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
+  assert.deepEqual(row?.worktrees.map(({ state }) => state), [undefined, undefined], "on no branch, a worktree has no merge label");
 });
 
 test("7.14 an unclaimed row is named by its app's title; every row carries up to three lines describing it: the app's title where the name is not it, the held increment's objective, the app's latest status", () => {
@@ -137,7 +132,7 @@ test("7.8 a row's files are its window's opened files, each once in the order fi
     { absent: "no hook has named this session's transcript" });
 });
 
-test("7.9-7.11 the header counts sessions at work; quiet sessions that never closed out fold as idle; a close-out that needs you says why; a verified one is gone (ADR-0758)", () => {
+test("7.9-7.11 the header counts sessions at work; a quiet session folds as idle by its state alone, a close-out that says not safe keeping it listed but never out of the fold; a verified one is gone (ADR-0758)", () => {
   const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
   const lines = log(
@@ -146,15 +141,17 @@ test("7.9-7.11 the header counts sessions at work; quiet sessions that never clo
     { ...hook("idle"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("idle"), kind: "turn-ended", at: minutes(45) },
     { ...hook("unsure"), branch: "fix-login", kind: "file-edited", files: ["a.ts"], at: minutes(20) },
     { ...hook("unsure"), branch: "fix-login", kind: "closed-out", safe: true, why: "all merged", running: 0, at: minutes(19) },
+    { ...hook("held"), kind: "prompt-submitted", at: minutes(50) }, { ...hook("held"), kind: "turn-ended", at: minutes(45) },
+    { ...hook("held"), branch: "main", kind: "closed-out", safe: false, why: "waiting on the owner's look", running: 0, at: minutes(44) },
     { ...hook("done"), branch: "main", kind: "closed-out", safe: true, why: "all merged", running: 0, at: minutes(5) });
   const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => [row.id, row.idle]), [["busy", false], ["asking", false], ["idle", true], ["unsure", false]], "a verified close-out leaves at once");
-  assert.equal(atWork(rows), 3, "working, waiting for you, and needing you count; idle does not");
-  const unsure = rows.find(row => row.id === "unsure");
-  assert.deepEqual({ needsYou: unsure?.needsYou, why: unsure?.needsYouWhy }, { needsYou: true, why: "says safe, but fix-login is unmerged" });
+  assert.deepEqual(rows.map(row => [row.id, row.idle]), [["busy", false], ["asking", false], ["idle", true], ["unsure", false], ["held", true]],
+    "a verified close-out leaves at once; one that says not safe stays listed, folded like any quiet session");
+  assert.equal(atWork(rows), 3, "working and waiting for you count; idle does not");
+  assert.equal(rows.some(row => "needsYou" in row || "needsYouWhy" in row), false, "a row carries no need of the owner's: owner decisions are open questions on the arc surface");
 });
 
-test("7.12 a session holding unmerged work is marked with its branches; the list leaves by the leave-after it is given; a finished desktop window folds as idle (ADR-0754 D4, ADR-0758 D5)", () => {
+test("7.12 a session holding unmerged work stays listed; the list leaves by the leave-after it is given; a finished desktop window folds as idle (ADR-0754 D4, ADR-0758 D5)", () => {
   const hours = (n: number) => new Date(now.getTime() - n * 3_600_000).toISOString();
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
   const lines = log(
@@ -163,8 +160,49 @@ test("7.12 a session holding unmerged work is marked with its branches; the list
     { ...hook("desk"), kind: "prompt-submitted", at: hours(3) }, { ...hook("desk"), kind: "turn-ended", at: hours(3) },
     { ...hook("reader"), kind: "session-unarchived", of: "desk", app: "claude-desktop", at: hours(4) });
   const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => [row.id, row.idle, row.unmerged]), [["holding", true, ["fix-login"]], ["desk", true, []]],
-    "two hours quiet leaves at the 1-hour default; unmerged work stays, marked; the finished desktop window folds");
+  assert.deepEqual(rows.map(row => [row.id, row.idle]), [["holding", true], ["desk", true]],
+    "two hours quiet leaves at the 1-hour default; unmerged work stays; the finished desktop window folds");
   assert.deepEqual(sessionRows(tree, lines, [], now, new Map(), undefined, 3 * 3_600_000).map(row => row.id), ["holding", "quiet", "desk"],
     "a 3-hour leave-after keeps the two-hour-quiet session listed");
+});
+
+test("7.15 each worktree in a row's detail is labelled unmerged or merged by the branch its session recorded there and whether that branch still holds open work; the main line, or no branch, carries no label; a branch recorded with no folder is folded under the folder last worked in, and none is dropped", () => {
+  const hook = { session: "work", harness: "claude-code", source: "hook" } as const;
+  const site = "/w/site";
+  const merged = "/w/site/.claude/worktrees/merged-one";
+  const open = "/w/site/.claude/worktrees/open-one";
+  const lines = log(
+    { ...hook, folder: site, branch: "main", kind: "session-started", how: "startup" },
+    { ...hook, folder: merged, branch: "merged-one", kind: "file-edited", files: ["a.ts"] },
+    { ...hook, folder: open, branch: "open-one", kind: "file-edited", files: ["b.ts"] },
+    { ...hook, source: "tool", branch: "stray", kind: "claimed", increment: "tidy", reason: "tidy" },
+    { session: "looker", harness: "claude-code", source: "hook", kind: "branch-state", of: "merged-one", open: false, how: "merged", pr: 12 },
+    { ...hook, folder: open, branch: "open-one", kind: "turn-ended" });
+  const [row] = sessionRows(tree, lines, [], now);
+  assert.deepEqual(row?.worktrees, [
+    { path: site, branches: [] },
+    { path: merged, branches: ["merged-one"], state: "merged" },
+    { path: open, branches: ["open-one", "stray"], state: "unmerged" },
+  ]);
+  const unplaced = sessionRows(tree, log({ session: "solo", harness: "claude-code", source: "tool", branch: "lonely", kind: "claimed", increment: "x", reason: "x" }), [], now)[0];
+  assert.deepEqual(unplaced?.worktrees, [{ path: "lonely", branches: ["lonely"], state: "unmerged" }], "a branch with no folder to fold under is still listed");
+});
+
+test("7.16 a row lists the commands its session started and has not seen finish, background ones included, each as its first words (held to one short line) with its full command and how long it has run; a finished command is not listed", () => {
+  const hook = { session: "busy", harness: "claude-code", source: "hook" } as const;
+  const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
+  const long = "git push --force-with-lease origin claude/some-very-long-branch-name && gh pr create --fill";
+  const lines = log(
+    { ...hook, kind: "prompt-submitted", at: minutes(30) },
+    { ...hook, kind: "command-started", command: "pnpm run test --full", call: "a", at: minutes(8) },
+    { ...hook, kind: "command-started", command: long, call: "b", at: minutes(2) },
+    { ...hook, kind: "command-started", command: "git status", call: "c", at: minutes(1) },
+    { ...hook, kind: "command-run", command: "git status", call: "c", at: minutes(1) });
+  const [row] = sessionRows(tree, lines, [], now);
+  assert.deepEqual(row?.running.map(({ words, command, ranMs }) => [words, command, ranMs]), [
+    ["pnpm run test --full", "pnpm run test --full", 8 * 60_000],
+    [`${long.split(/\s+/).slice(0, 5).join(" ").slice(0, 47)}…`, long, 2 * 60_000],
+  ]);
+  assert.ok(row!.running[1]!.words.length <= 48, "one short line");
+  assert.deepEqual(sessionRows(tree, log({ ...hook, kind: "prompt-submitted" }), [], now)[0]?.running, [], "a session running nothing lists nothing");
 });

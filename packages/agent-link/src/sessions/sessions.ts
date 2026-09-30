@@ -30,7 +30,7 @@ export { closeOut } from "./close-out.js";
 export type { CloseOutContext, CloseOutOptions } from "./close-out.js";
 
 export { COMMAND_KINDS, commandRunning, isQuiet, labelOf, LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, turnState } from "../readings.js";
-export type { CloseOut, Listing, Session, SessionApp, SessionOptions, SessionState } from "../readings.js";
+export type { CloseOut, Listing, RunningCommand, Session, SessionApp, SessionOptions, SessionState } from "../readings.js";
 
 /** Read sessions with the current per-user idle-after and leave-after durations, unless the caller supplies them. */
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {

@@ -1,5 +1,5 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
-import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type SessionState } from "@storytree/agent-link/readings";
+import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type Session, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -21,18 +21,29 @@ export interface SessionDetails {
   /** The user's context guidance in tokens, as the reading carried it (agent link 9.7). */
   guidance?: number | undefined;
 }
+/** A folder a session worked in: the branches it recorded there, and, when it recorded any, whether one still holds open work (unmerged) or none does (merged). */
+export interface WorktreeRow {
+  path: string;
+  branches: string[];
+  state?: "unmerged" | "merged";
+}
+
+/** A command a session started and has not seen finish (7.16): its first words, its full text, and how long it has run. */
+export interface RunningRow {
+  words: string;
+  command: string;
+  ranMs: number;
+}
+
 export interface SessionRow {
   id: string;
   label: string;
   agent: string;
   /** A subagent start alone does not tell us whether the subagent is still running. */
   state: SessionState | "observed";
-  needsYou: boolean;
-  /** Why it needs you, when its close-out says so (ADR-0758 D3): its own why, or where a yes disagrees with the facts. */
-  needsYouWhy?: string;
   /**
    * Folded into the list's "N idle" row, and not counted (ADR-0758 D1, D5): neither working, nor
-   * waiting for you (a turn ended within the idle-after time), nor needing you.
+   * waiting for you (a turn ended within the idle-after time). By its state alone; who is listed at all is the agent link's reading.
    */
   idle: boolean;
   totalTokens: number | undefined;
@@ -41,10 +52,10 @@ export interface SessionRow {
   /** Where the bar marks the user's context guidance, when the reading carried it. */
   guidance?: number | undefined;
   stories: string[];
-  /** Every folder the session has worked in, oldest first (ADR-0749 D2); none for an observed subagent. */
-  worktrees: string[];
-  /** Its branches that still hold unmerged work (ADR-0754 D4): a session that has not cleaned up, marked so it can be looked into. */
-  unmerged: string[];
+  /** Every folder the session has worked in, oldest first (ADR-0749 D2), each labelled by its branch (7.15); none for an observed subagent. */
+  worktrees: WorktreeRow[];
+  /** The commands it has started and not seen finish, background ones included, oldest first (7.16). */
+  running: RunningRow[];
   /** Up to three lines saying what it is doing (7.14), from recorded words only: its app's title, its increment's objective, its app's latest status. */
   description: string[];
   /** The machine it runs on, named only when the listed sessions span more than one (7.13). */
@@ -80,8 +91,6 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     const heldIncrements = increments.filter(inc => own.some(claim => claim.increment === inc.id));
     const held = new Set(own.flatMap(claim => claim.capability ? [claim.capability] : []));
     for (const increment of heldIncrements) for (const id of increment.fields.touches ?? []) held.add(id);
-    const question = arcs.some(arc => arc.questions.some(q => q.fields.lifecycle === "open") &&
-      arc.increments.some(inc => inc.fields.status !== "closed" && (heldIncrements.includes(inc) || inc.fields.touches?.some(id => held.has(id)))));
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
     const label = own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title
@@ -89,20 +98,19 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     const objective = (heldIncrements[0]?.fields as { objective?: string } | undefined)?.objective?.trim();
     rows.set(session.session, { id: session.session, label,
       description: [session.title === label ? undefined : session.title, objective || undefined, session.status].filter((said): said is string => said !== undefined),
-      agent: session.label, state: session.state, needsYou: question || session.closeOut?.needsYou !== undefined,
-      ...(session.closeOut?.needsYou === undefined ? {} : { needsYouWhy: session.closeOut.needsYou }),
+      agent: session.label, state: session.state,
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
-      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees,
-      unmerged: session.openWork, children: [] });
+      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: worktreeRows(session),
+      running: session.running.map(({ command, since }) => ({ words: commandWords(command), command, ranMs: Math.max(0, now.getTime() - Date.parse(since)) })), children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
     if (line.kind !== "subagent-started" || ended.has(line.subagent) || !rows.has(line.session)) continue;
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
-      agent: line.type ?? "Subagent", state: "observed", needsYou: false, idle: false,
-      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], unmerged: [], description: [], children: [] });
+      agent: line.type ?? "Subagent", state: "observed", idle: false,
+      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], running: [], description: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
   const roots: SessionRow[] = [];
@@ -119,11 +127,10 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   }
   function includeChildren(row: SessionRow): void {
     for (const child of row.children) includeChildren(child);
-    row.needsYou ||= row.children.some(child => child.needsYou);
     row.stories = [...new Set([...row.stories, ...row.children.flatMap(child => child.stories)])];
   }
   for (const row of roots) includeChildren(row);
-  for (const row of roots) row.idle &&= !row.needsYou && !row.children.some(child => child.state === "working");
+  for (const row of roots) row.idle &&= !row.children.some(child => child.state === "working");
   // A session's machine is the latest one its lines name; worth showing only when the list spans several.
   const machines = new Map<string, string>();
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) if (line.machine !== undefined) machines.set(line.session, line.machine);
@@ -131,6 +138,31 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     for (const row of roots) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
   }
   return roots;
+}
+
+/** The longest a running command's words run, ellipsis included. */
+const WORDS_LIMIT = 48;
+const WORDS_SHOWN = 5;
+
+/** The first words of a command, held to one short line: cut with an ellipsis when it has more words, or they run past the limit. */
+function commandWords(command: string): string {
+  const all = command.trim().split(/\s+/);
+  const words = all.slice(0, WORDS_SHOWN).join(" ");
+  if (words.length > WORDS_LIMIT) return `${words.slice(0, WORDS_LIMIT - 1)}…`;
+  return all.length > WORDS_SHOWN ? `${words}…` : words;
+}
+
+/** A session's worktrees, each with the branches recorded there (7.15); a branch with no folder to fold under is listed by its own name. */
+function worktreeRows(session: Session): WorktreeRow[] {
+  const folders = new Map<string, { branches: string[]; open: boolean }>(session.worktrees.map(path => [path, { branches: [], open: false }]));
+  for (const { folder, branch, open } of session.branchesByFolder) {
+    const path = folder ?? session.worktrees.at(-1) ?? branch;
+    const at = folders.get(path) ?? { branches: [], open: false };
+    folders.set(path, at);
+    if (!at.branches.includes(branch)) at.branches.push(branch);
+    at.open ||= open;
+  }
+  return [...folders].map(([path, { branches, open }]) => ({ path, branches, ...(branches.length === 0 ? {} : { state: open ? "unmerged" as const : "merged" as const }) }));
 }
 
 /** How many listed sessions are at work, as the list's header counts them (ADR-0758 D1): every row not folded as idle. */

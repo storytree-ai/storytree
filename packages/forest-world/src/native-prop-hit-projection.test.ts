@@ -76,7 +76,7 @@ test('native-prop-hit-projection-preserves-native-semantic-records-in-drawing-wo
 });
 
 // test-updated (refactor): native-prop-hit-projection-encloses-full-width-native-props-at-any-yaw compares derived floating-point spans within rounding tolerance, because subtracting rounded absolute bounds cannot be bit-identical to the original span expression.
-test('native-prop-hit-projection-encloses-full-width-native-props-at-any-yaw: a sqrt(2) full-plan span contains all four corners of each full-width native box at 45 degrees', () => {
+test('4.2 native-prop-hit-projection-encloses-full-width-native-props-at-any-yaw: a sqrt(2) full-plan span contains all four corners of each full-width native box at 45 degrees', () => {
   for (const record of records) {
     const { root, bounds } = projectNativePropHitEnvelope(record, ELEVATION_DEG);
     const halfSide = record.footprint / 2;

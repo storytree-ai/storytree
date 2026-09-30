@@ -208,7 +208,7 @@ test('the two kinds of role partition the vocabulary — no role is both, none i
   assert.deepEqual([...DRESSING_ROLES], ['bush', 'tuft', 'flowerPatch']);
 });
 
-test('⚠ NO DRESSING ROLE HAS A ROUTE FROM A STATE — scenery can never report a capability', () => {
+test('3.2 ⚠ NO DRESSING ROLE HAS A ROUTE FROM A STATE — scenery can never report a capability', () => {
   // The one thing the dressing roles are NOT exempt from. `stateForm` is the only door from a
   // capability's status to a role, so this is the whole surface: if no state reaches a dressing
   // role, no capability's state can ever be drawn as ground cover, and an island cannot come to

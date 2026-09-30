@@ -64,7 +64,7 @@ test("a click picks the rotated island mesh, while the see-through shell keeps f
   assert.equal(pickIsland(ray, world), undefined, "empty space clears selection too");
 });
 
-test("a hidden failure has a marker in the camera's frame, and its click turns it to the eye after orbiting", () => {
+test("3.11 a hidden failure has a marker in the camera's frame, and its click turns it to the eye after orbiting", () => {
   const islands: FacingIsland[] = [
     { story: "first", spot: { x: 0, y: 0, z: 1 }, trees: [{ form: "dead" }] },
     { story: "behind", spot: { x: 3, y: 4, z: -12 }, trees: [{ form: "dead" }] },
@@ -82,7 +82,7 @@ test("a hidden failure has a marker in the camera's frame, and its click turns i
   assert.ok(hiddenMarkers(islands, focused, orbitedEye).every(m => m.story !== "behind"));
 });
 
-test("Forest never hides a failing island; only an explicit Library choice suppresses its marker", () => {
+test("3.11 Forest never hides a failing island; only an explicit Library choice suppresses its marker", () => {
   const islands: FacingIsland[] = [
     { story: "failure", spot: { x: 0, y: 0, z: -1 }, trees: [{ form: "dead" }] },
   ];
@@ -162,7 +162,7 @@ test("3.14 a territory's land and borders stop at its island's coast", () => {
   assert.ok(Math.abs(area(west) - 4) < 1e-6, "the western half less the bay's western part");
 });
 
-test("3.16 a file circle lies flat on the island's surface; 3.17 pointing at it names the file, its lines and its capability", () => {
+test("3.16, 3.17 a file circle lies flat on the island's surface; pointing at it names the file, its lines and its capability", () => {
   const onSurface = (p: { x: number; z: number }) => new Vector3(p.x, -(p.x * p.x + p.z * p.z) / 40, p.z);
   const normalAt = (p: { x: number; z: number }) => new Vector3(p.x / 20, 1, p.z / 20).normalize();
   const circles = fileCircleMarks([{ path: "src/a/one.ts", lines: 120, capability: "cap-a", x: 3, z: -2, radius: 0.5 }], onSurface, normalAt);

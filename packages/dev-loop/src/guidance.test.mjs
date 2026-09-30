@@ -61,7 +61,7 @@ async function withRoles(body) {
   });
 }
 
-test("1. the session-orchestrator role is CLAUDE.md's region and AGENTS.md; every other role is a Claude Code and a Codex role file", async () => {
+test("4.1 the session-orchestrator role is CLAUDE.md's region and AGENTS.md; every other role is a Claude Code and a Codex role file", async () => {
   await withRoles(async (roles) => {
     const files = expectedFiles(roles, CLAUDE_MD);
     assert.deepEqual([...files.keys()].sort(), [".claude/agents/story-author.md", ".codex/agents/story-author.toml", "AGENTS.md", "CLAUDE.md"]);
@@ -97,7 +97,7 @@ test("2. with no session-orchestrator role, the region and AGENTS.md say so plai
   });
 });
 
-test("3. the drift check names a stale region, missing and stale files and an orphan, and ignores line endings", () => {
+test("4.2 the drift check names a stale region, missing and stale files and an orphan, and ignores line endings", () => {
   const expected = new Map([
     ["CLAUDE.md", CLAUDE_MD],
     ["AGENTS.md", "agents\n"],
@@ -126,7 +126,7 @@ test("3. the drift check names a stale region, missing and stale files and an or
   ]);
 });
 
-test("4. a file over its size budget is named with its size and its budget", () => {
+test("4.3 a file over its size budget is named with its size and its budget", () => {
   const files = new Map([
     ["CLAUDE.md", "x".repeat(BUDGETS["CLAUDE.md"] + 1)],
     ["AGENTS.md", "x".repeat(BUDGETS["AGENTS.md"])],
@@ -138,7 +138,7 @@ test("4. a file over its size budget is named with its size and its budget", () 
   ], "bytes are counted, not characters, and a file at its budget is within it");
 });
 
-test("5. a CLAUDE.md without the region's markers is refused, naming them", () => {
+test("4.2 a CLAUDE.md without the region's markers is refused, naming them", () => {
   const roles = { root: undefined, others: [], titles: new Map() };
   assert.throws(() => expectedFiles(roles, "# no region here\n"), (error) => error.message.includes(REGION_START) && error.message.includes(REGION_END));
 });

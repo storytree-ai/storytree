@@ -60,7 +60,7 @@ const folded = new Map<string, string>([
   ['story-a::cap-far', 'unhealthy'],
 ]);
 
-test('native plant targets are the projected envelopes of the attributed plants, back to front', () => {
+test('4.3 native plant targets are the projected envelopes of the attributed plants, back to front', () => {
   const targets = nativePropTargets(ground, folded, ELEVATION_DEG);
 
   assert.deepEqual(
@@ -74,7 +74,7 @@ test('native plant targets are the projected envelopes of the attributed plants,
   assert.ok(Object.isFrozen(targets), 'the target list is immutable');
 });
 
-test('native plant targets carry the status folded for their OWN island and capability', () => {
+test('4.3 native plant targets carry the status folded for their OWN island and capability', () => {
   const byCap = new Map(nativePropTargets(ground, folded, ELEVATION_DEG).map((t) => [t.capabilityId, t]));
 
   assert.equal(byCap.get('cap-far')?.status, 'building');

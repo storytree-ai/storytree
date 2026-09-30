@@ -167,7 +167,7 @@ test('every island\'s parcels arrive in ONE descriptor stream, carrying their ow
 // 2 — THE GEOMETRY MERGE IS TOTAL
 // ---------------------------------------------------------------------------
 
-test('cellGroundGeometry merges any number of islands into ONE buffer', () => {
+test('2.1 cellGroundGeometry merges any number of islands into ONE buffer', () => {
   const one = cellGroundGeometry({ cells: groundCellsOf(oneIslandWorld(4)), resolve: () => BLACK });
   const two = cellGroundGeometry({ cells: groundCellsOf(twoIslandWorld(4)), resolve: () => BLACK });
 

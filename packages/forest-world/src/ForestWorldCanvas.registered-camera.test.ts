@@ -41,7 +41,7 @@ function rig() {
   return { root, drawn, invalidations: () => invalidations };
 }
 
-test('a presentable canvas DRAWS the new pose before the call returns, and defers nothing', () => {
+test('5.2 a presentable canvas DRAWS the new pose before the call returns, and defers nothing', () => {
   const { root, drawn, invalidations } = rig();
   const painted = presentRegisteredCamera(root, { zoom: 2.5, target: { x: 120, z: -40 }, eye: EYE }, true);
   assert.equal(painted, true);
@@ -77,7 +77,7 @@ test('every camera change is drawn with THAT change, in order — never a stale 
   assert.deepEqual(drawn.map((d) => [d.position[0], d.position[2]]), poses.map((p) => [p.target.x + EYE[0], p.target.z + EYE[2]]));
 });
 
-test('a parked canvas takes the camera but draws nothing, and asks for a frame for when it resumes', () => {
+test('5.2 a parked canvas takes the camera but draws nothing, and asks for a frame for when it resumes', () => {
   const { root, drawn, invalidations } = rig();
   const painted = presentRegisteredCamera(root, { zoom: 3, target: { x: 5, z: 6 }, eye: EYE }, false);
   assert.equal(painted, false);

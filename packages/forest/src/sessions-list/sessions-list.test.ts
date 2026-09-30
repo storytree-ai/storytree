@@ -132,7 +132,7 @@ test("7.8 a row's files are its window's opened files, each once in the order fi
     { absent: "no hook has named this session's transcript" });
 });
 
-test("7.9-7.11 the header counts sessions at work; a quiet session folds as idle by its state alone, a close-out that says not safe keeping it listed but never out of the fold; a verified one is gone (ADR-0758)", () => {
+test("7.9–7.11 the header counts sessions at work; a quiet session folds as idle by its state alone, a close-out that says not safe keeping it listed but never out of the fold; a verified one is gone (ADR-0758)", () => {
   const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
   const lines = log(

@@ -27,7 +27,7 @@ async function record(home: string, fields: Partial<RunRecord> = {}): Promise<Ru
 }
 const live = async (identity: ProcessIdentity): Promise<ProcessReading> => ({ state: 'live', identity });
 
-test('4.1/4.6: every explicit target gets a refusal with its owner; malformed and unknown targets receive no signal', async t => {
+test('4.1/4.6 every explicit target gets a refusal with its owner; malformed and unknown targets receive no signal', async t => {
   const dir = await home(t);
   const foreign = await record(dir, { owner: { session: 'other-session', harness: 'codex' } });
   const corrupt = randomUUID();
@@ -42,7 +42,7 @@ test('4.1/4.6: every explicit target gets a refusal with its owner; malformed an
   assert.deepEqual(result.targets[0]?.owner, foreign.owner);
 });
 
-test('4.2: gone, reused, foreign-machine and uncertain lifetimes never authorize a signal', async t => {
+test('4.2 gone, reused, foreign-machine and uncertain lifetimes never authorize a signal', async t => {
   const dir = await home(t);
   const gone = await record(dir, { birth: { state: 'gone' } });
   const reused = await record(dir, { pid: 4243 });
@@ -56,7 +56,7 @@ test('4.2: gone, reused, foreign-machine and uncertain lifetimes never authorize
   assert.equal((await readLedger({ home: dir })).runs.length, 4);
 });
 
-test('4.1/4.3: parent delegation covers linked descendants, but excludes conflicting owners and never grants a subagent its siblings', async t => {
+test('4.1/4.3 parent delegation covers linked descendants, but excludes conflicting owners and never grants a subagent its siblings', async t => {
   const dir = await home(t);
   const parent = await record(dir);
   const child = await record(dir, { pid: 4243, parentRun: parent.id,
@@ -84,7 +84,7 @@ test('4.1/4.3: parent delegation covers linked descendants, but excludes conflic
   assert.ok(refused.targets.every(row => row.status === 'refused'));
 });
 
-test('4.3: a conflicting registration for the same process lifetime prevents signalling it', async t => {
+test('4.3 a conflicting registration for the same process lifetime prevents signalling it', async t => {
   const dir = await home(t);
   const run = await record(dir);
   await record(dir, { owner: { session: 'other' }, birth: run.birth, pid: run.pid });
@@ -95,7 +95,7 @@ test('4.3: a conflicting registration for the same process lifetime prevents sig
   assert.equal(result.targets[0]?.status, 'refused');
 });
 
-test('4.4/4.5: root exit cannot hide a surviving child; both phases are verified and unsuccessful records remain', async t => {
+test('4.4/4.5 root exit cannot hide a surviving child; both phases are verified and unsuccessful records remain', async t => {
   const dir = await home(t);
   const root = await record(dir);
   const child = await record(dir, { pid: 4243, parentRun: root.id });
@@ -114,7 +114,7 @@ test('4.4/4.5: root exit cannot hide a surviving child; both phases are verified
   assert.equal((await readLedger({ home: dir })).runs.length, 2);
 });
 
-test('4.4/4.5: probe failure after delivery prevents forced signalling and a stopped verdict', async t => {
+test('4.4/4.5 probe failure after delivery prevents forced signalling and a stopped verdict', async t => {
   const dir = await home(t);
   const run = await record(dir);
   let sent = 0;
@@ -128,7 +128,7 @@ test('4.4/4.5: probe failure after delivery prevents forced signalling and a sto
   assert.equal((await readLedger({ home: dir })).runs.length, 1);
 });
 
-test('4.3/4.6: late registrations and unreadable inventory stay explicit; a mixed batch cannot report success', async t => {
+test('4.3/4.6 late registrations and unreadable inventory stay explicit; a mixed batch cannot report success', async t => {
   const dir = await home(t);
   const root = await record(dir);
   let sent = false;
@@ -224,7 +224,7 @@ test('4.4 native: a cooperative process exits in the polite phase, while another
   assert.equal((await readProcess(foreign.pid)).state, 'live');
 });
 
-test('4.3: a conflicting registration appearing between deliveries prevents the next child signal', async t => {
+test('4.3 a conflicting registration appearing between deliveries prevents the next child signal', async t => {
   const dir = await home(t);
   const root = await record(dir);
   const child = await record(dir, { pid: 4243, parentRun: root.id });

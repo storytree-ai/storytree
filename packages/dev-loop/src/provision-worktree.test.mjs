@@ -31,7 +31,7 @@ function worktree(t, condition) {
   return root;
 }
 
-test("a worktree that is installed and current is left alone", (t) => {
+test("2.1 a worktree that is installed and current is left alone", (t) => {
   const root = worktree(t, "current");
   let calls = 0;
   const result = provision({ root, install: () => (calls++, { ok: true }) });
@@ -40,7 +40,7 @@ test("a worktree that is installed and current is left alone", (t) => {
   assert.equal(hookOutput(result, root), "", "a healthy session is told nothing");
 });
 
-test("a fresh, a stale and an unlinked worktree each get installed", (t) => {
+test("2.2 a fresh, a stale and an unlinked worktree each get installed", (t) => {
   for (const condition of ["fresh", "stale", "unlinked"]) {
     const root = worktree(t, condition);
     const ran = [];
@@ -52,7 +52,7 @@ test("a fresh, a stale and an unlinked worktree each get installed", (t) => {
   }
 });
 
-test("a failed install is retried once, and if it still fails the agent is told which condition and where to run pnpm install", (t) => {
+test("2.3 a failed install is retried once, and if it still fails the agent is told which condition and where to run pnpm install", (t) => {
   for (const condition of ["fresh", "stale", "unlinked"]) {
     const root = worktree(t, condition);
     let calls = 0;
@@ -73,7 +73,7 @@ test("a failed install is retried once, and if it still fails the agent is told 
   assert.equal(result.ok, true);
 });
 
-test("as a session-start hook it exits 0 and says nothing on a healthy worktree", (t) => {
+test("2.1 as a session-start hook it exits 0 and says nothing on a healthy worktree", (t) => {
   const root = worktree(t, "current");
   const run = spawnSync(process.execPath, [script, "--hook", "--root", root], { encoding: "utf8" });
   assert.equal(run.status, 0, run.stderr);

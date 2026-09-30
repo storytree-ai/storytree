@@ -27,7 +27,7 @@ async function save(home: string, ...runs: RunRecord[]) {
   for (const run of runs) await writeFile(path.join(home, 'runs', `${run.id}.json`), JSON.stringify(run));
 }
 
-test('3.1/3.3: self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime', async t => {
+test('3.1/3.3 self inventory keeps lifetime, request and owner findings separate and excludes only this inspector lifetime', async t => {
   const home = await ledger(t);
   const inspecting = await readProcess(process.pid);
   assert.equal(inspecting.state, 'live');
@@ -55,7 +55,7 @@ test('3.1/3.3: self inventory keeps lifetime, request and owner findings separat
   await assert.rejects(listing.listRuns({ home, owner: { session: ' ' } }), /session identity/);
 });
 
-test('3.5/4.1: every offered stop uses stopping authority, including named siblings and conflicting registrations', async t => {
+test('3.5/4.1 every offered stop uses stopping authority, including named siblings and conflicting registrations', async t => {
   const home = await ledger(t);
   const own = record({ owner: { ...owner, agent: { subagent: 'builder' } } });
   const sibling = record({ owner: { ...owner, agent: { subagent: 'reviewer' } } });
@@ -86,7 +86,7 @@ test('3.5/4.1: every offered stop uses stopping authority, including named sibli
   }
 });
 
-test('3.2/3.4: all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline', async t => {
+test('3.2/3.4 all-session inventory needs no caller and retains readable siblings, foreign records and read gaps offline', async t => {
   const home = await ledger(t);
   const first = record();
   const second = record({ owner: { session: 'other', harness: 'claude-code' } });
@@ -108,7 +108,7 @@ test('3.2/3.4: all-session inventory needs no caller and retains readable siblin
   assert.match(rendered, /broken.json/);
 });
 
-test('3.5: only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal', async t => {
+test('3.5 only caller-owned live identities can offer a supplied stop action; shared and uncertain rows explain refusal', async t => {
   const home = await ledger(t);
   const live = record();
   const uncertain = record({ birth: { state: 'unknown', reason: 'access denied' } });
@@ -130,7 +130,7 @@ test('3.5: only caller-owned live identities can offer a supplied stop action; s
   assert.match(withoutStop.rows.find(row => row.run.id === live.id)?.stop.reason ?? '', /not available/);
 });
 
-test('3.1/3.4: ended requests are not missing reports, and empty coverage never claims this computer is idle', async t => {
+test('3.1/3.4 ended requests are not missing reports, and empty coverage never claims this computer is idle', async t => {
   const home = await ledger(t);
   let result = await listing.listRuns({ home, owner, now });
   assert.equal(result.complete, true);
@@ -149,7 +149,7 @@ test('3.1/3.4: ended requests are not missing reports, and empty coverage never 
 });
 
 
-test('3.1: the inventory observes a real owned process live and then gone through the native probe', async t => {
+test('3.1 the inventory observes a real owned process live and then gone through the native probe', async t => {
   const home = await ledger(t);
   const launched = await launchOwned({ home, owner, command: process.execPath,
     args: ['-e', 'setTimeout(() => {}, 30000)'], folder: process.cwd() });

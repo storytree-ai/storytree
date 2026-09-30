@@ -55,7 +55,7 @@ console.error("a different file's stderr"); test("healthy neighbor", () => {});`
   assert.doesNotMatch(diagnostics, /healthy\.test\.mjs|a different file's stderr/);
 });
 
-test("a test that fails leaving a handle open ends its unit with that failure, not a hang", async (t) => {
+test("6.1 a test that fails leaving a handle open ends its unit with that failure, not a hang", async (t) => {
   const root = fixture(t, {
     "leak.test.mjs": `import { test } from "node:test"; import assert from "node:assert"; import net from "node:net";
 test("fails holding a server", () => { net.createServer().listen(0); assert.equal(1, 2); });`,
@@ -81,7 +81,7 @@ test("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
   assert.match(out.text, /✖ never ends[\s\S]*timed out after 1000ms/, "node names the test and its limit");
 });
 
-test("a unit past its deadline is killed with its whole process tree, naming the test still running", async (t) => {
+test("6.1 a unit past its deadline is killed with its whole process tree, naming the test still running", async (t) => {
   // Detached, the wedged child leaves Windows' kill-on-close job and the Unix process group, as a
   // tool's own children may: only a kill that walks the process tree reaches it.
   const pidFile = path.join(tmpdir(), `unit-run-grandchild-${process.pid}.txt`);

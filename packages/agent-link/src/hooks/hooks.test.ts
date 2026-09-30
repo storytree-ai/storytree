@@ -44,8 +44,8 @@ const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
 const MACHINE = hostname().trim();
 /** "Under half a second", as the tests hold it. */
 const QUICK_MS = 500;
-/** Slower than this, a bare Node's start says the machine is busy: here one takes about 0.11 s. */
-const BUSY_NODE_START_MS = 250;
+/** A bare Node's start on an idle machine, at most: about 0.11 s on Windows, 0.02 s on Linux. */
+const IDLE_NODE_START_MS = 110;
 
 let bins: string;
 let hook: string;
@@ -218,24 +218,21 @@ test("3.3 with storytree stopped, with garbage input, or outside a storytree pro
       ["outside a storytree project", start(outside), running],
     ];
     for (const [what, input, home] of cases) {
-      // Each case three times, beside three starts of a bare Node made the same way: every run
-      // must exit cleanly and silently. The fastest run must be under half a second; but on a
-      // machine so busy that a bare Node alone is slow to start (as when a whole test suite, or
-      // several, share it: one full run on Windows took 1.7 s for a command that takes 0.13 s),
-      // what is held to half a second is what the command adds to that start.
-      const runs = [];
-      const bare = [];
-      for (let run = 0; run < 3; run++) {
-        runs.push(await runHook("claude-code", input, home));
-        bare.push(await runNode());
-      }
-      for (const ran of runs) assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, what);
-      const fastest = Math.min(...runs.map((ran) => ran.ms));
-      const floor = Math.min(...bare);
-      const busy = floor > BUSY_NODE_START_MS;
+      // Each case five times, each run paired with a bare Node started just after it the same way:
+      // every run must exit cleanly and silently, and in at least one pair the command must exit in
+      // under half a second. When that pair's bare Node was slower than on an idle machine (a whole
+      // test suite, or several, sharing it: one full run on Windows took 1.7 s for a command that
+      // takes 0.13 s), what is held to half a second is what the command added to that start,
+      // scaled back by how much slower than idle it was: load slows both by a like factor, in bursts.
+      const pairs: { ran: Ran; bare: number }[] = [];
+      for (let run = 0; run < 5; run++) pairs.push({ ran: await runHook("claude-code", input, home), bare: await runNode() });
+      for (const { ran } of pairs) assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, what);
+      const added = ({ ran, bare }: { ran: Ran; bare: number }): number =>
+        bare <= IDLE_NODE_START_MS ? ran.ms : ((ran.ms - bare) * IDLE_NODE_START_MS) / bare;
+      const best = pairs.reduce((a, b) => (added(b) < added(a) ? b : a));
       assert.ok(
-        busy ? fastest - floor < QUICK_MS : fastest < QUICK_MS,
-        `${what}: exited in ${fastest.toFixed(0)} ms at best, where a bare Node took ${floor.toFixed(0)} ms`,
+        added(best) < QUICK_MS,
+        `${what}: at best exited in ${best.ran.ms.toFixed(0)} ms where a bare Node took ${best.bare.toFixed(0)} ms (${pairs.map((pair) => `${pair.ran.ms.toFixed(0)}/${pair.bare.toFixed(0)}`).join(", ")})`,
       );
     }
     assert.deepEqual(await linesOf(project), [], "nothing written for the project");

@@ -41,7 +41,9 @@ microservices or invite-only access. The copy is reviewed, not pinned by wording
 
 **What is left out.** ADR-0798 D2 records the evidence: 0.2's site ran from 2026-06-14 to
 2026-09-24 with 287 commits; its last hand edit to the home page was 2026-09-06, and most later
-commits synchronized an engine the page never rendered. There were no analytics to measure use.
+commits synchronized vendored engine copies. On 2026-09-24, old-site commit `2325978` wired
+that renderer into the homepage's second act and `/forest/`; source inspection establishes
+executable wiring, not production use. There were no analytics to measure use.
 The owner left out the 2,273-line scripted two-act page and narration check, vendored engines
 and sync scripts, retired-page redirect stubs and their deploy check, and the contact-form
 schema. No accounts, waitlist, analytics or new contact form belong here.

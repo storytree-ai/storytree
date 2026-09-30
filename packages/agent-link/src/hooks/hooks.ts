@@ -31,12 +31,16 @@
  * it is a project on a running storytree, opens the log and writes them. Everything a hook does is
  * inside one try: a failure anywhere means nothing is written, never an error the agent sees.
  */
+import { homedir } from "node:os";
+import path from "node:path";
+
 import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import { route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
+import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
 
@@ -105,6 +109,10 @@ export async function runHook({ argv, input, handOff, merges, locate }: HookInpu
   try {
     const [harness = "", ...flags] = argv;
     const parsed = parse(input);
+    // Any Codex hook that runs proves the user trusted storytree's hooks there (3.18), in a project or not.
+    if (harness === "codex" && typeof parsed === "object" && parsed !== null) {
+      noteCodexHookRan({ storytreeHome: storytreeHome(), codexHome: process.env.CODEX_HOME || path.join(homedir(), ".codex") });
+    }
     // An older install's asking hook, until the next setup check replaces its registration.
     if (flags.includes(ASK_SETUP)) return;
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).

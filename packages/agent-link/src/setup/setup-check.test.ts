@@ -20,6 +20,7 @@ import { connect } from "@storytree/library";
 
 import { runSetupCheck, setUpProject } from "../index.js";
 import { buildBins } from "../bins/build.js";
+import { noteCodexHookRan } from "../hooks/index.js";
 import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
@@ -649,6 +650,27 @@ test("8.14 the check names Codex's storytree tool server as missing, with its fi
     const line = (await runSetupCheck(options)).lines.find((each) => each.check === "codex-server");
     assert.equal(line?.state, "needs-attention");
     assert.match(line?.fix ?? "", /storytree setup connect --codex/);
+  });
+});
+
+test("8.16 until one of Codex's hooks has run, the check says Codex is waiting for the user to trust them, with the one step in plain words, also where it registers no hooks (the app's folder check); once one has run, it says they run", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const options = { ...ANSWERED, folder: dir, homes: home.homes, storytreeHome: home.storytreeHome };
+    assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "codex-hooks"), undefined, "no line where Codex has none of storytree's hooks");
+
+    await runSetupCheck({ ...options, hook: HOOK });
+    for (const check of [{ ...options, hook: HOOK }, options]) {
+      const line = (await runSetupCheck(check)).lines.find((each) => each.check === "codex-hooks");
+      assert.equal(line?.state, "needs-attention");
+      assert.match(line?.fix ?? "", /type \/hooks/);
+      assert.match(line?.fix ?? "", /Hooks need review/);
+    }
+
+    noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
+    const line = (await runSetupCheck({ ...options, hook: HOOK })).lines.find((each) => each.check === "codex-hooks");
+    assert.equal(line?.state, "ok");
+    assert.equal(line?.fix, undefined);
   });
 });
 

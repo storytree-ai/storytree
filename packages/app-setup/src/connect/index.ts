@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { markDisconnected, registerHooks, removeCodexInstructions, removeHooks, writeCodexInstructions } from "@storytree/agent-link";
+import { CODEX_TRUST_STEP, codexHookTrust, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, writeCodexInstructions } from "@storytree/agent-link";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };
@@ -19,7 +19,11 @@ export interface ConnectionResult {
   readonly harness: Harness;
   readonly settingsFile: string;
   readonly tools: "connected" | "already connected" | "not connected";
-  readonly hooks: "not verified";
+  /**
+   * Codex runs storytree's hooks only once the user trusts them, which only a hook that has run proves:
+   * until then its hooks wait for the user. Claude Code's are verified inside a session by check_setup.
+   */
+  readonly hooks: "not verified" | "waiting for you to trust them in Codex" | "running";
   readonly next: string;
 }
 export interface DisconnectionResult {
@@ -66,7 +70,7 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
   const hook = hookCommand(options.installed);
   for (const harness of new Set(options.harnesses)) {
     const settingsFile = where.files[harness];
-    const result = (tools: ConnectionResult["tools"], next: string) => results.push({ harness, settingsFile, tools, hooks: "not verified", next });
+    const result = (tools: ConnectionResult["tools"], next: string, hooks: ConnectionResult["hooks"] = "not verified") => results.push({ harness, settingsFile, tools, hooks, next });
     try {
       const installed = installedToolServerCommand(options.installed.command, options.installed.args[0]);
       if (options.installed.args.length !== 1 || ![installed.command, installed.args[0]].every((file) => statSync(file).isFile())) throw new Error("Missing installed tools");
@@ -101,7 +105,10 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
       // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.
       if (harness === "codex") writeCodexInstructions(where.codex);
-      result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
+      const trust = harness === "codex" ? codexHookTrust({ storytreeHome: where.storytree, codexHome: where.codex }) : "not registered";
+      if (trust === "running") result(tools, "Tools connected in user settings; Codex has run storytree's hooks. Start a new Codex session in the folder of your project.", "running");
+      else if (trust === "waiting") result(tools, `Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. ${CODEX_TRUST_STEP}`, "waiting for you to trust them in Codex");
+      else result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
       const reason = harness === "claude-code" ? " Check that the file contains a valid JSON object." : " Check that codex mcp list --json succeeds and hooks.json contains a valid JSON object.";

@@ -8,7 +8,7 @@ import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { buildBins } from '../bins/build.js';
 import { InMemoryTransport } from '@modelcontextprotocol/server';
-import { launchOwned, readProcess } from '@storytree/processes';
+import { launchOwned, probeProcess, type RunRecord } from '@storytree/processes';
 import { listRuns } from '@storytree/processes/listing';
 import { createAgentTools } from './server.js';
 import { openActivityLog } from '../activity/index.js';
@@ -18,7 +18,7 @@ import { testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects }
 for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));
   const client = new Client({ name: 'codex-mcp-client', version: 'test' });
-  const children: number[] = [];
+  const children: RunRecord[] = [];
   let tools: ReturnType<typeof createAgentTools> | undefined;
   t.after(async () => {
     await client.close();
@@ -43,7 +43,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
     const launched = await launchOwned({ home: path.join(home, 'own'),
       owner: { session: 'caller', harness: 'codex', agent: { subagent } },
       command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
-    if (launched.pid) children.push(launched.pid);
+    if (launched.status === 'tracked') children.push(launched.run);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
     runs.push(launched.run);
@@ -122,7 +122,7 @@ test('own 3.6: offline Claude MCP refuses self authority from a stale server env
 test('own online 3.6/4.1: Claude hook identity selects only its named subagent, after a session reset', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-hook-'));
   const project = uniqueProjectName();
-  const children: number[] = [];
+  const children: RunRecord[] = [];
   let log: Awaited<ReturnType<typeof openActivityLog>> | undefined;
   let tools: ReturnType<typeof createAgentTools> | undefined;
   const client = new Client({ name: 'claude-code', version: 'test' });
@@ -144,7 +144,7 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
     const launched = await launchOwned({ home: path.join(home, 'own'),
       owner: { session: 'reset-session', harness: 'claude-code', agent: { subagent } },
       command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
-    if (launched.pid) children.push(launched.pid);
+    if (launched.status === 'tracked') children.push(launched.run);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
     runs.push(launched.run);
@@ -170,11 +170,17 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
   assert.match(JSON.stringify(unresolved), /list_all_runs/);
 });
 
-async function stopChild(pid: number): Promise<void> {
-  try { process.kill(pid, 'SIGKILL'); } catch { return; }
+/** Kill a test child still running, never whatever process has since been given its PID. */
+async function stopChild(run: RunRecord): Promise<void> {
+  if (run.birth.state !== 'live') return;
+  const { identity } = run.birth;
+  // Windows reuses a PID at once: a raw kill after the child exits can end a Postgres backend and
+  // send the shared test server into crash recovery under every other test.
+  if ((await probeProcess(identity)).state !== 'live') return;
+  try { process.kill(identity.pid, 'SIGKILL'); } catch { return; }
   for (let attempt = 0; attempt < 100; attempt++) {
-    if ((await readProcess(pid)).state === 'gone') return;
+    if ((await probeProcess(identity)).state === 'gone') return;
     await pause(20);
   }
-  assert.fail(`test child ${pid} did not exit`);
+  assert.fail(`test child ${identity.pid} did not exit`);
 }

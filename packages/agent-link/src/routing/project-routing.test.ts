@@ -18,10 +18,12 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
+import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { setUpTrunks } from "./trunks.js";
 import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, recordTrunkOnSight, route, setUpProject, suggestProjectName } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
@@ -334,4 +336,21 @@ test("1.12 a project set up before trunks were recorded keeps routing, and the f
       await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(trunk));
     });
   });
+});
+
+test("1.1 first setups that race on a new server all find the trunks table, none refused by the other's CREATE", async () => {
+  const database = `storytree-trunks-${uniqueProjectName()}`;
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const pool = await storytree.ownDatabase(database);
+    for (let round = 0; round < 5; round++) {
+      await pool.query("DROP TABLE IF EXISTS trunks");
+      await Promise.all(Array.from({ length: 8 }, () => setUpTrunks(pool)));
+    }
+  } finally {
+    await storytree.close();
+    const client = new pg.Client({ connectionString: testServerUrl() });
+    await client.connect();
+    await client.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`).finally(() => client.end());
+  }
 });

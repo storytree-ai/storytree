@@ -78,8 +78,13 @@ const SCHEMA = `CREATE TABLE IF NOT EXISTS trunks (
 
 async function trunksPool(storytree: Storytree): Promise<Pool> {
   const pool = await storytree.ownDatabase(TRUNKS_DATABASE);
-  await pool.query(SCHEMA);
+  await setUpTrunks(pool);
   return pool;
+}
+
+/** Make the trunks table in `pool`'s database unless it is there. */
+export async function setUpTrunks(pool: Pool): Promise<void> {
+  await pool.query(SCHEMA);
 }
 
 /** Every project's trunk on `machine`. */

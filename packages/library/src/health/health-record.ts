@@ -335,6 +335,19 @@ export function capabilityWhy(proposed: boolean, contracts: readonly { id: strin
   return { reason, mover: reason === "needs owner" ? "owner" : "agent", contracts: carrying.map(({ id }) => id), ...(since === undefined ? {} : { since }) };
 }
 
+/**
+ * A capability's word, and when it is not healthy its reason, who moves it and the contracts
+ * carrying it, each by its number (`1.2`) or, without one, its id: `untested — needs owner, the
+ * owner's to move: 1.2`. How the command line and the agent link say it.
+ */
+export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why" | "contracts">): string {
+  const { status, why } = capability;
+  if (why === undefined) return status;
+  const titles = new Map(capability.contracts.map((contract) => [contract.id, contract.title]));
+  const named = why.contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? id);
+  return `${status} — ${why.reason}, the ${why.mover}'s to move${named.length === 0 ? "" : `: ${named.join(", ")}`}`;
+}
+
 /** The reasons a built capability can have, the one it shows first. */
 const RANKED: readonly HealthReason[] = ["failing", "not re-run", "no test names it", "out of CI's reach", "needs owner"];
 

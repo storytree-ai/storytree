@@ -1,4 +1,4 @@
-export { capabilityStatus, capabilityWhy, HealthRecord } from "./health-record.js";
+export { capabilityStatus, capabilityWhy, HealthRecord, wordAndWhy } from "./health-record.js";
 export type {
   AnnotatedCapability,
   AnnotatedContract,

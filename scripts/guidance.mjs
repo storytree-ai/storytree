@@ -76,11 +76,12 @@ export function expectedFiles(roles, claudeMd) {
     const marker = `<!-- GENERATED from the library's "${role.fields.title}" agent role; do not edit by hand. ${REGENERATE} -->`;
     const prompt = promptOf(role, roles.titles);
     const model = role.fields.model === undefined ? "" : `model: ${role.fields.model}\n`;
-    files.set(`.claude/agents/${name}.md`, `---\nname: ${name}\ndescription: ${JSON.stringify(role.fields.oneLine)}\n${model}---\n\n${marker}\n\n${prompt}\n`);
+    const effort = role.fields.effort === undefined ? "" : `effort: ${role.fields.effort}\n`;
+    files.set(`.claude/agents/${name}.md`, `---\nname: ${name}\ndescription: ${JSON.stringify(role.fields.oneLine)}\n${model}${effort}---\n\n${marker}\n\n${prompt}\n`);
     files.set(
       `.codex/agents/${name}.toml`,
       `name = ${JSON.stringify(name)}\ndescription = ${JSON.stringify(role.fields.oneLine)}\n` +
-        `model_reasoning_effort = "${role.fields.model === "opus" ? "high" : "medium"}"\n` +
+        `model_reasoning_effort = "${role.fields.effort ?? (role.fields.model === "opus" ? "high" : "medium")}"\n` +
         `developer_instructions = """\n${tomlMultiline(`${marker}\n\n${prompt}`)}\n"""\n`,
     );
   }

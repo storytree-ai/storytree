@@ -19,6 +19,30 @@ Seed: the same eight-story, 58-capability snapshot as [../territories](../territ
 after the circles changed. Run `build.mjs`, then `capture.mjs`, under `flock /tmp/storytree-heavy.lock`.
 Full numbers, including per-circle detail for the largest, are in [measurements.json](measurements.json).
 
+## After the fix (this capture)
+
+The first capture of this branch found 128 of 253 circle middles in the sea and circles covering up
+to 101% of an island: territories and circles were laid out on a round disc and scaled to the coast's
+furthest point. Now both are laid out inside the island's actual coast (seeds and circle spots kept
+only on the land, the 45% cover measured against the land's area), and circles are drawn at 0.5
+opacity so the territory tints read through them. Re-captured, per island (circles / surveyed files /
+middles on their own territory / smallest and largest radius in plate units):
+
+| Island | Circles | Files | On own territory | Min radius | Max radius |
+| --- | --- | --- | --- | --- | --- |
+| The agent link | 89 | 89 | 89 | 0.82 | 3.00 |
+| The app | 26 | 26 | 26 | 1.14 | 2.04 |
+| The arc surface | 19 | 19 | 18 | 0.82 | 1.93 |
+| The command line | 26 | 26 | 26 | 0.89 | 2.62 |
+| The forest | 26 | 26 | 26 | 1.01 | 2.78 |
+| The knowledge core | 14 | 14 | 14 | 0.89 | 3.56 |
+| The librarian | 17 | 17 | 17 | 0.77 | 2.00 |
+| The library | 37 | 37 | 37 | 0.82 | 3.77 |
+
+252 of 253 middles lie on their own drawn territory (one on The arc surface sits on a cell the coast
+clips to a sliver). Hover label: `src/readings.ts · 384 lines · 5 · Claims`. The sections below are
+the first capture's, kept for the record; their numbers are from before the fix.
+
 ## Measured before looking
 
 Radii are in ground (plate) units, read from the drawn meshes. "Inside" means the circle's middle lies

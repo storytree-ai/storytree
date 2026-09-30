@@ -6,7 +6,6 @@
  * marks are read without a browser.
  */
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, type Vector3 } from "three";
-import type { IslandLand } from "@storytree/forest-world/scene";
 
 /** Faint, distinct tints: the land stays pale, so circles and traversal lines read on top of it. */
 const TINTS = ["#9cc3d5", "#c9b38f", "#a8c49a", "#c7a0b5", "#b4acd6", "#d4c48a", "#8fc2b8", "#d2a48e", "#a5b8cf", "#bfc98f"];
@@ -17,11 +16,18 @@ const BORDER_OPACITY = 0.85;
 
 type Point = { readonly x: number; readonly z: number };
 
+/** Land cut into territories: each territory's capability and title, its cells, and the borders between. */
+export type DrawnLand = {
+  readonly territories: readonly { readonly capability?: string; readonly title?: string }[];
+  readonly cells: readonly { readonly polygon: readonly Point[]; readonly territory: number }[];
+  readonly borders: readonly { readonly from: Point; readonly to: Point }[];
+};
+
 /**
  * The territories of `land`, each point placed on the island's surface by `onSurface`, cut to `coast`
  * (its loops, in the same coordinates as the land) when given.
  */
-export function territoryLand(land: IslandLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[]): Group {
+export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vector3, coast?: readonly (readonly Point[])[]): Group {
   const group = new Group();
   group.name = "territory-land";
   let tint = 0;

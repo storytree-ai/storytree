@@ -17,7 +17,6 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 import type { StorySurvey } from "../code-survey/code-survey.js";
-import { fileCircles, territories } from "../territories/territories.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 
 export { PLACE_WIDTH };
@@ -71,7 +70,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
         turn: (index * 2.39996) % (2 * Math.PI),
       };
     });
-    const land = landOf(story.capabilities, survey[story.id], radius);
+    const land = landOf(story.capabilities, survey[story.id]);
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, contracts }) => [capability, form, contracts]), land?.territories]);
     return { story: story.id, title: story.title, x, z, radius, trees: placed, ...(land === undefined ? {} : { land }), key };
   });
@@ -107,18 +106,16 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
   };
 }
 
-/** A surveyed story's territories: one per capability with code, in the story's order, then Unclaimed code. */
-function landOf(capabilities: readonly { id: string; title: string }[], survey: StorySurvey | undefined, radius: number): Island["land"] {
+/**
+ * A surveyed story's land: one territory per capability with code, in the story's order, then Unclaimed
+ * code, and its files. The page cuts it to the island's coast, which only the drawing knows.
+ */
+function landOf(capabilities: readonly { id: string; title: string }[], survey: StorySurvey | undefined): Island["land"] {
   if (survey === undefined || survey.files.length === 0) return undefined;
   const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
-  const shares = [...capabilities.map(({ id }) => ({ capability: id, lines: linesOf(id) })), { lines: linesOf(undefined) }];
-  const map = territories(shares, radius);
   return {
-    radius,
-    territories: map.territories.map(({ capability }) => (capability === undefined ? {} : { capability, title: capabilities.find(({ id }) => id === capability)?.title ?? capability })),
-    files: fileCircles(map, survey.files),
-    cells: map.cells.map(({ polygon, territory }) => ({ polygon, territory })),
-    borders: map.borders.map(({ from, to }) => ({ from, to })),
+    territories: [...capabilities.map(({ id, title }) => ({ capability: id, title, lines: linesOf(id) })), { lines: linesOf(undefined) }].filter(({ lines }) => lines > 0),
+    files: survey.files,
   };
 }
 

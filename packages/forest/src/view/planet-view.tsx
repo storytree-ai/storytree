@@ -9,6 +9,7 @@ import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-c
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
+import { fileCircles, territories } from "../territories/territories.js";
 import { Names, Overlay, SelectionRing, Wisps } from "./island-overlays.js";
 import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
 
@@ -59,17 +60,14 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
 const TERRITORY_LIFT = 0.05;
 
 /**
- * An island's territories (3.14), laid on its surface and cut to its coast. The territories were cut from
- * a round island in world units; they are scaled to reach the coast's furthest point, in plate units.
+ * An island's territories (3.14) and its files' circles (3.16), cut to its coast and laid on its surface,
+ * all in the plate's own units.
  */
 function Territories({ land, coast }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[] }) {
   const group = useMemo(() => {
-    const reach = Math.max(0, ...coast.flat().map(({ x, z }) => Math.hypot(x, z)));
-    const scale = land.radius > 0 ? reach / land.radius : 1;
-    const scaled = (p: { x: number; z: number }) => ({ x: p.x * scale, z: p.z * scale });
-    const place = onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT);
-    const group = territoryLand({ ...land, cells: land.cells.map((cell) => ({ ...cell, polygon: cell.polygon.map(scaled) })), borders: land.borders.map(({ from, to }) => ({ from: scaled(from), to: scaled(to) })) }, place, coast);
-    group.add(fileCircleMarks(land.files.map((file) => ({ ...file, ...scaled(file), radius: file.radius * scale })), onIslandSurface(PLANET_RADIUS), islandNormal(PLANET_RADIUS)));
+    const map = territories(land.territories, coast);
+    const group = territoryLand(map, onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT), coast);
+    group.add(fileCircleMarks(fileCircles(map, land.files), onIslandSurface(PLANET_RADIUS), islandNormal(PLANET_RADIUS)));
     return group;
   }, [land, coast]);
   useEffect(() => () => group.traverse((object) => {

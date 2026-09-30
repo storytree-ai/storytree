@@ -15,7 +15,7 @@
 export type Point = { readonly x: number; readonly z: number };
 
 /** What a territory stands for: a capability's code, or Unclaimed code (no capability). */
-export type TerritoryShare = { readonly capability?: string; readonly lines: number };
+export type TerritoryShare = { readonly capability?: string; readonly title?: string; readonly lines: number };
 
 export type Territory = TerritoryShare;
 
@@ -33,8 +33,14 @@ export type Cell = {
 
 export type Border = { readonly from: Point; readonly to: Point; readonly between: readonly [number, number] };
 
+/** An island's coast: its loops (a loop inside a loop is a lake). */
+export type Coast = readonly (readonly Point[])[];
+
 export type TerritoryMap = {
+  /** How far the land reaches from the island's middle. */
   readonly radius: number;
+  /** The coast the land was cut to, if it is not the round island of `radius`. */
+  readonly coast?: Coast;
   readonly territories: readonly Territory[];
   readonly cells: readonly Cell[];
   readonly borders: readonly Border[];
@@ -49,14 +55,20 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 /** An edge of a cell's outline, with the cell across it (-1 on the coast). */
 type Edge = { from: Point; to: Point; across: number };
 
-/** The island of `radius` cut into territories, one per share in the order given (empty shares, no lines, get no land). */
-export function territories(shares: readonly TerritoryShare[], radius: number, cellCount = CELLS): TerritoryMap {
+/**
+ * The island cut into territories, one per share in the order given (empty shares, no lines, get no
+ * land). The island is the round one of radius `outline`, or the land inside the coast `outline`: then
+ * the seeds are spread over the disc the coast reaches, and only those on the land are kept.
+ */
+export function territories(shares: readonly TerritoryShare[], outline: number | Coast, cellCount = CELLS): TerritoryMap {
   const held = shares.filter((share) => share.lines > 0);
-  const count = Math.max(cellCount, held.length);
-  const sites = Array.from({ length: count }, (_, at): Point => {
-    const r = radius * Math.sqrt((at + 0.5) / count);
-    return { x: r * Math.cos(at * GOLDEN_ANGLE), z: r * Math.sin(at * GOLDEN_ANGLE) };
-  });
+  const coast = typeof outline === "number" ? undefined : outline.filter((ring) => ring.length >= 3);
+  const radius = coast === undefined ? (outline as number) : Math.max(0, ...coast.flat().map(({ x, z }) => Math.hypot(x, z)));
+  const wanted = Math.max(cellCount, held.length);
+  const land = coast === undefined ? Math.PI * radius ** 2 : landArea(coast);
+  const spread = land > 0 ? Math.ceil((wanted * Math.PI * radius ** 2) / land) : wanted;
+  const sites = sunflower(spread, radius).filter((site) => coast === undefined || onLand(site, coast));
+  const count = sites.length;
   const outlines = sites.map((site, at) => voronoiCell(sites, at, radius));
   const touching = outlines.map(() => new Set<number>());
   outlines.forEach((edges, at) => { for (const edge of edges) if (edge.across >= 0) { touching[at]!.add(edge.across); touching[edge.across]!.add(at); } });
@@ -69,12 +81,41 @@ export function territories(shares: readonly TerritoryShare[], radius: number, c
   const cells = sites.map((site, at): Cell => ({ index: at, site, polygon: outlines[at]!.map((edge) => edge.from), neighbours: neighbours[at]!, territory: owner[at]! }));
   const borders = outlines.flatMap((edges, at) =>
     edges.filter((edge) => edge.across > at && owner[edge.across] !== owner[at]).map((edge): Border => ({ from: edge.from, to: edge.to, between: [at, edge.across] })));
-  return { radius, territories: held, cells, borders };
+  return coast === undefined ? { radius, territories: held, cells, borders } : { radius, coast, territories: held, cells, borders };
+}
+
+/** `count` seeds spread evenly over the disc of `radius`, like a sunflower's. */
+function sunflower(count: number, radius: number): Point[] {
+  return Array.from({ length: count }, (_, at): Point => {
+    const r = radius * Math.sqrt((at + 0.5) / count);
+    return { x: r * Math.cos(at * GOLDEN_ANGLE), z: r * Math.sin(at * GOLDEN_ANGLE) };
+  });
+}
+
+/** Whether `p` is on the land inside the coast's loops (a loop inside a loop is a lake). */
+export function onLand(p: Point, coast: Coast): boolean {
+  let inside = false;
+  for (const ring of coast) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [a, b] = [ring[i]!, ring[j]!];
+      if ((a.z > p.z) !== (b.z > p.z) && p.x < ((b.x - a.x) * (p.z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/** The land's area: its outer loops less its lakes. */
+function landArea(coast: Coast): number {
+  const area = (ring: readonly Point[]) => Math.abs(ring.reduce((sum, p, at) => { const q = ring[(at + 1) % ring.length]!; return sum + p.x * q.z - q.x * p.z; }, 0)) / 2;
+  return coast.reduce((sum, ring) => {
+    const depth = coast.filter((other) => other !== ring && onLand(ring[0]!, [other])).length;
+    return sum + (depth % 2 === 0 ? area(ring) : -area(ring));
+  }, 0);
 }
 
 /** The territory under the point (x, z) of the island, or undefined off its coast. */
 export function territoryAt(map: TerritoryMap, x: number, z: number): Territory | undefined {
-  if (Math.hypot(x, z) > map.radius || map.cells.length === 0) return undefined;
+  if (map.cells.length === 0 || (map.coast === undefined ? Math.hypot(x, z) > map.radius : !onLand({ x, z }, map.coast))) return undefined;
   let nearest = map.cells[0]!;
   for (const cell of map.cells) if (Math.hypot(x - cell.site.x, z - cell.site.z) < Math.hypot(x - nearest.site.x, z - nearest.site.z)) nearest = cell;
   return map.territories[nearest.territory];
@@ -205,15 +246,12 @@ const SPOTS_PER_CELL = 8;
  * than CIRCLE_COVER of it. A file whose capability has no territory gets no circle.
  */
 export function fileCircles(map: TerritoryMap, files: readonly CircleFile[]): FileCircle[] {
-  const count = map.cells.length * SPOTS_PER_CELL;
-  const spots = Array.from({ length: count }, (_, at): Point => {
-    const r = map.radius * Math.sqrt((at + 0.5) / count);
-    return { x: r * Math.cos(at * GOLDEN_ANGLE), z: r * Math.sin(at * GOLDEN_ANGLE) };
-  });
+  const land = map.coast === undefined ? Math.PI * map.radius ** 2 : landArea(map.coast);
+  const spots = sunflower(Math.ceil((map.cells.length * SPOTS_PER_CELL * Math.PI * map.radius ** 2) / Math.max(land, 1e-9)), map.radius);
   const territoryOf = (p: Point) => territoryAt(map, p.x, p.z);
   const diameter = (lines: number) => 1.3 + 0.24 * Math.sqrt(Math.max(0, lines));
   const cover = files.reduce((sum, file) => sum + (Math.PI * diameter(file.lines) ** 2) / 4, 0);
-  const scale = cover === 0 ? 1 : Math.min(1, Math.sqrt((CIRCLE_COVER * Math.PI * map.radius ** 2) / cover));
+  const scale = cover === 0 ? 1 : Math.min(1, Math.sqrt((CIRCLE_COVER * land) / cover));
   const placed = new Map<string, Point>();
   map.territories.forEach((territory) => {
     const mine = files.filter((file) => file.capability === territory.capability).sort((a, b) => b.lines - a.lines || a.path.localeCompare(b.path));

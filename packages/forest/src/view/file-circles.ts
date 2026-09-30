@@ -13,7 +13,7 @@ export type FileCircleMark = { readonly path: string; readonly lines: number; re
 
 /** Pale on the faint territories, so a lit circle (the traversal's) can stand out against them. */
 const CIRCLE_COLOUR = "#e9eef0";
-const CIRCLE_OPACITY = 0.7;
+const CIRCLE_OPACITY = 0.5;
 /** Lifted off the surface, above the territories' tint. */
 const CIRCLE_LIFT = 0.1;
 const FACE = new Vector3(0, 0, 1);

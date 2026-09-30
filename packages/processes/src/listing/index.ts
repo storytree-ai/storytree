@@ -20,11 +20,12 @@ export interface SharedWork {
   readonly reason: string;
 }
 /**
- * The storytree app and its database, as a shared row: the app lifecycle reports only whether the
- * database is running, so its lifetime is unknown, and `storytree app quit` is the one way to stop it.
+ * The storytree app and its database, as a shared row: the app lifecycle's reading of whether the
+ * database is running is itself an observation, so it is live or gone, never unknown; it only lacks
+ * the native lifetime that stop authority needs, and `storytree app quit` is the one way to stop it.
  */
 export function appDatabaseWork(running: boolean): SharedWork {
-  return { name: 'storytree app and database', state: 'unknown',
+  return { name: 'storytree app and database', state: running ? 'live' : 'gone',
     reason: `The app lifecycle reports the database ${running ? 'running' : 'not running'}; it supplies no native lifetime or separate app identity. This shared work is managed by the app; use storytree app quit to stop it.` };
 }
 export interface InventoryOptions extends ObservationOptions {

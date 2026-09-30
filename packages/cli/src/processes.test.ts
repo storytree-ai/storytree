@@ -112,7 +112,7 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${instal
   assert.deepEqual(after.clear.failed, []);
   assert.deepEqual(after.clear.gaps, []);
   assert.deepEqual(after.closing.inventory.rows.map((row: { run: { id: string } }) => row.run.id), [runs[1]!.id]);
-  assert.equal(after.closing.status, 'incomplete'); // Shared app lifetime is explicitly unknown.
+  assert.equal(after.closing.status, 'remaining'); // runs[1] is still live.
   const claude = await invoke([], false, { CLAUDE_CODE_SESSION_ID: 'caller' });
   assert.equal(claude.code, 0, claude.stderr);
   assert.match(claude.stdout, /No recorded runs/); // Different harness is not Codex's owner.

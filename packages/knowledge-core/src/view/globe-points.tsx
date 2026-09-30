@@ -164,7 +164,7 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   const line = useMemo(() => {
     const made = lineOf(1.6, false);
     // A step over the land is drawn after the land's tints and circles, which are otherwise laid over it (ADR-0804 D5).
-    if (step?.kind !== undefined) made.renderOrder = 6;
+    if (step?.kind !== undefined) { made.renderOrder = 6; made.material.linewidth = 2.4; }
     if (step?.edge === "dotted") Object.assign(made.material, { dashed: true, dashSize: radius * 0.007, gapSize: radius * 0.007 });
     if (step?.faded) made.material.opacity = 0.45;
     return made;

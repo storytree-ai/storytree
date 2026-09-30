@@ -50,57 +50,52 @@ export function circleStops(marks: Group, pkg: string, plate: { position: Vector
   return stops;
 }
 
-/** A circle a session's read has lit: its colour, filled fully while the read is in the window, lighter and fainter once compacted out (as a note's dot is, ADR-0756). */
+/** A lit circle's fill: the session's colour over the pale circle, full while the read is in the window, lighter and fainter once compacted out (as a note's dot is, ADR-0756). */
 const LIT_OPACITY = { "in-window": 0.9, faded: 0.6 } as const;
 const RING_INNER = 1.18;
 const RING_OUTER = 1.42;
 
-/** Each circle's material as it rests, before any lighting replaced it. */
-const RESTING = new WeakMap<Mesh, MeshBasicMaterial>();
+/** Marks what lighting adds, so the session emphasis that dims an island leaves them at full strength: the traversal reads on every island. */
+const traversalMark = (mark: Mesh, name: string): Mesh => {
+  mark.name = name;
+  mark.raycast = () => {};
+  mark.userData = { traversal: true };
+  return mark;
+};
 
 /**
  * Lights the circles the selected session opened (ADR-0804 D5), `lit` keyed as `circleStops` keys them, in the
- * session's `colour`: a read in the window has the in-view ring around it, a compacted one is lighter with none.
- * Every other circle is put back as it was, so calling it again with less lit lets the rest go.
+ * session's `colour`: a fill over the circle, and for a read in the window the in-view ring around it; a
+ * compacted read is lighter with no ring. What lighting adds is laid over the circle, never swapped into it,
+ * so calling it again with less lit lets the rest go and the circle itself is as it was.
  */
 export function lightFileCircles(marks: Group, lit: ReadonlyMap<string, CodeState>, colour: string, pkg: string): void {
-  const wears = new Map<CodeState, MeshBasicMaterial>();
-  const wearing = (state: CodeState): MeshBasicMaterial => {
-    let material = wears.get(state);
-    if (material === undefined) {
-      const wear = new Color(colour);
-      if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
-      material = new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_OPACITY[state], side: DoubleSide, depthWrite: false });
-      wears.set(state, material);
-    }
-    return material;
-  };
   for (const mark of marks.children) {
     const path = mark.userData.file;
     if (typeof path !== "string" || !(mark instanceof Mesh)) continue;
-    const state = lit.get(codePathKey(pkg, path));
-    if (!RESTING.has(mark)) RESTING.set(mark, mark.material as MeshBasicMaterial);
-    const ring = mark.getObjectByName(`file-ring:${path}`) as Mesh | undefined;
-    if (ring !== undefined) {
-      ring.removeFromParent();
-      ring.geometry.dispose();
-      (ring.material as MeshBasicMaterial).dispose();
+    for (const added of [`file-lit:${path}`, `file-ring:${path}`]) {
+      const old = mark.getObjectByName(added) as Mesh | undefined;
+      if (old === undefined) continue;
+      old.removeFromParent();
+      (old.material as MeshBasicMaterial).dispose();
+      if (old.geometry !== mark.geometry) old.geometry.dispose();
     }
-    if (mark.material !== RESTING.get(mark)) (mark.material as MeshBasicMaterial).dispose();
+    const state = lit.get(codePathKey(pkg, path));
     if (state === undefined) {
-      mark.material = RESTING.get(mark)!;
       delete mark.userData.window;
       continue;
     }
-    mark.material = wearing(state);
     mark.userData.window = state;
+    const wear = new Color(colour);
+    if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
+    // Children of the circle, so they lie as flat as it does and grow with it.
+    const fill = traversalMark(new Mesh(mark.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_OPACITY[state], side: DoubleSide, depthWrite: false })), `file-lit:${path}`);
+    fill.renderOrder = 4;
+    mark.add(fill);
     if (state === "in-window") {
-      // A child of the circle, so it lies as flat as it does and grows with it.
-      const made = new Mesh(new RingGeometry(RING_INNER, RING_OUTER, 40), new MeshBasicMaterial({ color: IN_VIEW, transparent: true, opacity: 0.95, side: DoubleSide, depthWrite: false }));
-      made.name = `file-ring:${path}`;
-      made.raycast = () => {};
-      made.renderOrder = 4;
-      mark.add(made);
+      const ring = traversalMark(new Mesh(new RingGeometry(RING_INNER, RING_OUTER, 40), new MeshBasicMaterial({ color: IN_VIEW, transparent: true, opacity: 0.95, side: DoubleSide, depthWrite: false })), `file-ring:${path}`);
+      ring.renderOrder = 5;
+      mark.add(ring);
     }
   }
 }

@@ -212,21 +212,23 @@ test("3.18 the forest hands the core each circle's place on the globe: where it 
 
 test("3.18 a file circle the selected session opened is lit in its colour with the in-view ring, a compacted one lighter with none, and letting go restores it", () => {
   const circles = circlesOf();
-  const unlit = colourOf(mark(circles, "src/a.ts"));
-  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
   const [a, b] = [mark(circles, "src/a.ts"), mark(circles, "src/b.ts")];
-  assert.equal(colourOf(a), "e69f00");
-  assert.notEqual(colourOf(b), "e69f00");
-  assert.ok(new Color(`#${colourOf(b)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "lighter, as a compacted note is");
+  const resting = [a.material, b.material];
+  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
+  const [litA, litB] = [a.getObjectByName("file-lit:src/a.ts") as Mesh, b.getObjectByName("file-lit:src/b.ts") as Mesh];
+  assert.equal(colourOf(litA), "e69f00");
+  assert.ok(new Color(`#${colourOf(litB)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "lighter, as a compacted note is");
+  assert.ok((litB.material as MeshBasicMaterial).opacity < (litA.material as MeshBasicMaterial).opacity);
   assert.equal(a.userData.window, "in-window");
   assert.equal(b.userData.window, "faded");
   assert.ok(a.getObjectByName("file-ring:src/a.ts"), "the in-view ring");
   assert.equal(b.getObjectByName("file-ring:src/b.ts"), undefined, "a compacted read has no ring");
+  assert.deepEqual([a.material, b.material], resting, "the circles themselves are not swapped for anything, so nothing that dims or restores them can undo the lighting");
+  assert.equal(litA.userData.traversal, true, "and the lighting is marked, for the session emphasis to leave alone");
   assert.deepEqual({ file: a.userData.file, lines: a.userData.lines }, { file: "src/a.ts", lines: 40 }, "pointing still names it");
   lightFileCircles(circles, new Map(), "#e69f00", "story");
-  assert.equal(colourOf(a), unlit);
   assert.equal(a.userData.window, undefined);
-  assert.equal(a.getObjectByName("file-ring:src/a.ts"), undefined);
+  assert.deepEqual([a.getObjectByName("file-lit:src/a.ts"), a.getObjectByName("file-ring:src/a.ts"), b.getObjectByName("file-lit:src/b.ts")], [undefined, undefined, undefined]);
 });
 
 test("3.18 a capability the selected session opened fills its territory in the session's colour, faintly lighter when compacted, and letting go restores its tint", () => {
@@ -241,15 +243,17 @@ test("3.18 a capability the selected session opened fills its territory in the s
   };
   const drawn = territoryLand(land, (p) => new Vector3(p.x, 0, p.z));
   const [a, b] = ["cap-a", "cap-b"].map((id) => drawn.getObjectByName(`territory:${id}`) as Mesh);
-  const before = [colourOf(a!), (a!.material as MeshBasicMaterial).opacity];
+  const resting = [colourOf(a!), (a!.material as MeshBasicMaterial).opacity];
   lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
-  assert.equal(colourOf(a!), "e69f00");
-  assert.ok((a!.material as MeshBasicMaterial).opacity > (before[1] as number), "brighter than the resting tint");
+  const [litA, litB] = [a!.getObjectByName("territory-lit:cap-a") as Mesh, b!.getObjectByName("territory-lit:cap-b") as Mesh];
+  assert.equal(colourOf(litA), "e69f00");
+  assert.ok((litB.material as MeshBasicMaterial).opacity < (litA.material as MeshBasicMaterial).opacity, "a compacted read is fainter");
+  assert.ok(new Color(`#${colourOf(litB)}`).getHSL({ h: 0, s: 0, l: 0 }).l > new Color("#e69f00").getHSL({ h: 0, s: 0, l: 0 }).l, "and lighter");
   assert.equal(a!.userData.window, "in-window");
   assert.equal(b!.userData.window, "faded");
-  assert.ok((b!.material as MeshBasicMaterial).opacity < (a!.material as MeshBasicMaterial).opacity);
+  assert.equal(litA.userData.traversal, true);
   assert.equal(a!.userData.capability, "cap-a", "picking still names it");
+  assert.deepEqual([colourOf(a!), (a!.material as MeshBasicMaterial).opacity], resting, "the tint itself is untouched");
   lightTerritories(drawn, new Map(), "#e69f00");
-  assert.deepEqual([colourOf(a!), (a!.material as MeshBasicMaterial).opacity], before);
-  assert.equal(a!.userData.window, undefined);
+  assert.deepEqual([a!.getObjectByName("territory-lit:cap-a"), b!.getObjectByName("territory-lit:cap-b"), a!.userData.window], [undefined, undefined, undefined]);
 });

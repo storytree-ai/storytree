@@ -129,32 +129,35 @@ function insideOf(from: Point, to: Point, coast: readonly (readonly Point[])[]):
 }
 
 /** A lit territory's fill: the session's colour, filled while the read is in the window, lighter and fainter once compacted out. */
-const LIT_TERRITORY = { "in-window": 0.55, faded: 0.38 } as const;
-
-/** Each territory's tint and opacity as it rests, before any lighting replaced them. */
-const RESTING = new WeakMap<Mesh, { colour: Color; opacity: number }>();
+const LIT_TERRITORY = { "in-window": 0.36, faded: 0.26 } as const;
 
 /**
  * Fills the territories of the capabilities the selected session opened (ADR-0804 D5) in its `colour`: a read
- * in the window fully, one compacted out lighter. Every other territory is put back as it was.
+ * in the window fully, one compacted out lighter. The fill is laid over the territory, never swapped into it,
+ * so every other territory, and this one once let go, is as it was; the session emphasis that dims an island leaves it at full strength.
  */
 export function lightTerritories(land: Group, lit: ReadonlyMap<string, "in-window" | "faded">, colour: string): void {
   for (const mesh of land.children) {
     const capability = mesh.userData.capability;
     if (typeof capability !== "string" || !(mesh instanceof Mesh)) continue;
-    const material = mesh.material as MeshBasicMaterial;
-    if (!RESTING.has(mesh)) RESTING.set(mesh, { colour: material.color.clone(), opacity: material.opacity });
-    const rested = RESTING.get(mesh)!;
+    const old = mesh.getObjectByName(`territory-lit:${capability}`) as Mesh | undefined;
+    if (old !== undefined) {
+      old.removeFromParent();
+      (old.material as MeshBasicMaterial).dispose();
+    }
     const state = lit.get(capability);
     if (state === undefined) {
-      material.color.copy(rested.colour);
-      material.opacity = rested.opacity;
       delete mesh.userData.window;
       continue;
     }
-    material.color.set(colour);
-    if (state === "faded") material.color.lerp(new Color("#ffffff"), 0.55);
-    material.opacity = LIT_TERRITORY[state];
     mesh.userData.window = state;
+    const wear = new Color(colour);
+    if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
+    const fill = new Mesh(mesh.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_TERRITORY[state], side: DoubleSide, depthWrite: false }));
+    fill.name = `territory-lit:${capability}`;
+    fill.raycast = () => {};
+    fill.userData = { traversal: true };
+    fill.renderOrder = 1.5;
+    mesh.add(fill);
   }
 }

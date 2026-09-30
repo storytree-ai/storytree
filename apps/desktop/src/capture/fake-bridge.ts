@@ -18,6 +18,13 @@ export interface FakeBridge {
   ready(page: Page, timeoutMs?: number): Promise<void>;
 }
 
+/**
+ * window.storytree in the page: every method is carried to the fake. Text, not a function, since a
+ * capture run through tsx would hand the page esbuild's __name helper, which the page lacks. `then`
+ * stays unanswered so that awaiting the bridge itself is not mistaken for a call.
+ */
+const PAGE_BRIDGE = `window.storytree = new Proxy({}, { get: (_, method) => method === "then" ? undefined : (...args) => window.storytreeFakeBridge(String(method), args) });`;
+
 /** A fake bridge answering with `answers`, typed against the desktop app's own bridge. */
 export function fakeBridge(answers: Partial<StorytreeBridge>): FakeBridge {
   let refuse!: (error: Error) => void;
@@ -39,11 +46,7 @@ export function fakeBridge(answers: Partial<StorytreeBridge>): FakeBridge {
     unanswered,
     async install(page) {
       await page.exposeFunction("storytreeFakeBridge", call);
-      await page.addInitScript(() => {
-        const carry = (window as unknown as { storytreeFakeBridge: (method: string, args: unknown[]) => Promise<unknown> }).storytreeFakeBridge;
-        // `then` stays unanswered so that awaiting the bridge itself is not mistaken for a call.
-        (window as unknown as { storytree: unknown }).storytree = new Proxy({}, { get: (_, method) => (method === "then" ? undefined : (...args: unknown[]) => carry(String(method), args)) });
-      });
+      await page.addInitScript(PAGE_BRIDGE);
     },
     async ready(page, timeoutMs = 60_000) {
       await Promise.race([page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: timeoutMs }), unanswered]);

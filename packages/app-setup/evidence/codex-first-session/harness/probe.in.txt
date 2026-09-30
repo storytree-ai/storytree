@@ -1,0 +1,3 @@
+$env:CODEX_HOME = "$HOME\st-codexharden\home-LABEL"
+Set-Location "$HOME\CH First LABEL"
+$null | codex exec --skip-git-repo-check --approve-for-me "Do not call any tool. List the names of every tool in your tool list whose name contains storytree, and quote the description of the one named check_setup word for word. If you have no such tools directly, say how you would find them." 2>&1 | Out-String -Width 200

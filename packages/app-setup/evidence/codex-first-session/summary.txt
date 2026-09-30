@@ -1,0 +1,15 @@
+trial-A1: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=.storytree.json hello.txt 
+trial-A2: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=.storytree.json hello.txt 
+trial-A3: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=.storytree.json hello.txt 
+trial-B1: storytree_calls=4 check_setup_before_first_change=yes told_trust_step=yes agent_words_name_storytree=yes files_after=.storytree-check .storytree.json hello.txt 
+trial-B2: storytree_calls=16 check_setup_before_first_change=yes told_trust_step=yes agent_words_name_storytree=yes files_after=.storytree-check .storytree.json hello.txt 
+trial-B3: storytree_calls=8 check_setup_before_first_change=yes told_trust_step=yes agent_words_name_storytree=yes files_after=.storytree-check .storytree.json hello.txt 
+trial-C1: storytree_calls=16 check_setup_before_first_change=yes told_trust_step=yes agent_words_name_storytree=yes files_after=.storytree-check .storytree.json hello.txt 
+trial-C2: storytree_calls=10 check_setup_before_first_change=yes told_trust_step=yes agent_words_name_storytree=yes files_after=.storytree-check .storytree.json hello.txt 
+trial-C3: storytree_calls=8 check_setup_before_first_change=yes told_trust_step=yes agent_words_name_storytree=yes files_after=.storytree-check .storytree.json hello.txt 
+plain-B1: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=yes files_after=hello.txt 
+plain-B2: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=hello.txt 
+plain-B3: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=hello.txt 
+plain-C1: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=hello.txt 
+plain-C2: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=hello.txt 
+plain-C3: storytree_calls=0 check_setup_before_first_change=no told_trust_step=no agent_words_name_storytree=no files_after=hello.txt 

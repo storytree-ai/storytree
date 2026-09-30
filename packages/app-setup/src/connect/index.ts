@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { markDisconnected, registerHooks, removeHooks } from "@storytree/agent-link";
+import { markDisconnected, registerHooks, removeCodexInstructions, removeHooks, writeCodexInstructions } from "@storytree/agent-link";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };
@@ -57,7 +57,7 @@ const conflict = (file: string) => `The existing storytree entry in ${file} is i
 /**
  * Register the chosen harnesses independently: the tool server and storytree's hooks. The hooks go
  * in now, not at the first session's setup check, because a harness reads its hooks when a session
- * starts: registered later, the first session would miss the start hook that asks the setup question.
+ * starts: registered later, the first session would miss its start hook.
  * No app launch, agent session, project creation or hook attestation.
  */
 export async function connectAgents(options: ConnectionOptions): Promise<ConnectionResult[]> {
@@ -98,6 +98,9 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
       registerHooks(harness === "claude-code" ? { claude: where.claude } : { codex: where.codex }, hook);
+      // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
+      // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.
+      if (harness === "codex") writeCodexInstructions(where.codex);
       result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
@@ -123,6 +126,7 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
       }
       // Validate/remove only this harness's hooks; never call the unscoped `setup remove` command.
       removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+      if (harness === "codex") removeCodexInstructions(where.codex);
       if (settings.current !== undefined) await settings.remove();
       // So the setup check, run from another harness's session, does not register its hooks again.
       markDisconnected(where.storytree, harness, true);

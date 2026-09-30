@@ -1,0 +1,35 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Make a hel ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\CH First A2
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f1ed-5e09-7861-984b-b3fc5a14bc41
+--------
+user
+Make a hello.txt file here that says hi.
+codex
+I’ll create `hello.txt` here with the text `hi`.
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Set-Content -LiteralPath 'hello.txt' -Value 'hi'" in C:\Users\mickh\CH First A2
+ succeeded in 176ms:
+codex
+Created [hello.txt](<C:/Users/mickh/CH First A2/hello.txt>) containing `hi`.
+tokens used
+2,726
+Created [hello.txt](<C:/Users/mickh/CH First A2/hello.txt>) containing `hi`.
+
+--- folder after:
+.storytree.json
+hello.txt

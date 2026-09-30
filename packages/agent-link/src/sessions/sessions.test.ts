@@ -176,9 +176,9 @@ test("4.9 who is listed (ADR-0754 D4): a session holding unmerged work stays lis
     const open = await listing("terminal", after(ended, 2 * LEAVE_MS));
     assert.deepEqual(open?.openWork, ["claude/fix"]);
     assert.equal(open?.listing, "listed", "open work keeps it listed long after its end");
-    // A merged line names the claim's branch, not the observer's: it adds no work to the observer.
+    // A merged line names the claim's branch, not the observer's: it makes the observer no session with work.
     await log.append(project, { ...observer, kind: "merged", increment: "inc-1", holder: "terminal", branch: "claude/other", pr: 7 });
-    assert.deepEqual((await listing("observer", after(ended, 1_000)))?.branches, []);
+    assert.equal(await listing("observer", after(ended, 1_000)), undefined);
     await log.append(project, { ...observer, kind: "branch-state", of: "claude/fix", open: false, how: "merged", pr: 12 });
     assert.equal((await listing("terminal", after(ended, 1_000)))?.listing, "hidden", "resolved and ended: gone at once");
 

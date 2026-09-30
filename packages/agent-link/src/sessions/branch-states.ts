@@ -24,7 +24,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { currentBranch, thisMachine, type Line, type NewLine } from "../activity/index.js";
+import { currentBranch, thisMachine, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { due, ghAllMergedPulls, type AllMergedPulls, type MergeContext, type MergedPull } from "../claims/merges.js";
 
 /** How branches are watched. */
@@ -101,6 +101,10 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
     }
     return written;
   });
+}
+
+export async function lookAsApp(_log: ActivityLog, _project: string, _watch: BranchWatch = {}): Promise<Line[]> {
+  return [];
 }
 
 /** What is known of a branch worth looking at: when it was first worked on, its latest folder on this machine, and whether its own machine has found it ahead. */

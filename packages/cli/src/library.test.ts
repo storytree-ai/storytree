@@ -187,5 +187,12 @@ test("3.9 `search` gives the artifacts ranked by the library (capability 14), at
     assert.match(ran.stdout, /ranked by words: the embedding model is switched off/);
     assert.match(ran.stdout, /Mailer 1[\s\S]*Mailer 2/);
     assert.doesNotMatch(ran.stdout, /Mailer 3|Tuesdays/);
+
+    const story = await library.addStory({ title: "Sign up" });
+    const capability = await library.addCapability({ story: story.id, title: "Email" });
+    const contract = await library.addContract({ capability: capability.id, title: "Confirmation goes out by courier pigeon" });
+    const found = await world.run(["library", "search", "courier", "pigeon"]);
+    assert.equal(found.code, 0, found.stderr);
+    assert.ok(found.stdout.includes(`${contract.id}  [contract]  Confirmation goes out by courier pigeon`), found.stdout);
   });
 });

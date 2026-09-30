@@ -41,6 +41,8 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
 
 interface Opened {
   readonly knowledge: Knowledge;
+  /** The records under it, to write the plan's stories, capabilities and contracts. */
+  readonly records: SchemaRecords;
   /** A second library over the same store, as a new process would open it. */
   reopen(embedder: EmbedderSource): Promise<Knowledge>;
   cleanup(): Promise<void>;
@@ -58,6 +60,7 @@ const memory: Backend = {
     const vectors = new MemoryVectors();
     return {
       knowledge: new Knowledge(records, undefined, { embedder, vectors }),
+      records,
       reopen: async (again) => new Knowledge(records, undefined, { embedder: again, vectors }),
       cleanup: async () => {},
     };
@@ -77,8 +80,10 @@ const postgres: Backend = {
       }
     };
     try {
+      const project = await servers[0]!.openProject(name);
       return {
-        knowledge: (await servers[0]!.openProject(name)).knowledge,
+        knowledge: project.knowledge,
+        records: project.records,
         async reopen(again) {
           const server = await connect({ url: testServerUrl() }, { embedder: again });
           servers.push(server);
@@ -145,6 +150,19 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(again.embedded, ["plans"], "a new process reads the kept vectors");
   });
 
+  contract("14.5", "rankAll ranks the plan's stories, capabilities and contracts by their own wording, with the artifacts", async (_, { knowledge, records }) => {
+    const story = await records.create("story", { title: "Library", description: "The library keeps the plan." });
+    const capability = await records.create("capability", { title: "Outbox", story: story.id, proposed: true });
+    const mailer = await records.create("contract", { title: "The mailer needs a verified sender domain", capability: capability.id });
+    const deploys = await knowledge.defineTerm({ term: "Deploys", meaning: "Deploys go out on Tuesdays." });
+
+    const ranked = await knowledge.rankAll("how do I send an email");
+
+    assert.equal(ranked.hits[0]!.note.id, mailer.id);
+    assert.equal(ranked.hits[0]!.note.type, "contract");
+    assert.ok(ranked.hits.some(({ note }) => note.id === deploys.id), "the artifacts are ranked too");
+  });
+
   test(`14.4 [${backend.label}] with no embedding model, rank gives the word matches and says why`, async () => {
     const opened = await backend.open(async () => {
       throw new Error("the embedding model is switched off");
@@ -158,6 +176,26 @@ for (const backend of [memory, postgres]) {
       assert.equal(ranked.by, "words");
       assert.match(ranked.why ?? "", /switched off/);
       assert.deepEqual(ranked.hits.map(({ note }) => note.id), [mailer.id]);
+    } finally {
+      await opened.cleanup();
+    }
+  });
+
+  test(`14.6 [${backend.label}] with no embedding model, rankAll's word matches include a contract holding the words`, async () => {
+    const opened = await backend.open(async () => {
+      throw new Error("the embedding model is switched off");
+    });
+    try {
+      const story = await opened.records.create("story", { title: "Library" });
+      const capability = await opened.records.create("capability", { title: "Outbox", story: story.id, proposed: true });
+      const mailer = await opened.records.create("contract", { title: "The mailer needs a verified sender", capability: capability.id });
+      await opened.knowledge.defineTerm({ term: "Deploys", meaning: "Deploys go out on Tuesdays." });
+
+      const ranked = await opened.knowledge.rankAll("mailer sender");
+
+      assert.equal(ranked.by, "words");
+      assert.deepEqual(ranked.hits.map(({ note }) => note.id), [mailer.id]);
+      assert.deepEqual(await opened.knowledge.rankAll(capability.id).then(({ hits }) => hits.map(({ note }) => note.id)), [], "a contract's capability is an id, not its words");
     } finally {
       await opened.cleanup();
     }

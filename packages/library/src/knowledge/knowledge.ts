@@ -68,14 +68,18 @@ export interface Ranking {
 }
 /** How many artifacts a ranked search gives back unless told. */
 export const RANK_LIMIT = 10;
+/** The plan's records a search also finds by their own wording: what an agent amends by meaning. */
+export type PlanKind = "story" | "capability" | "contract";
+/** A record rankAll can give back: an artifact, or a story, capability or contract of the plan. */
+export type Findable = Note | SchemaRecord<PlanKind>;
 /** A ranked search's answer (capability 14). */
-export interface Ranked {
+export interface Ranked<T extends SchemaRecord = Note> {
   /** "meaning" when ranked by the embedding model; "words" when it could not be, and why is said. */
   readonly by: "meaning" | "words";
   /** Why it fell back to words; absent when ranked by meaning. */
   readonly why?: string;
   /** The artifacts, best first. A score, the cosine of its best chunk with the question, comes with meaning only. */
-  readonly hits: { readonly note: Note; readonly score?: number }[];
+  readonly hits: { readonly note: T; readonly score?: number }[];
 }
 /** A ranked search's options: how many artifacts to give back, RANK_LIMIT unless told. */
 export interface RankOptions {
@@ -104,6 +108,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
 ];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
+const PLAN_KINDS: readonly PlanKind[] = ["story", "capability", "contract"];
 
 /**
  * The fields that name other artifacts rather than hold words: never searched. (`refs` sits inside an
@@ -119,6 +124,9 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "to",
   "supersedes",
   "fingerprint",
+  "story",
+  "capability",
+  "dependsOn",
 ]);
 
 /** Decision fields that editNote cannot change. */
@@ -424,11 +432,7 @@ export class Knowledge {
    * so it matches every artifact. In creation order.
    */
   async search(query: string): Promise<Note[]> {
-    const words = query.toLowerCase().split(/\s+/).filter((word) => word !== "");
-    return (await this.#notes()).filter((note) => {
-      const texts = textsOf(note).map((text) => text.toLowerCase());
-      return words.every((word) => texts.some((text) => text.includes(word)));
-    });
+    return holdingEvery(await this.#notes(), query);
   }
 
   /**
@@ -439,6 +443,23 @@ export class Knowledge {
    * word matches instead, in creation order, and says why.
    */
   async rank(query: string, options: RankOptions = {}): Promise<Ranked> {
+    return this.#rankAmong(() => this.#notes(), query, options);
+  }
+
+  /**
+   * rank(), over the live artifacts and the plan's stories, capabilities and contracts together,
+   * each labelled by its type: what `storytree library search` answers, so a contract is found by
+   * its own wording. A plan record's parent (a contract's capability, a capability's story) is an
+   * id, not words, and is not searched.
+   */
+  async rankAll(query: string, options: RankOptions = {}): Promise<Ranked<Findable>> {
+    return this.#rankAmong(async () => {
+      const lists = await Promise.all([this.#notes(), ...PLAN_KINDS.map((type) => this.#records.list(type))]);
+      return lists.flat().sort(byCreation);
+    }, query, options);
+  }
+
+  async #rankAmong<T extends SchemaRecord>(read: () => Promise<T[]>, query: string, options: RankOptions): Promise<Ranked<T>> {
     const limit = options.limit ?? RANK_LIMIT;
     if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError(`limit is how many to give back, a whole number above 0; got ${limit}`);
     if (query.trim() === "") throw new RangeError("a ranked search needs words to rank by");
@@ -447,9 +468,9 @@ export class Knowledge {
       embedder = await this.#ranking.embedder();
     } catch (error) {
       const why = error instanceof Error ? error.message : String(error);
-      return { by: "words", why, hits: (await this.search(query)).slice(0, limit).map((note) => ({ note })) };
+      return { by: "words", why, hits: holdingEvery(await read(), query).slice(0, limit).map((note) => ({ note })) };
     }
-    const notes = await this.#notes();
+    const notes = await read();
     const ranked = await rankByMeaning(notes.map((note) => ({ item: note, text: renderNote(note) })), query, embedder, this.#ranking.vectors);
     return { by: "meaning", hits: ranked.slice(0, limit).map(({ item, score }) => ({ note: item, score })) };
   }
@@ -554,8 +575,17 @@ export class Knowledge {
  * a definition by its term and meaning, and friction by its
  * statement, evidence and impact among the rest.
  */
-function textsOf(note: Note): string[] {
+function textsOf(note: SchemaRecord): string[] {
   return textsIn(note.fields);
+}
+
+/** The records among `records` holding every whitespace-separated word of `query`, ignoring case, in order. */
+function holdingEvery<T extends SchemaRecord>(records: readonly T[], query: string): T[] {
+  const words = query.toLowerCase().split(/\s+/).filter((word) => word !== "");
+  return records.filter((record) => {
+    const texts = textsOf(record).map((text) => text.toLowerCase());
+    return words.every((word) => texts.some((text) => text.includes(word)));
+  });
 }
 
 function textsIn(value: unknown): string[] {

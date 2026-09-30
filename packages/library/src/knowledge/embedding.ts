@@ -65,6 +65,9 @@ const UNRENDERED: ReadonlySet<string> = new Set([
   "supersedes",
   "fingerprint",
   "number",
+  "story",
+  "capability",
+  "dependsOn",
 ]);
 
 /**

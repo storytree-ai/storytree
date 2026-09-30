@@ -9,7 +9,7 @@
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
 import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
-import type { DecisionNumberPlan, DecisionView, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Ranked, RankOptions, Related, RelatedOptions } from "../knowledge/index.js";
+import type { DecisionNumberPlan, DecisionView, Findable, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Ranked, RankOptions, Related, RelatedOptions } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { couldBeId } from "../references.js";
@@ -240,6 +240,8 @@ export interface Library {
    * word matches instead, and says why.
    */
   rank(query: string, options?: RankOptions): Promise<Ranked>;
+  /** rank(), over the artifacts and the plan's stories, capabilities and contracts together: what `library search` answers. */
+  rankAll(query: string, options?: RankOptions): Promise<Ranked<Findable>>;
   /** The live artifacts linking to artifact `noteId`, in creation order. */
   relatedNotes(noteId: string): Promise<Note[]>;
   /**
@@ -547,6 +549,10 @@ class LibraryHandle implements Library {
 
   rank(query: string, options?: RankOptions): Promise<Ranked> {
     return this.#project.knowledge.rank(query, options);
+  }
+
+  rankAll(query: string, options?: RankOptions): Promise<Ranked<Findable>> {
+    return this.#project.knowledge.rankAll(query, options);
   }
 
   relatedNotes(noteId: string): Promise<Note[]> {

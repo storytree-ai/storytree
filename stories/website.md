@@ -2,7 +2,7 @@
 
 **What it is.** A visitor can decide whether storytree fits their work from its public website.
 The page introduces the shipped product through a plain explanation, its install command and a
-forest drawn from storytree's own saved plan.
+project map drawn from storytree's own saved plan.
 
 **Approved boundary.** ADR-0798 (2026-09-30, `decision_67b283aa164b`) founds this story:
 `story_769e230c466d`. All website code lives in `packages/website`. The app frame, desktop app
@@ -10,9 +10,9 @@ and CLI gain no website behavior. The library carries the live plan records; thi
 requested repository companion. Amend the existing records when this plan changes.
 
 **One demonstration.** Open the public page on a phone, read what storytree offers, inspect its
-forest, and take the Windows install command. The visitor can also read the license or follow
+project map, and take the Windows install command. The visitor can also read the license or follow
 the LinkedIn contact. With scripting disabled the introduction, command and links still work;
-with WebGL unavailable the forest has a still from the same scene.
+with WebGL unavailable the map has a still from the same scene.
 
 **Build choice: esbuild.** Use the builder already present in this workspace. The site needs
 static HTML, CSS and a separately bundled browser scene, without server rendering or a router.
@@ -20,6 +20,14 @@ Generate HTML at build time, consume `@storytree/forest-world` through its publi
 entry, and emit the deployable folder `packages/website/dist`. This keeps a single engine and
 a small build surface; it does not vendor the engine or copy the desktop forest story's code.
 The agent-level choice is permitted by the planning increment under ADR-0798 D4.
+
+**Current representation.** The same-engine commitment follows the app's owner-directed
+ADR-0804. Flat story islands landed in PR #333, and the app's file circles on capability
+territories followed in PR #337. Public labels say “project map” and promise only what the
+website's saved snapshot and shared renderer actually draw. “Software you can watch grow.”
+remains the headline.
+Until the scene and saved snapshot land, future-tense placeholder text lives inside the mount,
+so scene initialization replaces it. Do not imply that a saved snapshot is already displayed.
 
 **Install command source.** The README's Install section, fenced as PowerShell, is the sole
 editable source. Extract its command during the build. A missing or ambiguous source fails
@@ -55,7 +63,9 @@ the forest assets and the scene's own styling; site-a owns the surrounding home 
 styles. The first scaffold emitted `forest.js` from the public engine entry without loading it
 on the page. The home page links that entry; site-b replaces its stub and owns lazy scene
 initialization under contract 2.3. Coordinate changes to shared build files or package
-dependencies; never copy `packages/forest` implementation into this story.
+dependencies; never copy `packages/forest` implementation into this story. Resume from fresh
+main: the flat scene no longer accepts `kitBytes`. Use the shared scene and its matching still;
+do not restore pines or independently reimplement the app's marks in the website.
 
 **Proof.** Write the smallest failing behavior test before implementation. Functional proofs
 below do not approve the appearance. Capture desktop and 390 px phone views with headless
@@ -95,7 +105,7 @@ A visitor gets the introduction, install command, license and contact from a sta
 
 ## 2 · The forest on the site
 
-The app's engine draws the committed plan as a live 3D forest after the text loads. A still of
+The app's engine draws the committed plan as a live 3D project map after the text loads. A still of
 that scene remains available if WebGL cannot run.
 
 - **Library:** `capability_18562ff0841c`.
@@ -105,8 +115,8 @@ that scene remains available if WebGL cannot run.
 
 **Contracts:**
 
-1. The saved snapshot produces its story islands and capability trees through the workspace
-   forest-world engine (`contract_fe2f95cea55d`). Render a small known snapshot and observe
+1. The saved snapshot produces its story islands using the workspace forest-world engine's
+   current representation (`contract_fe2f95cea55d`). Render a small known snapshot and observe
    its scene nodes. Attribution of agent-reported health is checked in review.
 2. Unavailable WebGL or failed scene initialization shows the still while the page remains
    usable (`contract_645d8d1223b2`). Force both failure paths and observe the image plus usable

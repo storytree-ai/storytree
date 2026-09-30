@@ -13,7 +13,7 @@ Start every session with \`check_setup\`, and do what it says. If this folder is
 Plan first.
 - \`show_plan\` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about.
 - Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`, and \`retire_from_plan\` a capability or contract no longer wanted, with the reason.
-- Break an arc's work into increments with \`park_increment\` (the breakdown goes in its body), and \`ready_increment\` one once it can start. \`park_arc\` parks or unparks an arc.
+- Break an arc's work into increments with \`park_increment\` (the breakdown goes in its body), and \`ready_increment\` one once it can start. \`move_increment\` re-homes one on another arc, keeping its id. \`park_arc\` parks or unparks an arc.
 - When one piece of work must wait for another, \`set_wait\` with the reason; \`clear_wait\` when it no longer must.
 - When only the owner can decide, \`raise_question\` on the arc instead of only asking in chat, holding the increments that need the answer. \`correct_question\` fixes its wording while it is open. \`settle_question\` with the answer, in the owner's own words; \`retire_question\` one that was wrong to ask.
 

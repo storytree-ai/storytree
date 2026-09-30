@@ -104,7 +104,7 @@ export class SchemaRecords {
    * touches a record this code cannot interpret, is refused and writes nothing. Null if the record
    * is missing or retired.
    */
-  async edit(id: string, fields: FieldEdit, options: WriteOptions & { sequence?: string; sequenceNeverHeld?: boolean; checkCurrent?: (record: SchemaRecord) => void } = {}): Promise<SchemaRecord | null> {
+  async edit(id: string, fields: FieldEdit, options: WriteOptions & { sequence?: string; sequenceNeverHeld?: boolean; reason?: string; checkCurrent?: (record: SchemaRecord) => void } = {}): Promise<SchemaRecord | null> {
     const record = await this.#transactions.edit({
       id,
       fields,
@@ -115,6 +115,7 @@ export class SchemaRecords {
       },
       ...(options.sequence === undefined ? {} : { sequence: options.sequence }),
       ...(options.sequenceNeverHeld === undefined ? {} : { sequenceNeverHeld: options.sequenceNeverHeld }),
+      ...(options.reason === undefined ? {} : { reason: options.reason }),
       validate: this.#check,
       ...writeOptionsOf(options),
     });

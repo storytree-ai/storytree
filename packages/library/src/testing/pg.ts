@@ -1,7 +1,7 @@
 /**
  * Helpers for tests that need a real Postgres.
  *
- * `pnpm test` (scripts/test.mjs) starts a throwaway local server and hands it to the tests as
+ * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server and hands it to the tests as
  * STORYTREE_TEST_PG_URL; set that variable yourself to test against another server. A Postgres
  * test must never skip silently, so asking for the server when there is none throws.
  *

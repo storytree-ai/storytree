@@ -12,7 +12,7 @@
 // stale local copy after storytree's own library moved to Cloud SQL): the Cloud SQL instance the
 // setting names, or the running app's local database through the address it leaves beside its data
 // directory, and otherwise starts the app's Postgres on that directory, as `pnpm library:export`
-// does, and stops it again at the end. The rules live in scripts/guidance.mjs.
+// does, and stops it again at the end. The rules live in packages/dev-loop/src/guidance.mjs.
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -22,10 +22,10 @@ import { locateLibrary, readLibrary } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
-import { appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../../../apps/desktop/src/home.ts";
 import { driftOf, expectedFiles, overBudget, readRoles, ROLE_DIRS } from "./guidance.mjs";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
 const check = process.argv.includes("--check");
 const COMMAND = check ? "pnpm check:guidance" : "pnpm build:guidance";

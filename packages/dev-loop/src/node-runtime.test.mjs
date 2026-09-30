@@ -1,4 +1,4 @@
-// Which Node.js may run the tests (scripts/node-runtime.mjs). On Windows, a Node.js whose libuv
+// Which Node.js may run the tests (packages/dev-loop/src/node-runtime.mjs). On Windows, a Node.js whose libuv
 // leaves the size of an OSVERSIONINFOW unset before RtlGetVersion (libuv#5107) can end a process on
 // any TCP connect: in `pnpm test`, a test file dies at its first connection to the test Postgres
 // with exit code 0xC0000409 and prints nothing. The harness refuses such a Node.js, saying which

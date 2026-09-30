@@ -1,5 +1,5 @@
 // Which parts of this repo break the package boundaries of ADR-0649 D1-D3 (in storytree 0.2's
-// decision log). scripts/package-boundaries.test.mjs runs it over the repo in `pnpm test` and CI.
+// decision log). packages/dev-loop/src/package-boundaries.test.mjs runs it over the repo in `pnpm test` and CI.
 //
 // - Every story has its own package, `packages/<id>`, and the only other package is the frame's
 //   `apps/desktop`: no package belongs to no story (ADR-0805 D5, which narrows ADR-0649 D1).
@@ -24,9 +24,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "forest-world", "knowledge-core", "librarian", "library", "local-postgres", "processes", "website"];
+export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "dev-loop", "forest", "forest-world", "knowledge-core", "librarian", "library", "local-postgres", "processes", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
+// dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest-world: story_ca702fee28cb (The world, ADR-0805 D1).
 // local-postgres: story_1d360b6227d8 (The local database, ADR-0805 D2).
 
@@ -41,6 +42,8 @@ const FRAME = { story: "app", dirs: ["packages/app", "apps/desktop"] };
 const FRONT_DOOR = { story: "cli", dirs: ["packages/cli"] };
 const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 const SKIP = new Set(["node_modules", "dist", ".turbo"]);
+/** This check's own test, whose planted trees are written as the very imports it must refuse. */
+const OWN_TEST = "packages/dev-loop/src/package-boundaries.test.mjs";
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
 export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YET_MOVED } = {}) {
@@ -80,7 +83,7 @@ export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YE
 
   const storyDirs = new Map(stories.filter((id) => packages.includes(`packages/${id}`)).map((id) => [`packages/${id}`, id]));
   for (const dir of packages) {
-    for (const file of filesUnder(root, `${dir}/src`).filter((name) => CODE.test(name))) {
+    for (const file of filesUnder(root, `${dir}/src`).filter((name) => CODE.test(name) && name !== OWN_TEST)) {
       for (const specifier of importsOf(readFileSync(path.join(root, file), "utf8"))) {
         const reach = reachesInto(root, dir, file, specifier, storyDirs, stories);
         if (reach) problems.push(`${file} reaches into the ${reach} story's files with "${specifier}": import its package's exports instead`);

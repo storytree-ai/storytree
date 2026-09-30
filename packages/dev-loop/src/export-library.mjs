@@ -6,7 +6,7 @@
 // writes nothing to it.
 //
 // It reads the running app's database, or starts the app's Postgres itself when the app is not
-// running (scripts/library-server.mjs). The rules for printing live in scripts/library-export.mjs.
+// running (packages/dev-loop/src/library-server.mjs). The rules for printing live in packages/dev-loop/src/library-export.mjs.
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -14,11 +14,11 @@ import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
 
-import { appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../../../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
 import { exportLibrary } from "./library-export.mjs";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
 const OUT = "library-export";
 const COMMAND = "pnpm library:export";

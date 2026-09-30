@@ -79,10 +79,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      # scripts/test.mjs starts a throwaway Postgres from this machine's @embedded-postgres package
+      # packages/dev-loop/src/test.mjs starts a throwaway Postgres from this machine's @embedded-postgres package
       # (linux-x64, darwin-arm64 or windows-x64). The live Cloud SQL proof (contract 8.1) is
       # skipped, visibly: CI holds no Google identity. Its first line is the `scope:` decision
-      # (scripts/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
+      # (packages/dev-loop/src/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
       # PASS / FAIL table per package.
       - run: pnpm test
       # Exercise the distributable before merging packaging/updater changes. A source build

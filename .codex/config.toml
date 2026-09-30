@@ -5,6 +5,6 @@ hooks = true
 # serves its own code and no installed app is needed. It waits for the session-start install first.
 [mcp_servers.storytree]
 command = "node"
-args = ["scripts/provision-worktree.mjs", "--serve"]
+args = ["packages/dev-loop/src/provision-worktree.mjs", "--serve"]
 # Codex lanes run with approval_policy "never", which refuses any tool call that asks.
 default_tools_approval_mode = "approve"

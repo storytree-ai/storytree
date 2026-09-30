@@ -1,0 +1,44 @@
+✔ a change inside a package runs that package and every package that depends on it, and no other (12.394851ms)
+✔ a package whose code reaches into another by a relative path depends on it, declared or not (3.615541ms)
+✔ the real workspace's undeclared reach is found: agent-link builds cli's bin by path (56.805609ms)
+✖ a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4) (44.581311ms)
+✔ any file the workspace graph cannot account for runs everything, and says which file (2.394584ms)
+✔ the changes are the branch since it left main plus the working tree, untracked included (64.005412ms)
+✔ an origin/main that cannot be read runs everything, saying so (22.414676ms)
+✔ the decision prints as one scope: line naming what runs and why (3.073423ms)
+✔ a run is one unit per selected package with tests (8.531109ms)
+✔ a package whose tests are .test.mjs files is a unit, and its unit runs them (4.46332ms)
+✔ the package-boundary check runs in every scoped run, since a change inside any one package can break it (9.075482ms)
+✔ --full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached (8.899649ms)
+✔ the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun the failures (0.359883ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 303.732296
+
+✖ failing tests:
+
+test at packages/dev-loop/src/test-scope.test.mjs:102:1
+✖ a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4) (44.581311ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'affected' !== 'full'
+  
+      at TestContext.<anonymous> (file:///home/mickh/code/storytree03/.claude/worktrees/increment-985fb77517d5-219d7d/packages/dev-loop/src/test-scope.test.mjs:104:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'affected',
+    expected: 'full',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

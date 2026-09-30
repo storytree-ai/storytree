@@ -1,4 +1,4 @@
-// The export's rules, which scripts/export-library.mjs runs: how a project in a library prints as
+// The export's rules, which packages/dev-loop/src/export-library.mjs runs: how a project in a library prints as
 // story files (stories/*.md) and decision files (decisions/*.md), in the layout the repo's files had
 // before the library became the one copy of 0.3's own stories and decisions (ADR-0641 D2 step 4,
 // choice F1). The printout is a read-only copy; nothing is ever read back from it. The export only

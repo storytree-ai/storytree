@@ -1,0 +1,21 @@
+✔ a change inside a package runs that package and every package that depends on it, and no other (9.108446ms)
+✔ a package whose code reaches into another by a relative path depends on it, declared or not (2.695135ms)
+✔ the real workspace's undeclared reach is found: agent-link builds cli's bin by path (49.010038ms)
+✔ a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4) (41.998984ms)
+✔ any file the workspace graph cannot account for runs everything, and says which file (2.612929ms)
+✔ the changes are the branch since it left main plus the working tree, untracked included (65.979071ms)
+✔ an origin/main that cannot be read runs everything, saying so (20.394262ms)
+✔ the decision prints as one scope: line naming what runs and why (2.653325ms)
+✔ a run is one unit per selected package with tests (7.32454ms)
+✔ a package whose tests are .test.mjs files is a unit, and its unit runs them (4.444845ms)
+✔ the package-boundary check runs in every scoped run, since a change inside any one package can break it (7.246712ms)
+✔ --full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached (8.328265ms)
+✔ the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun the failures (0.328243ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 281.967221

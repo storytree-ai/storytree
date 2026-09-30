@@ -4,7 +4,7 @@
 // it. This is what stayed of `pnpm seed:library` when its file-to-library half was deleted
 // (ADR-0641 D2 step 4, choice H1).
 //
-// Which library, and as whom (scripts/own-health.mjs's recordingTarget):
+// Which library, and as whom (packages/dev-loop/src/own-health.mjs's recordingTarget):
 // - On CI (.github/workflows/own-health.yml, after each merge to main, ADR-0744 D3), the Cloud SQL
 //   library, signed in as CI's own service account (infra/ci-health), as "storytree test run on
 //   CI", with the commit in each note. With that identity not configured, it says so and records
@@ -12,17 +12,17 @@
 // - Run by hand, the library the storytree setting names (`storytree settings show`): the Cloud SQL
 //   instance, signed in as the setting's account; or the desktop app's own (~/.storytree/0.3/pgdata),
 //   joining the running app's database, or starting the app's Postgres itself when the app is not
-//   running, and holding the one-writer lock while it records (scripts/library-server.mjs), so the
+//   running, and holding the one-writer lock while it records (packages/dev-loop/src/library-server.mjs), so the
 //   app never restarts into an update mid-write.
 //
 // A story's tests are its own package's: the story is proven by the tests in packages/<name>/src,
-// the package named after its title (scripts/own-health.mjs's packageOf), and nobody else's, since
+// the package named after its title (packages/dev-loop/src/own-health.mjs's packageOf), and nobody else's, since
 // every story numbers its contracts from 1.1. A story with no such package has no tests yet, so its
 // contracts are left not checked.
 //
 // Only the verified column is written. The reported column is what an agent says through the agent
 // link, and this never writes it: showing the two apart is the point of the two columns. The rules
-// for what counts as passing live in scripts/own-health.mjs.
+// for what counts as passing live in packages/dev-loop/src/own-health.mjs.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -33,11 +33,11 @@ import { fileURLToPath } from "node:url";
 import { readLibrary } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
 
-import { appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../../../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
 import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, recordingTarget } from "./own-health.mjs";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
 const COMMAND = "pnpm check:own-health";
 

@@ -1,4 +1,4 @@
-// The fresh-worktree install (scripts/provision-worktree.mjs): at session start, a 0.3 worktree that
+// The fresh-worktree install (packages/dev-loop/src/provision-worktree.mjs): at session start, a 0.3 worktree that
 // cannot run its own code gets `pnpm install`, retried once, and the agent is told plainly when it
 // still cannot. The three conditions are 0.2's (ADR-0636 D1, ported per ADR-0633 D2): FRESH (no
 // install ever completed), STALE (pnpm-lock.yaml moved past the install, as after merging main) and

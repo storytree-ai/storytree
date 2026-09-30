@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/provision-worktree.mjs --hook",
+            "command": "node packages/dev-loop/src/provision-worktree.mjs --hook",
             "timeout": 300
           }
         ]

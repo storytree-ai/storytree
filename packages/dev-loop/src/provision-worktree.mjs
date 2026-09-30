@@ -30,7 +30,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const WORKSPACE_GROUPS = ["packages", "apps"];
 
 /** Which condition calls for an install, or undefined when the worktree is installed and current. */

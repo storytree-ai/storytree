@@ -1,10 +1,10 @@
-// What `pnpm test` runs by default (scripts/test-scope.mjs, ADR-0649 D4): only the packages a
+// What `pnpm test` runs by default (test-scope.mjs, ADR-0649 D4): only the packages a
 // branch's changes can reach. The changes are the branch against where it left main
 // (merge-base(origin/main, HEAD)) plus the working tree, untracked files included. Each changed file
 // maps to the workspace package that holds it, and every package that depends on one of those is
 // added, by a declared dependency or by a path in its code that reaches into the other package. Any
 // file the workspace graph cannot account for runs everything: root files, any package.json, the
-// lockfile, scripts/**, a file in no package, a package the test harness itself runs on, and an
+// lockfile, a file in no package, a package the test harness itself runs on (the dev loop among them), and an
 // origin/main that cannot be read. The decision is printed as one `scope:` line, CI takes the same
 // one, and a run reports each package as PASS or FAIL and can rerun only the failures.
 import assert from "node:assert/strict";
@@ -26,7 +26,7 @@ import {
   unitGlobs,
 } from "./test-scope.mjs";
 
-const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 /** A workspace on disk: `packages` maps a dir to its manifest and any files it holds. */
 function workspace(t, { rootDeps = {}, packages }) {
@@ -99,6 +99,12 @@ test("the real workspace's undeclared reach is found: agent-link builds cli's bi
   assert.ok(classify(["packages/cli/src/bins/storytree.ts"], ws).dirs.includes("packages/agent-link"));
 });
 
+test("a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4)", () => {
+  const decision = classify(["packages/dev-loop/src/gate.mjs"], readWorkspace(repoRoot));
+  assert.equal(decision.mode, "full");
+  assert.match(decision.reason, /@storytree\/dev-loop/);
+});
+
 test("any file the workspace graph cannot account for runs everything, and says which file", (t) => {
   const ws = readWorkspace(fixture(t));
   const wide = {
@@ -108,7 +114,6 @@ test("any file the workspace graph cannot account for runs everything, and says 
     "pnpm-workspace.yaml": /pnpm-workspace\.yaml/,
     "package.json": /package\.json/,
     "packages/forest/package.json": /package\.json/,
-    "scripts/test.mjs": /scripts\/test\.mjs/,
     ".github/workflows/ci.yml": /ci\.yml/,
     "packages/README.md": /no workspace package/,
     "packages/gone/src/old.ts": /no workspace package/,
@@ -174,10 +179,9 @@ test("the decision prints as one scope: line naming what runs and why", (t) => {
   assert.match(full, /pnpm-lock\.yaml/);
 });
 
-test("a run is one unit per selected package with tests, plus scripts/ when everything runs", (t) => {
+test("a run is one unit per selected package with tests", (t) => {
   const root = fixture(t);
   const ws = readWorkspace(root);
-  write(root, "scripts/s.test.mjs", "");
   mkdirSync(path.join(root, "packages/empty/src"), { recursive: true });
   write(root, "packages/empty/package.json", JSON.stringify({ name: "@x/empty" }));
   const all = readWorkspace(root);
@@ -193,7 +197,6 @@ test("a run is one unit per selected package with tests, plus scripts/ when ever
     "packages/forest",
     "packages/library",
     "packages/pg",
-    "scripts",
   ], "a package with no test files is no unit");
 });
 
@@ -214,16 +217,18 @@ test("the package-boundary check runs in every scoped run, since a change inside
   const decision = classify(["packages/agent-link/src/x.ts"], ws);
   assert.deepEqual(planRun({ root, workspace: ws, decision }).units, ["packages/agent-link", "packages/cli"], "until the check exists");
 
-  write(root, "scripts/package-boundaries.test.mjs", "");
-  write(root, "scripts/other.test.mjs", "");
-  assert.deepEqual(planRun({ root, workspace: ws, decision }).units, [
+  write(root, "packages/dev-loop/package.json", JSON.stringify({ name: "@x/dev-loop" }));
+  write(root, "packages/dev-loop/src/package-boundaries.test.mjs", "");
+  write(root, "packages/dev-loop/src/other.test.mjs", "");
+  const withLoop = readWorkspace(root);
+  assert.deepEqual(planRun({ root, workspace: withLoop, decision }).units, [
     "packages/agent-link",
     "packages/cli",
-    "scripts/package-boundaries.test.mjs",
+    "packages/dev-loop/src/package-boundaries.test.mjs",
   ]);
-  assert.deepEqual(unitGlobs("scripts/package-boundaries.test.mjs"), ["scripts/package-boundaries.test.mjs"]);
-  const all = planRun({ root, workspace: ws, decision: classify(["README.md"], ws) }).units;
-  assert.ok(all.includes("scripts") && !all.includes("scripts/package-boundaries.test.mjs"), "a full run has it in scripts/ already");
+  assert.deepEqual(unitGlobs("packages/dev-loop/src/package-boundaries.test.mjs"), ["packages/dev-loop/src/package-boundaries.test.mjs"]);
+  const all = planRun({ root, workspace: withLoop, decision: classify(["README.md"], withLoop) }).units;
+  assert.ok(all.includes("packages/dev-loop") && !all.includes("packages/dev-loop/src/package-boundaries.test.mjs"), "a full run has it in its package already");
 });
 
 test("--full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {

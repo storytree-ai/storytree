@@ -16,8 +16,8 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
-import { appDirIn, buildApp, electronIn, setUpRuntime } from "../packages/app/src/updates/follow-main.ts";
-import { appHome } from "../apps/desktop/src/home.ts";
+import { appDirIn, buildApp, electronIn, setUpRuntime } from "@storytree/app";
+import { appHome } from "../../../apps/desktop/src/home.ts";
 
 const ORIGIN = "https://github.com/storytree-ai/storytree.git";
 

@@ -2,7 +2,7 @@
  * Helpers for the command line's tests: the real, built `storytree` command run as a person's shell
  * runs it, in a throwaway folder and storytree home, against the Postgres `pnpm test` provides.
  *
- * `pnpm test` (scripts/test.mjs) starts a throwaway local server through @storytree/local-postgres
+ * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/local-postgres
  * and hands it to the tests as STORYTREE_TEST_PG_URL, with its data directory as
  * STORYTREE_TEST_PG_DATA. "Storytree running" is that server: a throwaway storytree home holds a
  * copy of its owner record, where the app's would be. A Postgres test must never skip silently, so

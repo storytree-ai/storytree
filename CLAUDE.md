@@ -5,7 +5,7 @@ card instead. Everything below the generated region's first marker comes from th
 this project's library (ADR-0636 D1); edit those, not this file, then run `pnpm build:guidance`.
 The text above that marker is written by hand, and it counts toward the file's 40,000-byte budget.
 
-- A fresh or stale worktree is installed at session start (`scripts/provision-worktree.mjs`).
+- A fresh or stale worktree is installed at session start (`packages/dev-loop/src/provision-worktree.mjs`).
 - `pnpm gate` runs typecheck, scoped tests and the guidance check in one foreground run, with a
   PASS / FAIL / NOT RUN table. Guidance runs when generated roles changed; otherwise it is NOT RUN
   with the reason. After editing a role or note in the library, use `pnpm run gate --guidance`, even

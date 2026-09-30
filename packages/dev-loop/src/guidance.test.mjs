@@ -1,4 +1,4 @@
-// The generated guidance (scripts/guidance.mjs): 0.3's own CLAUDE.md region, AGENTS.md and the
+// The generated guidance (packages/dev-loop/src/guidance.mjs): 0.3's own CLAUDE.md region, AGENTS.md and the
 // Claude Code and Codex role files are generated from the agent roles in the library, checked for
 // drift against it, and held to a size budget (ADR-0636 D1, b5; 0.2's `build:guidance` /
 // `build:agents` / `check:guidance` / `check:agents`, ported as behaviour per ADR-0633 D2).

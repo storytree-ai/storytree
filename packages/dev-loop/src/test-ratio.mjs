@@ -6,7 +6,7 @@
 // Only code lines are counted: a line holding something besides whitespace and comments. Comments
 // are told from code by following strings, template literals and regular expressions, so the `//`
 // in "https://" is not a comment. The files are the .ts, .tsx, .mts, .cts, .js, .mjs and .cjs files
-// git knows about (tracked, or new and not ignored) under packages/, apps/ and scripts/. A file is
+// git knows about (tracked, or new and not ignored) under packages/ and apps/. A file is
 // test code when its name has `.test.` in it, it is named test.<ext> (the test harness), it sits in
 // a testing/ directory, or it imports node:test (a shared behaviour suite does); every other file is
 // implementation.
@@ -16,7 +16,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 
 /** What a `/` can follow and start a regular expression rather than divide. */
@@ -25,7 +25,7 @@ const WORDS_BEFORE_REGEX = new Set(["return", "typeof", "instanceof", "in", "of"
 
 const listed = execFileSync(
   "git",
-  ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "packages", "apps", "scripts"],
+  ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "packages", "apps"],
   { cwd: root, encoding: "utf8" },
 );
 const files = [...new Set(listed.split("\0"))].filter((file) => SOURCE.test(file) && existsSync(path.join(root, file)));
@@ -34,7 +34,7 @@ const groups = new Map();
 for (const file of files.sort()) {
   const source = readFileSync(path.join(root, file), "utf8");
   const [top, name] = file.split("/");
-  const group = top === "scripts" ? "scripts" : `${top}/${name}`;
+  const group = `${top}/${name}`;
   const counts = groups.get(group) ?? { test: 0, implementation: 0 };
   counts[isTest(file, source) ? "test" : "implementation"] += codeLines(source);
   groups.set(group, counts);

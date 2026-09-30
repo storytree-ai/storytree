@@ -17,7 +17,7 @@ import pg from "pg";
 
 import { DataDirInUseError } from "@storytree/local-postgres";
 
-import { SEED_CONNECTION } from "../packages/app/src/updates/seed-writing.ts";
+import { SEED_CONNECTION } from "@storytree/app";
 
 /** The advisory lock a seed holds while it writes: any fixed number, the same in every seed. */
 const SEED_LOCK = 3_000_300;
@@ -83,7 +83,7 @@ export async function appLibraryServer(command, { writes, log = (line) => consol
   const [{ start }, { locateStorytree }, { APP_OWNER, appHome }] = await Promise.all([
     import("@storytree/local-postgres"),
     import("@storytree/agent-link"),
-    import("../apps/desktop/src/home.ts"),
+    import("../../../apps/desktop/src/home.ts"),
   ]);
   const server = await libraryServer({
     dataDir: appHome().pgdata,

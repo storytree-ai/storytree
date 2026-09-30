@@ -14,6 +14,8 @@ export interface Next {
 export interface Answer {
   readonly text: string;
   readonly next?: readonly Next[];
+  /** Print `text` exactly as it is, with no next steps and nothing trimmed or added: a value to pipe or save. */
+  readonly raw?: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export class Refusal extends Error {
 
 /** An answer as the terminal shows it. */
 export function render(answer: Answer): string {
+  if (answer.raw === true) return answer.text;
   const text = answer.text.replace(/\s+$/, "");
   const next = answer.next ?? [];
   if (next.length === 0) return `${text}\n`;

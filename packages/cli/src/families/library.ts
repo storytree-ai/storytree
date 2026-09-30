@@ -151,12 +151,18 @@ const create: Verb = {
 
 const read: Verb = {
   name: "read",
-  usage: "library read <id>",
-  summary: "a record, whole",
+  usage: "library read <id> [--field <name>]",
+  summary: "a record, whole; or one field exactly as stored, nothing else",
   async act(args, context) {
     const id = args.word(0, "the record's id", this.usage);
     const record = await (await context.library()).get(id);
     if (record === null) throw new Refusal(`no record "${id}" in this project`);
+    const field = args.text("field");
+    if (field !== undefined) {
+      const value = Object.hasOwn(record.fields, field) ? (record.fields as Record<string, unknown>)[field] : undefined;
+      if (value === undefined) throw new Refusal(`${id} has no field "${field}"; its fields are ${Object.keys(record.fields).join(", ")}`);
+      return { text: typeof value === "string" ? value : JSON.stringify(value, null, 2), raw: true };
+    }
     const fields = Object.entries(record.fields).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
     return {
       text: [`${record.id}  [${record.type}]  schema ${record.version}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields].join("\n"),

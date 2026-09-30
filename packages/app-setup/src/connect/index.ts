@@ -56,7 +56,7 @@ const hookCommand = (installed: InstalledToolServerCommand) => ({ node: installe
 const executable = (harness: Harness) => harness === "claude-code" ? "claude" : "codex";
 async function openSettings(harness: Harness, options: ConnectionOptions): Promise<Settings> {
   const where = locations(options);
-  return harness === "claude-code" ? claudeSettings(where.files[harness]) : codexSettings(where.files[harness], options.run ?? runHarness, where.env);
+  return harness === "claude-code" ? claudeSettings(where.files[harness]) : codexSettings(where.files[harness], options.run ?? runHarness, where.env, where.codex === path.join(where.home, ".codex") ? undefined : where.codex);
 }
 const ELEVATED = "This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not \"Run as administrator\".";
 const conflict = (file: string) => `The existing storytree entry in ${file} is incompatible and was kept (including any 0.2 entry). Review or move that entry yourself before retrying. The name storytree is required by the existing hooks.`;

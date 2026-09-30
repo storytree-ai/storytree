@@ -229,6 +229,55 @@ test("recordHealth writes as the writer it is given: a run on CI says so, with i
   });
 });
 
+test("5.5 judge reads a skipped contract's skip kind from its skip reason's first word: owner, platform:<os>, or other", () => {
+  const result = (name, status, extra = {}) => ({ name, suites: [], file: "a.test.ts", status, ...extra });
+  const { verdicts } = judge({
+    contracts: ["1.1", "1.2", "1.3", "1.4"],
+    results: [
+      result("1.1 live proof", "skipped", { message: "owner: live Cloud SQL proof needs a sign-in" }),
+      result("1.2 cmd.exe", "skipped", { message: "platform:win32: only Windows reads the .cmd again" }),
+      result("1.3 later", "skipped", { message: "no server here" }),
+      result("1.4 runs", "passed"),
+    ],
+    coverage: () => new Set(),
+  });
+  assert.deepEqual(["1.1", "1.2", "1.3", "1.4"].map((number) => verdicts.get(number).skip), ["owner", "platform:win32", "other", undefined]);
+});
+
+test("5.5 recordHealth records a skip's kind, marks a verdict the run did not reproduce as not re-run at the commit, and writes the same mark only once", async () => {
+  await withLibrary(async (lib) => {
+    const { contractIds } = contractsOf(await kettle(lib));
+    const id = (number) => contractIds.get(number);
+    const failed = await lib.recordVerified(id("1.1"), "failing", { by: "storytree test run", note: "11/13 tests passed" });
+    const passed = await lib.recordVerified(id("1.3"), "passing", { by: "storytree test run" });
+    const writer = { by: "storytree test run on CI", commit: "abc123" };
+    const verdicts = new Map([
+      ["1.1", { number: "1.1", state: "not-checked", skip: "owner", reason: "1 of 1 tests skipped (owner: needs a sign-in)" }],
+      ["1.2", { number: "1.2", state: "not-checked", skip: "platform:win32", reason: "1 of 1 tests skipped" }],
+      ["1.3", { number: "1.3", state: "not-checked", reason: "a.test.ts produced no results" }],
+      ["1.4", { number: "1.4", state: "not-checked", reason: "no tests" }],
+    ]);
+
+    await recordHealth(lib, contractIds, verdicts, writer);
+
+    const verified = async (number) => (await lib.health(id(number))).verified;
+    const owner = await verified("1.1");
+    assert.equal(owner.state, "not-checked");
+    assert.equal(owner.skip, "owner");
+    assert.deepEqual(owner.was, { state: "failing", at: failed.at }, "the failing it did not reproduce");
+    assert.match(owner.note, /^not re-run at commit abc123: 1 of 1 tests skipped/);
+    assert.deepEqual((await lib.healthHistory(id("1.1"))).map(({ state }) => state), ["failing", "not-checked"], "history keeps the old verdict");
+    assert.equal((await verified("1.2")).skip, "platform:win32", "a skip is recorded even with nothing earlier");
+    assert.deepEqual((await verified("1.3")).was, { state: "passing", at: passed.at }, "a verdict a crash left unreproduced");
+    assert.equal((await verified("1.3")).skip, undefined);
+    assert.deepEqual(await lib.healthHistory(id("1.4")), [], "nothing earlier and no skip: nothing to write");
+
+    await recordHealth(lib, contractIds, verdicts, { ...writer, commit: "def456" });
+    assert.equal((await lib.healthHistory(id("1.1"))).length, 2, "the same mark is not written again");
+    assert.match((await verified("1.1")).note, /abc123/, "it still says since when");
+  });
+});
+
 const CI = {
   GITHUB_ACTIONS: "true",
   GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6",

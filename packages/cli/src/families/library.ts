@@ -72,14 +72,14 @@ const ELSEWHERE: Readonly<Record<string, string>> = {
 const search: Verb = {
   name: "search",
   usage: "library search <words…> [--limit <n>]",
-  summary: "the artifacts closest in meaning to the words, best first (10 unless --limit)",
+  summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit)",
   async act(args, context) {
     const query = args.words.join(" ").trim();
     if (query === "") throw new Refusal(`this needs the words to search for\nusage: storytree ${this.usage}`, { code: 2 });
     const limit = args.text("limit");
     if (limit !== undefined && !/^[1-9]\d*$/.test(limit)) throw new Refusal(`--limit is how many to show, a whole number above 0; got "${limit}"`, { code: 2 });
-    const ranked = await (await context.library()).rank(query, limit === undefined ? {} : { limit: Number(limit) });
-    const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the artifacts holding every word of "${query}":`;
+    const ranked = await (await context.library()).rankAll(query, limit === undefined ? {} : { limit: Number(limit) });
+    const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the records holding every word of "${query}":`;
     if (ranked.hits.length === 0) return { text: `${heading}\n  none` };
     const lines = ranked.hits.map(({ note, score }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${note.type}]  ${labelOf(note.fields)}`);
     return {

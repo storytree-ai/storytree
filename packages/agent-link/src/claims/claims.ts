@@ -99,7 +99,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     const current = (await heldNow(log, context)).get(id);
     const mine = current?.session === context.session;
     if (mine && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
-    if (current?.holder === "live") return { ok: false, refused: "held", holder: current };
+    if (!mine && current?.holder === "live") return { ok: false, refused: "held", holder: current };
     // A claim may have waited for this lock without needing any library write at all.
     context.writer?.signal?.throwIfAborted();
     // Activation takes the library lock and checks cancellation there, before any claimed line.

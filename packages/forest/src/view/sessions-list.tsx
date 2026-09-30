@@ -38,7 +38,7 @@ function detailsOf(reading: ContextReading): SessionDetails {
 export function isSessionRows(value: unknown): value is SessionRow[] {
   return Array.isArray(value) && value.every((row: Partial<SessionRow> | null) => typeof row === "object" && row !== null
     && typeof row.id === "string" && typeof row.label === "string" && typeof row.agent === "string" && typeof row.state === "string"
-    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && Array.isArray(row.unmerged) && Array.isArray(row.description) && isSessionRows(row.children));
+    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && row.worktrees.every(tree => typeof tree?.path === "string") && Array.isArray(row.description) && isSessionRows(row.children));
 }
 
 function everyId(rows: readonly SessionRow[]): string[] {
@@ -214,7 +214,8 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
     {row.worktrees.length > 0 && <>
       <p className="session-detail-label">Worktrees</p>
       <ul className="session-detail-worktrees" aria-label="Worktrees">
-        {row.worktrees.map(path => <li key={path} title={path}>{folderName(path)}</li>)}</ul></>}
+        {row.worktrees.map(tree => <li key={tree.path} title={[tree.path, ...tree.branches].join("\n")}>{folderName(tree.path)}
+          {tree.state !== undefined && <span className="session-worktree-state" data-state={tree.state}>{tree.state}</span>}</li>)}</ul></>}
     <p className="session-detail-label">Files</p>
     {files === undefined ? <p className="session-detail-note">Reading files…</p>
       : "absent" in files ? <p className="session-detail-note">No files: {files.absent}</p>
@@ -310,10 +311,10 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
             onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
           {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
-          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.join("\n")}` : ""}`}>{row.label}</span>
+          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
           {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}
           {row.children.length > 0 && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
-          {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.join("\n")}
+          {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}
             aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
           <ContextBar row={row} />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>

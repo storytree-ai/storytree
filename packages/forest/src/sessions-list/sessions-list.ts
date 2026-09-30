@@ -1,5 +1,5 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
-import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type SessionState } from "@storytree/agent-link/readings";
+import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type Session, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -21,6 +21,13 @@ export interface SessionDetails {
   /** The user's context guidance in tokens, as the reading carried it (agent link 9.7). */
   guidance?: number | undefined;
 }
+/** A folder a session worked in: the branches it recorded there, and, when it recorded any, whether one still holds open work (unmerged) or none does (merged). */
+export interface WorktreeRow {
+  path: string;
+  branches: string[];
+  state?: "unmerged" | "merged";
+}
+
 export interface SessionRow {
   id: string;
   label: string;
@@ -38,10 +45,8 @@ export interface SessionRow {
   /** Where the bar marks the user's context guidance, when the reading carried it. */
   guidance?: number | undefined;
   stories: string[];
-  /** Every folder the session has worked in, oldest first (ADR-0749 D2); none for an observed subagent. */
-  worktrees: string[];
-  /** Its branches that still hold unmerged work (ADR-0754 D4): a session that has not cleaned up, marked so it can be looked into. */
-  unmerged: string[];
+  /** Every folder the session has worked in, oldest first (ADR-0749 D2), each labelled by its branch (7.15); none for an observed subagent. */
+  worktrees: WorktreeRow[];
   /** Up to three lines saying what it is doing (7.14), from recorded words only: its app's title, its increment's objective, its app's latest status. */
   description: string[];
   /** The machine it runs on, named only when the listed sessions span more than one (7.13). */
@@ -87,8 +92,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
       agent: session.label, state: session.state,
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
-      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees,
-      unmerged: session.openWork, children: [] });
+      stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: worktreeRows(session), children: [] });
   }
   // The activity API explicitly names parent and child; a task or matching folder never implies one.
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
@@ -96,7 +100,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
       agent: line.type ?? "Subagent", state: "observed", idle: false,
-      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], unmerged: [], description: [], children: [] });
+      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], description: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
   const roots: SessionRow[] = [];
@@ -124,6 +128,19 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     for (const row of roots) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
   }
   return roots;
+}
+
+/** A session's worktrees, each with the branches recorded there (7.15); a branch with no folder to fold under is listed by its own name. */
+function worktreeRows(session: Session): WorktreeRow[] {
+  const folders = new Map<string, { branches: string[]; open: boolean }>(session.worktrees.map(path => [path, { branches: [], open: false }]));
+  for (const { folder, branch, open } of session.branchesByFolder) {
+    const path = folder ?? session.worktrees.at(-1) ?? branch;
+    const at = folders.get(path) ?? { branches: [], open: false };
+    folders.set(path, at);
+    if (!at.branches.includes(branch)) at.branches.push(branch);
+    at.open ||= open;
+  }
+  return [...folders].map(([path, { branches, open }]) => ({ path, branches, ...(branches.length === 0 ? {} : { state: open ? "unmerged" as const : "merged" as const }) }));
 }
 
 /** How many listed sessions are at work, as the list's header counts them (ADR-0758 D1): every row not folded as idle. */

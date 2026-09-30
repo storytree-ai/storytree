@@ -30,3 +30,12 @@ export function releaseVersion(base: string, mainCount: number): string {
   const [major, minor] = base.split(".");
   return `${major}.${minor}.${mainCount}`;
 }
+
+/** Runs git and answers its trimmed output. */
+export type Git = (...args: string[]) => string;
+
+/** The 0.3.<n> of `commit`, whether the desktop app or the command line reports it (ADR-0753 D2): the desktop app's base version as committed there, and main's first-parent count at it. */
+export function versionAt(git: Git, commit: string): string {
+  const base = (JSON.parse(git("show", `${commit}:apps/desktop/package.json`)) as { version: string }).version;
+  return releaseVersion(base, Number(git("rev-list", "--first-parent", "--count", commit)));
+}

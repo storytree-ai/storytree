@@ -17,6 +17,7 @@
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
 import { currentBranch, openActivityLog, readClaims, route, thisMachine, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
+import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
 import { Refusal, render, type Answer } from "./answer.js";
@@ -113,12 +114,20 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
 async function dispatch(argv: readonly string[], context: Context): Promise<Answer> {
   const [first, ...rest] = argv;
   if (first === undefined || first === "--help" || first === "-h" || first === "help") return families();
+  if (first === "--version") return version();
   const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
   if (family === undefined) {
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
     throw unknown("storytree", first, (Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined) ?? nearest(first, named), "Its families", named);
   }
   return dispatchIn(family, family.name, rest, context);
+}
+
+/** `storytree --version`: the 0.3.<n> of the build this command comes from (ADR-0753 D2). */
+function version(): Answer {
+  const build = sourceVersion();
+  if (build === undefined) throw new Refusal("storytree cannot tell its version: this build is not in a storytree checkout and carries no release version.");
+  return { text: `storytree ${build.version} (${build.commit})` };
 }
 
 /** Run `words` in `family`, which `storytree <path>` names. */

@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import { releaseSource, releaseVersion } from "../../packages/app/src/updates/release-source.ts";
+import { releaseSource, versionAt } from "../../packages/app/src/updates/release-source.ts";
 
 const repository = "storytree-ai/storytree";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -43,8 +43,7 @@ if (process.argv[2] === "source") {
     console.log("No successfully checked merge to release.");
   } else {
     onMain(sha);
-    const base = JSON.parse(git("show", `${sha}:apps/desktop/package.json`)).version;
-    const version = releaseVersion(base, Number(git("rev-list", "--first-parent", "--count", sha)));
+    const version = versionAt(git, sha);
     if (newerThanPublished(version)) {
       output("sha", sha);
       output("version", version);

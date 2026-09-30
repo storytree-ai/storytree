@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 function machine(t) {
   const dir = mkdtempSync(path.join(tmpdir(), "heavy-lock-"));
@@ -29,7 +29,7 @@ test("slow", async () => {
   const env = { ...process.env, STORYTREE_HOME: home, STORYTREE_TEST_PG_URL: "postgres://unused" };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
   const harness = (run) => {
-    const child = spawn(process.execPath, ["--import", "tsx", "scripts/test.mjs", file], { cwd: root, env: { ...env, RUN: run }, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", file], { cwd: root, env: { ...env, RUN: run }, stdio: ["ignore", "pipe", "pipe"] });
     let output = "";
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));

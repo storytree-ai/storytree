@@ -6,13 +6,13 @@
 //
 // Like `pnpm check:own-health`, it writes into the running app's database, or starts the app's Postgres
 // itself when the app is not running, and never writes at the same time as another library script
-// (scripts/library-server.mjs).
+// (packages/dev-loop/src/library-server.mjs).
 
 import { readFileSync } from "node:fs";
 
 import { connect, RestoreRefusedError } from "@storytree/library";
 
-import { appHome } from "../apps/desktop/src/home.ts";
+import { appHome } from "../../../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
 
 const COMMAND = "pnpm library:restore";

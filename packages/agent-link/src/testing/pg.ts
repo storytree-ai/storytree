@@ -1,7 +1,7 @@
 /**
  * Helpers for the agent link's tests that need a real Postgres.
  *
- * `pnpm test` (scripts/test.mjs) starts a throwaway local server through @storytree/local-postgres
+ * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/local-postgres
  * and hands it to the tests as STORYTREE_TEST_PG_URL, with its data directory as
  * STORYTREE_TEST_PG_DATA. A Postgres test must never skip silently, so asking for either when it is
  * missing throws.

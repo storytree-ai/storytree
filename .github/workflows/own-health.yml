@@ -2,7 +2,7 @@ name: Own health
 
 # After each change to main, run each of storytree 0.3's own stories' tests and record each
 # contract's VERIFIED health in the library on Cloud SQL (ADR-0744 D3-D4): `pnpm check:own-health`,
-# the same rules a hand run uses (scripts/own-health.mjs), written as "storytree test run on CI"
+# the same rules a hand run uses (packages/dev-loop/src/own-health.mjs), written as "storytree test run on CI"
 # with the commit in each note. Never from a pull request's run: only main's own commits are
 # recorded.
 #

@@ -11,6 +11,9 @@ importers:
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:packages/agent-link
+      '@storytree/dev-loop':
+        specifier: workspace:*
+        version: link:packages/dev-loop
       '@storytree/library':
         specifier: workspace:*
         version: link:packages/library
@@ -254,6 +257,27 @@ importers:
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
+
+  packages/dev-loop:
+    dependencies:
+      '@storytree/agent-link':
+        specifier: workspace:*
+        version: link:../agent-link
+      '@storytree/app':
+        specifier: workspace:*
+        version: link:../app
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
   packages/forest:
     dependencies:

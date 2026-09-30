@@ -4,7 +4,7 @@
 // left the committed files unchanged. A hand-written CLAUDE.md header edit alone is not one.
 // Flags go as `pnpm run gate --guidance`: Windows PowerShell 5.1 drops a bare `--` before pnpm
 // sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
-// The gate holds the machine's heavy-run lock (scripts/heavy-lock.mjs) for its whole run, so
+// The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
 // concurrent sessions' gates queue; its test step runs under that hold.
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -15,7 +15,7 @@ import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { REGION_START, REGION_END, ROLE_DIRS } from "./guidance.mjs";
 import { changedFiles, resultsTable } from "./test-scope.mjs";
 
-const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 /** Check generated roles automatically; require the check when Git cannot establish the changes. */
 export function guidanceFor(root, requested = false) {
@@ -82,8 +82,8 @@ function runCheck(step, { root, signal, forceSignal }) {
   let command = process.execPath;
   let args;
   let shell = false;
-  if (step === "test") args = ["--import", "tsx", "scripts/test.mjs"];
-  else if (step === "check:guidance") args = ["--import", "tsx", "scripts/build-guidance.mjs", "--check"];
+  if (step === "test") args = ["--import", "tsx", "packages/dev-loop/src/test.mjs"];
+  else if (step === "check:guidance") args = ["--import", "tsx", "packages/dev-loop/src/build-guidance.mjs", "--check"];
   else if (process.env.npm_execpath) args = [process.env.npm_execpath, "run", "typecheck"];
   else {
     command = "pnpm";

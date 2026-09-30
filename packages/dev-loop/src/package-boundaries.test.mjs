@@ -1,7 +1,7 @@
 // Each story keeps its code in its own package (ADR-0649 D1-D3, in storytree 0.2's decision log):
 // a story has a package, the frame (packages/app, apps/desktop) and the front door (packages/cli)
 // hold no story's code, and no package reaches into another story's files. The rules live in
-// scripts/package-boundaries.mjs; this file is how `pnpm test` and CI refuse a change that breaks
+// packages/dev-loop/src/package-boundaries.mjs; this file is how `pnpm test` and CI refuse a change that breaks
 // them. Each planted tree below starts from a repo that keeps the rules and breaks one.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import { boundaryProblems } from "./package-boundaries.mjs";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 test("this repo keeps every story in its own package, behind a thin frame and front door", () => {
   assert.deepEqual(boundaryProblems(root), []);

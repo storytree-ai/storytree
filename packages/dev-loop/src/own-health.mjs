@@ -1,4 +1,4 @@
-// The rules `pnpm check:own-health` (scripts/check-own-health.mjs) runs: how a run of a story's
+// The rules `pnpm check:own-health` (packages/dev-loop/src/check-own-health.mjs) runs: how a run of a story's
 // tests becomes each of its contracts' VERIFIED health in 0.3's own library (ADR-0641 D2 step 4,
 // choice H1). The library is the one copy of 0.3's own stories, so a story's contracts and their
 // numbers are read from it, and its tests are its own package's: the package named after the

@@ -1,4 +1,4 @@
-// The export's rules (scripts/library-export.mjs): a project in a library prints as read-only story
+// The export's rules (packages/dev-loop/src/library-export.mjs): a project in a library prints as read-only story
 // and decision files, each story block in its place, and printing writes nothing to the library. The test
 // builds its project through the library's public API, as 0.3's own sessions now write stories, and
 // runs against the Postgres `pnpm test` provides (STORYTREE_TEST_PG_URL), in a project of its own

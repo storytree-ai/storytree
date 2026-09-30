@@ -1,4 +1,4 @@
-// `pnpm library:restore <snapshot.json> [--project <name>]` (scripts/restore-library.mjs): the
+// `pnpm library:restore <snapshot.json> [--project <name>]` (packages/dev-loop/src/restore-library.mjs): the
 // snapshot path is read whether or not --project is given. Run as a child process with a snapshot
 // that does not exist, so it fails at reading the file, before any database is started.
 import assert from "node:assert/strict";
@@ -9,13 +9,13 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 /** The script's exit and stderr, run with `args` in a throwaway home. */
 function restore(args) {
   const home = mkdtempSync(path.join(tmpdir(), "restore-args-"));
   try {
-    const run = spawnSync(process.execPath, ["--import", "tsx", "scripts/restore-library.mjs", ...args], {
+    const run = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/restore-library.mjs", ...args], {
       cwd: root,
       encoding: "utf8",
       env: { ...process.env, STORYTREE_HOME: home },

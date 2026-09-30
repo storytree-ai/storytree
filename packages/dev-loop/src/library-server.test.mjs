@@ -1,4 +1,4 @@
-// How `pnpm seed:library` reaches the app's library (scripts/library-server.mjs): it joins the
+// How `pnpm seed:library` reaches the app's library (packages/dev-loop/src/library-server.mjs): it joins the
 // running app's database instead of refusing, waits its turn behind another seed instead of
 // refusing, and never writes at the same time as another seed. Seen 2026-09-27: the seed refused
 // while the app ran in its tray, and a sibling session's seed held the library for many minutes
@@ -82,7 +82,7 @@ test("the seed gives up waiting only after its deadline, naming the holder", asy
 });
 
 // A timeout, so a waiter that never gets the lock fails this test instead of hanging it; the
-// harness's own limits (scripts/unit-run.mjs) end the process if an open connection outlives it.
+// harness's own limits (packages/dev-loop/src/unit-run.mjs) end the process if an open connection outlives it.
 test("two seeds never write at once: the second waits for the first's writing lock", { timeout: 60_000 }, async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");

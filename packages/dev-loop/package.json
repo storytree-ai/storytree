@@ -1,0 +1,14 @@
+{
+  "name": "@storytree/dev-loop",
+  "private": true,
+  "type": "module",
+  "description": "The dev loop (story_95ed402f9bd3, ADR-0805 D3): the test runner and its scoping, the gate, worktree provisioning, the guidance build, the library's export, restore and server, own health and the package-boundary check. The root package.json's commands and CI run them from here.",
+  "dependencies": {
+    "@storytree/agent-link": "workspace:*",
+    "@storytree/app": "workspace:*",
+    "@storytree/library": "workspace:*",
+    "@storytree/local-postgres": "workspace:*",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15"
+  }
+}

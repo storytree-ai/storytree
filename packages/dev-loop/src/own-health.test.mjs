@@ -1,4 +1,4 @@
-// The rules of `pnpm check:own-health` (scripts/own-health.mjs): how a test run's results become
+// The rules of `pnpm check:own-health` (packages/dev-loop/src/own-health.mjs): how a test run's results become
 // each contract's verified health, and how a story's contracts and its package are read from 0.3's
 // own library. The parsing and judging tests are pure; the library tests run against the Postgres
 // `pnpm test` provides (STORYTREE_TEST_PG_URL), each in a project of its own that is dropped
@@ -16,7 +16,7 @@ import pg from "pg";
 
 import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, recordingTarget } from "./own-health.mjs";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 const librarySrc = path.join(root, "packages", "library", "src");
 
 test("parseJunit reads each test's name, the suites around it, its file, and whether it passed, failed or was skipped", () => {

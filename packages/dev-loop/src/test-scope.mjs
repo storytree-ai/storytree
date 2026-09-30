@@ -1,5 +1,5 @@
 // What `pnpm test` runs by default (ADR-0649 D4): only the packages a branch's changes can reach.
-// scripts/test.mjs runs it, locally and in CI alike, so the two never decide differently.
+// test.mjs runs it, locally and in CI alike, so the two never decide differently.
 //
 // The changes are the branch against where it left main, merge-base(origin/main, HEAD), plus the
 // working tree, untracked files included. Each changed file maps to the workspace package
@@ -10,8 +10,9 @@
 //
 // It fails WIDE: whatever the workspace graph cannot account for runs everything. That is a root
 // file (README.md, stories/, decisions/, tsconfig.base.json, .github/, ...), any package.json (the
-// graph's own input), the lockfile, scripts/**, a file in no package, a package the root workspace
-// depends on (the test harness and scripts/ run on it, so every test does), no change at all, and an
+// graph's own input), the lockfile, a file in no package, a package the root workspace depends on
+// (the dev loop, whose runner, scoper and gate decide how every test runs, ADR-0805 D4, and the
+// packages it runs on), no change at all, and an
 // origin/main that cannot be read. Running a suite a change could not reach costs minutes; skipping
 // one it could reach merges untested code, so every doubt resolves to the full run. A root path is
 // narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
@@ -24,15 +25,12 @@ const WORKSPACE_ROOTS = ["packages", "apps"];
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const RELATIVE_PATH = /["'`]((?:\.\.\/)+[^"'`$\r\n]*)["'`]/g;
 
-/** The unit that holds scripts/*.test.mjs: it runs only when everything does. */
-export const SCRIPTS_UNIT = "scripts";
-
 /**
  * Checks that a change inside any one package can fail, so every scoped run carries them as units
- * of their own (a full run has them in scripts/ already). The package-boundary check (ADR-0649 D3)
+ * of their own (a full run has them in their package already). The package-boundary check (ADR-0649 D3)
  * is one: a story's code landing in the frame is a change to the frame alone.
  */
-const ALWAYS_RUN = ["scripts/package-boundaries.test.mjs"];
+const ALWAYS_RUN = ["packages/dev-loop/src/package-boundaries.test.mjs"];
 
 /**
  * The workspace packages: each one's name, its dir (repo-relative, posix), the workspace packages
@@ -117,7 +115,7 @@ export function classify(files, workspace) {
       return full(inWorkspace ? `${file} changed and is in no workspace package` : `${file} changed outside the workspace packages`);
     }
     if (workspace.rootDeps?.includes(owner.name)) {
-      return full(`${file} changed in ${owner.name}, which the test harness and scripts/ run on`);
+      return full(`${file} changed in ${owner.name}, which the test harness runs on`);
     }
     touched.add(owner.dir);
   }
@@ -176,15 +174,14 @@ export function scopeLine(decision) {
 
 /**
  * The units a run executes, after the flags: `full` forces everything, `only` names packages (by
- * dir, dir name or package name, or `scripts`), and `rerunFailed` takes the units the last recorded
+ * dir, dir name or package name), and `rerunFailed` takes the units the last recorded
  * run failed or never reached. Returns the decision as it now stands and the unit list.
  */
 export function planRun({ root, workspace, decision, flags = {}, record }) {
-  const all = [...workspace.filter((p) => hasTests(root, p.dir)).map((p) => p.dir), ...(hasScriptTests(root) ? [SCRIPTS_UNIT] : [])];
+  const all = workspace.filter((p) => hasTests(root, p.dir)).map((p) => p.dir);
   if (flags.full) decision = full("--full asked for everything");
   if (flags.only?.length) {
     const units = flags.only.map((wanted) => {
-      if (wanted === SCRIPTS_UNIT) return SCRIPTS_UNIT;
       const pkg = workspace.find((p) => wanted === p.dir || wanted === p.name || wanted === path.posix.basename(p.dir));
       if (pkg === undefined) throw new Error(`--only ${wanted}: no workspace package by that dir or name`);
       return pkg.dir;
@@ -210,16 +207,11 @@ export function planRun({ root, workspace, decision, flags = {}, record }) {
 
 /** The test files a unit runs, as the globs node --test is given: a unit may be one file. */
 export function unitGlobs(unit) {
-  if (unit === SCRIPTS_UNIT) return ["scripts/*.test.mjs"];
-  return /\.test\.m?[jt]s$/.test(unit) ? [unit] : [`${unit}/src/**/*.test.ts`];
+  return /\.test\.m?[jt]s$/.test(unit) ? [unit] : [`${unit}/src/**/*.test.ts`, `${unit}/src/**/*.test.mjs`];
 }
 
 function hasTests(root, dir) {
-  return globSync(`${dir}/src/**/*.test.ts`, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" }).length > 0;
-}
-
-function hasScriptTests(root) {
-  return globSync("scripts/*.test.mjs", { cwd: root }).length > 0;
+  return globSync(`${dir}/src/**/*.test.{ts,mjs}`, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" }).length > 0;
 }
 
 /** Each unit's result, PASS, FAIL or NOT RUN. Callers may add reasons and replace or omit the rerun hint. */

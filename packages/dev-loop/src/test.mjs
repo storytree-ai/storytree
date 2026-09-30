@@ -1,20 +1,20 @@
 // `pnpm test`: run the tests a branch's changes can reach, with node:test (through tsx) against a
-// real Postgres. Run it as `pnpm test` (node --import tsx scripts/test.mjs): it imports
+// real Postgres. Run it as `pnpm test` (node --import tsx packages/dev-loop/src/test.mjs): it imports
 // @storytree/local-postgres, which is TypeScript. CI runs the same command, so it decides the same way.
 //
-// What runs (ADR-0649 D4, scripts/test-scope.mjs): the workspace packages holding a file changed
+// What runs (ADR-0649 D4, test-scope.mjs): the workspace packages holding a file changed
 // since the branch left origin/main, working tree and untracked files included, plus every package
 // that depends on them; everything whenever a change is one the workspace graph cannot account for
-// (a root file, a package.json, the lockfile, scripts/**, ...) or origin/main cannot be read. The
-// first line printed is the decision, `scope: ...`. Each package is one unit, `<dir>/src/**/*.test.ts`,
-// and scripts/*.test.mjs is one more when everything runs; the package-boundary check
-// (scripts/package-boundaries.test.mjs) is a unit of every run. The units run one after another against
+// (a root file, a package.json, the lockfile, the dev loop, ...) or origin/main cannot be read. The
+// first line printed is the decision, `scope: ...`. Each package is one unit, its
+// `<dir>/src/**/*.test.{ts,mjs}`; the package-boundary check
+// (packages/dev-loop/src/package-boundaries.test.mjs) is a unit of every run. The units run one after another against
 // the one Postgres, and a failure never stops the rest: the run ends with a PASS / FAIL / NOT RUN
 // table, and exits non-zero if any unit did not pass.
 //
 //   pnpm run test --scope            print the decision and the units, and run nothing
 //   pnpm run test --full             run everything, whatever changed
-//   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name; `scripts`)
+//   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
 //   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
 //
 // Give flags as `pnpm run test --flag`: `pnpm run` passes what follows the script name to it in
@@ -39,10 +39,10 @@
 // for a file.
 //
 // On Windows, a Node.js whose libuv can end the process on a TCP connect is refused before anything
-// starts, with the release to install instead (scripts/node-runtime.mjs): under it, a test file now
+// starts, with the release to install instead (node-runtime.mjs): under it, a test file now
 // and then dies at its first connection to Postgres, which reads as a flaky test.
 //
-// No unit can hang the run (scripts/unit-run.mjs): a test fails at 60 s, a unit's process tree is
+// No unit can hang the run (unit-run.mjs): a test fails at 60 s, a unit's process tree is
 // killed at its deadline and its row names the tests still running, and the run goes on to the next
 // unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
 // default ~/.storytree/0.3), and its deadline is learned from that history: twice its slowest recent
@@ -53,7 +53,7 @@
 //   pnpm run test --set-limit=cli=300 --reason="two gates at once on this laptop"
 //   pnpm run test --clear-limit=cli
 //
-// One heavy run at a time on a machine (scripts/heavy-lock.mjs): past the scope decision, a run
+// One heavy run at a time on a machine (heavy-lock.mjs): past the scope decision, a run
 // takes the machine's heavy-run lock (heavy-run.lock in STORYTREE_HOME) and holds it until its
 // Postgres has stopped. While another session's run holds it, this one prints who holds it and
 // waits (at most an hour), and it takes over a lock whose holder's process has gone. Under
@@ -72,7 +72,7 @@ import { runtimeRefusal } from "./node-runtime.mjs";
 import { planRun, readWorkspace, resultsTable, scopeFor, scopeLine, unitGlobs } from "./test-scope.mjs";
 import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
-const root = fileURLToPath(new URL("..", import.meta.url));
+const root = fileURLToPath(new URL("../../..", import.meta.url));
 const work = path.join(root, ".pgtest");
 const dataDir = path.join(work, "data");
 const serverLog = path.join(work, "pg.log");

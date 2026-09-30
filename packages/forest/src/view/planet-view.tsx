@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Vector3 } from "three";
 import { openingTurn, PLANET_RADIUS, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { onIslandSurface, PlanetWorldCanvas } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
+import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
 import { Names, Overlay, SelectionRing, Wisps } from "./island-overlays.js";
-import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
+import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
 
 export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, library = true }: {
   mode?: ForestMode;
@@ -67,7 +68,9 @@ function Territories({ land, coast }: { land: NonNullable<Island["land"]>; coast
     const scale = land.radius > 0 ? reach / land.radius : 1;
     const scaled = (p: { x: number; z: number }) => ({ x: p.x * scale, z: p.z * scale });
     const place = onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT);
-    return territoryLand({ ...land, cells: land.cells.map((cell) => ({ ...cell, polygon: cell.polygon.map(scaled) })), borders: land.borders.map(({ from, to }) => ({ from: scaled(from), to: scaled(to) })) }, place, coast);
+    const group = territoryLand({ ...land, cells: land.cells.map((cell) => ({ ...cell, polygon: cell.polygon.map(scaled) })), borders: land.borders.map(({ from, to }) => ({ from: scaled(from), to: scaled(to) })) }, place, coast);
+    group.add(fileCircleMarks(land.files.map((file) => ({ ...file, ...scaled(file), radius: file.radius * scale })), onIslandSurface(PLANET_RADIUS), islandNormal(PLANET_RADIUS)));
+    return group;
   }, [land, coast]);
   useEffect(() => () => group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
@@ -133,7 +136,9 @@ function Navigation({ islands, titles, rotation, onRotate, onPick, onNote, mode 
       }
       const hit = pick(event);
       element.style.cursor = hit === undefined ? "" : "pointer";
-      const title = hit?.kind === "note" ? scene.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined : undefined;
+      const file = hit?.kind === "note" ? undefined : pointedFile(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY });
+      const title = hit?.kind === "note" ? scene.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined
+        : file === undefined ? undefined : `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : scene.getObjectByName(`territory:${file.capability}`)?.userData.title ?? file.capability}`;
       const box = element.getBoundingClientRect();
       setHover(title === undefined ? undefined : { title, x: Math.max(8, Math.min(box.width - 220, event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
     };

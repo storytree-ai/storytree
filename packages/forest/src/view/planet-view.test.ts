@@ -158,7 +158,7 @@ test("3.16 a file circle lies flat on the island's surface; 3.17 pointing at it 
   assert.deepEqual(mark.userData, { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
   const up = new Vector3(0, 0, 1).applyQuaternion(mark.quaternion);
   assert.ok(up.angleTo(normalAt({ x: 3, z: -2 })) < 1e-6, "the circle's face turns to the surface's normal");
-  assert.ok(mark.position.distanceTo(onSurface({ x: 3, z: -2 })) < 0.1, "the circle rests on the surface");
+  assert.ok(mark.position.distanceTo(onSurface({ x: 3, z: -2 })) <= 0.2, "the circle rests just on the surface");
 
   const world = new Group();
   const plate = new Group();

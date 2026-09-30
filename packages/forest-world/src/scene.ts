@@ -44,8 +44,10 @@ export interface Island {
 export interface IslandLand {
   /** The round island the territories were cut from, in world units. */
   radius: number;
-  /** Each territory's capability; absent for Unclaimed code. */
-  territories: readonly { capability?: string }[];
+  /** Each territory's capability and its title; absent for Unclaimed code. */
+  territories: readonly { capability?: string; title?: string }[];
+  /** Each code file's flat circle (ADR-0804 D3): its middle and radius, in the same coordinates as the cells. */
+  files: readonly { path: string; lines: number; capability?: string; x: number; z: number; radius: number }[];
   cells: readonly { polygon: readonly { x: number; z: number }[]; territory: number }[];
   borders: readonly { from: { x: number; z: number }; to: { x: number; z: number } }[];
 }

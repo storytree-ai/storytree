@@ -60,6 +60,20 @@ function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?
   return undefined;
 }
 
+/** The file circle under the cursor (3.17): its file, lines and capability, or undefined when none is. */
+export function pointedFile(world: Object3D, camera: Camera,
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }): { file: string; lines: number; capability?: string } | undefined {
+  world.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+  const ray = new Raycaster();
+  ray.setFromCamera(new Vector2(2 * (cursor.x - box.left) / box.width - 1, 1 - 2 * (cursor.y - box.top) / box.height), camera);
+  for (const hit of ray.intersectObject(world, true)) {
+    if (hit.object.name === "planet:shell") return undefined;
+    if (hit.object.name.startsWith("file:")) return hit.object.userData as { file: string; lines: number; capability?: string };
+  }
+  return undefined;
+}
+
 /** Project the rotating points; the glass admits the near half, solid land still occludes it. */
 export function pickGlobe(world: Object3D, camera: Camera,
   box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): Selection {

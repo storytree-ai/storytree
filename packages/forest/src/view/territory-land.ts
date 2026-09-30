@@ -42,7 +42,7 @@ export function territoryLand(land: IslandLand, onSurface: (point: Point) => Vec
     const colour = territory.capability === undefined ? UNCLAIMED_TINT : TINTS[tint++ % TINTS.length]!;
     const mesh = new Mesh(geometry, new MeshBasicMaterial({ color: new Color(colour), transparent: true, opacity: TERRITORY_OPACITY, side: DoubleSide, depthWrite: false }));
     mesh.name = `territory:${territory.capability ?? "unclaimed"}`;
-    mesh.userData = territory.capability === undefined ? { territory: true } : { territory: true, capability: territory.capability };
+    mesh.userData = territory.capability === undefined ? { territory: true } : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability };
     mesh.renderOrder = 1;
     group.add(mesh);
   });

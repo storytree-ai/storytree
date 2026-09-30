@@ -13,7 +13,7 @@ import { disposeIslandSurface, islandSurface } from './island-surface.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
-export { onIslandSurface } from './island-surface.js';
+export { islandNormal, onIslandSurface } from './island-surface.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;

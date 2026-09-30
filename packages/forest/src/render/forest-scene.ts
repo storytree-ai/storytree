@@ -17,7 +17,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 import type { StorySurvey } from "../code-survey/code-survey.js";
-import { territories } from "../territories/territories.js";
+import { fileCircles, territories } from "../territories/territories.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 
 export { PLACE_WIDTH };
@@ -108,14 +108,15 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
 }
 
 /** A surveyed story's territories: one per capability with code, in the story's order, then Unclaimed code. */
-function landOf(capabilities: readonly { id: string }[], survey: StorySurvey | undefined, radius: number): Island["land"] {
+function landOf(capabilities: readonly { id: string; title: string }[], survey: StorySurvey | undefined, radius: number): Island["land"] {
   if (survey === undefined || survey.files.length === 0) return undefined;
   const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
   const shares = [...capabilities.map(({ id }) => ({ capability: id, lines: linesOf(id) })), { lines: linesOf(undefined) }];
   const map = territories(shares, radius);
   return {
     radius,
-    territories: map.territories.map(({ capability, lines }) => (capability === undefined ? { lines } : { capability, lines })),
+    territories: map.territories.map(({ capability }) => (capability === undefined ? {} : { capability, title: capabilities.find(({ id }) => id === capability)?.title ?? capability })),
+    files: fileCircles(map, survey.files),
     cells: map.cells.map(({ polygon, territory }) => ({ polygon, territory })),
     borders: map.borders.map(({ from, to }) => ({ from, to })),
   };

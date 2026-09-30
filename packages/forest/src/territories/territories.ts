@@ -186,3 +186,56 @@ function clip(edges: readonly Edge[], n: Point, c: number, across: number): Edge
   kept.splice(exitAt, 0, { from: exit, to: entry, across });
   return kept;
 }
+
+/** A surveyed file as the circles need it: absent `capability` is Unclaimed code. */
+export type CircleFile = { readonly path: string; readonly lines: number; readonly capability?: string };
+
+/** A file's flat circle on the island, its middle and radius in the island's own coordinates. */
+export type FileCircle = { readonly path: string; readonly lines: number; readonly capability?: string; readonly x: number; readonly z: number; readonly radius: number };
+
+/** How much of the island the circles cover at most, so the land shows between them. */
+const CIRCLE_COVER = 0.45;
+/** Candidate spots per cell to choose circle middles from. */
+const SPOTS_PER_CELL = 8;
+
+/**
+ * Each file's flat circle (ADR-0804 D3), in the order given: its middle on its capability's territory,
+ * spread out within it (the longest file nearest the territory's middle), and its diameter growing with
+ * its lines (1.3 + 0.24·√lines, the owner's mock), scaled on each island so the circles cover no more
+ * than CIRCLE_COVER of it. A file whose capability has no territory gets no circle.
+ */
+export function fileCircles(map: TerritoryMap, files: readonly CircleFile[]): FileCircle[] {
+  const count = map.cells.length * SPOTS_PER_CELL;
+  const spots = Array.from({ length: count }, (_, at): Point => {
+    const r = map.radius * Math.sqrt((at + 0.5) / count);
+    return { x: r * Math.cos(at * GOLDEN_ANGLE), z: r * Math.sin(at * GOLDEN_ANGLE) };
+  });
+  const territoryOf = (p: Point) => territoryAt(map, p.x, p.z);
+  const diameter = (lines: number) => 1.3 + 0.24 * Math.sqrt(Math.max(0, lines));
+  const cover = files.reduce((sum, file) => sum + (Math.PI * diameter(file.lines) ** 2) / 4, 0);
+  const scale = cover === 0 ? 1 : Math.min(1, Math.sqrt((CIRCLE_COVER * Math.PI * map.radius ** 2) / cover));
+  const placed = new Map<string, Point>();
+  map.territories.forEach((territory) => {
+    const mine = files.filter((file) => file.capability === territory.capability).sort((a, b) => b.lines - a.lines || a.path.localeCompare(b.path));
+    const free = spots.filter((spot) => territoryOf(spot) === territory);
+    if (mine.length === 0 || free.length === 0) return;
+    const middle = { x: free.reduce((sum, p) => sum + p.x, 0) / free.length, z: free.reduce((sum, p) => sum + p.z, 0) / free.length };
+    // Farthest-point sampling from the spot nearest the middle: each next spot is the one furthest from those taken.
+    const taken: Point[] = [free.reduce((best, p) => (Math.hypot(p.x - middle.x, p.z - middle.z) < Math.hypot(best.x - middle.x, best.z - middle.z) ? p : best))];
+    const gap = free.map((p) => Math.hypot(p.x - taken[0]!.x, p.z - taken[0]!.z));
+    while (taken.length < Math.min(mine.length, free.length)) {
+      let far = 0;
+      gap.forEach((value, at) => { if (value > gap[far]!) far = at; });
+      const next = free[far]!;
+      taken.push(next);
+      free.forEach((p, at) => { gap[at] = Math.min(gap[at]!, Math.hypot(p.x - next.x, p.z - next.z)); });
+    }
+    mine.forEach((file, at) => placed.set(file.path, taken[at % taken.length]!));
+  });
+  return files.flatMap((file) => {
+    const at = placed.get(file.path);
+    if (at === undefined) return [];
+    const circle = { path: file.path, lines: file.lines, x: at.x, z: at.z, radius: (diameter(file.lines) * scale) / 2 };
+    return [file.capability === undefined ? circle : { ...circle, capability: file.capability }];
+  });
+}

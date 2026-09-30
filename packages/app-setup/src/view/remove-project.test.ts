@@ -15,6 +15,9 @@ test("Remove project (app menu): confirming takes the project on show off this c
   assert.deepEqual(await removeCurrentProject(bridge, { current: () => undefined, onRemoved }), { removed: null });
   assert.deepEqual(calls, [], "no project on show: nothing is called");
 
+  const tracked = { removeProject: async (name: unknown) => ({ status: "removed" as const, project: String(name), kept: "/work/blog" }) };
+  assert.deepEqual(await removeCurrentProject(tracked, { current: () => "blog", onRemoved: async () => {} }), { removed: "blog", kept: "/work/blog" }, "a marker git tracks is reported as left for the user");
+
   const failing = { removeProject: async () => { throw new Error("The list could not be saved."); } };
   assert.deepEqual(await removeCurrentProject(failing, { current: () => "blog", onRemoved }), { failed: "The project could not be removed: The list could not be saved." });
   assert.deepEqual(calls, [], "a failed removal is not reported as removed");

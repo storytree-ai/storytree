@@ -130,13 +130,15 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
   const leaveMs = options.leaveMs ?? LEAVE_MS;
   const bySession = new Map<string, Line[]>();
   // What lines written by other sessions say about a branch, and about a session the apps keep: the latest of each.
-  const branchStates = new Map<string, Line & { kind: "branch-state" }>();
+  // A claim's merge resolves its branch as a branch-state line does, until a later look says otherwise.
+  const branchStates = new Map<string, { open: boolean; at: string }>();
   const appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
     const own = bySession.get(line.session);
     if (own === undefined) bySession.set(line.session, [line]);
     else own.push(line);
     if (line.kind === "branch-state") branchStates.set(line.of, line);
+    else if (line.kind === "merged") branchStates.set(line.branch, { open: false, at: line.at });
     else if (line.kind === "session-archived" || line.kind === "session-unarchived") appRecords.set(line.of, line);
   }
   return [...bySession.entries()].map(([session, own]) => {

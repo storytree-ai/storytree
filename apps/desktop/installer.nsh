@@ -55,6 +55,8 @@
     Pop $R3
     DetailPrint $R3
     ; The one-click section runs silently, so only a message box without /SD reaches an attending user.
+    ; The app registered itself to open at sign-in (lifecycle 1.12); leaving storytree removes that too.
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "storytree 0.3"
     ${if} $R2 != 0
     ${andIf} $storytreeAttended == "yes"
       MessageBox MB_OK|MB_ICONEXCLAMATION "storytree is uninstalled, but something it added is still there:$\r$\n$\r$\n$R3"

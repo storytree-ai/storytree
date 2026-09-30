@@ -64,6 +64,12 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-update-status strong, .app-update-status span { display: block; }
 .app-update-status strong { font-weight: 600; color: #eceae3; }
 .app-update-status span { margin-top: 6px; color: #a9b0ba; }
+.app-sign-in { display: flex; gap: 12px; align-items: flex-start; margin-top: 28px; padding-top: 20px; border-top: 1px solid #485159; cursor: pointer; }
+.app-sign-in input { margin: 4px 0 0; accent-color: #a9b0ba; cursor: pointer; }
+.app-sign-in strong, .app-sign-in span span { display: block; }
+.app-sign-in strong { font-weight: 600; color: #eceae3; }
+.app-sign-in span span { margin-top: 4px; color: #a9b0ba; }
+.app-sign-in .app-sign-in-error { color: #ffaaaa; }
 .surfaces code { font: inherit; }
 .surfaces-status { min-height: 1.5em; margin: -16px 0 8px; color: #a9b0ba; font-size: 12px; }
 .surface { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 10px 28px; padding: 18px 0; border-top: 1px solid #485159; }

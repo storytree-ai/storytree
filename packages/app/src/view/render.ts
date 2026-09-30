@@ -18,7 +18,7 @@ export function renderAppMenu(): string {
           <section id="app-sessions" aria-label="Sessions" hidden><div data-app-settings="sessions"></div></section>
           <section id="app-library" aria-label="Library" hidden><div data-app-settings="library"></div></section>
           <section id="app-surfaces" aria-label="Surfaces" hidden><div data-app-surfaces></div></section>
-          <section id="app-updates" aria-labelledby="app-updates-title" hidden><h2 id="app-updates-title" tabindex="-1">Updates</h2><p class="app-section-description">Keep storytree up to date.</p><button type="button" data-app-updates aria-describedby="app-update-status">Check for updates</button><div id="app-update-status" class="app-update-status" role="status" aria-live="polite" aria-atomic="true" hidden></div></section>
+          <section id="app-updates" aria-labelledby="app-updates-title" hidden><h2 id="app-updates-title" tabindex="-1">Updates</h2><p class="app-section-description">Keep storytree up to date.</p><button type="button" data-app-updates aria-describedby="app-update-status">Check for updates</button><div id="app-update-status" class="app-update-status" role="status" aria-live="polite" aria-atomic="true" hidden></div><label class="app-sign-in" data-app-sign-in hidden><input type="checkbox"><span><strong>Open at sign-in</strong><span>storytree opens in the tray when you sign in, so it keeps itself and your agents’ hooks up to date.</span><span class="app-sign-in-error" role="alert" hidden></span></span></label></section>
           <section id="app-help" aria-label="Help" hidden><div data-app-help></div></section>
         </div>
       </div>

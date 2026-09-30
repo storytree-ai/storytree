@@ -59,3 +59,37 @@ export function updateText(state: UpdateState): readonly [string, string] {
     case "unavailable": return ["Updates unavailable", "This app is not running from a runtime slot and does not update itself."];
   }
 }
+
+/** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
+export interface SignInState { available: boolean; on: boolean }
+export interface SignInBridge { read(): Promise<SignInState>; set(on: boolean): Promise<SignInState> }
+
+/** The Updates section's Open at sign-in switch; shown only where the app is installed and can open at sign-in. */
+export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined) {
+  const label = host.querySelector<HTMLElement>("[data-app-sign-in]")!;
+  const box = label.querySelector<HTMLInputElement>("input")!;
+  const error = label.querySelector<HTMLElement>(".app-sign-in-error")!;
+  let stopped = false;
+  const show = (state: SignInState) => {
+    if (stopped) return;
+    label.hidden = !state.available;
+    box.checked = state.on;
+    box.disabled = false;
+  };
+  const change = () => {
+    if (bridge === undefined) return;
+    const wanted = box.checked;
+    box.disabled = true;
+    error.hidden = true;
+    bridge.set(wanted).then(show, (reason: unknown) => {
+      if (stopped) return;
+      box.checked = !wanted;
+      box.disabled = false;
+      error.textContent = `Couldn’t change this: ${reason instanceof Error ? reason.message : String(reason)}`;
+      error.hidden = false;
+    });
+  };
+  box.addEventListener("change", change);
+  void bridge?.read().then(show, () => { label.hidden = true; });
+  return { stop() { stopped = true; box.removeEventListener("change", change); } };
+}

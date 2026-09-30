@@ -73,11 +73,11 @@ interface Ran {
 }
 
 /** Run the built hook as a harness does: directly, no shell, `input` on stdin, the storytree home given. */
-function runHook(harness: string, input: string, storytreeHome: string, flags: readonly string[] = []): Promise<Ran> {
+function runHook(harness: string, input: string, storytreeHome: string, flags: readonly string[] = [], env: NodeJS.ProcessEnv = {}): Promise<Ran> {
   return new Promise((resolve, reject) => {
     const started = performance.now();
     const child = spawn(process.execPath, [hook, harness, ...flags], {
-      env: { ...process.env, STORYTREE_HOME: storytreeHome },
+      env: { ...process.env, ...env, STORYTREE_HOME: storytreeHome },
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
     });
@@ -711,7 +711,8 @@ test("3.16 every line a hook writes records the git branch its folder is on, bes
     for (const name of ["session-start-startup", "post-tool-use-bash"]) await runHook("claude-code", recorded("claude-code", name, folder), home);
     rmSync(path.join(folder, ".git"), { recursive: true, force: true });
     await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
-    assert.deepEqual((await linesOf(project)).map((line) => [line.kind, line.branch]), [
+    // The look around the machine a hook hands on (4.10) writes at its own time what it finds of the branch: not a line of the hooks'.
+    assert.deepEqual((await linesOf(project)).filter((line) => line.kind !== "branch-state").map((line) => [line.kind, line.branch]), [
       ["session-started", "claude/fix-login"],
       ["command-run", "claude/fix-login"],
       ["session-ended", undefined],
@@ -763,4 +764,28 @@ test("3.17 a Claude Code session's end is recorded though Claude Code stops its 
   } finally {
     slow.close();
   }
+});
+
+test("4.10 a pull request's merge is recorded on its branch by the hooks though GitHub takes longer to answer than a hook may run (regression: no hook had ever recorded one, 2026-09-30)", { skip: process.platform === "win32" && "a stand-in gh on PATH must be an .exe on Windows", timeout: 30_000 }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t.invalid", ...args], { cwd: folder, stdio: "ignore" });
+    git("init", "-q", "-b", "main");
+    git("commit", "-q", "--allow-empty", "-m", "first");
+    git("switch", "-q", "-c", "claude/fix");
+    git("commit", "-q", "--allow-empty", "-m", "work");
+    // GitHub, as `gh` answers, but 6 s late: longer than a hook may run.
+    const bin = path.join(dir, "bin");
+    mkdirSync(bin);
+    const pulls = JSON.stringify([{ number: 7, mergedAt: "MERGED_AT", headRefName: "claude/fix" }]);
+    writeFileSync(path.join(bin, "gh"), `#!${process.execPath}\nsetTimeout(() => console.log(${JSON.stringify(pulls)}.replace("MERGED_AT", new Date().toISOString())), 6_000);\n`, { mode: 0o755 });
+
+    await runHook("claude-code", recorded("claude-code", "post-tool-use-write", folder), home, [], { PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` });
+    const deadline = Date.now() + 20_000;
+    const merged = async () => (await linesOf(project)).flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how, line.pr]] : []));
+    while ((await merged()).length === 0 && Date.now() < deadline) await sleep(250);
+    assert.deepEqual(await merged(), [["claude/fix", false, "merged", 7]]);
+  });
 });

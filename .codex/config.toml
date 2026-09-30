@@ -1,2 +1,10 @@
 [features]
 hooks = true
+
+# The agent link's tool server (ADR-0793 D2), run from this checkout's own source, so every worktree
+# serves its own code and no installed app is needed. It waits for the session-start install first.
+[mcp_servers.storytree]
+command = "node"
+args = ["scripts/provision-worktree.mjs", "--serve"]
+# Codex lanes run with approval_policy "never", which refuses any tool call that asks.
+default_tools_approval_mode = "approve"

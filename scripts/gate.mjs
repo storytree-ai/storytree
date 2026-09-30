@@ -2,11 +2,16 @@
 // scoping, per-package table and rerun record in test.mjs. No second test runner lives here.
 // Library edits are not Git edits: --guidance declares a role/note edit even when regeneration
 // left the committed files unchanged. A hand-written CLAUDE.md header edit alone is not one.
+// Flags go as `pnpm run gate --guidance`: Windows PowerShell 5.1 drops a bare `--` before pnpm
+// sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
+// The gate holds the machine's heavy-run lock (scripts/heavy-lock.mjs) for its whole run, so
+// concurrent sessions' gates queue; its test step runs under that hold.
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { REGION_START, REGION_END, ROLE_DIRS } from "./guidance.mjs";
 import { changedFiles, resultsTable } from "./test-scope.mjs";
 
@@ -68,7 +73,7 @@ export async function runGate({ root = repoRoot, guidance = false, signal, force
     }
   }
   const code = signal?.aborted ? 130 : Object.values(results).includes("fail") ? 1 : 0;
-  const rerunHint = code === 0 ? null : `rerun: pnpm gate${guidance ? " -- --guidance" : ""}`;
+  const rerunHint = code === 0 ? null : `rerun: pnpm ${guidance ? "run gate --guidance" : "gate"}`;
   log(`\n${resultsTable(results, { reasons, rerunHint })}`);
   return code;
 }
@@ -120,19 +125,25 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2).filter((arg) => arg !== "--");
   const unknown = args.find((arg) => !["--guidance", "--help"].includes(arg));
   if (unknown) {
-    console.error(`gate: unknown argument ${unknown}; use pnpm gate -- --help`);
+    console.error(`gate: unknown argument ${unknown}; use pnpm run gate --help`);
     process.exitCode = 1;
   } else if (args.includes("--help")) {
-    console.log("pnpm gate [-- --guidance]\nRuns typecheck, scoped tests and guidance when generated roles changed.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
+    console.log("pnpm run gate [--guidance]\nRuns typecheck, scoped tests and guidance when generated roles changed.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
   } else {
     const controller = new AbortController();
     const force = new AbortController();
     const stop = () => controller.signal.aborted ? force.abort() : controller.abort();
     const signals = ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"];
     for (const signal of signals) process.on(signal, stop);
+    let release;
     try {
+      release = await acquireHeavyLock({ root: repoRoot, what: "pnpm gate", stopped: () => controller.signal.aborted });
       process.exitCode = await runGate({ guidance: args.includes("--guidance"), signal: controller.signal, forceSignal: force.signal });
+    } catch (error) {
+      console.error(`gate: ${error.message}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
     } finally {
+      release?.();
       for (const signal of signals) process.removeListener(signal, stop);
     }
   }

@@ -223,7 +223,7 @@ function hasScriptTests(root) {
 }
 
 /** Each unit's result, PASS, FAIL or NOT RUN. Callers may add reasons and replace or omit the rerun hint. */
-export function resultsTable(results, { reasons = {}, rerunHint = "rerun only these: pnpm test -- --rerun-failed" } = {}) {
+export function resultsTable(results, { reasons = {}, rerunHint = "rerun only these: pnpm run test --rerun-failed" } = {}) {
   const label = { pass: "PASS", fail: "FAIL", "not run": "NOT RUN" };
   const rows = Object.entries(results).map(([unit, result]) => `  ${label[result].padEnd(8)}${unit}${reasons[unit] ? ` — ${reasons[unit]}` : ""}`);
   const failed = Object.values(results).some((result) => result !== "pass");

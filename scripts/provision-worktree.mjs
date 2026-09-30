@@ -16,10 +16,15 @@
 //     holds no .bin in a pnpm workspace even when healthy, so the packages are where to look.
 // Anything else is left alone at no cost, so the hook is safe to run at every session start.
 //
+// With --serve it is how 0.3's own sessions start the agent link's tool server (.mcp.json and
+// .codex/config.toml, ADR-0793 D2): the harness starts the server beside the session-start hook,
+// so in a worktree still being installed it waits for that install, then runs the server from this
+// worktree's source. It never installs itself, so two installs never run in one worktree at once.
+//
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
 // agent, as SessionStart additionalContext; pnpm's own output goes to stderr.
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -102,6 +107,28 @@ export function provision({ root = repoRoot, install = pnpmInstall, retries = 1,
   return { ok: false, condition, code: last.code || 1 };
 }
 
+/** Run the agent link's tool server from root's source, over this process's stdin and stdout, to its exit code. */
+function startServer(root) {
+  const server = path.join(root, "packages", "agent-link", "src", "bins", "storytree-mcp.ts");
+  const child = spawn(process.execPath, ["--import", "tsx", server], { cwd: root, stdio: "inherit" });
+  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
+  return new Promise((resolve) => {
+    child.on("error", () => resolve(1));
+    child.on("exit", (code) => resolve(code ?? 1));
+  });
+}
+
+/**
+ * Start the tool server once root is installed, waiting up to waitMs for the session-start hook's
+ * install; past that it starts anyway, and the harness reports what failed.
+ * @returns {Promise<number>} the server's exit code
+ */
+export async function serve({ root = repoRoot, start = startServer, pollMs = 500, waitMs = 240_000 } = {}) {
+  const until = Date.now() + waitMs;
+  while (conditionOf(root) !== undefined && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, pollMs));
+  return start(root);
+}
+
 const WHAT_HAPPENED = {
   fresh: "is FRESH: no pnpm install has completed in it, and the automatic one at session start failed",
   stale:
@@ -136,8 +163,12 @@ if (isEntry()) {
   const hook = args.includes("--hook");
   const at = args.indexOf("--root");
   const root = at === -1 ? repoRoot : path.resolve(args[at + 1]);
-  const result = provision({ root, log: (line) => process.stderr.write(`${line}\n`) });
-  const output = hook ? hookOutput(result, root) : "";
-  if (output) process.stdout.write(`${output}\n`);
-  process.exitCode = hook ? 0 : result.code;
+  if (args.includes("--serve")) {
+    process.exitCode = await serve({ root });
+  } else {
+    const result = provision({ root, log: (line) => process.stderr.write(`${line}\n`) });
+    const output = hook ? hookOutput(result, root) : "";
+    if (output) process.stdout.write(`${output}\n`);
+    process.exitCode = hook ? 0 : result.code;
+  }
 }

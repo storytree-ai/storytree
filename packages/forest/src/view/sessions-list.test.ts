@@ -8,9 +8,9 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
-  idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], unmerged: [], description: [], children: [
+  idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], description: [], children: [
     { id: "child", label: "Read the library", agent: "Subagent", state: "observed", idle: false,
-      totalTokens: undefined, stories: [], worktrees: [], unmerged: [], description: [], children: [] },
+      totalTokens: undefined, stories: [], worktrees: [], description: [], children: [] },
   ] };
 
 test("7.1–7.5 rows start folded, show safe words and available total beside its bar", () => {
@@ -70,7 +70,7 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
 });
 
 test("7.8 one expander per row, counting its children; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
-  const busy: SessionRow = { ...row, worktrees: ["/home/me/code/app/.claude/worktrees/one", "/home/me/code/app/.claude/worktrees/two"] };
+  const busy: SessionRow = { ...row, worktrees: [{ path: "/home/me/code/app/.claude/worktrees/one", branches: [] }, { path: "/home/me/code/app/.claude/worktrees/two", branches: [] }] };
   const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], onHighlight() {} }));
   assert.equal(folded.match(/<button/g)?.length, 2, "every row has one expander, a childless one too");
   assert.doesNotMatch(folded, /session-detail/);
@@ -94,7 +94,7 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
 });
 
 test("7.14 an expanded row opens with its description, each line its own, before its worktrees; folded, or with none, no description shows", () => {
-  const said: SessionRow = { ...row, children: [], worktrees: ["/w/one"], description: ["Sessions list labelling", "PR #309 awaiting CI"] };
+  const said: SessionRow = { ...row, children: [], worktrees: [{ path: "/w/one", branches: [] }], description: ["Sessions list labelling", "PR #309 awaiting CI"] };
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [said], expanded: new Set(["parent"]), onHighlight() {} }));
   const detail = html.match(/class="session-detail".*?<\/ul>/s)?.[0] ?? "";
   assert.match(detail, /class="session-description"><p>Sessions list labelling<\/p><p>PR #309 awaiting CI<\/p><\/div>/, detail);
@@ -109,8 +109,19 @@ test("7.13 a row named with its machine shows it beside the label; a row without
   assert.equal(html.match(/class="session-machine"[^>]*>mint<\/span>/g)?.length, 1, html);
 });
 
-test("7.9 the list prints no prose about a session: a row that needs you, holds unmerged work or has a close-out why shows none of it, and the header count names no such need", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], needsYouWhy: "says safe, but fix-login is unmerged", unmerged: ["fix-login", "tidy-readme"] } as SessionRow], onHighlight() {} }));
+test("7.9 the list prints no prose about a session: a row with a close-out why shows none of it, and the header count names no such need", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], needsYouWhy: "says safe, but fix-login is unmerged" } as SessionRow], onHighlight() {} }));
   assert.match(html, /Build &lt;signup&gt;/);
   assert.doesNotMatch(html, /needs you|unmerged|says safe|fix-login|needing/i);
+});
+
+test("7.15 an expanded row's worktree carries its label, unmerged or merged, beside its folder's name; a worktree with none carries none", () => {
+  const worktrees: SessionRow["worktrees"] = [{ path: "/w/one", branches: ["fix-one"], state: "unmerged" }, { path: "/w/two", branches: ["fix-two"], state: "merged" }, { path: "/w/site", branches: [] }];
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees }], onHighlight() {} }));
+  const list = html.match(/<ul class="session-detail-worktrees".*?</ul>/s)?.[0] ?? "";
+  assert.match(list, /<li title="/w/one
+fix-one">one<span class="session-worktree-state" data-state="unmerged">unmerged</span></li>/, list);
+  assert.match(list, /<li title="/w/two
+fix-two">two<span class="session-worktree-state" data-state="merged">merged</span></li>/, list);
+  assert.match(list, /<li title="/w/site">site</li>/, list);
 });

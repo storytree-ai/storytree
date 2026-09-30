@@ -57,7 +57,8 @@ test("7.1 a session holding no claim still gets a plain row, named from the work
   const [row] = sessionRows(tree, lines, [], now);
   assert.equal(row?.label, "Codex · fix-login");
   assert.deepEqual(row?.stories, []);
-  assert.deepEqual(row?.worktrees, ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
+  assert.deepEqual(row?.worktrees.map(({ path }) => path), ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
+  assert.deepEqual(row?.worktrees.map(({ state }) => state), [undefined, undefined], "on no branch, a worktree has no merge label");
 });
 
 test("7.14 an unclaimed row is named by its app's title; every row carries up to three lines describing it: the app's title where the name is not it, the held increment's objective, the app's latest status", () => {
@@ -150,7 +151,7 @@ test("7.9-7.11 the header counts sessions at work; a quiet session folds as idle
   assert.equal(rows.some(row => "needsYou" in row || "needsYouWhy" in row), false, "a row carries no need of the owner's: owner decisions are open questions on the arc surface");
 });
 
-test("7.12 a session holding unmerged work is marked with its branches; the list leaves by the leave-after it is given; a finished desktop window folds as idle (ADR-0754 D4, ADR-0758 D5)", () => {
+test("7.12 a session holding unmerged work stays listed; the list leaves by the leave-after it is given; a finished desktop window folds as idle (ADR-0754 D4, ADR-0758 D5)", () => {
   const hours = (n: number) => new Date(now.getTime() - n * 3_600_000).toISOString();
   const hook = (session: string) => ({ session, harness: "claude-code", source: "hook" }) as const;
   const lines = log(
@@ -159,8 +160,30 @@ test("7.12 a session holding unmerged work is marked with its branches; the list
     { ...hook("desk"), kind: "prompt-submitted", at: hours(3) }, { ...hook("desk"), kind: "turn-ended", at: hours(3) },
     { ...hook("reader"), kind: "session-unarchived", of: "desk", app: "claude-desktop", at: hours(4) });
   const rows = sessionRows(tree, lines, [], now);
-  assert.deepEqual(rows.map(row => [row.id, row.idle, row.unmerged]), [["holding", true, ["fix-login"]], ["desk", true, []]],
-    "two hours quiet leaves at the 1-hour default; unmerged work stays, marked; the finished desktop window folds");
+  assert.deepEqual(rows.map(row => [row.id, row.idle]), [["holding", true], ["desk", true]],
+    "two hours quiet leaves at the 1-hour default; unmerged work stays; the finished desktop window folds");
   assert.deepEqual(sessionRows(tree, lines, [], now, new Map(), undefined, 3 * 3_600_000).map(row => row.id), ["holding", "quiet", "desk"],
     "a 3-hour leave-after keeps the two-hour-quiet session listed");
+});
+
+test("7.15 each worktree in a row's detail is labelled unmerged or merged by the branch its session recorded there and whether that branch still holds open work; the main line, or no branch, carries no label; a branch recorded with no folder is folded under the folder last worked in, and none is dropped", () => {
+  const hook = { session: "work", harness: "claude-code", source: "hook" } as const;
+  const site = "/w/site";
+  const merged = "/w/site/.claude/worktrees/merged-one";
+  const open = "/w/site/.claude/worktrees/open-one";
+  const lines = log(
+    { ...hook, folder: site, branch: "main", kind: "session-started", how: "startup" },
+    { ...hook, folder: merged, branch: "merged-one", kind: "file-edited", files: ["a.ts"] },
+    { ...hook, folder: open, branch: "open-one", kind: "file-edited", files: ["b.ts"] },
+    { ...hook, source: "tool", branch: "stray", kind: "claimed", increment: "tidy", reason: "tidy" },
+    { session: "looker", harness: "claude-code", source: "hook", kind: "branch-state", of: "merged-one", open: false, how: "merged", pr: 12 },
+    { ...hook, folder: open, branch: "open-one", kind: "turn-ended" });
+  const [row] = sessionRows(tree, lines, [], now);
+  assert.deepEqual(row?.worktrees, [
+    { path: site, branches: [] },
+    { path: merged, branches: ["merged-one"], state: "merged" },
+    { path: open, branches: ["open-one", "stray"], state: "unmerged" },
+  ]);
+  const unplaced = sessionRows(tree, log({ session: "solo", harness: "claude-code", source: "tool", branch: "lonely", kind: "claimed", increment: "x", reason: "x" }), [], now)[0];
+  assert.deepEqual(unplaced?.worktrees, [{ path: "lonely", branches: ["lonely"], state: "unmerged" }], "a branch with no folder to fold under is still listed");
 });

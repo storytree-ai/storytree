@@ -2,7 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Vector3 } from "three";
-import { claimTints, coastArcs, openingTurn, PLANET_RADIUS, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, coastArcs, openingTurn, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas } from "@storytree/forest-world/planet";
 import { KnowledgeGlobePoints, type KnowledgeCore } from "@storytree/knowledge-core/view";
@@ -42,19 +42,19 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
     const local = { ...island, x: 0, z: 0 };
     const emphasis = highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
-      {island.land !== undefined && <Territories land={island.land} coast={coast} claimed={claimed} />}
+      {island.land !== undefined && <Territories land={island.land} coast={coast} claimed={claimed} radius={layout.radius} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      <Names islands={[local]} selected={selected} dimmed={emphasis === "dimmed"} onGlobe />
-      <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} />
+      <Names islands={[local]} selected={selected} dimmed={emphasis === "dimmed"} onGlobe radius={layout.radius} />
+      <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} radius={layout.radius} />
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [wisps, claimed, selected, highlighted]);
-  return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={PLANET_RADIUS}
+  }, [wisps, claimed, selected, highlighted, layout.radius]);
+  return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
     surface={mode === "forest"} framing={framing}
-    inside={library ? <KnowledgeGlobePoints core={core} spots={layout.spots} radius={PLANET_RADIUS} /> : undefined}
+    inside={library ? <KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} /> : undefined}
     rotation={rotation.toArray()} plateChildren={overlays}>
-    <Navigation islands={layout.islands} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
+    <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPick={onPick} onNote={onNote} mode={mode} />
   </PlanetWorldCanvas>;
 }
@@ -66,13 +66,13 @@ const TERRITORY_LIFT = 0.05;
  * An island's territories (3.14) and its files' circles (3.16), cut to its coast and laid on its surface,
  * all in the plate's own units.
  */
-function Territories({ land, coast, claimed }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[]; claimed: ReadonlyMap<string, ClaimTint> }) {
+function Territories({ land, coast, claimed, radius }: { land: NonNullable<Island["land"]>; coast: readonly (readonly { x: number; z: number }[])[]; claimed: ReadonlyMap<string, ClaimTint>; radius: number }) {
   const group = useMemo(() => {
     const map = territories(land.territories, coast);
-    const group = territoryLand(map, onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT), coast, claimed);
-    group.add(fileCircleMarks(fileCircles(map, land.files), onIslandSurface(PLANET_RADIUS), islandNormal(PLANET_RADIUS)));
+    const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, claimed);
+    group.add(fileCircleMarks(fileCircles(map, land.files), onIslandSurface(radius), islandNormal(radius)));
     return group;
-  }, [land, coast, claimed]);
+  }, [land, coast, claimed, radius]);
   useEffect(() => () => group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();
@@ -82,8 +82,8 @@ function Territories({ land, coast, claimed }: { land: NonNullable<Island["land"
 }
 
 /** Each running session's arc of an island's coast (5.6, 5.7), laid just above the ground. */
-function CoastTints({ arcs, coast }: { arcs: readonly CoastArc[]; coast: readonly (readonly { x: number; z: number }[])[] }) {
-  const group = useMemo(() => coastTintMarks(coast, arcs, onIslandSurface(PLANET_RADIUS, TERRITORY_LIFT * 2)), [JSON.stringify(arcs), coast]);
+function CoastTints({ arcs, coast, radius }: { arcs: readonly CoastArc[]; coast: readonly (readonly { x: number; z: number }[])[]; radius: number }) {
+  const group = useMemo(() => coastTintMarks(coast, arcs, onIslandSurface(radius, TERRITORY_LIFT * 2)), [JSON.stringify(arcs), coast, radius]);
   useEffect(() => () => group.traverse((object) => {
     const mark = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mark.geometry?.dispose();
@@ -94,8 +94,10 @@ function CoastTints({ arcs, coast }: { arcs: readonly CoastArc[]; coast: readonl
 
 type ScreenMarker = EdgeMarker & { left: number; top: number };
 
-function Navigation({ islands, titles, rotation, onRotate, onPick, onNote, mode }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNote, mode }: {
   mode: ForestMode;
+  /** The globe's radius as laid out, which grows with its islands. */
+  radius: number;
   islands: readonly FacingIsland[];
   titles: ReadonlyMap<string, string>;
   rotation: Quaternion;
@@ -117,7 +119,7 @@ function Navigation({ islands, titles, rotation, onRotate, onPick, onNote, mode 
   // OrbitControls runs before this frame. Project the rim with the current eye AND zoom.
   useFrame(() => {
     const centre = new Vector3().project(camera);
-    const rim = PLANET_RADIUS * camera.zoom + 16;
+    const rim = radius * camera.zoom + 16;
     const next = hiddenMarkers(islands, rotation, camera.quaternion, mode).map(marker => ({
       ...marker,
       left: Math.round(Math.max(20, Math.min(size.width - 20, (centre.x + 1) * size.width / 2 + marker.at.x * rim))),

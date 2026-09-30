@@ -1,8 +1,7 @@
 /** The desktop's joins between permanent story places, lane C's turns, and Three's camera. */
 import { Euler, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
-import { edgeMarkers, PLANET_RADIUS, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
-
-import { placeOnPackedGlobe } from "@storytree/forest";
+import { edgeMarkers, growPlanet, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
+import { islandCoastReach } from "@storytree/forest-world/geometry";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -17,14 +16,18 @@ export function globeFraming(choice: GlobeOpening): number {
   return choice === "close" ? 0.8 : choice === "far" ? 1.7 : 1.18;
 }
 
+/**
+ * The globe's layout (ADR-0804 D7): each island at its permanent place, nudged only as far as its coast needs
+ * room, and the globe's radius, which grows when nudging cannot make room. Every drawing takes `radius` from here.
+ */
 export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
-  const islands: FacingIsland[] = scene.islands.map(island => {
+  const grown = growPlanet(scene.islands.map(island => {
     const place = places.get(island.story);
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
-    const p = placeOnPackedGlobe(place);
-    return { story: island.story, trees: island.trees, spot: { x: p.x / PLANET_RADIUS, y: p.y / PLANET_RADIUS, z: p.z / PLANET_RADIUS } };
-  });
-  return { scene, islands, spots: new Map(islands.map(i => [i.story, i.spot])) };
+    return { story: island.story, place, reach: islandCoastReach(island) };
+  }));
+  const islands: FacingIsland[] = scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: grown.spots.get(island.story)! }));
+  return { scene, islands, spots: new Map(islands.map(i => [i.story, i.spot])), radius: grown.radius };
 }
 
 /** Lane C turns toward view +z. The canvas eye can be elevated, orbited, or rolled. */

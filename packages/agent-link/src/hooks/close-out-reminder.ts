@@ -5,8 +5,10 @@
  * is never woken.
  *
  * It decides from this machine alone, so a turn end never waits on the database: the folder's
- * branch (not main) is resolved when its head is already in origin/main as last fetched, which a
- * merged pull request or a branch with nothing ahead both give; and the close-out and the reminder
+ * branch (not main) is resolved when it has work of its own (its reflog records a commit on it)
+ * and its head is already in origin/main as last fetched. A fresh workspace branch, still at the
+ * main it was cut from, meets the second but not the first, so it is not asked and keeps its one
+ * reminder for when its work does merge (friction_996acd8c8260). The close-out and the reminder
  * are each remembered per session beside the prompt hook's ledgers. The reading, not this, checks
  * the answer (agent link 4.12).
  */
@@ -34,7 +36,7 @@ export function closeOutReminder(harness: string, input: unknown): string | unde
   if (event !== "Stop" || again === true || typeof session !== "string" || typeof folder !== "string" || folder === "") return undefined;
   if (route(folder).status === "not-a-project") return undefined;
   const branch = currentBranch(folder);
-  if (branch === undefined || MAIN_BRANCHES.has(branch) || !inMain(folder)) return undefined;
+  if (branch === undefined || MAIN_BRANCHES.has(branch) || !inMain(folder) || !hasWorkOfItsOwn(folder, branch)) return undefined;
   // Closed out already, or asked already: asked once per session at most.
   if (alreadyGiven(session, "closed-out", "close-outs") || notYetGivenIds(session, ["asked"], "close-outs").length === 0) return undefined;
   const reason = `[storytree] ${branch} is in main now. If this session's work is done, close it out: \`storytree session close-out --safe yes|no --why <a few words>\` (or the close_out tool). Say yes only when every pull request has merged, the working tree is clean and nothing of yours is running; the sessions list checks a yes. If the work is not done, carry on.`;
@@ -46,6 +48,19 @@ function inMain(folder: string): boolean {
   try {
     execFileSync("git", ["merge-base", "--is-ancestor", "HEAD", "origin/main"], { cwd: folder, stdio: "ignore", windowsHide: true });
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether `branch` was ever committed to here: its reflog records a commit, a cherry-pick or a
+ * merge that made a merge commit. Being cut from main, or fast-forwarded along it, records none.
+ */
+function hasWorkOfItsOwn(folder: string, branch: string): boolean {
+  try {
+    const moves = execFileSync("git", ["reflog", "show", "--format=%gs", `refs/heads/${branch}`, "--"], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    return moves.split("\n").some((move) => /^(commit|cherry-pick)\b/.test(move) || move.includes("Merge made by"));
   } catch {
     return false;
   }

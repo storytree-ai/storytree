@@ -305,6 +305,20 @@ test("5.13 a session that holds work on a branch GitHub reports merged, before t
   });
 });
 
+test("5.13 a session that holds work on a branch whose pull request waits in the merge queue gets a fresh workspace on a new branch, and still holds the work there", async () => {
+  await withWorld(async ({ log, project, park, as }) => {
+    const increment = await park("email form");
+    assert.equal((await claim({ ...as("A"), branch: "claude/queued" }, increment, "first unit")).ok, true);
+    const queuedPulls = async (_folder: string, branch: string) => branch === "claude/queued" ? [9] : [];
+
+    const made = await makeWorkspace(as("A"), increment, "next unit", { mergedPulls: async () => [], queuedPulls });
+
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    assert.notEqual(made.branch, "claude/queued");
+    assert.deepEqual((await readClaims(log, project)).map(({ session, increment, branch }) => ({ session, increment, branch })), [{ session: "A", increment, branch: made.branch }]);
+  });
+});
+
 test("5.12 a Claude Code session the app started in its own linked worktree attaches that folder: it holds the work on that worktree's branch, and no second worktree is made", async () => {
   await withWorld(async ({ dir, log, library, project, site, park, as }) => {
     const increment = await park("email form");

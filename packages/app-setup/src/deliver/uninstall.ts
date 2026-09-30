@@ -65,6 +65,13 @@ function updaterCache(installDir: string, localAppData: string | undefined): str
   } catch { return undefined; }
 }
 
+/**
+ * The library, and what lets a reinstall find it again: its database and backups, its location
+ * setting, this machine's identity (its projects' folders are recorded under it), the chosen project,
+ * and hook lines queued for it while storytree was not running. The rest of the home is the app's.
+ */
+const library = new Set(["pgdata", "pgdata.owner.json", "backups", "settings.json", "machine.json", "project-choice.json", "queued-lines"]);
+
 const remove = (target: string) => rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 
 export async function uninstall(options: UninstallOptions): Promise<UninstallReport> {
@@ -102,8 +109,7 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
 
   try {
     if (options.library === "keep") {
-      remove(entry);
-      remove(path.join(options.home, "delivery.json"));
+      for (const name of readdirSync(options.home)) if (!library.has(name)) remove(path.join(options.home, name));
       lines.push(`Your library was kept in ${options.home}. Reinstalling storytree picks it up again; delete that folder to remove it.`);
     } else {
       remove(options.home);
@@ -121,8 +127,10 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
 
 /**
  * `storytree setup uninstall`: open this installation's own Windows uninstaller, the one Apps &
- * features runs. With a library choice it runs unattended. It starts a moment after this command has
- * returned, since the uninstaller stops every process running from the installation, this one included.
+ * features runs. With a library choice it runs unattended. The uninstaller stops every process running
+ * from the installation, this one included, but only after it has checked for PowerShell (a second or
+ * more), by when this command has printed and returned. It is started directly: Windows PowerShell,
+ * started detached as a delay, has no console and exits without running anything.
  */
 export async function openUninstaller(choice?: string, helperDir = path.dirname(process.argv[1] ?? "")): Promise<string> {
   if (choice !== undefined && choice !== "keep" && choice !== "remove") throw new Error("usage: storytree setup uninstall [--keep-library|--remove-library]");
@@ -131,10 +139,9 @@ export async function openUninstaller(choice?: string, helperDir = path.dirname(
   if (process.platform !== "win32" || !existsSync(uninstaller)) {
     throw new Error(`This storytree has no Windows uninstaller at ${uninstaller}; only the installed Windows app has one. Your projects are not affected either way.`);
   }
-  const args = choice === undefined ? "" : `/S --${choice}-library`;
-  const child = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand",
-    Buffer.from("Start-Sleep -Seconds 2; if ($env:STORYTREE_UNINSTALL_ARGS) { Start-Process -FilePath $env:STORYTREE_UNINSTALLER -ArgumentList $env:STORYTREE_UNINSTALL_ARGS } else { Start-Process -FilePath $env:STORYTREE_UNINSTALLER }", "utf16le").toString("base64")],
-    { detached: true, stdio: "ignore", windowsHide: true, env: { ...process.env, STORYTREE_UNINSTALLER: uninstaller, STORYTREE_UNINSTALL_ARGS: args } });
+  // Apps & features runs it with /currentuser, the per-user installation's switch.
+  const args = ["/currentuser", ...(choice === undefined ? [] : ["/S", `--${choice}-library`])];
+  const child = spawn(uninstaller, args, { detached: true, stdio: "ignore" });
   await new Promise<void>((resolve, reject) => { child.once("error", reject); child.once("spawn", () => { child.unref(); resolve(); }); });
   return choice === undefined
     ? "The storytree uninstaller is opening: it asks whether to keep your library, then removes the app, its command and its agent connections. Your project folders are left alone."

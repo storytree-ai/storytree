@@ -750,7 +750,7 @@ export function worldTo3D(scene: SceneG, opts: WorldTo3DOptions = {}): Descripto
   walkNode(scene, out, { x: 0, y: 0 });
   const ratio = opts.landAreaPerCapability;
   if (ratio === null) return out;
-  return sizeIslandsByCapability(out, ratio === undefined ? LAND_AREA_PER_CAPABILITY : ratio);
+  return sizeIslandsByCapability(out, ratio === undefined ? LAND_AREA_PER_CAPABILITY : ratio, undefined, opts.islandAreas);
 }
 
 /** What the mapper needs to know about the scene beyond the scene itself. */
@@ -762,4 +762,7 @@ export interface WorldTo3DOptions {
    *  "before this landing" control arm stands on, and what the crowd layout sizes its frame from,
    *  because the real map's spacing is the drawing's. The shipped canvas never passes it. */
   landAreaPerCapability?: number | null;
+  /** Islands whose land is SET rather than counted, by island id, in ground units² (ADR-0804 D3, D7:
+   *  a surveyed story's lines of code). Each is sized to exactly this; the rest follow the ratio. */
+  islandAreas?: ReadonlyMap<string, number>;
 }

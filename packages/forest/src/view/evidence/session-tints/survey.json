@@ -1,0 +1,3973 @@
+{
+ "story_05e45963ca9f": {
+  "files": [
+   {
+    "path": "src/activity/activity-log.ts",
+    "lines": 343,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/activity/branch.ts",
+    "lines": 10
+   },
+   {
+    "path": "src/activity/index.ts",
+    "lines": 7,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/activity/lines.ts",
+    "lines": 146
+   },
+   {
+    "path": "src/activity/text.ts",
+    "lines": 43
+   },
+   {
+    "path": "src/activity/transcript-records.ts",
+    "lines": 122
+   },
+   {
+    "path": "src/bins/build.ts",
+    "lines": 81,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/bins/storytree-hook.ts",
+    "lines": 51
+   },
+   {
+    "path": "src/bins/storytree-mcp.ts",
+    "lines": 40
+   },
+   {
+    "path": "src/bins/storytree-setup.ts",
+    "lines": 35
+   },
+   {
+    "path": "src/bins/storytree.ts",
+    "lines": 23
+   },
+   {
+    "path": "src/capture/capture.ts",
+    "lines": 112,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/capture/index.ts",
+    "lines": 2,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/claims/claims.ts",
+    "lines": 232,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/claims/index.ts",
+    "lines": 6,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/claims/merges.ts",
+    "lines": 158,
+    "capability": "capability_05ff7e9f0f99"
+   },
+   {
+    "path": "src/claims/workspace.ts",
+    "lines": 179,
+    "capability": "capability_05ff7e9f0f99"
+   },
+   {
+    "path": "src/context/command.ts",
+    "lines": 49
+   },
+   {
+    "path": "src/context/composition.ts",
+    "lines": 343
+   },
+   {
+    "path": "src/context/context.ts",
+    "lines": 110,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/context/guidance.ts",
+    "lines": 21
+   },
+   {
+    "path": "src/context/index.ts",
+    "lines": 8,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/context/transcript.ts",
+    "lines": 25
+   },
+   {
+    "path": "src/context/window.ts",
+    "lines": 222
+   },
+   {
+    "path": "src/hooks/claude-code.ts",
+    "lines": 82,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/close-out-reminder.ts",
+    "lines": 46,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/codex-trust.ts",
+    "lines": 52,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/hooks/codex.ts",
+    "lines": 100,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/context-nudge.ts",
+    "lines": 21,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/definitions.ts",
+    "lines": 78,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/given-once.ts",
+    "lines": 31,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/hooks.ts",
+    "lines": 275,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/index.ts",
+    "lines": 7,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/hooks/queue.ts",
+    "lines": 67,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/requests.ts",
+    "lines": 19,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/hooks/status-line.ts",
+    "lines": 103,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 27,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/instructions/codex-agents.ts",
+    "lines": 57,
+    "capability": "capability_2b2232e0345d"
+   },
+   {
+    "path": "src/instructions/habits.ts",
+    "lines": 37,
+    "capability": "capability_2b2232e0345d"
+   },
+   {
+    "path": "src/instructions/index.ts",
+    "lines": 3,
+    "capability": "capability_2b2232e0345d"
+   },
+   {
+    "path": "src/readings.ts",
+    "lines": 384,
+    "capability": "capability_05ff7e9f0f99"
+   },
+   {
+    "path": "src/routing/index.ts",
+    "lines": 4,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/routing/project-choice.ts",
+    "lines": 36
+   },
+   {
+    "path": "src/routing/routing.ts",
+    "lines": 303,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/routing/trunks.ts",
+    "lines": 178,
+    "capability": "capability_602c631d32a7"
+   },
+   {
+    "path": "src/sessions/app-records.ts",
+    "lines": 179,
+    "capability": "capability_f5d1f85f2dd1"
+   },
+   {
+    "path": "src/sessions/branch-states.ts",
+    "lines": 213,
+    "capability": "capability_f5d1f85f2dd1"
+   },
+   {
+    "path": "src/sessions/close-out.ts",
+    "lines": 62,
+    "capability": "capability_f5d1f85f2dd1"
+   },
+   {
+    "path": "src/sessions/index.ts",
+    "lines": 10,
+    "capability": "capability_f5d1f85f2dd1"
+   },
+   {
+    "path": "src/sessions/listing.ts",
+    "lines": 47,
+    "capability": "capability_f5d1f85f2dd1"
+   },
+   {
+    "path": "src/sessions/sessions.ts",
+    "lines": 40,
+    "capability": "capability_f5d1f85f2dd1"
+   },
+   {
+    "path": "src/sessions/worktree-reaper.ts",
+    "lines": 160,
+    "capability": "capability_f5d1f85f2dd1"
+   },
+   {
+    "path": "src/settings/bridge.ts",
+    "lines": 22
+   },
+   {
+    "path": "src/settings/panel.ts",
+    "lines": 26
+   },
+   {
+    "path": "src/settings/settings.ts",
+    "lines": 288,
+    "capability": "capability_f3c4cf342304"
+   },
+   {
+    "path": "src/setup/built-from-main.ts",
+    "lines": 80,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/setup/command.ts",
+    "lines": 124,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/setup/diagnostics.ts",
+    "lines": 156
+   },
+   {
+    "path": "src/setup/hooks-config.ts",
+    "lines": 328,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/setup/hooks-release.ts",
+    "lines": 57
+   },
+   {
+    "path": "src/setup/index.ts",
+    "lines": 4,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/setup/machine.ts",
+    "lines": 173,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/setup/open-storytree.ts",
+    "lines": 99
+   },
+   {
+    "path": "src/setup/setup.ts",
+    "lines": 125,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/setup/verify.ts",
+    "lines": 56,
+    "capability": "capability_644c46abf9fa"
+   },
+   {
+    "path": "src/testing/activity-writer.ts",
+    "lines": 18
+   },
+   {
+    "path": "src/testing/agent.ts",
+    "lines": 83,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/testing/folders.ts",
+    "lines": 55,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/testing/pg.ts",
+    "lines": 72,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/testing/stub-app.mjs",
+    "lines": 13
+   },
+   {
+    "path": "src/tools/answers.ts",
+    "lines": 49
+   },
+   {
+    "path": "src/tools/claim-tools.ts",
+    "lines": 179
+   },
+   {
+    "path": "src/tools/connections.ts",
+    "lines": 73
+   },
+   {
+    "path": "src/tools/context-tools.ts",
+    "lines": 42
+   },
+   {
+    "path": "src/tools/index.ts",
+    "lines": 2,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/tools/note-tools.ts",
+    "lines": 243
+   },
+   {
+    "path": "src/tools/own-tools.ts",
+    "lines": 53
+   },
+   {
+    "path": "src/tools/plan-tools.ts",
+    "lines": 233
+   },
+   {
+    "path": "src/tools/server.ts",
+    "lines": 279,
+    "capability": "capability_4da153322012"
+   },
+   {
+    "path": "src/tools/setup-tools.ts",
+    "lines": 114
+   },
+   {
+    "path": "src/tools/text.ts",
+    "lines": 61
+   },
+   {
+    "path": "src/tools/work-tools.ts",
+    "lines": 245
+   },
+   {
+    "path": "src/transcripts/index.ts",
+    "lines": 4
+   },
+   {
+    "path": "src/transcripts/scrub.ts",
+    "lines": 22
+   },
+   {
+    "path": "src/transcripts/ship.ts",
+    "lines": 68
+   },
+   {
+    "path": "src/transcripts/stored.ts",
+    "lines": 73
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 147
+   },
+   {
+    "path": "src/view/render.ts",
+    "lines": 35
+   },
+   {
+    "path": "src/view/styles.ts",
+    "lines": 38
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/activity/activity-log.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/activity/activity-log.ts",
+    "to": "src/activity/transcript-records.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/activity-log.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/branch.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/activity-log.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/transcript-records.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/text.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/activity/text.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/activity/text.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/bins/storytree-hook.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/bins/storytree-mcp.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/bins/storytree-mcp.ts",
+    "to": "src/tools/index.ts"
+   },
+   {
+    "from": "src/bins/storytree-setup.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/capture/index.ts",
+    "to": "src/capture/capture.ts"
+   },
+   {
+    "from": "src/capture/index.ts",
+    "to": "src/capture/capture.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/workspace.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/workspace.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/activity/branch.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/workspace.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/workspace.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/context/command.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/context/command.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/command.ts",
+    "to": "src/context/guidance.ts"
+   },
+   {
+    "from": "src/context/composition.ts",
+    "to": "src/context/transcript.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/context/composition.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/context/guidance.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/context/transcript.ts"
+   },
+   {
+    "from": "src/context/guidance.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/composition.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/composition.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/command.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/command.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/window.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/window.ts"
+   },
+   {
+    "from": "src/context/window.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/context/window.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/window.ts",
+    "to": "src/context/transcript.ts"
+   },
+   {
+    "from": "src/hooks/claude-code.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/claude-code.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/claude-code.ts",
+    "to": "src/hooks/requests.ts"
+   },
+   {
+    "from": "src/hooks/close-out-reminder.ts",
+    "to": "src/activity/branch.ts"
+   },
+   {
+    "from": "src/hooks/close-out-reminder.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/hooks/close-out-reminder.ts",
+    "to": "src/hooks/given-once.ts"
+   },
+   {
+    "from": "src/hooks/codex.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/codex.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/codex.ts",
+    "to": "src/hooks/requests.ts"
+   },
+   {
+    "from": "src/hooks/context-nudge.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/context-nudge.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/hooks/context-nudge.ts",
+    "to": "src/hooks/given-once.ts"
+   },
+   {
+    "from": "src/hooks/definitions.ts",
+    "to": "src/hooks/given-once.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/claude-code.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/close-out-reminder.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/codex.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/context-nudge.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/definitions.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/status-line.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/requests.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/close-out-reminder.ts"
+   },
+   {
+    "from": "src/hooks/queue.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/requests.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/project-choice.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/tools/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/tools/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/instructions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/context/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transcripts/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transcripts/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/context/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/instructions/index.ts",
+    "to": "src/instructions/codex-agents.ts"
+   },
+   {
+    "from": "src/instructions/index.ts",
+    "to": "src/instructions/codex-agents.ts"
+   },
+   {
+    "from": "src/instructions/index.ts",
+    "to": "src/instructions/habits.ts"
+   },
+   {
+    "from": "src/readings.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/readings.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/routing.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/routing.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/trunks.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/trunks.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/routing/project-choice.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/routing/trunks.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/transcripts/scrub.ts"
+   },
+   {
+    "from": "src/sessions/branch-states.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/branch-states.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/close-out.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/close-out.ts",
+    "to": "src/hooks/close-out-reminder.ts"
+   },
+   {
+    "from": "src/sessions/close-out.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/listing.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/listing.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/worktree-reaper.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/worktree-reaper.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/sessions/close-out.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/sessions/close-out.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/worktree-reaper.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/worktree-reaper.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/sessions/worktree-reaper.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/settings/bridge.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/settings/panel.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/settings/panel.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/settings/panel.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/settings/settings.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/built-from-main.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/built-from-main.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/command.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/verify.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/setup.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/hooks-release.ts"
+   },
+   {
+    "from": "src/setup/hooks-config.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/setup/hooks-release.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/setup.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/setup.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/verify.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/verify.ts"
+   },
+   {
+    "from": "src/setup/open-storytree.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/open-storytree.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-release.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/open-storytree.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/command.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/diagnostics.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/diagnostics.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/command.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/command.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/open-storytree.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/open-storytree.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/built-from-main.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/built-from-main.ts"
+   },
+   {
+    "from": "src/setup/verify.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/testing/activity-writer.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/testing/agent.ts",
+    "to": "src/tools/index.ts"
+   },
+   {
+    "from": "src/testing/agent.ts",
+    "to": "src/testing/pg.ts"
+   },
+   {
+    "from": "src/tools/answers.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/tools/answers.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/connections.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/connections.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/sessions/close-out.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/context/index.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/context/guidance.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/index.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/index.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/own-tools.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/instructions/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/claim-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/context-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/connections.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/note-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/plan-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/setup-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/work-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/own-tools.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/connections.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/scrub.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/ship.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/stored.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/stored.ts"
+   },
+   {
+    "from": "src/transcripts/ship.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/transcripts/ship.ts",
+    "to": "src/transcripts/scrub.ts"
+   },
+   {
+    "from": "src/transcripts/stored.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/transcripts/stored.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/transcripts/stored.ts",
+    "to": "src/context/window.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/render.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/styles.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/settings/settings.ts"
+   }
+  ]
+ },
+ "story_16ac26dfa5d6": {
+  "files": [
+   {
+    "path": "src/index.ts",
+    "lines": 34
+   },
+   {
+    "path": "src/lifecycle/background.ts",
+    "lines": 89,
+    "capability": "capability_9dedb2e237cb"
+   },
+   {
+    "path": "src/lifecycle/backups.ts",
+    "lines": 44,
+    "capability": "capability_9dedb2e237cb"
+   },
+   {
+    "path": "src/lifecycle/launch.ts",
+    "lines": 50,
+    "capability": "capability_9dedb2e237cb"
+   },
+   {
+    "path": "src/lifecycle/open-where-set.ts",
+    "lines": 54,
+    "capability": "capability_9dedb2e237cb"
+   },
+   {
+    "path": "src/lifecycle/quit.ts",
+    "lines": 55,
+    "capability": "capability_9dedb2e237cb"
+   },
+   {
+    "path": "src/projects/follow.ts",
+    "lines": 39,
+    "capability": "capability_9dedb2e237cb"
+   },
+   {
+    "path": "src/projects/selection.ts",
+    "lines": 39,
+    "capability": "capability_b59e959e0da8"
+   },
+   {
+    "path": "src/surfaces/bridge.ts",
+    "lines": 20,
+    "capability": "capability_08d9ed39dc7a"
+   },
+   {
+    "path": "src/surfaces/reads.ts",
+    "lines": 132,
+    "capability": "capability_08d9ed39dc7a"
+   },
+   {
+    "path": "src/surfaces/smoke.ts",
+    "lines": 54,
+    "capability": "capability_08d9ed39dc7a"
+   },
+   {
+    "path": "src/surfaces/switches.ts",
+    "lines": 103,
+    "capability": "capability_08d9ed39dc7a"
+   },
+   {
+    "path": "src/updates/agent-activity.ts",
+    "lines": 24,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/build-health.ts",
+    "lines": 68,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/follow-main.ts",
+    "lines": 123,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/install-moment.ts",
+    "lines": 24,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/main-updates.ts",
+    "lines": 83,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/release-source.ts",
+    "lines": 37,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/releases.ts",
+    "lines": 91,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/seed-writing.ts",
+    "lines": 20,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/updates/version.ts",
+    "lines": 17,
+    "capability": "capability_dd7b2b7e8ba0"
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 135
+   },
+   {
+    "path": "src/view/render.ts",
+    "lines": 37,
+    "capability": "capability_b59e959e0da8"
+   },
+   {
+    "path": "src/view/styles.ts",
+    "lines": 99
+   },
+   {
+    "path": "src/view/surfaces.ts",
+    "lines": 97
+   },
+   {
+    "path": "src/view/updates.ts",
+    "lines": 59
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/background.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/background.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/backups.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/backups.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/build-health.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/build-health.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/seed-writing.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/releases.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/install-moment.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/install-moment.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/agent-activity.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/releases.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/launch.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/launch.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/open-where-set.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/open-where-set.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/quit.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/quit.ts"
+   },
+   {
+    "from": "src/lifecycle/launch.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/projects/follow.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/projects/follow.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/surfaces/bridge.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/surfaces/switches.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/updates/build-health.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/updates/main-updates.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/updates/releases.ts",
+    "to": "src/lifecycle/background.ts"
+   },
+   {
+    "from": "src/updates/releases.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/updates/version.ts",
+    "to": "src/updates/release-source.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/render.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/styles.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/surfaces.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/updates.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/view/surfaces.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/view/surfaces.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/view/updates.ts",
+    "to": "src/updates/main-updates.ts"
+   }
+  ]
+ },
+ "story_78b33d16d0b6": {
+  "files": [
+   {
+    "path": "src/agents/agents.ts",
+    "lines": 45,
+    "capability": "capability_3224f4ab8017"
+   },
+   {
+    "path": "src/board/board.ts",
+    "lines": 81,
+    "capability": "capability_60a15402b053"
+   },
+   {
+    "path": "src/board/live-board.ts",
+    "lines": 43,
+    "capability": "capability_60a15402b053"
+   },
+   {
+    "path": "src/board/reads.ts",
+    "lines": 21
+   },
+   {
+    "path": "src/board/smoke.ts",
+    "lines": 15,
+    "capability": "capability_60a15402b053"
+   },
+   {
+    "path": "src/briefing/briefing.ts",
+    "lines": 65,
+    "capability": "capability_34349210675b"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 26
+   },
+   {
+    "path": "src/live-reading/kept.ts",
+    "lines": 31
+   },
+   {
+    "path": "src/live-reading/live-reading.ts",
+    "lines": 96
+   },
+   {
+    "path": "src/surfaces/surfaces.ts",
+    "lines": 10
+   },
+   {
+    "path": "src/testing/records.ts",
+    "lines": 4,
+    "capability": "capability_60a15402b053"
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 2
+   },
+   {
+    "path": "src/view/mount.ts",
+    "lines": 113
+   },
+   {
+    "path": "src/view/preferences.ts",
+    "lines": 18
+   },
+   {
+    "path": "src/view/render.ts",
+    "lines": 72,
+    "capability": "capability_60a15402b053"
+   },
+   {
+    "path": "src/view/smoke.ts",
+    "lines": 46
+   },
+   {
+    "path": "src/waits/waits.ts",
+    "lines": 106,
+    "capability": "capability_e0c02f9f5cfa"
+   },
+   {
+    "path": "src/work-states/board-states.ts",
+    "lines": 53,
+    "capability": "capability_da68dca0d5f4"
+   },
+   {
+    "path": "src/work-states/work-states.ts",
+    "lines": 48,
+    "capability": "capability_da68dca0d5f4"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/board/board.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/board/board.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/board/board.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/board/board.ts",
+    "to": "src/work-states/board-states.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/board/reads.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/board/reads.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/board/smoke.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/work-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/work-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/board-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/board-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/live-board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/live-board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/view/smoke.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/mount.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/mount.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/live-board.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/view/render.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/view/preferences.ts"
+   },
+   {
+    "from": "src/view/preferences.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/waits/waits.ts",
+    "to": "src/work-states/board-states.ts"
+   }
+  ]
+ },
+ "story_20549f1d48af": {
+  "files": [
+   {
+    "path": "src/answer.ts",
+    "lines": 47
+   },
+   {
+    "path": "src/args.ts",
+    "lines": 94
+   },
+   {
+    "path": "src/bins/build.ts",
+    "lines": 39
+   },
+   {
+    "path": "src/bins/storytree.ts",
+    "lines": 11
+   },
+   {
+    "path": "src/door.ts",
+    "lines": 269,
+    "capability": "capability_d52cb21878a8"
+   },
+   {
+    "path": "src/families/adr.ts",
+    "lines": 193
+   },
+   {
+    "path": "src/families/app.ts",
+    "lines": 34
+   },
+   {
+    "path": "src/families/arc.ts",
+    "lines": 248
+   },
+   {
+    "path": "src/families/capability.ts",
+    "lines": 31
+   },
+   {
+    "path": "src/families/capture.ts",
+    "lines": 103
+   },
+   {
+    "path": "src/families/context.ts",
+    "lines": 22
+   },
+   {
+    "path": "src/families/doctor.ts",
+    "lines": 164
+   },
+   {
+    "path": "src/families/index.ts",
+    "lines": 44
+   },
+   {
+    "path": "src/families/library.ts",
+    "lines": 249
+   },
+   {
+    "path": "src/families/noticeboard.ts",
+    "lines": 60
+   },
+   {
+    "path": "src/families/processes.ts",
+    "lines": 57
+   },
+   {
+    "path": "src/families/question.ts",
+    "lines": 130
+   },
+   {
+    "path": "src/families/session.ts",
+    "lines": 48
+   },
+   {
+    "path": "src/families/settings.ts",
+    "lines": 62
+   },
+   {
+    "path": "src/families/setup.ts",
+    "lines": 48
+   },
+   {
+    "path": "src/families/tree.ts",
+    "lines": 54
+   },
+   {
+    "path": "src/families/workspace.ts",
+    "lines": 84
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 4
+   },
+   {
+    "path": "src/testing/cli.ts",
+    "lines": 181,
+    "capability": "capability_6becd708350e"
+   },
+   {
+    "path": "src/testing/stub-app.mjs",
+    "lines": 8
+   },
+   {
+    "path": "src/writer.ts",
+    "lines": 20
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/args.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/bins/storytree.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/families/index.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/app.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/app.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/capability.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/capability.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/capture.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/capture.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/capture.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/context.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/doctor.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/doctor.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/doctor.ts",
+    "to": "src/families/setup.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/adr.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/app.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/arc.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/capability.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/capture.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/context.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/doctor.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/question.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/noticeboard.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/tree.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/workspace.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/processes.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/session.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/settings.ts"
+   },
+   {
+    "from": "src/families/library.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/library.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/library.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/noticeboard.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/noticeboard.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/processes.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/processes.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/processes.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/question.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/question.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/question.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/session.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/session.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/session.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/settings.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/settings.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/setup.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/setup.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/tree.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/tree.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/workspace.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/workspace.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/testing/cli.ts",
+    "to": "src/bins/build.ts"
+   }
+  ]
+ },
+ "story_be32e99ed54f": {
+  "files": [
+   {
+    "path": "src/agent-claims/agent-claims.ts",
+    "lines": 50,
+    "capability": "capability_dda13a1b6f32"
+   },
+   {
+    "path": "src/capability-tree/capability-tree.ts",
+    "lines": 62,
+    "capability": "capability_01edc782b586"
+   },
+   {
+    "path": "src/code-survey/code-survey.ts",
+    "lines": 119
+   },
+   {
+    "path": "src/code-survey/read-survey.ts",
+    "lines": 53
+   },
+   {
+    "path": "src/drill-down/drill-down.ts",
+    "lines": 155,
+    "capability": "capability_5f85ed8b29a7"
+   },
+   {
+    "path": "src/drill-down/tree-layout.ts",
+    "lines": 117,
+    "capability": "capability_5f85ed8b29a7"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 20,
+    "capability": "capability_9f02379a2e1a"
+   },
+   {
+    "path": "src/never-hidden/never-hidden.ts",
+    "lines": 65
+   },
+   {
+    "path": "src/planet-places/planet-places.ts",
+    "lines": 57,
+    "capability": "capability_9f02379a2e1a"
+   },
+   {
+    "path": "src/render/forest-reading.ts",
+    "lines": 50
+   },
+   {
+    "path": "src/render/forest-scene.ts",
+    "lines": 115,
+    "capability": "capability_9f02379a2e1a"
+   },
+   {
+    "path": "src/render/kept-tree.ts",
+    "lines": 20
+   },
+   {
+    "path": "src/sessions-list/sessions-list.ts",
+    "lines": 166,
+    "capability": "capability_dda13a1b6f32"
+   },
+   {
+    "path": "src/story-nodes/story-nodes.ts",
+    "lines": 66,
+    "capability": "capability_cd33386156ad"
+   },
+   {
+    "path": "src/surfaces/surfaces.ts",
+    "lines": 78
+   },
+   {
+    "path": "src/territories/territories.ts",
+    "lines": 254,
+    "capability": "capability_9f02379a2e1a"
+   },
+   {
+    "path": "src/view/file-circles.ts",
+    "lines": 35,
+    "capability": "capability_9f02379a2e1a"
+   },
+   {
+    "path": "src/view/forest-view.tsx",
+    "lines": 117
+   },
+   {
+    "path": "src/view/globe-picking.ts",
+    "lines": 25
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 9
+   },
+   {
+    "path": "src/view/island-overlays.tsx",
+    "lines": 95
+   },
+   {
+    "path": "src/view/pan-zoom.ts",
+    "lines": 167,
+    "capability": "capability_5f85ed8b29a7"
+   },
+   {
+    "path": "src/view/panel-selection.ts",
+    "lines": 14
+   },
+   {
+    "path": "src/view/planet-navigation.ts",
+    "lines": 101,
+    "capability": "capability_9f02379a2e1a"
+   },
+   {
+    "path": "src/view/planet-view.tsx",
+    "lines": 171
+   },
+   {
+    "path": "src/view/session-emphasis.tsx",
+    "lines": 55
+   },
+   {
+    "path": "src/view/sessions-list.tsx",
+    "lines": 316,
+    "capability": "capability_dda13a1b6f32"
+   },
+   {
+    "path": "src/view/story-panel.ts",
+    "lines": 145,
+    "capability": "capability_5f85ed8b29a7"
+   },
+   {
+    "path": "src/view/territory-land.ts",
+    "lines": 121,
+    "capability": "capability_9f02379a2e1a"
+   },
+   {
+    "path": "src/view/tree-space.ts",
+    "lines": 80
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/agent-claims/agent-claims.ts",
+    "to": "src/sessions-list/sessions-list.ts"
+   },
+   {
+    "from": "src/code-survey/read-survey.ts",
+    "to": "src/code-survey/code-survey.ts"
+   },
+   {
+    "from": "src/drill-down/drill-down.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/drill-down/tree-layout.ts",
+    "to": "src/drill-down/drill-down.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/story-nodes/story-nodes.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/story-nodes/story-nodes.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/planet-places/planet-places.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-scene.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-scene.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/kept-tree.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/drill-down.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/drill-down.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/tree-layout.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/tree-layout.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/never-hidden/never-hidden.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/sessions-list/sessions-list.ts"
+   },
+   {
+    "from": "src/never-hidden/never-hidden.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/render/forest-reading.ts",
+    "to": "src/code-survey/code-survey.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/code-survey/code-survey.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/story-nodes/story-nodes.ts"
+   },
+   {
+    "from": "src/sessions-list/sessions-list.ts",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/view/planet-view.tsx"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/view/panel-selection.ts"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/view/planet-navigation.ts"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/forest-view.tsx"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/story-panel.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/pan-zoom.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/tree-space.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/sessions-list.tsx"
+   },
+   {
+    "from": "src/view/pan-zoom.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/planet-navigation.ts",
+    "to": "src/view/globe-picking.ts"
+   },
+   {
+    "from": "src/view/planet-navigation.ts",
+    "to": "src/view/panel-selection.ts"
+   },
+   {
+    "from": "src/view/planet-navigation.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/session-emphasis.tsx"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/file-circles.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/territory-land.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/territories/territories.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/island-overlays.tsx"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/planet-navigation.ts"
+   },
+   {
+    "from": "src/view/sessions-list.tsx",
+    "to": "src/sessions-list/sessions-list.ts"
+   },
+   {
+    "from": "src/view/sessions-list.tsx",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/view/tree-space.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/tree-space.ts",
+    "to": "src/view/pan-zoom.ts"
+   },
+   {
+    "from": "src/view/tree-space.ts",
+    "to": "src/view/story-panel.ts"
+   }
+  ]
+ },
+ "story_4c04d95d52a8": {
+  "files": [
+   {
+    "path": "src/ghosts/ghosts.ts",
+    "lines": 131,
+    "capability": "capability_83d80a307e18"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 16
+   },
+   {
+    "path": "src/look-inside/look-inside.ts",
+    "lines": 588,
+    "capability": "capability_83d80a307e18"
+   },
+   {
+    "path": "src/look-inside/view-state.ts",
+    "lines": 44,
+    "capability": "capability_83d80a307e18"
+   },
+   {
+    "path": "src/reads/reads.ts",
+    "lines": 121,
+    "capability": "capability_83d80a307e18"
+   },
+   {
+    "path": "src/shelves/positions.ts",
+    "lines": 117
+   },
+   {
+    "path": "src/shelves/shelves.ts",
+    "lines": 161,
+    "capability": "capability_83d80a307e18"
+   },
+   {
+    "path": "src/shelves/story-text.ts",
+    "lines": 7
+   },
+   {
+    "path": "src/testing/changes.ts",
+    "lines": 52,
+    "capability": "capability_83d80a307e18"
+   },
+   {
+    "path": "src/view/drawing.tsx",
+    "lines": 246,
+    "capability": "capability_83d80a307e18"
+   },
+   {
+    "path": "src/view/globe-points.tsx",
+    "lines": 283
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 4
+   },
+   {
+    "path": "src/view/ring.tsx",
+    "lines": 17
+   },
+   {
+    "path": "src/view/surface.tsx",
+    "lines": 303,
+    "capability": "capability_83d80a307e18"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/index.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/look-inside/view-state.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/look-inside/view-state.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/story-text.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/shelves/positions.ts",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/shelves/positions.ts",
+    "to": "src/shelves/story-text.ts"
+   },
+   {
+    "from": "src/shelves/shelves.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/view/drawing.tsx",
+    "to": "src/view/ring.tsx"
+   },
+   {
+    "from": "src/view/drawing.tsx",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/view/globe-points.tsx",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/view/globe-points.tsx",
+    "to": "src/view/ring.tsx"
+   },
+   {
+    "from": "src/view/globe-points.tsx",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/surface.tsx"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/surface.tsx"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/view/globe-points.tsx"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/view/drawing.tsx"
+   }
+  ]
+ },
+ "story_69d0ee10bbe7": {
+  "files": [
+   {
+    "path": "src/catalogue/catalogue.ts",
+    "lines": 64,
+    "capability": "capability_c7aada819094"
+   },
+   {
+    "path": "src/catalogue/index.ts",
+    "lines": 2,
+    "capability": "capability_c7aada819094"
+   },
+   {
+    "path": "src/decision-log/decision-log.ts",
+    "lines": 93,
+    "capability": "capability_625728b42886"
+   },
+   {
+    "path": "src/decision-log/index.ts",
+    "lines": 2,
+    "capability": "capability_625728b42886"
+   },
+   {
+    "path": "src/graduation/graduation.ts",
+    "lines": 127,
+    "capability": "capability_d6e345aa554a"
+   },
+   {
+    "path": "src/graduation/index.ts",
+    "lines": 2,
+    "capability": "capability_d6e345aa554a"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 16
+   },
+   {
+    "path": "src/links/index.ts",
+    "lines": 1,
+    "capability": "capability_2fa1a37e0d10"
+   },
+   {
+    "path": "src/links/links.ts",
+    "lines": 52,
+    "capability": "capability_2fa1a37e0d10"
+   },
+   {
+    "path": "src/notes.ts",
+    "lines": 46
+   },
+   {
+    "path": "src/queues/index.ts",
+    "lines": 2,
+    "capability": "capability_e07dc33c510d"
+   },
+   {
+    "path": "src/queues/queues.ts",
+    "lines": 51,
+    "capability": "capability_e07dc33c510d"
+   },
+   {
+    "path": "src/rounds/host.ts",
+    "lines": 39,
+    "capability": "capability_741dcbce28ee"
+   },
+   {
+    "path": "src/rounds/index.ts",
+    "lines": 2,
+    "capability": "capability_2fa1a37e0d10"
+   },
+   {
+    "path": "src/rounds/rounds.ts",
+    "lines": 79,
+    "capability": "capability_2fa1a37e0d10"
+   },
+   {
+    "path": "src/rounds/tools.ts",
+    "lines": 106,
+    "capability": "capability_741dcbce28ee"
+   },
+   {
+    "path": "src/testing/pg.ts",
+    "lines": 45,
+    "capability": "capability_2fa1a37e0d10"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/catalogue/catalogue.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/catalogue/index.ts",
+    "to": "src/catalogue/catalogue.ts"
+   },
+   {
+    "from": "src/catalogue/index.ts",
+    "to": "src/catalogue/catalogue.ts"
+   },
+   {
+    "from": "src/decision-log/decision-log.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/decision-log/index.ts",
+    "to": "src/decision-log/decision-log.ts"
+   },
+   {
+    "from": "src/decision-log/index.ts",
+    "to": "src/decision-log/decision-log.ts"
+   },
+   {
+    "from": "src/graduation/graduation.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/graduation/index.ts",
+    "to": "src/graduation/graduation.ts"
+   },
+   {
+    "from": "src/graduation/index.ts",
+    "to": "src/graduation/graduation.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/links/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/rounds/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/rounds/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/rounds/tools.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/links/index.ts",
+    "to": "src/links/links.ts"
+   },
+   {
+    "from": "src/links/links.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/queues/index.ts",
+    "to": "src/queues/queues.ts"
+   },
+   {
+    "from": "src/queues/index.ts",
+    "to": "src/queues/queues.ts"
+   },
+   {
+    "from": "src/queues/queues.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/rounds/index.ts",
+    "to": "src/rounds/rounds.ts"
+   },
+   {
+    "from": "src/rounds/index.ts",
+    "to": "src/rounds/rounds.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/links/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/links/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/rounds/host.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/rounds/rounds.ts"
+   }
+  ]
+ },
+ "story_eb7d623fb9c8": {
+  "files": [
+   {
+    "path": "src/api/index.ts",
+    "lines": 2,
+    "capability": "capability_10618c4fdcc4"
+   },
+   {
+    "path": "src/api/library.ts",
+    "lines": 554,
+    "capability": "capability_10618c4fdcc4"
+   },
+   {
+    "path": "src/creation-order.ts",
+    "lines": 14
+   },
+   {
+    "path": "src/health/health-record.ts",
+    "lines": 245,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/health/index.ts",
+    "lines": 14,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 54,
+    "capability": "capability_10618c4fdcc4"
+   },
+   {
+    "path": "src/knowledge/bge-small.ts",
+    "lines": 48
+   },
+   {
+    "path": "src/knowledge/embedding.ts",
+    "lines": 162
+   },
+   {
+    "path": "src/knowledge/index.ts",
+    "lines": 5,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/knowledge/knowledge.ts",
+    "lines": 674,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/knowledge/similarity.ts",
+    "lines": 227
+   },
+   {
+    "path": "src/project/cloud-sql.ts",
+    "lines": 281,
+    "capability": "capability_2417a0fb5578"
+   },
+   {
+    "path": "src/project/connection-error.ts",
+    "lines": 92,
+    "capability": "capability_2417a0fb5578"
+   },
+   {
+    "path": "src/project/embeddings.ts",
+    "lines": 38
+   },
+   {
+    "path": "src/project/index.ts",
+    "lines": 9,
+    "capability": "capability_2417a0fb5578"
+   },
+   {
+    "path": "src/project/memory-upgrade.ts",
+    "lines": 88
+   },
+   {
+    "path": "src/project/names.ts",
+    "lines": 33
+   },
+   {
+    "path": "src/project/schema.ts",
+    "lines": 48
+   },
+   {
+    "path": "src/project/server.ts",
+    "lines": 112
+   },
+   {
+    "path": "src/project/snapshot.ts",
+    "lines": 176,
+    "capability": "capability_10618c4fdcc4"
+   },
+   {
+    "path": "src/project/storytree.ts",
+    "lines": 414,
+    "capability": "capability_2417a0fb5578"
+   },
+   {
+    "path": "src/references.ts",
+    "lines": 131,
+    "capability": "capability_9ee4ed8d31a4"
+   },
+   {
+    "path": "src/schema/errors.ts",
+    "lines": 100,
+    "capability": "capability_9ee4ed8d31a4"
+   },
+   {
+    "path": "src/schema/index.ts",
+    "lines": 7,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/schema/records.ts",
+    "lines": 260,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/schema/types.ts",
+    "lines": 433
+   },
+   {
+    "path": "src/schema/upgrades.ts",
+    "lines": 43
+   },
+   {
+    "path": "src/testing/pg.ts",
+    "lines": 158,
+    "capability": "capability_2417a0fb5578"
+   },
+   {
+    "path": "src/transactions/behaviour-suite.ts",
+    "lines": 463,
+    "capability": "capability_2417a0fb5578"
+   },
+   {
+    "path": "src/transactions/index.ts",
+    "lines": 14,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/transactions/memory.ts",
+    "lines": 103,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/transactions/pg.ts",
+    "lines": 227,
+    "capability": "capability_2417a0fb5578"
+   },
+   {
+    "path": "src/transactions/records.ts",
+    "lines": 100
+   },
+   {
+    "path": "src/transactions/types.ts",
+    "lines": 118
+   },
+   {
+    "path": "src/work/index.ts",
+    "lines": 18,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/work/work-in-flight.ts",
+    "lines": 657,
+    "capability": "capability_75abfdd699c0"
+   },
+   {
+    "path": "src/work/work-model.ts",
+    "lines": 273,
+    "capability": "capability_75abfdd699c0"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/api/index.ts",
+    "to": "src/api/library.ts"
+   },
+   {
+    "from": "src/api/index.ts",
+    "to": "src/api/library.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/health/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/knowledge/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/health/index.ts",
+    "to": "src/health/health-record.ts"
+   },
+   {
+    "from": "src/health/index.ts",
+    "to": "src/health/health-record.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/api/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/api/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/knowledge/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/health/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/knowledge/index.ts"
+   },
+   {
+    "from": "src/knowledge/bge-small.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/embedding.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/similarity.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/creation-order.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/knowledge/bge-small.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/knowledge/similarity.ts"
+   },
+   {
+    "from": "src/project/cloud-sql.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/cloud-sql.ts",
+    "to": "src/project/server.ts"
+   },
+   {
+    "from": "src/project/embeddings.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/cloud-sql.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/cloud-sql.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/names.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/snapshot.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/snapshot.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/storytree.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/storytree.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/project/server.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/snapshot.ts",
+    "to": "src/transactions/pg.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/health/health-record.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/transactions/pg.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/work/work-in-flight.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/work/work-model.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/cloud-sql.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/embeddings.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/names.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/memory-upgrade.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/schema.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/snapshot.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/server.ts"
+   },
+   {
+    "from": "src/references.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/references.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/errors.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/errors.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/errors.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/upgrades.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/schema/errors.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/schema/upgrades.ts"
+   },
+   {
+    "from": "src/schema/upgrades.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/transactions/behaviour-suite.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/memory.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/records.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/pg.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/memory.ts",
+    "to": "src/transactions/records.ts"
+   },
+   {
+    "from": "src/transactions/memory.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/pg.ts",
+    "to": "src/transactions/records.ts"
+   },
+   {
+    "from": "src/transactions/pg.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/records.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-in-flight.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-in-flight.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-model.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-model.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/creation-order.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/creation-order.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/schema/types.ts"
+   }
+  ]
+ }
+}

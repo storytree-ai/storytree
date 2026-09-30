@@ -17,7 +17,7 @@ import type { GlobeOpening } from "../surfaces/surfaces.js";
 export interface ForestView {
   /** Draw `scene`, recomputing only the islands that changed since the last one. */
   show(scene: ForestScene, places: ReadonlyMap<string, number>): void;
-  /** Show each running session's wisps orbiting its islands (capability 5). */
+  /** Show where each running session works: its tint on its islands' coasts and claimed land (capability 5, ADR-0804 D9). */
   showWisps(wisps: readonly SessionWisp[]): void;
   /** Light a session’s claimed islands and swell its wisps, without changing the selected story. */
   highlight(stories: readonly string[] | undefined, session?: string): void;

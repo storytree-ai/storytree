@@ -1,0 +1,78 @@
+date: 2026-10-01T00:27:43.2307977+10:00
+--- commands on a fresh PATH
+claude     C:\Users\mickh\.local\bin\claude.exe
+codex      C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links\codex.exe
+storytree  C:\Users\mickh\.storytree\0.3\bin\storytree.cmd
+--- user PATH entries naming storytree
+C:\Users\mickh\.storytree\0.3\bin
+--- storytree install
+installed: 0.3.371.0
+install folder: True
+Apps & features entry: 1
+start menu shortcut: True
+desktop shortcut: False
+--- storytree home
+~\.storytree: True
+  backups
+  bin
+  electron
+  pgdata
+  app.json
+  codex-hooks-ran
+  delivery.json
+  machine.json
+  pgdata.log
+  pgdata.owner.json
+  pgdata.tools.log
+  project-choice.json
+  releases.log
+updater cache: True
+--- processes
+
+   Id ProcessName   SessionId
+   -- -----------   ---------
+  804 postgres              2
+ 4400 postgres              2
+ 4640 postgres              2
+ 5012 postgres              2
+ 5360 postgres              2
+ 5392 postgres              2
+ 6612 postgres              2
+ 7272 postgres              2
+ 8856 postgres              2
+10284 postgres              2
+10760 postgres              2
+11112 postgres              2
+11736 postgres              2
+12880 postgres              2
+13380 postgres              2
+13648 postgres              2
+15276 postgres              2
+15488 postgres              2
+15840 postgres              2
+16100 postgres              2
+ 4608 storytree-0.3         2
+ 6832 storytree-0.3         2
+14468 storytree-0.3         2
+14628 storytree-0.3         2
+
+
+
+--- Claude Code
+claude.json mcpServers: storytree
+settings.json lines naming storytree: 20
+settings.json keys: autoUpdatesChannel, theme, hooks, statusLine
+--- Codex
+~\.codex: True
+config.toml lines naming storytree: 3
+hooks.json: True
+AGENTS.md storytree section: True
+--- project folders
+C:\Users\mickh\PF Project Folder :
+  .storytree.json
+  codex.txt
+  hello.txt
+C:\Users\mickh\PF Second Project :
+  .storytree.json
+C:\Users\mickh\Uninstall Proof Project : absent
+--- scheduled tasks named st-*

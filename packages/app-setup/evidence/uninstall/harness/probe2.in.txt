@@ -1,0 +1,6 @@
+$node = "$env:LOCALAPPDATA\Programs\storytree-0.3\resources\agent-tools\node.exe"
+$d = "$HOME\st-uninstall\probe"
+Remove-Item -Recurse -Force $d -EA SilentlyContinue; New-Item -ItemType Directory $d | Out-Null
+& $node "$HOME\st-uninstall\launcher-probe.mjs" $d
+Start-Sleep 10
+Get-ChildItem $d | ForEach-Object { "== $($_.Name)"; Get-Content $_.FullName }

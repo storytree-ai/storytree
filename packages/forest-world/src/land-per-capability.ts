@@ -198,16 +198,22 @@ export function islandLand(descriptors: readonly Descriptor3D[]): Map<string, Is
  * and is left as drawn (factor 1). With a floor of 0 — the comparison page's control — a
  * zero-capability island is left as drawn too, which is the rule as it stood until 2026-09-06.
  */
-export function landRatioFactor(land: IslandLand, areaPerCapability: number, floorCapabilities: number = LAND_FLOOR_CAPABILITIES): number {
+export function landRatioFactor(land: IslandLand, areaPerCapability: number, floorCapabilities: number = LAND_FLOOR_CAPABILITIES, area?: number): number {
   if (!Number.isFinite(areaPerCapability) || areaPerCapability <= 0) {
     throw new Error(`land-per-capability: the ratio must be a positive finite number of units² per capability, got ${areaPerCapability}`);
   }
   if (!Number.isFinite(floorCapabilities) || floorCapabilities < 0) {
     throw new Error(`land-per-capability: the floor must be a non-negative finite number of capabilities, got ${floorCapabilities}`);
   }
+  if (area !== undefined && (!Number.isFinite(area) || area <= 0)) {
+    throw new Error(`land-per-capability: an island's set area must be a positive finite number of units², got ${area}`);
+  }
   const counted = Math.max(floorCapabilities, land.capabilities);
-  if (counted === 0 || land.area === 0) return 1;
-  const factor = Math.sqrt((counted * areaPerCapability) / land.area);
+  // ⚠ A SET AREA (ADR-0804 D3, D7: an island's land follows its story's lines of code) stands in for
+  // `counted × ratio`; every island without one is sized by capabilities exactly as before.
+  const wanted = area ?? counted * areaPerCapability;
+  if (wanted === 0 || land.area === 0) return 1;
+  const factor = Math.sqrt(wanted / land.area);
   // ⚠ REFUSED, NOT DRAWN. No island on this map is a hundred times too small or too large for its
   // capabilities — the drawing's own ratio is within a factor of three of any rung — so a factor
   // past this is an arithmetic fault (a ratio multiplied where it should divide), and the honest
@@ -238,12 +244,15 @@ export function sizeIslandsByCapability<T extends Descriptor3D>(
   /** The fewest capabilities an island is sized as if it held — {@link LAND_FLOOR_CAPABILITIES}
    *  unless a COMPARISON arm asks for the map as it stood (0). The shipped mapper never passes it. */
   floorCapabilities: number = LAND_FLOOR_CAPABILITIES,
+  /** Islands whose land is SET, in ground units² (ADR-0804 D3: their story's lines of code), by island id.
+   *  They leave the capability rule, so {@link islandSizeInversions} reads only the islands not named here. */
+  areas: ReadonlyMap<string, number> = new Map(),
 ): T[] {
   const land = islandLand(descriptors);
   return scaleAboutIslands(descriptors, (island: string, _centre: IslandCentre): IslandScale => {
     // Every island the scale is asked about has ring vertices (`islandCentres` reads the same
     // cells), so it is in the land map.
-    const f = landRatioFactor(land.get(island) as IslandLand, areaPerCapability, floorCapabilities);
+    const f = landRatioFactor(land.get(island) as IslandLand, areaPerCapability, floorCapabilities, areas.get(island));
     return { x: f, z: f };
   });
 }

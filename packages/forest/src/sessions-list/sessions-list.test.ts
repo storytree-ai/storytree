@@ -188,6 +188,23 @@ test("7.15 each worktree in a row's detail is labelled unmerged or merged by the
   assert.deepEqual(unplaced?.worktrees, [{ path: "lonely", branches: ["lonely"], state: "unmerged" }], "a branch with no folder to fold under is still listed");
 });
 
+test("7.15 a worktree whose open branch has a pull request is labelled by it instead of unmerged: in CI while its checks run, failing, in the merge queue, a draft, or its number alone; merged and no pull request keep their labels", () => {
+  const hook = { session: "work", harness: "claude-code", source: "hook" } as const;
+  const looker = { session: "looker", harness: "claude-code", source: "hook", kind: "branch-state", open: true, how: "ahead" } as const;
+  const folder = (name: string) => `/w/site/.claude/worktrees/${name}`;
+  const names = ["ci", "failing", "queued", "draft", "passing", "none"];
+  const lines = log(
+    ...names.map(name => ({ ...hook, folder: folder(name), branch: name, kind: "file-edited" as const, files: ["a.ts"] })),
+    { ...looker, of: "ci", pr: 1, checks: "pending" },
+    { ...looker, of: "failing", pr: 2, checks: "failing" },
+    { ...looker, of: "queued", pr: 3, checks: "passing", queued: true },
+    { ...looker, of: "draft", pr: 4, draft: true, checks: "pending" },
+    { ...looker, of: "passing", pr: 5, checks: "passing" });
+  const [row] = sessionRows(tree, lines, [], now);
+  assert.deepEqual(row?.worktrees.map(({ state, label }) => label ?? state),
+    ["PR #1 · in CI", "PR #2 · failing", "PR #3 · in merge queue", "PR #4 · draft", "PR #5", "unmerged"]);
+});
+
 test("7.16 a row lists the commands its session started and has not seen finish, background ones included, each as its first words (held to one short line) with its full command and how long it has run; a finished command is not listed", () => {
   const hook = { session: "busy", harness: "claude-code", source: "hook" } as const;
   const minutes = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();

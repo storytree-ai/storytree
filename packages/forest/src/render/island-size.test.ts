@@ -1,4 +1,4 @@
-/** 3.18 An island's land follows its story's lines of code (ADR-0804 D3, D7), through to the ground the globe draws. */
+/** 3.19 An island's land follows its story's lines of code (ADR-0804 D3, D7), through to the ground the globe draws. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -28,7 +28,7 @@ function drawnArea(descriptors: readonly { kind: string; points?: readonly { x: 
   return area;
 }
 
-test("3.18 a surveyed island's area follows its lines, a tiny story keeps a floor, and an unsurveyed island keeps its capability ratio", () => {
+test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floor, and an unsurveyed island keeps its capability ratio", () => {
   assert.ok(LAND_PER_LINE > 0 && MIN_ISLAND_AREA > 0);
   assert.equal(islandArea(9000), 9000 * LAND_PER_LINE);
   assert.ok(islandArea(9000) > islandArea(1500), "more lines, more land");

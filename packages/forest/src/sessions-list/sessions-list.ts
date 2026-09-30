@@ -1,5 +1,5 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
-import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type Session, type SessionState } from "@storytree/agent-link/readings";
+import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type PullState, type Session, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -26,6 +26,8 @@ export interface WorktreeRow {
   path: string;
   branches: string[];
   state?: "unmerged" | "merged";
+  /** What its label says instead of unmerged, when an open branch there has a pull request (7.15): "PR #n", and what it waits on. */
+  label?: string;
 }
 
 /** A command a session started and has not seen finish (7.16): its first words, its full text, and how long it has run. */
@@ -154,15 +156,25 @@ function commandWords(command: string): string {
 
 /** A session's worktrees, each with the branches recorded there (7.15); a branch with no folder to fold under is listed by its own name. */
 function worktreeRows(session: Session): WorktreeRow[] {
-  const folders = new Map<string, { branches: string[]; open: boolean }>(session.worktrees.map(path => [path, { branches: [], open: false }]));
-  for (const { folder, branch, open } of session.branchesByFolder) {
+  const folders = new Map<string, { branches: string[]; open: boolean; pr?: PullState }>(session.worktrees.map(path => [path, { branches: [], open: false }]));
+  for (const { folder, branch, open, pr } of session.branchesByFolder) {
     const path = folder ?? session.worktrees.at(-1) ?? branch;
     const at = folders.get(path) ?? { branches: [], open: false };
     folders.set(path, at);
     if (!at.branches.includes(branch)) at.branches.push(branch);
     at.open ||= open;
+    // The latest recorded open branch with a pull request names the worktree's.
+    if (open && pr !== undefined) at.pr = pr;
   }
-  return [...folders].map(([path, { branches, open }]) => ({ path, branches, ...(branches.length === 0 ? {} : { state: open ? "unmerged" as const : "merged" as const }) }));
+  return [...folders].map(([path, { branches, open, pr }]) => ({ path, branches,
+    ...(branches.length === 0 ? {} : { state: open ? "unmerged" as const : "merged" as const }),
+    ...(open && pr !== undefined ? { label: pullLabel(pr) } : {}) }));
+}
+
+/** A pull request as one short label (7.15): what it waits on, the merge queue before its checks, or its number alone. */
+function pullLabel(pr: PullState): string {
+  const waiting = pr.queued ? "in merge queue" : pr.draft ? "draft" : pr.checks === "failing" ? "failing" : pr.checks === "pending" ? "in CI" : undefined;
+  return waiting === undefined ? `PR #${pr.number}` : `PR #${pr.number} · ${waiting}`;
 }
 
 /** How many listed sessions are at work, as the list's header counts them (ADR-0758 D1): every row not folded as idle. */

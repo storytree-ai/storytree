@@ -4,7 +4,7 @@ import type { SurfacesBridge } from "../surfaces/bridge.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";
 import { appMenuStyles } from "./styles.js";
 import { mountSurfaces } from "./surfaces.js";
-import { mountUpdates } from "./updates.js";
+import { mountSignIn, mountUpdates, type SignInBridge } from "./updates.js";
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
 /** The app owns the bars' top edge and overlay frame; each story mounts its own content. */
@@ -15,6 +15,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   onError(error: unknown): void;
   mountHelp(host: HTMLElement, returnFocus: HTMLElement, onOpen: () => void): { open(): void; close(): void; stop(): void };
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
+  /** Opening at sign-in, where the frame can offer it (lifecycle 1.12). */
+  signIn?: SignInBridge;
   /** The app setup's Add project control; it reports the project added, which is then shown. */
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void };
   /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
@@ -59,6 +61,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     gear.toggleAttribute("data-update-pending", waiting);
     gear.title = waiting ? "App menu: an update is ready to install" : "App menu";
   });
+  const signIn = mountSignIn(menu, options.signIn);
   let section = "projects";
   let stopped = false;
   const wasInert = options.background.inert;
@@ -131,7 +134,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop();
+      updates.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

@@ -237,7 +237,7 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
       <p className="session-detail-label">Worktrees</p>
       <ul className="session-detail-worktrees" aria-label="Worktrees">
         {row.worktrees.map(tree => <li key={tree.path} title={[tree.path, ...tree.branches].join("\n")}>{folderName(tree.path)}
-          {tree.state !== undefined && <span className="session-worktree-state" data-state={tree.state}>{tree.state}</span>}</li>)}</ul></section>}
+          {tree.state !== undefined && <span className="session-worktree-state" data-state={tree.state}>{tree.label ?? tree.state}</span>}</li>)}</ul></section>}
     {row.running.length > 0 && <section className="session-detail-block">
       <p className="session-detail-label">Running</p>
       <ul className="session-detail-running" aria-label="Running">

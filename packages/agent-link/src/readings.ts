@@ -107,8 +107,9 @@ export interface Session {
    * Each branch its lines recorded in a folder, with whether it still holds open work (contract 4.22), in the
    * order first recorded. A line naming a branch but no folder counts in the folder the session last worked in.
    * The main line is no branch. A branch recorded with no folder at all, and none to place it in, has none.
+   * An open branch whose pull request a look has read carries it (contract 4.24).
    */
-  branchesByFolder: { folder?: string; branch: string; open: boolean }[];
+  branchesByFolder: BranchInFolder[];
   /** The commands it started and has not seen finish, oldest first (contract 4.23): the commands that keep it working. */
   running: RunningCommand[];
   /** The app that keeps this session in its own record, when one does. */
@@ -123,6 +124,23 @@ export interface Session {
   closeOut?: CloseOut;
   /** Whether the running-sessions list shows it. */
   listing: Listing;
+}
+
+/** A branch a session recorded in a folder (contract 4.22), and its open pull request once a look has read it (4.24). */
+export interface BranchInFolder {
+  folder?: string;
+  branch: string;
+  open: boolean;
+  pr?: PullState;
+}
+
+/** An open pull request as the latest look found it (contract 4.24): its checks are absent when it has none. */
+export interface PullState {
+  number: number;
+  draft: boolean;
+  checks?: "pending" | "passing" | "failing";
+  /** Whether it waits in the merge queue. */
+  queued: boolean;
 }
 
 export interface SessionOptions {
@@ -153,7 +171,7 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
   const bySession = new Map<string, Line[]>();
   // What lines written by other sessions say about a branch, and about a session the apps keep: the latest of each.
   // A claim's merge resolves its branch as a branch-state line does, until a later look says otherwise.
-  const branchStates = new Map<string, { open: boolean; at: string }>();
+  const branchStates = new Map<string, { open: boolean; at: string; pr?: number | undefined; draft?: true | undefined; checks?: PullState["checks"] | undefined; queued?: true | undefined }>();
   const appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
   const appWords = new Map<string, Line & { kind: "session-described" }>();
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
@@ -179,7 +197,12 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
     // A merged line names the claim's branch, not its writer's.
     const branches = [...new Set(own.flatMap((line) => (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch) ? [] : [line.branch])))];
     const openWork = branches.filter((branch) => branchStates.get(branch)?.open !== false);
-    const branchesByFolder = branchesInFolders(own, (branch) => branchStates.get(branch)?.open !== false);
+    const branchesByFolder = branchesInFolders(own, (branch) => {
+      const state = branchStates.get(branch);
+      if (state?.open === false) return { open: false };
+      if (state?.pr === undefined) return { open: true };
+      return { open: true, pr: { number: state.pr, draft: state.draft === true, ...(state.checks === undefined ? {} : { checks: state.checks }), queued: state.queued === true } };
+    });
     const record = appRecords.get(session);
     const archived = record?.kind === "session-archived";
     const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(branchStates.get(branch)?.at ?? latest.at)));
@@ -215,14 +238,14 @@ export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {
 }
 
 /** Each branch `own` (a session's lines, oldest first) recorded in a folder, once each, with whether it is open by `isOpen`. */
-function branchesInFolders(own: readonly Line[], isOpen: (branch: string) => boolean): { folder?: string; branch: string; open: boolean }[] {
-  const placed = new Map<string, { folder?: string; branch: string; open: boolean }>();
+function branchesInFolders(own: readonly Line[], stateOf: (branch: string) => Pick<BranchInFolder, "open" | "pr">): BranchInFolder[] {
+  const placed = new Map<string, BranchInFolder>();
   let folder: string | undefined;
   for (const line of own) {
     if (line.folder !== undefined) folder = line.folder;
     if (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch)) continue;
     const key = `${folder ?? ""} ${line.branch}`;
-    if (!placed.has(key)) placed.set(key, { ...(folder === undefined ? {} : { folder }), branch: line.branch, open: isOpen(line.branch) });
+    if (!placed.has(key)) placed.set(key, { ...(folder === undefined ? {} : { folder }), branch: line.branch, ...stateOf(line.branch) });
   }
   return [...placed.values()];
 }

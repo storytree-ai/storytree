@@ -6,10 +6,15 @@ import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent
 import type { ProjectSelection, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
+import type { SignInState } from "./main/sign-in.js";
 import type { AnnotatedTree, ArcView, Holds, Changes, Note, SchemaRecord } from "@storytree/library";
 
 export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
+  /** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */
+  readSignIn(): Promise<SignInState>;
+  /** Turn opening at sign-in on or off; refused where the app is not installed. */
+  setSignIn(on: boolean): Promise<SignInState>;
   /** The names of the projects in the app's library, sorted. */
   listProjects(): Promise<string[]>;
   /** The current project list and the last chosen project, including newly set-up projects. */
@@ -51,6 +56,8 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
 /** The IPC channels the functions travel on. */
 export const CHANNELS = {
   checkForUpdates: "storytree:check-for-updates",
+  readSignIn: "storytree:read-sign-in",
+  setSignIn: "storytree:set-sign-in",
   readSetupLicense: "storytree:read-setup-license",
   agentConnections: "storytree:agent-connections",
   checkSetupFolder: "storytree:check-setup-folder",

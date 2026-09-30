@@ -44,5 +44,5 @@ test(`${CONTRACT} (local server)`, () => twoMachines({ url: testServerUrl() }));
 const instance = process.env.STORYTREE_TEST_CLOUDSQL_INSTANCE ?? "";
 const user = process.env.STORYTREE_TEST_CLOUDSQL_USER ?? "";
 test(`${CONTRACT} (Cloud SQL, live)`, {
-  skip: instance === "" || user === "" ? "live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER — owner-gated" : false,
+  skip: instance === "" || user === "" ? "owner: live Cloud SQL proof needs STORYTREE_TEST_CLOUDSQL_INSTANCE/USER" : false,
 }, () => twoMachines({ cloudSql: { instance, user } }));

@@ -1266,7 +1266,7 @@ test("6.27 correct_question corrects an open question's wording in place: only t
 
       const corrected = await agent.call("correct_question", { question, stakes: "Cost and deliverability", recommendation: "Mailgun" });
       assert.equal(corrected.isError, false, corrected.text);
-      assert.deepEqual(corrected.data, { id: question });
+      assert.equal(corrected.data.id, question);
       const words = await wordsOf(question);
       assert.deepEqual([words?.title, words?.stakes, words?.statement, words?.recommendation], ["Which mailer?", "Cost and deliverability", "Send through Mailgun or SES?", "Mailgun"]);
 

@@ -1,6 +1,6 @@
 /**
  * The work tools (ADR-0643 D1, 6): park, ready and close increments, park and unpark arcs, set and
- * clear waits, raise, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
+ * clear waits, raise, correct, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
  * functions, or this story's capture functions over them, so no library rule is kept here twice.
  * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is.
  *
@@ -134,6 +134,29 @@ export function registerWorkTools(define: Define): void {
       }
       const waiting = holding.size === 0 ? "" : ` ${[...holding.keys()].join(", ")} ${holding.size === 1 ? "waits" : "wait"} on the answer.`;
       return { text: `Raised ${quoted(asked.title)} (${question.id}) on the arc for the owner.${waiting}`, data: { id: question.id } };
+    },
+  );
+
+  define(
+    "correct_question",
+    "Correct an open question's wording in place: change only the fields you give. It keeps its id and its arc. A settled question keeps its words, since its answer was given to them.",
+    z.object({
+      question: id("question"),
+      title: z.string().min(1).optional().describe("A short name for it"),
+      stakes: z.string().min(1).optional().describe("What hangs on the answer"),
+      statement: z.string().min(1).optional().describe("The question itself"),
+      context: z.string().min(1).optional().describe("What the owner needs to know to answer it"),
+      options: z.string().min(1).optional().describe("The options the owner has"),
+      analogy: z.string().min(1).optional().describe("An analogy, saying where it breaks"),
+      diagram: z.string().min(1).optional().describe("A diagram of the structure or flow it is about"),
+      recommendation: z.string().min(1).optional().describe("Which option you recommend, and why"),
+    }),
+    async ({ question, ...wording }, { library, writer }) => {
+      const fields = defined(wording);
+      if (Object.keys(fields).length === 0) return { text: "Give the words to change: title, stakes, statement, context, options, analogy, diagram or recommendation.", refused: true };
+      const corrected = await library.editQuestion(question, fields, writer);
+      if (corrected === null) return { text: `There is no question ${question} in this project.`, refused: true };
+      return { text: `Corrected ${quoted(corrected.fields.title)} (${question}).`, data: { id: question } };
     },
   );
 

@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { hookOutput, provision } from "./provision-worktree.mjs";
+import { hookOutput, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -78,4 +78,19 @@ test("as a session-start hook it exits 0 and says nothing on a healthy worktree"
   const run = spawnSync(process.execPath, [script, "--hook", "--root", root], { encoding: "utf8" });
   assert.equal(run.status, 0, run.stderr);
   assert.equal(run.stdout, "");
+});
+
+test("the tool server starts in a fresh worktree once the session-start install has finished", async (t) => {
+  const root = worktree(t, "fresh");
+  let started = 0;
+  const serving = serve({ root, start: () => (started++, Promise.resolve(0)), pollMs: 5 });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(started, 0, "not before the install");
+  // The session-start hook's install completes.
+  mkdirSync(path.join(root, "node_modules", ".pnpm"), { recursive: true });
+  writeFileSync(path.join(root, "node_modules", ".pnpm", "lock.yaml"), "lockfileVersion: '9.0'\n");
+  mkdirSync(path.join(root, "packages", "library", "node_modules"));
+  writeFileSync(path.join(root, "node_modules", ".modules.yaml"), "");
+  assert.equal(await serving, 0);
+  assert.equal(started, 1);
 });

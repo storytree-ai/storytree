@@ -7,7 +7,9 @@
  * never touches this machine's settings. A stand-in hook script sits beside the built command, as
  * storytree's hook sits beside it once installed, so the check registers hooks and puts the command
  * on the path as it does for a user. First on the PATH is a `gh` that is signed out: a copy of Node,
- * which `gh auth status` runs, and which fails as a signed-out gh does.
+ * which `gh auth status` runs, and which fails as a signed-out gh does. The user's folder holds a
+ * signed-in Claude Code and Codex that only answer, so the check never reaches the developer's own,
+ * which write files of their own into the throwaway home.
  */
 import assert from "node:assert/strict";
 import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
@@ -70,6 +72,8 @@ function aUser(world: World): User {
   const claude = path.join(home, ".claude");
   const codex = path.join(home, ".codex");
   for (const folder of [bin, claude, codex]) mkdirSync(folder, { recursive: true });
+  agentCli(bin, "claude", ["--version", "auth status"]);
+  agentCli(bin, "codex", ["--version", "login status"]);
   const env = {
     HOME: home,
     USERPROFILE: home,
@@ -78,6 +82,18 @@ function aUser(world: World): User {
     PATH: [ghFolder, bin, developerFolder, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter),
   };
   return { home, env };
+}
+
+/** A stand-in agent CLI named `name` in `bin`: it answers each of `answers` as signed in, and fails anything else. */
+function agentCli(bin: string, name: string, answers: readonly string[]): void {
+  if (process.platform === "win32") {
+    const cases = answers.map((args) => `if "%*"=="${args}" exit /b 0`);
+    writeFileSync(path.join(bin, `${name}.cmd`), `@echo off\r\n${cases.join("\r\n")}\r\nexit /b 1\r\n`);
+  } else {
+    const cases = answers.map((args) => `if [ "$*" = "${args}" ]; then exit 0; fi`);
+    writeFileSync(path.join(bin, name), `#!/bin/sh\n${cases.join("\n")}\nexit 1\n`);
+    chmodSync(path.join(bin, name), 0o755);
+  }
 }
 
 /** Every file under `folders`, by path, with its text: what a run may change. */

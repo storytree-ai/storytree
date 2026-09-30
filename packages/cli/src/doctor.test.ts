@@ -10,7 +10,7 @@
  * which `gh auth status` runs, and which fails as a signed-out gh does.
  */
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -23,6 +23,11 @@ const STUB_APP = fileURLToPath(new URL("./testing/stub-app.mjs", import.meta.url
 const command = new BuiltCommand();
 /** A folder holding a signed-out `gh`, made once for every test. */
 let ghFolder: string;
+/**
+ * A folder standing in for the developer's own PATH, after the user's: its `claude` writes a file of
+ * its own into Claude Code's settings folder whenever it runs, as the real Claude Code does.
+ */
+let developerFolder: string;
 
 before(async () => {
   await command.build();
@@ -38,11 +43,19 @@ before(async () => {
   } else {
     symlinkSync(process.execPath, gh);
   }
+  developerFolder = mkdtempSync(path.join(tmpdir(), "storytree-cli-developer-"));
+  if (process.platform === "win32") {
+    writeFileSync(path.join(developerFolder, "claude.cmd"), "@echo off\r\ntype nul > \"%CLAUDE_CONFIG_DIR%\\.claude.json.tmp.%RANDOM%%RANDOM%\"\r\nexit /b 0\r\n");
+  } else {
+    writeFileSync(path.join(developerFolder, "claude"), "#!/bin/sh\n: > \"$CLAUDE_CONFIG_DIR/.claude.json.tmp.$$\"\nexit 0\n");
+    chmodSync(path.join(developerFolder, "claude"), 0o755);
+  }
 });
 
 after(() => {
   command.remove();
   rmSync(ghFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  rmSync(developerFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
 /** A throwaway user: their home, the harnesses' settings folders, and a folder of their own on the PATH. */
@@ -62,7 +75,7 @@ function aUser(world: World): User {
     USERPROFILE: home,
     CLAUDE_CONFIG_DIR: claude,
     CODEX_HOME: codex,
-    PATH: [ghFolder, bin, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter),
+    PATH: [ghFolder, bin, developerFolder, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter),
   };
   return { home, env };
 }

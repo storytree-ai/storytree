@@ -79,7 +79,7 @@ const ringless = (points: readonly P2[]): InstanceDescriptor => {
   return { ...d, points: points.map((p) => ({ x: p.x, y: 0, z: p.z })) };
 };
 
-test('the approved treatment cuts the edge into SIX ledges', () => {
+test('2.2 the approved treatment cuts the edge into SIX ledges', () => {
   assert.equal(SKIRT_ROWS, 6);
   assert.equal(skirtLedges().length, 6);
 });
@@ -98,7 +98,7 @@ test('THE TRANSCRIPTION: every inset matches `build_land.py`, computed a second 
   }
 });
 
-test('the ledges ALTERNATE: odd rows cut in, even rows stand proud', () => {
+test('2.2 the ledges ALTERNATE: odd rows cut in, even rows stand proud', () => {
   for (let row = 1; row <= SKIRT_ROWS; row += 1) {
     const inset = skirtInset(row);
     if (row % 2 === 1) assert.ok(inset > 0, `row ${row} should cut inward, got ${inset}`);
@@ -106,7 +106,7 @@ test('the ledges ALTERNATE: odd rows cut in, even rows stand proud', () => {
   }
 });
 
-test('the BASE COURSE stands proud of the parcel outline — a plinth, not a taper', () => {
+test('2.2 the BASE COURSE stands proud of the parcel outline — a plinth, not a taper', () => {
   const ledges = skirtLedges();
   const base = ledges[ledges.length - 1]!;
   assert.ok(base.inset < 0, `the last ledge insets ${base.inset}, so the island tapers`);

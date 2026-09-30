@@ -672,7 +672,7 @@ interface FakeGoogle {
 }
 
 /** A connector whose sign-in (getOptions) is `signIn`. It reaches nothing of its own. */
-test("8.4 on a shared Cloud SQL instance, a project's pool holds at most three of the instance's connection slots, and busier work queues for them", async () => {
+test("8.5 on a shared Cloud SQL instance, a project's pool holds at most three of the instance's connection slots, and busier work queues for them", async () => {
   const run = uniqueProjectName();
   const user = `${run}@storytree.test`;
   const project = `${run}-busy`;

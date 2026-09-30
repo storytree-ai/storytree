@@ -15,7 +15,7 @@ const APP = "the storytree 0.3 desktop app";
 const SEED = "pnpm seed:library";
 const noSleep = async () => {};
 
-test("the seed joins the running app's database instead of refusing, and leaves it running", async () => {
+test("5.1 the seed joins the running app's database instead of refusing, and leaves it running", async () => {
   const said = [];
   const server = await libraryServer({
     dataDir: "home/pgdata",
@@ -83,7 +83,7 @@ test("the seed gives up waiting only after its deadline, naming the holder", asy
 
 // A timeout, so a waiter that never gets the lock fails this test instead of hanging it; the
 // harness's own limits (packages/dev-loop/src/unit-run.mjs) end the process if an open connection outlives it.
-test("two seeds never write at once: the second waits for the first's writing lock", { timeout: 60_000 }, async () => {
+test("5.1 two seeds never write at once: the second waits for the first's writing lock", { timeout: 60_000 }, async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
   const first = await holdSeedLock(url, { log: () => {} });

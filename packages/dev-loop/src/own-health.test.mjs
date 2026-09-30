@@ -32,7 +32,7 @@ test("parseJunit reads each test's name, the suites around it, its file, and whe
   ]);
 });
 
-test("judge: a contract passes only if every test it has passed; any failure fails it; a skipped test, or none, leaves it not checked", () => {
+test("5.4 judge: a contract passes only if every test it has passed; any failure fails it; a skipped test, or none, leaves it not checked", () => {
   const result = (name, status, extra = {}) => ({ name, suites: [], file: "C:\\repo\\a.test.ts", status, ...extra });
   const { verdicts, unmapped } = judge({
     contracts: ["1.1", "1.2", "1.3", "2.1", "2.2", "8.1", "8.2"],
@@ -68,7 +68,7 @@ test("judge: a contract passes only if every test it has passed; any failure fai
   assert.deepEqual(unmapped.map(({ name }) => name), ["robustness [memory] no number", "9.9 a contract the story does not have"]);
 });
 
-test("judge: a test file that produced no results leaves the contracts it holds not checked, never failing, and names the file", () => {
+test("5.4 judge: a test file that produced no results leaves the contracts it holds not checked, never failing, and names the file", () => {
   const crashed = "C:\\repo\\packages\\library\\src\\transactions\\pg.test.ts";
   const { verdicts, crashedFiles } = judge({
     contracts: ["2.1", "2.2", "3.1"],
@@ -191,6 +191,9 @@ test("own health reads a story's contracts from the library, each number from it
   assert.equal(packageOf("The arc surface"), "arc-surface");
   assert.equal(packageOf("The library"), "library");
   assert.equal(packageOf("The command line"), "cli", "a package named otherwise");
+  assert.equal(packageOf("The world"), "forest-world");
+  assert.equal(packageOf("The local database"), "local-postgres");
+  assert.equal(packageOf("Process ledger"), "processes");
 });
 
 test("recordHealth writes each passing or failing verdict to the verified column, with who and how many tests, and nothing for not checked", async () => {

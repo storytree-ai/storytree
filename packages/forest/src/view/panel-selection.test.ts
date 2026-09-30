@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PanelSelection, type Selection } from "./panel-selection.js";
 
-test("a card replaces a story and a story replaces a card; Close and Escape dismiss the card", () => {
+test("3.13 a card replaces a story and a story replaces a card; Close and Escape dismiss the card", () => {
   const changes: Selection[] = [];
   const panel = new PanelSelection(selection => changes.push(selection));
   panel.story("forest");

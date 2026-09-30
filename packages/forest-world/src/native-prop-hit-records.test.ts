@@ -101,7 +101,7 @@ test('native-semantic-hit-records-carry-attributed-prop-identity-status-and-exte
   assert.ok(records.every((record) => Object.isFrozen(record.root)), 'a record cannot expose a mutable placement root');
 });
 
-test('native-semantic-hit-records-never-invent-decorative-uat-or-missing-semantics: decorative, UAT, islandless, and statusless placements have no guessed hit record', () => {
+test('4.1 native-semantic-hit-records-never-invent-decorative-uat-or-missing-semantics: decorative, UAT, islandless, and statusless placements have no guessed hit record', () => {
   const records = deriveNativePropHitRecords(input, semanticByPlacement);
 
   assert.deepEqual(

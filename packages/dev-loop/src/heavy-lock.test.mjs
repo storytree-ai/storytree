@@ -46,7 +46,7 @@ test("slow", async () => {
   return { home, harness, events };
 }
 
-test("a second test run on the machine waits for the first, naming who holds the lock", async (t) => {
+test("6.2 a second test run on the machine waits for the first, naming who holds the lock", async (t) => {
   const { harness, events } = machine(t);
   const first = harness("first");
   while (!events().some((event) => event.what === "start")) await delay(50);
@@ -59,7 +59,7 @@ test("a second test run on the machine waits for the first, naming who holds the
   assert.match(b.output, new RegExp(`waiting for .*pid ${first.child.pid}`));
 });
 
-test("a lock whose holder has gone does not block the next run", async (t) => {
+test("6.2 a lock whose holder has gone does not block the next run", async (t) => {
   const { home, harness } = machine(t);
   const gone = spawnSync(process.execPath, ["-e", ""]).pid;
   mkdirSync(home, { recursive: true });

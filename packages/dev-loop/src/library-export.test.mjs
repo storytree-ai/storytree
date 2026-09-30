@@ -12,7 +12,7 @@ import pg from "pg";
 
 import { exportLibrary } from "./library-export.mjs";
 
-test("a story and its decisions print as files, each story block in its place, and printing writes nothing to the library", async () => {
+test("5.2 a story and its decisions print as files, each story block in its place, and printing writes nothing to the library", async () => {
   await withLibrary(async (library) => {
     const story = await library.addStory({ title: "The kettle", description: "The kettle boils water." });
     const heating = await library.addCapability({ story: story.id, title: "1 · Heating", description: "It heats the water." });

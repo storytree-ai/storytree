@@ -60,7 +60,7 @@ test("8.3 two accounts sharing the creator role both open, write and read one pr
   }
 });
 
-test("8.4 a library read refused for want of a connection slot waits for one and then succeeds", async () => {
+test("8.5 a library read refused for want of a connection slot waits for one and then succeeds", async () => {
   const run = uniqueProjectName();
   const lane = `${run}-lane@storytree.test`;
   const project = `${run}-busy`;

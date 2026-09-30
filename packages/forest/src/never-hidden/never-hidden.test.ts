@@ -23,7 +23,7 @@ function facesFront(spot: GlobeDirection, { yaw, pitch }: GlobeTurn): void {
   close(y * Math.sin(pitch) + turnedZ * Math.cos(pitch), Math.hypot(x, y, z));
 }
 
-test("the globe opens facing a failing island, even when its other trees are healthy or being built", () => {
+test("3.11 the globe opens facing a failing island, even when its other trees are healthy or being built", () => {
   const healthy = island("healthy", FRONT, "green");
   const failing = island("failing", { x: 2, y: -1, z: -3 }, "green", "dead", "seedling");
   facesFront(failing.spot, openingTurn([healthy, failing]));
@@ -32,7 +32,7 @@ test("the globe opens facing a failing island, even when its other trees are hea
   facesFront(failing.spot, openingTurn([healthy, failing, opposite]));
 });
 
-test("each failing island behind the globe gets a rim marker whose turn brings it to the front", () => {
+test("3.11 each failing island behind the globe gets a rim marker whose turn brings it to the front", () => {
   const failing = island("failing", { x: 3, y: 4, z: -12 }, "dead", "dead");
   const healthy = island("healthy", BACK, "green", "pale", "seedling");
   const markers = edgeMarkers([failing, healthy], FRONT);
@@ -49,7 +49,7 @@ test("each failing island behind the globe gets a rim marker whose turn brings i
   facesFront(BACK, centredBack.turn);
 });
 
-test("turning the view removes front-side markers and places hidden ones on the correct rim, including at a pole", () => {
+test("3.11 turning the view removes front-side markers and places hidden ones on the correct rim, including at a pole", () => {
   const failing = island("failing", { x: 3, y: 4, z: -12 }, "dead");
   assert.deepEqual(edgeMarkers([failing], { x: 1, y: 0, z: 0 }), [], "failing but in front needs no marker");
   const marker = edgeMarkers([failing], { x: -1, y: 0, z: 0 })[0]!;

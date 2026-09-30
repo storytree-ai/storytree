@@ -68,7 +68,7 @@ function fixture(t) {
   });
 }
 
-test("a change inside a package runs that package and every package that depends on it, and no other", (t) => {
+test("1.1 a change inside a package runs that package and every package that depends on it, and no other", (t) => {
   const ws = readWorkspace(fixture(t));
   const decision = classify(["packages/agent-link/src/x.ts"], ws);
   assert.equal(decision.mode, "affected");
@@ -99,13 +99,13 @@ test("the real workspace's undeclared reach is found: agent-link builds cli's bi
   assert.ok(classify(["packages/cli/src/bins/storytree.ts"], ws).dirs.includes("packages/agent-link"));
 });
 
-test("a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4)", () => {
+test("1.2 a change in the dev loop runs everything: its runner, scoper and gate decide how every test runs (ADR-0805 D4)", () => {
   const decision = classify(["packages/dev-loop/src/gate.mjs"], readWorkspace(repoRoot));
   assert.equal(decision.mode, "full");
   assert.match(decision.reason, /@storytree\/dev-loop/);
 });
 
-test("any file the workspace graph cannot account for runs everything, and says which file", (t) => {
+test("1.2 any file the workspace graph cannot account for runs everything, and says which file", (t) => {
   const ws = readWorkspace(fixture(t));
   const wide = {
     "README.md": /README\.md/,
@@ -158,7 +158,7 @@ test("the changes are the branch since it left main plus the working tree, untra
   assert.equal(decision.mode, "full", "the deleted file is in a package the harness runs on");
 });
 
-test("an origin/main that cannot be read runs everything, saying so", (t) => {
+test("1.2 an origin/main that cannot be read runs everything, saying so", (t) => {
   const root = fixture(t);
   git(root, "init", "-q", "-b", "main");
   git(root, "add", "-A");
@@ -231,7 +231,7 @@ test("the package-boundary check runs in every scoped run, since a change inside
   assert.ok(all.includes("packages/dev-loop") && !all.includes("packages/dev-loop/src/package-boundaries.test.mjs"), "a full run has it in its package already");
 });
 
-test("--full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {
+test("1.3 --full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {
   const root = fixture(t);
   const ws = readWorkspace(root);
   const decision = classify(["packages/agent-link/src/x.ts"], ws);

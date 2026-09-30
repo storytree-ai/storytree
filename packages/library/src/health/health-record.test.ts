@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Health record: one test per contract 5.1-5.5 in the library story, each run on
+ * Capability 5 · Health record: one test per contract 5.1-5.8 in the library story, each run on
  * BOTH backends, as capabilities 2-4 and 6 are:
  *
  * - memory: a HealthRecord over SchemaRecords and a WorkModel over a fresh MemoryTransactions;
@@ -22,7 +22,7 @@ import { NewerSchemaError, SchemaError, SchemaRecords, type RecordType, type Sch
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { WorkModel, type ProjectTree } from "../work/index.js";
-import { capabilityStatus, HealthRecord, type AnnotatedTree, type HealthEntry, type NodeHealth } from "./index.js";
+import { capabilityStatus, capabilityWhy, HealthRecord, type AnnotatedTree, type HealthColumn, type HealthEntry, type NodeHealth } from "./index.js";
 
 /** A fresh, empty library: the health record under test, and the layers it runs over. */
 interface Library {
@@ -472,6 +472,47 @@ for (const backend of [memory, postgres]) {
     await work.setProposed(capability.id, true);
     assert.equal(await wordOf(), "proposed", "switched back on, it reads proposed again");
   });
+
+  contract("5.7", "a verified entry carries the kind of skip that left it not checked and the earlier verdict it did not reproduce, read back as written", async ({ health, work }) => {
+    const { capability, contract, sibling } = await smallPlan(work);
+    await work.setProposed(capability.id, false);
+    const failed = await health.recordVerified(contract.id, "failing", { by: "storytree test run" });
+    const skipped = await health.recordVerified(contract.id, "not-checked", {
+      by: "storytree test run",
+      note: "not re-run at abc123: 0 of 1 tests ran",
+      skip: "owner",
+      was: { state: "failing", at: failed.at },
+    });
+    assert.equal(skipped.skip, "owner");
+    assert.deepEqual(skipped.was, { state: "failing", at: failed.at });
+    const read = (await health.health(contract.id)).verified;
+    assert.equal(read.state, "not-checked");
+    assert.equal(read.skip, "owner");
+    assert.deepEqual(read.was, { state: "failing", at: failed.at });
+    const inTree = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.find(({ id }) => id === contract.id)!;
+    assert.deepEqual(inTree.health.verified, read);
+
+    await health.recordVerified(sibling.id, "passing", { by: "storytree test run" });
+    const plain = (await health.health(sibling.id)).verified;
+    assert.equal("skip" in plain, false, "an entry without a skip has none");
+    assert.equal("was" in plain, false, "an entry without an earlier verdict has none");
+    await assert.rejects(health.recordVerified(sibling.id, "not-checked", { skip: untyped("because") }), schemaError("health", ["skip"]));
+  });
+
+  contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
+    const { capability, contract, sibling } = await smallPlan(work);
+    const whyOf = async () => (await health.annotate()).stories[0]!.capabilities[0]!.why;
+    assert.deepEqual(await whyOf(), { reason: "not built", mover: "agent", contracts: [] });
+    await work.setProposed(capability.id, false);
+    const inOrder = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.map(({ id }) => id);
+    assert.deepEqual(inOrder.toSorted(), [contract.id, sibling.id].toSorted());
+    assert.deepEqual(await whyOf(), { reason: "no test names it", mover: "agent", contracts: inOrder }, "in the capability's order");
+    await health.recordVerified(contract.id, "passing");
+    const owner = await health.recordVerified(sibling.id, "not-checked", { skip: "owner" });
+    assert.deepEqual(await whyOf(), { reason: "needs owner", mover: "owner", contracts: [sibling.id], since: owner.at });
+    await health.recordVerified(sibling.id, "passing");
+    assert.equal(await whyOf(), undefined, "healthy: no reason");
+  });
 }
 
 /** One story › one capability › two contracts: the plan most of these tests write health on. */
@@ -500,12 +541,16 @@ function withHealth(tree: ProjectTree, healthOf: (id: string) => NodeHealth): An
     stories: tree.stories.map((story) => ({
       ...story,
       health: healthOf(story.id),
-      capabilities: story.capabilities.map((capability) => ({
-        ...capability,
-        health: healthOf(capability.id),
-        contracts: capability.contracts.map((contract) => ({ ...contract, health: healthOf(contract.id) })),
-        status: capabilityStatus(capability.proposed, capability.contracts.map((contract) => healthOf(contract.id).verified.state)),
-      })),
+      capabilities: story.capabilities.map((capability) => {
+        const why = capabilityWhy(capability.proposed, capability.contracts.map((contract) => ({ id: contract.id, verified: healthOf(contract.id).verified })));
+        return {
+          ...capability,
+          health: healthOf(capability.id),
+          contracts: capability.contracts.map((contract) => ({ ...contract, health: healthOf(contract.id) })),
+          status: capabilityStatus(capability.proposed, capability.contracts.map((contract) => healthOf(contract.id).verified.state)),
+          ...(why === undefined ? {} : { why }),
+        };
+      }),
     })),
     arcs: tree.arcs,
   };
@@ -622,4 +667,25 @@ test("5.6 the word of a capability, from its flag and its contracts' verified st
   assert.equal(capabilityStatus(false, ["passing", "failing", "not-checked"]), "unhealthy");
   assert.equal(capabilityStatus(false, ["passing", "not-checked"]), "untested");
   assert.equal(capabilityStatus(false, []), "untested", "no contracts, nothing verified");
+});
+
+test("5.8 one reason per capability that is not healthy, the agent's work ranked before the owner's", () => {
+  const c = (id: string, verified: HealthColumn) => ({ id, verified });
+  const at = (day: number) => `2026-09-${String(day).padStart(2, "0")}T00:00:00.000Z`;
+  const passing = { state: "passing", at: at(1) } as const;
+  assert.deepEqual(capabilityWhy(true, [c("a", passing)]), { reason: "not built", mover: "agent", contracts: [] }, "proposed, whatever its health");
+  assert.equal(capabilityWhy(false, [c("a", passing)]), undefined, "healthy");
+  const failing = c("f", { state: "failing", at: at(20) });
+  const notRerun = c("r", { state: "not-checked", at: at(28), was: { state: "failing", at: at(27) } });
+  const otherSkip = c("o", { state: "not-checked", at: at(26), skip: "other" });
+  const noTest = c("n", { state: "not-checked" });
+  const platform = c("p", { state: "not-checked", at: at(25), skip: "platform:win32" });
+  const owner = c("w", { state: "not-checked", at: at(24), skip: "owner", was: { state: "failing", at: at(3) } });
+  const all = [owner, platform, noTest, otherSkip, notRerun, failing];
+  assert.deepEqual(capabilityWhy(false, all), { reason: "failing", mover: "agent", contracts: ["f"], since: at(20) });
+  assert.deepEqual(capabilityWhy(false, all.slice(0, 5)), { reason: "not re-run", mover: "agent", contracts: ["o", "r"], since: at(26) }, "an other-kind skip, or an earlier verdict not reproduced");
+  assert.deepEqual(capabilityWhy(false, all.slice(0, 3)), { reason: "no test names it", mover: "agent", contracts: ["n"] }, "never recorded: no time");
+  assert.deepEqual(capabilityWhy(false, all.slice(0, 2)), { reason: "out of CI's reach", mover: "agent", contracts: ["p"], since: at(25) });
+  assert.deepEqual(capabilityWhy(false, [owner, c("a", passing)]), { reason: "needs owner", mover: "owner", contracts: ["w"], since: at(24) }, "an owner skip needs the owner, whatever it last saw");
+  assert.deepEqual(capabilityWhy(false, []), { reason: "no test names it", mover: "agent", contracts: [] }, "no contracts");
 });

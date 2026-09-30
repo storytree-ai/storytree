@@ -41,7 +41,7 @@ after(async () => {
   rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 });
 
-test("the binaries come from this machine's @embedded-postgres package, and on Windows arm64 from the x64 one, run under emulation", () => {
+test("1.1, 1.2 the binaries come from this machine's @embedded-postgres package, and on Windows arm64 from the x64 one, run under emulation", () => {
   assert.deepEqual(binaryPackages("win32", "arm64"), ["@embedded-postgres/windows-arm64", "@embedded-postgres/windows-x64"]);
   assert.deepEqual(binaryPackages("win32", "x64"), ["@embedded-postgres/windows-x64"]);
   assert.deepEqual(binaryPackages("linux", "arm64"), ["@embedded-postgres/linux-arm64"]);
@@ -65,7 +65,7 @@ test("the binaries come from this machine's @embedded-postgres package, and on W
   assert.throws(() => findBinaries({ dir: empty }), (error: Error) => error.message.includes(empty));
 });
 
-test("ensureCluster makes a cluster only when there is none: trusting local connections, and listening on 127.0.0.1 only", async () => {
+test("2.1 ensureCluster makes a cluster only when there is none: trusting local connections, and listening on 127.0.0.1 only", async () => {
   const dataDir = path.join(root, "made");
   assert.equal(await ensureCluster(dataDir), true, "made the first time");
   assert.ok(existsSync(path.join(dataDir, "PG_VERSION")), "a Postgres cluster");
@@ -82,7 +82,7 @@ test("ensureCluster makes a cluster only when there is none: trusting local conn
   assert.equal(readFileSync(path.join(other, "notes.txt"), "utf8"), "mine");
 });
 
-test("start runs the server on the data directory, it answers SELECT 1 at the url handed back, and stop stops it", async () => {
+test("2.2 start runs the server on the data directory, it answers SELECT 1 at the url handed back, and stop stops it", async () => {
   const dataDir = await freshCluster("start-stop");
   const server = await started({ dataDir });
   assert.equal(server.url, `postgres://postgres@127.0.0.1:${server.port}/postgres`);
@@ -103,7 +103,7 @@ test("start runs the server on the data directory, it answers SELECT 1 at the ur
   await stopped(again);
 });
 
-test("a second start on a data directory a live process holds is refused, naming that process, and its server is left running", async () => {
+test("2.3 a second start on a data directory a live process holds is refused, naming that process, and its server is left running", async () => {
   const dataDir = await freshCluster("held");
   const holder = await hold(dataDir);
 
@@ -129,7 +129,7 @@ test("a second start on a data directory a live process holds is refused, naming
   await stopped(mine);
 });
 
-test("a server left running by a process that died is stopped and replaced, and a dead owner's record alone is cleared", async () => {
+test("2.4 a server left running by a process that died is stopped and replaced, and a dead owner's record alone is cleared", async () => {
   const dataDir = await freshCluster("stale");
   const holder = await hold(dataDir);
   await holder.kill(); // it cannot stop its server

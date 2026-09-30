@@ -14,6 +14,7 @@
     "typecheck": "pnpm -r typecheck",
     "test-ratio": "node packages/dev-loop/src/test-ratio.mjs",
     "check:own-health": "node --import tsx packages/dev-loop/src/check-own-health.mjs",
+    "record:acceptance": "node --import tsx packages/dev-loop/src/record-acceptance.mjs",
     "library:export": "node --import tsx packages/dev-loop/src/export-library.mjs",
     "desktop": "pnpm --filter @storytree/desktop start",
     "desktop:smoke": "pnpm --filter @storytree/desktop smoke",

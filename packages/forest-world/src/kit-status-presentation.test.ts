@@ -45,7 +45,7 @@ function placement(capId: string, role: KitPlacement['role'] = 'coverageFlora'):
   };
 }
 
-test('native-status-presentation-dims-only-attributed-capability-props: hidden status dims only its matching tree and coverage flora', () => {
+test('3.3 native-status-presentation-dims-only-attributed-capability-props: hidden status dims only its matching tree and coverage flora', () => {
   const hiddenTree = placement('cap-hidden', 'tree');
   const hiddenDeadTree = placement('cap-dead', 'deadTree');
   const hiddenFlora = placement('cap-hidden', 'coverageFlora');
@@ -94,7 +94,7 @@ test('native-status-presentation-dims-only-attributed-capability-props: hidden s
   }
 });
 
-test('native-status-presentation-does-not-change-ground-or-casters: presentation is an immutable sidecar and leaves input streams intact', () => {
+test('3.3 native-status-presentation-does-not-change-ground-or-casters: presentation is an immutable sidecar and leaves input streams intact', () => {
   const target = placement('cap-hidden', 'tree');
   const control = placement('cover', 'tuft');
   const placements = [target, control];

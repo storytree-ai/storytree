@@ -39,7 +39,7 @@ test("the planted trees start from one that keeps the rules", (t) => {
   assert.deepEqual(boundaryProblems(plant(t, {}), DECLARED), []);
 });
 
-test("a story with no package is refused, and so is a package that belongs to no story", (t) => {
+test("3.1 a story with no package is refused, and so is a package that belongs to no story", (t) => {
   const problems = boundaryProblems(plant(t, { "packages/helpers/package.json": pkg("helpers") }), {
     ...DECLARED,
     stories: [...DECLARED.stories, "knowledge-core"],
@@ -49,7 +49,7 @@ test("a story with no package is refused, and so is a package that belongs to no
   assert.match(problems.join("\n"), /packages\/helpers.*neither/);
 });
 
-test("a story's code in the frame or the front door is refused", (t) => {
+test("3.2 a story's code in the frame or the front door is refused", (t) => {
   const problems = boundaryProblems(
     plant(t, {
       "apps/desktop/src/forest/story-panel.ts": "",
@@ -72,7 +72,7 @@ test("story code the frame still holds passes only while it is declared, and its
   assert.match(stale[0], /apps\/desktop\/src\/forest.*oq-move-it/);
 });
 
-test("a package reaching into another story's files is refused, by relative path or by a subpath it does not export", (t) => {
+test("3.3 a package reaching into another story's files is refused, by relative path or by a subpath it does not export", (t) => {
   const problems = boundaryProblems(
     plant(t, {
       "packages/forest/src/drawn.ts": 'import { schema } from "../../library/src/schema.js";\n',
@@ -85,7 +85,7 @@ test("a package reaching into another story's files is refused, by relative path
   assert.match(problems.join("\n"), /packages\/cli\/src\/families\/forest\.ts.*@storytree\/library\/src\/inner\.ts/);
 });
 
-test("packages that depend on each other, even for development only, are refused: pnpm links them into a loop", (t) => {
+test("3.4 packages that depend on each other, even for development only, are refused: pnpm links them into a loop", (t) => {
   // On Windows each workspace link is a directory junction, which git walks as a folder, so a
   // cycle makes `git clean` recurse without end and a desktop session's start never finishes.
   const problems = boundaryProblems(

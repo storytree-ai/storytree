@@ -185,7 +185,7 @@ test('NON-VACUITY: the fixture is a real two-island forest that really carries w
 // MUST NOT REBUILD — the whole cure
 // ---------------------------------------------------------------------------
 
-test('a scene rebuilt with the same content is the same ground — the poll that changes nothing', () => {
+test('5.3 a scene rebuilt with the same content is the same ground — the poll that changes nothing', () => {
   const cache = createGroundInputCache(OPTS);
   const first = cache(forest());
   const again = cache(forest());
@@ -198,7 +198,7 @@ test('a scene rebuilt with the same content is the same ground — the poll that
   assert.equal(third, first);
 });
 
-test('fcd-ground-cache-compares-content-without-serializing: an equal fresh stream reuses the warmed ground without String conversion', () => {
+test('5.3 fcd-ground-cache-compares-content-without-serializing: an equal fresh stream reuses the warmed ground without String conversion', () => {
   // Build both streams before replacing String: fixture construction is deliberately outside the
   // observation, so the count belongs only to the cache's equal-content comparison.
   const warmedStream = forest();

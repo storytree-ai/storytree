@@ -127,7 +127,7 @@ test('the NAMED opt-out still reaches the website render — omission is no long
 
 // ---------- determinism ----------
 
-test('buildScene is deterministic — same input → byte-identical scene', () => {
+test('1.1 buildScene is deterministic — same input → byte-identical scene', () => {
   assert.deepEqual(buildScene(mkInput()), buildScene(mkInput()));
 });
 
@@ -359,7 +359,7 @@ test('cave portals are PROPS above the flora: arch + rim + apron at the rim bear
   assert.ok(apron.el === 'ellipse' && Math.abs(apron.rx - hw * 1.3) < 1e-9);
 });
 
-test('buildScene stays deterministic with trails + caves present (same input → byte-identical)', () => {
+test('1.1 buildScene stays deterministic with trails + caves present (same input → byte-identical)', () => {
   assert.deepEqual(
     buildScene(mkInput({ trails: CAVE_TRAILS })),
     buildScene(mkInput({ trails: CAVE_TRAILS })),
@@ -631,7 +631,7 @@ test('a BUILD wisp can carry the live subagent colourState (ADR-0138 §5) — ad
   assert.equal(wisp.phaseBand, 'red'); // the band still folds from the gate phase, unchanged
 });
 
-test('buildScene stays deterministic with a claim layer present (same input → byte-identical)', () => {
+test('1.1 buildScene stays deterministic with a claim layer present (same input → byte-identical)', () => {
   const withClaims = (): SceneInput =>
     mkInput({ territories: [mkTerritory({ claims: [{ key: 's1', title: 't', colourState: 'proving' }] })] });
   assert.deepEqual(buildScene(withClaims()), buildScene(withClaims()));
@@ -1229,7 +1229,7 @@ test('each theme routes through its own SurfaceFn — the theme tag rides every 
   }
 });
 
-test('buildScene stays deterministic with parcels present (same input → byte-identical)', () => {
+test('1.1 buildScene stays deterministic with parcels present (same input → byte-identical)', () => {
   assert.deepEqual(parcelScene(parcelsAB(2, 9, 'woodland'), CELLS_AB), parcelScene(parcelsAB(2, 9, 'woodland'), CELLS_AB));
 });
 

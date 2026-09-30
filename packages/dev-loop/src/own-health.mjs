@@ -275,7 +275,12 @@ export function packageOf(title) {
 }
 
 /** Stories whose package is not named after their title. */
-const PACKAGE_NAMED_OTHERWISE = { "command-line": "cli" };
+const PACKAGE_NAMED_OTHERWISE = {
+  "command-line": "cli",
+  world: "forest-world",
+  "local-database": "local-postgres",
+  "process-ledger": "processes",
+};
 
 // --- writing to the library -------------------------------------------------------------------
 

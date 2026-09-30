@@ -160,7 +160,7 @@ const closeTo = (got: number, want: number, msg: string): void =>
 // contract: r3f-mapping-is-deterministic
 // ---------------------------------------------------------------------------
 
-test('r3f-mapping-is-deterministic: same scene → deep-equal descriptor arrays, stable ordering', () => {
+test('1.3 r3f-mapping-is-deterministic: same scene → deep-equal descriptor arrays, stable ordering', () => {
   const scene = buildScene(mkInput());
   assert.deepEqual(worldTo3D(scene), worldTo3D(scene));
   // A fresh scene from the same input maps identically too — the core's determinism
@@ -335,7 +335,7 @@ for (const missing of ['id', 'status', 'theme', 'groundAnchor', 'floraScale', 'i
 // contract: r3f-semantic-layer-maps-faithfully
 // ---------------------------------------------------------------------------
 
-test('r3f-semantic-layer-maps-faithfully: kind → mesh family, position → transform, status → variant', () => {
+test('1.3 r3f-semantic-layer-maps-faithfully: kind → mesh family, position → transform, status → variant', () => {
   const scene = buildScene(
     mkInput({
       territories: [mkTerritory({ wisps: [{ runId: 'r1', title: 'building unit-a' }] })],

@@ -73,7 +73,7 @@ async function fields(library: Library, id: string): Promise<Record<string, unkn
   return record.fields;
 }
 
-test("6.4 the shared server lists and calls every librarian verb, attributes writes and preserves refusals", async () => {
+test("(the librarian's 6.4) the shared server lists and calls every librarian verb, attributes writes and preserves refusals", async () => {
   await withClient(async ({ client, library, log, folder }) => {
     const names = (await client.listTools()).tools.map((tool) => tool.name);
     assert.ok(names.includes("land") && VERBS.every((name) => names.includes(name)));
@@ -173,7 +173,7 @@ test("6.3 land and worklist use the calling session's start, including resumed a
   });
 });
 
-test("6.4 the installed server enables the librarian for storytree's own library first", async () => {
+test("(the librarian's 6.4) the installed server enables the librarian for storytree's own library first", async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "librarian-install-"));
   try {
     for (const project of ["storytree", "another-project"]) {

@@ -301,17 +301,19 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
           onClick={() => { const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); }}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
             event.preventDefault(); const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); } }}
-          aria-label={`${row.label} · ${row.agent}${row.needsYou ? ` · needs you${row.needsYouWhy === undefined ? "" : `: ${row.needsYouWhy}`}` : ""}${row.unmerged.length > 0 ? ` · holding unmerged work: ${row.unmerged.join(", ")}` : ""}`}
+          aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}${row.needsYou ? ` · needs you${row.needsYouWhy === undefined ? "" : `: ${row.needsYouWhy}`}` : ""}${row.unmerged.length > 0 ? ` · holding unmerged work: ${row.unmerged.join(", ")}` : ""}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
-          {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
-          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.join("\n")}` : ""}`}>{row.label}</span>
-          {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.join("\n")}
-            aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
-          {/* One expander per row (7.8): its detail and, behind the same "+N", its children (7.2). */}
+          {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted by the "+N" after its name. */}
           <button type="button" className="session-children-toggle" aria-expanded={expanded.has(row.id)}
             aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
-            onClick={event => { event.stopPropagation(); onToggle(row.id); }}>{row.children.length > 0 ? `+${row.children.length}` : ""}</button>
+            onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
+          {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
+          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.join("\n")}` : ""}`}>{row.label}</span>
+          {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}
+          {row.children.length > 0 && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
+          {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.join("\n")}
+            aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
           {row.needsYou && <span className="session-needs-you" title={row.needsYouWhy}>needs you</span>}
           <ContextBar row={row} />
           <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>

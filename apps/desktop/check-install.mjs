@@ -48,8 +48,11 @@ function checkUninstall(tools) {
   const asks = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-deliver.mjs"), "uninstall-asks", installed], { encoding: "utf8", env });
   assert.equal(asks.status, 0, `the installation owns the home it delivered: ${asks.stdout}${asks.stderr}`);
 
-  // _?= keeps the uninstaller in place, so this waits for it to finish.
-  execFileSync(path.join(installed, "Uninstall storytree-0.3.exe"), ["/S", "--remove-library", `_?=${installed}`], { timeout: 180_000, env });
+  // _?= keeps the uninstaller in place, so this waits for it to finish. NSIS reads it only last and
+  // unquoted, even with spaces; quoted, the uninstaller relaunches from a copy and returns at once.
+  const uninstaller = path.join(installed, "Uninstall storytree-0.3.exe");
+  const removed = spawnSync(uninstaller, [`/S --remove-library _?=${installed}`], { timeout: 180_000, env, argv0: `"${uninstaller}"`, windowsVerbatimArguments: true });
+  assert.equal(removed.status, 0, `the uninstaller exits cleanly: ${removed.error ?? ""}`);
   const left = existsSync(user) ? readdirSync(user, { recursive: true }).join("\n  ") : "(none)";
   console.log(`after uninstall, the user's folder holds:\n  ${left}\n.claude.json: ${readFileSync(claudeFile, "utf8")}\ninstalled: ${readdirSync(installed).join(", ")}`);
   assert.ok(!existsSync(home) && !existsSync(path.join(user, ".storytree")), "the home and library are removed");

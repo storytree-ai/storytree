@@ -1,0 +1,41 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Make a hel ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\CH Plain B1
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f1f9-5c09-73e3-abfe-89f7f7170669
+--------
+user
+Make a hello.txt file here that says hi.
+codex
+I’ll check for storytree setup, then create `hello.txt` with `hi`.
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Force -Name; Get-Item -LiteralPath '..\\.storytree.json','..\\AGENTS.md','.storytree.json','AGENTS.md' 
+-ErrorAction SilentlyContinue | Select-Object FullName" in C:\Users\mickh\CH Plain B1
+ exited 1 in 233ms:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Set-Content -LiteralPath 'hello.txt' -Value 'hi' -NoNewline -Encoding ascii
+Get-Content -LiteralPath 'hello.txt'" in C:\Users\mickh\CH Plain B1
+ succeeded in 169ms:
+hi
+
+codex
+Created [hello.txt](</C:/Users/mickh/CH Plain B1/hello.txt>) containing `hi`.
+tokens used
+24,430
+Created [hello.txt](</C:/Users/mickh/CH Plain B1/hello.txt>) containing `hi`.
+
+--- folder after:
+hello.txt

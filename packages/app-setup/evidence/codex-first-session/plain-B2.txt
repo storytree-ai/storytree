@@ -1,0 +1,40 @@
+codex : Reading additional input from stdin...
+At line:1 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Make a hel ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\CH Plain B2
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f1f9-d993-7983-bd9f-6d1dfe001467
+--------
+user
+Make a hello.txt file here that says hi.
+codex
+I’ll check the folder instructions, then create `hello.txt` with `hi`.
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Force -Name; Get-ChildItem -Path . -Filter AGENTS.md -Force | Get-Content' in C:\Users\mickh\CH Plain B2
+ succeeded in 163ms:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Set-Content -LiteralPath 'hello.txt' -Value 'hi' -NoNewline
+Get-Content -LiteralPath 'hello.txt'" in C:\Users\mickh\CH Plain B2
+ succeeded in 175ms:
+hi
+
+codex
+Created [hello.txt](<C:/Users/mickh/CH Plain B2/hello.txt>) containing `hi`.
+tokens used
+14,754
+Created [hello.txt](<C:/Users/mickh/CH Plain B2/hello.txt>) containing `hi`.
+
+--- folder after:
+hello.txt

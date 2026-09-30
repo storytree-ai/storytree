@@ -84,6 +84,17 @@ test("2.2: connecting registers the chosen harness's hooks, so its first session
   assert.ok(readFileSync(codexHooks, "utf8").includes("storytree-hook.mjs"));
 });
 
+test("2.2: connecting Codex tells its first session, hooks trusted or not, to call check_setup first in a project; disconnecting takes that out", async (t) => {
+  const f = fixture(t);
+  const agents = path.join(f.codex, "AGENTS.md");
+  await connectAgents({ ...f.options, harnesses: ["claude-code"] });
+  assert.equal(existsSync(agents), false, "Claude Code alone writes nothing into Codex's home");
+  await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.match(readFileSync(agents, "utf8"), /`check_setup`/);
+  await disconnectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.equal(existsSync(agents), false);
+});
+
 test("2.3/2.4: a conflicting 0.2 entry, missing harness and invalid settings get separate recovery actions", async (t) => {
   const f = fixture(t);
   const old = JSON.stringify({ mcpServers: { storytree: { command: "storytree-02" } } });

@@ -1,0 +1,5 @@
+$env:CODEX_HOME = "$HOME\st-codexharden\home-LABEL"
+Set-Location "$HOME\CH First LABEL"
+$null | codex exec --skip-git-repo-check --approve-for-me "Make a hello.txt file here that says hi." 2>&1 | Out-String -Width 200
+"--- folder after:"
+Get-ChildItem -Force -Name

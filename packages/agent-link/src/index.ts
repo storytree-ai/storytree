@@ -16,7 +16,7 @@ export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER } from "./to
 export type { AgentToolOptions, AgentTools, ToolExtension, ToolCall, DefineTool, ToolAnswer } from "./tools/index.js";
 export { CHECK_COMMAND, CHECK_FILE, defaultHomes, markDisconnected, openStorytree, registerHooks, removeHooks, runSetupCheck, suggestedName, verifyHooks } from "./setup/index.js";
 export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
-export { habitsCard } from "./instructions/index.js";
+export { habitsCard, removeCodexInstructions, writeCodexInstructions } from "./instructions/index.js";
 export { contextCommand, contextReading, readContext, sessionWindow } from "./context/index.js";
 export { pruneTranscripts, RETAIN_MS, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./transcripts/index.js";
 export type { TranscriptCache } from "./transcripts/index.js";

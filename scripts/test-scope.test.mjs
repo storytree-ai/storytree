@@ -245,6 +245,6 @@ test("the results table shows each unit PASS, FAIL or NOT RUN, and how to rerun 
   assert.match(table, /PASS\s+packages\/cli/);
   assert.match(table, /FAIL\s+packages\/forest/);
   assert.match(table, /NOT RUN\s+apps\/desktop/);
-  assert.match(table, /pnpm test -- --rerun-failed/);
+  assert.match(table, /pnpm run test --rerun-failed/);
   assert.doesNotMatch(resultsTable({ "packages/cli": "pass" }), /rerun-failed/, "nothing to rerun, no hint");
 });

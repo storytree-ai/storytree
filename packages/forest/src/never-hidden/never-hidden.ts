@@ -1,5 +1,5 @@
 /** Capability 3's planet book: face failures on opening and keep hidden ones reachable at the rim. */
-import type { TreeForm } from "../capability-tree/capability-tree.js";
+import type { CapabilityWord } from "@storytree/forest-world/scene";
 
 /** A finite, nonzero direction from the globe's centre (+y is north). Need not be unit length. */
 export interface GlobeDirection {
@@ -8,11 +8,12 @@ export interface GlobeDirection {
   z: number;
 }
 
-/** Only the island's identity, spot and tree forms are needed; no drawing engine is involved. */
+/** Only the island's identity, spot and its capabilities' words are needed; no drawing engine is involved. */
 export interface FacingIsland {
   story: string;
   spot: GlobeDirection;
-  trees: readonly { form: TreeForm }[];
+  /** Its capabilities' words: storytree's verified word, never the agent's report (ADR-0825 D3). */
+  trees: readonly { status?: CapabilityWord }[];
 }
 
 /**
@@ -67,7 +68,7 @@ export function edgeMarkers(islands: readonly FacingIsland[], viewDirection: Glo
   });
 }
 
-/** The ground join's worst-form rule: one dead tree makes the island failing. */
+/** One capability storytree verified unhealthy makes the island failing (ADR-0825 D3). */
 function isFailing(island: FacingIsland): boolean {
-  return island.trees.some(({ form }) => form === "dead");
+  return island.trees.some(({ status }) => status === "unhealthy");
 }

@@ -91,7 +91,7 @@ test("3.11 the rim marker reads storytree's verified word, never the agent's rep
     { id: "reported", title: "Reported failing", health: health("failing", "not-checked"), capabilities: [capability("cap-r", "untested", "failing")] },
   ] };
   const scene = forestScene(tree, [], workStates([]));
-  const layout = planetLayout(scene, new Map([["verified", 0], ["reported", 1]]));
+  const layout = planetLayout(scene, new Map([["verified", 1], ["reported", 2]]));
   const behind = layout.islands.map(island => ({ ...island, spot: { x: island.spot.x, y: island.spot.y, z: -Math.abs(island.spot.z) - 1 } }));
   assert.deepEqual(hiddenMarkers(behind, new Quaternion(), new Quaternion()).map(m => m.story), ["verified"]);
 });

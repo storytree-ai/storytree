@@ -8,6 +8,9 @@
 /** How a capability's tree looks. */
 export type TreeForm = "seedling" | "pale" | "green" | "dead";
 
+/** A capability's word (ADR-0744): what storytree verified about it, never the agent's report alone. */
+export type CapabilityWord = "proposed" | "healthy" | "unhealthy" | "untested";
+
 /** How many world units one place-width is: wide enough that neighbouring islands never touch. */
 export const PLACE_WIDTH = 16;
 
@@ -16,6 +19,8 @@ export interface PlacedTree {
   /** The capability's id; undefined for the one seedling of a story with no capabilities yet. */
   capability: string | undefined;
   form: TreeForm;
+  /** Its capability's word; absent for the one seedling of a story with no capabilities yet. */
+  status?: CapabilityWord;
   /** How many contracts its capability has: 0.2's engine grows that much ground cover on its parcel. */
   contracts: number;
   x: number;
@@ -44,8 +49,8 @@ export interface Island {
 
 /** An island's code (ADR-0804 D2, D3): its territories' shares, and its files, for the page to lay on its land. */
 export interface IslandLand {
-  /** Each territory's capability, its title and its lines; no capability for Unclaimed code. */
-  territories: readonly { capability?: string; title?: string; lines: number }[];
+  /** Each territory's capability, its title, its word and its lines; no capability (and no word) for Unclaimed code. */
+  territories: readonly { capability?: string; title?: string; status?: CapabilityWord; lines: number }[];
   files: readonly { path: string; lines: number; capability?: string }[];
   /** The package its story's code lives in, so a file's path in the package can be named from the repository's root (ADR-0804 D5). */
   package?: string;

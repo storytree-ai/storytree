@@ -194,13 +194,13 @@ test("7.16 a row lists the commands its session started and has not seen finish,
   const long = "git push --force-with-lease origin claude/some-very-long-branch-name && gh pr create --fill";
   const lines = log(
     { ...hook, kind: "prompt-submitted", at: minutes(30) },
-    { ...hook, kind: "command-started", command: "pnpm run test --full", call: "a", at: minutes(12) },
+    { ...hook, kind: "command-started", command: "pnpm run test --full", call: "a", at: minutes(8) },
     { ...hook, kind: "command-started", command: long, call: "b", at: minutes(2) },
     { ...hook, kind: "command-started", command: "git status", call: "c", at: minutes(1) },
     { ...hook, kind: "command-run", command: "git status", call: "c", at: minutes(1) });
   const [row] = sessionRows(tree, lines, [], now);
   assert.deepEqual(row?.running.map(({ words, command, ranMs }) => [words, command, ranMs]), [
-    ["pnpm run test --full", "pnpm run test --full", 12 * 60_000],
+    ["pnpm run test --full", "pnpm run test --full", 8 * 60_000],
     [`${long.split(/\s+/).slice(0, 5).join(" ").slice(0, 47)}…`, long, 2 * 60_000],
   ]);
   assert.ok(row!.running[1]!.words.length <= 48, "one short line");

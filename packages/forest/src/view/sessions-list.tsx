@@ -38,7 +38,7 @@ function detailsOf(reading: ContextReading): SessionDetails {
 export function isSessionRows(value: unknown): value is SessionRow[] {
   return Array.isArray(value) && value.every((row: Partial<SessionRow> | null) => typeof row === "object" && row !== null
     && typeof row.id === "string" && typeof row.label === "string" && typeof row.agent === "string" && typeof row.state === "string"
-    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && row.worktrees.every(tree => typeof tree?.path === "string") && Array.isArray(row.description) && isSessionRows(row.children));
+    && Array.isArray(row.stories) && Array.isArray(row.worktrees) && Array.isArray(row.running) && row.worktrees.every(tree => typeof tree?.path === "string") && Array.isArray(row.description) && isSessionRows(row.children));
 }
 
 function everyId(rows: readonly SessionRow[]): string[] {
@@ -207,6 +207,14 @@ function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
 /** A worktree's folder name, the trunk's too, from its full path on any platform. */
 const folderName = (path: string): string => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
 
+/** How long a command has run, in its largest two units: 12s, 1m, 1h 5m. */
+export function ranFor(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return minutes < 60 ? `${minutes}m` : minutes % 60 === 0 ? `${Math.floor(minutes / 60)}h` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
 /** An expanded row's detail (7.8): its description's lines (7.14), then each worktree by its folder's name (full path on hover), then the files in its window, each block labelled. */
 function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | undefined }) {
   return <div className="session-detail">
@@ -216,6 +224,11 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
       <ul className="session-detail-worktrees" aria-label="Worktrees">
         {row.worktrees.map(tree => <li key={tree.path} title={[tree.path, ...tree.branches].join("\n")}>{folderName(tree.path)}
           {tree.state !== undefined && <span className="session-worktree-state" data-state={tree.state}>{tree.state}</span>}</li>)}</ul></>}
+    {row.running.length > 0 && <>
+      <p className="session-detail-label">Running</p>
+      <ul className="session-detail-running" aria-label="Running">
+        {row.running.map((run, index) => <li key={index} title={run.command.slice(0, 300)}><span className="session-run-command">{run.words}</span>
+          <span className="session-run-time">{ranFor(run.ranMs)}</span></li>)}</ul></>}
     <p className="session-detail-label">Files</p>
     {files === undefined ? <p className="session-detail-note">Reading files…</p>
       : "absent" in files ? <p className="session-detail-note">No files: {files.absent}</p>

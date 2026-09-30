@@ -48,3 +48,6 @@
 @media(max-width:600px) { .sessions-list { left:8px; bottom:8px; width:calc(100% - 16px); padding:7px; } .session-row { gap:4px; } .session-context-slot { width:59px; margin-left:0; } }
 .session-worktree-state { margin-left:8px; font-size:10px; border:1px solid #4a5654; border-radius:3px; padding:0 4px; color:#b3bdb9; white-space:nowrap; }
 .session-worktree-state[data-state="unmerged"] { color:#e8a07a; border-color:#8a5a43; }
+.session-detail-running li { display:flex; gap:8px; justify-content:space-between; color:#d9dedb; }
+.session-run-command { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.session-run-time { flex-shrink:0; font-variant-numeric:tabular-nums; color:#b3bdb9; }

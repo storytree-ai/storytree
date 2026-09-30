@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, arcKey, arrived, coreScene, curvePoint, fillAt, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayFrame, ringArcs, SIZE_LABELS, stampOpens, windowReplays, windowView, type CoreInput } from "./look-inside.js";
+import { agentPaths, arcKey, arrived, coreScene, curvePoint, fillAt, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayAt, replayFrame, ringArcs, SIZE_LABELS, stampOpens, windowReplays, windowView, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -269,6 +269,28 @@ test("4.13 an agent's glow replays its steps in recorded order, one after anothe
   assert.equal(glowAt(3, 3200, timing), undefined, "a pause after the last step");
   assert.deepEqual(glowAt(3, 3600, timing), { step: 0, t: 0.1 }, "then from the first again");
   assert.equal(glowAt(0, 100, timing), undefined, "a path with no steps never glows");
+});
+
+test("4.12 a selected session replays as one head walking every agent's steps in recorded order, building the picture, then rests and starts again", () => {
+  const step = (from: string, to: string, seq: number, mover: string) => ({ from, to, seq, mover, colour: mover });
+  // Two agents, interleaved as the transcript was: the head follows seq across them, not each agent on its own.
+  const steps = [step("a", "b", 1, "orchestrator"), step("b", "c", 4, "orchestrator"), step("x", "y", 2, "explorer"), step("y", "z", 3, "explorer")];
+  const timing = { step: 1000, rest: 2000 };
+  const at = (elapsed: number) => {
+    const moment = replayAt(steps, elapsed, timing);
+    return { drawn: moment.drawn.map(({ from, to }) => `${from}>${to}`), head: moment.head && `${moment.head.step.from}>${moment.head.step.to} ${moment.head.t}`,
+      lit: [...moment.lit].sort(), over: moment.over };
+  };
+  assert.deepEqual(at(0), { drawn: [], head: "a>b 0", lit: ["a"], over: false }, "only the first read, its line just starting");
+  assert.deepEqual(at(1500), { drawn: ["a>b"], head: "x>y 0.5", lit: ["a", "b", "x"], over: false }, "the explorer's step comes next, by seq");
+  assert.deepEqual(at(3250), { drawn: ["a>b", "x>y", "y>z"], head: "b>c 0.25", lit: ["a", "b", "x", "y", "z"], over: false });
+  assert.deepEqual(at(5000), { drawn: ["a>b", "x>y", "y>z", "b>c"], head: undefined, lit: ["a", "b", "c", "x", "y", "z"], over: false }, "the finished picture holds");
+  assert.equal(replayAt(steps, 6000, timing).over, true, "after its rest the replay is over, to start again from nothing");
+  // A live read arriving mid-replay joins the end of the sequence, never growing on its own clock.
+  const joined = replayAt([...steps, step("z", "q", 9, "explorer")], 4500, timing);
+  assert.equal(`${joined.head?.step.from}>${joined.head?.step.to}`, "z>q");
+  assert.equal(joined.drawn.length, 4);
+  assert.deepEqual(replayAt([], 0, timing), { drawn: [], head: undefined, lit: new Set(), over: true });
 });
 
 test("4.14 new steps grow one after another per agent, in recorded order; different agents grow at once, and history grows nothing", () => {

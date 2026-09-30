@@ -1,0 +1,131 @@
+{
+  "steps": [
+    "decision_69b5ac6855c3>decision_5ae1815d9959",
+    "decision_5ae1815d9959>decision_914f96703a84",
+    "decision_914f96703a84>decision_026dc42f1fa9",
+    "decision_026dc42f1fa9>decision_101478dc54ed",
+    "decision_101478dc54ed>decision_13c403f3a480"
+  ],
+  "samples": [
+    {
+      "at": 0,
+      "shown": 2,
+      "lit": 2,
+      "glows": 0
+    },
+    {
+      "at": 400,
+      "shown": 4,
+      "lit": 4,
+      "glows": 0
+    },
+    {
+      "at": 800,
+      "shown": 4,
+      "lit": 4,
+      "glows": 0
+    },
+    {
+      "at": 1200,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 1600,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 2000,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 2400,
+      "shown": 1,
+      "lit": 1,
+      "glows": 0
+    },
+    {
+      "at": 2800,
+      "shown": 3,
+      "lit": 3,
+      "glows": 0
+    },
+    {
+      "at": 3200,
+      "shown": 3,
+      "lit": 3,
+      "glows": 0
+    },
+    {
+      "at": 3600,
+      "shown": 5,
+      "lit": 5,
+      "glows": 0
+    },
+    {
+      "at": 4000,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 4400,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 4800,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 5200,
+      "shown": 1,
+      "lit": 1,
+      "glows": 0
+    },
+    {
+      "at": 5600,
+      "shown": 2,
+      "lit": 2,
+      "glows": 0
+    },
+    {
+      "at": 6000,
+      "shown": 4,
+      "lit": 4,
+      "glows": 0
+    },
+    {
+      "at": 6400,
+      "shown": 4,
+      "lit": 4,
+      "glows": 0
+    },
+    {
+      "at": 6800,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 7200,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    },
+    {
+      "at": 7600,
+      "shown": 5,
+      "lit": 6,
+      "glows": 0
+    }
+  ]
+}

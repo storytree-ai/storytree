@@ -20,6 +20,13 @@ export async function withTempDir<T>(body: (dir: string) => Promise<T> | T): Pro
   }
 }
 
+/**
+ * Remove a test's temp folder once the children it started have exited.
+ */
+export async function removeTempDir(dir: string): Promise<void> {
+  rmSync(dir, { recursive: true, force: true });
+}
+
 /** Run git in `cwd` with a throwaway identity, and return what it printed. */
 export function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", ["-c", "user.name=storytree test", "-c", "user.email=test@storytree.invalid", ...args], {

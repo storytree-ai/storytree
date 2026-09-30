@@ -24,7 +24,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "forest-world", "knowledge-core", "librarian", "library", "local-postgres", "processes"];
+export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "forest-world", "knowledge-core", "librarian", "library", "local-postgres", "processes", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // forest-world: story_ca702fee28cb (The world, ADR-0805 D1).

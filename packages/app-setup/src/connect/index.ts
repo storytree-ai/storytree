@@ -163,6 +163,7 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
       try {
         // The existing setup check registers hooks for every detected home, even an unchosen harness.
         for (const harness of ["claude-code", "codex"] as const) removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+        removeCodexInstructions(where.codex);
         command = removeInstalledCommand(where.home, where.env, options.installed);
       } catch { command = "kept"; }
     }
@@ -189,6 +190,7 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
     let settings: Settings | undefined;
     try {
       removeHooks({ claude: where.claude, codex: where.codex }, { harness, hook });
+      if (harness === "codex") removeCodexInstructions(where.codex);
       // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
       if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
       settings = await openSettings(harness, { ...options, harnesses: [] });

@@ -5,7 +5,10 @@
  * open work stays in the running-sessions list.
  *
  * - GitHub is asked about merges from any machine, in one call for every branch, so a backlog
- *   drains in one look: a merge is the same everywhere. Whether a branch is ahead of the main line,
+ *   drains in one look: a merge is the same everywhere. In a second call, made alongside, it is
+ *   asked for every open pull request (contract 4.24): an open branch's line carries its pull
+ *   request, whether it is a draft, its checks and whether it waits in the merge queue, and is
+ *   written again when any of those changes. GitHub not answering erases none of them. Whether a branch is ahead of the main line,
  *   or deleted, is asked of git on the machine its lines were written on, in the folder they name
  *   (or the nearest one still there: a cleaned-up worktree's repository).
  * - A branch worked on only on other machines is deleted once it exists nowhere this machine can
@@ -25,12 +28,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { currentBranch, thisMachine, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
-import { due, ghAllMergedPulls, type AllMergedPulls, type MergeContext, type MergedPull } from "../claims/merges.js";
+import { due, ghAllMergedPulls, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
 /** How branches are watched. */
 export interface BranchWatch {
   /** How to ask GitHub for every merged pull request. By default, through `gh`. */
   readonly allMergedPulls?: AllMergedPulls;
+  /** How to ask GitHub for every open pull request (contract 4.24). By default, through `gh`. */
+  readonly allOpenPulls?: AllOpenPulls;
   /** How often a project is looked at, at most. By default, once a minute. */
   readonly everyMs?: number;
   /** The machine this runs on, as lines name it. By default, this one's host name. */
@@ -47,7 +52,18 @@ const GIT_TIMEOUT_MS = 2_000;
 const ORIGIN_TIMEOUT_MS = 5_000;
 
 type BranchState = Extract<NewLine, { kind: "branch-state" }>;
-type Found = Pick<BranchState, "of" | "open" | "how" | "pr">;
+/** What a line says of a branch's pull request: the one that merged it, or its open one with that one's state. */
+type Pull = Pick<BranchState, "pr" | "draft" | "checks" | "queued">;
+/**
+ * A branch's state as one look found it. `how` is unknown when only GitHub was asked (the line
+ * keeps the one it had); `pull` is unknown when GitHub did not answer (the line keeps its own).
+ */
+interface Found {
+  of: string;
+  open: boolean;
+  how?: BranchState["how"];
+  pull?: Pull;
+}
 
 /** Look at the project's branches that may have changed state, and write a `branch-state` line for each that did. */
 export async function resolveBranches(context: MergeContext, watch: BranchWatch = {}): Promise<Line[]> {
@@ -57,24 +73,34 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
   const looked = lookedAt(context.project);
   const candidates = toLookAt(lines, machine, looked);
   if (candidates.size === 0) return [];
-  const merged = await (watch.allMergedPulls ?? ghAllMergedPulls)(context.folder).catch(() => new Map<string, MergedPull[]>());
+  const [merged, opened] = await Promise.all([
+    (watch.allMergedPulls ?? ghAllMergedPulls)(context.folder).catch(() => new Map<string, MergedPull[]>()),
+    (watch.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined),
+  ]);
   const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? seenHere(context.folder) : undefined;
   const deadline = Date.now() + (watch.budgetMs ?? BUDGET_MS);
   const found: Found[] = [];
   for (const [branch, facts] of [...candidates].sort(([a], [b]) => (looked[a] ?? 0) - (looked[b] ?? 0))) {
     const pull = (merged.get(branch) ?? []).find((pull) => Date.parse(pull.mergedAt) >= Date.parse(facts.firstAt));
     if (pull !== undefined) {
-      found.push({ of: branch, open: false, how: "merged", pr: pull.number });
+      found.push({ of: branch, open: false, how: "merged", pull: { pr: pull.number } });
       continue;
     }
+    const open = opened === undefined ? undefined : pullOf(opened.get(branch));
+    const onGitHub = open === undefined ? [] : [{ of: branch, open: true, pull: open }];
     if (facts.folder === undefined) {
-      if (seen !== undefined && !facts.foundThere && !seen.has(branch)) found.push({ of: branch, open: false, how: "deleted" });
+      if (seen !== undefined && !facts.foundThere && !seen.has(branch)) found.push({ of: branch, open: false, how: "deleted", pull: {} });
+      else found.push(...onGitHub);
       continue;
     }
-    if (Date.now() > deadline) continue;
+    if (Date.now() > deadline) {
+      found.push(...onGitHub);
+      continue;
+    }
     looked[branch] = Date.now();
     const local = gitState(facts.folder, branch);
-    if (local !== undefined) found.push({ of: branch, open: local === "ahead", how: local });
+    if (local === undefined) found.push(...onGitHub);
+    else found.push({ of: branch, open: local === "ahead", how: local, ...(local === "ahead" ? (open === undefined ? {} : { pull: open }) : { pull: {} }) });
   }
   remember(context.project, looked);
   if (found.length === 0) return [];
@@ -84,8 +110,13 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
     const current = latestStates(await log.lines(["branch-state"]));
     const written: Line[] = [];
     for (const state of found) {
+      const now = current.get(state.of);
       // A branch no line has resolved reads as open.
-      if ((current.get(state.of)?.open ?? true) === state.open) continue;
+      const wasOpen = now?.open ?? true;
+      // Only GitHub was asked: its pull request says nothing of a branch a line has resolved.
+      if (state.how === undefined && !wasOpen) continue;
+      if (wasOpen === state.open && (!state.open || state.pull === undefined || samePull(state.pull, now))) continue;
+      const pull = state.pull ?? {};
       written.push(await log.append({
         session: context.session,
         ...(context.harness === undefined ? {} : { harness: context.harness }),
@@ -95,8 +126,8 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
         kind: "branch-state",
         of: state.of,
         open: state.open,
-        how: state.how,
-        ...(state.pr === undefined ? {} : { pr: state.pr }),
+        how: state.how ?? now?.how ?? "ahead",
+        ...pull,
       }));
     }
     return written;
@@ -162,6 +193,17 @@ function seenHere(folder: string): Set<string> | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** What a line says of an open pull request, or of none. */
+function pullOf(pull: OpenPull | undefined): Pull {
+  if (pull === undefined) return {};
+  return { pr: pull.number, ...(pull.draft ? { draft: true } : {}), ...(pull.checks === undefined ? {} : { checks: pull.checks }), ...(pull.queued ? { queued: true } : {}) };
+}
+
+/** Whether `line` already says `pull`. */
+function samePull(pull: Pull, line: Pull | undefined): boolean {
+  return pull.pr === line?.pr && pull.draft === line?.draft && pull.checks === line?.checks && pull.queued === line?.queued;
 }
 
 /** The latest `branch-state` line for each branch. */

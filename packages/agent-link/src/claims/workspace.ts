@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import { claim, claimRefusal, reasonRefusal, readClaim, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
+import { endIfMerged, type MergeWatch } from "./merges.js";
 
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
@@ -47,8 +48,8 @@ const FETCH_TIMEOUT_MS = 120_000;
 const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
-export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string): Promise<WorkspaceAnswer> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id);
+export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}): Promise<WorkspaceAnswer> {
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, watch);
   if (refused !== undefined) return refused;
   const repository = repositoryOf(context.folder);
   if (typeof repository !== "string") return repository;
@@ -74,8 +75,8 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
 }
 
 /** Attach an app-created Codex worktree to this session's work, leaving its lifetime to the app. */
-export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment): Promise<ClaimedWorkspace | WorkspaceRefusal> {
-  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id);
+export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment, watch: MergeWatch = {}): Promise<ClaimedWorkspace | WorkspaceRefusal> {
+  const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, watch);
   if (refused !== undefined) return refused;
   if (context.harness !== "codex") return { ok: false, refused: "no-workspace", why: "only a Codex agent attaches an app-created worktree; Claude Code uses make_workspace" };
 
@@ -113,9 +114,10 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
   return { ok: true, status: "ready", claim: claimed.claim, folder, branch, base: attachment.ref, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
 }
 
-async function workspaceRefusal(context: WorkspaceContext, id: string): Promise<WorkspaceRefusal | undefined> {
+/** Why this session may not have a workspace for `id`; a claim it holds on a branch that has since merged is ended first, not pointed back at. */
+async function workspaceRefusal(context: WorkspaceContext, id: string, watch: MergeWatch): Promise<WorkspaceRefusal | undefined> {
   const mine = await readClaim(context.log, context.project, id);
-  if (mine?.session === context.session) return { ok: false, refused: "yours", claim: mine };
+  if (mine?.session === context.session && !(await endIfMerged({ ...context, source: "tool" }, mine, watch))) return { ok: false, refused: "yours", claim: mine };
   return claimRefusal(context, id);
 }
 

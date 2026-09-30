@@ -2,6 +2,7 @@
 import { buildBins, stageNativeProbes } from "@storytree/agent-link/bins";
 import { NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
+import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -9,9 +10,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export async function buildToolBundle(outdir, { platform = process.platform, arch = process.arch } = {}) {
+export async function buildToolBundle(outdir, { platform = process.platform, arch = process.arch, release } = {}) {
   mkdirSync(outdir, { recursive: true });
-  await buildBins(outdir);
+  await buildBins(outdir, { release });
   await build({
     stdin: {
       contents: 'import { runDeliveryCommand } from "@storytree/app-setup/deliver"; runDeliveryCommand().catch(error => { console.error(error.message); process.exitCode = 1; });',
@@ -107,7 +108,10 @@ export async function stageTools() {
   const root = path.join(here, "dist", "agent-tools");
   const common = path.join(root, "common");
   rmSync(root, { recursive: true, force: true });
-  await buildToolBundle(common, { platform: "win32", arch: "x64" });
+  // A release's packaging (dist.mjs, with STORYTREE_RELEASE_VERSION) stamps its 0.3.<n> into the installed command.
+  const version = process.env.STORYTREE_RELEASE_VERSION;
+  const release = version === undefined ? undefined : { version, commit: execFileSync("git", ["-C", here, "rev-parse", "--short=7", "HEAD"], { encoding: "utf8" }).trim() };
+  await buildToolBundle(common, { platform: "win32", arch: "x64", release });
   for (const arch of ["x64", "arm64"]) {
     const dir = path.join(root, arch);
     cpSync(common, dir, { recursive: true });

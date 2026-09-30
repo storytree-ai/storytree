@@ -44,7 +44,9 @@ try { Copy-StorytreeStream ([IO.MemoryStream]::new($payload, 0, 1024)) ([IO.Memo
 catch { Assert ($_.Exception.Message -match 'ended early') "a cut-off download is refused: $($_.Exception.Message)" }
 # The silent install shows it is still working while the installer runs.
 $script:Ticks = 0
-$sleeper = Start-Process -FilePath ([Diagnostics.Process]::GetCurrentProcess().Path) -ArgumentList '-NoProfile -Command Start-Sleep -Milliseconds 2500' -PassThru -WindowStyle Hidden
+$start = [Diagnostics.ProcessStartInfo]::new([Diagnostics.Process]::GetCurrentProcess().Path, '-NoProfile -Command Start-Sleep -Milliseconds 2500')
+$start.UseShellExecute = $false; $start.CreateNoWindow = $true
+$sleeper = [Diagnostics.Process]::Start($start)
 $null = $sleeper.Handle
 Wait-StorytreeProcess $sleeper { param($Elapsed) $script:Ticks++ } | Out-Null
 Assert ($sleeper.HasExited -and $sleeper.ExitCode -eq 0) 'waited for the installer and kept its exit code'

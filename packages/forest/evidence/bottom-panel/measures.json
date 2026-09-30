@@ -1,0 +1,165 @@
+{
+  "desktopClear": {
+    "panel": false,
+    "mark": false,
+    "strip": {
+      "right": 936,
+      "bottom": 905.609375
+    },
+    "panelLeft": 948
+  },
+  "desktop": {
+    "expanded": {
+      "pane": {
+        "width": 1440,
+        "height": 864
+      },
+      "box": {
+        "left": 0,
+        "right": 0,
+        "bottom": 0,
+        "width": 1440,
+        "height": 345.59375
+      },
+      "heightOfPane": 0.4,
+      "handleExpanded": "true",
+      "handleLabel": "Hide sessions",
+      "caret": "▾",
+      "bodyHidden": false,
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "scrollHeight": 348,
+      "clientHeight": 309,
+      "overflowX": "hidden",
+      "overflowY": "auto",
+      "background": "rgba(18, 24, 27, 0.62)",
+      "backdropFilter": "blur(3px)",
+      "rows": 4,
+      "rowHeights": [
+        29,
+        29,
+        29,
+        29
+      ],
+      "headerHeight": 36,
+      "idleFold": "3 idle",
+      "worktreeLabels": [
+        "unmerged",
+        "merged",
+        "unmerged",
+        "merged"
+      ],
+      "running": 3,
+      "kept": null
+    },
+    "collapsed": {
+      "pane": {
+        "width": 1440,
+        "height": 864
+      },
+      "box": {
+        "left": 0,
+        "right": 0,
+        "bottom": 0,
+        "width": 1440,
+        "height": 37
+      },
+      "heightOfPane": 0.043,
+      "handleExpanded": "false",
+      "handleLabel": "Show sessions",
+      "caret": "▴",
+      "bodyHidden": true,
+      "scrollWidth": 0,
+      "clientWidth": 0,
+      "scrollHeight": 0,
+      "clientHeight": 0,
+      "overflowX": "hidden",
+      "overflowY": "auto",
+      "background": "rgba(18, 24, 27, 0.62)",
+      "backdropFilter": "blur(3px)",
+      "rows": 0,
+      "rowHeights": [],
+      "headerHeight": 36,
+      "worktreeLabels": [],
+      "running": 0,
+      "kept": "false"
+    }
+  },
+  "narrow": {
+    "expanded": {
+      "pane": {
+        "width": 420,
+        "height": 804
+      },
+      "box": {
+        "left": 0,
+        "right": 0,
+        "bottom": 0,
+        "width": 420,
+        "height": 321.59375
+      },
+      "heightOfPane": 0.4,
+      "handleExpanded": "true",
+      "handleLabel": "Hide sessions",
+      "caret": "▾",
+      "bodyHidden": false,
+      "scrollWidth": 420,
+      "clientWidth": 420,
+      "scrollHeight": 563,
+      "clientHeight": 268,
+      "overflowX": "hidden",
+      "overflowY": "auto",
+      "background": "rgba(18, 24, 27, 0.62)",
+      "backdropFilter": "blur(3px)",
+      "rows": 4,
+      "rowHeights": [
+        29,
+        29,
+        29,
+        29
+      ],
+      "headerHeight": 53,
+      "idleFold": "3 idle",
+      "worktreeLabels": [
+        "unmerged",
+        "merged",
+        "unmerged",
+        "merged"
+      ],
+      "running": 3,
+      "kept": null
+    },
+    "collapsed": {
+      "pane": {
+        "width": 420,
+        "height": 804
+      },
+      "box": {
+        "left": 0,
+        "right": 0,
+        "bottom": 0,
+        "width": 420,
+        "height": 53.78125
+      },
+      "heightOfPane": 0.067,
+      "handleExpanded": "false",
+      "handleLabel": "Show sessions",
+      "caret": "▴",
+      "bodyHidden": true,
+      "scrollWidth": 0,
+      "clientWidth": 0,
+      "scrollHeight": 0,
+      "clientHeight": 0,
+      "overflowX": "hidden",
+      "overflowY": "auto",
+      "background": "rgba(18, 24, 27, 0.62)",
+      "backdropFilter": "blur(3px)",
+      "rows": 0,
+      "rowHeights": [],
+      "headerHeight": 53,
+      "worktreeLabels": [],
+      "running": 0,
+      "kept": "false"
+    }
+  }
+}

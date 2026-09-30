@@ -262,8 +262,15 @@ export function codePathKey(pkg: string, path: string): string {
 
 /** The surveyed file a path a session opened names, by `packages/<package>/src/…`: whatever came before it does not matter. Undefined when it names none. */
 export function codeKey(path: string): string | undefined {
-  return undefined;
+  const match = /(?:^|\/)packages\/([^/]+)\/(src\/.+)$/.exec(path.replaceAll("\\", "/"));
+  return match === null ? undefined : codePathKey(match[1]!, match[2]!);
 }
+
+/** A file's stop in a traversal: its key, told apart from every note's id. */
+export const fileStop = (key: string): string => `file:${key}`;
+
+/** The window's colour (ADR-0746 D1): a warm white no session wears, since sessions take their colours from the whole hue wheel. */
+export const IN_VIEW = "#f4ecd8";
 
 /** What a selected session's window shows in the core (ADR-0756). */
 export interface WindowView {
@@ -288,33 +295,50 @@ export interface WindowView {
  * each step joined by a line; files read between them do not break the chain, and a note no longer
  * in the library is stepped over. `joined` says whether a stored link joins two notes.
  */
-export function windowView(window: SessionWindow, present: ReadonlySet<string>, joined: (a: string, b: string) => boolean, _places?: CodePlaces): WindowView {
+export function windowView(window: SessionWindow, present: ReadonlySet<string>, joined: (a: string, b: string) => boolean, places?: CodePlaces): WindowView {
   const view: WindowView = { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], code: { files: new Map(), capabilities: new Map() }, status: undefined };
   if ("absent" in window) return { ...view, status: `No window: ${window.absent}` };
   const opened: string[] = [];
+  /** Every stop in reading order: a present note by its id, a surveyed file by its stop. */
+  const stops: string[] = [];
+  const imported = new Set((places?.imports ?? []).flatMap(({ from, to }) => [`${from}>${to}`, `${to}>${from}`]));
+  // A read is in the window if any open of it is: read again since a compaction, it is in the window now.
+  const stateOf = (open: { resident: boolean }, before: CodeState | undefined): CodeState => open.resident || before === "in-window" ? "in-window" : "faded";
   for (const open of window.opens) {
     if (open.kind === "file") {
       if (open.resident && !view.files.includes(open.id)) view.files.push(open.id);
+      const key = places === undefined ? undefined : codeKey(open.id);
+      if (key === undefined || !places!.files.has(key)) continue;
+      view.code.files.set(key, stateOf(open, view.code.files.get(key)));
+      stops.push(fileStop(key));
     } else if (present.has(open.id)) {
       opened.push(open.id);
+      stops.push(open.id);
       if (open.resident) view.notes.add(open.id);
+    } else if (places?.capabilities.has(open.id)) {
+      view.code.capabilities.set(open.id, stateOf(open, view.code.capabilities.get(open.id)));
     }
   }
   for (const note of opened) if (!view.notes.has(note)) view.faded.add(note);
   for (const note of window.glimpses) if (present.has(note) && !opened.includes(note)) view.glimpsed.add(note);
+  const isFile = (stop: string): boolean => stop.startsWith("file:");
+  const fadedStop = (stop: string): boolean => isFile(stop) ? view.code.files.get(stop.slice("file:".length)) === "faded" : view.faded.has(stop);
   const taken = new Set<string>();
-  opened.forEach((to, index) => {
-    const from = opened[index - 1];
+  stops.forEach((to, index) => {
+    const from = stops[index - 1];
     if (from === undefined || from === to || taken.has(`${from}>${to}`)) return;
     taken.add(`${from}>${to}`);
-    view.steps.push({ from, to, edge: joined(from, to) ? "solid" : "dotted", faded: view.faded.has(from) || view.faded.has(to) });
+    const faded = fadedStop(from) || fadedStop(to);
+    if (isFile(from) && isFile(to)) view.steps.push({ from, to, edge: imported.has(`${from.slice(5)}>${to.slice(5)}`) ? "solid" : "dotted", faded, kind: "hop" });
+    else if (isFile(from) || isFile(to)) view.steps.push({ from, to, edge: "dotted", faded, kind: "dive" });
+    else view.steps.push({ from, to, edge: joined(from, to) ? "solid" : "dotted", faded });
   });
   return view;
 }
 
 /** A selected session's traversal steps as the trails the globe draws, one per step in reading order, in the session's colour. */
-export function traversalTrails(_steps: readonly TraversalStep[], _colour: string, _mover: string): Trail[] {
-  return [];
+export function traversalTrails(steps: readonly TraversalStep[], colour: string, mover: string): Trail[] {
+  return steps.map(({ from, to, edge, faded, kind }, seq): Trail => ({ from, to, colour, seq, mover, step: kind === undefined ? { edge, faded } : { edge, faded, kind } }));
 }
 
 /** How far a step's faint fill has run from its earlier note (ADR-0756): 0 to 1 over `run` ms, nothing for a `pause`, then again. */
@@ -558,6 +582,26 @@ export function curvePoint(from: Point, to: Point, t: number): Point {
   const control = { x: middle.x + out.x * bow, y: middle.y + out.y * bow, z: middle.z + out.z * bow };
   const a = (1 - t) ** 2, b = 2 * t * (1 - t), c = t * t;
   return { x: from.x * a + control.x * b + to.x * c, y: from.y * a + control.y * b + to.y * c, z: from.z * a + control.z * b + to.z * c };
+}
+
+/**
+ * A point `t` of the way along a hop between two files (ADR-0804 D5): the great-circle arc between their circles,
+ * lifted off the surface by up to a fifth of the way across, and never more than 12% of the radius, so it arcs
+ * just above the land it crosses, however far the second island is. It leaves and lands on the circles themselves.
+ */
+export function hopPoint(from: Point, to: Point, t: number): Point {
+  const [a, b] = [length(from), length(to)];
+  const [ua, ub] = [unit(from), unit(to)];
+  const angle = Math.acos(Math.max(-1, Math.min(1, ua.x * ub.x + ua.y * ub.y + ua.z * ub.z)));
+  const [wa, wb] = angle < 1e-9 ? [1, 0] : [Math.sin((1 - t) * angle) / Math.sin(angle), Math.sin(t * angle) / Math.sin(angle)];
+  const lift = Math.min(0.2 * Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z), 0.12 * Math.max(a, b)) * Math.sin(Math.PI * t);
+  const radius = a + (b - a) * t + lift;
+  return { x: (ua.x * wa + ub.x * wb) * radius, y: (ua.y * wa + ub.y * wb) * radius, z: (ua.z * wa + ub.z * wb) * radius };
+}
+
+/** The point `t` of the way along a step's curve: a hop between two files stays above the surface, every other step bows outward (ADR-0740 D3). */
+export function stepPoint(kind: TraversalStep["kind"], from: Point, to: Point, t: number): Point {
+  return kind === "hop" ? hopPoint(from, to, t) : curvePoint(from, to, t);
 }
 
 /** The part of a step's curve a glow with its head at `t` lights: from up to TAIL back, to the head. */

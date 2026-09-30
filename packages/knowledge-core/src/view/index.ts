@@ -1,4 +1,4 @@
 // @storytree/knowledge-core/view: the knowledge core's surface, for the app to mount (ADR-0649 D2).
 // It needs React and a browser; the package's main entry stays plain logic.
-export { createKnowledgeCore, KnowledgeGlobePoints, KnowledgeCoreInside, KnowledgeCorePanel, KnowledgeNoteCard } from "./surface.js";
-export type { CoreReads, KnowledgeCore } from "./surface.js";
+export { createKnowledgeCore, KnowledgeGlobePoints, KnowledgeCoreInside, KnowledgeCorePanel, KnowledgeNoteCard, useCodeLighting } from "./surface.js";
+export type { CodeLighting, CoreReads, KnowledgeCore } from "./surface.js";

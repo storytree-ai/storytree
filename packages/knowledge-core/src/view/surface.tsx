@@ -11,7 +11,7 @@ import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
-import { ORCHESTRATOR, coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, stampOpens, windowReplays, windowView, type CoreInput, type Point, type RosterEntry, type SizeBy, type Trail } from "../look-inside/look-inside.js";
+import { ORCHESTRATOR, coreScene, legend, lighting, noteCard, trails as readingPaths, agentPaths, noteTitle, pinnedLinks, replayFrame, stampOpens, traversalTrails, windowReplays, windowView, fileStop, type CodePlaces, type CodeState, type CoreInput, type Point, type RosterEntry, type SizeBy, type Trail } from "../look-inside/look-inside.js";
 import { ReadRecord, type AgentReplay } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -285,8 +285,10 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
 }
 
 /** Knowledge under the globe's islands, without story text, ghosts or replay: faint, or lit by the running sessions' reads (ADR-0738), with a selected session's window (ADR-0746 D1). */
-export function KnowledgeGlobePoints({ core, spots, radius }: {
+export function KnowledgeGlobePoints({ core, spots, radius, places }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
+  /** The code's surface, as the forest lays it on the globe (ADR-0804 D5): a selected session's file opens are stops on it, and a step to or from one crosses it. */
+  places?: CodePlaces;
 }) {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
@@ -305,14 +307,35 @@ export function KnowledgeGlobePoints({ core, spots, radius }: {
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).
   const window = useMemo(() => state.session === undefined || state.window === undefined ? undefined
-    : { ...windowView(state.window, new Set(known.notes.keys()), joined), colour }, [state.session, state.window, known, joined, colour]);
+    : { ...windowView(state.window, new Set(known.notes.keys()), joined, places), colour }, [state.session, state.window, known, joined, colour, places]);
+  const stops = useMemo(() => places === undefined ? undefined : new Map([...places.files].map(([key, at]) => [fileStop(key), at] as const)), [places]);
   // A selected session is drawn as its window's traversal, one line per step (ADR-0756); its log's reading-path
   // curves and their glow draw only when it has no window to read, and nothing is drawn while the window is read.
-  const traversal = useMemo(() => window?.steps.map(({ from, to, edge, faded }, seq): Trail => ({ from, to, colour, seq, mover: state.session!, step: { edge, faded } })),
-    [window, colour, state.session]);
+  const traversal = useMemo(() => window === undefined ? undefined : traversalTrails(window.steps, colour, state.session!), [window, colour, state.session]);
   const drawnPaths = state.session === undefined || window?.status !== undefined ? paths : traversal ?? [];
   // A selected session replays as one head over its drawn steps instead of a glow per agent (ADR-0797); with none selected every agent glows (ADR-0742 D3).
   const glows = state.session === undefined ? replays : [];
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
-  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} replay={state.session !== undefined} />;
+  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} replay={state.session !== undefined} stops={stops} />;
+}
+
+/** The land a selected session's window has opened (ADR-0804 D5), for the forest to light: the files and capabilities it opened, and the colour it wears. */
+export interface CodeLighting {
+  files: ReadonlyMap<string, CodeState>;
+  capabilities: ReadonlyMap<string, CodeState>;
+  colour: string;
+}
+
+const NOTHING_LIT: ReadonlyMap<string, CodeState> = new Map();
+
+/** What a selected session's window has lit on the land; nothing while none is selected or its window is not read yet. */
+export function useCodeLighting(core: KnowledgeCore, places: CodePlaces | undefined): CodeLighting {
+  const store = core as Store;
+  const state = useSyncExternalStore(store.subscribe, store.get);
+  const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
+  return useMemo(() => {
+    if (places === undefined || state.session === undefined || state.window === undefined) return { files: NOTHING_LIT, capabilities: NOTHING_LIT, colour };
+    const { code } = windowView(state.window, new Set(), () => false, places);
+    return { ...code, colour };
+  }, [places, state.session, state.window, colour]);
 }

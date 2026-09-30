@@ -13,19 +13,14 @@ import path from "node:path";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { surveyStory, type SourceFile, type StorySurvey } from "./code-survey.js";
+import { packageOf, surveyStory, type SourceFile, type StorySurvey } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 
-/** Stories whose package is not named after their title. */
-const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes" };
 const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 
-export function packageOf(title: string): string {
-  const name = title.replace(/^the\s+/i, "").toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return PACKAGE_NAMED_OTHERWISE[name] ?? name;
-}
+export { packageOf };
 
 /** The main checkout of the repository `folder` is in, or `folder` itself when git cannot say. */
 function mainCheckout(folder: string): string {

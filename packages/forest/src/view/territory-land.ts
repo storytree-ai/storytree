@@ -128,5 +128,33 @@ function insideOf(from: Point, to: Point, coast: readonly (readonly Point[])[]):
   return cuts.slice(1).flatMap((t, i) => (onLand(at((cuts[i]! + t) / 2), coast) && t > cuts[i]! ? [{ from: at(cuts[i]!), to: at(t) }] : []));
 }
 
-/** Fills the territories of the capabilities the selected session opened (ADR-0804 D5) in its colour, and puts the rest back as they were. */
-export function lightTerritories(_land: Group, _lit: ReadonlyMap<string, "in-window" | "faded">, _colour: string): void {}
+/** A lit territory's fill: the session's colour, filled while the read is in the window, lighter and fainter once compacted out. */
+const LIT_TERRITORY = { "in-window": 0.55, faded: 0.38 } as const;
+
+/** Each territory's tint and opacity as it rests, before any lighting replaced them. */
+const RESTING = new WeakMap<Mesh, { colour: Color; opacity: number }>();
+
+/**
+ * Fills the territories of the capabilities the selected session opened (ADR-0804 D5) in its `colour`: a read
+ * in the window fully, one compacted out lighter. Every other territory is put back as it was.
+ */
+export function lightTerritories(land: Group, lit: ReadonlyMap<string, "in-window" | "faded">, colour: string): void {
+  for (const mesh of land.children) {
+    const capability = mesh.userData.capability;
+    if (typeof capability !== "string" || !(mesh instanceof Mesh)) continue;
+    const material = mesh.material as MeshBasicMaterial;
+    if (!RESTING.has(mesh)) RESTING.set(mesh, { colour: material.color.clone(), opacity: material.opacity });
+    const rested = RESTING.get(mesh)!;
+    const state = lit.get(capability);
+    if (state === undefined) {
+      material.color.copy(rested.colour);
+      material.opacity = rested.opacity;
+      delete mesh.userData.window;
+      continue;
+    }
+    material.color.set(colour);
+    if (state === "faded") material.color.lerp(new Color("#ffffff"), 0.55);
+    material.opacity = LIT_TERRITORY[state];
+    mesh.userData.window = state;
+  }
+}

@@ -8,7 +8,7 @@ import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord, NO_RECORDED_READS } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, arcKey, arrived, codeKey, coreScene, curvePoint, fillAt, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayAt, replayFrame, ringArcs, SIZE_LABELS, stampOpens, traversalTrails, windowReplays, windowView, type CodePlaces, type CoreInput } from "./look-inside.js";
+import { agentPaths, arcKey, arrived, codeKey, coreScene, curvePoint, fillAt, hopPoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, noteTitle, pinnedLinks, replayAt, replayFrame, ringArcs, SIZE_LABELS, stampOpens, traversalTrails, windowReplays, windowView, type CodePlaces, type CoreInput } from "./look-inside.js";
 import { lookInside, returnToGlobe, shown, toForest, type CoreViewState } from "./view-state.js";
 
 const RADIUS = 100;
@@ -519,8 +519,13 @@ test("4.20 the traversal's trails carry what a step crosses; a hop arcs above th
     ["file:packages/agent-link/src/c.ts", "deep", 1, "#e69f00", "S", { edge: "dotted", faded: false, kind: "dive" }],
   ]);
   const radius = ({ x, y, z }: { x: number; y: number; z: number }) => Math.hypot(x, y, z);
-  const hop = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].map((t) => radius(curvePoint(places.files.get("packages/agent-link/src/a.ts")!, places.files.get("packages/agent-link/src/c.ts")!, t)));
-  assert.ok(hop.every((r) => r >= SURFACE - 1e-9), "a hop never sinks below the surface it hops across");
+  const [a, c] = [places.files.get("packages/agent-link/src/a.ts")!, places.files.get("packages/agent-link/src/c.ts")!];
+  const hop = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].map((t) => radius(hopPoint(a, c, t)));
+  assert.deepEqual([hopPoint(a, c, 0), hopPoint(a, c, 1)], [a, c], "it leaves one circle and lands on the other");
+  assert.ok(hop.every((r) => r >= SURFACE - 1e-9), "a hop never sinks below the surface it hops across, even a quarter of the way round the globe");
+  assert.ok(Math.max(...hop) <= SURFACE * 1.12 + 1e-9 && hop[3]! > SURFACE, "and arcs just above it");
+  const near = { x: SURFACE * Math.cos(0.05), y: 0, z: SURFACE * Math.sin(0.05) };
+  assert.ok(radius(hopPoint(a, near, 0.5)) > SURFACE * 1.005, "even a short hop between two circles on one island lifts visibly");
   const core = { x: 0, y: 0, z: SURFACE * 0.4 };
   const dive = [0, 0.5, 1].map((t) => radius(curvePoint(places.files.get("packages/agent-link/src/a.ts")!, core, t)));
   assert.ok(dive[0]! >= SURFACE - 1e-9 && dive[2]! < SURFACE && dive[1]! < SURFACE, "a dive leaves the surface and ends inside the core");

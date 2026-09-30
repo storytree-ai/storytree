@@ -1,13 +1,13 @@
 /**
  * Capability 10 · Plan view (the command line story): `storytree tree` prints the plan as an indented
  * tree: stories, capabilities and contracts, each with the health its agent reported (labelled as
- * the agent's) and any claim on it. Name a story to see only that story.
+ * the agent's) and any claim on it, and each capability's word with why it is not healthy (ADR-0825 D1). Name a story to see only that story.
  *
  * One reading of the library's projectTree, whose health is already rolled up by the library, and
  * one of the agent link's claims. A story is named by its id or its title.
  */
 import type { Claim } from "@storytree/agent-link";
-import type { NodeHealth } from "@storytree/library";
+import { wordAndWhy, type NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -41,7 +41,7 @@ const tree: Verb = {
     for (const story of stories) {
       lines.push(`${story.title}  [${story.id}]  ${healthOf(story.health)}`);
       story.capabilities.forEach((capability, index) => {
-        lines.push(`  ${index + 1} · ${capability.title}  [${capability.id}]  ${healthOf(capability.health)}${claimOn(claims, capability.id)}`);
+        lines.push(`  ${index + 1} · ${capability.title}  [${capability.id}]  ${healthOf(capability.health)}; ${wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
         for (const contract of capability.contracts) {
           lines.push(`      - ${contract.title}  [${contract.id}]  ${healthOf(contract.health)}`);
         }

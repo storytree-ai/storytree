@@ -153,6 +153,17 @@ export const RECORD_SCHEMAS = {
       state: z.enum(["passing", "failing", "not-checked"]),
       by: z.string().optional(),
       note: z.string().optional(),
+      /**
+       * The kind of skip that left the entry not checked (ADR-0825 D2): `owner`, `platform:<os>` or
+       * `other`. Added on version 1, optional, so an older reader takes it as it is.
+       */
+      skip: z
+        .string()
+        .regex(/^(owner|other|platform:[a-z0-9]+)$/, 'a skip kind is "owner", "platform:<os>" or "other"')
+        .optional(),
+      /** The earlier verdict this entry did not reproduce, and when it was written: "not re-run". */
+      was: z.enum(["passing", "failing"]).optional(),
+      wasAt: z.string().optional(),
     })
     .strict(),
   /**

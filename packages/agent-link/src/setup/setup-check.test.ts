@@ -564,6 +564,20 @@ test("8.9 storytree's own command in a folder outside the home is never touched:
   });
 });
 
+test("8.9 an older storytree launcher in the home that runs another build is repointed, and the check names it and what it ran before", async () => {
+  await withTempDir(async (dir) => {
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    const command = { path: bin, home: dir };
+    const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
+    const older = path.join(dir, "an older storytree.mjs");
+    putCommandOnPath(command, process.execPath, older);
+
+    const said = putCommandOnPath(command, process.execPath, path.join(path.dirname(hookScript), "storytree.mjs"));
+    assert.equal(said, `installed (replaced ${file}, which ran ${older})`);
+  });
+});
+
 test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83)", {
   skip: process.platform !== "win32" && "Windows-only: cmd.exe reads the .cmd wrapper again after setup remove deletes it",
 }, async () => {

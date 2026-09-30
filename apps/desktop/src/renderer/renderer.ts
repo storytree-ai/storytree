@@ -226,12 +226,12 @@ async function showForest(name: string): Promise<void> {
   mine.reading = forestReading({
     project: name,
     reads: window.storytree,
-    onTree: (read, news) => {
+    onTree: (read, news, survey) => {
       if (showing !== mine) return;
       tree = read;
       history.push(...news.changes);
       lines.push(...news.lines);
-      const scene = forestScene(tree, history, workStates(lines));
+      const scene = forestScene(tree, history, workStates(lines), survey);
       view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
       core.take(history, news.lines);
       sayWhatWasDrawn(forestDrawn(scene));

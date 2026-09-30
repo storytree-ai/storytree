@@ -16,6 +16,8 @@ import { PLACE_WIDTH, type ForestScene, type Island, type PlacedTree, type TreeF
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
+import type { StorySurvey } from "../code-survey/code-survey.js";
+import { territories } from "../territories/territories.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 
 export { PLACE_WIDTH };
@@ -42,9 +44,10 @@ const HEIGHT: Readonly<Record<TreeForm, number>> = { seedling: 0.5, pale: 1, gre
 
 /**
  * The forest for a project: `tree` is its projectTree(), `history` its changesSince(0) changes, and
- * `states` the arc surface's work states over its agent activity log.
+ * `states` the arc surface's work states over its agent activity log, and `survey` its code's survey by
+ * story (capability 8): a surveyed story's island is cut into its capabilities' territories.
  */
-export function forestScene(tree: AnnotatedTree, history: readonly Change[], states: WorkStates): ForestScene {
+export function forestScene(tree: AnnotatedTree, history: readonly Change[], states: WorkStates, survey: Readonly<Record<string, StorySurvey>> = {}): ForestScene {
   const nodes = new Map(storyNodes(tree, history).map((node) => [node.id, node]));
   const islands = tree.stories.map((story): Island => {
     const node = nodes.get(story.id);
@@ -68,8 +71,9 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
         turn: (index * 2.39996) % (2 * Math.PI),
       };
     });
-    const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, contracts }) => [capability, form, contracts])]);
-    return { story: story.id, title: story.title, x, z, radius, trees: placed, key };
+    const land = landOf(story.capabilities, survey[story.id], radius);
+    const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, contracts }) => [capability, form, contracts]), land?.territories]);
+    return { story: story.id, title: story.title, x, z, radius, trees: placed, ...(land === undefined ? {} : { land }), key };
   });
   const links = tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
     capability.dependsOn.map(to => ({ from: capability.id, to }))));
@@ -100,6 +104,19 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
     capabilities: trees.flatMap(({ capability }) => (capability === undefined ? [] : [capability])),
     labels: scene.islands.map(({ title }) => title),
     trees,
+  };
+}
+
+/** A surveyed story's territories: one per capability with code, in the story's order, then Unclaimed code. */
+function landOf(capabilities: readonly { id: string }[], survey: StorySurvey | undefined, radius: number): Island["land"] {
+  if (survey === undefined || survey.files.length === 0) return undefined;
+  const linesOf = (capability: string | undefined) => survey.files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
+  const shares = [...capabilities.map(({ id }) => ({ capability: id, lines: linesOf(id) })), { lines: linesOf(undefined) }];
+  const map = territories(shares, radius);
+  return {
+    territories: map.territories.map(({ capability, lines }) => (capability === undefined ? { lines } : { capability, lines })),
+    cells: map.cells.map(({ polygon, territory }) => ({ polygon, territory })),
+    borders: map.borders.map(({ from, to }) => ({ from, to })),
   };
 }
 

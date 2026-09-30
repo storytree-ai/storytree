@@ -25,6 +25,7 @@
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
+import { readCodeSurvey } from "@storytree/forest/code-survey";
 import { forestSurfaces } from "@storytree/forest/surfaces";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
@@ -181,6 +182,10 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.linesSince, (_event, name: unknown, cursor: unknown) => open().linesSince(name, cursor));
   ipcMain.handle(CHANNELS.frontCovers, (_event, name: unknown, nodeId: unknown) => open().frontCovers(name, nodeId));
   ipcMain.handle(CHANNELS.relatedNotes, (_event, name: unknown, noteId: unknown) => open().relatedNotes(name, noteId));
+  ipcMain.handle(CHANNELS.codeSurvey, async (_event, name: unknown) => {
+    const folder = await open().projectFolder(name);
+    return folder === undefined ? {} : readCodeSurvey(folder, await open().projectTree(name));
+  });
 
   let problem: string | undefined;
   let project: string | undefined;

@@ -26,6 +26,8 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   leaveAfterMs(): Promise<number>;
   /** A session's window in a project (agent link 9.10), read now. Refused for a name that is not a project. */
   windowReading(name: string, session: string): Promise<SessionWindow>;
+  /** Several sessions' windows in a project, in one read of the log. Refused for a name that is not a project. */
+  windowReadings(name: string, sessions: readonly string[]): Promise<SessionWindow[]>;
   /** A project's tree, with every node's health. Refused for a name that is not a project. */
   projectTree(name: string): Promise<AnnotatedTree>;
   /**
@@ -65,6 +67,7 @@ export const CHANNELS = {
   idleAfterMs: "storytree:idle-after-ms",
   leaveAfterMs: "storytree:leave-after-ms",
   windowReading: "storytree:window-reading",
+  windowReadings: "storytree:window-readings",
   projectTree: "storytree:project-tree",
   changesSince: "storytree:changes-since",
   linesSince: "storytree:lines-since",

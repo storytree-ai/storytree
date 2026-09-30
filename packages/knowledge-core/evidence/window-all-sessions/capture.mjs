@@ -80,6 +80,7 @@ try {
       frontCovers: async (_, id) => copy(data.seed.covers[id] ?? []), relatedNotes: async () => [],
       arcView: async () => null, holds: async () => ({ waits: {}, heldOn: {} }), waitHolds: async () => [], heldOnQuestion: async () => [],
       readSurfaces: async () => ({ ok: false }),
+      windowReadings(project, sessions) { return Promise.all(sessions.map((one) => this.windowReading(project, one))); },
       windowReading: async (_, session) => {
         window.__asked.push(session);
         return copy(window.__windows[session] ?? { session, at: new Date().toISOString(), absent: 'no hook has named this session\'s transcript' });

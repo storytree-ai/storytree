@@ -27,6 +27,7 @@ const bridge: StorytreeBridge & SettingsBridge & SurfacesBridge = {
   idleAfterMs: () => ipcRenderer.invoke(CHANNELS.idleAfterMs) as Promise<number>,
   leaveAfterMs: () => ipcRenderer.invoke(CHANNELS.leaveAfterMs) as Promise<number>,
   windowReading: (name, session) => ipcRenderer.invoke(CHANNELS.windowReading, name, session) as ReturnType<StorytreeBridge["windowReading"]>,
+  windowReadings: (name, sessions) => ipcRenderer.invoke(CHANNELS.windowReadings, name, sessions) as ReturnType<StorytreeBridge["windowReadings"]>,
 
   listProjects: () => ipcRenderer.invoke(CHANNELS.listProjects) as Promise<string[]>,
   projectSelection: () => ipcRenderer.invoke(CHANNELS.projectSelection) as ReturnType<StorytreeBridge["projectSelection"]>,

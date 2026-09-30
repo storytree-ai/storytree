@@ -105,7 +105,7 @@ test("3.5 the page can ask the app for the context readings of sessions in the p
   });
 });
 
-test("3.6 the page can ask the app for a session's window (agent link 9.10), parsed from the transcript records in the shared log, with no access to the machine the session ran on; a session with none named reads as an absence", async () => {
+test("3.6 the page can ask the app for a session's window (agent link 9.10), or several sessions' in one ask, parsed from the transcript records in the shared log, with no access to the machine the session ran on; a session with none named reads as an absence", async () => {
   const shown = uniqueProjectName();
   await withApp([shown], async ({ storytree, log, reads }) => {
     await storytree.openProject(shown);
@@ -118,6 +118,10 @@ test("3.6 the page can ask the app for a session's window (agent link 9.10), par
     assert.deepEqual("opens" in window && window.opens.map(({ id, resident }) => [id, resident]), [["decision_000000000001", true]]);
     const none = await reads.windowReading(shown, "B");
     assert.deepEqual("absent" in none && none.absent, "no hook has named this session's transcript");
+
+    const both = await reads.windowReadings(shown, ["A", "B"]);
+    assert.deepEqual(both.map((one) => [one.session, "opens" in one ? one.opens.length : one.absent]), [["A", 1], ["B", "no hook has named this session's transcript"]]);
+    await assert.rejects(reads.windowReadings(shown, "A"), /sessions must be a list of session ids/);
   });
 });
 

@@ -171,6 +171,7 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.idleAfterMs, () => open().idleAfterMs());
   ipcMain.handle(CHANNELS.leaveAfterMs, () => open().leaveAfterMs());
   ipcMain.handle(CHANNELS.windowReading, (_event, name: unknown, session: unknown) => open().windowReading(name, session));
+  ipcMain.handle(CHANNELS.windowReadings, (_event, name: unknown, sessions: unknown) => open().windowReadings(name, sessions));
 
   ipcMain.handle(CHANNELS.listProjects, () => (reads === undefined ? [] : reads.listProjects()));
   ipcMain.handle(CHANNELS.projectSelection, () => projects?.read() ?? { projects: [], current: undefined });

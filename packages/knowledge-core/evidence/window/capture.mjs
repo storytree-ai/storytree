@@ -77,6 +77,7 @@ try {
       linesSince: async (_, cursor) => ({ lines: copy(data.seed.lines.lines.filter(item => item.seq > cursor)), cursor: data.seed.lines.lines.at(-1)?.seq ?? cursor }),
       frontCovers: async (_, id) => copy(data.seed.covers[id] ?? []), relatedNotes: async () => [],
       arcView: async () => null, waitHolds: async () => [], heldOnQuestion: async () => [],
+      windowReadings(project, sessions) { return Promise.all(sessions.map((one) => this.windowReading(project, one))); },
       windowReading: async (_, session) => { window.__asked.push(session); return copy(data.window); },
     };
   }, { seed, window });

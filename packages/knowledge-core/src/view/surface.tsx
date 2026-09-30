@@ -23,9 +23,10 @@ const REPLAY_STEP_MS = 700;
 /** How often the selected session's window, or every listed session's with none selected, is read again, as often as the sessions list's bars. */
 const WINDOW_EVERY_MS = 10_000;
 
-/** The one read the core makes beyond what it is handed: a session's window (agent link 9.10), from the host: the selected session's, or every listed session's with none selected (ADR-0754 D1). */
+/** The one read the core makes beyond what it is handed: a session's window (agent link 9.10), from the host: the selected session's, or every listed session's in one ask with none selected (ADR-0754 D1). */
 export interface CoreReads {
   windowReading(project: string, session: string): Promise<SessionWindow>;
+  windowReadings(project: string, sessions: readonly string[]): Promise<readonly SessionWindow[]>;
 }
 
 interface State {
@@ -88,39 +89,52 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   let rosterTimer: ReturnType<typeof setInterval> | undefined;
   /** The latest log line or window open seen, after which a newly seen open is stamped. */
   let clock = 0;
-  /** Listed sessions whose window is being read, so a slow read is not asked again meanwhile. */
-  const reading = new Set<string>();
+  /**
+   * Whether a round of window reads is out. One is never started over another: each read goes
+   * through the host's database, and rounds that overlap keep it so busy that a selected session's
+   * own read times out and nothing is drawn (measured with 18 listed sessions, 2026-10-01).
+   */
+  let rosterOut = false;
+  /** The selected session whose window is being read, so a slow read is not asked again over itself. */
+  let windowOut: string | undefined;
   const listedMembers = (): Set<string> => new Set(state.roster.flatMap(({ members }) => members));
   /**
-   * Read every listed session's window while none is selected (ADR-0754 D1), or, with `only`, those
-   * not read yet. A session that has left the list meanwhile is dropped; a failed read keeps the last.
+   * Read every listed session's window while none is selected (ADR-0754 D1), in one ask, or, with
+   * `only`, those not read yet. A session that has left the list meanwhile is dropped; a failed read keeps the last.
    */
   const readRosterWindows = (only = false): void => {
-    if (host === undefined || state.session !== undefined) return;
-    for (const member of listedMembers()) {
-      if (reading.has(member) || (only && state.windows.has(member))) continue;
-      reading.add(member);
-      host.windowReading(project, member).then((window) => {
-        if (!listedMembers().has(member)) return;
-        const stamps = new Map(state.stamps);
+    if (host === undefined || state.session !== undefined || rosterOut) return;
+    const members = [...listedMembers()].filter((member) => !only || !state.windows.has(member));
+    if (members.length === 0) return;
+    rosterOut = true;
+    host.windowReadings(project, members).then((windows) => {
+      const listed = listedMembers();
+      const read = new Map(state.windows);
+      const stamps = new Map(state.stamps);
+      windows.forEach((window, index) => {
+        const member = members[index]!;
+        if (!listed.has(member)) return;
         if (!("absent" in window)) {
           const stamped = stampOpens(state.stamps.get(member), window.opens.length, clock);
           clock = stamped.clock;
           stamps.set(member, stamped.stamps);
         }
-        store.set({ windows: new Map([...state.windows, [member, window]]), stamps });
-      }, () => {
-        // A failed read leaves the window as it was; the next one tries again.
-      }).finally(() => reading.delete(member));
-    }
+        read.set(member, window);
+      });
+      store.set({ windows: read, stamps });
+    }, () => {
+      // A failed read leaves the windows as they were; the next round tries again.
+    }).finally(() => { rosterOut = false; });
   };
-  /** Read the selected session's window; an answer for a session no longer selected is dropped. */
+  /** Read the selected session's window, never over its own last read; an answer for a session no longer selected is dropped. */
   const readWindow = (session: string): void => {
-    host?.windowReading(project, session).then((window) => {
+    if (host === undefined || windowOut === session) return;
+    windowOut = session;
+    host.windowReading(project, session).then((window) => {
       if (state.session === session) store.set({ window });
     }, () => {
       // A failed read leaves the window as it was; the next one tries again.
-    });
+    }).finally(() => { if (windowOut === session) windowOut = undefined; });
   };
   const store: Store = {
     reads,

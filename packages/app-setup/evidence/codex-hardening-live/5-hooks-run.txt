@@ -1,0 +1,13 @@
+
+hook: SessionStart
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+hook: Stop
+hook: Stop
+hook: Stop Completed
+hook: Stop Completed
+
+
+
+--- note in the storytree home: True

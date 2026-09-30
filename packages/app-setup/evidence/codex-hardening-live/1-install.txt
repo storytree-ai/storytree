@@ -1,0 +1,20 @@
+before: storytree storytree 0.3.355 (a1f4268)
+Opening the app and starting its database.
+Adding the storytree command to your PATH.
+storytree is installed; its app is open and its database is ready.
+The storytree command is available in a fresh Windows terminal.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Codex: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.
+Choose your project folder: press Enter for C:\Users\mickh\CH Live L1, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'ch-live-l1', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\CH Live L1 is now storytree project 'ch-live-l1', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+install exit: 0
+after: storytree storytree 0.3.355 (a1f4268)
+--- AGENTS.md in the fresh Codex home:
+<!-- storytree: begin -->
+## storytree
+A folder with a `.storytree.json` file is a storytree project: storytree keeps its plan and records the work, so the user can watch it grow. Before your first change in such a folder, find storytree's tools (search your tools for "storytree"), call `check_setup`, tell the user in plain words anything it asks of them, and do what it says. In any other folder, ignore storytree and do not mention it.
+<!-- storytree: end -->
+--- storytree hooks in hooks.json: 8
+--- folder: .storytree.json

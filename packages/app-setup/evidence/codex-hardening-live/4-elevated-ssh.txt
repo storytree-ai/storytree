@@ -1,0 +1,49 @@
+--- integrity level: High Mandatory Level
+--- storytree setup connect --codex (elevated):
+Codex: tools already connected; hooks waiting for you to trust them in Codex.
+Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session. This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not "Run as administrator".
+
+--- a Codex session started here, asked to run the setup check:
+codex : Reading additional input from stdin...
+At C:\Users\mickh\st-codexharden\elevated.ps1:9 char:9
++ $null | codex exec --skip-git-repo-check --approve-for-me "Call story ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenAI Codex v0.158.0
+--------
+workdir: C:\Users\mickh\CH Live L1
+model: gpt-6-astra
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: none
+reasoning summaries: none
+session id: 01a0f247-b79f-7fe1-badd-7532a7f18b9c
+--------
+user
+Call storytree's check_setup once and report its full answer word for word. Do not change any file or run any other command.
+codex
+I’ll find storytree’s `check_setup` tool, call it once, and reproduce its full response verbatim.
+
+mcp: storytree/check_setup started
+mcp: storytree/check_setup (completed)
+codex
+```text
+storytree is running. storytree's hooks are registered for Claude Code and Codex; receiving them is verified inside a session. Each session's transcript streams into the library's shared log as the session works, so every machine's app can read it. Obvious secrets (API keys, bearer and OAuth 
+tokens, private keys, connection-string passwords) are scrubbed before they leave this machine; the scrub is best-effort, not a guarantee, so a secret in another shape can still reach the log. Raw transcript records are kept 180 days. storytree's status line is installed in Claude Code. Codex has 
+storytree's tool server. Codex has storytree's hooks but has not run one yet: Codex runs them only once you have trusted them, so until then storytree cannot see Codex's work. In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then 
+start a new Codex session. This runs in an administrator (elevated) terminal, and Codex cannot run commands from one: its Windows sandbox times out on every command, so storytree never sees them. Close this terminal, open a normal one (not "Run as administrator"), and start Codex from there. The 
+storytree command is on the user's path. Claude Code is installed and signed in; Codex is installed and signed in. The Claude desktop app keeps no session record on this machine; Codex keeps 1 session. storytree reads which are archived there, and an archived session leaves the running-sessions 
+list. This folder is storytree project "ch-live-l1". Not verified yet: storytree has not received this session's session start, storytree tool call, file edit, command from its hooks. Codex runs storytree's hooks only once the user has trusted them, so until then storytree cannot see this session's 
+work. Tell the user, in these words: In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session. To fire the edit hook, write any text to the file .storytree-check in this folder. This Codex runs as 
+administrator (it was started from an elevated terminal), and Codex cannot run commands there: its Windows sandbox times out on every one, so storytree never hears them. Tell the user: close this Codex, open a normal terminal (not "Run as administrator"), and start Codex from there. Then call 
+check_setup again.
+```
+tokens used
+```text
+storytree is running. storytree's hooks are registered for Claude Code and Codex; receiving them is verified inside a session. Each session's transcript streams into the library's shared log as the session works, so every machine's app can read it. Obvious secrets (API keys, bearer and OAuth tokens, private keys, connection-string passwords) are scrubbed before they leave this machine; the scrub is best-effort, not a guarantee, so a secret in another shape can still reach the log. Raw transcript records are kept 180 days. storytree's status line is installed in Claude Code. Codex has storytree's tool server. Codex has storytree's hooks but has not run one yet: Codex runs them only once you have trusted them, so until then storytree cannot see Codex's work. In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session. This runs in an administrator (elevated) terminal, and Codex cannot run commands from one: its Windows sandbox times out on every command, so storytree never sees them. Close this terminal, open a normal one (not "Run as administrator"), and start Codex from there. The storytree command is on the user's path. Claude Code is installed and signed in; Codex is installed and signed in. The Claude desktop app keeps no session record on this machine; Codex keeps 1 session. storytree reads which are archived there, and an archived session leaves the running-sessions list. This folder is storytree project "ch-live-l1". Not verified yet: storytree has not received this session's session start, storytree tool call, file edit, command from its hooks. Codex runs storytree's hooks only once the user has trusted them, so until then storytree cannot see this session's work. Tell the user, in these words: In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session. To fire the edit hook, write any text to the file .storytree-check in this folder. This Codex runs as administrator (it was started from an elevated terminal), and Codex cannot run commands there: its Windows sandbox times out on every one, so storytree never hears them. Tell the user: close this Codex, open a normal terminal (not "Run as administrator"), and start Codex from there. Then call check_setup again.
+```
+14,657
+

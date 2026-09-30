@@ -170,6 +170,17 @@ test("8.3 in a folder that is not a project, it creates nothing unless told to",
   });
 });
 
+test("8.5 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (agent link 8.16)", async () => {
+  await inWorld(command, async (world) => {
+    const user = aUser(world);
+
+    const ran = await world.run(["doctor"], user.env);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.match(ran.stdout, /Codex has storytree's hooks but has not run one yet[^\n]*Fix: In Codex, type \/hooks/);
+  });
+});
+
 test("8.4 a second run changes nothing", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);

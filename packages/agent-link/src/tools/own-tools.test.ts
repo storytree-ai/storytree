@@ -57,7 +57,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   assert.deepEqual(inventory.rows.map(row => [row.run.id, row.process.state, row.request.state, row.stop]),
     direct.rows.map(row => [row.run.id, row.process.state, row.request.state, row.stop]));
   assert.equal(inventory.shared.length, 1);
-  assert.equal(inventory.shared[0]!.state, 'unknown');
+  assert.equal(inventory.shared[0]!.state, 'gone');
   assert.equal(inventory.shared[0]!.stop.available, false);
   assert.match(inventory.shared[0]!.reason, /storytree app quit/);
   const missing = await call('list_own_runs');
@@ -96,7 +96,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   const after = (cleared.structuredContent as Record<string, unknown>).clear as { removed: string[]; retained: unknown[]; failed: unknown[]; gaps: unknown[] };
   assert.deepEqual(after, { ...after, removed: [runs[0]!.id], retained: [], failed: [], gaps: [] });
   const closing = (cleared.structuredContent as Record<string, unknown>).closing as { status: string; inventory: typeof inventory };
-  assert.equal(closing.status, 'incomplete');
+  assert.equal(closing.status, 'remaining');
   assert.deepEqual(closing.inventory.rows.map(row => row.run.id), [runs[1]!.id]);
 });
 

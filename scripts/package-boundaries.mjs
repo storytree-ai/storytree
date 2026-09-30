@@ -27,7 +27,8 @@ import path from "node:path";
 export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "forest", "forest-world", "knowledge-core", "librarian", "library", "local-postgres", "processes"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
-// forest-world: The world; local-postgres: The local database (ADR-0805 D1, D2).
+// forest-world: story_ca702fee28cb (The world, ADR-0805 D1).
+// local-postgres: story_1d360b6227d8 (The local database, ADR-0805 D2).
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that

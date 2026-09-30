@@ -25,16 +25,17 @@ export function territoryLand(land: IslandLand, onSurface: (point: Point) => Vec
   const group = new Group();
   group.name = "territory-land";
   let tint = 0;
+  // The land as triangles, so each cell (convex) cuts each triangle exactly, whatever bays the coast has.
+  const land3 = coast === undefined ? undefined : landTriangles(coast);
   land.territories.forEach((territory, at) => {
     const positions: number[] = [];
     for (const cell of land.cells) {
       if (cell.territory !== at || cell.polygon.length < 3) continue;
-      const pieces = coast === undefined ? [cell.polygon] : coast.map((ring) => clipToConvex(ring, cell.polygon)).filter((piece) => piece.length >= 3);
+      const pieces = land3 === undefined ? [cell.polygon] : land3.map((triangle) => clipToConvex(triangle, cell.polygon)).filter((piece) => piece.length >= 3);
       for (const piece of pieces) {
+        // Each piece is convex: a fan from its first corner covers it.
         const corners = piece.map(onSurface);
-        for (const triangle of ShapeUtils.triangulateShape(piece.map((p) => new Vector2(p.x, p.z)), [])) {
-          for (const index of triangle) positions.push(corners[index]!.x, corners[index]!.y, corners[index]!.z);
-        }
+        for (let i = 1; i < corners.length - 1; i++) for (const corner of [corners[0]!, corners[i]!, corners[i + 1]!]) positions.push(corner.x, corner.y, corner.z);
       }
     }
     const geometry = new BufferGeometry();
@@ -58,7 +59,19 @@ export function territoryLand(land: IslandLand, onSurface: (point: Point) => Vec
   return group;
 }
 
-/** The part of `subject` (any simple loop) inside the convex loop `clip`: Sutherland and Hodgman's clipping. */
+/** The coast's land as triangles: each outer loop, less the loops inside it (its lakes). */
+function landTriangles(coast: readonly (readonly Point[])[]): Point[][] {
+  const loops = coast.filter((ring) => ring.length >= 3);
+  const depth = (ring: readonly Point[]) => loops.filter((other) => other !== ring && onLand(ring[0]!, [other])).length;
+  return loops.filter((ring) => depth(ring) % 2 === 0).flatMap((outer) => {
+    const holes = loops.filter((ring) => depth(ring) % 2 === 1 && onLand(ring[0]!, [outer]));
+    const points = [outer, ...holes].flat();
+    return ShapeUtils.triangulateShape(outer.map((p) => new Vector2(p.x, p.z)), holes.map((hole) => hole.map((p) => new Vector2(p.x, p.z))))
+      .map((triangle) => triangle.map((index) => points[index]!));
+  });
+}
+
+/** The part of the convex loop `subject` inside the convex loop `clip`: Sutherland and Hodgman's clipping. */
 function clipToConvex(subject: readonly Point[], clip: readonly Point[]): Point[] {
   const turn = Math.sign(clip.reduce((sum, p, at) => { const q = clip[(at + 1) % clip.length]!; return sum + p.x * q.z - q.x * p.z; }, 0));
   let out = [...subject];

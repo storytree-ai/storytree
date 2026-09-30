@@ -147,4 +147,15 @@ test("3.14 a territory's land and borders stop at its island's coast", () => {
   });
   const area = (mesh: Mesh) => { const p = mesh.geometry.getAttribute("position"); let sum = 0; for (let at = 0; at < p.count; at += 3) sum += Math.abs((p.getX(at + 1) - p.getX(at)) * (p.getZ(at + 2) - p.getZ(at)) - (p.getX(at + 2) - p.getX(at)) * (p.getZ(at + 1) - p.getZ(at))) / 2; return sum; };
   assert.ok(Math.abs(area(drawn.getObjectByName("territory:cap-a") as Mesh) - 1) < 1e-6, "the half of the diamond west of the border");
+  // A bay cut into the land: a concave coast is followed too.
+  const bay = [[{ x: -2, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: -2, z: 2 }, { x: -2, z: 1 }, { x: 1, z: 1 }, { x: 1, z: -1 }, { x: -2, z: -1 }]];
+  const inBay = (x: number, z: number) => x < 1 - 1e-6 && z > -1 + 1e-6 && z < 1 - 1e-6;
+  const cut = territoryLand(land, (p) => new Vector3(p.x, 0, p.z), bay);
+  const west = cut.getObjectByName("territory:cap-a") as Mesh;
+  const p = west.geometry.getAttribute("position");
+  for (let at = 0; at < p.count; at += 3) {
+    const [x, z] = [(p.getX(at) + p.getX(at + 1) + p.getX(at + 2)) / 3, (p.getZ(at) + p.getZ(at + 1) + p.getZ(at + 2)) / 3];
+    assert.ok(!inBay(x, z), "no land is drawn in the bay");
+  }
+  assert.ok(Math.abs(area(west) - 4) < 1e-6, "the western half less the bay's western part");
 });

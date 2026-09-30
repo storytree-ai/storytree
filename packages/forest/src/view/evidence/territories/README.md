@@ -27,20 +27,22 @@ Full numbers are in [measurements.json](measurements.json).
 | Island (story) | Territories (claimed + unclaimed) | Border segments | Furthest territory vertex outside the coast (ground units) |
 | --- | --- | --- | --- |
 | The agent link | 8 (7 + 1) | 47 | 0 |
-| The app | 5 (4 + 1) | 53 | 0.46 |
-| The arc surface | 6 (5 + 1) | 54 | 0.37 |
-| The command line | 3 (2 + 1) | 12 | 1.96 |
-| The forest | 6 (5 + 1) | 54 | 0.57 |
-| The knowledge core | 2 (1 + 1) | 9 | 1.26 |
-| The librarian | 7 (6 + 1) | 69 | 0.12 |
-| The library | 5 (4 + 1) | 44 | 3.76 |
+| The app | 5 (4 + 1) | 53 | 0 |
+| The arc surface | 6 (5 + 1) | 54 | 0 |
+| The command line | 3 (2 + 1) | 12 | 0 |
+| The forest | 6 (5 + 1) | 54 | 0 |
+| The knowledge core | 2 (1 + 1) | 9 | 0 |
+| The librarian | 7 (6 + 1) | 69 | 0 |
+| The library | 5 (4 + 1) | 44 | 0 |
 
 - Surveyed code (lines in `src`): agent link 8,724 (3,236 unclaimed), library 6,395 (1,464), forest
   2,366, command line 2,299 (1,849), knowledge core 2,090, app 1,624, arc surface 895, librarian 729.
 - Every territory is one mesh (opacity 0.22, `depthWrite` off); each island has one border line-segment set.
 - **Border vertices: all 8 islands inside the coast (worst 0).**
-- **Territory vertices: 7 of 8 islands have some outside the coast** (checked against the ground's
-  triangles in plate-local x/z, tolerance 0.05). See "Problems".
+- **Territory vertices: all 8 islands inside the coast (worst 0)**, checked against the ground's
+  triangles in plate-local x/z, tolerance 0.05. The first capture found fills spilling past concave
+  coasts on 7 of 8 islands (worst 3.76 ground units, The library); the clip now cuts the coast's own
+  triangles by each cell, and this capture is after that fix.
 - Click: the largest claimed territory of The agent link (`territory:capability_4da153322012`,
   capability 6 "Agent tools (the MCP server)"), clicked at screen (697, 553), selected the story
   (`data-selected = story_05e45963ca9f`) and the panel's diagram marks exactly that capability and
@@ -65,12 +67,7 @@ Full numbers are in [measurements.json](measurements.json).
 
 ## Problems seen
 
-- **Territory meshes spill past the coast on 7 of 8 islands.** Worst is The library (3.76 ground
-  units); [worst-outside-close-up.png](worst-outside-close-up.png) shows a small dark grey wedge
-  poking out of the west coast of The library. On the other islands it is mostly sub-pixel at rest.
-  Borders are clipped correctly; only territory fills spill. Likely cause (not confirmed here): the
-  clip in `territory-land.ts` (`clipToConvex`) clips the possibly concave coast ring by each convex
-  cell with Sutherland-Hodgman, which is exact only for a convex subject and adds bridging edges for
-  a concave one. The capture reports the number and does not fail on it; this is for the code stage.
-- Nothing else seen: no z-fighting (territories sit 0.05 above the ground with `depthWrite` off), and
-  clicks select correctly.
+- The first capture's spill past concave coasts is fixed (see above);
+  [worst-outside-close-up.png](worst-outside-close-up.png) is The library's west coast again, after
+  the fix. Nothing else seen: no z-fighting (territories sit 0.05 above the ground with `depthWrite`
+  off), and clicks select correctly.

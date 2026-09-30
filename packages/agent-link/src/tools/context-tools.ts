@@ -38,7 +38,7 @@ export function registerContextTools(define: Define, home?: string): void {
       const { running } = await closeOut(
         { log, project, ...lineOf(caller), folder, ...(branch === undefined ? {} : { branch }) },
         { safe, why },
-        home === undefined ? {} : { home: path.join(home, "own") },
+        { look: {}, ...(home === undefined ? {} : { home: path.join(home, "own") }) },
       );
       const counted = running === undefined ? "Your own running work could not be counted, so a yes will show as needing the owner." : running === 0 ? "Nothing of yours is running here." : `${running} of your runs still run here: stop them (stop_own_run) and close out again.`;
       return { text: `Closed out: ${safe ? "safe to close" : "not safe to close"} (${why.trim()}). ${counted}`, data: { safe, ...(running === undefined ? {} : { running }) } };

@@ -17,7 +17,7 @@ test("7.1–7.5 rows start folded, show safe words and available total beside it
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
   assert.match(html, /Build &lt;signup&gt;/);
   assert.match(html, /aria-expanded="false"/);
-  assert.match(html, />\+1<\/button>/);
+  assert.match(html, /class="session-children"[^>]*>\+1<\/span>/);
   assert.doesNotMatch(html, /data-session-id="child"/);
   assert.match(html, /class="session-needs-you">needs you/);
   assert.match(html, /class="session-context-slot" title="120,000 tokens"/);
@@ -79,7 +79,8 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]), files, onHighlight() {} }));
   const parentRow = html.match(/data-session-id="parent".*?<\/div>/s)?.[0] ?? "";
   assert.equal(parentRow.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");
-  assert.match(parentRow, />\+1<\/button>/);
+  assert.match(parentRow, /^data-session-id="parent"[^>]*><button[^>]*session-children-toggle/, "the expander opens the row");
+  assert.match(parentRow, /class="session-children"[^>]*>\+1<\/span>/);
   assert.match(html, /aria-expanded="true"/);
   const detail = html.match(/class="session-detail".*?<\/div>/s)?.[0] ?? "";
   assert.ok(detail.indexOf(">Worktrees<") < detail.indexOf(">one<") && detail.indexOf(">one<") < detail.indexOf(">two<")
@@ -91,6 +92,11 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   const unread = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]),
     files: new Map([["parent", { absent: "no hook has named this session's transcript" }]]), onHighlight() {} }));
   assert.match(unread, /no hook has named this session&#x27;s transcript/);
+});
+
+test("7.13 a row named with its machine shows it beside the label; a row without names none", () => {
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], machine: "mint" }, { ...row, id: "lone", children: [] }], onHighlight() {} }));
+  assert.equal(html.match(/class="session-machine"[^>]*>mint<\/span>/g)?.length, 1, html);
 });
 
 test("7.12 a row holding unmerged work says so under it, naming its branches; a row without says nothing (ADR-0754 D4)", () => {

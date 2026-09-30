@@ -8,7 +8,7 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { SessionRing } from "./ring.js";
-import { arcKey, arrived, curvePoint, fillAt, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, tailSpan, type AgentPath, type Lighting, type Point, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { arcKey, arrived, curvePoint, fillAt, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, tailSpan, type AgentPath, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
@@ -20,6 +20,8 @@ const GROW_MS = 900;
 const GLOW = { step: 900, pause: 1200 };
 /** A traversal step's faint fill: how long it takes to run from the earlier note to the later, and its rest (ADR-0756). */
 const FILL = { run: 1600, pause: 900 };
+/** A selected session's replay (ADR-0797): each step's line grows in this long, and the finished picture holds this long. */
+const REPLAY = { step: 700, rest: 2500 };
 
 /** How a selected session's note is drawn (ADR-0756): a compacted read lighter, a glimpse faintest. */
 const noteState = (window: WindowView | undefined, id: string): "in-window" | "faded" | "glimpsed" | null =>
@@ -30,7 +32,7 @@ const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMe
 const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window }: {
+export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [], paths = [], window, replay = false }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
   /** Notes a running session read, in its latest reader's colour, with every session that read it (ADR-0738, ADR-0754 D2). */
   lit?: ReadonlyMap<string, Lighting>;
@@ -40,13 +42,41 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
   paths?: readonly AgentPath[];
   /** The selected session's window, in its colour: a warm white ring on each note it holds now, compacted reads lighter, glimpses faint (ADR-0756). */
   window?: (WindowView & { colour: string }) | undefined;
+  /** A selected session: its trails replay as one head walking them in recorded order, building the picture, then resting and starting again (ADR-0797). */
+  replay?: boolean;
 }) {
   const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
+  const invalidate = useThree(state => state.invalidate);
+  // One replay for the session, never one per agent: a single clock walks every trail in seq order (ADR-0797 D1).
+  const replaying = replay && !reducedMotion();
+  const clock = useRef(performance.now());
+  const moment = useRef<(ReplayMoment<Trail> & { keys: Set<string> }) | undefined>(undefined);
+  const [, reach] = useState(0);
+  useFrame(() => {
+    if (!replaying) return;
+    const now = performance.now();
+    let next = replayAt(trails, now - clock.current, REPLAY);
+    if (next.over) { clock.current = now; next = replayAt(trails, 0, REPLAY); }
+    const before = moment.current;
+    // Matched by key: the window is read again every few seconds, remaking the same steps as new objects.
+    moment.current = { ...next, keys: new Set(next.drawn.map(trailKey)) };
+    // Notes light as the head reaches them: a render only when it passes a step, not every frame.
+    if (before === undefined || before.drawn.length !== next.drawn.length || (before.head === undefined) !== (next.head === undefined)) reach(tick => tick + 1);
+    invalidate();
+  });
+  const onSteps = useMemo(() => new Set(trails.flatMap(({ from, to }) => [from, to])), [trails]);
+  const unreached = (id: string): boolean => replaying && onSteps.has(id) && moment.current?.lit.has(id) !== true;
+  const replayed = useMemo(() => !replaying ? undefined : (trail: Trail): number => {
+    const now = moment.current;
+    if (now === undefined) return 0;
+    if (now.head !== undefined && trailKey(now.head.step) === trailKey(trail)) return now.head.t * now.head.t * (3 - 2 * now.head.t);
+    return now.keys.has(trailKey(trail)) ? 1 : 0;
+  }, [replaying]);
   // Steps already read when the view first had any are history and never grow (ADR-0742 D4).
   const history = useRef<number | undefined>(undefined);
   const growth = useRef<{ starts: Map<string, number>; busy: Map<string, number> }>({ starts: new Map(), busy: new Map() });
   const starts = useMemo(() => {
-    if (trails.length === 0) return growth.current.starts;
+    if (trails.length === 0 || replaying) return growth.current.starts;
     if (history.current === undefined) {
       history.current = Math.max(...trails.map(({ seq }) => seq));
       return growth.current.starts;
@@ -79,12 +109,14 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
     {trails.map(trail => {
       const from = at.get(trail.from), to = at.get(trail.to);
       return from === undefined || to === undefined ? null
-        : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} radius={radius} />;
+        : <TrailCurve key={trailKey(trail)} trail={trail} from={from} to={to} grow={starts.get(trailKey(trail))} radius={radius} replayed={replayed} />;
     })}
-    {!reducedMotion() && paths.map(path => <PathGlow key={path.mover} path={path} at={at} starts={starts} />)}
+    {!reducedMotion() && !replaying && paths.map(path => <PathGlow key={path.mover} path={path} at={at} starts={starts} />)}
     {points.map(point => {
-      const state = noteState(window, point.id);
-      const lighting = showing.get(point.id);
+      // A note the replay has not reached yet is drawn as if unread (ADR-0797 D1).
+      const hidden = unreached(point.id);
+      const state = hidden ? null : noteState(window, point.id);
+      const lighting = hidden ? undefined : showing.get(point.id);
       // An open read wears its reader's colour, or the session's; a compacted one is lighter; a glimpse is the session's, faint (ADR-0756).
       const colour = state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? "#a5c5d1" : window!.colour);
       const opacity = state === "glimpsed" && lighting === undefined ? 0.4 : state === "faded" ? 0.8 : lighting !== undefined || state === "in-window" ? 1 : lit.size > 0 ? 0.3 : 0.52;
@@ -95,14 +127,14 @@ export function GlobePoints({ points, radius, notes, lit = new Map(), trails = [
         lit: lighting?.colour ?? null, arcs: lighting !== undefined ? ringArcs(lighting) : [], window: state, colour, opacity }}>
       <sphereGeometry args={[radius * size, 12, 8]} />
       <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
-      {window?.notes.has(point.id) === true && <Billboard name={`knowledge-window:${point.id}`}>
+      {state === "in-window" && <Billboard name={`knowledge-window:${point.id}`}>
         <mesh raycast={noRaycast}>
           <torusGeometry args={[radius * 0.015, radius * 0.0022, 8, 28]} />
           <meshBasicMaterial color={IN_VIEW} transparent opacity={0.9} depthWrite={false} />
         </mesh>
       </Billboard>}
-      {showing.has(point.id) && ringArcs(showing.get(point.id)!).length > 0 && <SessionRing name={`knowledge-arcs:${point.id}`}
-        arcs={ringArcs(showing.get(point.id)!)} radius={radius * 0.0125} tube={radius * 0.0016} />}
+      {lighting !== undefined && ringArcs(lighting).length > 0 && <SessionRing name={`knowledge-arcs:${point.id}`}
+        arcs={ringArcs(lighting)} radius={radius * 0.0125} tube={radius * 0.0016} />}
     </mesh>;
     })}
   </group>;
@@ -122,7 +154,11 @@ const sample = (from: Point, to: Point, end: number): number[] =>
  * for a jump, lighter when a read it touches was compacted out; once grown, a faint fill runs along
  * it from the earlier note to the later, like a progress bar, then rests and runs again.
  */
-function TrailCurve({ trail, from, to, grow, radius }: { trail: Trail; from: Point; to: Point; grow: number | undefined; radius: number }) {
+function TrailCurve({ trail, from, to, grow, radius, replayed }: {
+  trail: Trail; from: Point; to: Point; grow: number | undefined; radius: number;
+  /** How far the session's replay has drawn this step, 0 to 1, when one is replaying (ADR-0797): it then has no fill of its own. */
+  replayed?: ((trail: Trail) => number) | undefined;
+}) {
   const invalidate = useThree(state => state.invalidate);
   const size = useThree(state => state.size);
   const { step } = trail;
@@ -132,7 +168,7 @@ function TrailCurve({ trail, from, to, grow, radius }: { trail: Trail; from: Poi
     if (step?.faded) made.material.opacity = 0.45;
     return made;
   }, [step?.edge, step?.faded, radius]);
-  const fill = useMemo(() => step === undefined || reducedMotion() ? undefined : lineOf(3, true), [step === undefined]);
+  const fill = useMemo(() => step === undefined || reducedMotion() || replayed !== undefined ? undefined : lineOf(3, true), [step === undefined, replayed === undefined]);
   useEffect(() => () => { line.geometry.dispose(); line.material.dispose(); }, [line]);
   useEffect(() => () => { fill?.geometry.dispose(); fill?.material.dispose(); }, [fill]);
   useEffect(() => {
@@ -162,12 +198,19 @@ function TrailCurve({ trail, from, to, grow, radius }: { trail: Trail; from: Poi
   };
   const done = useRef(false);
   const began = useRef(performance.now());
+  const shown = useRef(-1);
   useEffect(() => {
     done.current = grow === undefined;
-    draw(grow === undefined ? 1 : 0);
+    shown.current = replayed === undefined ? -1 : replayed(trail);
+    draw(replayed !== undefined ? shown.current : grow === undefined ? 1 : 0);
     invalidate();
-  }, [line, from, to, colours, grow]);
+  }, [line, from, to, colours, grow, replayed]);
   useFrame(() => {
+    if (replayed !== undefined) {
+      const end = replayed(trail);
+      if (end !== shown.current) { shown.current = end; draw(end); invalidate(); }
+      return;
+    }
     const now = performance.now();
     if (!done.current && grow !== undefined) {
       const progress = Math.min(1, Math.max(0, (now - grow) / GROW_MS));

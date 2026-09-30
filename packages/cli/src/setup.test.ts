@@ -69,7 +69,7 @@ test("2.1 / 2.4 / 2.5 / 2.6: installed connect chooses both, retries unchanged a
   const first = await u.run(["connect", "--claude", "--codex"]);
   assertExitCode(first, 0);
   assert.match(first.stdout, /Claude Code: tools connected; hooks not verified/);
-  assert.match(first.stdout, /Codex: tools connected; hooks not verified/);
+  assert.match(first.stdout, /Codex: tools connected; hooks waiting for you to trust them in Codex\.[^]*type \/hooks/);
   assert.match(first.stdout, /Start a new agent session in the folder/);
   const claude = readFileSync(u.settings, "utf8");
   const codex = readFileSync(path.join(u.codex, "config.toml"), "utf8");
@@ -101,7 +101,7 @@ test("2.2 / 2.3: partial connection is nonzero, preserves a conflict and still c
   const result = await u.run(["connect", "--claude", "--codex"]);
   assertExitCode(result, 1);
   assert.match(result.stderr, /Claude Code: tools not connected/);
-  assert.match(result.stderr, /Codex: tools connected; hooks not verified/);
+  assert.match(result.stderr, /Codex: tools connected; hooks waiting for you to trust them in Codex\.[^]*type \/hooks/);
   assert.equal(readFileSync(u.settings, "utf8"), previous);
   assertExitCode(await u.run(["disconnect", "claude-code"]), 1, "setup disconnect claude-code");
 });

@@ -1,7 +1,9 @@
-import { runSetupCheck } from "@storytree/agent-link";
+import { homedir } from "node:os";
+import path from "node:path";
+import { CODEX_TRUST_STEP, codexHookTrust, runSetupCheck } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
 import { addProject, projectFolder } from "../project/index.js";
-import type { SetupHelpBridge } from "./bridge.js";
+import type { AgentConnection, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "./feedback.js";
 import { readShippedLicense } from "./license.js";
 
@@ -9,6 +11,8 @@ import { readShippedLicense } from "./license.js";
 export function setupHelpActions(options: {
   licenseFile: string;
   storytreeHome: string;
+  /** Codex's home. By default, CODEX_HOME or ~/.codex. */
+  codexHome?: string;
   chooseFolder(): Promise<string | undefined>;
   openExternal(url: string): Promise<void>;
   copyText(text: string): Promise<void>;
@@ -17,6 +21,15 @@ export function setupHelpActions(options: {
 }): SetupHelpBridge {
   return {
     readSetupLicense: () => readShippedLicense(options.licenseFile),
+    async agentConnections() {
+      // Codex runs storytree's hooks only once the user trusts them; a hook that has run is the proof (agent link 3.18).
+      const codexHome = options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex"));
+      const trust = codexHookTrust({ storytreeHome: options.storytreeHome, codexHome });
+      const connections: AgentConnection[] = [];
+      if (trust === "running") connections.push({ agent: "Codex", state: "running", message: "Codex is connected, and runs storytree's hooks." });
+      if (trust === "waiting") connections.push({ agent: "Codex", state: "waiting", message: "Codex is connected, with one step left: it runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work.", step: CODEX_TRUST_STEP });
+      return connections;
+    },
     async checkSetupFolder() {
       const folder = await options.chooseFolder();
       if (folder === undefined) return null;

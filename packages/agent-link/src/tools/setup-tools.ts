@@ -60,7 +60,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const caller = seenCaller((await log.since(report.project.name, 0)).lines, heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         const { lines } = await log.since(report.project.name, 0);
-        const verification = verifyHooks(lines, caller.session, caller.harness);
+        const verification = verifyHooks(lines, caller.session, caller.harness, report.machine);
         if (verification.verified) {
           const checkFile = path.join(folder, CHECK_FILE);
           if (existsSync(checkFile)) rmSync(checkFile, { force: true });

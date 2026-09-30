@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
+import { noteCodexHookRan, registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
 import { deliveredCommand } from "./installed.js";
 
@@ -55,7 +55,7 @@ for (const harnesses of [["claude-code"], ["codex"], ["claude-code", "codex"]] a
     writeFileSync(f.codexFile, legacy);
     const first = await connectAgents({ ...f.options, harnesses });
     assert.deepEqual(first.map((r) => r.tools), harnesses.map(() => "connected"));
-    assert.ok(first.every((r) => r.hooks === "not verified" && r.next.includes("check_setup")));
+    assert.ok(first.every((r) => r.harness === "codex" ? r.hooks === "waiting for you to trust them in Codex" : r.hooks === "not verified" && r.next.includes("check_setup")));
     const before = [readFileSync(f.claudeFile, "utf8"), readFileSync(f.codexFile, "utf8")];
     assert.deepEqual((await connectAgents({ ...f.options, harnesses })).map((r) => r.tools), harnesses.map(() => "already connected"));
     assert.deepEqual([readFileSync(f.claudeFile, "utf8"), readFileSync(f.codexFile, "utf8")], before);
@@ -93,6 +93,30 @@ test("2.2: connecting Codex tells its first session, hooks trusted or not, to ca
   assert.match(readFileSync(agents, "utf8"), /`check_setup`/);
   await disconnectAgents({ ...f.options, harnesses: ["codex"] });
   assert.equal(existsSync(agents), false);
+});
+
+test("2.6: connecting Codex names the one-time trust step until one of its hooks has run, then says its hooks run", async (t) => {
+  const f = fixture(t);
+  const [first] = await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.equal(first!.hooks, "waiting for you to trust them in Codex");
+  assert.match(first!.next, /type \/hooks/);
+  assert.match(first!.next, /Hooks need review/);
+  noteCodexHookRan({ storytreeHome: path.join(f.home, ".storytree", "0.3"), codexHome: f.codex });
+  const [again] = await connectAgents({ ...f.options, harnesses: ["codex"] });
+  assert.equal(again!.hooks, "running");
+  assert.doesNotMatch(again!.next, /\/hooks/);
+  const [claude] = await connectAgents({ ...f.options, harnesses: ["claude-code"] });
+  assert.equal(claude!.hooks, "not verified", "Claude Code runs hooks without asking; its session check verifies them");
+});
+
+test("2.6: connecting Codex from an administrator terminal says Codex cannot run commands from one and to open it from a normal terminal; Claude Code, or a normal terminal, hears nothing of it", async (t) => {
+  const f = fixture(t);
+  const [codex, claude] = await connectAgents({ ...f.options, elevated: async () => true, harnesses: ["codex", "claude-code"] });
+  assert.match(codex!.next, /administrator/);
+  assert.match(codex!.next, /normal terminal/);
+  assert.doesNotMatch(claude!.next, /administrator/);
+  const [normal] = await connectAgents({ ...f.options, elevated: async () => false, harnesses: ["codex"] });
+  assert.doesNotMatch(normal!.next, /administrator/);
 });
 
 test("2.3/2.4: a conflicting 0.2 entry, missing harness and invalid settings get separate recovery actions", async (t) => {

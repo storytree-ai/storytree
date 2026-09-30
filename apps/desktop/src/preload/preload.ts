@@ -15,6 +15,7 @@ const bridge: StorytreeBridge & SettingsBridge & SurfacesBridge = {
   saveSurface: (words) => ipcRenderer.invoke(SURFACES_CHANNELS.saveSurface, words),
   checkForUpdates: (action) => ipcRenderer.invoke(CHANNELS.checkForUpdates, action) as ReturnType<StorytreeBridge["checkForUpdates"]>,
   readSetupLicense: () => ipcRenderer.invoke(CHANNELS.readSetupLicense) as ReturnType<StorytreeBridge["readSetupLicense"]>,
+  agentConnections: () => ipcRenderer.invoke(CHANNELS.agentConnections) as ReturnType<StorytreeBridge["agentConnections"]>,
   checkSetupFolder: () => ipcRenderer.invoke(CHANNELS.checkSetupFolder) as ReturnType<StorytreeBridge["checkSetupFolder"]>,
   addProject: () => ipcRenderer.invoke(CHANNELS.addProject) as ReturnType<StorytreeBridge["addProject"]>,
   openFeedbackDraft: (draft) => ipcRenderer.invoke(CHANNELS.openFeedbackDraft, draft) as ReturnType<StorytreeBridge["openFeedbackDraft"]>,

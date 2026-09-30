@@ -155,6 +155,7 @@ async function run(): Promise<void> {
     },
   });
   ipcMain.handle(CHANNELS.readSetupLicense, () => help.readSetupLicense());
+  ipcMain.handle(CHANNELS.agentConnections, () => help.agentConnections());
   ipcMain.handle(CHANNELS.checkSetupFolder, () => help.checkSetupFolder());
   ipcMain.handle(CHANNELS.addProject, () => help.addProject());
   ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));

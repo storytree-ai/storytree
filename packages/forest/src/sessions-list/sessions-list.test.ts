@@ -66,6 +66,25 @@ test("7.1 a session holding no claim still gets a plain row, named from the work
   assert.deepEqual(row?.worktrees, ["/home/me/code/site", "/home/me/code/site/.claude/worktrees/fix-login"], "a row shows every worktree its session works in (D2)");
 });
 
+test("7.14 an unclaimed row is named by its app's title; every row carries up to three lines describing it: the app's title where the name is not it, the held increment's objective, the app's latest status", () => {
+  const described = (session: string, title: string, status?: string): NewLine =>
+    ({ session: "reader", harness: "claude-code", source: "hook", kind: "session-described", of: session, app: "claude-desktop", title, ...(status === undefined ? {} : { status }) });
+  const lines = log({ ...off, folder: "/home/me/code/storytree03", kind: "prompt-submitted" },
+    { ...parent, kind: "claimed", increment: "inc", reason: "" },
+    described("off", "Sessions list labelling and machine names, and a description on expand", "PR #309 awaiting CI"),
+    described("parent", "Signup work"));
+  const withObjective = structuredClone(arc);
+  (withObjective.increments[0]!.fields as { objective?: string }).objective = "A visitor can sign up in one step";
+  const rows = sessionRows(tree, lines, [withObjective], now);
+  const byId = new Map(rows.map(row => [row.id, row]));
+  assert.equal(byId.get("off")!.label, "Sessions list labelling and machine nam…", "held to the label limit");
+  assert.deepEqual(byId.get("off")!.description, ["Sessions list labelling and machine names, and a description on expand", "PR #309 awaiting CI"]);
+  assert.equal(byId.get("parent")!.label, "Finish signup", "a held increment still names a claimed row");
+  assert.deepEqual(byId.get("parent")!.description, ["Signup work", "A visitor can sign up in one step"]);
+  const plain = sessionRows(tree, log({ ...off, folder: "/home/me/code/site", kind: "prompt-submitted" }), [], now)[0]!;
+  assert.deepEqual([plain.label, plain.description], ["Codex · site", []], "no app words, the place names it and nothing describes it");
+});
+
 test("a session whose hooks report no turns is judged by the idle-after setting the list is given, not a fixed 30 minutes", () => {
   const lines = log({ ...off, kind: "claimed", increment: "tidy", reason: "Tidy", at: "2026-09-28T11:45:00Z" });
   assert.equal(sessionRows(tree, lines, [], now)[0]?.state, "working", "15 minutes quiet is working at the 30-minute default");

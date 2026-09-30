@@ -45,6 +45,8 @@ export interface SessionRow {
   worktrees: string[];
   /** Its branches that still hold unmerged work (ADR-0754 D4): a session that has not cleaned up, marked so it can be looked into. */
   unmerged: string[];
+  /** Up to three lines saying what it is doing (7.14), from recorded words only: its app's title, its increment's objective, its app's latest status. */
+  description: string[];
   children: SessionRow[];
 }
 
@@ -80,8 +82,11 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
       arc.increments.some(inc => inc.fields.status !== "closed" && (heldIncrements.includes(inc) || inc.fields.touches?.some(id => held.has(id)))));
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
-    rows.set(session.session, { id: session.session,
-      label: own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title || workingIn(session.label, lines, session.session, session.worktrees),
+    const label = own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title
+      || (session.title === undefined ? workingIn(session.label, lines, session.session, session.worktrees) : fitted(session.title));
+    const objective = (heldIncrements[0]?.fields as { objective?: string } | undefined)?.objective?.trim();
+    rows.set(session.session, { id: session.session, label,
+      description: [session.title === label ? undefined : session.title, objective || undefined, session.status].filter((said): said is string => said !== undefined),
       agent: session.label, state: session.state, needsYou: question || session.closeOut?.needsYou !== undefined,
       ...(session.closeOut?.needsYou === undefined ? {} : { needsYouWhy: session.closeOut.needsYou }),
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
@@ -95,7 +100,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
       agent: line.type ?? "Subagent", state: "observed", needsYou: false, idle: false,
-      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], unmerged: [], children: [] });
+      totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], unmerged: [], description: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
   const roots: SessionRow[] = [];
@@ -126,14 +131,18 @@ export function atWork(rows: readonly SessionRow[]): number {
 }
 
 /**
- * An unclaimed session's name: its harness and what it works in, the branch its latest claim was
+ * An unclaimed session's name, when its app gives it no title (7.14): its harness and what it works in, the branch its latest claim was
  * taken on, or else the last folder it worked in, held to the label limit. Never an off-plan label.
  */
 function workingIn(harness: string, lines: readonly Line[], session: string, worktrees: readonly string[]): string {
   const branch = lines.filter(line => line.session === session && line.kind === "claimed" && line.branch !== undefined)
     .sort((a, b) => a.seq - b.seq).at(-1);
   const place = branch?.kind === "claimed" ? branch.branch : worktrees.at(-1)?.split(/[\\/]/).filter(Boolean).at(-1);
-  const label = place === undefined ? harness : `${harness} · ${place}`;
+  return fitted(place === undefined ? harness : `${harness} · ${place}`);
+}
+
+/** A name held to the label limit. */
+function fitted(label: string): string {
   return label.length > LABEL_LIMIT ? `${label.slice(0, LABEL_LIMIT - 1)}…` : label;
 }
 

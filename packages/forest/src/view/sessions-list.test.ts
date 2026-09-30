@@ -8,9 +8,9 @@ import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex", state: "waiting",
-  needsYou: true, idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], unmerged: [], children: [
+  needsYou: true, idle: false, totalTokens: 120_000, stories: ["signup"], worktrees: [], unmerged: [], description: [], children: [
     { id: "child", label: "Read the library", agent: "Subagent", state: "observed", needsYou: false, idle: false,
-      totalTokens: undefined, stories: [], worktrees: [], unmerged: [], children: [] },
+      totalTokens: undefined, stories: [], worktrees: [], unmerged: [], description: [], children: [] },
   ] };
 
 test("7.1–7.5 rows start folded, show safe words and available total beside its bar", () => {
@@ -91,6 +91,17 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   const unread = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]),
     files: new Map([["parent", { absent: "no hook has named this session's transcript" }]]), onHighlight() {} }));
   assert.match(unread, /no hook has named this session&#x27;s transcript/);
+});
+
+test("7.14 an expanded row opens with its description, each line its own, before its worktrees; folded, or with none, no description shows", () => {
+  const said: SessionRow = { ...row, children: [], worktrees: ["/w/one"], description: ["Sessions list labelling", "PR #309 awaiting CI"] };
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [said], expanded: new Set(["parent"]), onHighlight() {} }));
+  const detail = html.match(/class="session-detail".*?<\/ul>/s)?.[0] ?? "";
+  assert.match(detail, /class="session-description"><p>Sessions list labelling<\/p><p>PR #309 awaiting CI<\/p><\/div>/, detail);
+  assert.ok(detail.indexOf("session-description") < detail.indexOf(">Worktrees<"));
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [said], onHighlight() {} })), /session-description/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...said, description: [] }], expanded: new Set(["parent"]), onHighlight() {} })), /session-description/);
+  assert.equal(isSessionRows([{ ...said, description: undefined }]), false, "rows kept by an older build are not drawn");
 });
 
 test("7.12 a row holding unmerged work says so under it, naming its branches; a row without says nothing (ADR-0754 D4)", () => {

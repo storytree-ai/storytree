@@ -210,3 +210,14 @@ test("4.9 who is listed (ADR-0754 D4): a session holding unmerged work stays lis
     assert.equal((await listing("desktop", after(desktopEnd, 1_000)))?.listing, "done", "un-archived: back");
   });
 });
+
+test("4.20 a line about other sessions (a branch's state, what an app keeps) never makes its writer a session: a person or the app that looked is not listed", async () => {
+  await withProject(async (log, project) => {
+    const worker = await log.append(project, { ...CLAUDE, branch: "fix-login", kind: "file-edited", files: ["a.ts"] });
+    const looker = { session: "person:mick", source: "tool", folder: "/work/site" } as const;
+    await log.append(project, { ...looker, kind: "branch-state", of: "fix-login", open: false, how: "merged", pr: 4 });
+    await log.append(project, { ...looker, kind: "session-archived", of: "claude-1", app: "claude-desktop" });
+    const sessions = await readSessions(log, project, { now: after(worker, 1_000) });
+    assert.deepEqual(sessions.map((one) => [one.session, one.openWork]), [["claude-1", []]]);
+  });
+});

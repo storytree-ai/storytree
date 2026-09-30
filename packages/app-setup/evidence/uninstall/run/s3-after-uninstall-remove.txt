@@ -1,0 +1,38 @@
+date: 2026-10-01T00:24:33.1002136+10:00
+--- commands on a fresh PATH
+claude     C:\Users\mickh\.local\bin\claude.exe
+codex      C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links\codex.exe
+storytree  (none)
+--- user PATH entries naming storytree
+--- storytree install
+installed: no
+install folder: False
+Apps & features entry: 0
+start menu shortcut: False
+desktop shortcut: False
+--- storytree home
+~\.storytree: False
+~\.storytree\0.3: absent
+updater cache: False
+--- processes
+
+--- Claude Code
+claude.json mcpServers: 
+settings.json lines naming storytree: 0
+settings.json keys: autoUpdatesChannel, theme
+--- Codex
+~\.codex: True
+config.toml lines naming storytree: 0
+hooks.json: False
+AGENTS.md: absent
+--- project folders
+C:\Users\mickh\PF Project Folder :
+  .storytree.json
+  codex.txt
+  hello.txt
+C:\Users\mickh\PF Second Project :
+  .storytree.json
+C:\Users\mickh\Uninstall Proof Project :
+  .storytree.json
+  notes.md
+--- scheduled tasks named st-*

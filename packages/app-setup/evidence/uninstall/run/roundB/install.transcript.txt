@@ -1,0 +1,100 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261001001403
+Username: MICKSOLDLAPTOP\mickh
+RunAs User: MICKSOLDLAPTOP\mickh
+Configuration Name: 
+Machine: MICKSOLDLAPTOP (Microsoft Windows NT 10.0.26200.0)
+Host Application: powershell -NoProfile -ExecutionPolicy Bypass -Command -
+Process ID: 12284
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\mickh\st-uninstall\roundB\install.transcript.txt
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>$f = "$HOME\Uninstall Proof Project"
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>New-Item -ItemType Directory -Force $f | Out-Null
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>Set-Location -LiteralPath $f
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>$t = Get-Date
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+Finding the latest storytree release.
+Downloading storytree for Windows x64. The installer is unsigned; Windows may ask whether to run it.
+Downloaded 353.6 MB in 33 s.
+Installing the app silently. This may take a few minutes; a timer shows it is still working.
+Installed in 32 s.
+Checking the installed app and its bundled tools.
+Opening the app and starting its database.
+Adding the storytree command to your PATH.
+storytree is installed; its app is open and its database is ready.
+The storytree command is available in a fresh Windows terminal.
+Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.
+Claude Code: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.
+
+Codex: tools connected; hooks waiting for you to trust them in Codex.
+Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.
+Choose your project folder: press Enter for C:\Users\mickh\Uninstall Proof Project, type another folder (created if missing), or S to skip.
+Project name: press Enter for 'uninstall-proof-project', or type your own (lower-case letters, digits and single hyphens).
+C:\Users\mickh\Uninstall Proof Project is now storytree project 'uninstall-proof', and the app shows it. Start Claude Code or Codex in that folder to work in it.
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>"install exit: $LASTEXITCODE; seconds: $([int]((Get-Date) - $t).TotalSeconds); ready at $(Get-Date -Format o)"
+install exit: 0; seconds: 110; ready at 2026-10-01T00:15:53.3225929+10:00
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>"installed version: $((Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").VersionInfo.ProductVersion)"
+installed version: 0.3.369.0
+Exception calling "ReadLine" with "2" argument(s): "Specified method is not supported."
+At C:\Program Files\WindowsPowerShell\Modules\PSReadLine\2.0.0\PSReadLine.psm1:4 char:5
++     [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($host.Runspace ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], MethodInvocationException
+    + FullyQualifiedErrorId : NotSupportedException
+PS>Stop-Transcript
+**********************
+Windows PowerShell transcript end
+End time: 20261001001553
+**********************

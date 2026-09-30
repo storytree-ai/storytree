@@ -1,0 +1,14 @@
+$r = "$HOME\st-uninstall\agents"
+New-Item -ItemType Directory -Force $r | Out-Null
+Set-Location -LiteralPath "$HOME\Uninstall Proof Project"
+$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+$null | claude -p "Reply with the single word PONG and nothing else. Do not call any tools." --output-format stream-json --verbose > "$r\claude.jsonl" 2>&1
+"claude exit: $LASTEXITCODE"
+$null | codex exec --skip-git-repo-check "Reply with the single word PONG and nothing else. Do not run any commands." > "$r\codex.txt" 2>&1
+"codex exit: $LASTEXITCODE"
+"claude result: " + ((Get-Content "$r\claude.jsonl" | Where-Object { $_ -match '"type":"result"' } | ConvertFrom-Json).result)
+"claude init mcp servers: " + (((Get-Content "$r\claude.jsonl" | Where-Object { $_ -match '"subtype":"init"' } | ConvertFrom-Json).mcp_servers | ForEach-Object { $_.name }) -join ', ')
+"claude lines naming storytree: " + @(Select-String -LiteralPath "$r\claude.jsonl" -Pattern 'storytree').Count
+"claude hook events: " + @(Select-String -LiteralPath "$r\claude.jsonl" -Pattern '"subtype":"hook_').Count
+"codex output lines naming storytree or hook: " + @(Select-String -LiteralPath "$r\codex.txt" -Pattern 'storytree|hook').Count
+"codex tail:"; Get-Content "$r\codex.txt" -Tail 6

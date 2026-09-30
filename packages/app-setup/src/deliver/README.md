@@ -57,5 +57,9 @@ deletes the app's files. `uninstall-asks <installDir>` says whether to ask about
 `uninstall <installDir> keep|remove` removes this installation's agent registrations, hooks and
 status line (anything else's stays), and, only when `delivery.json` names this installation, the
 per-user PATH entry, the updater cache named in `app-update.yml` and the home (all of it, or all but
-the library). Project folders are never touched. An update runs the uninstaller with `--updated`,
-and then nothing is removed. `apps/desktop/check-install.mjs` proves both through the real installer.
+the library: its database, backups, location setting, machine identity, chosen project and queued
+hook lines). Project folders are never touched. An update runs the uninstaller with `--updated`,
+and then nothing is removed. `storytree setup uninstall` starts the uninstaller itself, detached
+(a detached Windows PowerShell has no console and runs nothing). `apps/desktop/check-install.mjs`
+proves both through the real installer, reaching the uninstaller the way that command does. Live
+proof on a clean Windows machine: `../../evidence/uninstall/README.md`.

@@ -1,0 +1,14 @@
+UninstallString: "C:\Users\mickh\AppData\Local\Programs\storytree-0.3\Uninstall storytree-0.3.exe" /currentuser
+dialog 1 at +3s, title 'storytree-0.3 Uninstall': Are you sure you want to uninstall storytree-0.3?
+  clicked OK
+dialog 2 at +8s, title 'storytree-0.3 Uninstall': storytree-0.3 is running.
+Click OK to close it.
+If it doesn't close, try closing it manually.
+  clicked OK
+dialog 3 at +16s, title 'storytree-0.3 Uninstall': Keep your storytree library on this computer?
+
+Your library holds your projects' plans and notes. Yes keeps it, so reinstalling storytree finds it again. No deletes it.
+
+Your project folders and their files are not touched either way.
+  clicked &Yes
+uninstaller finished after 22s; dialogs answered: 3

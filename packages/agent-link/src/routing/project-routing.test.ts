@@ -12,7 +12,7 @@
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { test } from "node:test";
@@ -334,6 +334,28 @@ test("1.12 a project set up before trunks were recorded keeps routing, and the f
       const second = path.join(dir, "copy");
       mkdirSync(second);
       await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(trunk));
+    });
+  });
+});
+
+test("1.13 a trunk whose folder moved follows it on first sight, and one whose folder is gone gives way to a new folder joining; a live trunk is still never moved", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop } = machines(dir);
+    const [old, moved] = [path.join(dir, "old", "app"), path.join(dir, "moved", "app")];
+    mkdirSync(old, { recursive: true });
+    mkdirSync(path.dirname(moved));
+    await withStorytree([project], async (storytree) => {
+      await setUpProject({ folder: old, project, storytree, storytreeHome: laptop });
+      renameSync(old, moved);
+      assert.equal(await recordTrunkOnSight(storytree, project, moved, laptop), true, "the moved folder, seen, becomes the trunk");
+      const copy = path.join(dir, "copy");
+      mkdirSync(copy);
+      await assert.rejects(setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true }), folderRefusal(moved), "the trunk it moved to is live");
+
+      rmSync(moved, { recursive: true });
+      await setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true });
+      assert.deepEqual(findProject(copy), { project, folder: copy }, "a fresh folder joins in place of the deleted one");
     });
   });
 });

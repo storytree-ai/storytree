@@ -2,7 +2,7 @@
 // binaries, verify the shipped license (app setup 4.2), and uninstall. No real app data,
 // update feed or release is used.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -45,8 +45,13 @@ function checkUninstall(tools) {
   assert.ok(existsSync(path.join(home, "pgdata", "PG_VERSION")) && existsSync(cache), "an update's uninstall leaves the home and cache");
   assert.deepEqual(JSON.parse(readFileSync(claudeFile, "utf8")).mcpServers.storytree, ours, "an update's uninstall leaves the agent connection");
 
+  const asks = spawnSync(path.join(tools, "node.exe"), [path.join(tools, "storytree-deliver.mjs"), "uninstall-asks", installed], { encoding: "utf8", env });
+  assert.equal(asks.status, 0, `the installation owns the home it delivered: ${asks.stdout}${asks.stderr}`);
+
   // _?= keeps the uninstaller in place, so this waits for it to finish.
   execFileSync(path.join(installed, "Uninstall storytree-0.3.exe"), ["/S", "--remove-library", `_?=${installed}`], { timeout: 180_000, env });
+  const left = existsSync(user) ? readdirSync(user, { recursive: true }).join("\n  ") : "(none)";
+  console.log(`after uninstall, the user's folder holds:\n  ${left}\n.claude.json: ${readFileSync(claudeFile, "utf8")}\ninstalled: ${readdirSync(installed).join(", ")}`);
   assert.ok(!existsSync(home) && !existsSync(path.join(user, ".storytree")), "the home and library are removed");
   assert.ok(!existsSync(cache), "the update cache is removed");
   assert.deepEqual(JSON.parse(readFileSync(claudeFile, "utf8")), { theme: "dark", mcpServers: { other } }, "only storytree's connection is removed");

@@ -30,6 +30,9 @@ entry, shortcuts, home, update cache, processes, Claude Code's `.claude.json` an
 | D | A Claude Code and a Codex session in the project folder | **PASS**: both answered; Claude Code started no MCP server and no hook, nothing names storytree | `run/agents-after-uninstall.txt` |
 | R | Restore: the home copied back, the one-line install again, both agents reconnected, no new project | **PASS**: 31 s download, **33 s install**, 120 s in all; the state matches S0 except the newer version (0.3.371) and Codex's AGENTS.md section, which connecting now writes (#330) | `run/restore/install.transcript.txt`, `run/s4-restored.txt` |
 
+The install transcripts' repeated `Exception calling "ReadLine"` lines are the harness's: PowerShell's
+line editor cannot read the redirected input that answers the installer's questions. The answers still arrive.
+
 ## Defects found and fixed
 
 1. **`storytree setup uninstall` did nothing.** It started the uninstaller through a detached Windows

@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { fileCircles, territories, territoryAt } from "./territories.js";
+import { fileCircles, territories, territoryAt, type CircleFile } from "./territories.js";
 
 const shares = [
   { capability: "cap-a", lines: 600 },
@@ -50,7 +50,7 @@ test("3.15 a point on a territory's land picks that capability; open sea picks n
 });
 
 test("3.16 every file is one circle whose middle lies on its capability's territory, a longer file never drawn smaller", () => {
-  const files = [
+  const files: CircleFile[] = [
     ...Array.from({ length: 9 }, (_, at) => ({ path: `src/a/${at}.ts`, lines: 20 + at * 60, capability: "cap-a" })),
     ...Array.from({ length: 4 }, (_, at) => ({ path: `src/b/${at}.ts`, lines: 40 + at * 20, capability: "cap-b" })),
     { path: "src/c/only.ts", lines: 100, capability: "cap-c" },

@@ -109,6 +109,16 @@ test("2.6: connecting Codex names the one-time trust step until one of its hooks
   assert.equal(claude!.hooks, "not verified", "Claude Code runs hooks without asking; its session check verifies them");
 });
 
+test("2.6: connecting Codex from an administrator terminal says Codex cannot run commands from one and to open it from a normal terminal; Claude Code, or a normal terminal, hears nothing of it", async (t) => {
+  const f = fixture(t);
+  const [codex, claude] = await connectAgents({ ...f.options, elevated: async () => true, harnesses: ["codex", "claude-code"] });
+  assert.match(codex!.next, /administrator/);
+  assert.match(codex!.next, /normal terminal/);
+  assert.doesNotMatch(claude!.next, /administrator/);
+  const [normal] = await connectAgents({ ...f.options, elevated: async () => false, harnesses: ["codex"] });
+  assert.doesNotMatch(normal!.next, /administrator/);
+});
+
 test("2.3/2.4: a conflicting 0.2 entry, missing harness and invalid settings get separate recovery actions", async (t) => {
   const f = fixture(t);
   const old = JSON.stringify({ mcpServers: { storytree: { command: "storytree-02" } } });

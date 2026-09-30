@@ -26,7 +26,7 @@ import { readAppRecords, type AppPlaces, type AppReading } from "../sessions/app
 export { suggestedName };
 
 export type { SetupLine } from "./diagnostics.js";
-export { machineState, NODE_FLOOR } from "./machine.js";
+export { machineState, NODE_FLOOR, runsElevated } from "./machine.js";
 export type { AgentCliState, MachineOptions, MachineState, ToolState } from "./machine.js";
 
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";

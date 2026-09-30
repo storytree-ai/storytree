@@ -790,3 +790,24 @@ test("8.15 with no desktop app, a session whose tool server runs from a checkout
     assert.equal(await builtFromMain(options), undefined, "hooks the app installed are kept");
   });
 });
+
+test("8.16 the check says when the hooks run an older release than the latest, since the app updates them only while it runs, and says nothing is wrong when they run the latest (regression: the laptop's hooks ran v0.3.309 with v0.3.333 out, 2026-09-30)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const tools = path.join(dir, "Programs", "storytree-0.3", "resources", "agent-tools");
+    mkdirSync(tools, { recursive: true });
+    const hook: HookCommand = { node: process.execPath, script: path.join(tools, "storytree-hook.mjs") };
+    writeFileSync(hook.script, "");
+    const hooksLine = async (running: string) => {
+      writeFileSync(path.join(tools, "release.json"), JSON.stringify({ version: running, commit: "abc1234" }));
+      const report = await runSetupCheck({ ...ANSWERED, latestRelease: async () => "0.3.333", folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, openWaitMs: 0 });
+      return report.lines.find((line) => line.check === "hooks-release");
+    };
+
+    const behind = await hooksLine("0.3.309");
+    assert.equal(behind?.state, "needs-attention");
+    assert.match(behind?.message ?? "", /0\.3\.309.*0\.3\.333/);
+    assert.match(behind?.fix ?? "", /open the storytree app/i);
+    assert.equal((await hooksLine("0.3.333"))?.state, "ok");
+  });
+});

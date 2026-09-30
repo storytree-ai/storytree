@@ -36,11 +36,13 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
     (async (_args: unknown, context: ServerContext): Promise<CallToolResult> => {
       const heard = callerOf(context);
       const report = await runSetupCheck({ ...setup, folder });
-      const data: Record<string, unknown> = { storytree: report.storytree.state, hooks: report.hooks ?? null, project: report.project, lines: report.lines };
+      // A note (an optional tool missing) reaches the agent neither in the text nor in the data, so it is
+      // never taken as work to do; storytree doctor and the app's diagnostics still show it.
+      const told = report.lines.filter((line) => line.state !== "note" && !(line.check === "gh" && line.state === "ok"));
+      const data: Record<string, unknown> = { storytree: report.storytree.state, hooks: report.hooks ?? null, project: report.project, lines: told };
       const unverified = { verified: false, missing: [...HOOK_TESTS], fixes: [] };
-      const said = report.lines
-        // A note (an optional tool missing) is not said to the agent, so it is never taken as work to do.
-        .filter((line) => line.check !== "project" && line.state !== "note" && !(line.check === "gh" && line.state === "ok"))
+      const said = told
+        .filter((line) => line.check !== "project")
         .map((line) => [line.message, line.fix].filter(Boolean).join(" "));
       if (report.storytree.state === "not running") {
         return result({ text: [...said, "Until storytree is running, carry on without it."].join(" "), data: { ...data, ...unverified } });

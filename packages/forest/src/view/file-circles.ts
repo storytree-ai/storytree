@@ -37,3 +37,11 @@ export function fileCircleMarks(circles: readonly FileCircleMark[], onSurface: (
   }
   return group;
 }
+
+/** A file's key for the knowledge core's traversal: its package and its path in the package. */
+export function circleStops(_marks: Group, _pkg: string, _plate: { position: Vector3; quaternion: Quaternion }): Map<string, { x: number; y: number; z: number }> {
+  return new Map();
+}
+
+/** Lights the circles the selected session opened (ADR-0804 D5), keyed as `circleStops` keys them, and puts the rest back as they were. */
+export function lightFileCircles(_marks: Group, _lit: ReadonlyMap<string, "in-window" | "faded">, _colour: string, _pkg: string): void {}

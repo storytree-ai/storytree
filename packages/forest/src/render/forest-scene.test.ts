@@ -77,3 +77,12 @@ test("3.4 each story node shows its story's name", () => {
   const { tree, history } = project();
   assert.deepEqual(forestDrawn(forestScene(tree, history, workStates([]))).labels, ["Visitor can sign up", "Visitor can log in", "Admin sees sign-ups"]);
 });
+
+test("3.18 a surveyed island's land carries its package and the imports between its files, for the traversal to hop by", () => {
+  const { tree, history } = project();
+  const survey = { story_2: { files: [{ path: "src/a.ts", lines: 10, capability: "cap_2a" }, { path: "src/b.ts", lines: 5 }], imports: [{ from: "src/b.ts", to: "src/a.ts" }] } };
+  const scene = forestScene(tree, history, workStates([]), survey);
+  const land = scene.islands.find(({ story }) => story === "story_2")!.land!;
+  assert.equal(land.package, "visitor-can-log-in");
+  assert.deepEqual(land.imports, [{ from: "src/b.ts", to: "src/a.ts" }]);
+});

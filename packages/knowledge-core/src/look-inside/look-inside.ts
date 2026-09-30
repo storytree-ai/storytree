@@ -235,6 +235,34 @@ export interface TraversalStep {
   edge: "solid" | "dotted";
   /** Either end's read has left the window since, so the step fades with it. */
   faded: boolean;
+  /** What a step across the code's surface is (ADR-0804 D5): a hop between two files, or a dive between a file and a note; a step between two notes has none. */
+  kind?: "hop" | "dive";
+}
+
+/** How an opened file or capability stands in a selected session's window: read in it now, or compacted out since. */
+export type CodeState = "in-window" | "faded";
+
+/**
+ * The code's surface as the forest lays it on the globe (ADR-0804 D5), handed to the core so its traversal
+ * can reach it. Files are keyed by `packages/<package>/<path in the package>`, as `codeKey` names them.
+ */
+export interface CodePlaces {
+  /** Each surveyed file's circle: where it lies, in the globe's coordinates. */
+  files: ReadonlyMap<string, Point>;
+  /** Which surveyed file imports which, by the same keys. */
+  imports: readonly { from: string; to: string }[];
+  /** The capabilities that have a territory. */
+  capabilities: ReadonlySet<string>;
+}
+
+/** A surveyed file's key: its package and its path in the package. */
+export function codePathKey(pkg: string, path: string): string {
+  return `packages/${pkg}/${path}`;
+}
+
+/** The surveyed file a path a session opened names, by `packages/<package>/src/…`: whatever came before it does not matter. Undefined when it names none. */
+export function codeKey(path: string): string | undefined {
+  return undefined;
 }
 
 /** What a selected session's window shows in the core (ADR-0756). */
@@ -245,8 +273,10 @@ export interface WindowView {
   faded: Set<string>;
   /** Present notes named in a result in the window but never opened: a faint tint, no line. */
   glimpsed: Set<string>;
-  /** Files whose opened read is in the window now, in the order opened; not drawn on the globe. */
+  /** Files whose opened read is in the window now, in the order opened, by the path the call named. */
   files: string[];
+  /** The surveyed files and territories the session opened, by their keys: lit on the land, in the window or compacted out. */
+  code: { files: Map<string, CodeState>; capabilities: Map<string, CodeState> };
   /** One step per move between opened notes, in reading order; a step taken again draws once. */
   steps: TraversalStep[];
   /** Why there is no window to show, when there is none. */
@@ -258,8 +288,8 @@ export interface WindowView {
  * each step joined by a line; files read between them do not break the chain, and a note no longer
  * in the library is stepped over. `joined` says whether a stored link joins two notes.
  */
-export function windowView(window: SessionWindow, present: ReadonlySet<string>, joined: (a: string, b: string) => boolean): WindowView {
-  const view: WindowView = { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], status: undefined };
+export function windowView(window: SessionWindow, present: ReadonlySet<string>, joined: (a: string, b: string) => boolean, _places?: CodePlaces): WindowView {
+  const view: WindowView = { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], code: { files: new Map(), capabilities: new Map() }, status: undefined };
   if ("absent" in window) return { ...view, status: `No window: ${window.absent}` };
   const opened: string[] = [];
   for (const open of window.opens) {
@@ -280,6 +310,11 @@ export function windowView(window: SessionWindow, present: ReadonlySet<string>, 
     view.steps.push({ from, to, edge: joined(from, to) ? "solid" : "dotted", faded: view.faded.has(from) || view.faded.has(to) });
   });
   return view;
+}
+
+/** A selected session's traversal steps as the trails the globe draws, one per step in reading order, in the session's colour. */
+export function traversalTrails(_steps: readonly TraversalStep[], _colour: string, _mover: string): Trail[] {
+  return [];
 }
 
 /** How far a step's faint fill has run from its earlier note (ADR-0756): 0 to 1 over `run` ms, nothing for a `pause`, then again. */
@@ -385,7 +420,7 @@ export interface Trail {
   /** The session the reads were filed under and the agent that read, as "<session> <agent>". */
   mover: string;
   /** A selected session's traversal step (ADR-0756): solid or dotted, and whether it fades; a reading path's curve has none. */
-  step?: Pick<TraversalStep, "edge" | "faded">;
+  step?: Pick<TraversalStep, "edge" | "faded" | "kind">;
 }
 
 /**

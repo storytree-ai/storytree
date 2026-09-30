@@ -127,3 +127,6 @@ function insideOf(from: Point, to: Point, coast: readonly (readonly Point[])[]):
   const at = (t: number): Point => ({ x: from.x + t * d.x, z: from.z + t * d.z });
   return cuts.slice(1).flatMap((t, i) => (onLand(at((cuts[i]! + t) / 2), coast) && t > cuts[i]! ? [{ from: at(cuts[i]!), to: at(t) }] : []));
 }
+
+/** Fills the territories of the capabilities the selected session opened (ADR-0804 D5) in its colour, and puts the rest back as they were. */
+export function lightTerritories(_land: Group, _lit: ReadonlyMap<string, "in-window" | "faded">, _colour: string): void {}

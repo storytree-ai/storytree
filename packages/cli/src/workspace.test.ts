@@ -104,6 +104,8 @@ test("11.4 Codex prepares app creation then attaches its returned folder; an inv
     const args = prepared.stdout.match(/\{"ref":"[^"\n]+","name":"[^"\n]+"\}/)?.[0];
     assert.ok(args, prepared.stdout);
     const { ref, name } = JSON.parse(args) as { ref: string; name: string };
+    assert.ok(prepared.stdout.includes(`git worktree add --detach <folder> ${ref}`), prepared.stdout);
+    assert.doesNotMatch(prepared.stdout, /continue in the Codex desktop app/);
     const log = await openActivityLog(testServerUrl());
     try {
       assert.deepEqual(await readClaims(log, world.project), []);

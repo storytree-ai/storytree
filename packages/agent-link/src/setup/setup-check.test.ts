@@ -412,11 +412,13 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
         assert.deepEqual(await check(), { verified: true, missing: [], fixes: [] });
       });
 
-      // A Codex session whose hooks have not run is told the one fix that is Codex's own: its one-time approval.
+      // A Codex session whose hooks have not run is told only the fix that is Codex's own, its one-time
+      // approval: an edit or a command could not reach storytree before it, and would leave a check file behind.
       await withAgent(folder, codex("codex-1", setup), async (agent) => {
-        const { verified, missing, fixes } = (await agent.call("check_setup")).data as { verified: boolean; missing: string[]; fixes: string[] };
-        assert.deepEqual({ verified, missing }, { verified: false, missing: ["session start", "storytree tool call", "file edit", "command"] });
-        assert.ok(fixes.includes("codex-approval"), `the fixes name Codex's approval: ${fixes.join(", ")}`);
+        const answer = await agent.call("check_setup");
+        const { verified, missing, fixes } = answer.data as { verified: boolean; missing: string[]; fixes: string[] };
+        assert.deepEqual({ verified, missing, fixes }, { verified: false, missing: ["session start", "storytree tool call", "file edit", "command"], fixes: ["codex-approval"] });
+        assert.doesNotMatch(answer.text, /storytree-check/);
       });
     } finally {
       await dropTestProjects([project]);

@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { territories, territoryAt } from "./territories.js";
+import { fileCircles, territories, territoryAt } from "./territories.js";
 
 const shares = [
   { capability: "cap-a", lines: 600 },
@@ -47,4 +47,21 @@ test("3.14 each capability is one connected territory whose share of the island 
 test("3.15 a point on a territory's land picks that capability; open sea picks none", () => {
   for (const cell of map.cells) assert.equal(territoryAt(map, cell.site.x, cell.site.z), map.territories[cell.territory]);
   assert.equal(territoryAt(map, 30, 0), undefined);
+});
+
+test("3.16 every file is one circle whose middle lies on its capability's territory, a longer file never drawn smaller", () => {
+  const files = [
+    ...Array.from({ length: 9 }, (_, at) => ({ path: `src/a/${at}.ts`, lines: 20 + at * 60, capability: "cap-a" })),
+    ...Array.from({ length: 4 }, (_, at) => ({ path: `src/b/${at}.ts`, lines: 40 + at * 20, capability: "cap-b" })),
+    { path: "src/c/only.ts", lines: 100, capability: "cap-c" },
+    { path: "src/bins/run.ts", lines: 50 },
+  ];
+  const circles = fileCircles(map, files);
+  assert.deepEqual(circles.map(({ path }) => path), files.map(({ path }) => path));
+  for (const circle of circles) {
+    const file = files.find(({ path }) => path === circle.path)!;
+    assert.equal(territoryAt(map, circle.x, circle.z)?.capability, file.capability, `${circle.path} lies on its own territory`);
+  }
+  const bySize = [...circles].sort((a, b) => files.find(({ path }) => path === a.path)!.lines - files.find(({ path }) => path === b.path)!.lines);
+  bySize.slice(1).forEach((circle, at) => assert.ok(circle.radius >= bySize[at]!.radius));
 });

@@ -6,7 +6,8 @@ import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, placeOnGlobe, PLANET_RADIUS, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, planetLayout } from "./planet-navigation.js";
+import { focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
+import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
 
 test("the globe opens every story with its grove at its permanent place, readable by the smoke check", () => {
@@ -147,4 +148,28 @@ test("3.14 a territory's land and borders stop at its island's coast", () => {
   });
   const area = (mesh: Mesh) => { const p = mesh.geometry.getAttribute("position"); let sum = 0; for (let at = 0; at < p.count; at += 3) sum += Math.abs((p.getX(at + 1) - p.getX(at)) * (p.getZ(at + 2) - p.getZ(at)) - (p.getX(at + 2) - p.getX(at)) * (p.getZ(at + 1) - p.getZ(at))) / 2; return sum; };
   assert.ok(Math.abs(area(drawn.getObjectByName("territory:cap-a") as Mesh) - 1) < 1e-6, "the half of the diamond west of the border");
+});
+
+test("3.16 a file circle lies flat on the island's surface; 3.17 pointing at it names the file, its lines and its capability", () => {
+  const onSurface = (p: { x: number; z: number }) => new Vector3(p.x, -(p.x * p.x + p.z * p.z) / 40, p.z);
+  const normalAt = (p: { x: number; z: number }) => new Vector3(p.x / 20, 1, p.z / 20).normalize();
+  const circles = fileCircleMarks([{ path: "src/a/one.ts", lines: 120, capability: "cap-a", x: 3, z: -2, radius: 0.5 }], onSurface, normalAt);
+  const mark = circles.getObjectByName("file:src/a/one.ts")!;
+  assert.deepEqual(mark.userData, { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
+  const up = new Vector3(0, 0, 1).applyQuaternion(mark.quaternion);
+  assert.ok(up.angleTo(normalAt({ x: 3, z: -2 })) < 1e-6, "the circle's face turns to the surface's normal");
+  assert.ok(mark.position.distanceTo(onSurface({ x: 3, z: -2 })) < 0.1, "the circle rests on the surface");
+
+  const world = new Group();
+  const plate = new Group();
+  plate.name = "planet:story";
+  plate.add(fileCircleMarks([{ path: "src/a/one.ts", lines: 120, capability: "cap-a", x: 0, z: 0, radius: 1 }], (p) => new Vector3(p.x, 0, p.z), () => new Vector3(0, 1, 0)));
+  world.add(plate);
+  world.updateMatrixWorld(true);
+  const camera = new OrthographicCamera(-4, 4, 4, -4, 0.1, 100);
+  camera.position.y = 40;
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  assert.deepEqual(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 400, y: 400 }), { file: "src/a/one.ts", lines: 120, capability: "cap-a" });
+  assert.equal(pointedFile(world, camera, { left: 0, top: 0, width: 800, height: 800 }, { x: 700, y: 700 }), undefined);
 });

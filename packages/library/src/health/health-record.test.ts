@@ -496,7 +496,7 @@ for (const backend of [memory, postgres]) {
     const plain = (await health.health(sibling.id)).verified;
     assert.equal("skip" in plain, false, "an entry without a skip has none");
     assert.equal("was" in plain, false, "an entry without an earlier verdict has none");
-    await assert.rejects(health.recordVerified(sibling.id, "not-checked", { skip: "because" }), schemaError("health", ["skip"]));
+    await assert.rejects(health.recordVerified(sibling.id, "not-checked", { skip: untyped("because") }), schemaError("health", ["skip"]));
   });
 
   contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
@@ -504,7 +504,9 @@ for (const backend of [memory, postgres]) {
     const whyOf = async () => (await health.annotate()).stories[0]!.capabilities[0]!.why;
     assert.deepEqual(await whyOf(), { reason: "not built", mover: "agent", contracts: [] });
     await work.setProposed(capability.id, false);
-    assert.deepEqual(await whyOf(), { reason: "no test names it", mover: "agent", contracts: [contract.id, sibling.id] });
+    const inOrder = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.map(({ id }) => id);
+    assert.deepEqual(inOrder.toSorted(), [contract.id, sibling.id].toSorted());
+    assert.deepEqual(await whyOf(), { reason: "no test names it", mover: "agent", contracts: inOrder }, "in the capability's order");
     await health.recordVerified(contract.id, "passing");
     const owner = await health.recordVerified(sibling.id, "not-checked", { skip: "owner" });
     assert.deepEqual(await whyOf(), { reason: "needs owner", mover: "owner", contracts: [sibling.id], since: owner.at });

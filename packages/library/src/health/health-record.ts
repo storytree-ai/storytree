@@ -337,8 +337,8 @@ export function capabilityWhy(proposed: boolean, contracts: readonly { id: strin
 
 /**
  * A capability's word, and when it is not healthy its reason, who moves it and the contracts
- * carrying it, each by its number (`1.2`) or, without one, its id: `untested — needs owner, the
- * owner's to move: 1.2`. How the command line and the agent link say it.
+ * carrying it, each by the number its title starts with or, without one, its id; for example
+ * "untested — needs owner, the owner's to move: 8.1". How the command line and the agent link say it.
  */
 export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why" | "contracts">): string {
   const { status, why } = capability;

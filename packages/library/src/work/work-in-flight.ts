@@ -77,6 +77,21 @@ export interface IncrementEdit {
 /** A new question for the owner, on a live arc (capability 12). */
 export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;
 
+/**
+ * A correction to an open question's wording (12.7): any of the fields it was raised with that say
+ * what is asked. An optional one set to undefined is removed.
+ */
+export interface QuestionEdit {
+  readonly title?: string;
+  readonly stakes?: string;
+  readonly statement?: string;
+  readonly context?: string;
+  readonly options?: string;
+  readonly analogy?: string | undefined;
+  readonly diagram?: string | undefined;
+  readonly recommendation?: string | undefined;
+}
+
 /** How a question is settled: the owner's answer, and the decision that carried it, if one did. */
 export interface Settlement {
   readonly answer: string;
@@ -194,6 +209,9 @@ type Wait = { readonly on: string; readonly reason: string };
 
 const TOUCHABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
 const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "touches", "remedies", "heldOn"]);
+
+/** The fields editQuestion changes: a question's wording (12.7). */
+const QUESTION_WORDING: ReadonlySet<string> = new Set(["title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation"]);
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
@@ -360,6 +378,27 @@ export class WorkInFlight {
         throw new RangeError(`question ${JSON.stringify(id)} is settled, so there is nothing to renew: its answer stands`);
       }
       return (await this.#records.edit(id, { verifiedAt: new Date().toISOString() }, options)) as SchemaRecord<"question"> | null;
+    });
+  }
+
+  /**
+   * Correct open question `id`'s wording in place (12.7): only the named fields change. Anything but
+   * its wording (its arc, lifecycle, answer or lease) is refused (RangeError), and so is editing a
+   * settled question, both with nothing written: its answer stands, answered to the words it had.
+   * Null, with nothing written, if `id` is not a live question.
+   */
+  editQuestion(id: string, fields: QuestionEdit, options?: WriteOptions): Promise<SchemaRecord<"question"> | null> {
+    return this.#serially(async () => {
+      const other = Object.keys(fields).find((key) => !QUESTION_WORDING.has(key));
+      if (other !== undefined) {
+        throw new RangeError(`editQuestion changes ${[...QUESTION_WORDING].join(", ")}, not ${JSON.stringify(other)}: a question's arc, answer and lease move through their own verbs`);
+      }
+      const question = await liveRecord(this.#records, id, ["question"]);
+      if (question === null) return null;
+      if (question.fields.lifecycle === "settled") {
+        throw new RangeError(`question ${JSON.stringify(id)} is settled, so its wording cannot change: its answer stands`);
+      }
+      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"question"> | null;
     });
   }
 

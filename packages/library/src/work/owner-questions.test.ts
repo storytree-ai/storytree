@@ -242,4 +242,24 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.checkQuestion(question.id, far))?.state, "settled");
     assert.deepEqual(await flight.lapsedQuestions(far), [], "a settled question is not drained");
   });
+
+  contract("12.7", "an open question's wording is corrected in place, only the named fields; its arc, lifecycle, answer and lease are not edited so, and a settled question's edit is refused with nothing written", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const question = await flight.raiseQuestion({ arc: arc.id, ...ASK, recommendation: "Mailgun" });
+
+    const edited = await flight.editQuestion(question.id, { options: "Mailgun, SES or Postmark" });
+    assert.deepEqual(edited?.fields, { ...question.fields, options: "Mailgun, SES or Postmark" });
+    const cleared = await flight.editQuestion(question.id, { recommendation: undefined });
+    assert.equal(cleared?.fields.recommendation, undefined);
+
+    const history = await transactions.history();
+    await assert.rejects(flight.editQuestion(question.id, { arc: arc.id } as never), RangeError);
+    await assert.rejects(flight.editQuestion(question.id, { answer: "Mailgun" } as never), RangeError);
+    await flight.settleQuestion(question.id, { answer: "Mailgun" });
+    const settled = await transactions.history();
+    await assert.rejects(flight.editQuestion(question.id, { options: "Too late" }), (error: unknown) => error instanceof RangeError && /settled/.test(error.message));
+    assert.deepEqual(await transactions.history(), settled, "nothing was written");
+    assert.equal(history.length + 1, settled.length, "only the settlement was written");
+    assert.equal(await flight.editQuestion("question_000000000000", { options: "x" }), null, "null for no question");
+  });
 }

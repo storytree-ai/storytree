@@ -173,7 +173,9 @@ const edit: Verb = {
     const library = await context.library();
     const record = await library.get(id);
     if (record === null) throw new Refusal(`no record "${id}" in this project`);
-    if (record.type === "question") throw new Refusal("editing question fields waits on a public editor in the library; use `storytree question settle` to answer it");
+    if (record.type === "question" && record.fields.lifecycle === "settled") {
+      throw new Refusal(`question ${id} is settled, so its wording cannot change: its answer stands`);
+    }
     const fields = fieldsOf(args);
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     const writer = context.writer();
@@ -184,6 +186,7 @@ const edit: Verb = {
         case "contract": return library.editContract(id, fields as never, writer);
         case "arc": return library.editArc(id, fields as never, writer);
         case "increment": return library.editIncrement(id, fields as never, writer);
+        case "question": return library.editQuestion(id, fields as never, writer);
         default: return library.editNote(id, fields as never, writer);
       }
     })();

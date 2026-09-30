@@ -9,7 +9,7 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { idleAfterMs, leaveAfterMs, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
+import { idleAfterMs, leaveAfterMs, lookAsApp, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Holds, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -37,6 +37,8 @@ export interface PageReads {
   leaveAfterMs(): Promise<number>;
   /** A session's window in a project (agent link 9.10), parsed now from the transcript records in the shared log. */
   windowReading(project: unknown, session: unknown): Promise<SessionWindow>;
+  /** The app's own look at every project's branches (agent link 4.21), so the sessions list never waits on a hook's. Never throws. */
+  lookAround(): Promise<void>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;
 }
@@ -115,6 +117,14 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       const opened = await activityLog();
       const { lines } = await opened.since(known, 0);
       return storedSessionWindow(opened, known, lines, session, { cache: transcripts });
+    },
+    lookAround: async () => {
+      try {
+        const opened = await activityLog();
+        for (const name of await storytree.listProjects()) await lookAsApp(opened, name).catch(() => []);
+      } catch {
+        // No log or no library now: the next look tries again.
+      }
     },
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];

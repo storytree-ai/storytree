@@ -37,7 +37,12 @@
           <h2 id="forest-title">A project, taking shape.</h2>
           <p>storytree’s project map</p>
         </div>
-        <div id="website-forest" aria-label="Storytree’s project map"><p class="forest-placeholder">A saved snapshot of storytree’s project will appear here.</p></div>
+        <div id="website-forest" data-forest-state="still" aria-label="Storytree’s project map">
+          <picture class="forest-still">
+            <source media="(max-width: 600px)" srcset="/forest-phone.png">
+            <img src="/forest-desktop.png" width="458" height="458" loading="lazy" alt="A saved map of storytree’s project: pale story islands and their connections on a dark globe.">
+          </picture>
+        </div>
         <div class="forest-key">
           <p>Each island is a story. Its capabilities describe the work within it.</p>
         </div>

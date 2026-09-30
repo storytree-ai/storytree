@@ -22,9 +22,40 @@ backup. Retired stories retain their places through the creation history.
 the refresh command or any database code. The snapshot test exercises the export
 with private fields present in its input and verifies preservation on failure.
 
-The lazy renderer and its same-scene still are separate work in the forest
-increment. When integrating or refreshing them, capture the still and the site/app
-comparison from this exact JSON, including a 390 px phone view. The current saved
-scene uses the shared renderer's base islands and pathways; it does not include a
-source-code survey or the desktop's territory colouring and file-circle overlays.
+The browser entry waits for the text page to paint and for the map to enter the
+viewport before importing React, the committed JSON and the public
+`@storytree/forest-world/planet` canvas. The still stays visible until a frame has
+drawn. Missing WebGL, download or initialization failures, a 15-second startup
+timeout, and context loss leave the still in place. No JavaScript is needed for
+the still, installation command or contact links. The map renders on demand;
+keyboard and touch buttons turn it while scrolling over the drawing continues
+to scroll the page.
+
+Refresh the two stills whenever the JSON or shared renderer changes. From the
+checkout root, after refreshing the snapshot above:
+
+```sh
+pnpm --filter @storytree/website build
+node packages/website/evidence/forest/build-observed.mjs
+node packages/website/evidence/forest/capture.mjs --stills
+pnpm --filter @storytree/website build
+node packages/website/evidence/forest/verify.mjs
+node packages/website/evidence/forest/build-observed.mjs
+node packages/website/evidence/forest/capture.mjs
+```
+
+This needs Playwright's Chromium installed. The evidence harness runs an isolated
+desktop drawing; it does not access the running app or a database. Commit the
+snapshot, `public/forest-*.png` and renewed evidence together. The square stills
+are central crops of the actual rendered canvas, preserving its short-side
+framing at other viewport sizes. They are not separately drawn illustrations.
+
+The saved scene uses the shared renderer's base islands and pathways; it does not
+include a source-code survey or the desktop's territory colouring and file-circle
+overlays, and the public canvas does not add the desktop's story-name labels.
+The picture shows geography and connections, not a readable health report.
 Do not present the saved health as independently verified health.
+The desktop comparison adapts its layout and opening rotation to the saved
+inputs, while leaving its drawing code intact. Reproduction instructions,
+measurements, screenshots and the precise comparison limits are in
+[the forest evidence](evidence/forest/README.md).

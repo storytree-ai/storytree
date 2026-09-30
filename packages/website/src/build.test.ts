@@ -6,6 +6,26 @@ import { test } from "node:test";
 
 import { buildWebsite } from "./build.js";
 
+test("2.3 · the initial page downloads less than 20 KiB of JavaScript before activating the forest", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-lazy-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const { outputs } = await buildWebsite(output);
+  const initial = new Set<string>();
+  function visit(name: string) {
+    if (initial.has(name)) return;
+    initial.add(name);
+    for (const dependency of outputs[name]!.imports) {
+      if (!dependency.external && dependency.kind !== "dynamic-import") visit(dependency.path);
+    }
+  }
+  for (const [name, asset] of Object.entries(outputs)) {
+    if (asset.entryPoint === "src/main.ts" || asset.entryPoint === "src/forest.ts") visit(name);
+  }
+  assert.ok(initial.size > 0);
+  const bytes = [...initial].reduce((sum, name) => sum + outputs[name]!.bytes, 0);
+  assert.ok(bytes < 20 * 1024, `Initial JavaScript was ${bytes} bytes; the renderer must wait for activation`);
+});
+
 test("1.1 · a static build serves its home page and every local asset without an app server", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-build-"));
   t.after(() => rm(output, { recursive: true, force: true }));

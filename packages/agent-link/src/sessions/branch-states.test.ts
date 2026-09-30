@@ -108,3 +108,20 @@ test("4.10 a session whose branches merged, or exist nowhere this machine can se
     await log.close();
   }
 });
+
+test("4.10 a branch a claim's merge names holds no open work before any look has written its state; a later look that finds it ahead opens it again (regression: finished sessions counted as at work, 2026-09-30)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    const at = { harness: "claude-code", machine: "laptop", folder: "C:\\site" } as const;
+    await log.append(project, { ...at, source: "hook", session: "finished", branch: "claude/fix", kind: "file-edited", files: ["x.ts"] });
+    await log.append(project, { ...at, source: "hook", session: "observer", kind: "merged", increment: "increment_1", holder: "finished", branch: "claude/fix", pr: 7 });
+    const openWork = async () => Object.fromEntries(sessionsFrom((await log.since(project, 0)).lines).map((session) => [session.session, session.openWork]));
+    assert.deepEqual((await openWork()).finished, [], "the merged line resolves the branch");
+
+    await log.append(project, { ...at, source: "hook", session: "observer", kind: "branch-state", of: "claude/fix", open: true, how: "ahead" });
+    assert.deepEqual((await openWork()).finished, ["claude/fix"], "a later look that found it ahead opens it again");
+  } finally {
+    await log.close();
+  }
+});

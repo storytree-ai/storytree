@@ -27,11 +27,9 @@ export interface SessionRow {
   agent: string;
   /** A subagent start alone does not tell us whether the subagent is still running. */
   state: SessionState | "observed";
-  /** An open arc question holds its work, or its close-out says it is not done (ADR-0758 D3): keeps it out of the idle fold. Never drawn; owner decisions surface as open questions on the arc surface. */
-  needsYou: boolean;
   /**
    * Folded into the list's "N idle" row, and not counted (ADR-0758 D1, D5): neither working, nor
-   * waiting for you (a turn ended within the idle-after time), nor needing you.
+   * waiting for you (a turn ended within the idle-after time). By its state alone; who is listed at all is the agent link's reading.
    */
   idle: boolean;
   totalTokens: number | undefined;
@@ -79,8 +77,6 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     const heldIncrements = increments.filter(inc => own.some(claim => claim.increment === inc.id));
     const held = new Set(own.flatMap(claim => claim.capability ? [claim.capability] : []));
     for (const increment of heldIncrements) for (const id of increment.fields.touches ?? []) held.add(id);
-    const question = arcs.some(arc => arc.questions.some(q => q.fields.lifecycle === "open") &&
-      arc.increments.some(inc => inc.fields.status !== "closed" && (heldIncrements.includes(inc) || inc.fields.touches?.some(id => held.has(id)))));
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
     const label = own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title
@@ -88,7 +84,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     const objective = (heldIncrements[0]?.fields as { objective?: string } | undefined)?.objective?.trim();
     rows.set(session.session, { id: session.session, label,
       description: [session.title === label ? undefined : session.title, objective || undefined, session.status].filter((said): said is string => said !== undefined),
-      agent: session.label, state: session.state, needsYou: question || session.closeOut?.needsYou !== undefined,
+      agent: session.label, state: session.state,
       idle: session.state !== "working" && !(session.state === "waiting" && now.getTime() - Date.parse(session.lastSeenAt) <= quiet),
       totalTokens: contextTotal(detail), composition: detail?.composition, guidance: detail?.guidance,
       stories: [...new Set([...held].flatMap(id => storyOf.has(id) ? [storyOf.get(id)!] : []))], worktrees: session.worktrees,
@@ -99,7 +95,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
     if (line.kind !== "subagent-started" || ended.has(line.subagent) || !rows.has(line.session)) continue;
     if (!parents.has(line.subagent)) parents.set(line.subagent, details.get(line.subagent)?.parentSession ?? line.session);
     if (!rows.has(line.subagent)) rows.set(line.subagent, { id: line.subagent, label: line.task ?? line.type ?? "Subagent",
-      agent: line.type ?? "Subagent", state: "observed", needsYou: false, idle: false,
+      agent: line.type ?? "Subagent", state: "observed", idle: false,
       totalTokens: contextTotal(details.get(line.subagent)), composition: details.get(line.subagent)?.composition, stories: [], worktrees: [], unmerged: [], description: [], children: [] });
   }
   // Bad/missing relationship metadata must never lose a session or recurse forever.
@@ -117,11 +113,10 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   }
   function includeChildren(row: SessionRow): void {
     for (const child of row.children) includeChildren(child);
-    row.needsYou ||= row.children.some(child => child.needsYou);
     row.stories = [...new Set([...row.stories, ...row.children.flatMap(child => child.stories)])];
   }
   for (const row of roots) includeChildren(row);
-  for (const row of roots) row.idle &&= !row.needsYou && !row.children.some(child => child.state === "working");
+  for (const row of roots) row.idle &&= !row.children.some(child => child.state === "working");
   // A session's machine is the latest one its lines name; worth showing only when the list spans several.
   const machines = new Map<string, string>();
   for (const line of [...lines].sort((a, b) => a.seq - b.seq)) if (line.machine !== undefined) machines.set(line.session, line.machine);

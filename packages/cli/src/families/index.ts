@@ -13,6 +13,7 @@ import { doctorFamily, setupFamily } from "./doctor.js";
 import { library } from "./library.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
+import { projectFamily } from "./project.js";
 import { plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
@@ -38,6 +39,7 @@ export const FAMILIES: readonly Family[] = [
   plan,
   capabilities,
   setupFamily,
+  projectFamily,
   workspace,
   processes,
   settings,

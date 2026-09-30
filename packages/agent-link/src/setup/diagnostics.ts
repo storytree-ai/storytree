@@ -3,9 +3,10 @@ import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js"
 import { CODEX_TRUST_STEP } from "./verify.js";
 import type { SetupReport } from "./setup.js";
 import type { AppReading } from "../sessions/app-records.js";
+import { compareVersions } from "./hooks-release.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
+  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -42,6 +43,17 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
         ? "The user has a Claude Code status line of their own, so storytree's was not installed: storytree never replaces it."
         : "storytree's status line is installed in Claude Code." });
   }
+
+  // The app updates the hooks it installed only while it runs: say when they run an older release (contract 8.18).
+  const { running, latest } = report.hooksRelease;
+  if (running !== undefined && latest !== undefined) lines.push(compareVersions(running, latest) < 0
+    ? {
+        check: "hooks-release",
+        state: "needs-attention",
+        message: `storytree's hooks run v${running}, but v${latest} is out: fixes since have not reached them, because the desktop app updates its hooks only while it runs.`,
+        fix: "Open the storytree app and leave it running until it has updated.",
+      }
+    : { check: "hooks-release", state: "ok", message: `storytree's hooks run v${running}, the latest release.` });
 
   if (codexServer !== undefined) lines.push(codexServer.state === "registered"
     ? { check: "codex-server", state: "ok", message: "Codex has storytree's tool server." }

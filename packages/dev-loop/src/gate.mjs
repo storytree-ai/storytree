@@ -5,6 +5,7 @@
 // Flags go as `pnpm run gate --guidance`: Windows PowerShell 5.1 drops a bare `--` before pnpm
 // sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
 // check:plan-edges (ADR-0840 D2) reads the plan from the library, which CI cannot, so it runs here every time.
+// It fails only on edges between stories whose packages the branch changes; others it prints as notes.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
 // concurrent sessions' gates queue; its test step runs under that hold.
 import { execFileSync, spawn } from "node:child_process";

@@ -1,6 +1,7 @@
 // Capability 3.1 and 3.4–3.6 acceptance on the actual desktop renderer and app reads.
 // Run under the heavy lock, after apps/desktop/build.mjs. No live project is opened or changed.
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -8,7 +9,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connect } from '@storytree/library';
 import { openActivityLog, claim } from '@storytree/agent-link';
-import { pageReads } from '@storytree/app';
+// The frame is reached through the desktop app, which mounts this surface: arc-surface itself never depends on it (ADR-0847).
+const { pageReads } = await import(createRequire(new URL('../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app'));
 import { start } from '@storytree/local-postgres';
 import { smokeArcSurface } from '../src/index.ts';
 

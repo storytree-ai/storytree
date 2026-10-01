@@ -210,6 +210,34 @@ test("5.6 a Claude Code command with no finish line keeps its holder live only u
   });
 });
 
+test("5.17 a holder last seen on this machine before it restarted is taken over at once; one seen since, or on another machine, stays protected (regression: a resuming lane waited 30 minutes behind its dead predecessor, 2026-10-01)", async () => {
+  await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
+    const mint = await openActivityLog(testServerUrl(), { machine: "mint" });
+    try {
+      assert.equal((await claim(as("A", { log: mint }), emailForm, "building the email form")).ok, true);
+      const restarted = { machine: "mint", at: new Date(Date.now() + 1_000) }; // mint started again after A's last line
+      const elsewhere = { machine: "laptop", at: restarted.at };
+      const before = { machine: "mint", at: new Date(Date.now() - 60_000) }; // mint's last start was before A's claim
+
+      for (const [why, restart] of [["another machine restarted", elsewhere], ["A was seen since the restart", before]] as const) {
+        const refused = await claim({ ...as("B"), restarted: restart }, emailForm, "resuming A's work");
+        assert.ok(!refused.ok && refused.refused === "held", why);
+      }
+
+      assert.equal((await readClaims(log, project, { restarted }))[0]?.holder, "idle", "the board reads A's claim as free");
+      const resumed = await claim({ ...as("B"), restarted }, emailForm, "resuming A's work");
+      assert.ok(resumed.ok);
+      assert.equal(resumed.takenOverFrom?.session, "A");
+      assert.deepEqual((await readClaims(log, project)).map(({ session }) => session), ["B"]);
+
+      assert.equal((await claim(as("A", { log: mint }), passwordReset, "a live A on mint")).ok, true);
+      assert.ok(!(await claim({ ...as("B"), restarted: before }, passwordReset, "not dead")).ok);
+    } finally {
+      await mint.close();
+    }
+  });
+});
+
 test("5.10 a claim taken on branch feature/signup ends with a merged line once GitHub shows a pull request from that branch merged after the claim was taken, found at the next tool call or hook line; one merged before the claim, or still open, ends nothing", async () => {
   await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
     await withTempDir(async (folder) => {

@@ -1,8 +1,9 @@
 // `pnpm lag:reads`: what the page's reads cost against a slow library (ADR-0836), measured the same
 // way by every lane (capability 8, Lag instruments). It seeds one fixed project into a throwaway
 // Postgres, adds a fixed delay to every pg query to stand in for Cloud SQL's round trip, and prints
-// each page read's query count and median time over the rounds, as the app answers the page
-// (`pageReads`). A report to read at an increment boundary, never a gate (ADR-0623).
+// the query count and median time over the rounds of each library and activity-log read the page's
+// reads are made of (the app's pageReads asks these, plus one listProjects check each; the dev loop
+// does not depend on the frame, ADR-0847). A report to read at an increment boundary, never a gate (ADR-0623).
 //
 //   pnpm lag:reads [--delay 20] [--rounds 5] [--reads arcViews,holds,...]
 //
@@ -16,7 +17,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { openActivityLog } from "@storytree/agent-link";
-import { pageReads } from "@storytree/app";
 import { connect } from "@storytree/library";
 import { start } from "@storytree/local-postgres";
 import pg from "pg";
@@ -28,16 +28,16 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 /** The one seed: the size #391 measured, with a question on every arc. */
 export const SEED = { arcs: 25, incrementsPerArc: 8, stories: 5, capabilitiesPerStory: 3, contractsPerCapability: 2, logLines: 40 };
 
-/** Each read the instrument knows, as the page asks it of `reads`; `ids` are the seed's. */
+/** Each read the instrument knows, as the page's reads ask it of the library or the log; `ids` are the seed's. */
 const READS = {
-  listProjects: (reads) => reads.listProjects(),
-  projectTree: (reads, project) => reads.projectTree(project),
-  changesSince: (reads, project) => reads.changesSince(project, 0),
-  linesSince: (reads, project) => reads.linesSince(project, 0),
-  arcViews: (reads, project) => reads.arcViews(project),
-  holds: (reads, project) => reads.holds(project),
-  frontCovers: (reads, project, ids) => reads.frontCovers(project, ids.capability),
-  relatedNotes: (reads, project, ids) => reads.relatedNotes(project, ids.decision),
+  listProjects: ({ storytree }) => storytree.listProjects(),
+  projectTree: ({ library }) => library.projectTree(),
+  changesSince: ({ library }) => library.changesSince(0),
+  linesSince: ({ log }, project) => log.since(project, 0),
+  arcViews: ({ library }) => library.arcViews(),
+  holds: ({ library }) => library.holds(),
+  frontCovers: ({ library }, project, ids) => library.frontCovers(ids.capability),
+  relatedNotes: ({ library }, project, ids) => library.relatedNotes(ids.decision),
 };
 
 /** A click's read (relatedNotes) fired 5 ms into the background arcViews reading: how long the click waits. */
@@ -96,8 +96,8 @@ export async function seedLagProject(storytree, url, project, size = {}) {
 }
 
 /**
- * Each of `reads` (names from ALL_READS) asked through the page's reads over `storytree`, once to
- * warm the libraries it opens, then `rounds` times with `delayMs` added to every query: its query
+ * Each of `reads` (names from ALL_READS) asked of `project`'s library and the activity log over
+ * `storytree`, once to warm it, then `rounds` times with `delayMs` added to every query: its query
  * count and time, the medians over the rounds.
  */
 export async function measureReads({ storytree, project, delayMs = 20, rounds = 5, reads = ALL_READS }) {
@@ -105,7 +105,7 @@ export async function measureReads({ storytree, project, delayMs = 20, rounds = 
   const tree = await library.projectTree();
   const capability = tree.stories[0]?.capabilities[0]?.id;
   const ids = { capability, decision: capability === undefined ? undefined : (await library.frontCovers(capability))[0]?.id };
-  const page = pageReads({ storytree });
+  const page = { storytree, library, log: await openActivityLog(storytree) };
   const results = [];
   try {
     for (const read of reads) {
@@ -129,17 +129,17 @@ export async function measureReads({ storytree, project, delayMs = 20, rounds = 
       results.push({ read, queries: median(queries), ms: Math.round(median(times)) });
     }
   } finally {
-    await page.close();
+    await page.log.close();
   }
   return results;
 }
 
 /** The click's own time: relatedNotes asked 5 ms after the arcViews reading began, timed to its answer. */
 async function clickDuringArcViews(page, project, ids) {
-  const background = page.arcViews(project);
+  const background = page.library.arcViews();
   await new Promise((resolve) => setTimeout(resolve, 5));
   const began = performance.now();
-  await page.relatedNotes(project, ids.decision);
+  await page.library.relatedNotes(ids.decision);
   const ms = performance.now() - began;
   await background;
   return ms;

@@ -72,17 +72,17 @@ test("removing a project takes it off this computer's list, keeps its records an
   const home = path.join(dir, "home");
   const folder = path.join(dir, name);
   assert.equal((await addProject(folder, name, { home, library })).status, "set up");
-  assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name));
+  assert.ok(projectsOnThisComputer(await library.projectIdentities(), home).includes(name));
 
   assert.deepEqual(await removeProject(name, { home, library }), { status: "removed", project: name, freed: folder });
   assert.ok((await library.listProjects()).includes(name), "its records stay in the library");
-  assert.equal(projectsOnThisComputer(await library.listProjects(), home).includes(name), false, "it leaves this computer's list");
+  assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), false, "it leaves this computer's list");
   assert.equal(existsSync(path.join(folder, ".storytree.json")), false, "its folder is no longer the project's");
 
   const elsewhere = path.join(dir, "elsewhere");
   mkdirSync(elsewhere);
   await setUpProject({ folder: elsewhere, project: name, storytree: library, storytreeHome: home, join: true });
-  assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name), "joining it on purpose brings it back to this computer's list");
+  assert.ok(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), "joining it on purpose brings it back to this computer's list");
   assert.deepEqual(await addProject(folder, `site-${token}`, { home, library }), { status: "set up", folder, project: `site-${token}` }, "the freed folder can be set up afresh");
 
   const unknown = await removeProject(`nothing-${token}`, { home, library });
@@ -105,9 +105,9 @@ test("removing a project whose marker git tracks leaves the folder as it is and 
 
   assert.deepEqual(await removeProject(name, { home, library }), { status: "removed", project: name, kept: folder });
   assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree.json"), "utf8")).project, name, "a marker in git is not deleted");
-  assert.equal(projectsOnThisComputer(await library.listProjects(), home).includes(name), false);
+  assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), false);
   assert.deepEqual(await addProject(folder, "anything", { home, library }), { status: "already a project", folder, project: name });
-  assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name), "adding its folder again brings it back");
+  assert.ok(projectsOnThisComputer(await library.projectIdentities(), home).includes(name), "adding its folder again brings it back");
 });
 
 test("3.6 deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {
@@ -172,8 +172,28 @@ test("3.6 a deleted project leaves no activity behind and leaves every computer'
   assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "deleted");
   assert.deepEqual((await log.since(name, 0)).lines, [], "its lines go with it");
   assert.equal(await log.transcripts.text(name, `old-${token}`), undefined, "and its transcripts");
-  projectsOnThisComputer(await library.listProjects(), other); // the other computer's app lists its projects
+  projectsOnThisComputer(await library.projectIdentities(), other); // the other computer's app lists its projects
 
   assert.equal((await addProject(path.join(dir, "second"), name, { home, library })).status, "set up");
-  assert.ok(projectsOnThisComputer(await library.listProjects(), other).includes(name), "the new project of that name is shown there");
+  assert.ok(projectsOnThisComputer(await library.projectIdentities(), other).includes(name), "the new project of that name is shown there");
+});
+
+test("3.6 a new project of a deleted one's name inherits nothing: not the lines an older computer's hooks wrote under the name since, nor a hidden list on a computer that has not listed its projects since", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-again-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const token = randomBytes(4).toString("hex");
+  const name = `scratch-${token}`;
+  const library = await testLibrary(t, [name]);
+  const [home, other] = [path.join(dir, "home"), path.join(dir, "other")];
+  assert.equal((await addProject(path.join(dir, "first"), name, { home, library })).status, "set up");
+  assert.equal((await removeProject(name, { home: other, library })).status, "removed", "another computer hid it");
+  writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: "elsewhere" }));
+  assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "deleted");
+  const log = await openActivityLog(library);
+  t.after(() => log.close());
+  await log.append(name, { session: `stale-${token}`, source: "hook", kind: "session-started" }); // an older install's hook, in a folder still naming it
+
+  assert.equal((await addProject(path.join(dir, "second"), name, { home, library })).status, "set up");
+  assert.deepEqual((await log.since(name, 0)).lines, [], "the new project starts with no lines");
+  assert.ok(projectsOnThisComputer(await library.projectIdentities(), other).includes(name), "and is shown on the computer that hid the old one");
 });

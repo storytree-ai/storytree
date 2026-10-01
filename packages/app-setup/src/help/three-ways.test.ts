@@ -39,7 +39,7 @@ test("3.3 a project added from the app and one set up in its folder (by the term
   mkdirSync(folder);
   await setUpProject({ folder, project: inFolder, storytree: library, storytreeHome: home });
 
-  const listed = projectsOnThisComputer(await library.listProjects(), home);
+  const listed = projectsOnThisComputer(await library.projectIdentities(), home);
   assert.deepEqual([fromApp, inFolder].filter((name) => listed.includes(name)), [fromApp, inFolder], "both appear in the app, which keeps its library open");
   for (const name of [fromApp, inFolder]) await (await library.openProject(name)).close();
 });

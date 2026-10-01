@@ -424,6 +424,31 @@ test("in a folder whose project was deleted from the library, a tool says so and
   });
 });
 
+test("in a folder whose project was deleted and a new project of its name set up since, a tool says the folder's project was deleted and does not reach the new one", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const first = await storytree.openProject(project);
+      await first.close();
+      writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project, identity: first.identity })}\n`);
+      await storytree.dropProject(project); // deleted from another computer; this folder still names it
+      await (await storytree.openProject(project)).close(); // and a new project of that name set up elsewhere
+      await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+        const plan = await agent.call("show_plan");
+        assert.equal(plan.isError, true);
+        assert.match(plan.text, /deleted/);
+        assert.match(plan.text, /\.storytree\.json/);
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 test('6.4 a bad call gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn\'t running, carry on without it"', async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

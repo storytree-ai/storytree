@@ -60,3 +60,15 @@ test("1.4 · the static not-found page provides a route home", async (t) => {
   assert.match(html, /<a[^>]*href="\/"/);
   assert.ok((await stat(path.join(output, "index.html"))).isFile());
 });
+
+test("4.4 · the built site names the merge it was built from in its home page and /version.txt", async (t) => {
+  const commit = "89127d67".padEnd(40, "0");
+  const output = await mkdtemp(path.join(tmpdir(), "website-commit-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output, { commit });
+  assert.match(await readFile(path.join(output, "index.html"), "utf8"), new RegExp(`<meta name="storytree-commit" content="${commit}">`));
+  assert.equal(await readFile(path.join(output, "version.txt"), "utf8"), `${commit}\n`);
+
+  await buildWebsite(output, { commit: undefined });
+  assert.equal(await readFile(path.join(output, "version.txt"), "utf8"), "unpublished local build\n");
+});

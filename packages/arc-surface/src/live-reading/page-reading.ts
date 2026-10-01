@@ -99,8 +99,8 @@ interface Ears {
   owed: News | undefined;
   /** Whether it is taking news now. */
   busy: boolean;
-  /** When news it failed to take is next offered again without new news. */
-  retryAt: number;
+  /** How many asks had been made when it last failed to take news: it is offered it again after the next. */
+  failedAt: number;
 }
 
 const joined = (a: News | undefined, b: News): News => a === undefined ? b : { changes: [...a.changes, ...b.changes], lines: [...a.lines, ...b.lines] };
@@ -113,6 +113,7 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   let read = false;
   let stopped = false;
   let reading: LiveReading | undefined;
+  let asks = 0;
 
   /** Hand `ears` what it is owed, unless it is still taking the last. */
   async function hand(ears: Ears): Promise<void> {
@@ -124,7 +125,7 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
       await ears.listener.onNews(news);
     } catch (error) {
       ears.owed = joined(news, ears.owed ?? { changes: [], lines: [] });
-      ears.retryAt = clock.now() + ASK_EVERY_MS;
+      ears.failedAt = asks;
       if (!stopped) ears.listener.onError?.(error);
     } finally {
       ears.busy = false;
@@ -155,6 +156,11 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
       ...(timers ? { timers } : {}),
       ...(from ? { from } : {}),
       onNews: (news) => heard(news),
+      onAsked() {
+        asks++;
+        // A surface still owed news is offered it again at the ask after the one it failed in, even when nothing is new.
+        for (const ears of everyone) if (ears.failedAt < asks - 1) void hand(ears);
+      },
       onClock(now) {
         for (const { listener } of everyone) listener.onClock?.(now);
       },
@@ -207,13 +213,9 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   if (kept === undefined) live();
   else void resume();
 
-  // A surface still owed news is offered it again at the next ask, even when nothing is new.
-  const stopRetrying = clock.every(ASK_EVERY_MS, () => {
-    for (const ears of everyone) if (clock.now() >= ears.retryAt) void hand(ears);
-  });
   return {
     subscribe(listener) {
-      const ears: Ears = { listener, owed: read ? { changes: [...held.changes], lines: [...held.lines] } : undefined, busy: false, retryAt: 0 };
+      const ears: Ears = { listener, owed: read ? { changes: [...held.changes], lines: [...held.lines] } : undefined, busy: false, failedAt: -Infinity };
       everyone.add(ears);
       void hand(ears);
       return () => { everyone.delete(ears); };
@@ -222,7 +224,6 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     stop() {
       stopped = true;
       everyone.clear();
-      stopRetrying();
       reading?.stop();
     },
   };

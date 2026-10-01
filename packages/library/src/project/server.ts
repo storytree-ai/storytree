@@ -74,6 +74,15 @@ export function actingAs(role: string | undefined): PoolConfig {
  */
 const SLOT_WAIT_MS = 30_000;
 
+/**
+ * How many times a pool asks again when the server resets a connection while it is being opened.
+ * On Windows, Postgres can reset the socket before its refusal for want of a slot reaches pg,
+ * which then reports only `read ECONNRESET` (seen on GitHub's Windows runners, 2026-10-01). A reset
+ * cannot say why, so it is asked through a few times, a few seconds at most, not the whole wait: a
+ * server that resets every connection, or a login it turns down, still fails within seconds.
+ */
+const RESET_TRIES = 5;
+
 /** A pool for `config`, whose connections wait for a free slot on the server rather than fail for want of one. */
 export function newPool(config: PoolConfig): Pool {
   const pool = new SlotWaitingPool(config);
@@ -87,7 +96,7 @@ type ConnectCallback = (error: Error | undefined, client: PoolClient | undefined
 
 /**
  * A pg pool that asks again, backing off, when the server refuses a new connection for want of a
- * slot. Each attempt goes back through the pool, so a connection another of its calls hands back
+ * slot, or (a few times) resets one while it is being opened. Each attempt goes back through the pool, so a connection another of its calls hands back
  * meanwhile is taken first. pool.query() reaches the server through connect() too.
  */
 class SlotWaitingPool extends pg.Pool {
@@ -104,15 +113,22 @@ class SlotWaitingPool extends pg.Pool {
 
   async #connectWaiting(): Promise<PoolClient> {
     const giveUpAt = Date.now() + SLOT_WAIT_MS;
+    let resets = 0;
     for (let pause = 50; ; pause = Math.min(pause * 2, 2_000)) {
       try {
         return await super.connect();
       } catch (error) {
-        if (sqlState(error) !== "53300" || Date.now() + pause > giveUpAt) throw error;
+        const reset = errorCode(error) === "ECONNRESET" && ++resets <= RESET_TRIES;
+        if ((sqlState(error) !== "53300" && !reset) || Date.now() + pause > giveUpAt) throw error;
         await new Promise((resolve) => setTimeout(resolve, pause * (0.5 + Math.random())));
       }
     }
   }
+}
+
+/** The code Node or pg gives an error, if any. */
+function errorCode(error: unknown): unknown {
+  return typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
 }
 
 /** The server URL with its database swapped for `database`; user, host, port and options stay. */

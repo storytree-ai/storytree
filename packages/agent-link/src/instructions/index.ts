@@ -1,3 +1,4 @@
 export { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
 export type { CodexInstructionsWrite } from "./codex-agents.js";
-export { habitsCard } from "./habits.js";
+export { decisionRights, habitsCard } from "./habits.js";
+export type { DecisionRights } from "./habits.js";

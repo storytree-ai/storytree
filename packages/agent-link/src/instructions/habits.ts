@@ -6,6 +6,62 @@
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
  * naming exactly the tools the server has, within 60 lines.
  */
+
+/**
+ * Who decides what (ADR-0842 D1, D2): the kinds of decision a user's agent makes and records, the
+ * kinds it asks the owner about, and the honesty promises no instructions file moves. The card is
+ * built from these lines, and anything that shows the split reads them here, so the two never drift.
+ */
+export interface DecisionRights {
+  /** Kinds the agent decides itself, and records. */
+  decides: readonly string[];
+  /** Kinds it asks the owner about before acting. */
+  asks: readonly string[];
+  /** That it checks the owner's standing delegations before asking. */
+  delegations: string;
+  /** That the user's own instructions file overrides the split, either way. */
+  override: string;
+  /** Promises no file moves. */
+  honesty: readonly string[];
+}
+
+const DECISION_RIGHTS: DecisionRights = {
+  decides: [
+    "reversible engineering choices",
+    "a look you built, which lands with its pictures rather than as a question",
+  ],
+  asks: [
+    "choosing between designs before building",
+    "anything outward-facing",
+    "anything irreversible",
+    "spending money",
+    "dropping or reshaping the work asked for",
+  ],
+  delegations:
+    "Before asking, check the owner's standing delegations (what they have already said you may decide): a kind they handed you is yours.",
+  override:
+    "The user's own instructions file (AGENTS.md, CLAUDE.md) overrides this split for any kind of decision, either way.",
+  honesty: [
+    "never sign off your own output (a separate agent, a judge panel or CI does)",
+    "never skip tests",
+    "write the question down rather than only asking in chat",
+  ],
+};
+
+/** The split between what the agent decides and what it asks the owner, as the card states it. */
+export function decisionRights(): DecisionRights {
+  return DECISION_RIGHTS;
+}
+
+const DECISION_RIGHTS_LINES = [
+  "Who decides what.",
+  `- Decide yourself, and record what you chose: ${DECISION_RIGHTS.decides.join("; ")}.`,
+  `- Ask the owner before: ${DECISION_RIGHTS.asks.join("; ")}.`,
+  `- ${DECISION_RIGHTS.delegations}`,
+  `- ${DECISION_RIGHTS.override}`,
+  `- No file moves these: ${DECISION_RIGHTS.honesty.join("; ")}.`,
+].join("\n");
+
 const HABITS_CARD = `storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.
 
 Start every session with \`check_setup\`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call \`set_up_project\` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere.
@@ -15,7 +71,9 @@ Plan first.
 - Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`, and \`retire_from_plan\` a capability or contract no longer wanted, with the reason.
 - Break an arc's work into increments with \`park_increment\` (the breakdown goes in its body), and \`ready_increment\` one once it can start. \`move_increment\` re-homes one on another arc, keeping its id. \`park_arc\` parks or unparks an arc.
 - When one piece of work must wait for another, \`set_wait\` with the reason; \`clear_wait\` when it no longer must.
-- When only the owner can decide, \`raise_question\` on the arc instead of only asking in chat, holding the increments that need the answer. \`correct_question\` fixes its wording while it is open. \`settle_question\` with the answer, in the owner's own words; \`retire_question\` one that was wrong to ask.
+- When only the owner can decide (see Who decides what, below), \`raise_question\` on the arc instead of only asking in chat, holding the increments that need the answer. \`correct_question\` fixes its wording while it is open. \`settle_question\` with the answer, in the owner's own words; \`retire_question\` one that was wrong to ask.
+
+${DECISION_RIGHTS_LINES}
 
 Claim, and open the knowledge you need.
 - \`claim\` the increment you drive: that starts it. \`claim\` a capability before you touch it. Your reason names your session in the sessions list: 40 characters or fewer. If another session holds it, or it waits on other work, pick other work: nobody queues.

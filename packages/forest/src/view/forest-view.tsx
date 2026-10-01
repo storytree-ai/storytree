@@ -1,7 +1,7 @@
 /**
  * The forest's globe-only page (the forest story, capability 3; ADR-0655).
  * PlanetView reuses the ported island drawing, with story names, selection and claims.
- * Unchanged islands retain their objects so only changed plates are recomputed.
+ * Unchanged islands retain their objects, and a live update that changed nothing on show is not drawn again.
  * The flat canvas remains available in the engine; the page mounts only the globe.
  */
 import { createRoot } from "react-dom/client";
@@ -10,6 +10,7 @@ import { KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core
 import { preloadKit } from "@storytree/forest-world/canvas";
 import kitBytes from "@storytree/forest-world/assets/dressing-kit.glb";
 import { PlanetView } from "./planet-view.js";
+import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
 import { globeFraming, type ForestMode } from "./planet-navigation.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -93,12 +94,11 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
 
   return {
     show(scene, places) {
-      const previous = new Map(drawn.scene.islands.map(island => [island.story, island]));
-      scene = { ...scene, islands: scene.islands.map(island => previous.get(island.story)?.key === island.key ? previous.get(island.story)! : island) };
-      render({ scene, places });
+      const next = nextScene(drawn, scene, places);
+      if (next !== undefined) render({ scene: next, places });
     },
     showWisps(wisps) {
-      render({ wisps });
+      if (!sameWisps(wisps, drawn.wisps)) render({ wisps });
     },
     highlight(stories, session) {
       render({ highlighted: stories, highlightedSession: session });

@@ -12,7 +12,7 @@ import { coastTintMarks } from "./session-tints.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
-import { Names, Overlay, SelectionRing } from "./island-overlays.js";
+import { Nameplates, Overlay, SelectionRing } from "./island-overlays.js";
 import { dragTurn, focusRotation, hiddenMarkers, oncePerFrame, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 
@@ -69,7 +69,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
         spot={layout.spots.get(island.story)!} lighting={lighting} onStops={reportStops} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      <Names islands={[local]} selected={selected} dimmed={emphasis === "dimmed"} onGlobe radius={layout.radius} />
+      <Nameplates island={island} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />
       <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} radius={layout.radius} />
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;

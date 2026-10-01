@@ -352,12 +352,6 @@ body[data-surface="forest"] main {
   text-shadow: none;
 }
 
-/* A plate facing the eye projects its height toward us. Lift its name in screen space too,
-   so a claim over the middle tree cannot cover the story's name. */
-.planet-label {
-  transform: translateY(-32px);
-}
-
 /* The knowledge core (the knowledge core story, capability 4): the pinned note's card. */
 .core-card {
   margin-top: 0.8rem;

@@ -40,8 +40,8 @@ test("3.1 · refresh draws the selected plan with its history and work states, c
   const file = path.join(directory, "forest.json");
   const asked: unknown[] = [];
   await refreshForest(file, {
-    library: { projectTree: async () => plan, changesSince: async (cursor) => (asked.push(cursor), { changes: [] }) },
-    activity: { since: async (project, cursor) => (asked.push(project, cursor), { lines: [] }) },
+    library: { projectTree: async () => plan, changesSince: async (cursor) => (asked.push(cursor), { changes: [], cursor: 0 }) },
+    activity: { since: async (project, cursor) => (asked.push(project, cursor), { lines: [], cursor: 0 }) },
   }, () => new Date("2026-10-01T00:00:00.000Z"));
   const saved = JSON.parse(await readFile(file, "utf8"));
   assert.equal(saved.capturedAt, "2026-10-01T00:00:00.000Z");

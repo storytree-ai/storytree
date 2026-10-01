@@ -3,10 +3,26 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
-import { publicationSource, REPOSITORY, websiteChanged } from "./src/publish-source.ts";
+import { LIVE_VERSION, publicationBase, publicationSource, REPOSITORY, websiteChanged } from "./src/publish-source.ts";
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const api = endpoint => JSON.parse(execFileSync("gh", ["api", `repos/${REPOSITORY}/${endpoint}`], { encoding: "utf8" }));
+const ancestor = (commit, of) => {
+  try {
+    git("merge-base", "--is-ancestor", commit, of);
+    return true;
+  } catch {
+    return false;
+  }
+};
+async function liveVersion() {
+  try {
+    const response = await fetch(LIVE_VERSION, { signal: AbortSignal.timeout(15_000) });
+    return response.ok ? await response.text() : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const changed = (before, after) => git("diff", "--name-only", "--no-renames", before, after, "--").split("\n");
 
 function currentInputs(sha) {
@@ -41,8 +57,9 @@ async function source() {
     }
   }
   if (!sha) return undefined;
-  if (!websiteChanged(changed(`${sha}^1`, sha))) {
-    console.log("Skipping website publication: this merge changed no website build inputs.");
+  const base = publicationBase(sha, await liveVersion(), commit => ancestor(commit, sha));
+  if (!websiteChanged(changed(base, sha))) {
+    console.log(`Skipping website publication: no website build inputs changed from ${base} to this merge.`);
     return undefined;
   }
   return sha;

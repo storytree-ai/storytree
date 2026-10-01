@@ -39,7 +39,7 @@ test('fcd-canvas-renders-on-demand-only-while-presentable: standalone and regist
 });
 
 // test-updated (new behaviour): standalone: the canvas keeps everything it draws, and its own camera controls now paints on demand while presentable.
-test('standalone: the canvas keeps everything it draws, and its own camera controls', () => {
+test('5.5 standalone: the canvas keeps everything it draws, and its own camera controls', () => {
   const c = underlayComposition(undefined, true, { active: true, documentVisible: true });
   assert.equal(c.backdrop, true);
   assert.equal(c.props, true);
@@ -53,7 +53,7 @@ test('standalone: the canvas keeps everything it draws, and its own camera contr
   assert.equal(c.canvasProps.style, undefined, 'standalone keeps R3F pointer interaction');
 });
 
-test('registered: it gives up camera controls and pointer eligibility, so the host owns interaction', () => {
+test('5.5 registered: it gives up camera controls and pointer eligibility, so the host owns interaction', () => {
   // ⚠ THE SINGLE MOST IMPORTANT FENCE HERE (ADR-0380 D6 fence 3). `MapControls` binds its own
   // pointer and wheel listeners to the canvas element, so leaving it mounted under a host would
   // give the map two cameras fighting over one gesture — and it would look fine at rest.
@@ -73,7 +73,7 @@ test('registered: it runs no render loop, which is what makes it honest about re
   assert.equal(underlayComposition(REGISTERED).canvasProps.frameloop, 'demand');
 });
 
-test('registered: it draws a TRANSPARENT backdrop, so the host keeps its own', () => {
+test('5.5 registered: it draws a TRANSPARENT backdrop, so the host keeps its own', () => {
   // The host has already painted its board; overpainting it would turn a delivery change into a
   // look change (the studio's sea would go near-black).
   const c = underlayComposition(REGISTERED);
@@ -81,7 +81,7 @@ test('registered: it draws a TRANSPARENT backdrop, so the host keeps its own', (
   assert.equal(c.canvasProps.gl?.alpha, true);
 });
 
-test('standalone: `showTrails` keeps its old meaning — hidden unless a page opts in', () => {
+test('5.5 standalone: `showTrails` keeps its old meaning — hidden unless a page opts in', () => {
   // ADR-0169 §3. It is the ONLY place this prop is read, which is what makes `compose.trails` the
   // one gate rather than one of two conditions a reader has to find.
   assert.equal(underlayComposition(undefined).trails, false);
@@ -89,7 +89,7 @@ test('standalone: `showTrails` keeps its old meaning — hidden unless a page op
   assert.equal(underlayComposition(undefined, true).trails, true);
 });
 
-test('registered: it draws no mark the host still draws itself', () => {
+test('5.5 registered: it draws no mark the host still draws itself', () => {
   // Caves and wisps exist in the host's own layer above, so drawing them here is a SECOND drawing
   // of one mark — a claim about the work made by a surface that decides nothing.
   const c = underlayComposition(REGISTERED);
@@ -97,7 +97,7 @@ test('registered: it draws no mark the host still draws itself', () => {
   assert.equal(c.wisps, false);
 });
 
-test('registered: THE 3D LAYER OWNS THE PATHWAYS — a product-state rule, not a debug prop', () => {
+test('5.5 registered: THE 3D LAYER OWNS THE PATHWAYS — a product-state rule, not a debug prop', () => {
   // `pathways-keep-selection-focus-and-accessible-edge-identity`. Under a mount the 3D layer is the
   // one that can draw a pathway ON the ground it runs over, so mounted ⇒ it draws them. Derived
   // from the mount itself: there is no field to pass and nothing for a caller to get wrong.

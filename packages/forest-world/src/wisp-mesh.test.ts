@@ -4,7 +4,7 @@ import test from 'node:test';
 import { Vector3 } from 'three';
 import { parseWisp } from './wisp-mesh.js';
 
-test('the shipped wisp loads a solid core inside a volumetric shell, within its orbiting budget', async () => {
+test('5.8 the shipped wisp loads a solid core inside a volumetric shell, within its orbiting budget', async () => {
   const bytes = readFileSync(new URL('../assets/wisp.glb', import.meta.url));
   const { core, shell } = await parseWisp(bytes);
   assert.ok(bytes.byteLength < 30_000, 'many sessions share a small embedded asset');

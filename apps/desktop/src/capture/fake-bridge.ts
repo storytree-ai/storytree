@@ -58,7 +58,6 @@ const QUIET: StorytreeBridge = {
   listProjects: async () => [PROJECT],
   projectSelection: async () => ({ projects: [PROJECT], current: PROJECT }),
   chooseProject: async () => ({ projects: [PROJECT], current: PROJECT }),
-  arcView: async () => null,
   arcViews: async () => [],
   holds: async () => ({ waits: {}, heldOn: {} }),
   contextReadings: async (_, sessions) => sessions.map(unread),

@@ -107,7 +107,8 @@ export const RECORD_SCHEMAS = {
   /**
    * An arc, whole (capability 10): its intent and end state, required from version 2 (an older arc
    * is upgraded, ./upgrades.ts). Whether it is active or closed is worked out from its increments on
-   * every read and never stored; only the owner's "parked" is (10-b).
+   * every read and never stored; only the owner's "parked" is (10-b), with, when given, the day it
+   * wakes (10.6): from UTC midnight of `parkedUntil` it reads as if unparked, worked out on read.
    */
   arc: z
     .object({
@@ -117,6 +118,11 @@ export const RECORD_SCHEMAS = {
       intent: nonEmpty,
       endState: nonEmpty,
       parked: z.literal(true).optional(),
+      parkedUntil: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "a wake day is YYYY-MM-DD")
+        .refine((day) => new Date(`${day}T00:00:00Z`).toISOString().startsWith(day), "a wake day is a real day")
+        .optional(),
       waits,
     })
     .strict(),

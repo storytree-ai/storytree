@@ -37,9 +37,26 @@ export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, num
   return { scene, islands, spots: same ? before.spots : spots, radius: grown.radius };
 }
 
-/** Lane C turns toward view +z. The canvas eye can be elevated, orbited, or rolled. */
+/** How far the globe tilts toward either pole: just short of it, so north always stays up on screen. */
+export const TILT_LIMIT = 88 * Math.PI / 180;
+
+/**
+ * The globe as turned in the eye's frame: spun about its poles by yaw, then tilted by pitch, held short of
+ * each pole. Nothing else turns it, so with an eye that never rolls, north points straight up the screen.
+ */
 export function focusRotation(turn: GlobeTurn, eye: Quaternion): Quaternion {
-  return eye.clone().multiply(new Quaternion().setFromEuler(new Euler(turn.pitch, turn.yaw, 0)));
+  const pitch = Math.max(-TILT_LIMIT, Math.min(TILT_LIMIT, turn.pitch));
+  return eye.clone().multiply(new Quaternion().setFromEuler(new Euler(pitch, turn.yaw, 0)));
+}
+
+/**
+ * A drag of `drag` pixels on a canvas `height` tall: sideways spins the globe about its poles without limit,
+ * up and down tilts it, short of each pole. A drag the canvas's height turns it once around, as the orbit did.
+ */
+export function dragTurn(turn: GlobeTurn, drag: { x: number; y: number }, height: number): GlobeTurn {
+  const rate = 2 * Math.PI / height;
+  const pitch = Math.max(-TILT_LIMIT, Math.min(TILT_LIMIT, turn.pitch));
+  return { yaw: turn.yaw + drag.x * rate, pitch: Math.max(-TILT_LIMIT, Math.min(TILT_LIMIT, pitch + drag.y * rate)) };
 }
 
 /** Use the actual camera frame for marker bearings, retaining absolute globe turns for clicks. */

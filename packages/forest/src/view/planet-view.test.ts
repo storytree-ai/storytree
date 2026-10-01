@@ -6,7 +6,7 @@ import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, placeOnGlobe, PLANET_RADIUS, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
+import { dragTurn, focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
@@ -81,6 +81,33 @@ test("3.11 a hidden failure has a marker in the camera's frame, and its click tu
   const target = new Vector3(3, 4, -12).normalize().applyQuaternion(focused).applyQuaternion(orbitedEye.clone().invert());
   assert.ok(target.distanceTo(new Vector3(0, 0, 1)) < 1e-10, "the selected failure faces the actual camera");
   assert.ok(hiddenMarkers(islands, focused, orbitedEye).every(m => m.story !== "behind"));
+});
+
+test("north stays up: the opening view, a marker's focus and any drag spin and tilt the globe, never past just short of a pole, and never roll it", () => {
+  // The canvas's eye looks down a little and never rolls; the globe turns, not the eye.
+  const eye = new Quaternion().setFromEuler(new Euler(-0.3, 0, 0));
+  const islands: FacingIsland[] = [
+    { story: "polar", spot: { x: 0.05, y: 5, z: 0.05 }, trees: [{ status: "unhealthy" }] },
+    { story: "behind", spot: { x: -3, y: -1, z: -4 }, trees: [{ status: "unhealthy" }] },
+  ];
+  const short = Math.cos(88 * Math.PI / 180) - 1e-9;
+  const northUp = (turn: Parameters<typeof focusRotation>[0], why: string) => {
+    const north = new Vector3(0, 1, 0).applyQuaternion(focusRotation(turn, eye)).applyQuaternion(eye.clone().invert());
+    assert.ok(Math.abs(north.x) < 1e-9, `${why}: north points straight up the screen`);
+    assert.ok(north.y >= short, `${why}: tilted no further than just short of the pole`);
+  };
+  let turn = openingTurn(islands);
+  northUp(turn, "the opening view of an island at the pole");
+  const [marker] = hiddenMarkers(islands, focusRotation(turn, eye), eye);
+  turn = marker!.turn;
+  northUp(turn, "a marker's focus");
+  for (const drag of [{ x: 240, y: -35 }, { x: -900, y: 2000 }, { x: 15, y: -5000 }]) {
+    turn = dragTurn(turn, drag, 800);
+    northUp(turn, `a drag of ${drag.x}, ${drag.y}`);
+  }
+  const spun = dragTurn({ yaw: 0, pitch: 0 }, { x: 200, y: 0 }, 800);
+  assert.ok(spun.yaw > 0 && spun.pitch === 0, "dragging sideways spins around the poles only");
+  assert.ok(dragTurn(spun, { x: 400 * 9, y: 0 }, 800).yaw > spun.yaw + 2 * Math.PI, "and the spin has no limit");
 });
 
 test("3.11 the rim marker reads storytree's verified word, never the agent's report alone", () => {

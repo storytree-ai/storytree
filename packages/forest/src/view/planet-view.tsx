@@ -2,7 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Quaternion, Vector3 } from "three";
-import { claimTints, coastArcs, openingTurn, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, coastArcs, openingTurn, type ClaimTint, type CoastArc, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
@@ -13,7 +13,7 @@ import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.j
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
 import { Names, Overlay, SelectionRing } from "./island-overlays.js";
-import { focusRotation, hiddenMarkers, oncePerFrame, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
+import { dragTurn, focusRotation, hiddenMarkers, oncePerFrame, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 
 export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, library = true }: {
@@ -75,7 +75,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
     </>;
   }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
-    surface={mode === "forest"} framing={framing}
+    surface={mode === "forest"} framing={framing} orbit={false}
     inside={library ? <KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} /> : undefined}
     rotation={rotation.toArray()} plateChildren={overlays}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
@@ -167,11 +167,17 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
   const opened = useRef(false);
   const lastMarkers = useRef("");
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
+  // The globe turns only by spin and tilt, and the eye never moves, so north stays up (arc north-up).
+  const turn = useRef<GlobeTurn>({ yaw: 0, pitch: 0 });
+  const turnTo = useCallback((next: GlobeTurn) => {
+    turn.current = next;
+    onRotate(focusRotation(next, camera.quaternion));
+  }, [camera, onRotate]);
   useEffect(() => {
     if (opened.current || islands.length === 0) return;
     opened.current = true;
-    onRotate(focusRotation(openingTurn(islands), camera.quaternion));
-  }, [islands, camera, onRotate]);
+    turnTo(openingTurn(islands));
+  }, [islands, turnTo]);
 
   // OrbitControls runs before this frame. Project the rim with the current eye AND zoom.
   useFrame(() => {
@@ -191,7 +197,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
 
   useEffect(() => {
     const element = gl.domElement;
-    let down: { x: number; y: number; id: number; dragged: boolean } | undefined;
+    let down: { x: number; y: number; id: number; dragged: boolean; last: { x: number; y: number } } | undefined;
     const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, mode);
     // Picking is costly: a pointer that moves many times a frame is picked once, where it last was.
     let cleared = 0, stopped = false;
@@ -206,14 +212,21 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
       const box = element.getBoundingClientRect();
       setHover(title === undefined ? undefined : { title, x: Math.max(8, Math.min(box.width - 220, event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
     });
+    // A drag redraws the globe once a frame, at the latest turn.
+    const dragTo = oncePerFrame((next: GlobeTurn): void => { if (!stopped) turnTo(next); });
     const onDown = (event: PointerEvent): void => {
-      down = event.button === 0 && event.isPrimary ? { x: event.clientX, y: event.clientY, id: event.pointerId, dragged: false } : undefined;
+      down = event.button === 0 && event.isPrimary ? { x: event.clientX, y: event.clientY, id: event.pointerId, dragged: false, last: { x: event.clientX, y: event.clientY } } : undefined;
+      if (down !== undefined) element.setPointerCapture?.(event.pointerId);
       clearHover();
     };
     const onCancel = (): void => { down = undefined; clearHover(); };
     const onMove = (event: PointerEvent): void => {
       if (down !== undefined) {
+        if (event.pointerId !== down.id) return;
         down.dragged ||= Math.hypot(event.clientX - down.x, event.clientY - down.y) >= 5;
+        turn.current = dragTurn(turn.current, { x: event.clientX - down.last.x, y: event.clientY - down.last.y }, element.clientHeight || 1);
+        dragTo(turn.current);
+        down.last = { x: event.clientX, y: event.clientY };
         clearHover();
         return;
       }
@@ -245,7 +258,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
       element.removeEventListener("wheel", clearHover);
       element.style.cursor = "";
     };
-  }, [camera, gl, scene, onPick, onNote, mode]);
+  }, [camera, gl, scene, onPick, onNote, mode, turnTo]);
 
   return <Overlay fullscreen zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
     {hover !== undefined && <span role="tooltip" className="knowledge-tooltip" style={{ position: "absolute", left: hover.x, top: hover.y }}>{hover.title}</span>}
@@ -254,6 +267,6 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
       style={{ left: marker.left, top: marker.top }}
       title={`${titles.get(marker.story)} · unhealthy (storytree verified)`}
       aria-label={`Show unhealthy story: ${titles.get(marker.story)}`}
-      onClick={() => onRotate(focusRotation(marker.turn, camera.quaternion))}>!</button>)}
+      onClick={() => turnTo(marker.turn)}>!</button>)}
   </Overlay>;
 }

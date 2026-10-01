@@ -1,0 +1,118 @@
+{
+ "forest": [
+  {
+   "programsPerFrame": 70,
+   "renders": 306,
+   "renderMsPerFrame": 4.16,
+   "idleShare": 0.91,
+   "getParametersShare": 0.01,
+   "build": "before",
+   "run": 1
+  },
+  {
+   "programsPerFrame": 0,
+   "renders": 307,
+   "renderMsPerFrame": 2.74,
+   "idleShare": 0.927,
+   "getParametersShare": 0,
+   "build": "after",
+   "run": 1
+  },
+  {
+   "programsPerFrame": 70,
+   "renders": 294,
+   "renderMsPerFrame": 4.23,
+   "idleShare": 0.91,
+   "getParametersShare": 0.01,
+   "build": "before",
+   "run": 2
+  },
+  {
+   "programsPerFrame": 0,
+   "renders": 236,
+   "renderMsPerFrame": 2.93,
+   "idleShare": 0.94,
+   "getParametersShare": 0,
+   "build": "after",
+   "run": 2
+  },
+  {
+   "programsPerFrame": 70,
+   "renders": 287,
+   "renderMsPerFrame": 4.59,
+   "idleShare": 0.903,
+   "getParametersShare": 0.011,
+   "build": "before",
+   "run": 3
+  },
+  {
+   "programsPerFrame": 0,
+   "renders": 219,
+   "renderMsPerFrame": 3.3,
+   "idleShare": 0.93,
+   "getParametersShare": 0,
+   "build": "after",
+   "run": 3
+  }
+ ],
+ "library": [
+  {
+   "programsPerFrame": 0,
+   "renders": 469,
+   "renderMsPerFrame": 1.64,
+   "idleShare": 0.938,
+   "build": "before",
+   "run": 1
+  },
+  {
+   "programsPerFrame": 0,
+   "renders": 467,
+   "renderMsPerFrame": 1.55,
+   "idleShare": 0.942,
+   "build": "after2",
+   "run": 1
+  },
+  {
+   "programsPerFrame": 0,
+   "renders": 466,
+   "renderMsPerFrame": 1.61,
+   "idleShare": 0.937,
+   "build": "before",
+   "run": 2
+  },
+  {
+   "programsPerFrame": 0,
+   "renders": 456,
+   "renderMsPerFrame": 1.6,
+   "idleShare": 0.941,
+   "build": "after2",
+   "run": 2
+  }
+ ],
+ "buffers": [
+  {
+   "build": "before",
+   "mode": "library",
+   "buffersPerFrame": 5.1,
+   "programsPerFrame": 0
+  },
+  {
+   "build": "before",
+   "mode": "forest",
+   "buffersPerFrame": 5.5,
+   "programsPerFrame": 70
+  },
+  {
+   "build": "after2",
+   "mode": "library",
+   "buffersPerFrame": 0,
+   "programsPerFrame": 0
+  },
+  {
+   "build": "after2",
+   "mode": "forest",
+   "buffersPerFrame": 0,
+   "programsPerFrame": 0
+  }
+ ]
+}

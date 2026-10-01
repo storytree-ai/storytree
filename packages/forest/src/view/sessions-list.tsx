@@ -6,7 +6,7 @@ import type { Line, LogReading } from "@storytree/agent-link/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
-import { atWork, sessionRoster, sessionRows, windowFiles, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
+import { atWork, clickedSelection, sessionRoster, sessionRows, windowFiles, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 
 export interface SessionsReads extends LiveReads {
@@ -342,13 +342,10 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const [focused, setFocused] = useState<string>();
   const [idleOpen, setIdleOpen] = useState(false);
   const visible: { row: SessionRow; depth: number }[] = [];
-  /** Each row's top-level session: a click on a child selects its parent, whose reads it shares. */
-  const rootOf = new Map<string, string>();
-  const visit = (list: readonly SessionRow[], depth: number, top?: string): void => {
+  const visit = (list: readonly SessionRow[], depth: number): void => {
     for (const row of list) {
       visible.push({ row, depth });
-      rootOf.set(row.id, top ?? row.id);
-      if (isOpen(row.id)) visit(row.children, depth + 1, top ?? row.id);
+      if (isOpen(row.id)) visit(row.children, depth + 1);
     }
   };
   // Sessions at work first; the quiet ones fold into one "N idle" row, shown under it when opened (ADR-0758 D5).
@@ -391,9 +388,9 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
       <li style={{ marginLeft: Math.min(depth, 5) * 14 }}>
         <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined} data-highlighted={row.id === highlighted || undefined}
           data-selected={row.id === selected || undefined} tabIndex={0}
-          onClick={() => { const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); }}
+          onClick={() => onSelect?.(clickedSelection(rows, row.id, selected))}
           onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
-            event.preventDefault(); const top = rootOf.get(row.id)!; onSelect?.(top === selected ? undefined : top); } }}
+            event.preventDefault(); onSelect?.(clickedSelection(rows, row.id, selected)); } }}
           aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}`}
           onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
           onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>

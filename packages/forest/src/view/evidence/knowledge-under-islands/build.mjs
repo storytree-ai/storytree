@@ -22,12 +22,8 @@ for (const variant of ['baseline', 'production']) {
     entryPoints: [path.join(root, 'apps/desktop/src/renderer/renderer.ts')],
     outfile: path.join(out, 'renderer.js'), bundle: true, logLevel: 'warning',
     sourcemap: true, platform: 'browser', format: 'iife', target: 'es2023', loader: { '.glb': 'binary' },
+    banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true });" },
     plugins: [{ name: 'knowledge-under-islands-observation', setup(builder) {
-      builder.onLoad({ filter: /PlanetWorldCanvas\.tsx$/ }, args => ({
-        contents: replace(readFileSync(args.path, 'utf8'), '<Lights />', '<Lights /><CaptureProbe />')
-          + '\nfunction CaptureProbe() { const state = useThree(); globalThis.__globe = state; return null; }\n',
-        loader: 'tsx', resolveDir: path.dirname(args.path),
-      }));
       builder.onLoad({ filter: /planet-view\.tsx$/ }, args => {
         let contents = replace(readFileSync(args.path, 'utf8'),
           'const { camera, gl, scene, size } = useThree();',

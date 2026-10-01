@@ -46,7 +46,6 @@ test("3.2 a name that is not a project is refused, and never created", async () 
   await withApp([missing], async ({ storytree, reads }) => {
     const asks: [string, () => Promise<unknown>][] = [
       ["its tree", () => reads.projectTree(missing)],
-      ["an arc", () => reads.arcView(missing, "arc_1")],
       ["every arc", () => reads.arcViews(missing)],
       ["its holds", () => reads.holds(missing)],
       ["its changes", () => reads.changesSince(missing, 0)],

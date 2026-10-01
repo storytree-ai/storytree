@@ -168,7 +168,6 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));
   ipcMain.handle(CHANNELS.copyHelpText, (_event, text: string) => help.copyHelpText(text));
 
-  ipcMain.handle(CHANNELS.arcView, (_event, name: unknown, id: unknown) => open().arcView(name, id));
   ipcMain.handle(CHANNELS.arcViews, (_event, name: unknown) => open().arcViews(name));
   ipcMain.handle(CHANNELS.holds, (_event, name: unknown) => open().holds(name));
   ipcMain.handle(CHANNELS.contextReadings, (_event, name: unknown, sessions: unknown) => open().contextReadings(name, sessions));

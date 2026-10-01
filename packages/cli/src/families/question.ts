@@ -93,10 +93,8 @@ const list: Verb = {
     const library = await context.library();
     const open = (await (arc === undefined ? library.list("question") : library.questions(arc))).filter((question) => question.fields.lifecycle === "open");
     // A parked arc's questions are parked with it, off the owner's list (ADR-0835 D2).
-    const parkedArcs = new Set<string>();
-    for (const id of new Set(open.map((question) => question.fields.arc))) {
-      if ((await library.arcView(id))?.state === "parked") parkedArcs.add(id);
-    }
+    const views = arc === undefined ? await library.arcViews() : [await library.arcView(arc)];
+    const parkedArcs = new Set(views.flatMap((view) => (view?.state === "parked" ? [view.arc.id] : [])));
     const waiting = open.filter((question) => !parkedArcs.has(question.fields.arc));
     const parked = open.length - waiting.length;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;

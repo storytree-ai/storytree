@@ -659,6 +659,40 @@ test("8.1 robustness, offline: cleanup still drops the database when a backend t
   }
 });
 
+test("8.1 robustness, offline: cleanup still drops the database when a departing backend outlasts the server's own wait for it", async () => {
+  const run = uniqueProjectName();
+  const user = `${run}-owner`;
+  const other = `${run}-other`;
+  const database = `storytree_${run}`;
+  try {
+    await createTestRole(user, { createdb: true });
+    await createTestRole(other, { createdb: false });
+    await withTestClientAs(user, (client) => client.query(`CREATE DATABASE "${database}"`));
+    await withTestClientAs(other, async (backend) => {
+      await withTestClientAs(user, async (owner) => {
+        let leaving: Promise<void> | undefined;
+        await dropTestDatabases([database], {
+          query: async (sql) => {
+            try {
+              return await owner.query(sql);
+            } catch (error) {
+              // The backend leaves, but only after DROP DATABASE has waited its 5 seconds for it,
+              // as a terminated backend on Windows has been seen to (merge-group run 36827816565).
+              leaving ??= new Promise((resolve) => setTimeout(resolve, 6_000)).then(() => backend.end());
+              throw error;
+            }
+          },
+        });
+        await leaving;
+      });
+    }, database);
+    assert.deepEqual(await databasesContaining(run), [], "cleanup really dropped the database");
+  } finally {
+    await dropTestDatabases([database]);
+    await dropTestRoles([user, other]);
+  }
+});
+
 /** A fake connector, and what it was asked. */
 interface FakeGoogle {
   /** Makes the connector: what connect() is handed as its seam. */

@@ -33,6 +33,8 @@ import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, projectDatabase, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { createAgentTools, NOT_RUNNING_ANSWER } from "./index.js";
+import { registerPlanTools } from "./plan-tools.js";
+import type { Call, Define } from "./server.js";
 
 /** The toolbox: every tool the server offers. */
 const TOOLS = [
@@ -393,6 +395,29 @@ test("6.2 it claims the capability, sees who is on what, reports the contract re
       const landed = (await log.since(project, 0)).lines.filter((line) => line.kind === "landed");
       assert.deepEqual(landed.map((line) => line.session), ["claude-1"]);
     });
+  });
+});
+
+test("6.2 show_plan reads every arc's increments in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    for (const title of ["Launch", "Relaunch", "Sunset"]) {
+      const arc = await library.createArc({ title, intent: "Ship signup", endState: "Visitors join" });
+      await library.addIncrement({ arc: arc.id, title: `${title} release`, objective: "Ship the form", body: "Red then green" });
+    }
+    const acts = new Map<string, (args: never, call: Call) => Promise<{ text: string }>>();
+    registerPlanTools(((name, _description, _input, act) => acts.set(name, act as never)) as Define);
+    const asked = { arcView: 0, arcViews: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (key === "arcView" || key === "arcViews") asked[key]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const call = { library: counted, log, project, folder, caller: { session: "claude-1" }, writer: {}, quietMs: 60_000, agent: "orchestrator" } as Call;
+    const plan = await acts.get("show_plan")!({} as never, call);
+    for (const title of ["Launch", "Relaunch", "Sunset"]) assert.ok(plan.text.includes(`"${title} release"`), plan.text);
+    assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
   });
 });
 

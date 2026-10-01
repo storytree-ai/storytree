@@ -37,6 +37,27 @@ test("3.1 retire retires a note nothing points at, and refuses one a live record
   });
 });
 
+test("3.1 retire reads every arc's increments and questions in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+  await withLibrary(async (library) => {
+    for (const title of ["Launch v1", "Launch v2", "Launch v3"]) {
+      const arc = await library.createArc({ title, intent: "Ship sign-up", endState: "Visitors sign up" });
+      await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Mail arrives", body: "Build it." });
+      await library.raiseQuestion({ arc: arc.id, title: "Which mailer?", stakes: "Sign-up needs one.", statement: "Which?", context: "Two options.", options: "Mailgun or Postmark." });
+    }
+    const lone = await library.defineTerm({ term: "Lone artifact", meaning: "An artifact nothing rests on." });
+    const asked = { arcView: 0, arcViews: 0, questions: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (key === "arcView" || key === "arcViews" || key === "questions") asked[key]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    await retire(counted, lone.id, "event-specific");
+    assert.deepEqual(asked, { arcView: 0, arcViews: 1, questions: 0 });
+  });
+});
+
 test("3.2 the worklist lists each note written new since a cursor, with the live notes a plain search for any word of its title finds", async () => {
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", {

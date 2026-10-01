@@ -553,18 +553,9 @@ importers:
         specifier: ^19.1.1
         version: 19.3.0(react@19.3.0)
     devDependencies:
-      '@storytree/agent-link':
-        specifier: workspace:*
-        version: link:../agent-link
-      '@storytree/arc-surface':
-        specifier: workspace:*
-        version: link:../arc-surface
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

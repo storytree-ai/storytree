@@ -6,9 +6,10 @@ From the checkout root, refresh the public drawing snapshot with:
 node --import tsx packages/website/src/refresh-forest.ts
 ```
 
-The command reads the `storytree` library through the public library and agent-link
-functions, then uses the forest story's public `forestScene`, `storyNodes` and
-`growPlanet` functions. It writes `src/forest-snapshot.json` only after all
+The command calls the forest story's `refreshForestFromLibrary`
+(`@storytree/forest/snapshot`), which reads the `storytree` library and draws it
+with the forest's own `forestScene`, `storyNodes` and `growPlanet`; the website
+depends on no other story for it. It writes `src/forest-snapshot.json` only after all
 reads and drawing preparation succeed. A failed refresh keeps the old file.
 
 The committed file contains the capture time, story names and islands, capability

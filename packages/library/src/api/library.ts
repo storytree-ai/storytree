@@ -8,7 +8,7 @@
  * one project. It composes the internals (the project's transactions, typed records, work model,
  * knowledge and health) without exposing any of them, and everything it returns is data.
  */
-import type { AnnotatedTree, HealthEntry, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
+import type { AnnotatedTree, HealthEntry, HealthWorkItem, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
 import type { DecisionNumberPlan, DecisionView, Findable, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Ranked, RankOptions, Related, RelatedOptions } from "../knowledge/index.js";
 import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
@@ -215,6 +215,11 @@ export interface Library {
   health(nodeId: string): Promise<NodeHealth>;
   /** Every health entry of a contract, both columns, in the order written. */
   healthHistory(contractId: string): Promise<HealthEntry[]>;
+  /**
+   * The health worklist (ADR-0825 D4): every capability that is not healthy, with its reason, who
+   * moves it and since when, oldest first, leaving off one an increment not yet closed touches.
+   */
+  healthWorklist(): Promise<HealthWorkItem[]>;
 
   /**
    * Record a decision, with its status. Every link must name a live artifact, `frontCoverOf`, if given,
@@ -524,6 +529,10 @@ class LibraryHandle implements Library {
 
   healthHistory(contractId: string): Promise<HealthEntry[]> {
     return this.#project.health.healthHistory(contractId);
+  }
+
+  healthWorklist(): Promise<HealthWorkItem[]> {
+    return this.#project.health.worklist();
   }
 
 

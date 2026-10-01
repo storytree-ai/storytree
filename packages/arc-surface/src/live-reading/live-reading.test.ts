@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Line, LinesSince } from "@storytree/agent-link";
+import { claimsFrom, sessionsFrom } from "@storytree/agent-link/readings";
 import type { Change, Changes } from "@storytree/library";
 
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
@@ -234,15 +235,15 @@ test("the surfaces hearing one news share one read of the project's tree", async
   assert.equal(reads, 2, "a read asked once the last has landed reads again");
 });
 
-test("what the page reading holds keeps only what a surface reads: each reported health state once, and a command's shown words", async () => {
+test("what the page reading holds keeps only what a surface reads: each reported health state once, and a running command's shown words", async () => {
   const app = new App();
   const at = new Date(0).toISOString();
   const health = (seq: number, column: string, state: string): Change => ({ seq, recordId: "health_1", type: "health", action: "updated",
     record: { id: "health_1", type: "health", version: seq, fields: { node: "contract_1", column, state, evidence: "x".repeat(1_000) }, createdAt: at, updatedAt: at } });
   app.changes.push(health(1, "reported", "failing"), health(2, "verified", "passing"), health(3, "reported", "failing"), health(4, "reported", "passing"));
-  const common = { session: "s1", project: "shop", at };
+  const common = { session: "s1", source: "hook", project: "shop", at };
   const long = `node build.mjs ${"--flag ".repeat(100)}`;
-  app.lines.push({ ...common, seq: 1, kind: "command-started", command: long, call: "c1" } as Line, { ...common, seq: 2, kind: "command-run", command: long, call: "c1" } as Line);
+  app.lines.push({ ...common, seq: 1, kind: "command-started", command: long, call: "c1" } as Line);
   const clock = new Clock();
   const reading = pageReading({ project: "shop", reads: app, timers: clock });
   const heard: News[] = [];
@@ -252,10 +253,39 @@ test("what the page reading holds keeps only what a surface reads: each reported
   assert.equal(heard[0]?.changes.length, 4, "the news itself is whole");
   const held = reading.held();
   assert.deepEqual(held.changes.map(({ seq, record }) => [seq, record.fields]), [[1, { node: "contract_1", column: "reported", state: "failing" }], [4, { node: "contract_1", column: "reported", state: "passing" }]]);
-  const [started, ran] = held.lines as (Line & { command: string })[];
-  assert.equal(started?.command.slice(0, 300), long.slice(0, 300), "a running command keeps the words the list shows");
-  assert.ok((started?.command.length ?? 0) < 310);
-  assert.equal(ran?.command, "", "a finished command's text is not shown anywhere");
+  const [running] = held.fold.sessions({ now: new Date(0) })[0]?.running ?? [];
+  assert.equal(running?.command.slice(0, 300), long.slice(0, 300), "a running command keeps the words the list shows");
+  assert.ok((running?.command.length ?? 0) < 310);
+  reading.stop();
+});
+
+test("the page reading holds the log's sessions and claims folded, and drops every line no surface reads one by one", async () => {
+  const app = new App();
+  const at = new Date(0).toISOString();
+  const common = { session: "s1", source: "hook", project: "shop", at } as const;
+  app.lines.push(
+    { ...common, seq: 1, kind: "session-started" },
+    { ...common, seq: 2, kind: "prompt-submitted" },
+    { ...common, seq: 3, kind: "command-started", command: "pnpm gate", call: "c1" },
+    { ...common, seq: 4, kind: "command-run", command: "pnpm gate", call: "c1" },
+    { ...common, seq: 5, kind: "file-edited", files: ["a.ts"] },
+    { ...common, seq: 6, kind: "turn-ended" },
+  );
+  app.claim("cap_a");
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock });
+  const heard: News[] = [];
+  reading.subscribe({ onNews: (news) => heard.push(news) });
+  await settle();
+  app.lines.push({ ...common, seq: 8, kind: "prompt-submitted" }, { ...common, seq: 9, kind: "command-started", command: "pnpm test", call: "c2" });
+  await clock.advance(2_000);
+
+  assert.equal(heard.flatMap(({ lines }) => lines).length, 9, "every surface still hears every line");
+  const held = reading.held();
+  const options = { now: new Date(0) };
+  assert.deepEqual(held.fold.sessions(options), sessionsFrom(app.lines, options));
+  assert.deepEqual(held.fold.claims(options), claimsFrom(app.lines, options));
+  assert.deepEqual(held.lines.map(({ kind }) => kind), ["claimed"], "only the claim is held as a line");
   reading.stop();
 });
 

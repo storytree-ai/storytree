@@ -24,7 +24,7 @@ function row(html: string, id: string): string {
   return found;
 }
 
-test("the Surfaces menu lists every surface by name and description, with a switch showing whether it is on where it can be switched off", () => {
+test("3.7 the Surfaces menu lists every surface by name and description, with a switch showing whether it is on where it can be switched off", () => {
   const html = renderSurfaces(readings);
   for (const surface of readings) {
     assert.match(row(html, surface.id), new RegExp(surface.name));
@@ -38,7 +38,7 @@ test("the Surfaces menu lists every surface by name and description, with a swit
   assert.match(row(html, "details"), /Off with Tree/, "details follow the tree");
 });
 
-test("the Story panel is a group holding its own surfaces, and each surface's settings sit beneath it as named choices, the current one selected", () => {
+test("3.7 the Story panel is a group holding its own surfaces, and each surface's settings sit beneath it as named choices, the current one selected", () => {
   const html = renderSurfaces(readings);
   const group = /<section class="surface-group"[^>]*data-surface-group="panel"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
   assert.match(group, /data-surface="tree"/);

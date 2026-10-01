@@ -85,16 +85,16 @@ export function syncGuidance(expected, { root, check, log = (line) => console.lo
 }
 
 /** Run `read` on the project's library, or say why the library could not be opened and return undefined. */
-async function withLibrary(read, COMMAND) {
+async function withLibrary(read, command) {
   const home = path.dirname(appHome().pgdata);
   const where = locateLibrary({ home, dataDir: appHome().pgdata });
   let options = where.found ? where.connect : undefined;
   if (options === undefined && readLibrary(home).location === "local") {
     try {
-      server = await start({ dataDir: appHome().pgdata, owner: COMMAND });
+      server = await start({ dataDir: appHome().pgdata, owner: command });
     } catch (error) {
       if (!(error instanceof DataDirInUseError)) throw error;
-      console.error(`The app's library in ${appHome().pgdata} is in use by process ${error.pid}. When it has finished, run \`${COMMAND}\` again.`);
+      console.error(`The app's library in ${appHome().pgdata} is in use by process ${error.pid}. When it has finished, run \`${command}\` again.`);
       return undefined;
     }
     options = { url: server.url };

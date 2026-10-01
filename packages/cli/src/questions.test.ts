@@ -62,6 +62,23 @@ test("5.8 `question list` leaves out a parked arc's open questions and says how 
   });
 });
 
+test("5.9 `arc show` on a parked arc lists its open questions as parked with the arc, not as waiting on you", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const { arc } = await arcWithWork(world);
+    const question = await library.raiseQuestion({ title: "Mailer?", stakes: "Reach readers", statement: "Which?", context: "Email", options: "Mailgun or SES", arc });
+    await library.parkArc(arc);
+    const parked = await world.run(["arc", "show", arc]);
+    assert.equal(parked.code, 0, parked.stderr);
+    assert.ok(parked.stdout.includes(question.id), parked.stdout);
+    assert.doesNotMatch(parked.stdout, /waiting on you/i);
+    assert.match(parked.stdout, /parked with the arc/i);
+    await library.unparkArc(arc);
+    const back = await world.run(["arc", "show", arc]);
+    assert.match(back.stdout, /waiting on you \(1\)/i, "unparked, its question waits on you again");
+  });
+});
+
 test("5.8 `question list` across arcs reads every arc in one ask to find the parked ones, however many arcs hold questions (ADR-0836 D3)", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

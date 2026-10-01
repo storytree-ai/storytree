@@ -80,3 +80,38 @@ test("3.14 and 3.16 cut to a real coast, every territory's cells and every file'
   const files = [{ path: "a.ts", lines: 400, capability: "cap-a" }, { path: "b.ts", lines: 90, capability: "cap-b" }, { path: "u.ts", lines: 30 }];
   for (const circle of fileCircles(cut, files)) assert.ok(onLand(circle.x, circle.z), `${circle.path} is on the land`);
 });
+
+/** How far `p` lies inside its own territory: its distance to the nearest border of that territory or the coast (negative off it). */
+function clearance(cut: ReturnType<typeof territories>, p: { x: number; z: number }, coastSegments: readonly (readonly [{ x: number; z: number }, { x: number; z: number }])[]): number {
+  const toSegment = (a: { x: number; z: number }, b: { x: number; z: number }) => {
+    const [dx, dz] = [b.x - a.x, b.z - a.z];
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+    return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
+  };
+  return Math.min(...cut.borders.map(({ from, to }) => toSegment(from, to)), ...coastSegments.map(([a, b]) => toSegment(a, b)));
+}
+
+test("3.16 every circle lies wholly inside its own territory and on the land, and no two circles overlap or stack", () => {
+  // A crowded C-shaped island: more files than its territories had spots before, of mixed sizes.
+  const coast = [[{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: -3 }, { x: 0, z: -3 }, { x: 0, z: 3 }, { x: 10, z: 3 }, { x: 10, z: 10 }, { x: -10, z: 10 }]];
+  const ring = coast[0]!;
+  const segments = ring.map((a, at) => [a, ring[(at + 1) % ring.length]!] as const);
+  const cut = territories(shares, coast);
+  const files: CircleFile[] = [
+    ...Array.from({ length: 30 }, (_, at) => ({ path: `src/a/${at}.ts`, lines: 5 + ((at * 37) % 200), capability: "cap-a" })),
+    ...Array.from({ length: 12 }, (_, at) => ({ path: `src/b/${at}.ts`, lines: 3 + ((at * 53) % 120), capability: "cap-b" })),
+    ...Array.from({ length: 6 }, (_, at) => ({ path: `src/c/${at}.ts`, lines: 10 + at * 15, capability: "cap-c" })),
+    ...Array.from({ length: 4 }, (_, at) => ({ path: `src/bins/${at}.ts`, lines: 8 + at * 4 })),
+  ];
+  const circles = fileCircles(cut, files);
+  assert.equal(circles.length, files.length, "every file is one circle");
+  for (const circle of circles) {
+    const file = files.find(({ path }) => path === circle.path)!;
+    assert.equal(territoryAt(cut, circle.x, circle.z)?.capability, file.capability, `${circle.path} lies on its own territory`);
+    assert.ok(clearance(cut, circle, segments) >= circle.radius - 1e-9, `${circle.path} lies wholly inside its territory (clearance ${clearance(cut, circle, segments).toFixed(2)}, radius ${circle.radius.toFixed(2)})`);
+  }
+  for (let i = 0; i < circles.length; i++) for (let j = i + 1; j < circles.length; j++) {
+    const [a, b] = [circles[i]!, circles[j]!];
+    assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= a.radius + b.radius, `${a.path} and ${b.path} do not overlap`);
+  }
+});

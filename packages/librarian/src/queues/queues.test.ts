@@ -114,3 +114,17 @@ test("5.4 a tool route needs an open increment naming this friction, unless a de
     assert.deepEqual(await library.history(), afterDelivery);
   });
 });
+
+test("5.5 a report already routed is routed again only to the same route; routing it elsewhere is refused naming the earlier route and its reason, and nothing is written (regression, 2026-10-01: two passes 23 s apart, the later route silently replacing the earlier)", async () => {
+  await withLibrary(async (library) => {
+    const report = await friction(library, "Seed refused", "claude/other");
+    await route(library, report.id, "edit-existing", "Edited the seeding note in place.");
+    const history = await library.history();
+
+    await assert.rejects(route(library, report.id, "nothing", "A one-off."), /already routed to edit-existing: Edited the seeding note in place\./);
+    assert.deepEqual(await library.history(), history, "nothing was written");
+
+    const again = await route(library, report.id, "edit-existing", "Edited the seeding note, and its example.");
+    assert.equal(again.fields.routeReason, "Edited the seeding note, and its example.", "the same route takes a clearer reason");
+  });
+});

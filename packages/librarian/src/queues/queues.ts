@@ -37,7 +37,7 @@ export async function frictionDrain(library: Library, { branch }: { branch?: str
     .slice(0, DRAIN);
 }
 
-/** Route with a reason and optional delivery stamp; deferred tool work needs a live remedy. */
+/** Route with a reason and optional delivery stamp; deferred tool work needs a live remedy, and a routed report keeps its route. */
 export async function route(library: Library, id: string, to: Route, reason: string, options: RouteOptions = {}): Promise<SchemaRecord<"friction">> {
   if (reason.trim() === "") throw new LibrarianRefusal("a friction report is routed with its reason: nothing is closed without one");
   const { dischargedBy: supplied, ...writer } = options;
@@ -45,6 +45,11 @@ export async function route(library: Library, id: string, to: Route, reason: str
   if (dischargedBy === "") throw new LibrarianRefusal("dischargedBy needs a non-empty reference to the delivered remedy, such as a PR or decision; omit it when the remedy has not landed");
   const report = (await allNotes(library)).find((note) => note.id === id);
   if (report?.type !== "friction") throw new LibrarianRefusal(`${id} is not a live friction report`);
+  // Another pass may have routed it since this one listed it: its judgement is not replaced in silence.
+  const earlier = report.fields.route;
+  if (earlier !== undefined && earlier !== to) {
+    throw new LibrarianRefusal(`${id} is already routed to ${earlier}: ${report.fields.routeReason ?? "no reason recorded"} Read it before judging again; routing it again takes the same route only`);
+  }
   if (to === "tool" && !(dischargedBy ?? report.fields.dischargedBy?.trim())) {
     const remedy = (await library.list("increment")).some((increment) =>
       increment.fields.status !== "closed" && increment.fields.remedies?.includes(id),

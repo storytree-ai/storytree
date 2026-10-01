@@ -2,13 +2,15 @@
 // Reuses packages/app/evidence/project-switch-smoke.mjs's headless renderer route.
 // Run after build, under flock /tmp/storytree-heavy.lock. Never opens the live library.
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connect } from '@storytree/library';
-import { pageReads, projectSelection, smokeProblems } from '@storytree/app';
+// The frame is reached through the desktop app, which mounts this surface: arc-surface itself never depends on it (ADR-0847).
+const { pageReads, projectSelection, smokeProblems } = await import(createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app'));
 import { start } from '@storytree/local-postgres';
 
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');

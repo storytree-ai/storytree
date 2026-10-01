@@ -226,6 +226,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
+      '@storytree/keys':
+        specifier: workspace:*
+        version: link:../keys
       '@storytree/librarian':
         specifier: workspace:*
         version: link:../librarian
@@ -370,6 +373,18 @@ importers:
       '@types/three':
         specifier: ^0.185.0
         version: 0.185.4
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/keys:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

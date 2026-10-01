@@ -18,6 +18,7 @@
     "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:*",
     "@storytree/forest": "workspace:*",
+    "@storytree/keys": "workspace:*",
     "@storytree/librarian": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/processes": "workspace:*"

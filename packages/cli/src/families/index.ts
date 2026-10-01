@@ -5,6 +5,7 @@
 import type { Family } from "../door.js";
 import { decisions } from "./adr.js";
 import { appFamily } from "./app.js";
+import { auth } from "./auth.js";
 import { arcs } from "./arc.js";
 import { capabilities } from "./capability.js";
 import { friction, resteer } from "./capture.js";
@@ -44,6 +45,7 @@ export const FAMILIES: readonly Family[] = [
   workspace,
   processes,
   settings,
+  auth,
   contextFamily,
   session,
 ];

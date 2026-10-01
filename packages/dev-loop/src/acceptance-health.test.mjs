@@ -46,7 +46,7 @@ test("5.5 an observation the harness did not mint is refused: a check whose resu
   assert.throws(() => readObservations(JSON.stringify({ ...run, evidence: "" })), /evidence/);
 });
 
-test("5.5 recordAcceptance writes each passing or failing verdict to the verified column by \"acceptance run\", with the commit and the evidence path, and nothing for not checked", async () => {
+test("5.5 recordAcceptance writes each passing or failing verdict to the verified column by \"acceptance run\", with the commit, the evidence path and the run's own note, and nothing for not checked", async () => {
   await withLibrary(async (lib) => {
     const story = await lib.addStory({ title: "The app setup" });
     const capability = await lib.addCapability({ story: story.id, title: "1 · Get storytree" });
@@ -59,13 +59,13 @@ test("5.5 recordAcceptance writes each passing or failing verdict to the verifie
         { contract: "1.2", name: "ran", observed: "fail" },
       ],
     });
-    const written = await recordAcceptance(lib, contractIds, verdicts, { commit: "9f3734a", evidence: "packages/app-setup/evidence/acceptance-run" });
+    const written = await recordAcceptance(lib, contractIds, verdicts, { commit: "9f3734a", evidence: "packages/app-setup/evidence/acceptance-run", note: "visited the locally built site" });
     assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 1, marked: 0 });
 
     const passing = await lib.health(contractIds.get("1.1"));
     assert.equal(passing.verified.state, "passing");
     assert.equal(passing.verified.by, "acceptance run");
-    assert.equal(passing.verified.note, "1/1 checks passed, evidence packages/app-setup/evidence/acceptance-run, at commit 9f3734a");
+    assert.equal(passing.verified.note, "1/1 checks passed, visited the locally built site, evidence packages/app-setup/evidence/acceptance-run, at commit 9f3734a");
     assert.deepEqual(passing.reported, { state: "not-checked" }, "the reported column is left alone");
     assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "nothing is written for a contract not checked");

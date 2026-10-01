@@ -47,6 +47,7 @@ import {
   projectSelection,
   refreshOwnHealth,
   seedWriting,
+  signIn,
   slotOf,
   slotSha,
   smokeProblems,
@@ -69,7 +70,6 @@ import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
 import { TRAY_ICON_PNG } from "./tray-icon.js";
 import { followReleases, installedApp } from "./releases.js";
-import { signIn } from "./sign-in.js";
 
 const args = parseArgs(process.argv);
 const home = appHome();

@@ -11,7 +11,7 @@ const root = path.resolve(here, '../../../..');
 const require = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { build } = require('esbuild');
 const { chromium } = require('playwright-core');
-const { signIn } = await import(path.join(root, 'apps/desktop/src/main/sign-in.ts'));
+const { signIn } = await import(path.join(root, 'packages/app/src/lifecycle/sign-in.ts'));
 const home = mkdtempSync(path.join(tmpdir(), 'sign-in-capture-'));
 let browser;
 try {

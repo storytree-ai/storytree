@@ -27,7 +27,7 @@ test("2.6–2.8 the app bar holds only the gear and opens a sectioned overlay", 
   assert.match(html, /role="status"[^>]*aria-live="polite"/);
 });
 
-test("the project switcher lists every project, selects the current one and escapes names", () => {
+test("2.1 the project list names every project, with the one on show selected and every name escaped", () => {
   const html = renderSwitcher(["app", "storytree", '<odd> & "quoted"'], "storytree");
   assert.match(html, /<label[^>]*>Project/);
   assert.match(html, /<select[^>]*id="project"/);

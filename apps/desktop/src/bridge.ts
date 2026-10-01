@@ -3,10 +3,9 @@
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
-import type { ProjectSelection, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
+import type { ProjectSelection, SignInState, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
-import type { SignInState } from "./main/sign-in.js";
 import type { AnnotatedTree, ArcView, Holds, Changes, Note, SchemaRecord } from "@storytree/library";
 
 export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {

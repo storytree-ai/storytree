@@ -16,7 +16,7 @@ import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
 
-test("3.17 a turn that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own, a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
+test("3.17 a turn that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
   await withTempDir(async (dir) => {
     const origin = path.join(dir, "origin.git");
     const site = path.join(dir, "site");
@@ -32,6 +32,11 @@ test("3.17 a turn that ends with its branch merged and no close-out is asked, on
     const [asked, again, caused, done] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 
     assert.equal(await stop(asked), undefined, "on main: nothing to close out");
+    // The way `storytree workspace` cuts one: a linked worktree on a new branch from origin/main (friction_ec191ac911de).
+    const workspace = path.join(dir, "workspace");
+    git(site, "fetch", "-q", "origin");
+    git(site, "worktree", "add", "-q", "-b", "claude/increment-x", workspace, "refs/remotes/origin/main");
+    assert.equal(await stop(asked, { cwd: workspace }), undefined, "a fresh workspace branch at main has no work of its own to have merged");
     git(site, "checkout", "-q", "-b", "fix-login");
     assert.equal(await stop(asked), undefined, "a fresh branch at main has no work of its own to have merged");
     git(site, "commit", "-q", "--allow-empty", "-m", "fix");

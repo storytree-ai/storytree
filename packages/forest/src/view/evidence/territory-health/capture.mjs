@@ -70,21 +70,23 @@ function measure(page) {
     const islands = [];
     scene.traverse(object => {
       if (!object.name.startsWith('planet:story_')) return;
-      const territories = [], outlines = [];
+      const territories = [], outlines = [], hatches = [];
       object.traverse(child => {
         if (child.name.startsWith('territory:')) {
           const hsl = child.material.color.getHSL({ h: 0, s: 0, l: 0 });
           territories.push({ capability: child.userData.capability ?? null, title: child.userData.title ?? 'Unclaimed code', word: child.userData.word ?? null,
             fill: '#' + child.material.color.getHexString(), opacity: child.material.opacity, saturation: Math.round(hsl.s * 100) / 100, claimedBy: child.userData.claimedBy ?? null });
         }
+        if (child.name.startsWith('territory-hatch:')) hatches.push({ colour: '#' + child.material.color.getHexString(), opacity: child.material.opacity, segments: child.geometry.attributes.position.count / 2, renderOrder: child.renderOrder });
         if (child.name.startsWith('territory-claim:')) outlines.push({ capability: child.userData.capability, colour: child.userData.colour, drawn: '#' + child.material.color.getHexString(),
           opacity: child.material.opacity, faded: child.userData.faded, triangles: child.geometry.attributes.position.count / 3 });
       });
-      islands.push({ story: object.name.slice(7), territories, claimOutlines: outlines });
+      islands.push({ story: object.name.slice(7), territories, claimOutlines: outlines, hatches });
     });
-    const filled = islands.flatMap(i => i.territories).filter(t => t.opacity > 0);
+    const filled = islands.flatMap(i => i.territories).filter(t => t.opacity > 0 && t.capability !== null);
+    const uncharted = islands.flatMap(i => i.territories.filter(t => t.capability === null).map(t => ({ story: i.story, fill: t.fill, opacity: t.opacity, saturation: t.saturation, hatches: i.hatches })));
     const markers = [...document.querySelectorAll('.planet-edge-marker')].map(m => ({ story: m.dataset.failingStory, title: m.title, label: m.getAttribute('aria-label') }));
-    return { zoom: camera.zoom, fills: [...new Set(filled.map(t => `${t.word} ${t.fill} ${t.opacity}`))].sort(), greyFills: filled.filter(t => t.saturation < 0.3).length, markers, islands };
+    return { zoom: camera.zoom, fills: [...new Set(filled.map(t => `${t.word} ${t.fill} ${t.opacity}`))].sort(), greyFills: filled.filter(t => t.saturation < 0.3).length, uncharted, markers, islands };
   });
 }
 
@@ -161,7 +163,7 @@ try {
   };
   const zoomed = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settle(page); };
   const unzoom = async () => { await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); }); await settle(page); };
-  for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY]]) {
+  for (const [name, story] of [['agent-link', AGENT_LINK], ['forest', FOREST], ['library', LIBRARY], ['command-line', 'story_20549f1d48af']]) {
     await faceIt(story);
     await zoomed();
     results[`closeUp-${name}`] = await measure(page);

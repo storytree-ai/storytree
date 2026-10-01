@@ -38,6 +38,10 @@ export async function refreshOwnHealth({ running, home, log }: OwnHealthOptions)
       log(`own-health: not checking ${running.sha}: the library is on Cloud SQL (${setting.instance}), where CI records own health after each merge to main (ADR-0744)`);
       return;
     }
+    if (setting.location === "postgres") {
+      log(`own-health: not checking ${running.sha}: the library is a shared Postgres (${setting.address}), where CI records own health after each merge to main (ADR-0744)`);
+      return;
+    }
     const record = path.join(home, "own-health.json");
     let previous: { sha?: string } | undefined;
     try {

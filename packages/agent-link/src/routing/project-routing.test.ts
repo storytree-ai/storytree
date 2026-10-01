@@ -207,6 +207,16 @@ test("1.6 with the library set to Cloud SQL, a project routes to that instance w
   }
 });
 
+test("10.13 with the library set to a Postgres address, a project routes to that address and no local address is tried", async () => {
+  await withTempDir((dir) => {
+    const folder = markedFolder(dir, "site");
+    const home = path.join(dir, "home");
+    const address = "postgres://me@db.example.com:5432/postgres?sslmode=require";
+    setLibrary(["postgres", address], home);
+    assert.deepEqual(route(folder, { dataDir: path.join(home, "pgdata") }), { status: "routed", project: "site", folder, library: { address } });
+  });
+});
+
 test("1.7 routing reads only the library setting: damage elsewhere in settings.json does not stop it, and a damaged library setting refuses naming the file", async () => {
   await withTempDir((dir) => {
     const folder = markedFolder(dir, "site");

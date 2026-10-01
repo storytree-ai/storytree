@@ -176,6 +176,28 @@ test("10.6 a library setting that is not local or a well-written Cloud SQL insta
   });
 });
 
+test("10.12 the library is set to a Postgres address without its password, and an address carrying one is refused, the file untouched (ADR-0846 D1)", async () => {
+  await withTempDir((home) => {
+    const address = "postgres://me@db.example.com:5432/postgres?sslmode=require";
+    const initial = agentLink.readSettings(home).library;
+    assert.deepEqual(agentLink.setLibrary(["postgres", address], home), { ...initial, location: "postgres", address, source: "set" });
+    assert.deepEqual(agentLink.readSettings(home).library, { ...initial, location: "postgres", address, source: "set" });
+    const file = path.join(home, "settings.json");
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")).library, { location: "postgres", address });
+
+    const before = readFileSync(file, "utf8");
+    assert.throws(() => agentLink.setLibrary(["postgres", "postgres://me:hunter2@db.example.com/postgres"], home), (error: Error) => {
+      assert.match(error.message, /storytree auth set postgres/);
+      assert.ok(!error.message.includes("hunter2"), error.message);
+      return true;
+    });
+    for (const words of [["postgres"], ["postgres", "db.example.com"], ["postgres", "https://me@db.example.com/postgres"], ["postgres", "postgres://db.example.com/postgres"], ["postgres", address, "extra"]]) {
+      assert.throws(() => agentLink.setLibrary(words, home), /library/i, JSON.stringify(words));
+    }
+    assert.equal(readFileSync(file, "utf8"), before);
+  });
+});
+
 test("the settings file keeps the app's surface choices beside the settings, and refuses them in the wrong shape (ADR-0750)", async () => {
   await withTempDir((home) => {
     assert.deepEqual(agentLink.readSurfaceChoices(home), {});

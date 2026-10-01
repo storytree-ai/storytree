@@ -22,7 +22,7 @@ export const settings: Family = {
     },
   }, {
     name: "set",
-    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user>> | settings set surface <surface> <on | off | <setting> <choice>>",
+    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>>",
     summary: "save a setting for your user account",
     async act(args) {
       const usage = "settings set <name> <value>";
@@ -48,7 +48,8 @@ function settingSaid(reading: SettingReading): string {
 }
 
 function librarySaid(reading: LibraryReading): string {
-  const where = reading.location === "cloudsql" ? `cloudsql ${reading.instance} as ${reading.user}` : "local";
+  const where = reading.location === "cloudsql" ? `cloudsql ${reading.instance} as ${reading.user}`
+    : reading.location === "postgres" ? `postgres ${reading.address} (its password the key postgres)` : "local";
   return `library: ${where} (${reading.source})\n  Default: ${reading.default}.\n  ${reading.meaning}`;
 }
 

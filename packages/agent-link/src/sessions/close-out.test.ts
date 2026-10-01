@@ -12,6 +12,7 @@ import { test } from "node:test";
 
 import { launchOwned } from "@storytree/processes";
 import { stopOwned } from "@storytree/processes/stopping";
+import { testChildArgs } from "@storytree/processes/testing";
 
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
 import { removeTempDir } from "../testing/folders.js";
@@ -70,7 +71,7 @@ test("4.12 a yes is checked, never trusted: it leaves the list at once when its 
     const busy = { ...CLAUDE, session: "busy", folder: "/work/site/.claude/worktrees/fix-busy", branch: "fix-busy" } as const;
     await log.append(project, { ...busy, kind: "file-edited", files: ["c.ts"] });
     await log.append(project, { ...observer, kind: "branch-state", of: "fix-busy", open: false, how: "merged", pr: 4 });
-    const launched = await launchOwned({ home, owner: { session: "busy", harness: "claude-code" }, command: process.execPath, args: ["-e", "setInterval(() => {}, 1000)"], folder: home });
+    const launched = await launchOwned({ home, owner: { session: "busy", harness: "claude-code" }, command: process.execPath, args: testChildArgs(), folder: home });
     assert.equal(launched.status, "tracked");
     try {
       const running = await closeOut(who("busy", "fix-busy"), { safe: true, why: "nothing left" }, { home });

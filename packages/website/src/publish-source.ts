@@ -25,6 +25,18 @@ export function publicationSource(run: CheckedRun, pr?: MergedPullRequest): stri
   return sha && /^[a-f0-9]{40}$/.test(sha) ? sha : undefined;
 }
 
+/** Contract 4.4: the live site names the merge it was built from. */
+export const LIVE_VERSION = "https://crisp-globe-bf6v.here.now/version.txt";
+
+/**
+ * Where to look for website changes up to `sha`: from the commit the live site carries, so a website
+ * merge whose own main run was cancelled by a later merge is still seen; else from `sha`'s first parent.
+ */
+export function publicationBase(sha: string, live: string | undefined, isAncestor: (commit: string) => boolean): string {
+  const version = live?.trim();
+  return version && /^[a-f0-9]{40}$/.test(version) && isAncestor(version) ? version : `${sha}^1`;
+}
+
 const buildFiles = new Set([
   "README.md", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json",
   ".npmrc", ".github/workflows/website.yml",

@@ -1,4 +1,4 @@
-/** Forest capability 3: a small library dot is picked in screen space (ADR-0661 D1). */
+/** Forest capability 3 · 3.12: a small library dot is picked in screen space (ADR-0661 D1). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
@@ -7,27 +7,27 @@ import { pickGlobe } from "./planet-navigation.js";
 
 const dot = (id: string, x: number, distance = 20, z = 0): ProjectedNote => ({ id, x, y: 50, z, distance, visible: true });
 
-test("the closest dot within an eight-pixel screen radius wins; depth breaks equal screen distances", () => {
+test("3.12 the closest dot within an eight-pixel screen radius wins; depth breaks equal screen distances", () => {
   assert.equal(pickProjectedNote([dot("far", 56), dot("near", 52)], { x: 50, y: 50 }), "near");
   assert.equal(pickProjectedNote([dot("back", 50, 30), dot("front", 50, 20)], { x: 50, y: 50 }), "front");
   assert.equal(pickProjectedNote([dot("small", 57.9)], { x: 50, y: 50 }), "small");
   assert.equal(pickProjectedNote([dot("miss", 59)], { x: 50, y: 50 }), undefined);
 });
 
-test("land in front wins in Forest; without land in Library every visible dot can be picked", () => {
+test("3.12 land in front wins in Forest; without land in Library every visible dot can be picked", () => {
   const notes = [dot("behind land", 50, 30)];
   assert.equal(pickProjectedNote(notes, { x: 50, y: 50 }, 15), undefined);
   assert.equal(pickProjectedNote(notes, { x: 50, y: 50 }), "behind land");
   assert.equal(pickProjectedNote([dot("before land", 50, 10)], { x: 50, y: 50 }, 15), "before land");
 });
 
-test("a far-side masked dot, a dot outside the viewport, and a clipped dot cannot win", () => {
+test("3.12 a far-side masked dot, a dot outside the viewport, and a clipped dot cannot win", () => {
   assert.equal(pickProjectedNote([{ ...dot("far-side", 50), visible: false }], { x: 50, y: 50 }), undefined);
   assert.equal(pickProjectedNote([{ ...dot("off-screen", -1), visible: false }], { x: 0, y: 50 }), undefined);
   for (const z of [-1.01, 1.01]) assert.equal(pickProjectedNote([dot("clipped", 50, 20, z)], { x: 50, y: 50 }), undefined);
 });
 
-test("the transparent near shell permits a dot; land and the far shell retain Forest occlusion", () => {
+test("3.12 the transparent near shell permits a dot; land and the far shell retain Forest occlusion", () => {
   const world = new Group();
   const shell = new Mesh(new SphereGeometry(10), new MeshBasicMaterial());
   shell.name = "planet:shell";

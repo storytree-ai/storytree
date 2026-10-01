@@ -10,7 +10,7 @@
  * checks every write.
  */
 import { byCreation } from "../creation-order.js";
-import { checkReference, checkReferences, DependencyLoopError, liveRecord } from "../references.js";
+import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import type { FieldsOf } from "../schema/types.js";
 
@@ -149,10 +149,10 @@ export class WorkModel {
 
   /**
    * Add a contract to a capability, which must be a live capability (MissingReferenceError
-   * otherwise). Under a numbered capability (`3 · Email form`) a title given without a number gets
-   * the capability's next free one, after the highest its live contracts carry (`3.4 · …`), and a
-   * title whose number another live contract of the capability carries is refused with a
-   * SchemaError on `title`, nothing written. A capability with no number numbers nothing.
+   * otherwise). Under a numbered capability (its title starts with its number) a title given
+   * without a number gets the capability's next free one, after the highest its live contracts
+   * carry, and a title whose number another live contract of the capability carries is refused
+   * with a SchemaError on `title`, nothing written. A capability with no number numbers nothing.
    */
   addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
@@ -176,7 +176,8 @@ export class WorkModel {
   /**
    * Change only the named fields of a contract, as capability 3's edit does. A new capability is
    * checked as addContract checks it, and a title or capability that would leave its number carried
-   * by another live contract of the capability is refused as addContract refuses it. Returns null, and writes nothing, if `id` is not a live contract.
+   * by another live contract of the capability is refused as addContract refuses it. Returns null,
+   * and writes nothing, if `id` is not a live contract.
    */
   editContract(id: string, fields: ContractEdit, options?: WriteOptions): Promise<SchemaRecord<"contract"> | null> {
     return this.#serially(async () => {
@@ -186,7 +187,7 @@ export class WorkModel {
         const stored = (await this.#records.get(id)) as SchemaRecord<"contract">;
         const title = fields.title ?? stored.fields.title;
         const capability = fields.capability ?? stored.fields.capability;
-        if (typeof title === "string" && typeof capability === "string") await this.#refuseTakenNumber(title, capability, id);
+        if (typeof title === "string" && couldBeId(capability)) await this.#refuseTakenNumber(title, capability, id);
       }
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"contract"> | null;
     });
@@ -239,16 +240,11 @@ export class WorkModel {
   }
 
   /**
-   * Throw a DependencyLoopError if capability `id` depending on `dependsOn` would close a loop:
-   * that is, if the would-be graph (every live capability's dependencies as stored, with `id`'s
-   * replaced by `dependsOn`) leads from `id` back round to `id`.
-   */
-  /**
    * `title` as a new contract of `capability` carries it: refused if its number is taken there, and
    * given the next free number when it has none and the capability has one.
    */
   async #numbered(title: string, capability: string): Promise<string> {
-    if (typeof title !== "string" || typeof capability !== "string") return title; // the schema refuses it in the write
+    if (typeof title !== "string" || !couldBeId(capability)) return title; // the schema refuses it in the write
     if (contractNumber(title) !== undefined) {
       await this.#refuseTakenNumber(title, capability);
       return title;
@@ -282,6 +278,11 @@ export class WorkModel {
     return record?.type === "capability" ? (record as SchemaRecord<"capability">).fields.title : undefined;
   }
 
+  /**
+   * Throw a DependencyLoopError if capability `id` depending on `dependsOn` would close a loop:
+   * that is, if the would-be graph (every live capability's dependencies as stored, with `id`'s
+   * replaced by `dependsOn`) leads from `id` back round to `id`.
+   */
   async #refuseLoop(id: string, dependsOn: readonly unknown[]): Promise<void> {
     const graph = new Map<string, readonly unknown[]>();
     for (const capability of await this.#records.list("capability")) {
@@ -351,7 +352,7 @@ function loopThrough(start: string, graph: ReadonlyMap<string, readonly unknown[
   return undefined;
 }
 
-/** The number a contract's title starts with (`3.4` of `3.4 · Trims spaces`), if it starts with one. */
+/** The number a contract's title starts with (capability, dot, contract), if it starts with one. */
 function contractNumber(title: string): string | undefined {
   return /^(\d+\.\d+)(?![\d.])/.exec(title)?.[1];
 }

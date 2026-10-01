@@ -16,6 +16,8 @@
 //   pnpm run test --full             run everything, whatever changed
 //   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
 //   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
+//   pnpm run test <files>            run just those files, as one unit under UNIT_LIMIT_MS (or
+//                                    STORYTREE_UNIT_LIMIT_MS); killed there, it says so
 //
 // Give flags as `pnpm run test --flag`: `pnpm run` passes what follows the script name to it in
 // every shell. Windows PowerShell 5.1 drops a bare `--` before pnpm sees it, so the older
@@ -187,7 +189,11 @@ async function runHeavy(units) {
 
 /** Run the named files, or each unit in turn past any failure, then print and record the table. */
 async function runTests(env, units) {
-  if (units === undefined) return (await runNodeTest(env, [])).code;
+  if (units === undefined) {
+    const run = await runNodeTest(env, []);
+    if (run.timedOut) console.log(`\ntest harness: the named files ${unitReason(run, root)}`);
+    return run.code;
+  }
   const results = Object.fromEntries(units.map((unit) => [unit, "not run"]));
   const reasons = {};
   const timings = {};
@@ -212,7 +218,7 @@ async function runTests(env, units) {
 }
 
 async function runNodeTest(env, files, unit) {
-  const limit = unit === undefined ? { ms: UNIT_LIMIT_MS, source: "default" } : unitLimit(unit);
+  const limit = unit === undefined ? namedFilesLimit() : unitLimit(unit);
   try {
     // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
     // ranked search is tested with a fake embedder, and everything else ranks by words.
@@ -221,6 +227,12 @@ async function runNodeTest(env, files, unit) {
   } finally {
     child = undefined;
   }
+}
+
+/** The named files' deadline: UNIT_LIMIT_MS, or STORYTREE_UNIT_LIMIT_MS when set (a slow machine, a test of the deadline). */
+function namedFilesLimit() {
+  const ms = Number(process.env.STORYTREE_UNIT_LIMIT_MS);
+  return Number.isFinite(ms) && ms > 0 ? { ms, source: "STORYTREE_UNIT_LIMIT_MS" } : { ms: UNIT_LIMIT_MS, source: "default" };
 }
 
 /** --set-limit=<unit>=<seconds> --reason=… or --clear-limit=<unit>: change a unit's deadline on this machine. */

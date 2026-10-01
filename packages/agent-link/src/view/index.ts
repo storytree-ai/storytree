@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import type { SettingsBridge } from "../settings/bridge.js";
-import { renderSettings, SETTING_GROUPS } from "./render.js";
+import { readState, saveState, settle, SETTING_GROUPS } from "./render.js";
 import type { SettingGroup } from "../settings/settings.js";
 import { settingsStyles } from "./styles.js";
 
@@ -64,18 +64,14 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
     get("[data-loading]").hidden = false;
     get("[data-read-error]").hidden = true;
     get("[data-retry]").hidden = true;
-    try {
-      const result = await bridge.readSettings();
-      if (stopped || mine !== generation) return;
-      if (!result.ok) throw new Error(result.error);
-      rows.innerHTML = renderSettings(result.value, options.group);
-      for (const form of rows.querySelectorAll<HTMLFormElement>("form")) bind(form);
-    } catch (error) {
-      if (stopped || mine !== generation) return;
-      get("[data-read-error]").textContent = message(error);
-      get("[data-read-error]").hidden = false;
-      get("[data-retry]").hidden = false;
-    } finally { if (!stopped && mine === generation) get("[data-loading]").hidden = true; }
+    const state = readState(await settle(bridge.readSettings()), options.group);
+    if (stopped || mine !== generation) return;
+    get("[data-loading]").hidden = true;
+    rows.innerHTML = state.rows;
+    for (const form of rows.querySelectorAll<HTMLFormElement>("form")) bind(form);
+    get("[data-read-error]").textContent = state.error ?? "";
+    get("[data-read-error]").hidden = state.error === undefined;
+    get("[data-retry]").hidden = !state.retry;
   }
   function bind(form: HTMLFormElement): void {
     const value = form.elements.namedItem("value") as HTMLInputElement | HTMLSelectElement;
@@ -109,26 +105,19 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
       }
       if (name === "library" && value.value === "postgres") words.push((form.elements.namedItem("address") as HTMLInputElement).value);
       void (async () => {
-        try {
-          const result = await bridge.saveSetting(name, words);
-          if (stopped || mine !== generation) return;
-          if (!result.ok) throw new Error(result.error);
+        const state = saveState(name, await settle(bridge.saveSetting(name, words)));
+        pending = false;
+        controls.filter((control) => control !== save).forEach((control) => { control.disabled = false; });
+        if (stopped || mine !== generation) return;
+        if (state.set) {
           const source = form.querySelector<HTMLElement>(".settings-source")!;
           source.dataset.source = "set";
           source.textContent = "set by you";
-          status.textContent = name === "library" ? "Saved · applies when storytree next opens" : "Saved";
-          save.disabled = true;
-        } catch (reason) {
-          if (stopped || mine !== generation) return;
-          error.textContent = message(reason);
-          status.textContent = "";
-          value.setAttribute("aria-invalid", "true");
-          save.disabled = false;
-        } finally {
-          pending = false;
-          controls.filter((control) => control !== save).forEach((control) => { control.disabled = false; });
-          if (!stopped && mine === generation && (document.activeElement === document.body || form.contains(document.activeElement))) value.focus();
-        }
+        } else value.setAttribute("aria-invalid", "true");
+        error.textContent = state.error;
+        status.textContent = state.status;
+        save.disabled = !state.saveAvailable;
+        if (document.activeElement === document.body || form.contains(document.activeElement)) value.focus();
       })();
     });
   }
@@ -147,5 +136,3 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
     document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);
   } };
 }
-
-function message(error: unknown): string { return error instanceof Error ? error.message : String(error); }

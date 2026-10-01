@@ -9,7 +9,7 @@
  * Only a project the library already has is read: a name that is not a project is refused, and
  * never created, since opening a project's library would create it.
  */
-import { cachedLines, idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, type ActivityLog, type LinesCache, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
+import { cachedLines, idleAfterMs, leaveAfterMs, lookAsApp, projectFolder, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, type ActivityLog, type LinesCache, type TranscriptCache, type ContextReading, type LinesSince, type SessionWindow } from "@storytree/agent-link";
 import type { AnnotatedTree, ArcView, Holds, Changes, Library, Note, SchemaRecord, Storytree } from "@storytree/library";
 
 /** The page's reads, as the app answers them. */
@@ -26,6 +26,8 @@ export interface PageReads {
   frontCovers(project: unknown, nodeId: unknown): Promise<SchemaRecord<"decision">[]>;
   /** The notes in a project that link to a note. */
   relatedNotes(project: unknown, noteId: unknown): Promise<Note[]>;
+  /** A project's standing delegations (agent link 7.6): the definition "Standing delegation"'s meaning, or none when its library has none. */
+  standingDelegations(project: unknown): Promise<string | undefined>;
   /** Every live arc's view in a project, in one read (library 7.8): what the sessions list builds its rows from. */
   arcViews(project: unknown): Promise<ArcView[]>;
   /** Every hold on a project's live work, wait and owner, in one reading. */
@@ -109,6 +111,7 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
     },
     frontCovers: async (name, nodeId) => (await library(await project(name))).frontCovers(nodeId as string),
     relatedNotes: async (name, noteId) => (await library(await project(name))).relatedNotes(noteId as string),
+    standingDelegations: async (name) => standingDelegations(await library(await project(name))),
     arcViews: async (name) => (await library(await project(name))).arcViews(),
     holds: async (name) => (await library(await project(name))).holds(),
     contextReadings: async (name, sessions) => {

@@ -20,6 +20,7 @@ test("2.6–2.8 the app bar holds only the gear and opens a sectioned overlay", 
   assert.doesNotMatch(html, /<h1/, "the tab on show is the heading");
   assert.match(html, /role="dialog"[^>]*aria-label="App menu"/);
   assert.match(html, /id="app-sessions"[^>]*>\s*<div data-app-settings="sessions">/);
+  assert.match(html, /<div data-app-settings="sessions"><\/div><div data-app-decision-rights><\/div><\/section>/, "who decides what sits below the Sessions settings");
   assert.match(html, /id="app-library"[^>]*>\s*<div data-app-settings="library">/);
   assert.match(html, /id="app-surfaces"[^>]*>\s*<div data-app-surfaces>/);
   assert.match(html, /data-app-help/);

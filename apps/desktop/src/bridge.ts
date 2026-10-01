@@ -49,6 +49,8 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   frontCovers(name: string, nodeId: string): Promise<SchemaRecord<"decision">[]>;
   /** The notes that link to a note. Refused for a name that is not a project. */
   relatedNotes(name: string, noteId: string): Promise<Note[]>;
+  /** A project's standing delegations, for the who-decides-what view; none when its library has none. Refused for a name that is not a project. */
+  standingDelegations(name: string): Promise<string | undefined>;
   /** Each story's code, surveyed now from the project's checkout on this machine (forest 8); none when there is no checkout here. */
   codeSurvey(name: string): Promise<ProjectSurvey>;
 }
@@ -82,5 +84,6 @@ export const CHANNELS = {
   linesSince: "storytree:lines-since",
   frontCovers: "storytree:front-covers",
   relatedNotes: "storytree:related-notes",
+  standingDelegations: "storytree:standing-delegations",
   codeSurvey: "storytree:code-survey",
 } as const;

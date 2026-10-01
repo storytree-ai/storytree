@@ -389,6 +389,8 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
     const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
     try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close()); // set up, as a marked folder's project is
       await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
         const check = async () => {
           const { verified, missing, fixes } = (await agent.call("check_setup")).data as { verified: boolean; missing: string[]; fixes: string[] };

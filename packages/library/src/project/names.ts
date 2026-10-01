@@ -38,3 +38,18 @@ export function assertProjectName(name: unknown): asserts name is string {
 export function projectDatabase(name: string): string {
   return PROJECT_DATABASE_PREFIX + name;
 }
+
+/**
+ * An open that only reaches an existing project (`create: false`) found no database for it: the
+ * project was deleted, for every computer using the library (ADR-0831), or never set up on it.
+ */
+export class ProjectGoneError extends Error {
+  /** The project that was asked for. */
+  readonly project: string;
+
+  constructor(project: string) {
+    super(`There is no project "${project}" in the library: it was deleted, or was never set up on this library.`);
+    this.name = "ProjectGoneError";
+    this.project = project;
+  }
+}

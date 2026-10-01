@@ -258,5 +258,7 @@ export function joinedReads<T extends { projectTree(project: string): Promise<un
     }
     return read;
   };
-  return Object.assign(Object.create(reads) as T, { projectTree });
+  // Defined, not assigned: the desktop's bridge (Electron's context bridge) makes `reads`'s functions read-only, and an
+  // inherited read-only property refuses assignment.
+  return Object.defineProperty(Object.create(reads) as T, "projectTree", { value: projectTree, enumerable: true });
 }

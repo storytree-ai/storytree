@@ -36,7 +36,7 @@ import path from "node:path";
 
 import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
-import { route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
+import { openNamedProject, route, storytreeHome, withConnectTimeout, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
@@ -263,7 +263,7 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
   const { connect } = await import("@storytree/library");
   const storytree = await connect(where.library);
   try {
-    const library = await storytree.openProject(where.project);
+    const library = await openNamedProject(storytree, where.project);
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));
     const fresh = notYetGiven(session, named);
     const nudge = harness === "claude-code" ? await contextNudge(storytree, where.project, session) : undefined;

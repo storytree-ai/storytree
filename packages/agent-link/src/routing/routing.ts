@@ -27,7 +27,7 @@ import { existsSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { ConnectOptions, Storytree } from "@storytree/library";
+import type { ConnectOptions, Library, Storytree } from "@storytree/library";
 
 import { readLibrary } from "../settings/settings.js";
 
@@ -94,6 +94,21 @@ export function findProject(from: string): ProjectLookup {
     if (inMain !== undefined) return inMain;
   }
   return { project: undefined, message: NOT_A_PROJECT };
+}
+
+/**
+ * Open the project a folder names, only reaching it: a project deleted from the library, perhaps
+ * from another computer, is never made again by a folder that still names it (ADR-0831). Refused
+ * with what to do: free the folder, or set it up again on purpose.
+ */
+export async function openNamedProject(storytree: Pick<Storytree, "openProject">, project: string): Promise<Library> {
+  try {
+    return await storytree.openProject(project, { create: false });
+  } catch (error) {
+    // By name: the hooks load the library only when they need it.
+    if (!(error instanceof Error && error.name === "ProjectGoneError")) throw error;
+    throw new ProjectFolderError(`This folder names project "${project}" in its ${MARKER_FILE}, but the library has no such project: it was deleted, perhaps from another computer. Delete ${MARKER_FILE} to free the folder; to start a project here, set it up again.`);
+  }
 }
 
 /**

@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { findProject, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openActivityLog, openStorytree, ProjectFolderError, readClaims, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
+import { findProject, forgetProjectActivity, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openActivityLog, openStorytree, ProjectFolderError, readClaims, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, setUpProject, storytreeHome, suggestProjectName, trunksOn, unusedName } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
 
 export { keepOnThisComputer, unusedName };
@@ -94,10 +94,16 @@ export type RemovedProject =
   | { status: "removed"; project: string; freed?: string; kept?: string }
   | { status: "no such project"; project: string; message: string };
 
-/** `projects` (every project in the library) less those removed from this computer. */
+/**
+ * `projects` (every project in the library) less those removed from this computer. A removed name
+ * no longer in the library was deleted (from any computer), so it leaves this computer's list too:
+ * a later project of that name is a new one, shown here.
+ */
 export function projectsOnThisComputer(projects: readonly string[], home: string = storytreeHome()): string[] {
-  const removed = new Set(removedProjects(home));
-  return projects.filter((name) => !removed.has(name));
+  const removed = removedProjects(home);
+  const kept = removed.filter((name) => projects.includes(name));
+  if (kept.length < removed.length) recordRemovedProjects(home, kept);
+  return projects.filter((name) => !kept.includes(name));
 }
 
 /** Take `project` off this computer's list and free its folder here. Nothing in the library is deleted. */
@@ -182,6 +188,7 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
     }
     const { freed, kept } = await freeOnThisComputer(storytree, project, home);
     await storytree.dropProject(project);
+    await forgetProjectActivity(storytree, project);
     await forgetTrunk(storytree, { project });
     recordRemovedProjects(home, removedProjects(home).filter((name) => name !== project));
     return { status: "deleted", project, ...(snapshot === undefined ? {} : { snapshot }), ...(freed === undefined ? {} : { freed }), ...(kept === undefined ? {} : { kept }) };

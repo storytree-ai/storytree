@@ -25,7 +25,7 @@ import { WorkModel } from "../work/work-model.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { PgVectors } from "./embeddings.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
-import { assertProjectName, PROJECT_DATABASE_PREFIX, projectDatabase } from "./names.js";
+import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
 import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
@@ -52,13 +52,23 @@ export type ConnectOptions =
       readonly url?: undefined;
     };
 
+/** How a project is opened. */
+export interface OpenOptions {
+  /**
+   * Whether a project with no database is made (the default), as setting one up does. A folder that
+   * names a project only reaches it: one deleted from the library is never made again by being opened.
+   */
+  readonly create?: boolean;
+}
+
 /** A connection to one Postgres server and the storytree projects on it. */
 export interface Storytree {
   /**
    * Open the library of the project called `name`, creating its database and tables the first
-   * time. A name that breaks the project-name rule is refused before anything touches the server.
+   * time, or, with `create: false`, only if its database is there (ProjectGoneError otherwise). A
+   * name that breaks the project-name rule is refused before anything touches the server.
    */
-  openProject(name: string): Promise<Project>;
+  openProject(name: string, options?: OpenOptions): Promise<Project>;
   /** The names of the storytree projects on the server, sorted. No other database is listed. */
   listProjects(): Promise<string[]>;
   /** Every record of the project called `name` and its whole history, read at one moment (contract 1.6). */
@@ -134,11 +144,13 @@ class ServerConnection implements Storytree {
     this.#embedder = embedder;
   }
 
-  async openProject(name: string): Promise<Project> {
+  async openProject(name: string, options: OpenOptions = {}): Promise<Project> {
     assertProjectName(name); // before anything touches the server
     const database = projectDatabase(name);
     try {
-      await this.#createDatabaseIfMissing(database);
+      if (options.create === false) {
+        if (!(await this.#databaseExists(database))) throw new ProjectGoneError(name);
+      } else await this.#createDatabaseIfMissing(database);
       const pool = this.#server.pool(database, await this.#owningRole(database));
       try {
         await openTables(pool, name);
@@ -245,10 +257,13 @@ class ServerConnection implements Storytree {
     return found === undefined || found.mine || !found.may ? undefined : found.owner;
   }
 
+  async #databaseExists(database: string): Promise<boolean> {
+    return (await this.#server.admin.query("SELECT 1 FROM pg_database WHERE datname = $1", [database])).rows.length > 0;
+  }
+
   async #createDatabaseIfMissing(database: string): Promise<void> {
     const { admin } = this.#server;
-    const existing = await admin.query("SELECT 1 FROM pg_database WHERE datname = $1", [database]);
-    if (existing.rows.length > 0) return;
+    if (await this.#databaseExists(database)) return;
     try {
       await createDatabase(admin, database);
     } catch (error) {

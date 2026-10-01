@@ -1,4 +1,4 @@
-export { ACTIVITY_DATABASE, openActivityLog, thisMachine } from "./activity-log.js";
+export { ACTIVITY_DATABASE, forgetProjectActivity, openActivityLog, thisMachine } from "./activity-log.js";
 export { currentBranch } from "./branch.js";
 export { cachedLines } from "./lines-cache.js";
 export type { LinesCache } from "./lines-cache.js";

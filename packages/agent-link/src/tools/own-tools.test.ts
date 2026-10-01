@@ -13,6 +13,7 @@ import { listRuns } from '@storytree/processes/listing';
 import { createAgentTools } from './server.js';
 import { openActivityLog } from '../activity/index.js';
 import { removeTempDir } from '../testing/folders.js';
+import { connect } from '@storytree/library';
 import { testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects } from '../testing/pg.js';
 
 for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
@@ -136,6 +137,8 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
   });
   await writeFile(path.join(home, '.storytree.json'), JSON.stringify({ project }));
   await copyFile(`${testServerDataDir()}.owner.json`, path.join(home, 'pgdata.owner.json'));
+  const server = await connect({ url: testServerUrl() });
+  await (await server.openProject(project)).close().finally(() => server.close()); // set up, as a marked folder's project is
   log = await openActivityLog(testServerUrl());
   await log.append(project, { session: 'reset-session', harness: 'claude-code', source: 'hook', folder: home,
     kind: 'tool-requested', tool: 'list_own_runs', call: 'hook-call', agent: { subagent: 'builder' } });

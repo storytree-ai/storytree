@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { createTestRole, dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
-import { ConnectionError, connect, type Project, type Storytree } from "./index.js";
+import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
 
 /** The spec's naming, restated here rather than taken from the code: project `x` is database `storytree_x`. */
 function databaseOf(project: string): string {
@@ -192,6 +192,19 @@ test("1.12 dropProject deletes a project's database and every record in it; it i
     assert.deepEqual(await databasesContaining(run.slice("t-".length)), [databaseOf(kept)], "only its own database goes");
     assert.equal((await storytree.listProjects()).includes(site), false);
     await assert.rejects(storytree.dropProject(site), /no project/);
+  });
+});
+
+test("1.12 a project once deleted is not made again by an open that only reaches an existing project: it is refused as gone, and no database appears", async () => {
+  const run = uniqueProjectName();
+  const site = `${run}-site`;
+  await withStorytree([databaseOf(site)], async (storytree) => {
+    await (await storytree.openProject(site)).close();
+    await (await storytree.openProject(site, { create: false })).close();
+    await storytree.dropProject(site);
+
+    await assert.rejects(storytree.openProject(site, { create: false }), (error: unknown) => error instanceof ProjectGoneError && error.project === site);
+    assert.deepEqual(await databasesContaining(run.slice("t-".length)), [], "nothing is made again");
   });
 });
 

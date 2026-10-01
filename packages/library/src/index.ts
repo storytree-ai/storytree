@@ -6,9 +6,9 @@
 // nothing but this entry, so the internals behind it cannot be imported at all.
 export { connect } from "./api/index.js";
 export type { Change, Changes, Library, Storytree } from "./api/index.js";
-export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
+export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, OpenOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
-export { ConnectionError, ProjectNameError, RestoreRefusedError } from "./project/index.js";
+export { ConnectionError, ProjectGoneError, ProjectNameError, RestoreRefusedError } from "./project/index.js";
 export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";

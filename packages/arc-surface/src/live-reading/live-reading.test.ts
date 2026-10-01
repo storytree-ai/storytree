@@ -235,6 +235,17 @@ test("the surfaces hearing one news share one read of the project's tree", async
   assert.equal(reads, 2, "a read asked once the last has landed reads again");
 });
 
+test("the shared tree read works over the desktop's bridge, whose functions are read-only", async () => {
+  let reads = 0;
+  // Electron's context bridge hands the page an object whose properties cannot be assigned.
+  const bridge = Object.freeze({ projectTree: async (project: string) => { reads++; await settle(); return project; } });
+  const tree = joinedReads(bridge);
+  const [a, b] = await Promise.all([tree.projectTree("shop"), tree.projectTree("shop")]);
+  assert.equal(a, "shop");
+  assert.equal(b, "shop");
+  assert.equal(reads, 1);
+});
+
 test("what the page reading holds keeps only what a surface reads: each reported health state once, and a running command's shown words", async () => {
   const app = new App();
   const at = new Date(0).toISOString();

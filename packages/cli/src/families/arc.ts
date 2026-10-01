@@ -76,7 +76,8 @@ const show: Verb = {
       for (const line of await holdsOn(library, increment.id)) lines.push(`      ${line}`);
     }
     const waiting = questions.filter((question) => question.fields.lifecycle === "open");
-    lines.push("", `Questions waiting on you (${waiting.length})`);
+    // A parked arc's questions are parked with it until it is unparked (ADR-0835 D2).
+    lines.push("", state === "parked" ? `Questions parked with the arc, waiting for it to be unparked (${waiting.length})` : `Questions waiting on you (${waiting.length})`);
     for (const question of waiting) lines.push(`  - ${question.id}  ${labelOf(question.fields)}`);
     const settled = questions.filter((question) => question.fields.lifecycle === "settled");
     if (settled.length > 0) {

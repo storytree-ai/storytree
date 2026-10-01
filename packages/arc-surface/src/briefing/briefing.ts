@@ -55,17 +55,18 @@ export function questionReading({ id, fields: q }: Question): QuestionReading {
   };
 }
 
-export function briefing(intent: string, questions: readonly Question[]): Briefing {
+/** A parked arc's open questions are parked with it until it is unparked (ADR-0835 D2). */
+export function briefing(intent: string, questions: readonly Question[], { parked = false }: { parked?: boolean } = {}): Briefing {
   const waiting = questions.filter(({ fields }) => fields.lifecycle === "open").map(questionReading);
   return {
     intent, waiting,
-    waitingLabel: waiting.length ? "Waiting on you" : "Nothing is waiting on you here",
+    waitingLabel: !waiting.length ? "Nothing is waiting on you here" : parked ? "Parked with the arc: these wait for it to be unparked" : "Waiting on you",
     settled: questions.filter(({ fields }) => fields.lifecycle === "settled").map(questionReading),
     blockedNote: '"Blocked" comes only from waits on other work.',
   };
 }
 
 /** The caller gives arcs in lane order and in the current scope. */
-export function firstBriefing(arcs: readonly { id: string; questions: readonly Question[] }[]): string | undefined {
-  return (arcs.find(({ questions }) => questions.some(({ fields }) => fields.lifecycle === "open")) ?? arcs[0])?.id;
+export function firstBriefing(arcs: readonly { id: string; parked?: boolean; questions: readonly Question[] }[]): string | undefined {
+  return (arcs.find(({ parked, questions }) => !parked && questions.some(({ fields }) => fields.lifecycle === "open")) ?? arcs[0])?.id;
 }

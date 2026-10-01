@@ -25,6 +25,15 @@ test("5.1 and 5.3 briefing starts with intent, separates open and settled questi
   assert.equal(firstBriefing([]), undefined);
 });
 
+test("5.4 a parked arc's briefing lists its open questions as parked with the arc, and a parked arc's question does not pick the first briefing", () => {
+  const read = briefing("Intent", [question], { parked: true });
+  assert.deepEqual(read.waiting.map(({ id }) => id), ["q"]);
+  assert.doesNotMatch(read.waitingLabel, /waiting on you/i);
+  assert.match(read.waitingLabel, /parked with the arc/i);
+  assert.equal(briefing("Intent", [question], { parked: false }).waitingLabel, "Waiting on you");
+  assert.equal(firstBriefing([{ id: "quiet", questions: [] }, { id: "parked", parked: true, questions: [question] }]), "quiet");
+});
+
 test("5.2 a question is read statement first with trade-offs, a non-binding recommendation and measured folds; unstructured options survive", () => {
   const read = questionReading(question);
   assert.deepEqual(read.lead.map(({ label, text }) => [label, text]), [["Statement", "Choose a view"], ["Stakes", "Readers need clarity"]]);

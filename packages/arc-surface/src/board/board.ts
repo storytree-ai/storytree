@@ -82,5 +82,5 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
       : [...new Map(bars.flatMap((bar) => bar.waits).map((wait) => [wait.id, wait])).values()];
     return { id: arc.id, title: arc.fields.title, view, bars, agents: holders, state, chip, count, lastActivity, waits: laneWaits, holdsUp: waits.heldUpBy(arc.id) };
   }).sort((a, b) => rank[a.state] - rank[b.state] || b.lastActivity - a.lastActivity || a.id.localeCompare(b.id));
-  return { scope, lanes, queues: arcQueues(lanes), selected: firstBriefing(lanes.map((lane) => ({ id: lane.id, questions: lane.view.questions }))) };
+  return { scope, lanes, queues: arcQueues(lanes), selected: firstBriefing(lanes.map((lane) => ({ id: lane.id, parked: lane.view.state === "parked", questions: lane.view.questions }))) };
 }

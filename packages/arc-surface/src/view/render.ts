@@ -66,7 +66,7 @@ function renderQuestion(question: QuestionReading): string {
 /** HTML is a reading: every stored title and field is escaped before entering the page. */
 export function renderBoard(board: BoardView, picked?: string, openedQuestion?: string, expanded: ReadonlySet<string> = new Set()): string {
   const selected = board.lanes.find(({ id }) => id === picked) ?? board.lanes.find(({ id }) => id === board.selected);
-  const detail = selected ? briefing(selected.view.arc.fields.intent, selected.view.questions) : undefined;
+  const detail = selected ? briefing(selected.view.arc.fields.intent, selected.view.questions, { parked: selected.view.state === "parked" }) : undefined;
   const question = [...(detail?.waiting ?? []), ...(detail?.settled ?? [])].find(({ id }) => id === openedQuestion);
   return `<nav class="arc-scopes" aria-label="Arc lifecycle">${(["active", "parked", "closed"] as const).map((scope) => `<button type="button" data-arc-scope="${scope}" aria-pressed="${board.scope === scope}">${scope[0]!.toUpperCase() + scope.slice(1)}</button>`).join("")}</nav>
     <div class="arc-panes"><div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, new Map(board.lanes.map((lane) => [lane.id, lane])), selected?.id, expanded)).join("") : `<p class="arc-empty">No ${board.scope} arcs.</p>`}</div>

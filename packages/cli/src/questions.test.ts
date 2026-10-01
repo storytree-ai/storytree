@@ -5,6 +5,9 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
+import { parseArgs } from "./args.js";
+import type { Context } from "./door.js";
+import { questions } from "./families/question.js";
 import { BuiltCommand, inWorld, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -56,6 +59,29 @@ test("5.8 `question list` leaves out a parked arc's open questions and says how 
     await library.unparkArc(parked.arc);
     const back = await world.run(["question", "list"]);
     assert.ok(back.stdout.includes(hidden.id), "unparked, its question is back on the list");
+  });
+});
+
+test("5.8 `question list` across arcs reads every arc in one ask to find the parked ones, however many arcs hold questions (ADR-0836 D3)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const fields = { title: "Mailer?", stakes: "Reach readers", statement: "Which?", context: "Email", options: "Mailgun or SES" };
+    const arcs = [await arcWithWork(world), await arcWithWork(world), await arcWithWork(world)];
+    for (const { arc } of arcs) await library.raiseQuestion({ ...fields, arc });
+    await library.parkArc(arcs[2]!.arc);
+    const asked = { arcView: 0, arcViews: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (key === "arcView" || key === "arcViews") asked[key]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const list = questions.verbs.find((verb) => verb.name === "list")!;
+    const answer = await list.act(parseArgs([], [], world.folder), { library: async () => counted } as unknown as Context);
+    assert.match(answer.text, /^2 open across arcs:/);
+    assert.match(answer.text, /1 more waits on a parked arc/);
+    assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
   });
 });
 

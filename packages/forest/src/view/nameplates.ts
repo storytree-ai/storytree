@@ -5,25 +5,41 @@ import type { Coast, Point, TerritoryMap } from "../territories/territories.js";
 /** How far past the coast a story's nameplate starts, in ground units. */
 export const NAMEPLATE_GAP = 3;
 
-const UP = new Vector3(0, 1, 0);
+/** The screen's down and right as they lie in a plate's own ground plane (x, z), unnormalised: a point's drop down the screen is `down` · point. */
+export interface PlateView { down: Point; right: Point }
 
-/** The globe's south in a plate's own ground plane: straight down the screen while north is up. */
-function southOnPlate(spot: { x: number; y: number; z: number }): Point {
-  const normal = new Vector3(spot.x, spot.y, spot.z).normalize();
-  const south = normal.clone().multiplyScalar(normal.y).sub(UP);
-  // At a pole every way is south: take the plate's own +z.
-  if (south.lengthSq() < 1e-12) return { x: 0, z: 1 };
-  // The plate's frame, as plateTransform turns it: its +y out of the globe.
-  const local = south.applyQuaternion(new Quaternion().setFromUnitVectors(UP, normal).invert());
-  const length = Math.hypot(local.x, local.z);
-  return { x: local.x / length, z: local.z / length };
+/** How the screen lies on a plate turned by `plate` (its whole turn on the globe, world frame) for an eye turned by `eye`. */
+export function screenOnPlate(plate: Quaternion, eye: Quaternion): PlateView {
+  const toPlate = plate.clone().invert();
+  const down = new Vector3(0, -1, 0).applyQuaternion(eye).applyQuaternion(toPlate);
+  const right = new Vector3(1, 0, 0).applyQuaternion(eye).applyQuaternion(toPlate);
+  return { down: { x: down.x, z: down.z }, right: { x: right.x, z: right.z } };
 }
 
-/** Where a story's nameplate hangs from, its top edge just south of the island's coast. */
-export function storyPlate(coast: Coast, spot: { x: number; y: number; z: number }): Point {
-  const south = southOnPlate(spot);
-  const reach = Math.max(0, ...coast.flat().map(p => p.x * south.x + p.z * south.z));
-  return { x: south.x * (reach + NAMEPLATE_GAP), z: south.z * (reach + NAMEPLATE_GAP) };
+/** Whether a plate turned by `plate` (world frame) faces an eye turned by `eye`: once its island turns away, its nameplate hides. */
+export function facesEye(plate: Quaternion, eye: Quaternion): boolean {
+  return new Vector3(0, 1, 0).applyQuaternion(plate).dot(new Vector3(0, 0, 1).applyQuaternion(eye)) > 0;
+}
+
+/**
+ * Where a story's nameplate hangs from: on the line through the island's middle that runs straight down the
+ * screen, just past the coast's lowest point, so the plate reads below its island and under it. It hangs no
+ * further than `furthest` from the island's middle, so seen edge-on it stays on the globe, which hides it.
+ */
+export function storyPlate(coast: Coast, view: PlateView, furthest = Infinity): Point {
+  // Along the plate, the way that keeps its place across the screen, turned to run down it.
+  let along = { x: -view.right.z, z: view.right.x };
+  const length = Math.hypot(along.x, along.z);
+  const drop = (p: Point) => p.x * view.down.x + p.z * view.down.z;
+  if (length < 1e-9) along = { x: 0, z: 1 };
+  else along = { x: along.x / length, z: along.z / length };
+  if (drop(along) < 0) along = { x: -along.x, z: -along.z };
+  const points = coast.flat();
+  const reach = Math.max(0, ...points.map(p => Math.hypot(p.x, p.z)));
+  // Edge on, the screen barely moves down the plate: hang it no further than a few of the island's reaches.
+  const lowest = Math.max(0, ...points.map(drop));
+  const step = Math.min((drop(along) > 1e-9 ? Math.min(lowest / drop(along), 4 * reach) : reach) + NAMEPLATE_GAP, furthest);
+  return { x: along.x * step, z: along.z * step };
 }
 
 /**

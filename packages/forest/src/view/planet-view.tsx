@@ -69,7 +69,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
         spot={layout.spots.get(island.story)!} lighting={lighting} onStops={reportStops} />}
       <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {layout.spots.has(island.story) && <Nameplates island={island} coast={coast} spot={layout.spots.get(island.story)!} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />}
+      <Nameplates island={island} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} />
       <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} radius={layout.radius} />
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;

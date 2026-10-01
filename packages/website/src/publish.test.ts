@@ -33,7 +33,7 @@ const live = {
   publishStatus: { state: "live" },
 };
 
-test("4.2 · no publishing token clearly skips before reading a build or making requests", async (t) => {
+test("4.2 · no publishing key clearly skips, naming the identity to configure, before reading a build or making requests", async (t) => {
   const directory = path.join(await buildFolder(t), "missing-build");
   for (const absent of [undefined, "", " \n\t "]) {
     const logs: string[] = [];
@@ -43,7 +43,7 @@ test("4.2 · no publishing token clearly skips before reading a build or making 
       throw new Error("Publishing must not make a request without a token");
     } });
     assert.equal(requests, 0);
-    assert.match(logs.join("\n"), /skipped.*HERENOW_TOKEN/i);
+    assert.match(logs.join("\n"), /skipped.*WEBSITE_WIF_PROVIDER.*WEBSITE_SERVICE_ACCOUNT/i);
   }
 });
 

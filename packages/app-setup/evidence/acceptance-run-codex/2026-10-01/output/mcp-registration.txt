@@ -1,0 +1,1 @@
+args = ["C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-mcp.mjs"]

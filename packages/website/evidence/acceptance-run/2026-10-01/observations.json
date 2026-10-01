@@ -1,0 +1,104 @@
+{
+  "story": "The website",
+  "commit": "e221468e8451ac4a6e2a105f87b6c170d34fb9de",
+  "evidence": "packages/website/evidence/acceptance-run/2026-10-01",
+  "note": "visited the locally built site (packages/website/dist), since the site is not yet published",
+  "checks": [
+    {
+      "contract": "1.2",
+      "name": "the install command the page shows is the README's Install PowerShell block, whole",
+      "observed": "pass",
+      "detail": "& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the page's heading and install command are visible",
+      "observed": "pass",
+      "detail": "heading true, command true"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, a visitor can select the whole install command",
+      "observed": "pass",
+      "detail": "137 of 137 characters selected"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the repository link is visible and following it reaches a page",
+      "observed": "pass",
+      "detail": "https://github.com/storytree-ai/storytree answered 200"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the license link is visible and following it reaches a page",
+      "observed": "pass",
+      "detail": "https://github.com/storytree-ai/storytree/blob/main/LICENSE answered 200"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the LinkedIn contact link is visible and following it reaches a page",
+      "observed": "pass",
+      "detail": "https://www.linkedin.com/in/mick-hua-353353a/ answered 999 (LinkedIn's refusal of automated browsers, not a missing page)"
+    },
+    {
+      "contract": "1.4",
+      "name": "an address with no page answers 404, and its link back takes the visitor home",
+      "observed": "pass",
+      "detail": "404, then /"
+    },
+    {
+      "contract": "1.5",
+      "name": "the copy control copies exactly the visible install command, and says so once the copy is done",
+      "observed": "pass",
+      "detail": "137 characters copied"
+    },
+    {
+      "contract": "1.5",
+      "name": "a denied copy reports failure and the command stays shown",
+      "observed": "pass",
+      "detail": "Could not copy. Select the command above and copy it manually."
+    },
+    {
+      "contract": "1.6",
+      "name": "at 390 px, every header, footer, text-link and copy control is at least 44 CSS px high",
+      "observed": "pass",
+      "detail": "9 controls, the lowest 44 px"
+    },
+    {
+      "contract": "1.6",
+      "name": "at 390 px, keyboard focus on the command and the copy control is visible and not clipped by its panel",
+      "observed": "pass",
+      "detail": "[{\"width\":3,\"style\":\"solid\",\"inside\":true},{\"width\":3,\"style\":\"solid\",\"inside\":true}]"
+    },
+    {
+      "contract": "1.7",
+      "name": "with text at 200% at 320 and 390 px, home and not-found headers do not overlap, nothing runs off the screen or scrolls sideways, and the copy control stays whole",
+      "observed": "pass",
+      "detail": "home and not found, at 320 and 390 px"
+    },
+    {
+      "contract": "2.3",
+      "name": "before the 3D scene's code arrives, the heading and the install command are already on the page",
+      "observed": "pass",
+      "detail": "scene code requested yet: false"
+    },
+    {
+      "contract": "2.1",
+      "name": "with WebGL, the live scene takes over from the still and draws on its canvas",
+      "observed": "pass",
+      "detail": "state live, canvas shown true, still shown false, 40 distinct colours where the scene is"
+    },
+    {
+      "contract": "2.2",
+      "name": "when WebGL is unavailable, the visitor sees the forest's still and the page stays usable",
+      "observed": "pass",
+      "detail": "state still, still shown true, install usable true"
+    },
+    {
+      "contract": "2.2",
+      "name": "when the scene's code fails to load, the visitor sees the forest's still and the page stays usable",
+      "observed": "pass",
+      "detail": "state still, still shown true, install usable true"
+    }
+  ]
+}

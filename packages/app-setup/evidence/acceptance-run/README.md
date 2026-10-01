@@ -14,6 +14,9 @@ dev loop contract 5.5).
   page in this folder, and I want storytree to keep its plan. Please set storytree up for this folder, as the
   project <name> …"; then `storytree doctor` again, its exit code, and where a fresh PowerShell finds the command.
   At the end, where Claude Code's registration starts storytree's tool server, and the app's version.
+- `run-task.ps1 <stamp> [minutes] [journey script]` is shared with the later journeys beside this one
+  (../acceptance-run-codex, ../acceptance-run-conflict), which name their own script. `state.ps1`, run over SSH
+  before and after each trial, prints what a trial must leave as it found it, for comparing.
 - `observe.mjs` turns those raw outputs into checks. It reads only what storytree's installed command and the
   machine said; the model's replies (`claude-*.txt`) are kept as evidence and never read. A clause the journey
   does not exercise is written as not observed, so its contract is left not checked. It voids the run if the app

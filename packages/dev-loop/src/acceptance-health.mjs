@@ -19,7 +19,7 @@ const OBSERVED = ["pass", "fail", "not-observed"];
 
 /**
  * @typedef {{ contract: string, name: string, observed: "pass" | "fail" | "not-observed", detail?: string }} Check
- * @typedef {{ story: string, commit: string, evidence: string, checks: Check[] }} Observations
+ * @typedef {{ story: string, commit: string, evidence: string, note?: string, checks: Check[] }} Observations
  */
 
 /**
@@ -75,16 +75,17 @@ export function mintAcceptance({ contracts, checks }) {
 
 /**
  * Write each passing or failing verdict to its contract's verified column by "acceptance run", with
- * its tally, the evidence path and the commit in the note. Not checked writes nothing, and the
- * reported column is never touched.
+ * its tally, the run's own note (such as which copy of the product it drove), the evidence path and
+ * the commit in the note. Not checked writes nothing, and the reported column is never touched.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
  * @param {Map<string, import("./own-health.mjs").Verdict>} verdicts
- * @param {{ commit: string, evidence: string }} run
+ * @param {{ commit: string, evidence: string, note?: string }} run
  */
-export function recordAcceptance(library, contractIds, verdicts, { commit, evidence }) {
+export function recordAcceptance(library, contractIds, verdicts, { commit, evidence, note }) {
+  const said = note === undefined || note.trim() === "" ? "" : `, ${note.trim()}`;
   const withEvidence = new Map(
-    [...verdicts].map(([number, verdict]) => [number, verdict.note === undefined ? verdict : { ...verdict, note: `${verdict.note}, evidence ${evidence}` }]),
+    [...verdicts].map(([number, verdict]) => [number, verdict.note === undefined ? verdict : { ...verdict, note: `${verdict.note}${said}, evidence ${evidence}` }]),
   );
   return recordHealth(library, contractIds, withEvidence, { by: ACCEPTED_BY, commit });
 }

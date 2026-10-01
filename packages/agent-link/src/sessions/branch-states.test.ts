@@ -195,3 +195,39 @@ test("4.24 the same look reads each open branch's pull request from GitHub in on
     await log.close();
   }
 });
+
+test("4.21 the look never stalls its process: while git takes its time asking origin, a timer due meanwhile still fires promptly (ADR-0836 D3: the app's minute look runs on its main process)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      // Origin answers slowly: the stand-in for a network round trip is an ssh command that waits 1.5 s.
+      git(repo, "remote", "add", "origin", "ssh://origin.invalid/site.git");
+      git(repo, "config", "core.sshCommand", `node -e "setTimeout(() => {}, 1500)"`);
+      await log.append(project, { session: "laptop", harness: "claude-code", source: "hook", machine: "elsewhere", folder: "C:\\site", branch: "claude/laptop", kind: "file-edited", files: ["x.ts"] });
+
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      let last = performance.now();
+      let worst = 0;
+      const ticking = setInterval(() => {
+        const now = performance.now();
+        worst = Math.max(worst, now - last);
+        last = now;
+      }, 10);
+      const started = performance.now();
+      try {
+        await resolveBranches(watcher, { allMergedPulls: async () => new Map(), allOpenPulls: async () => undefined, everyMs: 0, machine: "here" });
+        // One more turn of the timers, so a stall at the look's very end is seen too.
+        await new Promise((done) => setTimeout(done, 30));
+      } finally {
+        clearInterval(ticking);
+      }
+      assert.ok(performance.now() - started >= 1_000, "the look waited on the slow origin");
+      assert.ok(worst < 500, `a timer waited ${Math.round(worst)} ms behind the look`);
+    });
+  } finally {
+    await log.close();
+  }
+});

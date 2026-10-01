@@ -48,6 +48,7 @@ const TOOLS = [
   "land",
   "list_all_runs",
   "list_own_runs",
+  "health_worklist",
   "make_workspace",
   "mark_built",
   "move_increment",
@@ -420,6 +421,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["plan_contract", { capability: "capability_000000000000", title: "Rejects a bad email" }],
         ["edit_plan", { id: "story_000000000000", title: "Renamed" }],
         ["show_plan", {}],
+        ["health_worklist", {}],
         ["claim", { capability: "capability_000000000000", reason: "building it" }],
         ["release", { capability: "capability_000000000000" }],
         ["make_workspace", { increment: "increment_000000000000", reason: "building it" }],
@@ -802,6 +804,38 @@ test("6.29 show_plan gives each capability's word, and for one not healthy its r
       const shown = (plan.data.stories as { capabilities: { id: string; status: string; why?: { reason: string; mover: string; contracts: string[] } }[] }[])[0]?.capabilities[0];
       assert.equal(shown?.status, "untested");
       assert.deepEqual(shown?.why && { reason: shown.why.reason, mover: shown.why.mover, contracts: shown.why.contracts }, { reason: "needs owner", mover: "owner", contracts: [owner] });
+    });
+  });
+});
+
+test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and how many more wait; a capability an open increment touches is not offered", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      assert.match((await agent.call("health_worklist")).text, /nothing waits/i);
+
+      const { arc, capability } = await planned(agent);
+      const story = (await library.projectTree()).stories[0]!.id;
+      const check = idOf(await agent.call("plan_contract", { capability, title: "1.1 · Rejects a bad email" }));
+      await library.setProposed(capability, false);
+      await library.recordVerified(check, "failing");
+      const later = [];
+      for (const title of ["Thank-you page", "Password rules", "Welcome email", "Sign-up button"]) {
+        await delay(5);
+        later.push(idOf(await agent.call("plan_capability", { story, title, ...FOUNDED })));
+      }
+      const routed = later[0]!;
+      await agent.call("park_increment", { arc, title: "Thank-you page", objective: "Build it", body: "Red then green", touches: [routed] });
+
+      const listed = await agent.call("health_worklist");
+      assert.equal(listed.isError, false, listed.text);
+      const items = listed.data.items as { capability: string; why: { reason: string; mover: string; contracts: string[] }; since: string }[];
+      assert.deepEqual(items.map((item) => item.capability), [capability, later[1], later[2]], "oldest three, the routed one left off");
+      assert.deepEqual(items[0]?.why.contracts, [check]);
+      assert.equal(listed.data.more, 1);
+      assert.match(listed.text, new RegExp(`Email form[^\\n]*unhealthy — failing, the agent's to move[^\\n]*${check}[^\\n]*since \\d{4}-\\d{2}-\\d{2}`));
+      assert.match(listed.text, /Password rules[^\n]*proposed — not built, the agent's to move/);
+      assert.match(listed.text, /1 more wait/);
+      assert.ok(!listed.text.includes(routed), listed.text);
     });
   });
 });

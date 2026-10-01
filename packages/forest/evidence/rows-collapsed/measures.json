@@ -1,0 +1,48 @@
+{
+  "desktop": {
+    "fresh": {
+      "rows": [
+        "fp-builder",
+        "fp-waiting",
+        "fp-merged"
+      ],
+      "toggles": [
+        "false",
+        "false",
+        "false"
+      ],
+      "details": 0,
+      "height": 157
+    },
+    "opened": {
+      "rows": [
+        "fp-builder",
+        "fp-explorer",
+        "fp-waiting",
+        "fp-merged"
+      ],
+      "toggles": [
+        "true",
+        "false",
+        "false",
+        "false"
+      ],
+      "details": 1,
+      "height": 257
+    },
+    "closed": {
+      "rows": [
+        "fp-builder",
+        "fp-waiting",
+        "fp-merged"
+      ],
+      "toggles": [
+        "false",
+        "false",
+        "false"
+      ],
+      "details": 0,
+      "height": 157
+    }
+  }
+}

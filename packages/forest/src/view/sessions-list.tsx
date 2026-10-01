@@ -127,8 +127,8 @@ export function mountSessionsList(container: HTMLElement, options: {
   let asking = false;
   let highlighted: string | undefined;
   let selected: string | undefined;
-  // Every row starts expanded; these are the ones the user folded.
-  let collapsed: ReadonlySet<string> = new Set();
+  // Every row starts collapsed; these are the ones the user opened.
+  let expanded: ReadonlySet<string> = new Set();
   const openKept = keptPanelOpen(options.project);
   let stripOpen = openKept.read();
   let files: ReadonlyMap<string, SessionFiles> = new Map();
@@ -136,7 +136,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
     error={error} highlighted={highlighted} selected={selected} onHighlight={options.onHighlight}
-    collapsed={collapsed} files={files} onToggle={toggle} open={stripOpen}
+    expanded={expanded} files={files} onToggle={toggle} open={stripOpen}
     onToggleOpen={() => { stripOpen = !stripOpen; openKept.write(stripOpen); draw(); }}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
@@ -148,17 +148,17 @@ export function mountSessionsList(container: HTMLElement, options: {
     : undefined;
   /** Expanded rows' files, read in one batched ask at a time; a failed read says so and the next ask tries again. */
   const windows = windowsReader(readWindows ?? (async () => []), answers => {
-    const shown = [...answers].filter(([session]) => !collapsed.has(session));
+    const shown = [...answers].filter(([session]) => expanded.has(session));
     if (stopped || shown.length === 0) return;
     files = new Map([...files, ...shown]);
     draw();
   });
   const askFiles = (sessions: readonly string[]): void => { if (readWindows !== undefined && sessions.length > 0) windows.ask(sessions); };
   const toggle = (session: string): void => {
-    const next = new Set(collapsed);
-    if (next.delete(session)) askFiles([session]);
-    else { next.add(session); files = new Map([...files].filter(([id]) => id !== session)); }
-    collapsed = next;
+    const next = new Set(expanded);
+    if (next.delete(session)) files = new Map([...files].filter(([id]) => id !== session));
+    else { next.add(session); askFiles([session]); }
+    expanded = next;
     draw();
   };
   const askReadings = (): void => {
@@ -166,7 +166,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (ask === undefined || asking || Date.now() - askedAt < READING_EVERY_MS || rows.length === 0) return;
     asking = true;
     askedAt = Date.now();
-    askFiles(everyId(rows).filter(session => !collapsed.has(session)));
+    askFiles(everyId(rows).filter(session => expanded.has(session)));
     options.reads.idleAfterMs?.().then(ms => { quietMs = ms; }, () => {
       // An unreadable setting keeps the last one read; the next ask tries again.
     });
@@ -186,7 +186,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (stopped || tree === undefined || arcs === undefined) return;
     rows = sessionRows(tree, log, arcs, now, merged(), quietMs, leaveMs);
     kept.write(rows);
-    askFiles(everyId(rows).filter(session => !collapsed.has(session) && !files.has(session)));
+    askFiles(everyId(rows).filter(session => expanded.has(session) && !files.has(session)));
     options.onWisps?.(sessionWisps(rows, log, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
@@ -322,8 +322,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   selected?: string | undefined;
   onHighlight(stories: readonly string[] | undefined, session?: string): void;
   onSelect?(session: string | undefined): void;
-  /** The rows folded, when the caller keeps them; otherwise the list keeps its own. Every other row is expanded (7.17). */
-  collapsed?: ReadonlySet<string>;
+  /** The rows opened, when the caller keeps them; otherwise the list keeps its own. Every other row is collapsed (7.8). */
+  expanded?: ReadonlySet<string>;
   onToggle?(session: string): void;
   /** Each expanded row's files, once read (7.8). */
   files?: ReadonlyMap<string, SessionFiles>;
@@ -335,8 +335,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const [ownOpen, setOwnOpen] = useState(true);
   const stripOpen = control.open ?? ownOpen;
   const onToggleOpen = control.onToggleOpen ?? (() => setOwnOpen(!ownOpen));
-  const collapsed = control.collapsed ?? own;
-  const isOpen = (id: string): boolean => !collapsed.has(id);
+  const expanded = control.expanded ?? own;
+  const isOpen = (id: string): boolean => expanded.has(id);
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();

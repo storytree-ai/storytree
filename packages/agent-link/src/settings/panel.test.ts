@@ -30,7 +30,9 @@ test("10.13 the panel offers a Postgres address as a third library location, sav
     const panel = settingsActions(home);
     const address = "postgres://me@db.example.com:5432/postgres";
     assert.equal((await panel.saveSetting("library", ["postgres", address])).ok, true);
-    assert.deepEqual(readSettings(home).library.location === "postgres" && readSettings(home).library, { ...readSettings(home).library, address });
+    const library = readSettings(home).library;
+    assert.equal(library.location, "postgres");
+    assert.equal(library.location === "postgres" && library.address, address);
     const html = renderSettings(readSettings(home), "library");
     assert.match(html, /<option value="local">On this computer<\/option>/);
     assert.match(html, /<option value="cloudsql">Google Cloud SQL<\/option>/);

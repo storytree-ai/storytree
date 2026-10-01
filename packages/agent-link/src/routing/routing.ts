@@ -220,14 +220,15 @@ export function locateStorytree(options: LocateOptions = {}): StorytreeAddress {
 }
 
 /**
- * Where the library is, as the user's `library` setting says: the Cloud SQL instance it names, or
- * the running app's local database. The settings file is read fresh, and an invalid one is thrown
+ * Where the library is, as the user's `library` setting says: the Cloud SQL instance or Postgres
+ * address it names, or the running app's local database. The settings file is read fresh, and an invalid one is thrown
  * as it is, naming the file: it is never read as local.
  */
 export function locateLibrary(options: LocateOptions = {}): { found: true; connect: ConnectOptions } | { found: false; message: string } {
   const home = options.home ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
   const setting = readLibrary(home);
   if (setting.location === "cloudsql") return { found: true, connect: { cloudSql: { instance: setting.instance, user: setting.user } } };
+  if (setting.location === "postgres") return { found: true, connect: { address: setting.address } };
   const local = locateStorytree({ dataDir: options.dataDir ?? path.join(home, "pgdata") });
   return local.running ? { found: true, connect: { url: local.url } } : { found: false, message: local.message };
 }
@@ -248,7 +249,7 @@ export function locateApp(home: string = storytreeHome()): { running: boolean } 
   }
 }
 
-/** `library` with a deadline on each new local handshake; a Cloud SQL instance keeps its own bound. */
+/** `library` with a deadline on each new local handshake; a Cloud SQL instance or an address keeps its own bound. */
 export function withConnectTimeout(library: ConnectOptions, connectTimeoutMs: number): ConnectOptions {
   return library.url === undefined ? library : { ...library, connectTimeoutMs };
 }

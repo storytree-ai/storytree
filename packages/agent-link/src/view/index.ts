@@ -90,8 +90,7 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
       error.textContent = "";
       status.textContent = "";
       value.removeAttribute("aria-invalid");
-      const cloud = form.querySelector<HTMLElement>(".settings-cloud");
-      if (cloud) cloud.hidden = value.value !== "cloudsql";
+      for (const fields of form.querySelectorAll<HTMLElement>(".settings-cloud")) fields.hidden = value.value !== fields.dataset.location;
     };
     form.addEventListener("input", edited);
     form.addEventListener("change", edited);
@@ -108,6 +107,7 @@ export function mountSettings(host: HTMLElement, bridge: SettingsBridge, options
       if (name === "library" && value.value === "cloudsql") {
         words.push((form.elements.namedItem("instance") as HTMLInputElement).value, (form.elements.namedItem("user") as HTMLInputElement).value);
       }
+      if (name === "library" && value.value === "postgres") words.push((form.elements.namedItem("address") as HTMLInputElement).value);
       void (async () => {
         try {
           const result = await bridge.saveSetting(name, words);

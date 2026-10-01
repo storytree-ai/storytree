@@ -29,12 +29,12 @@ function launch(exe: string): Promise<void> {
 
 /**
  * Wait until the delivered app is up. On a local library that is its database answering; on a
- * Cloud SQL library the app starts no local database, so it is the app itself running (its launch
+ * Cloud SQL or Postgres-address library the app starts no local database, so it is the app itself running (its launch
  * record's process, app lifecycle 1.11).
  */
 export async function waitForApp(home: string, timeoutMs = 90_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  const cloud = readLibrary(home).location === "cloudsql";
+  const cloud = readLibrary(home).location !== "local";
   while (Date.now() < deadline) {
     if (cloud) {
       if (locateApp(home).running) return;

@@ -6,7 +6,7 @@ import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import type { PageReading } from "../live-reading/page-reading.js";
 import { renderBoard, renderHandle } from "./render.js";
-import { readPreferences, writePreferences } from "./preferences.js";
+import { readPreferences, restorePick, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { open(): void; close(): void; stop(): void }
 /** A nonmodal top drawer: its host and the forest below keep receiving input. */
@@ -42,8 +42,9 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     status.setAttribute("role", next.status === "error" ? "alert" : "status");
     // A failed read retains the last good board, explicitly stale.
     if (!next.board) return;
-    const selected = next.board.lanes.find(({ id }) => id === picked) ?? next.board.lanes.find(({ id }) => id === next.board!.selected);
-    if (picked !== selected?.id) { picked = selected?.id; question = undefined; }
+    const restored = restorePick(next.board.lanes.map(({ id }) => id), picked, next.board.selected);
+    const selected = next.board.lanes.find(({ id }) => id === restored);
+    if (picked !== restored) { picked = restored; question = undefined; }
     if (question && !selected?.view.questions.some(({ id }) => id === question)) question = undefined;
     remember();
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;

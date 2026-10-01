@@ -17,3 +17,7 @@ export function readPreferences(project: string): DrawerPreferences {
 export function writePreferences(project: string, value: DrawerPreferences): void {
   try { localStorage.setItem(key(project), JSON.stringify(value)); } catch { /* Keep this launch's state. */ }
 }
+/** A saved arc is restored while it is still on the board; otherwise the briefing's own pick applies. */
+export function restorePick(lanes: readonly string[], picked: string | undefined, briefed: string | undefined): string | undefined {
+  return picked !== undefined && lanes.includes(picked) ? picked : briefed !== undefined && lanes.includes(briefed) ? briefed : undefined;
+}

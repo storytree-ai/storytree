@@ -15,16 +15,16 @@ const row: SessionRow = { id: "parent", label: "Build <signup>", agent: "Codex",
       totalTokens: undefined, stories: [], worktrees: [], running: [], description: [], children: [] },
   ] };
 
-test("7.1–7.5 rows start expanded, each with its children below it, and a row collapsed by the caller shows neither; rows show safe words and available total beside its bar", () => {
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
-  assert.match(html, /Build &lt;signup&gt;/);
+test("7.1–7.5 rows start collapsed, showing neither detail nor children; a row the user opened shows its detail and its children below it; rows show safe words and available total beside its bar", () => {
+  const fresh = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {} }));
+  assert.match(fresh, /Build &lt;signup&gt;/);
+  assert.match(fresh, /aria-expanded="false"/);
+  assert.match(fresh, /class="session-children"[^>]*>\+1<\/span>/, "the count stays on a collapsed row");
+  assert.doesNotMatch(fresh, /data-session-id="child"|session-detail/);
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], expanded: new Set(["parent"]), onHighlight() {} }));
   assert.match(html, /aria-expanded="true"/);
-  assert.match(html, /class="session-children"[^>]*>\+1<\/span>/);
   assert.match(html, /data-session-id="child"/);
   assert.match(html, /class="session-detail"/);
-  const collapsed = renderToStaticMarkup(createElement(SessionsList, { rows: [row], collapsed: new Set(["parent"]), onHighlight() {} }));
-  assert.match(collapsed, /aria-expanded="false"/);
-  assert.doesNotMatch(collapsed, /data-session-id="child"|session-detail/);
   assert.match(html, /class="session-context-slot" title="120,000 tokens"/);
   assert.match(html, /120,000 context tokens/);
   assert.match(html, />120K<\/span>/);

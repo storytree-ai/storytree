@@ -33,7 +33,7 @@ const KEPT = {
   "packages/forest-world/package.json": pkg("forest-world"),
   "packages/forest-world/src/coast.ts": "",
 };
-const DECLARED = { stories: ["app", "cli", "forest", "forest-world", "library"], notYetMoved: [], edges: { enforce: false, edges: [] } };
+const DECLARED = { stories: ["app", "cli", "forest", "forest-world", "library"], notYetMoved: [], edges: { edges: [] } };
 
 test("the planted trees start from one that keeps the rules", (t) => {
   assert.deepEqual(boundaryProblems(plant(t, {}), DECLARED), []);
@@ -100,25 +100,26 @@ test("3.4 packages that depend on each other, even for development only, are ref
   assert.match(problems[0], /@storytree\/forest → @storytree\/forest-world → @storytree\/forest/);
 });
 
-test("3.5 switched on, a workspace dependency the owner has not sanctioned on the edge list is refused; switched off, it passes", (t) => {
+test("3.5 a story depending on the frame or the front door is refused, naming the edge, unless the owner sanctioned it; any other one-way edge needs no listing", (t) => {
   const root = plant(t, {
     "packages/forest/package.json": pkg("forest", undefined, { dependencies: { "@storytree/forest-world": "workspace:*" }, devDependencies: { "@storytree/app": "workspace:*" } }),
-    "packages/cli/package.json": pkg("cli", undefined, { peerDependencies: { "@storytree/library": "workspace:*" } }),
+    "packages/library/package.json": pkg("library", { ".": "./src/index.ts", "./readings": "./src/readings.ts" }, { peerDependencies: { "@storytree/cli": "workspace:*" } }),
+    "packages/cli/package.json": pkg("cli", undefined, { dependencies: { "@storytree/app": "workspace:*", "@storytree/forest": "workspace:*" } }),
   });
-  const edges = [
-    { from: "@storytree/forest", to: "@storytree/forest-world", said: "the forest draws on the world", on: "2026-10-02" },
-    { from: "@storytree/cli", to: "@storytree/library", said: null, on: null },
-  ];
-  assert.deepEqual(boundaryProblems(root, { ...DECLARED, edges: { enforce: false, edges } }), []);
-  const problems = boundaryProblems(root, { ...DECLARED, edges: { enforce: true, edges } });
+  const problems = boundaryProblems(root, { ...DECLARED, edges: { edges: [] } });
   assert.equal(problems.length, 2, problems.join("\n"));
   assert.match(problems.join("\n"), /@storytree\/forest → @storytree\/app.*question/);
-  assert.match(problems.join("\n"), /@storytree\/cli → @storytree\/library.*question/);
+  assert.match(problems.join("\n"), /@storytree\/library → @storytree\/cli.*question/);
+
+  const sanctioned = [{ from: "@storytree/forest", to: "@storytree/app", said: "the forest may lean on the frame here", on: "2026-10-02" }];
+  const left = boundaryProblems(root, { ...DECLARED, edges: { edges: sanctioned } });
+  assert.equal(left.length, 1, left.join("\n"));
+  assert.match(left[0], /@storytree\/library → @storytree\/cli/);
 });
 
 test("3.6 an edge-list entry no package.json uses any more is reported", (t) => {
   const edges = [{ from: "@storytree/forest", to: "@storytree/library", said: null, on: null }];
-  const problems = boundaryProblems(plant(t, {}), { ...DECLARED, edges: { enforce: false, edges } });
+  const problems = boundaryProblems(plant(t, {}), { ...DECLARED, edges: { edges } });
   assert.equal(problems.length, 1, problems.join("\n"));
   assert.match(problems[0], /@storytree\/forest → @storytree\/library.*no package\.json/);
 });

@@ -493,6 +493,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(titleOf(next), "3.6 · Lowercases the domain", "the next free number follows the highest");
     assert.equal(titleOf(await work.addContract({ title: "The link expires", capability: other.id })), "4.1 · The link expires", "each capability numbers its own");
     const unnumbered = await work.addCapability({ title: "Password form", story: story.id });
+    await work.editCapability(unnumbered.id, { title: "Password form" });
     assert.equal(titleOf(await work.addContract({ title: "Refuses a short password", capability: unnumbered.id })), "Refuses a short password", "a capability with no number gives none");
 
     const before = await transactions.history();
@@ -503,6 +504,18 @@ for (const backend of [memory, postgres]) {
     assert.equal((await work.editContract(next.id, { title: "3.6 · Lowercases the whole address" }))?.fields.title, "3.6 · Lowercases the whole address", "a contract keeps its own number");
     await records.retire(next.id, "out of scope");
     assert.equal(titleOf(await work.addContract({ title: "3.6 · Lowercases the domain, again", capability: form.id })), "3.6 · Lowercases the domain, again", "only a live contract holds its number");
+  });
+
+  contract("4.8", "a capability planned without a number gets its story's next free one, so a contract planned on it moments later is numbered; a number given is kept", async ({ work }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const first = await work.addCapability({ title: "Email form", story: story.id });
+    assert.equal(first.fields.title, "1 · Email form", "the first of a story is 1");
+    assert.equal((await work.addCapability({ title: "5 · Confirmation link", story: story.id })).fields.title, "5 · Confirmation link", "a number given is kept");
+    const fresh = await work.addCapability({ title: "Lag instruments", story: story.id });
+    assert.equal(fresh.fields.title, "6 · Lag instruments", "the next free number follows the highest");
+    assert.equal((await work.addContract({ title: "The read is delayed", capability: fresh.id })).fields.title, "6.1 · The read is delayed");
+    const elsewhere = await work.addStory({ title: "Visitor can sign in" });
+    assert.equal((await work.addCapability({ title: "Password form", story: elsewhere.id })).fields.title, "1 · Password form", "each story numbers its own");
   });
 }
 

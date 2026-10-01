@@ -60,3 +60,6 @@
 .session-detail-running li { display:flex; gap:8px; justify-content:space-between; color:#d9dedb; }
 .session-run-command { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .session-run-time { flex-shrink:0; font-variant-numeric:tabular-nums; color:#b3bdb9; }
+/* The globe's nameplates (arc north-up): a story's hangs below its island from its top edge; a capability's is smaller, on its territory. */
+.planet-nameplate { display:inline-block; transform:translateX(-50%); }
+.planet-nameplate.capability { transform:none; padding:0.05rem 0.45rem; font-size:0.7rem; font-weight:500; background:rgb(16 20 24 / 0.62); }

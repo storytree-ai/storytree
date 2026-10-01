@@ -1,0 +1,55 @@
+{
+ "src/acceptance-health.mjs": {
+  "5": 30
+ },
+ "src/gate.mjs": {
+  "7": 48
+ },
+ "src/guidance.mjs": {
+  "4": 174
+ },
+ "src/heavy-lock.mjs": {
+  "6": 14
+ },
+ "src/library-export.mjs": {
+  "5": 18
+ },
+ "src/library-server.mjs": {
+  "5": 10
+ },
+ "src/node-runtime.mjs": {
+  "6": 6
+ },
+ "src/own-health.mjs": {
+  "1": 33,
+  "2": 33,
+  "5": 144
+ },
+ "src/package-boundaries.mjs": {
+  "3": 80
+ },
+ "src/provision-worktree.mjs": {
+  "2": 44
+ },
+ "src/restore-library.mjs": {
+  "5": 12
+ },
+ "src/server-log.mjs": {
+  "6": 3
+ },
+ "src/survey-coverage.mjs": {
+  "2": 24,
+  "6": 12
+ },
+ "src/test-scope.mjs": {
+  "1": 200,
+  "7": 24
+ },
+ "src/test.mjs": {
+  "6": 16
+ },
+ "src/unit-run.mjs": {
+  "2": 8,
+  "6": 76
+ }
+}

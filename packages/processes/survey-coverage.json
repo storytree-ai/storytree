@@ -1,0 +1,60 @@
+{
+ "src/closing/index.ts": {
+  "5": 198
+ },
+ "src/launch/launch.ts": {
+  "1": 20,
+  "2": 4,
+  "3": 12,
+  "4": 30
+ },
+ "src/ledger/files.ts": {
+  "1": 45,
+  "2": 9,
+  "3": 48,
+  "4": 80,
+  "5": 63
+ },
+ "src/ledger/records.ts": {
+  "1": 15,
+  "2": 3,
+  "3": 12,
+  "4": 20,
+  "5": 18
+ },
+ "src/listing/index.ts": {
+  "3": 72,
+  "5": 99
+ },
+ "src/observation/observe.ts": {
+  "1": 30,
+  "2": 6,
+  "3": 24,
+  "5": 18
+ },
+ "src/process/index.ts": {
+  "1": 10,
+  "2": 12,
+  "3": 12,
+  "4": 20,
+  "5": 18
+ },
+ "src/process/linux.ts": {
+  "1": 20,
+  "2": 24,
+  "3": 24,
+  "4": 40,
+  "5": 36
+ },
+ "src/stopping/linux.ts": {
+  "4": 10
+ },
+ "src/stopping/signal.ts": {
+  "4": 20
+ },
+ "src/stopping/stop.ts": {
+  "3": 114,
+  "4": 190,
+  "5": 27
+ }
+}

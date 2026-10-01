@@ -1,0 +1,59 @@
+{
+ "src/lifecycle/background.ts": {
+  "1": 40,
+  "4": 20
+ },
+ "src/lifecycle/backups.ts": {
+  "1": 2
+ },
+ "src/lifecycle/launch.ts": {
+  "1": 4
+ },
+ "src/lifecycle/open-where-set.ts": {
+  "1": 2
+ },
+ "src/lifecycle/quit.ts": {
+  "1": 12
+ },
+ "src/lifecycle/sign-in.ts": {
+  "1": 12
+ },
+ "src/projects/follow.ts": {
+  "1": 25,
+  "2": 14
+ },
+ "src/projects/selection.ts": {
+  "2": 36
+ },
+ "src/surfaces/reads.ts": {
+  "3": 115
+ },
+ "src/surfaces/smoke.ts": {
+  "3": 4
+ },
+ "src/updates/build-health.ts": {
+  "4": 12
+ },
+ "src/updates/follow-main.ts": {
+  "1": 4,
+  "4": 12
+ },
+ "src/updates/install-moment.ts": {
+  "4": 6
+ },
+ "src/updates/main-updates.ts": {
+  "4": 55
+ },
+ "src/updates/release-source.ts": {
+  "4": 4
+ },
+ "src/updates/releases.ts": {
+  "4": 52
+ },
+ "src/updates/seed-writing.ts": {
+  "4": 1
+ },
+ "src/view/render.ts": {
+  "2": 10
+ }
+}

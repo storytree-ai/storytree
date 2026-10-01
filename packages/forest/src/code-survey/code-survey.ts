@@ -8,8 +8,12 @@
  *   reaches what it takes from there. A file belongs to the capability whose numbered tests reach it
  *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
  *   subject stays its own, and a file reached only through others goes to the capability nearest it.
- * - A file no numbered test reaches falls back to its top source folder, when the folder is a capability's
- *   title slug. Otherwise it is Unclaimed: no capability.
+ * - Where no import leads, because a test runs the code in a process it starts, the package's coverage
+ *   map (ADR-0838 D3, written by the dev loop's `pnpm survey:coverage`) says which numbered tests
+ *   executed it. Executed ranks after a direct import and before a further one: a file a test imports
+ *   is its subject, and code a test ran is nearer to it than code only imported along the way.
+ * - A file nothing reaches is Unclaimed: no capability. Its folder's name allocates nothing, since name
+ *   matching is brittle (ADR-0838 D3 retired the fallback).
  * - Lines are a file's non-blank lines. Test files are read for their titles and imports, never counted.
  * Capability records gain no file list: ownership is derived here, each time.
  */
@@ -27,6 +31,12 @@ export type SurveyedFile = { readonly path: string; readonly lines: number; read
 export type FileImport = { readonly from: string; readonly to: string };
 
 export type StorySurvey = { readonly files: readonly SurveyedFile[]; readonly imports: readonly FileImport[] };
+
+/** A package's coverage map: for each source file, how many numbered tests of each capability number executed it. */
+export type CoverageMap = Readonly<Record<string, Readonly<Record<string, number>>>>;
+
+/** Where executed code ranks among import depths: after a direct import (0), before a further one (1). */
+const EXECUTED = 0.5;
 
 /** Stories whose package is not named after their title. */
 const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes" };
@@ -49,9 +59,6 @@ const numberOf = (title: string): number | undefined => {
   const match = /^\s*(\d+)\s*·/.exec(title);
   return match === null ? undefined : Number(match[1]);
 };
-
-/** A title's slug without its number: "3 · Agent claims" is "agent-claims". */
-const slugOf = (title: string): string => title.replace(/^\s*\d+\s*·\s*/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const linesOf = (text: string): number => text.split("\n").filter((line) => line.trim() !== "").length;
 
@@ -127,7 +134,7 @@ function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, path
 }
 
 /** Survey one story's package: every source file with its lines and owner, and the imports between them. */
-export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[]): StorySurvey {
+export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}): StorySurvey {
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
@@ -135,7 +142,6 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     const number = numberOf(capability.title);
     return number === undefined ? [] : [[number, capability.id] as const];
   }));
-  const bySlug = new Map(capabilities.map((capability) => [slugOf(capability.title), capability.id]));
 
   /** For each source file and capability number, how near that capability's numbered tests reach it, and how many reach it that near. */
   const reach = new Map<string, Map<number, { depth: number; count: number }>>();
@@ -154,11 +160,22 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     }
   }
 
+  for (const [path, counts] of Object.entries(coverage)) {
+    if (!byPath.has(path)) continue;
+    const tally = reach.get(path) ?? new Map<number, { depth: number; count: number }>();
+    for (const [number, count] of Object.entries(counts)) {
+      const was = tally.get(Number(number));
+      if (!byNumber.has(Number(number))) continue;
+      if (was === undefined || EXECUTED < was.depth) tally.set(Number(number), { depth: EXECUTED, count });
+      else if (was.depth === EXECUTED) was.count += count;
+    }
+    reach.set(path, tally);
+  }
+
   const sources = code.filter((file) => !TEST_FILE.test(file.path));
   const files = sources.map((file): SurveyedFile => {
     const tally = [...(reach.get(file.path) ?? [])].sort(([a, near], [b, far]) => near.depth - far.depth || far.count - near.count || a - b);
-    const folder = /^src\/([^/]+)\//.exec(file.path)?.[1];
-    const capability = tally.length > 0 ? byNumber.get(tally[0]![0]) : folder === undefined ? undefined : bySlug.get(folder);
+    const capability = tally.length > 0 ? byNumber.get(tally[0]![0]) : undefined;
     return capability === undefined ? { path: file.path, lines: linesOf(file.text) } : { path: file.path, lines: linesOf(file.text), capability };
   });
   const imports = sources.flatMap((file) => edgesOf(file, paths).filter((edge) => !TEST_FILE.test(edge.to)).map((edge) => ({ from: file.path, to: edge.to })));

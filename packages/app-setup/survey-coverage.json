@@ -1,0 +1,50 @@
+{
+ "src/connect/harness.ts": {
+  "1": 136,
+  "2": 391
+ },
+ "src/connect/index.ts": {
+  "1": 80,
+  "2": 187
+ },
+ "src/connect/installed.ts": {
+  "2": 34
+ },
+ "src/deliver/command.ts": {
+  "1": 48
+ },
+ "src/deliver/delivery.ts": {
+  "1": 16
+ },
+ "src/deliver/payload.ts": {
+  "1": 52
+ },
+ "src/deliver/runtime.ts": {
+  "1": 3
+ },
+ "src/deliver/uninstall.ts": {
+  "1": 32
+ },
+ "src/help/actions.ts": {
+  "3": 9
+ },
+ "src/help/feedback.ts": {
+  "5": 16
+ },
+ "src/help/license.ts": {
+  "4": 1
+ },
+ "src/project/index.ts": {
+  "1": 21,
+  "3": 85
+ },
+ "src/view/delete-project.ts": {
+  "3": 1
+ },
+ "src/view/first-run.ts": {
+  "3": 2
+ },
+ "src/view/remove-project.ts": {
+  "3": 1
+ }
+}

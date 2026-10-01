@@ -29,6 +29,8 @@ export async function buildCommand(outdir: string): Promise<string> {
     chunkNames: "chunks/[name]-[hash]",
     target: "node24",
     logLevel: "warning",
+    // Under a coverage run (`pnpm survey:coverage`), the code survey traces the bundle back to its files.
+    sourcemap: process.env.NODE_V8_COVERAGE !== undefined,
     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],

@@ -35,12 +35,6 @@ test("8.1 a file a test titled N.M reaches through any number of imports and re-
   assert.equal(owner("src/tools/helper.ts"), "cap-claims");
 });
 
-test("8.2 a file no numbered test reaches belongs to the capability its top source folder names, else it is Unclaimed", () => {
-  assert.equal(owner("src/claims/refuse.ts"), "cap-claims");
-  assert.equal(owner("src/bins/run.ts"), undefined);
-  assert.ok(survey.files.some((file) => file.path === "src/bins/run.ts"));
-});
-
 test("8.3 lines of code count source files only, never tests", () => {
   assert.deepEqual(survey.files.map(({ path }) => path).sort(), ["src/bins/run.ts", "src/claims/claim.ts", "src/claims/refuse.ts", "src/index.ts", "src/merges/merge.ts", "src/server.ts", "src/tools/helper.ts", "src/tools/tool.ts"]);
   assert.equal(survey.files.find((file) => file.path === "src/merges/merge.ts")?.lines, 2);

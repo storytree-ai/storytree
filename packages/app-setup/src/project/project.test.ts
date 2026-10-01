@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
-import { setUpProject } from "@storytree/agent-link";
-import { addProject, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
+import { openActivityLog, setUpProject } from "@storytree/agent-link";
+import { addProject, deleteProject, projectFolder, projectsOnThisComputer, removeProject } from "./index.js";
 
 /** The test Postgres `pnpm test` starts; each project made here is dropped afterwards. */
 async function testLibrary(t: { after(fn: () => Promise<void>): void }, projects: string[]): Promise<Storytree> {
@@ -108,4 +108,45 @@ test("removing a project whose marker git tracks leaves the folder as it is and 
   assert.equal(projectsOnThisComputer(await library.listProjects(), home).includes(name), false);
   assert.deepEqual(await addProject(folder, "anything", { home, library }), { status: "already a project", folder, project: name });
   assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name), "adding its folder again brings it back");
+});
+
+test("deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-project-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const token = randomBytes(4).toString("hex");
+  const name = `downloads-${token}`;
+  const library = await testLibrary(t, [name]);
+  const home = path.join(dir, "home");
+  const folder = path.join(dir, name);
+  assert.equal((await addProject(folder, name, { home, library })).status, "set up");
+  const log = await openActivityLog(library);
+  t.after(() => log.close());
+  const session = `other-${token}`;
+  await log.append(name, { session, source: "tool", kind: "claimed", capability: `capability_${token}`, reason: "building" });
+
+  const still = async () => (await library.listProjects()).includes(name);
+  const refused = async (options: { confirm: string; inUse?: string }, why: RegExp) => {
+    const answer = await deleteProject(name, { home, library, snapshot: true, ...options });
+    assert.equal(answer.status, "refused");
+    assert.match("message" in answer ? answer.message : "", why);
+    assert.ok(await still(), "a refusal deletes nothing");
+  };
+  await refused({ confirm: "downloads" }, /type/i);
+  await refused({ confirm: name, inUse: name }, /in use/i);
+  await refused({ confirm: name }, new RegExp(`${session}.*building|building.*${session}`));
+  await log.append(name, { session, source: "tool", kind: "released", capability: `capability_${token}` });
+
+  const deleted = await deleteProject(name, { home, library, snapshot: true, confirm: name });
+  assert.equal(deleted.status, "deleted");
+  assert.equal(await still(), false, "its database is gone from the library");
+  assert.equal(existsSync(path.join(folder, ".storytree.json")), false, "its folder here is no longer a project");
+  const backups = path.join(home, "backups", name);
+  const [file] = readdirSync(backups);
+  assert.equal("snapshot" in deleted ? deleted.snapshot : undefined, path.join(backups, file!));
+  await library.restore(name, JSON.parse(readFileSync(path.join(backups, file!), "utf8")));
+  assert.ok(await still(), "the snapshot brings the project back");
+
+  assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "deleted");
+  assert.deepEqual(readdirSync(backups), [file], "a skipped snapshot writes none");
+  assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "no such project");
 });

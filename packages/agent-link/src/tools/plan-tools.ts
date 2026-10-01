@@ -131,6 +131,23 @@ export function registerPlanTools(define: Define): void {
   define("show_plan", "See the plan: every story, capability and contract with its health, who holds what, and which sessions are about.", z.object({}), async (_args, call) =>
     showPlan(call),
   );
+
+  define(
+    "health_worklist",
+    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment touches is already routed and not offered (ADR-0825 D4).",
+    z.object({}),
+    async (_args, { library }) => {
+      const listed = await library.healthWorklist();
+      if (listed.length === 0) return { text: "Nothing waits on the health worklist: every capability is healthy or already routed.", data: { items: [], more: 0 } };
+      const items = listed.slice(0, 3);
+      const more = listed.length - items.length;
+      const lines = items.map(({ capability, title, status, why, since }) =>
+        `Capability ${quoted(title)} (${capability}): ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `, carried by ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
+      );
+      if (more > 0) lines.push(`${more} more wait.`);
+      return { text: lines.join("\n"), data: { items, more } };
+    },
+  );
 }
 
 interface Changes {

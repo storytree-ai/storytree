@@ -55,3 +55,15 @@ test("8.4 a relative import between two source files is reported, from the impor
     { from: "src/tools/tool.ts", to: "src/tools/helper.ts" },
   ]);
 });
+
+test("8.6 a file a numbered test's runs executed belongs to the capability whose tests executed it most; a direct import outranks it, and it outranks a file reached only through further imports", () => {
+  const covered = surveyStory(tree, capabilities, {
+    "src/bins/run.ts": { "5": 2, "3": 1 },
+    "src/merges/merge.ts": { "3": 9 },
+    "src/tools/helper.ts": { "5": 1 },
+  });
+  const ownerOf = (path: string) => covered.files.find((file) => file.path === path)?.capability;
+  assert.equal(ownerOf("src/bins/run.ts"), "cap-merges");
+  assert.equal(ownerOf("src/merges/merge.ts"), "cap-merges");
+  assert.equal(ownerOf("src/tools/helper.ts"), "cap-merges");
+});

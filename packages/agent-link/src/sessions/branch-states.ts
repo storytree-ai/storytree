@@ -23,12 +23,12 @@
  *   name), for at most a few seconds, least recently looked-at branches first, and never fails a
  *   hook: `gh` or git missing, slow or refusing means nothing is learned this time.
  */
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { currentBranch, thisMachine, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
+import { thisMachine, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
+import { ask } from "../setup/machine.js";
 import { due, ghAllMergedPulls, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
 /** How branches are watched. */
@@ -78,7 +78,7 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
     (watch.allMergedPulls ?? ghAllMergedPulls)(context.folder).catch(() => new Map<string, MergedPull[]>()),
     (watch.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined),
   ]);
-  const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? seenHere(context.folder) : undefined;
+  const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? await seenHere(context.folder) : undefined;
   const deadline = Date.now() + (watch.budgetMs ?? BUDGET_MS);
   const found: Found[] = [];
   for (const [branch, facts] of [...candidates].sort(([a], [b]) => (looked[a] ?? 0) - (looked[b] ?? 0))) {
@@ -99,7 +99,7 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
       continue;
     }
     looked[branch] = Date.now();
-    const local = gitState(facts.folder, branch);
+    const local = await gitState(facts.folder, branch);
     if (local === undefined) found.push(...onGitHub);
     else found.push({ of: branch, open: local === "ahead", how: local, ...(local === "ahead" ? (open === undefined ? {} : { pull: open }) : { pull: {} }) });
   }
@@ -181,15 +181,25 @@ function toLookAt(lines: readonly Line[], machine: string | undefined, looked: R
   return candidates;
 }
 
+/**
+ * What git says, run in `cwd` without blocking this process (the app runs the look on its main
+ * process, ADR-0836 D3): its output, or a throw when it fails or takes longer than `timeout`.
+ */
+async function git(cwd: string, timeout: number, ...args: string[]): Promise<string> {
+  const answer = await ask("git", args, process.env, timeout, { cwd, shell: false });
+  if (!answer.answered || answer.code !== 0) throw new Error(`git ${args[0]} did not answer`);
+  return answer.out;
+}
+
 /** The branches `origin` has and this clone has, seen from `folder`; undefined when git cannot say. */
-function seenHere(folder: string): Set<string> | undefined {
-  const run = (timeout: number, ...args: string[]) => execFileSync("git", args, { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout, windowsHide: true });
+async function seenHere(folder: string): Promise<Set<string> | undefined> {
+  const run = (timeout: number, ...args: string[]) => git(folder, timeout, ...args);
   try {
-    const remote = run(ORIGIN_TIMEOUT_MS, "ls-remote", "--heads", "origin").split("\n").flatMap((line) => {
+    const remote = (await run(ORIGIN_TIMEOUT_MS, "ls-remote", "--heads", "origin")).split("\n").flatMap((line) => {
       const ref = line.split("\t")[1]?.trim();
       return ref?.startsWith("refs/heads/") ? [ref.slice("refs/heads/".length)] : [];
     });
-    const local = run(GIT_TIMEOUT_MS, "for-each-ref", "--format=%(refname:short)", "refs/heads").split("\n").map((name) => name.trim()).filter(Boolean);
+    const local = (await run(GIT_TIMEOUT_MS, "for-each-ref", "--format=%(refname:short)", "refs/heads")).split("\n").map((name) => name.trim()).filter(Boolean);
     return new Set([...remote, ...local]);
   } catch {
     return undefined;
@@ -215,36 +225,37 @@ function latestStates(lines: readonly Line[]): Map<string, Line & { kind: "branc
 }
 
 /** What this machine's git says of `branch`, from `folder` or the nearest folder above it still there; undefined when git cannot say. */
-function gitState(folder: string, branch: string): "deleted" | "not-ahead" | "ahead" | undefined {
+async function gitState(folder: string, branch: string): Promise<"deleted" | "not-ahead" | "ahead" | undefined> {
   let cwd = folder;
   while (!existsSync(cwd)) {
     const parent = path.dirname(cwd);
     if (parent === cwd) return undefined;
     cwd = parent;
   }
-  const run = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: GIT_TIMEOUT_MS, windowsHide: true }).trim();
+  const run = async (...args: string[]) => (await git(cwd, GIT_TIMEOUT_MS, ...args)).trim();
   try {
-    run("rev-parse", "--git-dir");
+    await run("rev-parse", "--git-dir");
   } catch {
     return undefined;
   }
   try {
-    run("rev-parse", "--verify", "-q", `refs/heads/${branch}`);
+    await run("rev-parse", "--verify", "-q", `refs/heads/${branch}`);
   } catch {
     // A branch with no commit yet has no ref either: it is only just started, not deleted.
-    return currentBranch(cwd) === branch ? undefined : "deleted";
+    const current = await run("symbolic-ref", "--short", "-q", "HEAD").catch(() => "");
+    return current === branch ? undefined : "deleted";
   }
   try {
-    return Number(run("rev-list", "--count", `${mainLine(run)}..refs/heads/${branch}`)) === 0 ? "not-ahead" : "ahead";
+    return Number(await run("rev-list", "--count", `${await mainLine(run)}..refs/heads/${branch}`)) === 0 ? "not-ahead" : "ahead";
   } catch {
     return undefined;
   }
 }
 
 /** The main line to compare with: what `origin` names as its default, as this clone last heard, else the local `main`. */
-function mainLine(run: (...args: string[]) => string): string {
+async function mainLine(run: (...args: string[]) => Promise<string>): Promise<string> {
   try {
-    return run("rev-parse", "--abbrev-ref", "origin/HEAD");
+    return await run("rev-parse", "--abbrev-ref", "origin/HEAD");
   } catch {
     return "main";
   }

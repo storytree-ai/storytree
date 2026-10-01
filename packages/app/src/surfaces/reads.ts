@@ -43,7 +43,7 @@ export interface PageReads {
   windowReadings(project: unknown, sessions: unknown): Promise<SessionWindow[]>;
   /** The latest folder a session of the project worked in on this machine, still there: where its code can be read. */
   projectFolder(project: unknown): Promise<string | undefined>;
-  /** The app's own look at every project's branches (agent link 4.21), so the sessions list never waits on a hook's. Never throws. */
+  /** The app's own look at every project's branches (agent link 4.21), so the sessions list never waits on a hook's. Never throws, never blocks the process, and never runs twice at once. */
   lookAround(): Promise<void>;
   /** Close the libraries and the log opened here. The connection to the library stays the caller's. */
   close(): Promise<void>;
@@ -66,6 +66,8 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
   /** What the page's reads already fetched of each project's log: each window or context read fetches only the lines added since. */
   const logLines: LinesCache = new Map();
   let log: Promise<ActivityLog> | undefined;
+  /** The look under way, if one is: a look asked for meanwhile joins it rather than running beside it. */
+  let looking: Promise<void> | undefined;
 
   /** `name`, if it is a project the library has; refused otherwise. */
   async function project(name: unknown): Promise<string> {
@@ -135,13 +137,18 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
       return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache: transcripts })));
     },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
-    lookAround: async () => {
-      try {
-        const opened = await activityLog();
-        for (const name of await storytree.listProjects()) await lookAsApp(opened, name).catch(() => []);
-      } catch {
-        // No log or no library now: the next look tries again.
-      }
+    lookAround: () => {
+      looking ??= (async () => {
+        try {
+          const opened = await activityLog();
+          for (const name of await storytree.listProjects()) await lookAsApp(opened, name).catch(() => []);
+        } catch {
+          // No log or no library now: the next look tries again.
+        } finally {
+          looking = undefined;
+        }
+      })();
+      return looking;
     },
     close: async () => {
       const opened = [...libraries.values(), ...(log === undefined ? [] : [log])];

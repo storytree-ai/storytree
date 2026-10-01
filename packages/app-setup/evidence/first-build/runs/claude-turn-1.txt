@@ -1,0 +1,134 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Google Drive=pending,claude.ai Gmail=pending,claude.ai Google Calendar=pending
+calls: 109
+  - ToolSearch
+  - PowerShell Get-ChildItem -Force
+  - st:check_setup {}
+  - Write C:\Users\mickh\todo-claude\.storytree-check
+  - ToolSearch
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:show_plan {}
+  - ToolSearch
+  - st:open {"id":"agent_ea381ad0cd2c"}
+  - st:open {"id":"agent_0bff6c2b615b"}
+  - st:open {"id":"principle_954942d00b39"}
+  - st:open {"id":"principle_985711a24f11"}
+  - WebFetch
+  - PowerShell node --version; npm --version; npx playwright --version; git --version
+  - PowerShell $base='https://raw.githubusercontent.com/tastejs/todomvc-app-template/master'; (Invoke-WebRequest "$
+  - PowerShell Get-Command python,py,python3 -ErrorAction SilentlyContinue | Select-Object Name,Source; Test-Path "
+  - PowerShell New-Item -ItemType Directory -Force css,js,test | Out-Null; Invoke-WebRequest 'https://unpkg.com/tod
+  - ToolSearch
+  - st:plan_story {"title":"Manage my to-dos in the browser","description":"The user opens index.html by double-click and keeps a to-do list that behaves exac
+  - st:plan_capability {"story":"story_d7e94c81f951","title":"Add and list todos","description":"Type into .new-todo and press Enter to add a todo; the list, count
+  - st:plan_capability {"story":"story_d7e94c81f951","title":"Complete and remove todos","description":"Toggle a todo, mark all complete/incomplete, delete one, an
+  - st:plan_capability {"story":"story_d7e94c81f951","title":"Edit todos","description":"Double-click a label to edit; Enter or blur saves (trimmed), empty deletes
+  - st:plan_capability {"story":"story_d7e94c81f951","title":"Filter by route","description":"#/, #/active and #/completed show all, active or completed todos, wit
+  - st:plan_capability {"story":"story_d7e94c81f951","title":"Persist todos","description":"Todos survive a reload via localStorage key todos-vanillajs, with keys 
+  - st:plan_contract {"capability":"capability_4a049ed53018","title":"Main and footer hidden when there are no todos"}
+  - st:plan_contract {"capability":"capability_4a049ed53018","title":"Enter adds a trimmed, non-empty todo to the bottom and clears the input"}
+  - st:plan_contract {"capability":"capability_4a049ed53018","title":"Counter shows active count in strong with item/items pluralised"}
+  - st:plan_contract {"capability":"capability_d4ca89b9b8c3","title":"Toggle checkbox marks a todo completed"}
+  - st:plan_contract {"capability":"capability_d4ca89b9b8c3","title":"Toggle-all sets every todo and reflects whether all are complete"}
+  - st:plan_contract {"capability":"capability_d4ca89b9b8c3","title":"Destroy button removes a todo"}
+  - st:plan_contract {"capability":"capability_d4ca89b9b8c3","title":"Clear completed removes completed todos and hides when none are completed"}
+  - st:plan_contract {"capability":"capability_6277b95b7815","title":"Double-click enters editing with the edit input focused and controls hidden"}
+  - st:plan_contract {"capability":"capability_6277b95b7815","title":"Enter or blur saves the trimmed edit; empty edit deletes"}
+  - st:plan_contract {"capability":"capability_6277b95b7815","title":"Escape cancels the edit"}
+  - st:plan_contract {"capability":"capability_3512735f278c","title":"Routes show all, active or completed todos with the matching link selected"}
+  - st:plan_contract {"capability":"capability_3512735f278c","title":"Changing a todo under a filter updates the filtered list"}
+  - st:plan_contract {"capability":"capability_b1c36fff8df9","title":"Todos survive a reload, stored under todos-vanillajs with id, title, completed"}
+  - st:plan_arc {"title":"TodoMVC app v1","intent":"Deliver a spec-complete TodoMVC app that opens from disk.","end_state":"All five capabilities built, eve
+  - st:park_increment {"arc":"arc_8500fdd523cb","title":"Add, list and persist todos","objective":"A usable list: add todos, see the counter, and keep them across
+  - st:park_increment {"arc":"arc_8500fdd523cb","title":"Complete, edit and filter todos","objective":"The rest of the TodoMVC spec: completing, deleting, editing
+  - st:ready_increment {"increment":"increment_e2862886b5a4"}
+  - st:claim {"increment":"increment_e2862886b5a4","reason":"Add, list and persist todos"}
+  - st:claim {"capability":"capability_4a049ed53018","reason":"Add and list todos"}
+  - Write C:\Users\mickh\todo-claude\index.html
+  - Write C:\Users\mickh\todo-claude\js\app.js
+  - Write C:\Users\mickh\todo-claude\test\run.ps1
+  - Write C:\Users\mickh\todo-claude\test\tests.html
+  - PowerShell powershell -ExecutionPolicy Bypass -File test\run.ps1
+  - st:claim {"capability":"capability_b1c36fff8df9","reason":"Persist todos"}
+  - st:report {"contract":"contract_bc80ebd78fec","result":"red"}
+  - st:report {"contract":"contract_0bdf43cf1416","result":"red"}
+  - st:report {"contract":"contract_0e27d7e15294","result":"red"}
+  - st:report {"contract":"contract_01920b6f736e","result":"red"}
+  - Write C:\Users\mickh\todo-claude\js\app.js
+  - PowerShell powershell -ExecutionPolicy Bypass -File test\run.ps1
+  - st:report {"contract":"contract_bc80ebd78fec","result":"green"}
+  - st:report {"contract":"contract_0bdf43cf1416","result":"green"}
+  - st:report {"contract":"contract_0e27d7e15294","result":"green"}
+  - st:report {"contract":"contract_01920b6f736e","result":"green"}
+  - st:land {"capability":"capability_4a049ed53018"}
+  - st:land {"capability":"capability_b1c36fff8df9"}
+  - st:mark_built {"capability":"capability_4a049ed53018","built":true}
+  - st:mark_built {"capability":"capability_b1c36fff8df9","built":true}
+  - st:close_increment {"increment":"increment_e2862886b5a4","disposition":"landed","note":"No git repo, so no PR. Add/list and persistence work; 4/4 tests green v
+  - st:ready_increment {"increment":"increment_353f1fc3544f"}
+  - st:claim {"increment":"increment_353f1fc3544f","reason":"Complete, edit and filter todos"}
+  - st:claim {"capability":"capability_d4ca89b9b8c3","reason":"Complete and remove todos"}
+  - st:claim {"capability":"capability_6277b95b7815","reason":"Edit todos"}
+  - st:claim {"capability":"capability_3512735f278c","reason":"Filter by route"}
+  - Edit C:\Users\mickh\todo-claude\test\tests.html
+  - PowerShell powershell -ExecutionPolicy Bypass -File test\run.ps1 | Select-String -NotMatch 'ERROR:chrome'
+  - Edit C:\Users\mickh\todo-claude\test\tests.html
+  - PowerShell powershell -ExecutionPolicy Bypass -File test\run.ps1 | Select-String -NotMatch 'ERROR:chrome'
+  - st:report {"contract":"contract_fb660362ea71","result":"red"}
+  - st:report {"contract":"contract_54e29d3dd65e","result":"red"}
+  - st:report {"contract":"contract_1e5cde3cb6fd","result":"red"}
+  - st:report {"contract":"contract_34c2599bc63e","result":"red"}
+  - st:report {"contract":"contract_5d616744cbd7","result":"red"}
+  - st:report {"contract":"contract_fa67129577b2","result":"red"}
+  - st:report {"contract":"contract_4ff847a694a3","result":"red","note":"First version passed vacuously before editing existed; strengthened to assert edi
+  - st:report {"contract":"contract_ce2b616e2e72","result":"red"}
+  - st:report {"contract":"contract_a27fe9058762","result":"red"}
+  - Write C:\Users\mickh\todo-claude\js\app.js
+  - PowerShell powershell -ExecutionPolicy Bypass -File test\run.ps1 | Select-String -NotMatch 'ERROR:'
+  - PowerShell $edge="${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"; $p=Join-Path $env:TEMP 'todo
+  - Read C:\Users\mickh\AppData\Local\Temp\todomvc.png
+  - st:report {"contract":"contract_fb660362ea71","result":"green"}
+  - st:report {"contract":"contract_54e29d3dd65e","result":"green"}
+  - st:report {"contract":"contract_1e5cde3cb6fd","result":"green"}
+  - st:report {"contract":"contract_34c2599bc63e","result":"green"}
+  - st:report {"contract":"contract_5d616744cbd7","result":"green"}
+  - st:report {"contract":"contract_fa67129577b2","result":"green"}
+  - st:report {"contract":"contract_4ff847a694a3","result":"green"}
+  - st:report {"contract":"contract_ce2b616e2e72","result":"green"}
+  - st:report {"contract":"contract_a27fe9058762","result":"green"}
+  - st:land {"capability":"capability_d4ca89b9b8c3"}
+  - st:land {"capability":"capability_6277b95b7815"}
+  - st:land {"capability":"capability_3512735f278c"}
+  - st:mark_built {"capability":"capability_d4ca89b9b8c3","built":true}
+  - st:mark_built {"capability":"capability_6277b95b7815","built":true}
+  - st:mark_built {"capability":"capability_3512735f278c","built":true}
+  - st:close_increment {"increment":"increment_353f1fc3544f","disposition":"landed","note":"No git repo, so no PR. Complete/remove, edit and routing work; 13/13 te
+  - ToolSearch
+  - st:search_notes {"query":"how to run the tests, test command, techstack","limit":5}
+  - st:write_note {"kind":"decision","title":"Tests run in-browser via headless Edge, no Node","text":"This machine has no Node, npm or git, so the test suite
+  - st:record_friction {"title":"No Node or git on this machine","description":"The usual JS test tools (npm, Playwright, Cypress, the official TodoMVC test runner
+  - st:close_out {"safe":true,"why":"Arc closed, all 13 contracts green, no git repo or running processes."}
+RESULT success turns 110 ms 336780 cost 1.4285606 
+The to-do app is built. Double-click `index.html` and it opens in your browser with the TodoMVC look. All 13 of my own tests pass in headless Edge. I haven't run the official TodoMVC test suite against it, because this computer has no Node.js and that suite needs it.
+
+**What works (following the spec):**
+- **Adding:** type a to-do and press Enter. Spaces at either end are trimmed and blank entries are ignored. The list and footer stay hidden until there's at least one to-do.
+- **Counter:** shows "1 item left" or "N items left".
+- **Completing:** tick a to-do's checkbox, or use the "mark all" toggle, which also shows as ticked when everything is done. "Clear completed" only appears when something is completed.
+- **Deleting:** hover a to-do and click the .
+- **Editing:** double-click a to-do. Enter or clicking away saves it, an empty edit deletes it, and Escape cancels.
+- **Filters:** All, Active and Completed, using the `#/`, `#/active` and `#/completed` addresses. The list updates straight away when something changes under a filter.
+- **Saving:** to-dos are kept in your browser's storage (under `todos-vanillajs`), so they're still there after a reload.
+
+**How it's made:**
+- `index.html` is the official template markup with the example to-dos removed.
+- `css/base.css` and `css/index.css` are the official TodoMVC stylesheets. I downloaded them into the folder so nothing needs installing.
+- `js/app.js` is the app itself, in plain JavaScript.
+
+**Things to know:**
+- **The official tests:** the official suite looks for elements like `.new-todo`, `.todo-list li` and `.toggle-all`. I kept those exactly as the template has them, so it should find everything.
+- **`base.js` is left out:** the template normally includes this helper script, but it tries to download a file when it starts, which fails when the page is opened straight from disk. The app doesn't need it.
+- **Running my tests:** `powershell -ExecutionPolicy Bypass -File test\run.ps1`. Edge prints some `ERROR:chrome` lines while it runs; those are harmless.
+
+I've also written the plan, test results and test setup into this project's storytree records.

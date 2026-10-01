@@ -1,0 +1,12 @@
+$r = "$HOME\st-firstbuild\install"
+New-Item -ItemType Directory -Force $r | Out-Null
+Start-Transcript -LiteralPath "$r\install.transcript.txt"
+Set-Location -LiteralPath $HOME
+$t = Get-Date
+& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+3
+todo-claude
+
+"install exit: $LASTEXITCODE; seconds: $([int]((Get-Date) - $t).TotalSeconds); ready at $(Get-Date -Format o)"
+"installed version: $((Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").VersionInfo.ProductVersion)"
+Stop-Transcript

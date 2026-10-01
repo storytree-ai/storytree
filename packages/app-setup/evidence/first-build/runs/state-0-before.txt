@@ -1,0 +1,65 @@
+date: 2026-10-02T02:00:05.7756599+10:00
+--- commands on a fresh PATH
+claude     C:\Users\mickh\.local\bin\claude.exe
+codex      C:\Users\mickh\AppData\Local\Microsoft\WinGet\Links\codex.exe
+storytree  C:\Users\mickh\.storytree\0.3\bin\storytree.cmd
+--- user PATH entries naming storytree
+C:\Users\mickh\.storytree\0.3\bin
+--- storytree install
+installed: 0.3.469.0
+install folder: True
+Apps & features entry: 1
+start menu shortcut: True
+desktop shortcut: False
+--- storytree home
+~\.storytree: True
+  backups
+  bin
+  electron
+  pgdata
+  queued-lines
+  app.json
+  codex-hooks-ran
+  delivery.json
+  machine.json
+  pgdata.log
+  pgdata.owner.json
+  pgdata.tools.log
+  project-choice.json
+  releases.log
+  removed-projects.json
+updater cache: True
+--- processes
+
+   Id ProcessName   SessionId
+   -- -----------   ---------
+ 1840 postgres              2
+ 4476 postgres              2
+ 5864 postgres              2
+ 8204 postgres              2
+ 8940 postgres              2
+10640 postgres              2
+12396 postgres              2
+17612 postgres              2
+17976 postgres              2
+20920 postgres              2
+14648 storytree-0.3         2
+15148 storytree-0.3         2
+19348 storytree-0.3         2
+21388 storytree-0.3         2
+
+
+
+--- Claude Code
+claude.json mcpServers: storytree
+settings.json lines naming storytree: 20
+settings.json keys: autoUpdatesChannel, theme, hooks, statusLine
+--- Codex
+~\.codex: True
+config.toml lines naming storytree: 3
+hooks.json: True
+AGENTS.md storytree section: True
+--- project folders
+C:\Users\mickh\todo-claude : absent
+C:\Users\mickh\todo-codex : absent
+--- scheduled tasks named st-*

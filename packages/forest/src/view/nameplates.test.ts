@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { dragTurn, focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, screenOnPlate, storyPlate } from "./nameplates.js";
+import { capabilityPlates, facesEye, screenOnPlate, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -29,12 +29,14 @@ test("a story's nameplate sits just below its island on screen, whatever the glo
   }
 });
 
-test("a story's nameplate never leaves the globe, even for an island turned edge-on at the rim, so the globe still hides it", () => {
+test("a story's nameplate hides once its island turns away, and never leaves the globe, even for an island edge-on at the rim", () => {
   const eye = new Quaternion();
   // Edge on at a slant, as at the rim off to one side: the screen barely runs down the plate, and skewed across it.
   const plate = new Quaternion().setFromEuler(new Euler(0.05, 0, Math.PI / 4));
   const at = storyPlate(coast, screenOnPlate(plate, eye), 100);
   assert.ok(Math.hypot(at.x, at.z) <= 100 + 1e-9, `the plate stays within reach of its island: ${JSON.stringify(at)}`);
+  assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(Math.PI / 2 - 0.05, 0, 0)), eye), true, "an island just in front of the rim shows its plate");
+  assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(Math.PI / 2 + 0.05, 0.3, 0)), eye), false, "one just past it hides its plate");
 });
 
 test("selecting a story shows one capability nameplate per territory, each inside its own territory, none for Unclaimed code", () => {

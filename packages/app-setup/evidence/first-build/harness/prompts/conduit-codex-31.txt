@@ -1,0 +1,1 @@
+I ran the official RealWorld tests on everything so far: 86 of 87 pass. The one failure is "Error Handling - 400 Bad Request › should handle 400 on article creation": when publishing an article gets a 400 error back, the test expects the error to show in .error-messages, but it never appears (expect(locator('.error-messages')).toBeVisible() failed). Can you fix that?

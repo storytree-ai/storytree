@@ -883,6 +883,18 @@ test("8.15 with no desktop app, a session whose tool server runs from a checkout
   });
 });
 
+test("8.15 a build of main, run from outside the checkout, loads the embedding runtime its library search ranks by meaning with (regression: the Mint box's installed tools ranked by words, 2026-10-02)", { timeout: 120_000 }, async () => {
+  await withTempDir(async (dir) => {
+    const { folder } = checkoutOfMain(dir);
+    const hook = await builtFromMain({ checkout: folder, storytreeHome: path.join(dir, ".storytree", "0.3"), homes: { claude: path.join(dir, ".claude") } });
+    assert.ok(hook !== undefined);
+    const probe = path.join(path.dirname(hook.script), "embedding-probe.mjs");
+    writeFileSync(probe, 'const { pipeline } = await import("@huggingface/transformers"); console.log(typeof pipeline);');
+    const run = spawnSync(process.execPath, [probe], { cwd: dir, encoding: "utf8", timeout: 60_000 });
+    assert.equal(run.stdout.trim(), "function", run.stderr);
+  });
+});
+
 test("8.18 the check says when the hooks run an older release than the latest, since the app updates them only while it runs, and says nothing is wrong when they run the latest (regression: the laptop's hooks ran v0.3.309 with v0.3.333 out, 2026-09-30)", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

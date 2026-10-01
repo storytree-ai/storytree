@@ -1,0 +1,39 @@
+MSG: Ill check which `.error-messages` element the official test finds first and add a regression test for the failed comment request.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content article.js; Get-Content comments. exit 0
+  - st:check_setup {} completed 
+  - st:show_plan {} completed 
+  - st:open {"id":"capability_be6d7ec11b44"} completed 
+  - st:open {"id":"capability_ad14d502734c"} completed 
+MSG: The comment error is rendered, but a hidden, empty article-deletion error list comes first in the page. The official test selects that hidden list.
+
+Ill make the article and comment form error lists appear in the DOM only when they contain an error.
+
+  - st:park_increment {"arc":"arc_8ccda3be5663","title":"Fix comment error visibility","objective":"The first .error-messages is visible when a comment  completed 
+  - st:claim {"capability":"capability_ad14d502734c","reason":"Fix comment error visibility"} completed 
+  - st:claim {"capability":"capability_be6d7ec11b44","reason":"Fix comment error visibility"} completed 
+  - file update C:\Users\mickh\conduit-codex\tests\comment-cases.cjs
+  - st:claim {"increment":"increment_3d5f671d3a89","reason":"Fix comment error visibility"} completed 
+  - st:report {"contract":"contract_2dd6ea7342de","result":"red","note":"Browser regression reproduces hidden first .error-messages despite visi completed 
+  - file update C:\Users\mickh\conduit-codex\article.js, update C:\Users\mickh\conduit-codex\comments.js
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - file update C:\Users\mickh\conduit-codex\tests\comment-cases.cjs
+MSG: The visibility regression now passes: the first `.error-messages` element shows Unable to connect after a failed post. A successful retry removes the error list and clears the textarea.
+
+The remaining browser regression tests are still running.
+
+  - st:search_notes {"query":"Hidden empty error lists first error-messages selector","limit":2} completed 
+  - st:name_session {"title":"Fix comment error visibility"} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n 'errors|content.append' article.js comm exit 0
+  - st:write_note {"kind":"decision","title":"Only render populated article error lists","text":"The official comment network-error test uses .error completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - st:report {"contract":"contract_2dd6ea7342de","result":"green","note":"Start.ps1 -Test: 18 passed, 0 failed after rendering only populated e completed 
+  - st:report {"contract":"contract_0ea32a141f0b","result":"green","note":"Start.ps1 -Test: 18 passed, 0 failed after rendering only populated e completed 
+  - st:land {"capability":"capability_ad14d502734c"} completed 
+  - st:land {"capability":"capability_be6d7ec11b44"} completed 
+  - st:close_increment {"increment":"increment_3d5f671d3a89","disposition":"landed","note":"Fixed hidden first error locator in article.js/comments.js, a completed 
+  - st:close_out {"safe":false,"why":"Fix complete; 18 local tests pass, nothing left running. Local folder has no Git working tree or PR to verify completed 
+MSG: Fixed. A hidden, empty article-deletion error list was preceding the visible comment error, so `.error-messages.first()` selected it. Error lists now enter the DOM only when populated.
+
+Added regression checks for first-error visibility, network-error text, and retry cleanup. All 18 local browser tests pass. I havent rerun the official suite.
+USAGE {"input_tokens":1985100,"cached_input_tokens":1885568,"cache_write_input_tokens":0,"output_tokens":11396,"reasoning_output_tokens":835}

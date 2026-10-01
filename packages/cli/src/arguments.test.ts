@@ -3,7 +3,7 @@
  * storytree checkout reach the command as written, or the command refuses them and does nothing.
  * Each runs the checkout's own `storytree` script through the pnpm running these tests, with no shell
  * of the test's own in between: pnpm appends each word to the script's line as a JSON string and
- * hands that line to a shell.
+ * hands that line to a shell (ADR-0851).
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

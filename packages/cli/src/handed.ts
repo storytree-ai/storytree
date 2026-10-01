@@ -1,9 +1,10 @@
 /**
- * The words given to `pnpm storytree`, as pnpm was handed them (front door contract 1.11). pnpm runs a
- * package script by appending each word to the script's line as a JSON string and handing that line
- * to a shell, which can still change a word on its way here: the shell emulator this repository runs
- * scripts through (.npmrc) expands a `$` and leaves a line break as `\n`. pnpm also leaves the line it
- * built in `npm_lifecycle_script`, which no shell reads, so the words can be read back from it.
+ * The words given to `pnpm storytree`, as pnpm was handed them (ADR-0851 D2, front door contract
+ * 1.11). pnpm runs a package script by appending each word to the script's line as a JSON string and
+ * handing that line to a shell, which can still change a word on its way here: the shell emulator
+ * this repository runs scripts through (.npmrc) expands a `$` and leaves a line break as `\n`. pnpm
+ * also leaves the line it built in `npm_lifecycle_script`, which no shell reads, so the words can be
+ * read back from it.
  */
 import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";

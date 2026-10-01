@@ -16,7 +16,24 @@ import { Knowledge, MemoryVectors, type Embedder, type EmbedderSource } from "./
 const MEANINGS: Record<string, string> = { email: "mail", mailer: "mail", mail: "mail", sender: "mail", ship: "ship", deploy: "ship", deploys: "ship", release: "ship" };
 const WIDTH = 4096;
 
-/** A fake embedder: each meaning is one axis (by hash); it counts the texts it is asked to embed. */
+/**
+ * Each meaning's axis, handed out the first time it is met and kept for every embedder this file
+ * makes, so a new process reads vectors the old one kept. Never by hash: an artifact's random id
+ * is embedded too, and a hash let its letters land on a question's axis (`fbdd` on `ship`).
+ */
+const AXES = new Map<string, number>();
+
+function axisOf(meaning: string): number {
+  let axis = AXES.get(meaning);
+  if (axis === undefined) {
+    axis = AXES.size;
+    assert.ok(axis < WIDTH, `the fake embedder has room for ${WIDTH} meanings`);
+    AXES.set(meaning, axis);
+  }
+  return axis;
+}
+
+/** A fake embedder: each meaning is one axis of its own; it counts the texts it is asked to embed. */
 function fakeEmbedder(): Embedder & { embedded: string[] } {
   const embedded: string[] = [];
   return {
@@ -27,10 +44,7 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
       return texts.map((text) => {
         const vector = new Float32Array(WIDTH);
         for (const word of text.toLowerCase().match(/[a-z]+/g) ?? []) {
-          const meaning = MEANINGS[word] ?? word;
-          let hash = 0;
-          for (const char of meaning) hash = (hash * 31 + char.charCodeAt(0)) % WIDTH;
-          vector[hash]! += 1;
+          vector[axisOf(MEANINGS[word] ?? word)]! += 1;
         }
         const length = Math.hypot(...vector) || 1;
         return vector.map((value) => value / length);
@@ -124,8 +138,8 @@ for (const backend of [memory, postgres]) {
 
   contract("14.2", "an artifact scores by its best chunk, and at most `limit` come back", async (_, { knowledge }) => {
     // Each filler is one paragraph too long to share a chunk, so the release line is a chunk of its own.
-    const filler = "The forest and its islands and their trees. ".repeat(66);
-    const long = await knowledge.defineTerm({ term: "Handbook", meaning: `${filler}\n\nRelease: we ship on Fridays.\n\n${filler}` });
+    const filler = "The forest and its islands and their trees. ".repeat(67);
+    const long = await knowledge.defineTerm({ term: "Handbook", meaning: `${filler}\n\nRelease: we ship on Fridays, and we ship again on Mondays.\n\n${filler}` });
     await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });
     await knowledge.defineTerm({ term: "Forest", meaning: "The forest shows the plan." });
 

@@ -7,6 +7,7 @@
  * superuser, and no right to create databases of their own.
  */
 import assert from "node:assert/strict";
+import { createServer, connect as openSocket, type Server } from "node:net";
 import { test } from "node:test";
 
 import { connect, type Storytree } from "@storytree/library";
@@ -89,5 +90,51 @@ test("8.5 a library read refused for want of a connection slot waits for one and
     await Promise.allSettled(opened.map((storytree) => storytree.close()));
     await dropTestDatabases([`storytree_${project}`]);
     await dropTestRoles([lane]);
+  }
+});
+
+/**
+ * On Windows, Postgres refusing a connection for want of a slot can reset the socket before its
+ * refusal (SQLSTATE 53300) reaches pg, which then reports only `read ECONNRESET`: the Windows CI
+ * runner did so in 8.5 above (run 36907270707). Here a stand-in in front of the test server resets
+ * the first two connections as soon as they ask in, and passes the rest through.
+ */
+test("8.5 a connection reset while it is being opened, as Windows delivers a full server's refusal, is asked for again and the read succeeds", async () => {
+  const project = `${uniqueProjectName()}-reset`;
+  const opened: Storytree[] = [];
+  const target = new URL(testServerUrl());
+  let resets = 2;
+  const proxy: Server = createServer((client) => {
+    client.on("error", () => {});
+    if (resets > 0) {
+      resets -= 1;
+      client.once("data", () => client.resetAndDestroy());
+      return;
+    }
+    const server = openSocket(Number(target.port || 5432), target.hostname);
+    server.on("error", () => client.destroy());
+    client.pipe(server).pipe(client);
+  });
+  try {
+    const first = await connect({ url: testServerUrl() });
+    opened.push(first);
+    await (await first.openProject(project)).addStory({ title: "Written before the resets", description: "Read back through them." });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    const address = proxy.address();
+    assert.ok(address !== null && typeof address === "object");
+    const through = new URL(target.href);
+    through.hostname = "127.0.0.1";
+    through.port = String(address.port);
+
+    const second = await connect({ url: through.href });
+    opened.push(second);
+    const library = await second.openProject(project);
+
+    assert.deepEqual((await library.projectTree()).stories.map((story) => story.title), ["Written before the resets"]);
+    assert.equal(resets, 0, "both resets were met");
+  } finally {
+    await Promise.allSettled(opened.map((storytree) => storytree.close()));
+    await new Promise((resolve) => proxy.close(resolve));
+    await dropTestDatabases([`storytree_${project}`]);
   }
 });

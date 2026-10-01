@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { publicationSource, websiteChanged } from "./publish-source.js";
+import { publicationBase, publicationSource, websiteChanged } from "./publish-source.js";
 
 const repository = "storytree-ai/storytree";
 const head = "a".repeat(40);
@@ -33,4 +33,14 @@ test("4.3 · website build inputs trigger publishing; unrelated merges do not", 
   assert.equal(websiteChanged(["packages/app/src/view.ts", "stories/forest.md", "AGENTS.md"]), false);
   assert.equal(websiteChanged([]), false);
   assert.equal(websiteChanged(["packages/website-other/src/page.ts"]), false);
+});
+
+test("4.3 · a merge is compared with the commit the live site carries, so a website merge whose own run was cancelled still publishes", () => {
+  const live = "c".repeat(40);
+  const ancestors = new Set([live]);
+  const isAncestor = (commit: string) => ancestors.has(commit);
+  assert.equal(publicationBase(merged, `${live}\n`, isAncestor), live);
+  for (const unreadable of [undefined, "Not found", "unpublished local build", "d".repeat(40)]) {
+    assert.equal(publicationBase(merged, unreadable, isAncestor), `${merged}^1`, String(unreadable));
+  }
 });

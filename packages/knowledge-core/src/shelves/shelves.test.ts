@@ -4,7 +4,8 @@ import { test } from "node:test";
 
 import { knowledge } from "../ghosts/ghosts.js";
 import { History } from "../testing/changes.js";
-import { EMPTY_SHELF, LOOP_LABEL, underShelves } from "./shelves.js";
+import { underShelves } from "../index.js";
+import { EMPTY_SHELF, LOOP_LABEL } from "./shelves.js";
 
 const core = (history: History) => underShelves(history.changes, knowledge(history.changes));
 

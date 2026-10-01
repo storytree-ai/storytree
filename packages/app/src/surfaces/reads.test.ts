@@ -14,7 +14,7 @@ import { openActivityLog, shipTranscript, type ActivityLog } from "@storytree/ag
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
-import { pageReads, type PageReads } from "./reads.js";
+import { pageReads, type PageReads } from "../index.js";
 
 test("3.1 the page can ask the app for the library's changes and the agent log's new lines since a point, for the project on show, and only newer ones come back", async () => {
   const shown = uniqueProjectName();

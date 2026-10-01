@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { buildBins } from "@storytree/agent-link/bins";
 
-import { run } from "./door.js";
+import { run } from "./index.js";
 
 test("1.9 from a source checkout, `storytree --version` prints the desktop app's 0.3.<n> for this commit, and its short commit", async () => {
   const here = path.dirname(fileURLToPath(import.meta.url));

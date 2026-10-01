@@ -10,7 +10,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { withLibrary } from "../testing/pg.js";
-import { roundDue, worklist } from "./index.js";
+import { roundDue, worklist } from "../index.js";
 import { librarianTools } from "./tools.js";
 
 test("6.1 the trigger fires on a write to a curated kind since the session started, and when there is no start; graduation is due either way", async () => {

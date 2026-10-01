@@ -5,12 +5,27 @@
 // that is dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 import pg from "pg";
 
+import { writeExport } from "./export-library.mjs";
 import { exportLibrary } from "./library-export.mjs";
+
+test("5.2 the export's files replace the stories and decisions folders, so a story no longer in the library leaves no file behind", (t) => {
+  const out = mkdtempSync(path.join(tmpdir(), "library-export-"));
+  t.after(() => rmSync(out, { recursive: true, force: true }));
+  mkdirSync(path.join(out, "stories"));
+  writeFileSync(path.join(out, "stories", "gone.md"), "an old story\n");
+  writeExport(new Map([["stories/kettle.md", "# Story: the kettle\n"], ["decisions/adr-0999.md", "# ADR-0999\n"]]), out);
+  assert.equal(readFileSync(path.join(out, "stories", "kettle.md"), "utf8"), "# Story: the kettle\n");
+  assert.equal(readFileSync(path.join(out, "decisions", "adr-0999.md"), "utf8"), "# ADR-0999\n");
+  assert.equal(existsSync(path.join(out, "stories", "gone.md")), false);
+});
 
 test("5.2 a story and its decisions print as files, each story block in its place, and printing writes nothing to the library", async () => {
   await withLibrary(async (library) => {

@@ -103,12 +103,12 @@ function uploadPlan(value: unknown, files: Map<string, StaticFile>): { versionId
   return { versionId, uploads: plan };
 }
 
-/** Update only the existing website. An unset CI secret is an explicit, offline skip. */
+/** Update only the existing website. No key (CI has no Google identity to fetch it) is an explicit, offline skip. */
 export async function publishWebsite(options: PublishWebsiteOptions): Promise<void> {
   const log = options.log ?? console.log;
   const token = options.token?.trim();
   if (!token) {
-    log("Website publishing skipped: HERENOW_TOKEN is not set.");
+    log("Website publishing skipped: no here.now key. CI fetches it from Secret Manager once the repository variables WEBSITE_WIF_PROVIDER and WEBSITE_SERVICE_ACCOUNT are set (infra/website-publish/README.md).");
     return;
   }
   const files = await readBuild(options.directory);

@@ -30,6 +30,6 @@ export function sameWisps(a: readonly SessionWisp[], b: readonly SessionWisp[]):
 }
 
 /** What of `claimed` tints island land `land`: equal while only other islands' claims change. */
-export function claimsOn(claimed: ReadonlyMap<string, ClaimTint>, _land: NonNullable<Island["land"]>): string {
-  return JSON.stringify([...claimed]);
+export function claimsOn(claimed: ReadonlyMap<string, ClaimTint>, land: NonNullable<Island["land"]>): string {
+  return JSON.stringify(land.territories.map(({ capability }) => capability === undefined ? undefined : claimed.get(capability)));
 }

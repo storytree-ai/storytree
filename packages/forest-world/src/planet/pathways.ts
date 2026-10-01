@@ -56,6 +56,10 @@ interface Dock { id: string; story: string; local: CoastPoint; point: Vector3; l
 // Polls preserve unchanged island objects; retain their ground input and relief through routing.
 const preparedGrounds = new WeakMap<Island, PreparedGround>();
 const pathwayPlates = new WeakMap<Descriptor3D[], { key: string; plate: PlanetPathwayPlate }>();
+// Routing is the costly part (ADR-0836 D1): an island's own routes are kept while its ground and docks are,
+// and the routes between islands while every island's place and size are.
+const localRoutes = new WeakMap<Descriptor3D[], { key: string; network: TrailNetwork }>();
+let crossRoutes: { key: string; network: TrailNetwork } | undefined;
 function prepareGround(island: Island): PreparedGround {
   const old = preparedGrounds.get(island);
   if (old) return old;
@@ -181,8 +185,11 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     return [keyOf(pair), pair];
   })).values()];
   const maxWidth = trailFillWidth(cross.length) * RIBBON_GROUND_SCALE;
-  const network = route([...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r })), pairs,
-    'globe-pathways-real-seed', { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 });
+  const nodes = [...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r }));
+  const crossKey = JSON.stringify([nodes, pairs, maxWidth]);
+  const network = crossRoutes?.key === crossKey ? crossRoutes.network
+    : route(nodes, pairs, 'globe-pathways-real-seed', { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 });
+  crossRoutes = { key: crossKey, network };
   requireNetwork(network, 'between islands', true);
   const crossSegments = new Map(network.segments.map(segment => [segment.id, segment]));
   const crossEdges = new Map(network.edges.map(edge => [keyOf(edge), edge]));
@@ -238,9 +245,11 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
       if (!endpoints.some(p => p.id === dock.id)) endpoints.push({ id: dock.id, x: dock.local.x, y: dock.local.z, r: 0 });
       input.push({ from: link.source === g.id ? link.from : link.to, to: dock.id });
     }
-    const local = route(endpoints, input, `island:${g.id}`, { cellSize: 1, clearance: 0.3, falloff: 1,
+    const localKey = JSON.stringify([g.id, endpoints, input]), kept = localRoutes.get(g.descriptors);
+    const local = kept?.key === localKey ? kept.network : route(endpoints, input, `island:${g.id}`, { cellSize: 1, clearance: 0.3, falloff: 1,
       falloffCost: 2, meanderAmp: 0.1, meanderWavelength: 5, reclusterOnApproach: false,
       dockMergeGap: 0, dockMergeSpan: 0, junctionWeld: 0 });
+    localRoutes.set(g.descriptors, { key: localKey, network: local });
     requireNetwork(local, `on island ${g.id}`);
     const rings = g.rings.map(ring => ring.map(local => ({ x: local.x, y: local.z, local })));
     const paths: CoastPoint[][] = [];

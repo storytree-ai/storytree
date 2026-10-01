@@ -20,14 +20,21 @@ export function globeFraming(choice: GlobeOpening): number {
  * The globe's layout (ADR-0804 D7): each island at its permanent place, nudged only as far as its coast needs
  * room, and the globe's radius, which grows when nudging cannot make room. Every drawing takes `radius` from here.
  */
-export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, _before?: { spots: ReadonlyMap<string, FacingIsland["spot"]> }) {
+export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, before?: { spots: ReadonlyMap<string, FacingIsland["spot"]> }) {
   const grown = growPlanet(scene.islands.map(island => {
     const place = places.get(island.story);
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
     return { story: island.story, place, reach: islandCoastReach(island) };
   }));
-  const islands: FacingIsland[] = scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: grown.spots.get(island.story)! }));
-  return { scene, islands, spots: new Map(islands.map(i => [i.story, i.spot])), radius: grown.radius };
+  // An island that did not move keeps the spot on show, so its plate is not drawn again (ADR-0836 D1).
+  const kept = (story: string) => {
+    const spot = grown.spots.get(story)!, old = before?.spots.get(story);
+    return old !== undefined && old.x === spot.x && old.y === spot.y && old.z === spot.z ? old : spot;
+  };
+  const islands: FacingIsland[] = scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: kept(island.story) }));
+  const spots = new Map(islands.map(i => [i.story, i.spot]));
+  const same = before !== undefined && before.spots.size === spots.size && [...spots].every(([story, spot]) => before.spots.get(story) === spot);
+  return { scene, islands, spots: same ? before.spots : spots, radius: grown.radius };
 }
 
 /** Lane C turns toward view +z. The canvas eye can be elevated, orbited, or rolled. */
@@ -115,5 +122,15 @@ export function pickGlobe(world: Object3D, camera: Camera,
 
 /** `handle`, run at most once a frame with the latest of the calls made since the last frame. */
 export function oncePerFrame<T>(handle: (value: T) => void, schedule: (run: () => void) => unknown = requestAnimationFrame): (value: T) => void {
-  return value => { handle(value); void schedule; };
+  let latest: { value: T } | undefined;
+  return value => {
+    const waiting = latest !== undefined;
+    latest = { value };
+    if (waiting) return;
+    schedule(() => {
+      const { value } = latest!;
+      latest = undefined;
+      handle(value);
+    });
+  };
 }

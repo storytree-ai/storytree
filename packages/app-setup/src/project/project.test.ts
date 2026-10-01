@@ -132,7 +132,9 @@ test("deleting a project drops its records for every machine once its name is ty
     assert.ok(await still(), "a refusal deletes nothing");
   };
   await refused({ confirm: "downloads" }, /type/i);
-  await refused({ confirm: name, inUse: name }, /in use/i);
+  await refused({ confirm: name }, /in use/i); // the app on this computer shows it
+  writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: "elsewhere" }));
+  await refused({ confirm: name, inUse: name }, /in use/i); // the folder a command runs in is its
   await refused({ confirm: name }, new RegExp(`${session}.*building|building.*${session}`));
   await log.append(name, { session, source: "tool", kind: "released", capability: `capability_${token}` });
 

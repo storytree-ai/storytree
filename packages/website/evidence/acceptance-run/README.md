@@ -55,3 +55,28 @@ says so. Any other status of 400 or more fails the check.
 Pictures: `no-js-390.png` (the whole page with JavaScript off), `not-found-390.png`, `focus-390.png`,
 `text200-*.png`, `forest-live-1440.png` (the scene drawing) and `forest-still-*.png` (the still, without
 WebGL and when the scene's code fails).
+
+## Run of 2026-10-01 against the published site (2026-10-01-published/)
+
+The same journey, run with `--url https://crisp-globe-bf6v.here.now/` once CI had published the site: the
+live copy was built from merge 89127d67 (Publish website run 36831078684, live at 07:35 UTC). Recorded with
+`pnpm record:acceptance`, so the verified column now carries these verdicts.
+
+| Contract | Verdict |
+|---|---|
+| 1.2 the install command is the README's | passing, 1/1 |
+| 1.3 readable without JavaScript, command selectable, links followable | passing, 5/5 |
+| 1.4 the not-found page leads home | **failing, 0/1** |
+| 1.5 the copy control copies exactly the command; a denial is reported | passing, 2/2 |
+| 1.6 phone-width controls: 44 px targets, visible unclipped focus | passing, 2/2 |
+| 1.7 200% text at 320 and 390 px stays readable and whole | passing, 1/1 |
+| 2.1 the live scene draws the saved plan's islands | passing, 1/1 |
+| 2.2 without WebGL, or if the scene fails, the still and the page remain | passing, 2/2 |
+| 2.3 text and install control come before the 3D code | passing, 1/1 |
+
+1.4 fails because of the host, not the page: a missing address answers 404 with here.now's own bare
+"Not found" text (`not-found-390.png`), with no header and no link home. The site's `404.html` is uploaded
+and served at `/404.html`, but here.now does not use it for missing addresses, and its public docs name no
+setting that would. For the same reason, 1.7's not-found half measured that bare page here, not the site's.
+The local run showed no such failure, so this is a publishing gap; it is its own increment on the website arc
+("The published site's missing pages show its own not-found page").

@@ -474,3 +474,21 @@ for (const target of ["capability", "active increment"] as const) {
     });
   });
 }
+
+test("5.7 claiming an increment reads every arc in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+  await withWorld(async ({ library, as }) => {
+    await arcOf(library, "First");
+    await arcOf(library, "Second");
+    const proposed = await (await arcOf(library, "Third")).park("email form");
+    const asked = { arcView: 0, arcViews: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (key === "arcView" || key === "arcViews") asked[key]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    assert.equal((await claim({ ...as("A"), library: counted }, proposed, "driving the email form")).ok, true);
+    assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
+  });
+});

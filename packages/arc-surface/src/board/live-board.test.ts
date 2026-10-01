@@ -10,7 +10,7 @@ import { watchBoard, type BoardState } from "./live-board.js";
 import { boardView } from "./board.js";
 import { renderBoard } from "../view/render.js";
 import { arcSmokeProblems } from "./smoke.js";
-import type { BoardReads } from "./reads.js";
+import { readBoard, type BoardReads } from "./reads.js";
 import { record } from "../testing/records.js";
 
 async function until(check: () => boolean): Promise<void> {
@@ -99,4 +99,20 @@ test("the watched board reads a holder idle at the user's idle-after setting, no
   } finally {
     watcher.stop();
   }
+});
+
+test("the board reads every arc's view in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+  const arcs = ["arc_1", "arc_2", "arc_3"].map((id) => record(id, "arc", { title: id, intent: "See the work", endState: "Shipped" }));
+  const asked = { arcView: 0, arcViews: 0 };
+  const reads = {
+    changesSince: async () => ({ changes: [], cursor: 1 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    projectTree: async () => ({ stories: [], arcs }) as never,
+    arcView: async (_project: string, id: string) => { asked.arcView++; return { arc: arcs.find((arc) => arc.id === id)!, increments: [], questions: [], state: "active" as const }; },
+    arcViews: async () => { asked.arcViews++; return arcs.map((arc) => ({ arc, increments: [], questions: [], state: "active" as const })); },
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const snapshot = await readBoard("p", reads);
+  assert.deepEqual(snapshot.arcs.map(({ arc }) => arc.id), ["arc_1", "arc_2", "arc_3"]);
+  assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
 });

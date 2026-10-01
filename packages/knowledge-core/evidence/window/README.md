@@ -17,5 +17,5 @@ These are the real desktop page in headless Chromium (SwiftShader) on Linux, ove
 
 ```sh
 node packages/forest/evidence/sessions-list/build.mjs
-PLANET_PLAYWRIGHT=file://…/playwright-core/index.mjs PLANET_CHROMIUM=…/chrome-headless-shell node packages/knowledge-core/evidence/window/capture.mjs
+PLANET_PLAYWRIGHT=file://…/playwright-core/index.mjs PLANET_CHROMIUM=…/chrome-headless-shell node --import tsx packages/knowledge-core/evidence/window/capture.mjs
 ```

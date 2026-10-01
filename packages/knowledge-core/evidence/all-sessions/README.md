@@ -17,5 +17,5 @@ These are the real desktop page in headless Chromium (SwiftShader) on Windows, o
 
 ```sh
 node packages/forest/evidence/sessions-list/build.mjs
-node packages/knowledge-core/evidence/all-sessions/capture.mjs
+node --import tsx packages/knowledge-core/evidence/all-sessions/capture.mjs
 ```

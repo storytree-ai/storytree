@@ -22,7 +22,9 @@ test("a bridge method the capture left unanswered gets a safe answer, and the fa
   const bridge = fakeBridge({ listProjects: async () => ["storytree"] });
   await bridge.call("listProjects", []);
   assert.deepEqual(await bridge.call("readSignIn", []), { available: false, on: false });
-  assert.deepEqual(await bridge.call("windowReadings", ["storytree", ["s1"]]), []);
+  const [window] = await bridge.call("windowReadings", ["storytree", ["s1"]]) as { session: string; absent?: string }[];
+  assert.equal(window?.session, "s1");
+  assert.ok(window?.absent);
   assert.deepEqual(bridge.defaulted, ["readSignIn", "windowReadings"]);
 });
 

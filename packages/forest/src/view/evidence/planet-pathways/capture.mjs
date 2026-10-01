@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
@@ -105,9 +106,12 @@ try {
       if (message.type() === 'warning' || text.includes('Attempted to synchronously unmount a root')) warnings.push(text);
       else errors.push(text);
     });
+    const bridge = fakeBridge({});
+    await bridge.install(page);
+    process.once('exit', () => console.log('Bridge methods left to the stand-in:', bridge.defaulted.join(', ') || 'none'));
     await page.addInitScript(data => {
       const copy = value => structuredClone(value);
-      window.storytree = {
+      window.storytreeAnswers = {
         listProjects: async () => copy(data.projects), projectTree: async () => copy(data.tree),
         changesSince: async (_, cursor) => cursor === 0 ? copy(data.changes) : { changes: [], cursor: data.changes.cursor },
         linesSince: async (_, cursor) => cursor === 0 ? copy(data.lines) : { lines: [], cursor: data.lines.cursor },

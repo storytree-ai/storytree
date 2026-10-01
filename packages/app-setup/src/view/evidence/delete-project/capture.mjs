@@ -1,9 +1,10 @@
 // Pictures of Delete a project in the app menu (ADR-0831), on the actual desktop page with a fake
-// bridge: no library is touched. Run `node build.mjs`, then `node capture.mjs`, from this folder.
+// bridge: no library is touched. Run `node build.mjs`, then `node --import tsx capture.mjs`, from this folder.
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../../../..');
@@ -25,11 +26,14 @@ try {
     headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   async function open(width, refuse) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
+    const bridge = fakeBridge({});
+    await bridge.install(page);
+    process.once('exit', () => console.log('Bridge methods left to the stand-in:', bridge.defaulted.join(', ') || 'none'));
     await page.addInitScript(({ data, warnings, refuse }) => {
       const copy = value => structuredClone(value);
       let projects = ['storytree', 'downloads', 'old-blog'];
       const current = 'storytree';
-      window.storytree = {
+      window.storytreeAnswers = {
         projectSelection: async () => copy({ projects, current }),
         chooseProject: async () => copy({ projects, current }),
         listProjects: async () => copy(projects), projectTree: async () => copy(data.tree),

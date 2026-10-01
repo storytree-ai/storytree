@@ -1,6 +1,6 @@
 # Delete a project, in the app menu (ADR-0831)
 
-The actual desktop page (`node build.mjs`, then `node capture.mjs`), dark theme, headless Chromium,
+The actual desktop page (`node build.mjs`, then `node --import tsx capture.mjs`), dark theme, headless Chromium,
 with a fake bridge: no library is read or written. The project on show is `storytree`, so it is not
 offered; `downloads` and `old-blog` are. The warning is the one a Cloud SQL library gives.
 

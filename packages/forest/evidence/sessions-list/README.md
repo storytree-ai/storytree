@@ -21,7 +21,7 @@ The capture uses the actual desktop renderer, a prior read-only forest snapshot 
 
 ```sh
 flock /tmp/storytree-heavy.lock node packages/forest/evidence/sessions-list/build.mjs
-flock /tmp/storytree-heavy.lock node packages/forest/evidence/sessions-list/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/sessions-list/capture.mjs
 flock /tmp/storytree-heavy.lock pnpm gate
 pnpm test-ratio
 ```

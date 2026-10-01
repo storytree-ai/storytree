@@ -11,5 +11,5 @@ The real desktop page in headless Chromium (SwiftShader) on Windows at 2x, over 
 
 ```sh
 node packages/forest/evidence/sessions-list/build.mjs
-node packages/knowledge-core/evidence/window-all-sessions/capture.mjs
+node --import tsx packages/knowledge-core/evidence/window-all-sessions/capture.mjs
 ```

@@ -10,7 +10,7 @@
 
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { connect } from "@storytree/library";
 
@@ -24,20 +24,22 @@ const OUT = "library-export";
 const COMMAND = "pnpm library:export";
 
 let server; // the app's Postgres, while it runs
-process.once("SIGINT", () => {
-  console.error("\nexport: interrupted; stopping Postgres");
-  void (server?.stop() ?? Promise.resolve()).finally(() => process.exit(130));
-});
 
-main().then(
-  (code) => {
-    process.exitCode = code;
-  },
-  (error) => {
-    console.error(`\nexport: ${error.stack ?? error.message}`);
-    process.exitCode = 1;
-  },
-);
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.once("SIGINT", () => {
+    console.error("\nexport: interrupted; stopping Postgres");
+    void (server?.stop() ?? Promise.resolve()).finally(() => process.exit(130));
+  });
+  main().then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error) => {
+      console.error(`\nexport: ${error.stack ?? error.message}`);
+      process.exitCode = 1;
+    },
+  );
+}
 
 async function main() {
   const home = appHome();
@@ -63,12 +65,16 @@ async function main() {
     await server.stop();
   }
 
-  const out = path.join(root, OUT);
+  writeExport(printed, path.join(root, OUT));
+  console.log(`\nprinted ${printed.size} files into ${OUT}/: read-only copies; the library is the one copy`);
+  return 0;
+}
+
+/** Replace the stories and decisions folders under `out` with the `printed` files, by their paths. */
+export function writeExport(printed, out) {
   for (const dir of ["stories", "decisions"]) rmSync(path.join(out, dir), { recursive: true, force: true });
   for (const [file, text] of printed) {
     mkdirSync(path.dirname(path.join(out, file)), { recursive: true });
     writeFileSync(path.join(out, file), text);
   }
-  console.log(`\nprinted ${printed.size} files into ${OUT}/: read-only copies; the library is the one copy`);
-  return 0;
 }

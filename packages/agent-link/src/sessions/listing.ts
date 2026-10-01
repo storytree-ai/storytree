@@ -34,6 +34,7 @@ export async function sessionsListing(log: ActivityLog, project: string, options
 /** One session as a few plain lines. */
 function block(session: Session): string {
   const lines = [`${session.label} ${session.session}: ${session.state}, ${session.listing}`];
+  if (session.name !== undefined) lines.push(`  named: ${session.name}`);
   if (session.folder !== undefined) lines.push(`  folder: ${session.folder}`);
   // A session's branches, split into those still holding open work and those resolved.
   const resolved = session.branches.filter((branch) => !session.openWork.includes(branch));

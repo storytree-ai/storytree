@@ -95,6 +95,8 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * never by the agent; absent when that reading was incomplete.
    */
   z.object({ ...common, kind: z.literal("closed-out"), safe: z.boolean(), why: z.string().min(1), running: z.number().int().nonnegative().optional() }).strict(),
+  /** The session named itself (contract 6.32): what the running-sessions list calls its row, until it names itself again. */
+  z.object({ ...common, kind: z.literal("session-named"), title: z.string().min(1) }).strict(),
   /** A hook saw an agent ask for one of storytree's tools, before the call reached the tool server: the call's id, as the harness names it, and the agent asking. */
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
   z.object({ ...common, kind: z.literal("tool-called"), tool: z.string().min(1) }).strict(),

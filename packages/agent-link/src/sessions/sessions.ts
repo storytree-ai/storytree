@@ -27,6 +27,7 @@ import { sessionsFrom as readLines, type Session, type SessionOptions } from "..
 import { idleAfterMs, leaveAfterMs } from "../settings/settings.js";
 
 export { closeOut } from "./close-out.js";
+export { nameRefusal, nameSession, SESSION_NAME_LIMIT } from "./name.js";
 export type { CloseOutContext, CloseOutOptions } from "./close-out.js";
 
 export { COMMAND_KINDS, commandRunning, isQuiet, labelOf, LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, turnState } from "../readings.js";

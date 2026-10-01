@@ -27,6 +27,7 @@ import { z } from "zod";
 import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
 import { recordFriction, reinforceFriction, type ToolExtension } from "../index.js";
 import { readClaims } from "../claims/index.js";
+import { sessionsFrom } from "../readings.js";
 import { MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, idOf, withAgent, type Agent } from "../testing/agent.js";
 import { git, withTempDir } from "../testing/folders.js";
@@ -52,6 +53,7 @@ const TOOLS = [
   "make_workspace",
   "mark_built",
   "move_increment",
+  "name_session",
   "open",
   "park_arc",
   "park_increment",
@@ -334,6 +336,22 @@ test("6.1 a test client lists the tools, then plans an arc, a story, a capabilit
   });
 });
 
+test("6.32 name_session names the calling session, and calling it again renames it; a title longer than 40 characters is refused naming the limit", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const name = async () => sessionsFrom((await log.since(project, 0)).lines).find((one) => one.session === "claude-1")?.name;
+      assert.equal((await agent.call("name_session", { title: "Reading the plan" })).isError, false);
+      assert.equal(await name(), "Reading the plan");
+      await agent.call("name_session", { title: "Building signup" });
+      assert.equal(await name(), "Building signup", "the latest call wins");
+      const tooLong = await agent.call("name_session", { title: "x".repeat(41) });
+      assert.equal(tooLong.isError, true);
+      assert.match(tooLong.text, /40/);
+      assert.equal(await name(), "Building signup");
+    });
+  });
+});
+
 test("6.2 it claims the capability, sees who is on what, reports the contract red then green (reported moves from failing to passing, verified stays not checked), and reports it landed, which ends the claim", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
@@ -499,6 +517,7 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["retire_question", { question: "question_000000000000", reason: "asked in error" }],
         ["read_context", {}],
         ["close_out", { safe: true, why: "all merged" }],
+        ["name_session", { title: "Building signup" }],
       ];
       // Own's offline tools and the setup check's two do not depend on the library.
       const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs"];

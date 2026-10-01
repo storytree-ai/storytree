@@ -118,6 +118,8 @@ export interface Session {
   archived: boolean;
   /** The title that app shows for it (4.19), when it gives one. */
   title?: string;
+  /** The name it gave itself, its latest (contract 6.32), when it has given one. */
+  name?: string;
   /** Its latest status as that app sums it up (4.19), when it gives one. */
   status?: string;
   /** Its close-out, while it stands (ADR-0758). */
@@ -402,6 +404,7 @@ interface SessionFold {
   running: Map<string, CommandRunning>;
   finished: Set<string>;
   closedOut?: { line: Line & { kind: "closed-out" }; reopened: boolean };
+  name?: string;
   lastTurnEnded?: { seq: number; background: number };
 }
 
@@ -474,6 +477,7 @@ export class LogFold {
     // Its close-out, and what came after it.
     if (line.kind === "closed-out") own.closedOut = { line, reopened: false };
     else if (own.closedOut !== undefined && (line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;
+    if (line.kind === "session-named") own.name = line.title;
     if (line.kind === "turn-ended") own.lastTurnEnded = { seq: line.seq, background: line.background ?? 0 };
   }
 
@@ -522,6 +526,7 @@ export class LogFold {
         ...(record === undefined ? {} : { app: record.app }),
         archived,
         ...(words?.title === undefined ? {} : { title: words.title }),
+        ...(own.name === undefined ? {} : { name: own.name }),
         ...(words?.status === undefined ? {} : { status: words.status }),
         ...(closeOut === undefined ? {} : { closeOut }),
         listing,

@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { dragTurn, focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, storyPlate } from "./nameplates.js";
+import { capabilityPlates, screenOnPlate, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -14,11 +14,12 @@ test("a story's nameplate sits just below its island on screen, whatever the glo
   const radius = 400;
   const eye = new Quaternion().setFromEuler(new Euler(-0.3, 0, 0));
   for (const spot of [{ x: 0, y: 0, z: 1 }, { x: 0.3, y: 0.6, z: 0.74 }, { x: -0.5, y: -0.55, z: 0.67 }, { x: 0.05, y: 0.97, z: 0.2 }, { x: 0.9, y: 0.1, z: -0.4 }]) {
-    const plate = storyPlate(coast, spot);
     const { position, quaternion } = plateTransform(spot, radius);
     const facing = turnToIsland(spot);
-    for (const turn of [facing, dragTurn(facing, { x: 60, y: 0 }, 800), dragTurn(facing, { x: -40, y: 50 }, 800), dragTurn(facing, { x: 20, y: -45 }, 800)]) {
-      const toView = eye.clone().invert().multiply(focusRotation(turn, eye));
+    for (const turn of [facing, dragTurn(facing, { x: 60, y: 0 }, 800), dragTurn(facing, { x: -40, y: 50 }, 800), dragTurn(facing, { x: 20, y: -45 }, 800), dragTurn(facing, { x: 160, y: 90 }, 800)]) {
+      const rotation = focusRotation(turn, eye);
+      const toView = eye.clone().invert().multiply(rotation);
+      const plate = storyPlate(coast, screenOnPlate(rotation.clone().multiply(quaternion), eye));
       const view = (p: Point) => new Vector3(p.x, 0, p.z).applyQuaternion(quaternion).add(new Vector3(...position)).applyQuaternion(toView);
       const why = `island at ${JSON.stringify(spot)}, turned ${JSON.stringify(turn)}`;
       const land = coast[0]!.map(view), at = view(plate);
@@ -26,6 +27,14 @@ test("a story's nameplate sits just below its island on screen, whatever the glo
       assert.ok(at.x > Math.min(...land.map(p => p.x)) && at.x < Math.max(...land.map(p => p.x)), `${why}: and under the island, not beside it`);
     }
   }
+});
+
+test("a story's nameplate never leaves the globe, even for an island turned edge-on at the rim, so the globe still hides it", () => {
+  const eye = new Quaternion();
+  // Edge on at a slant, as at the rim off to one side: the screen barely runs down the plate, and skewed across it.
+  const plate = new Quaternion().setFromEuler(new Euler(0.05, 0, Math.PI / 4));
+  const at = storyPlate(coast, screenOnPlate(plate, eye), 100);
+  assert.ok(Math.hypot(at.x, at.z) <= 100 + 1e-9, `the plate stays within reach of its island: ${JSON.stringify(at)}`);
 });
 
 test("selecting a story shows one capability nameplate per territory, each inside its own territory, none for Unclaimed code", () => {

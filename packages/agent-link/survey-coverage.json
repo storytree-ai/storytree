@@ -1,0 +1,409 @@
+{
+ "src/activity/activity-log.ts": {
+  "1": 60,
+  "2": 120,
+  "3": 302,
+  "4": 546,
+  "5": 708,
+  "6": 962,
+  "7": 3,
+  "8": 408,
+  "9": 181,
+  "10": 62
+ },
+ "src/activity/branch.ts": {
+  "3": 1,
+  "5": 18,
+  "6": 37,
+  "8": 24,
+  "10": 2
+ },
+ "src/activity/lines-cache.ts": {
+  "2": 15
+ },
+ "src/activity/lines.ts": {
+  "2": 5,
+  "3": 15,
+  "4": 19,
+  "5": 28,
+  "6": 36,
+  "9": 1,
+  "10": 2
+ },
+ "src/activity/transcript-records.ts": {
+  "1": 15,
+  "2": 15,
+  "3": 79,
+  "4": 83,
+  "5": 120,
+  "6": 111,
+  "7": 3,
+  "8": 72,
+  "9": 56,
+  "10": 16
+ },
+ "src/bins/build.ts": {
+  "3": 45,
+  "4": 3,
+  "8": 72,
+  "9": 3
+ },
+ "src/capture/capture.ts": {
+  "5": 18,
+  "6": 289,
+  "7": 3,
+  "8": 24,
+  "10": 12
+ },
+ "src/claims/claims.ts": {
+  "5": 724,
+  "6": 1090,
+  "10": 36
+ },
+ "src/claims/merges.ts": {
+  "4": 25,
+  "5": 382,
+  "6": 111,
+  "10": 8
+ },
+ "src/claims/workspace.ts": {
+  "5": 120,
+  "6": 432
+ },
+ "src/context/command.ts": {
+  "9": 35
+ },
+ "src/context/composition.ts": {
+  "3": 90,
+  "4": 6,
+  "6": 180,
+  "9": 151,
+  "10": 10
+ },
+ "src/context/context.ts": {
+  "3": 105,
+  "4": 7,
+  "6": 216,
+  "9": 66,
+  "10": 12
+ },
+ "src/context/guidance.ts": {
+  "3": 15,
+  "4": 1,
+  "6": 72,
+  "9": 17,
+  "10": 4
+ },
+ "src/context/transcript.ts": {
+  "3": 60,
+  "4": 4,
+  "6": 144,
+  "9": 64,
+  "10": 8
+ },
+ "src/context/window.ts": {
+  "9": 146
+ },
+ "src/hooks/claude-code.ts": {
+  "3": 78,
+  "4": 5,
+  "5": 90,
+  "9": 5
+ },
+ "src/hooks/close-out-reminder.ts": {
+  "3": 5,
+  "4": 3
+ },
+ "src/hooks/codex-trust.ts": {
+  "3": 8,
+  "8": 96
+ },
+ "src/hooks/codex.ts": {
+  "3": 3
+ },
+ "src/hooks/given-once.ts": {
+  "3": 5,
+  "4": 12
+ },
+ "src/hooks/hooks.ts": {
+  "3": 22,
+  "4": 1,
+  "5": 270,
+  "9": 1
+ },
+ "src/hooks/queue.ts": {
+  "5": 36
+ },
+ "src/hooks/requests.ts": {
+  "3": 30,
+  "4": 2,
+  "9": 2
+ },
+ "src/instructions/codex-agents.ts": {
+  "7": 8
+ },
+ "src/instructions/habits.ts": {
+  "5": 18,
+  "6": 37,
+  "7": 3,
+  "8": 24,
+  "10": 2
+ },
+ "src/readings.ts": {
+  "1": 15,
+  "2": 5,
+  "3": 17,
+  "4": 429,
+  "5": 862,
+  "6": 879,
+  "7": 3,
+  "8": 24,
+  "9": 10,
+  "10": 68
+ },
+ "src/routing/project-choice.ts": {
+  "1": 45,
+  "3": 45,
+  "4": 3,
+  "8": 72,
+  "9": 3
+ },
+ "src/routing/routing.ts": {
+  "1": 345,
+  "3": 194,
+  "4": 34,
+  "5": 298,
+  "6": 664,
+  "7": 12,
+  "8": 528,
+  "9": 91,
+  "10": 32
+ },
+ "src/routing/starter-pack.ts": {
+  "1": 75,
+  "2": 5,
+  "3": 77,
+  "4": 31,
+  "5": 28,
+  "6": 109,
+  "7": 3,
+  "8": 144,
+  "9": 21,
+  "10": 16
+ },
+ "src/routing/trunks.ts": {
+  "1": 240,
+  "2": 5,
+  "3": 122,
+  "4": 34,
+  "5": 100,
+  "6": 365,
+  "7": 3,
+  "8": 312,
+  "9": 24,
+  "10": 24
+ },
+ "src/sessions/app-records.ts": {
+  "4": 22,
+  "5": 216,
+  "6": 360,
+  "8": 240
+ },
+ "src/sessions/branch-states.ts": {
+  "4": 204,
+  "5": 198
+ },
+ "src/sessions/close-out.ts": {
+  "3": 2,
+  "4": 9
+ },
+ "src/sessions/listing.ts": {
+  "4": 8
+ },
+ "src/sessions/name.ts": {
+  "6": 72
+ },
+ "src/sessions/sessions.ts": {
+  "4": 41,
+  "5": 18,
+  "6": 36,
+  "10": 4
+ },
+ "src/sessions/worktree-reaper.ts": {
+  "4": 21,
+  "5": 36
+ },
+ "src/settings/panel.ts": {
+  "10": 14
+ },
+ "src/settings/settings.ts": {
+  "1": 120,
+  "3": 107,
+  "4": 161,
+  "5": 204,
+  "6": 295,
+  "8": 24,
+  "9": 78,
+  "10": 186
+ },
+ "src/setup/built-from-main.ts": {
+  "8": 120
+ },
+ "src/setup/command.ts": {
+  "6": 36,
+  "8": 456
+ },
+ "src/setup/diagnostics.ts": {
+  "6": 288,
+  "8": 264
+ },
+ "src/setup/hooks-config.ts": {
+  "3": 191,
+  "4": 12,
+  "6": 72,
+  "8": 648,
+  "9": 12
+ },
+ "src/setup/hooks-release.ts": {
+  "6": 36,
+  "8": 168
+ },
+ "src/setup/machine.ts": {
+  "4": 67,
+  "5": 186,
+  "6": 504,
+  "8": 432
+ },
+ "src/setup/open-storytree.ts": {
+  "6": 144,
+  "8": 168
+ },
+ "src/setup/setup.ts": {
+  "6": 108,
+  "8": 72
+ },
+ "src/setup/verify.ts": {
+  "6": 144,
+  "8": 96
+ },
+ "src/testing/agent.ts": {
+  "5": 108,
+  "6": 396,
+  "8": 168,
+  "10": 12
+ },
+ "src/testing/folders.ts": {
+  "1": 45,
+  "3": 35,
+  "4": 34,
+  "5": 66,
+  "6": 108,
+  "7": 4,
+  "8": 48,
+  "9": 20,
+  "10": 32
+ },
+ "src/testing/pg.ts": {
+  "1": 90,
+  "2": 35,
+  "3": 93,
+  "4": 84,
+  "5": 158,
+  "6": 221,
+  "8": 144,
+  "9": 40,
+  "10": 12
+ },
+ "src/tools/answers.ts": {
+  "5": 18,
+  "6": 148,
+  "8": 96,
+  "10": 8
+ },
+ "src/tools/claim-tools.ts": {
+  "5": 18,
+  "6": 582,
+  "7": 3,
+  "8": 24,
+  "10": 14
+ },
+ "src/tools/connections.ts": {
+  "5": 162,
+  "6": 405,
+  "7": 9,
+  "8": 216,
+  "10": 28
+ },
+ "src/tools/context-tools.ts": {
+  "5": 18,
+  "6": 109,
+  "7": 3,
+  "8": 24,
+  "10": 4
+ },
+ "src/tools/note-tools.ts": {
+  "5": 18,
+  "6": 1369,
+  "7": 3,
+  "8": 24,
+  "10": 2
+ },
+ "src/tools/own-tools.ts": {
+  "5": 36,
+  "6": 74,
+  "7": 6,
+  "8": 48,
+  "10": 4
+ },
+ "src/tools/plan-tools.ts": {
+  "5": 162,
+  "6": 1082,
+  "7": 6,
+  "8": 48,
+  "10": 18
+ },
+ "src/tools/server.ts": {
+  "5": 270,
+  "6": 665,
+  "7": 9,
+  "8": 240,
+  "10": 30
+ },
+ "src/tools/setup-tools.ts": {
+  "5": 18,
+  "6": 217,
+  "7": 3,
+  "8": 192,
+  "10": 2
+ },
+ "src/tools/text.ts": {
+  "5": 18,
+  "6": 181,
+  "8": 24,
+  "10": 2
+ },
+ "src/tools/work-tools.ts": {
+  "5": 36,
+  "6": 866,
+  "7": 6,
+  "8": 48,
+  "10": 4
+ },
+ "src/transcripts/scrub.ts": {
+  "4": 4,
+  "5": 36,
+  "6": 72,
+  "8": 48,
+  "9": 4
+ },
+ "src/transcripts/ship.ts": {
+  "5": 90,
+  "9": 8
+ },
+ "src/transcripts/stored.ts": {
+  "9": 10
+ },
+ "src/view/render.ts": {
+  "10": 8
+ }
+}

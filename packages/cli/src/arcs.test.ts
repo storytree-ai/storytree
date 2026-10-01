@@ -8,6 +8,9 @@ import { after, before, test } from "node:test";
 
 import { claim, openActivityLog, readClaims } from "@storytree/agent-link";
 
+import { parseArgs } from "./args.js";
+import type { Context } from "./door.js";
+import { arcs } from "./families/arc.js";
 import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -34,6 +37,25 @@ test("4.5 `arc list` names each live arc with the library's state", async () => 
     }
     assert.ok(ran.stdout.split("\n").find((line) => line.includes(dated))?.includes("parked until 2099-01-01"), ran.stdout);
     assert.ok(!ran.stdout.includes(retired), ran.stdout);
+  });
+});
+
+test("4.5 `arc list` reads every arc in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    for (let n = 0; n < 3; n++) await anArc(world);
+    const asked = { arcView: 0, arcViews: 0 };
+    const counted = new Proxy(library, {
+      get(target, key) {
+        if (key === "arcView" || key === "arcViews") asked[key]++;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const list = arcs.verbs.find((verb) => verb.name === "list")!;
+    const answer = await list.act(parseArgs([], [], world.folder), { library: async () => counted } as unknown as Context);
+    assert.match(answer.text, /^3 arcs:/);
+    assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
   });
 });
 

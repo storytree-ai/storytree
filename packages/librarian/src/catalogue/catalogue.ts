@@ -50,12 +50,13 @@ export async function newNotes(library: Library, cursor: number): Promise<NewNot
 
 /** Every reference a live record makes to a note: the notes' own, increments' remedies, and questions' settling decisions. */
 async function pointersTo(library: Library): Promise<Reference[]> {
-  const references = (await allNotes(library)).flatMap(referencesOf);
-  for (const arc of (await library.projectTree()).arcs) {
-    for (const increment of (await library.arcView(arc.id))?.increments ?? []) {
+  const [notes, views] = await Promise.all([allNotes(library), library.arcViews()]);
+  const references = notes.flatMap(referencesOf);
+  for (const view of views) {
+    for (const increment of view.increments) {
       for (const to of increment.fields.remedies ?? []) references.push({ from: increment.id, field: "remedies", to });
     }
-    for (const question of await library.questions(arc.id)) {
+    for (const question of view.questions) {
       if (question.fields.settledBy !== undefined) references.push({ from: question.id, field: "settledBy", to: question.fields.settledBy });
     }
   }

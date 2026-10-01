@@ -192,8 +192,8 @@ async function editPlan(target: string, changes: Changes, { library, writer }: C
 }
 
 async function showPlan({ library, log, project, quietMs }: Call): Promise<Answer> {
-  const tree = await library.projectTree();
-  const { lines } = await log.since(project, 0);
+  const [tree, views, { lines }] = await Promise.all([library.projectTree(), library.arcViews(), log.since(project, 0)]);
+  const incrementsOf = new Map(views.map((view) => [view.arc.id, view.increments]));
   const claims = claimsFrom(lines, { quietMs });
   const sessions = sessionsFrom(lines, { quietMs });
   const holderOf = new Map(claims.map((claim) => [claim.capability ?? claim.increment, claim]));
@@ -213,7 +213,7 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
   }
   for (const arc of tree.arcs) {
     out.push(`Arc ${quoted(arc.title)} (${arc.id}) grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
-    for (const increment of (await library.arcView(arc.id))?.increments ?? []) {
+    for (const increment of incrementsOf.get(arc.id) ?? []) {
       out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
     }
   }

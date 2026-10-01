@@ -3,7 +3,8 @@
  * with a one-line reason, and its session's edits count toward it. One live session holds a
  * capability at a time: a second is refused with the holder's name and picks other work, with no
  * queue (the owner's C1, ADR-0626 D3). A claim ends when its holder lands or releases it, when the
- * holder's session ends, or when another session takes it over after the holder has gone idle.
+ * holder's session ends, or when another session takes it over after the holder has gone idle, or
+ * at once when the holder was last seen on this machine before it last started (contract 5.17).
  *
  * - Claims are lines in the agent activity log (claimed, released, landed), and who holds what is
  *   worked out from them, with the holders' liveness from their sessions' latest lines. A holder
@@ -18,10 +19,12 @@
  *   taken (ADR-0643 D3): a "merged" line, which merges.ts writes when GitHub shows one.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  */
+import { uptime } from "node:os";
+
 import type { Hold, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
 
-import type { ActivityLog, Line, LockedLog } from "../activity/index.js";
-import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, COMMAND_KINDS, held, partOf, runningIn, type Attributed, type Claim, type ClaimsOptions, type Part } from "../readings.js";
+import { thisMachine, type ActivityLog, type Line, type LockedLog } from "../activity/index.js";
+import { attributeFrom, CLAIM_KINDS, claimOf, claimsFrom as readLines, COMMAND_KINDS, held, partOf, runningIn, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
 
 export { attributeFrom } from "../readings.js";
@@ -41,6 +44,14 @@ export interface ClaimContext {
   readonly branch?: string;
   /** How long a holder may be quiet before its claim can be taken over. By default, the current idle-after setting. */
   readonly quietMs?: number;
+  /** This machine, and when it last started: a holder seen on it only before then is gone. By default, read from the machine. */
+  readonly restarted?: Restart;
+}
+
+/** This machine, and when it last started, or undefined when it has no name. */
+export function thisRestart(): Restart | undefined {
+  const machine = thisMachine();
+  return machine === undefined ? undefined : { machine, at: new Date(Date.now() - uptime() * 1000) };
 }
 
 export type ClaimAnswer =
@@ -126,7 +137,10 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
 export async function claimRefusal(context: ClaimContext, id: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
   const found = await claimable(context.library, id);
   if (!("part" in found)) return found;
-  const current = await readClaim(context.log, context.project, id, context.quietMs === undefined ? {} : { quietMs: context.quietMs });
+  const current = await readClaim(context.log, context.project, id, {
+    ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
+    ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
+  });
   return current !== undefined && current.session !== context.session && current.holder === "live" ? { ok: false, refused: "held", holder: current } : undefined;
 }
 
@@ -172,7 +186,8 @@ export async function closed(context: ClaimContext, increment: string, dispositi
 
 /** Who holds what, using the current per-user idle duration unless supplied by the caller. */
 export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}): Claim[] {
-  return readLines(lines, { ...options, quietMs: options.quietMs ?? idleAfterMs() });
+  const restarted = options.restarted ?? thisRestart();
+  return readLines(lines, { ...options, quietMs: options.quietMs ?? idleAfterMs(), ...(restarted === undefined ? {} : { restarted }) });
 }
 
 /** Who holds what in `project`'s log. */
@@ -225,7 +240,7 @@ async function waitingOn(library: Library, found: Found): Promise<Waiting[]> {
 /** Who holds what right now, read under the project's lock, by the database's clock. */
 async function heldNow(log: LockedLog, context: ClaimContext): Promise<Map<string, Claim>> {
   const [lines, commands, lastSeen, now] = [await log.lines(CLAIM_KINDS), await log.lines(COMMAND_KINDS), await log.lastSeen(), (await log.now()).getTime()];
-  return held(lines, lastSeen, runningIn(commands, now), now, context.quietMs ?? idleAfterMs());
+  return held(lines, lastSeen, runningIn(commands, now), now, context.quietMs ?? idleAfterMs(), context.restarted ?? thisRestart());
 }
 
 /** The fields every line a claim writes carries: whose it is. */

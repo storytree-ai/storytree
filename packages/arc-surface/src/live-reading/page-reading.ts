@@ -4,11 +4,16 @@
  * asks the library's changes and the agent log's lines once per tick, not once per surface.
  *
  * - It holds what it has read, so a surface that starts listening late (the arc surface opens when
- *   its drawer does) first hears everything held, without asking the library again.
+ *   its drawer does) first hears everything held, without asking the library again. What it holds
+ *   keeps only what a surface reads (ADR-0836 D4): the news each surface hears is whole, but the
+ *   history held is thinned as it arrives, so the page never keeps the whole history in memory.
  * - Each surface takes news at its own pace: one whose handling fails is told so, and hears that
  *   news again together with the next, while the others hear it once.
  * - It never writes.
  */
+import type { Line } from "@storytree/agent-link";
+import type { Change } from "@storytree/library";
+
 import { ASK_EVERY_MS, liveReading, pageTimers, type LiveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
 
 /** One surface's ears on the page reading. */
@@ -24,6 +29,40 @@ export interface NewsListener {
 export interface PageReading extends LiveReading {
   /** Start hearing news: the first is everything held so far, once the first read has landed. Returns a function that stops. */
   subscribe(listener: NewsListener): () => void;
+  /** Everything read so far, oldest first, thinned to what a surface reads; it grows as news comes. */
+  held(): News;
+}
+
+/** The most of a running command's text a surface shows (the sessions list's title on its words). */
+const COMMAND_SHOWN = 300;
+
+/**
+ * What is held of the history and the log, kept as news arrives. Every surface reads the history and
+ * the log in order, so dropping is only of what no surface reads:
+ * - a health change other than a reported one (verified health is not drawn, ADR-0630), and a
+ *   reported state the same as that contract's last held one (the drill-down's trail shows each
+ *   change of state once), each held with only its node, column and state;
+ * - a finished command's text, and a running command's text past what the sessions list shows.
+ */
+class Held {
+  readonly changes: Change[] = [];
+  readonly lines: Line[] = [];
+  #reported = new Map<string, unknown>();
+
+  add({ changes, lines }: News): void {
+    for (const change of changes) {
+      if (change.type !== "health") { this.changes.push(change); continue; }
+      const { node, column, state } = change.record.fields as { node?: unknown; column?: unknown; state?: unknown };
+      if (change.action === "retired" || column !== "reported" || typeof node !== "string" || this.#reported.get(node) === state) continue;
+      this.#reported.set(node, state);
+      this.changes.push({ ...change, record: { ...change.record, fields: { node, column, state } } });
+    }
+    for (const line of lines) {
+      if (line.kind === "command-run") this.lines.push({ ...line, command: "" });
+      else if (line.kind === "command-started" && line.command.length > COMMAND_SHOWN) this.lines.push({ ...line, command: `${line.command.slice(0, COMMAND_SHOWN)} …` });
+      else this.lines.push(line);
+    }
+  }
 }
 
 export interface PageReadingOptions {
@@ -48,7 +87,8 @@ const joined = (a: News | undefined, b: News): News => a === undefined ? b : { c
 export function pageReading({ project, reads, timers }: PageReadingOptions): PageReading {
   const clock = timers ?? pageTimers;
   const everyone = new Set<Ears>();
-  let held: News | undefined;
+  const held = new Held();
+  let read = false;
   let stopped = false;
 
   /** Hand `ears` what it is owed, unless it is still taking the last. */
@@ -73,7 +113,8 @@ export function pageReading({ project, reads, timers }: PageReadingOptions): Pag
     reads,
     ...(timers ? { timers } : {}),
     async onNews(news) {
-      held = joined(held, news);
+      held.add(news);
+      read = true;
       await Promise.all([...everyone].map((ears) => {
         ears.owed = joined(ears.owed, news);
         return hand(ears);
@@ -93,11 +134,12 @@ export function pageReading({ project, reads, timers }: PageReadingOptions): Pag
   });
   return {
     subscribe(listener) {
-      const ears: Ears = { listener, owed: held, busy: false, retryAt: 0 };
+      const ears: Ears = { listener, owed: read ? { changes: [...held.changes], lines: [...held.lines] } : undefined, busy: false, retryAt: 0 };
       everyone.add(ears);
       void hand(ears);
       return () => { everyone.delete(ears); };
     },
+    held: () => held,
     stop() {
       stopped = true;
       everyone.clear();

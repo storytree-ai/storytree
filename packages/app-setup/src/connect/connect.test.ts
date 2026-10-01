@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { noteCodexHookRan, registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
 import { deliveredCommand } from "./installed.js";
+import { makeDevHome } from "./dev-home.js";
 
 const legacy = '# user comment\nmodel = "kept"\n[mcp_servers.legacy]\ncommand = "storytree-02"\n';
 
@@ -344,4 +345,38 @@ test("2.1 before finish has recorded the delivery, connect uses the tools instal
   assert.deepEqual(deliveredCommand(home, tools), installedToolServerCommand(node, mcp));
   rmSync(mcp);
   assert.throws(() => deliveredCommand(home, tools), /finish/);
+});
+
+test("2.2 a dev build connects its own commands to a throwaway Codex home with its own database, reading nothing of the user's but the sign-in", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree dev home "));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const signedIn = path.join(dir, "the user's codex");
+  mkdirSync(signedIn);
+  writeFileSync(path.join(signedIn, "auth.json"), '{"signed":"in"}');
+  writeFileSync(path.join(signedIn, "config.toml"), legacy);
+  // The commands a dev build makes, stood in for: building them is the agent link's own concern.
+  const build = async (outdir: string) => {
+    mkdirSync(outdir, { recursive: true });
+    const names = ["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"];
+    for (const name of names) writeFileSync(path.join(outdir, `${name}.mjs`), `// ${name}\n`);
+    return Object.fromEntries(names.map((name) => [name, path.join(outdir, `${name}.mjs`)]));
+  };
+  const rig = path.join(dir, "rig");
+  const made = await makeDevHome({ dir: rig, harnesses: ["codex"], signedIn: { codex: signedIn }, build, run });
+  assert.deepEqual(made.results.map((r) => r.tools), ["connected"]);
+  const codexHome = made.env.CODEX_HOME!;
+  assert.ok(codexHome.startsWith(rig) && made.env.HOME!.startsWith(rig) && made.env.STORYTREE_HOME!.startsWith(rig));
+  assert.equal(readFileSync(path.join(codexHome, "auth.json"), "utf8"), '{"signed":"in"}');
+  const config = readFileSync(path.join(codexHome, "config.toml"), "utf8");
+  assert.ok(config.includes(JSON.stringify(path.join(rig, "tools", "storytree-mcp.mjs"))), "Codex starts the dev build's own tool server");
+  assert.ok(readFileSync(path.join(codexHome, "hooks.json"), "utf8").includes("storytree-hook.mjs"));
+  assert.match(readFileSync(path.join(codexHome, "AGENTS.md"), "utf8"), /check_setup/);
+  assert.equal(readFileSync(path.join(signedIn, "config.toml"), "utf8"), legacy, "the user's own Codex home is only read");
+  // Its own database: opening storytree in the throwaway home starts it there, as the app would.
+  const app = JSON.parse(readFileSync(path.join(made.env.STORYTREE_HOME!, "app.json"), "utf8"));
+  assert.equal(app.command, process.execPath);
+  // One file to source, and the dev build's storytree command first on its PATH.
+  const envFile = readFileSync(made.envFile, "utf8");
+  for (const name of ["HOME", "CODEX_HOME", "STORYTREE_HOME"]) assert.ok(envFile.includes(made.env[name]!), name);
+  assert.ok(existsSync(path.join(made.env.PATH!.split(path.delimiter)[0]!, process.platform === "win32" ? "storytree.cmd" : "storytree")));
 });

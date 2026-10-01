@@ -67,7 +67,7 @@ test('6.3 the glass has a nearly clear middle, retaining the 80% far-side minimu
 
 // Three draws a see-through, double-sided material in two passes, re-versioning it before each, so every frame
 // would re-derive its shader program twice (WebGLRenderer's renderObject; ADR-0836 D1).
-test('6.3 an animating globe redraws the glass, far face then near face, without re-deriving a shader program', () => {
+test('5.4 an animating globe redraws the glass, far face then near face, without re-deriving a shader program', () => {
   const surface = planet.createPlanetSurface(160);
   try {
     const materials: Material[] = surface.material;

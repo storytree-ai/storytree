@@ -330,7 +330,7 @@ const programsEveryFrame = (root: Group): string[] => {
   return found;
 };
 
-test("an animating globe redraws a session-lit island's land, circles and tints without re-deriving a shader program", () => {
+test("5.4 an animating globe redraws a session-lit island's land, circles and tints without re-deriving a shader program", () => {
   const land = {
     radius: 2,
     territories: [{ capability: "cap-a", status: "healthy" as const }, { capability: "cap-b" }],

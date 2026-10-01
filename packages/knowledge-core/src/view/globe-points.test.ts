@@ -10,7 +10,7 @@ const along = (shift: number) => Array.from({ length: 20 }, (_, i) => [i + shift
 const colours = Array.from({ length: 20 }, (_, i) => [i / 20, 0.5, 1]).flat();
 const buffer = (line: LineGeometry, name: string) => (line.getAttribute(name) as InterleavedBufferAttribute).data;
 
-test("a line the core moves every frame keeps its GPU buffers, drawing the same line as one made afresh", () => {
+test("5.4 a line the core moves every frame keeps its GPU buffers, drawing the same line as one made afresh", () => {
   const line = new LineGeometry();
   moveLine(line, along(0), colours);
   const [points, tints] = [buffer(line, "instanceStart"), buffer(line, "instanceColorStart")];

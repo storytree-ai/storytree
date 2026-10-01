@@ -5,7 +5,7 @@ Increment `increment_a308cd8414aa`. The agent link folds a session's transcript 
 - a warm white ring on each note the session holds now; a note it read before a compaction keeps its lit dot and its reading path but loses its ring;
 - a straight, dotted, warm white line with no head from a note to one opened while that note's result, holding the id, was in view. It means "was in view", never "followed" (ADR-0740 D3). An open that came from a search draws no line.
 
-With no session selected no window is drawn and none is asked for. The colour is one no session wears: session colours are 80% saturated hues.
+With no session selected no window is drawn, and no one session's window is asked for (every listed session's window is read in one batch for the all-sessions view, ADR-0754 D1). The colour is one no session wears: session colours are 80% saturated hues.
 
 - [No session selected](window-none-selected.png)
 - [The session selected: five rings, three in-view lines, beside its reading-path curves](window-selected.png)
@@ -15,7 +15,9 @@ Files the session holds are in the reading but not drawn: the globe has no place
 
 These are the real desktop page in headless Chromium (SwiftShader) on Linux, over the forest snapshot with one synthetic session reading six real shelf-placed notes and a synthetic window reading.
 
+**Since ADR-0756 (2026-10-02 re-run):** the dotted in-view lines are gone; a selected session draws its traversal instead (see `../traversal`). The capture now checks the rings and that no in-view line is drawn; the pictures above are from before, re-taken only with `--retake`.
+
 ```sh
 node packages/forest/evidence/sessions-list/build.mjs
-PLANET_PLAYWRIGHT=file://…/playwright-core/index.mjs PLANET_CHROMIUM=…/chrome-headless-shell node --import tsx packages/knowledge-core/evidence/window/capture.mjs
+node --import tsx packages/knowledge-core/evidence/window/capture.mjs
 ```

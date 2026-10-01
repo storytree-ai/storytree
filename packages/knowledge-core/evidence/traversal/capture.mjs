@@ -7,10 +7,9 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
@@ -50,8 +49,6 @@ const reading = {
 };
 const steps = [[old, hub, 'solid', true], [hub, next, 'solid', false], [next, jump, 'dotted', false]];
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? 'file:///C:/code/storytree/node_modules/.pnpm/playwright-core@1.61.1/node_modules/playwright-core/index.mjs');
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
   if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -61,9 +58,7 @@ const server = createServer((req, res) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 let browser;
 try {
-  browser = await chromium.launch({ executablePath: process.env.PLANET_CHROMIUM
-    ?? path.join(os.homedir(), 'AppData/Local/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-win64/chrome-headless-shell.exe'), headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2, colorScheme: 'dark', reducedMotion: 'reduce' });
   page.setDefaultTimeout(30_000);
   const errors = [];
@@ -145,49 +140,12 @@ try {
   assert.deepEqual(selected.fills, [], 'reduced motion: no fill');
   await page.screenshot({ path: path.join(out, '1-selected.png') });
 
-  // Motion: reselect so the lines mount with their fills; a faint fill runs along each from its earlier note.
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await row.click();
-  await row.click();
-  await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-fill:') && o.visible) n++; }); return n > 0; });
-  await aim([old, hub, next, jump]);
-  await page.waitForTimeout(700);
-  const filling = await drawn();
-  assert.equal(filling.fills.length, steps.length, 'each step has its fill');
-  await page.screenshot({ path: path.join(out, '2-fill.png') });
-
-  // A fifth open arrives: its line grows from the note before toward it, then fills. A strip of frames.
-  await page.evaluate(([note]) => {
-    window.__window = { ...window.__window, opens: [...window.__window.opens, { kind: 'note', id: note, call: 'c4', tool: 'mcp__storytree__open', resident: true }] };
-  }, [later]);
-  const asked = await page.evaluate(() => window.__asked.length);
-  await page.waitForFunction(asked => window.__asked.length > asked, asked, { timeout: 20_000 });
-  await page.waitForFunction(([from, to]) => { let seen = false; window.__globe.scene.traverse(o => { if (o.name === `knowledge-trail:${from}>${to}`) seen = true; }); return seen; }, [jump, later]);
-  await frames();
-  const strip = [];
-  for (let i = 0; i < 10; i++) {
-    strip.push((await page.screenshot({ type: 'png' })).toString('base64'));
-    await page.waitForTimeout(260);
-  }
-  const grown = await drawn();
-  assert.deepEqual(grown.lines.at(-1) && [grown.lines.at(-1).from, grown.lines.at(-1).to], [jump, later], 'the new step is last in reading order');
-  // Keep the strip as one picture: ten frames, left to right, each the middle of the page.
-  const png = await page.evaluate(async frames => {
-    const images = await Promise.all(frames.map(src => new Promise(resolve => { const image = new Image(); image.onload = () => resolve(image); image.src = `data:image/png;base64,${src}`; })));
-    const crop = { x: images[0].width * 0.3, y: images[0].height * 0.3, w: images[0].width * 0.36, h: images[0].height * 0.45 };
-    const canvas = document.createElement('canvas');
-    const scale = 0.5;
-    canvas.width = crop.w * scale * 5; canvas.height = crop.h * scale * 2;
-    const context = canvas.getContext('2d');
-    images.forEach((image, i) => context.drawImage(image, crop.x, crop.y, crop.w, crop.h, (i % 5) * crop.w * scale, Math.floor(i / 5) * crop.h * scale, crop.w * scale, crop.h * scale));
-    return canvas.toDataURL('image/png').split(',')[1];
-  }, strip);
-  writeFileSync(path.join(out, '3-grow-and-fill-strip.png'), Buffer.from(png, 'base64'));
+  // With motion on, a selected session replays its steps instead (ADR-0797): the per-step fill and growth
+  // this capture once showed are retired, and the replay capture covers the motion.
   assert.deepEqual(errors, []);
   writeFileSync(path.join(out, 'capture.json'), JSON.stringify({
     steps: selected.lines.map(({ from, to, edge, faded }) => ({ from, to, edge, faded })),
     rings: selected.rings, states: Object.fromEntries(Object.entries(selected.states).map(([id, { state }]) => [id, state])),
-    fills: filling.fills.length, grown: [jump, later],
   }, null, 2) + '\n');
   console.log('ADR-0756 capture passed');
 } finally {

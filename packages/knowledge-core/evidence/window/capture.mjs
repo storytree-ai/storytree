@@ -6,10 +6,9 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
@@ -36,7 +35,7 @@ const opened = note => [{ kind: 'note', id: note }];
 const open = (note, call, from, resident = true) => ({ kind: 'note', id: note, call, tool: 'mcp__storytree__open', resident,
   inViewFrom: from.map(([via, notes]) => ({ call: via, tool: notes.length === 0 ? 'mcp__storytree__search_notes' : 'mcp__storytree__open', opened: notes.flatMap(opened) })) });
 const window = {
-  session, at: new Date(now).toISOString(), compactions: 1, inView: [],
+  session, at: new Date(now).toISOString(), compactions: 1, inView: [], glimpses: [],
   opens: [
     open(read[4], 'c0', [['s0', []]], false),
     open(read[5], 'c5', [['c0', [read[4]]]]),
@@ -47,11 +46,8 @@ const window = {
     { kind: 'file', id: 'packages/agent-link/src/claims/merges.ts', call: 'f1', tool: 'Read', resident: true, inViewFrom: [] },
   ],
 };
-const inViewPairs = [[read[4], read[5]], [read[0], read[1]], [read[1], read[2]]];
 const held = [read[5], read[0], read[1], read[2], read[3]];
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? 'file:///C:/code/storytree/node_modules/.pnpm/playwright-core@1.61.1/node_modules/playwright-core/index.mjs');
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
   if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -61,9 +57,7 @@ const server = createServer((req, res) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 let browser;
 try {
-  browser = await chromium.launch({ executablePath: process.env.PLANET_CHROMIUM
-    ?? path.join(os.homedir(), 'AppData/Local/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-win64/chrome-headless-shell.exe'), headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark', reducedMotion: 'reduce' });
   page.setDefaultTimeout(30_000);
   const errors = [];
@@ -82,7 +76,8 @@ try {
       linesSince: async (_, cursor) => ({ lines: copy(data.seed.lines.lines.filter(item => item.seq > cursor)), cursor: data.seed.lines.lines.at(-1)?.seq ?? cursor }),
       frontCovers: async (_, id) => copy(data.seed.covers[id] ?? []), relatedNotes: async () => [],
       arcView: async () => null, waitHolds: async () => [], heldOnQuestion: async () => [],
-      windowReadings(project, sessions) { return Promise.all(sessions.map((one) => this.windowReading(project, one))); },
+      // The sessions list reads every row's window for its detail; only the core's own ask, on selection, is counted.
+      windowReadings: async (_, sessions) => sessions.map(() => copy(data.window)),
       windowReading: async (_, session) => { window.__asked.push(session); return copy(data.window); },
     };
   }, { seed, window });
@@ -115,7 +110,7 @@ try {
 
   // None selected: the running session lights what it read, and no window is drawn.
   assert.deepEqual(await drawn(), { rings: [], links: [] }, 'no window while no session is selected');
-  assert.deepEqual(await page.evaluate(() => window.__asked), [], 'nothing asked while no session is selected');
+  assert.deepEqual(await page.evaluate(() => window.__asked), [], 'no one session\'s window asked while none is selected');
   await page.screenshot({ path: path.join(out, 'window-none-selected.png') });
 
   // Select its row: the core asks for that session's window and draws it.
@@ -125,8 +120,8 @@ try {
   const selected = await drawn();
   assert.deepEqual(await page.evaluate(() => window.__asked), [session]);
   assert.deepEqual(selected.rings, [...held].sort(), 'a ring on each note it holds now, and not on the one a compaction dropped');
-  assert.deepEqual(selected.links.map(({ from, to }) => [from, to]).sort(), [...inViewPairs].sort(), 'one in-view line per pair the reading names; none from a search');
-  assert.ok(selected.links.every(({ kind, heads }) => kind === 'in-view' && heads === 0), 'in-view lines carry no head');
+  // The dotted in-view lines gave way to the traversal drawing (ADR-0756), which the traversal capture covers.
+  assert.deepEqual(selected.links, [], 'no in-view lines: the traversal drawing replaced them');
   await page.screenshot({ path: path.join(out, 'window-selected.png') });
 
   // Back to every session: the window goes.

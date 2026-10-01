@@ -252,10 +252,11 @@ function contractsOfResult(result) {
 /**
  * Only a leading list names contracts: N.M entries joined by comma, slash or "and", with
  * ascending en-dash ranges within one capability. Whitespace or the title's end must follow
- * the last entry. Once prose starts, later numbers give no credit. Overlaps count only once.
+ * the last entry, or a colon and then one ("3.6: …"). Once prose starts, later numbers give no
+ * credit. Overlaps count only once.
  */
 function leadingContracts(title) {
-  const prefix = /^(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*)(?=\s|$)/.exec(title)?.[1];
+  const prefix = /^(\d+\.\d+(?:–\d+\.\d+)?(?:(?:\s*[,/]\s*|\s+and\s+)\d+\.\d+(?:–\d+\.\d+)?)*):?(?=\s|$)/.exec(title)?.[1];
   if (prefix === undefined) return [];
   const numbers = new Set();
   for (const [, first, last] of prefix.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {

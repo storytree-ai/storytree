@@ -21,13 +21,14 @@ const { forestSurfaces } = await import(desktopRequire.resolve('@storytree/fores
 const { arcSurfaces } = await import(desktopRequire.resolve('@storytree/arc-surface/surfaces'));
 const { connect } = await import(desktopRequire.resolve('@storytree/library'));
 const { start } = await import(desktopRequire.resolve('@storytree/local-postgres'));
-const { launch } = await import('../../../../apps/desktop/src/capture/index.ts');
+const { captureOutput, launch } = await import('../../../../apps/desktop/src/capture/index.ts');
 
-const output = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(output, '../../../../apps/desktop/dist/renderer');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const output = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
+const dist = path.resolve(here, '../../../../apps/desktop/dist/renderer');
 const snapshots = '/home/mickh/storytree-lanes/snapshots';
 const snapshotPath = process.env.SURFACES_SNAPSHOT ?? path.join(snapshots, readdirSync(snapshots).filter((name) => name.endsWith('.json')).sort().at(-1));
-const register = readFileSync(path.join(output, 'register.txt'), 'utf8').trim();
+const register = readFileSync(path.join(here, 'register.txt'), 'utf8').trim();
 const temporary = mkdtempSync(path.join(tmpdir(), 'storytree-decision-rights-capture-'));
 const record = { snapshot: path.basename(snapshotPath), shots: [] };
 let pg, store, server, browser, reads;

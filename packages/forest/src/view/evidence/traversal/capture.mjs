@@ -8,11 +8,12 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
 
@@ -153,7 +154,7 @@ try {
   results.noneSelected = await measure(page);
   // With none selected the listed session's two notes still step to each other (ADR-0754); nothing of the code is drawn.
   assert.deepEqual([results.noneSelected.trails.filter(t => t.kind).length, results.noneSelected.circles.length, results.noneSelected.territories.length], [0, 0, 0], 'nothing is drawn of the code while no session is selected');
-  await page.screenshot({ path: path.join(here, '0-none-selected.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, '0-none-selected.png'), timeout: 180000 });
 
   const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${session}"]`);
   await row.waitFor({ timeout: 30000 });
@@ -161,7 +162,7 @@ try {
   await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-trail:')) n++; }); return n > 0; }, undefined, { timeout: 30000 });
   await settle(page);
   results.front = await measure(page);
-  await page.screenshot({ path: path.join(here, '1-front-selected.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, '1-front-selected.png'), timeout: 180000 });
 
   const trailSummary = trail => [trail.from, trail.to, trail.edge, trail.kind, trail.faded];
   assert.deepEqual(results.front.trails.map(trailSummary), expected, 'one line per step in reading order, solid on an import, dotted otherwise, dives to and from the core');
@@ -180,19 +181,19 @@ try {
   const baseZoom = results.front.zoom;
   await faceIt(KNOWLEDGE_CORE, baseZoom * 2.4);
   results.knowledgeCore = await measure(page);
-  await page.screenshot({ path: path.join(here, '2-knowledge-core.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, '2-knowledge-core.png'), timeout: 180000 });
   await faceIt(FOREST, baseZoom * 2.4);
   results.forest = await measure(page);
-  await page.screenshot({ path: path.join(here, '3-forest.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, '3-forest.png'), timeout: 180000 });
   await faceIt(KNOWLEDGE_CORE, baseZoom * 6);
   results.knowledgeCoreClose = await measure(page);
-  await page.screenshot({ path: path.join(here, '2b-knowledge-core-close.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, '2b-knowledge-core-close.png'), timeout: 180000 });
   await faceIt(FOREST, baseZoom * 6);
-  await page.screenshot({ path: path.join(here, '3b-forest-close.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, '3b-forest-close.png'), timeout: 180000 });
   // Between the forest and the agent link: the far hop, at a zoom that keeps both islands in view.
   await faceIt(FOREST, baseZoom * 1.35);
   results.hop = await measure(page);
-  await page.screenshot({ path: path.join(here, '4-hop-to-agent-link.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, '4-hop-to-agent-link.png'), timeout: 180000 });
 
   // Letting the session go clears the land again.
   await faceIt(KNOWLEDGE_CORE, baseZoom);
@@ -203,7 +204,7 @@ try {
 
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
   results.asked = await page.evaluate(() => window.__asked);
-  writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: results.browser, trails: results.front.trails.length, circles: results.front.circles.length, rings: results.front.rings.length, territories: results.front.territories, errors }));
 } finally {

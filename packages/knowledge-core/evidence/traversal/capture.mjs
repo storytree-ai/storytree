@@ -10,9 +10,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -127,7 +128,7 @@ try {
   await aim([old, hub, next, jump]);
   await frames();
   assert.deepEqual((await drawn()).states, {}, 'no window while no session is selected');
-  await page.screenshot({ path: path.join(here, '0-none-selected.png') });
+  await page.screenshot({ path: path.join(out, '0-none-selected.png') });
 
   // Select its row: one line per step in reading order, solid along a stored link, dotted for a jump.
   await row.click();
@@ -142,7 +143,7 @@ try {
   assert.deepEqual(glimpses.map(note => selected.states[note]?.state), ['glimpsed', 'glimpsed'], 'the glimpsed notes are tinted');
   assert.deepEqual(selected.inView, [], 'no in-view line any more');
   assert.deepEqual(selected.fills, [], 'reduced motion: no fill');
-  await page.screenshot({ path: path.join(here, '1-selected.png') });
+  await page.screenshot({ path: path.join(out, '1-selected.png') });
 
   // Motion: reselect so the lines mount with their fills; a faint fill runs along each from its earlier note.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -153,7 +154,7 @@ try {
   await page.waitForTimeout(700);
   const filling = await drawn();
   assert.equal(filling.fills.length, steps.length, 'each step has its fill');
-  await page.screenshot({ path: path.join(here, '2-fill.png') });
+  await page.screenshot({ path: path.join(out, '2-fill.png') });
 
   // A fifth open arrives: its line grows from the note before toward it, then fills. A strip of frames.
   await page.evaluate(([note]) => {
@@ -181,9 +182,9 @@ try {
     images.forEach((image, i) => context.drawImage(image, crop.x, crop.y, crop.w, crop.h, (i % 5) * crop.w * scale, Math.floor(i / 5) * crop.h * scale, crop.w * scale, crop.h * scale));
     return canvas.toDataURL('image/png').split(',')[1];
   }, strip);
-  writeFileSync(path.join(here, '3-grow-and-fill-strip.png'), Buffer.from(png, 'base64'));
+  writeFileSync(path.join(out, '3-grow-and-fill-strip.png'), Buffer.from(png, 'base64'));
   assert.deepEqual(errors, []);
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify({
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify({
     steps: selected.lines.map(({ from, to, edge, faded }) => ({ from, to, edge, faded })),
     rings: selected.rings, states: Object.fromEntries(Object.entries(selected.states).map(([id, { state }]) => [id, state])),
     fills: filling.fills.length, grown: [jump, later],

@@ -8,9 +8,10 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = process.env.CAPTURE_DIST ?? path.join(here, '../sessions-list/dist/production');
 const as = process.env.CAPTURE_AS ?? 'after';
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -88,7 +89,7 @@ try {
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   await list.locator('.session-row[data-session-id="co-builder"]').waitFor();
   await page.waitForTimeout(800);
-  await list.screenshot({ path: path.join(here, `${as}-list.png`) });
+  await list.screenshot({ path: path.join(out, `${as}-list.png`) });
   const fold = list.locator('.session-idle-fold');
   if (as === 'after') {
     assert.equal(await list.locator('.sessions-count').innerText(), '4');
@@ -97,7 +98,7 @@ try {
     await fold.click();
     await list.locator('.session-row[data-session-id="co-idle-3"]').waitFor();
     await page.waitForTimeout(300);
-    await list.screenshot({ path: path.join(here, `${as}-idle-open.png`) });
+    await list.screenshot({ path: path.join(out, `${as}-idle-open.png`) });
   }
   assert.deepEqual(errors, []);
   console.log(`Captured ${as}`);

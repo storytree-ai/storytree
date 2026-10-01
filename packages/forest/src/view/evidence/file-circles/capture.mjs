@@ -7,11 +7,12 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 // survey.json is readCodeSurvey(<this checkout>, seed.tree), precomputed by `tsx survey.mjs`.
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
@@ -128,7 +129,7 @@ try {
   const results = {};
   results.front = await measure(page);
   results.surveyedFiles = Object.fromEntries(Object.entries(survey).map(([id, v]) => [id, v.files.length]));
-  await page.screenshot({ path: path.join(here, 'front.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'front.png'), timeout: 180000 });
 
   const AGENT_LINK = 'story_05e45963ca9f';
   const faceIt = async story => {
@@ -146,7 +147,7 @@ try {
   await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); });
   await settle(page);
   results.closeUp = await measure(page);
-  await page.screenshot({ path: path.join(here, 'close-up.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'close-up.png'), timeout: 180000 });
 
   // Hover: the largest circles of The agent link, in order, until one is actually pointed at (nearer marks may cover a middle).
   const screenOf = (story, file) => page.evaluate(({ story, file }) => {
@@ -171,16 +172,16 @@ try {
       if (label?.startsWith(candidate.file)) { results.hover[key].chosen = results.hover[key].tried.at(-1); break; }
     }
     assert.ok(results.hover[key].chosen, `pointing at one of the ${key} circles shows its label`);
-    await page.screenshot({ path: path.join(here, `${shot}.png`), timeout: 180000 });
+    await page.screenshot({ path: path.join(out, `${shot}.png`), timeout: 180000 });
     const around = results.hover[key].chosen.at;
-    await page.screenshot({ path: path.join(here, `${shot}-crop.png`), timeout: 180000,
+    await page.screenshot({ path: path.join(out, `${shot}-crop.png`), timeout: 180000,
       clip: { x: Math.max(0, Math.min(1440 - 640, around.x - 320)), y: Math.max(0, Math.min(960 - 400, around.y - 200)), width: 640, height: 400 } });
   }
   await page.mouse.move(2, 2); await settle(page);
 
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
   results.seed = seed.stats;
-  writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: results.browser, islands: results.front.islands.map(i => [i.story, i.circles, results.surveyedFiles[i.story], i.middlesInsideOwnTerritory, +i.minRadius.toFixed(2), +i.maxRadius.toFixed(2)]), hover: [results.hover.largest.chosen, results.hover.largestOnTerritory.chosen], errors }));
 } finally {

@@ -4,9 +4,10 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../../../..');
 const { chromium } = await import(path.join(root, 'node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs'));
 const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/knowledge-under-islands/seed.json'), 'utf8'));
@@ -56,7 +57,7 @@ try {
     await page.waitForSelector('#app-menu:popover-open');
     return page;
   }
-  const shot = (page, name) => page.locator('.app-menu-window').screenshot({ path: path.join(here, `${name}.png`) });
+  const shot = (page, name) => page.locator('.app-menu-window').screenshot({ path: path.join(out, `${name}.png`) });
 
   const page = await open(1440, false);
   await shot(page, '1-projects-rest');

@@ -11,9 +11,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -150,7 +151,7 @@ try {
   assert.deepEqual(byColour(colours.c), steps(logged).sort());
   assert.ok(none.trails.every(({ edge, visible }) => edge === null && visible), 'the reading-path curve, not the selected view\'s solid/dotted traversal');
   assert.deepEqual(none.windowStates, [], 'no selected-window drawing with none selected');
-  await page.screenshot({ path: path.join(here, '0-none-selected.png') });
+  await page.screenshot({ path: path.join(out, '0-none-selected.png') });
 
   // Motion on: a later reading of builder's window adds an open; its line grows from the note before, then the glow runs.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -188,12 +189,12 @@ try {
     images.forEach((image, i) => context.drawImage(image, crop.x, crop.y, crop.w, crop.h, (i % 5) * crop.w * scale, Math.floor(i / 5) * crop.h * scale, crop.w * scale, crop.h * scale));
     return canvas.toDataURL('image/png').split(',')[1];
   }, strip);
-  writeFileSync(path.join(here, '1-grow-strip.png'), Buffer.from(png, 'base64'));
+  writeFileSync(path.join(out, '1-grow-strip.png'), Buffer.from(png, 'base64'));
   await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n > 0; });
   const glowing = await drawn();
-  await page.screenshot({ path: path.join(here, '2-glow.png') });
+  await page.screenshot({ path: path.join(out, '2-glow.png') });
   assert.deepEqual(errors, []);
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify({
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify({
     asked, colours,
     lit: Object.keys(none.lit).length, rings: Object.keys(none.arcs).length, lines: none.trails.length,
     linesBySession: Object.fromEntries(Object.entries(colours).map(([key, colour]) => [ids[key], byColour(colour).length])),

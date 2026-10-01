@@ -8,9 +8,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -125,7 +126,7 @@ try {
   assert.deepEqual(allCurves.map(c => `${c.from}>${c.to}`).sort(),
     [...steps(reads.a), ...steps(reads.lane), ...steps(reads.b), ...steps(reads.c)].sort(), "one curve per step of each agent's reading order");
   assert.equal(await rgb(allCurves.find(c => c.from === reads.c[0]).colour), await swatch(ids.c), "a curve wears its session's colour");
-  await page.screenshot({ path: path.join(here, 'all-sessions.png') });
+  await page.screenshot({ path: path.join(out, 'all-sessions.png') });
 
   // Click a row: the core drills into that session alone, the row marked selected.
   await row(ids.b).click();
@@ -136,7 +137,7 @@ try {
   assert.ok(one.every(dot => !dot.shared));
   assert.equal(await rgb(one.find(dot => dot.id === reads.b[0]).lit), await swatch(ids.b), 'its orchestrator wears its colour');
   assert.equal((await curves()).length, reads.b.length - 1, "a selection draws that session's path alone");
-  await page.screenshot({ path: path.join(here, 'one-session.png') });
+  await page.screenshot({ path: path.join(out, 'one-session.png') });
 
   // Drill into the session with a subagent: the subagent wears a shade of the same hue.
   await row(ids.a).click();
@@ -145,7 +146,7 @@ try {
   const hue = colour => /^hsl\((\d+),/.exec(colour)?.[1];
   assert.equal(hue(drilled.get(reads.lane[5])), hue(drilled.get(reads.a[0])), 'same hue');
   assert.notEqual(drilled.get(reads.lane[5]), drilled.get(reads.a[0]), 'a different shade');
-  await page.screenshot({ path: path.join(here, 'drill-in-shades.png') });
+  await page.screenshot({ path: path.join(out, 'drill-in-shades.png') });
 
   // Click it again: back to every running session.
   await row(ids.a).click();
@@ -180,19 +181,19 @@ try {
   assert.equal(await drawn(covers[60], covers[62]), 0.5, 'caught growing, short of its later read');
   const litNow = note => page.evaluate(note => { let lit = null; window.__globe.scene.traverse(o => { if (o.userData?.id === note && o.name.startsWith('knowledge-point:')) lit = o.userData.lit; }); return lit; }, covers[62]);
   assert.equal(await litNow(), null, 'the new note waits, unlit, for its line');
-  await page.screenshot({ path: path.join(here, 'path-growing.png') });
+  await page.screenshot({ path: path.join(out, 'path-growing.png') });
   await page.waitForTimeout(1500);
   assert.equal(await drawn(covers[60], covers[62]), 1, 'then whole');
   assert.equal(await rgb(await litNow()), await swatch(ids.c), 'and the note lights as the line arrives');
   await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-glow:') && o.visible) n++; }); return n > 0; });
-  await page.screenshot({ path: path.join(here, 'path-glow.png') });
+  await page.screenshot({ path: path.join(out, 'path-glow.png') });
   const heads = await page.evaluate(() => {
     let n = 0;
     window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-trail:')) o.traverse(c => { if (c.geometry?.type === 'ConeGeometry') n++; }); });
     return { n };
   });
   assert.equal(heads.n, 0, 'paths carry no arrowheads');
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify({
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify({
     sessions: Object.fromEntries(Object.entries(reads).map(([key, notes]) => [ids[key], notes.length])),
     litWithNoneSelected: expected.size, shared: shared.length, litWhenBSelected: one.length,
   }, null, 2) + '\n');

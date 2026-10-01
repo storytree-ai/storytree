@@ -6,9 +6,10 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = path.join(here, '../sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
@@ -69,7 +70,7 @@ try {
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   await list.locator('.session-row[data-session-id="mn-mint"]').waitFor();
   await page.waitForTimeout(800);
-  await list.screenshot({ path: path.join(here, 'machine-names-list.png') });
+  await list.screenshot({ path: path.join(out, 'machine-names-list.png') });
   assert.equal(await list.locator('.session-row[data-session-id="mn-mint"] .session-machine').innerText(), 'mint');
   assert.equal(await list.locator('.session-row[data-session-id="mn-laptop"] .session-children').innerText(), '+1');
   const first = await list.locator('.session-row[data-session-id="mn-laptop"] > *').first().getAttribute('class');
@@ -77,7 +78,7 @@ try {
   await list.locator('.session-row[data-session-id="mn-laptop"] .session-children-toggle').click();
   await list.locator('.session-row[data-session-id="mn-explorer"]').waitFor();
   await page.waitForTimeout(300);
-  await list.screenshot({ path: path.join(here, 'machine-names-expanded.png') });
+  await list.screenshot({ path: path.join(out, 'machine-names-expanded.png') });
   assert.deepEqual(errors, []);
   console.log('Captured machine-names');
 } finally {

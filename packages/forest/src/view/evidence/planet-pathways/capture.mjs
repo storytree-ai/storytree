@@ -5,11 +5,12 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
@@ -168,8 +169,8 @@ try {
     assert.ok(ribbons.every(ribbon => ribbon.vertices >= 4), 'the browser has drawable ribbon meshes');
     assert.deepEqual(errors, []);
     if (name === 'quarter-turn') assert.ok(Math.abs(result.turnDegrees - 90) < 1e-6);
-    await page.screenshot({ path: path.join(here, `${name}.png`), timeout: 180000 });
-    writeFileSync(path.join(here, `${name}.json`), JSON.stringify(result, null, 2) + '\n');
+    await page.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 });
+    writeFileSync(path.join(out, `${name}.json`), JSON.stringify(result, null, 2) + '\n');
     console.log(JSON.stringify({ name, browser: result.browser, renderer: result.renderer, stories: result.plates.length,
       trees: result.drew.trees.length, visibleLabels: result.labels.filter(label => label.visible).length,
       markers: result.markers, pathways: result.pathways.length, draws: result.render.calls, errors }));

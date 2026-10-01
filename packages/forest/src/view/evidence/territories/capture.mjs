@@ -7,11 +7,12 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 // survey.json is readCodeSurvey(<this checkout>, seed.tree), precomputed by `tsx survey.mjs`.
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
@@ -135,7 +136,7 @@ try {
   await settle(page);
   const results = {};
   results.front = await measure(page);
-  await page.screenshot({ path: path.join(here, 'front.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'front.png'), timeout: 180000 });
 
   // The densest island: the one with the most territories (ties: most border segments).
   const densest = [...results.front.islands].sort((a, b) => b.territoryMeshes - a.territoryMeshes || b.borderSegments - a.borderSegments)[0];
@@ -154,17 +155,17 @@ try {
   };
   await faceIt(densest.story);
   results.densestFaced = await measure(page);
-  await page.screenshot({ path: path.join(here, 'densest-resting.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'densest-resting.png'), timeout: 180000 });
   await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); });
   await settle(page);
   results.closeUp = await measure(page);
-  await page.screenshot({ path: path.join(here, 'close-up.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'close-up.png'), timeout: 180000 });
 
   // Diagnostic: the island whose territories reach furthest past its coast, faced at the same close-up zoom.
   const worstIsland = [...results.front.islands].sort((a, b) => b.worstDistanceOutsideCoast - a.worstDistanceOutsideCoast)[0];
   results.worstOutside = { story: worstIsland.story, distance: worstIsland.worstDistanceOutsideCoast, offending: worstIsland.offending };
   await faceIt(worstIsland.story);
-  await page.screenshot({ path: path.join(here, 'worst-outside-close-up.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'worst-outside-close-up.png'), timeout: 180000 });
   await faceIt(densest.story);
 
   // Click one territory of the densest island (its largest claimed one, at its biggest triangle's centre).
@@ -190,17 +191,17 @@ try {
     marked: [...document.querySelectorAll('.panel-diagram .selected')].map(n => n.dataset.capabilityId) }));
   results.click = { target, opened, opensOnClickedCapability: opened.marked.includes(target.capability) && opened.detail.some(d => d.capability === target.capability) };
   results.clickView = await measure(page);
-  await page.screenshot({ path: path.join(here, 'click-territory.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'click-territory.png'), timeout: 180000 });
   // Full picture with the panel, zoomed back to rest.
   await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); });
   await settle(page);
-  await page.screenshot({ path: path.join(here, 'click-territory-resting.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'click-territory-resting.png'), timeout: 180000 });
 
   // Reported, not asserted: a territory vertex further than 0.05 ground units outside the coast is a finding, not a failed capture.
   results.insideCoast = Object.fromEntries(['front', 'densestFaced', 'closeUp', 'clickView'].map(view => [view, results[view].islands.every(i => i.worstDistanceOutsideCoast < 0.05)]));
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
   results.seed = seed.stats;
-  writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
   assert.ok(results.click.opensOnClickedCapability, 'the click opens the story on the clicked capability');
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: results.browser, islands: results.front.islands.map(i => [i.story, i.territoryMeshes, i.borderSegments, +i.worstDistanceOutsideCoast.toFixed(4)]), densest: results.densest, click: results.click.opensOnClickedCapability, errors }));

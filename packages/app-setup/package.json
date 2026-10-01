@@ -11,11 +11,13 @@
     "./project": "./src/project/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "dev-home": "node --import tsx src/connect/dev-home.ts"
   },
   "dependencies": {
     "@storytree/agent-link": "workspace:*",
-    "@storytree/library": "workspace:*"
+    "@storytree/library": "workspace:*",
+    "@storytree/local-postgres": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

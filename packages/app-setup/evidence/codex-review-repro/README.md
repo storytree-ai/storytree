@@ -27,5 +27,6 @@ this session's raw transcript"). It now says the check sends nothing of the sess
 hooks send transcripts, and, while Codex's hooks wait for the user's trust, that in Codex they send nothing
 until then. The disclosure ADR-0749 D4 asks for (best-effort scrub, 180 days) is unchanged.
 
-`harness/`: `pg.mjs` (the throwaway Postgres), `bins.mjs` (builds the commands), `mkuser.sh` (a fresh
-user and project folder), `codexwire.mjs` (what connect writes into the Codex home).
+The hand-built rig these runs used (a throwaway Postgres, the built commands, a fresh user and what connect
+writes into a Codex home) is retired: a dev build now makes the same throwaway home with one command,
+`pnpm --filter @storytree/app-setup dev-home <dir> --codex` (see `../dev-home`).

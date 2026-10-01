@@ -121,6 +121,11 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
     const url = new URL(testServerUrl());
     url.pathname = `/${projectDatabase(project)}`;
     const pool = new pg.Pool({ connectionString: url.href });
+    let openConnections = 0;
+    pool.on("connect", (connection) => {
+      openConnections++;
+      connection.once("end", () => openConnections--);
+    });
     const blocker = await pool.connect();
     const tools = createAgentTools({ folder, dataDir: testServerDataDir(), env: { CLAUDE_CODE_SESSION_ID: "cancelled-writer" } });
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
@@ -169,6 +174,7 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       await client.close();
       await tools.close();
       await pool.end();
+      assert.equal(openConnections, 0, "test connections have ended before the project is force-dropped");
     }
   });
 });

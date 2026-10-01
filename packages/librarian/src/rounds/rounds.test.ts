@@ -1,16 +1,17 @@
 /**
  * Capability 6 · Rounds: contracts 6.1-6.2 in the librarian story, each in a fresh project's
- * library on the real Postgres `pnpm test` provides. Contracts 6.3-6.5 need the agent link's
- * registration point (ADR-0643 D6), which has not landed.
+ * library on the real Postgres `pnpm test` provides; 6.5 against the librarian's subagent definition.
+ * 6.3-6.4 are proven beside the agent link's server (packages/agent-link/src/tools/librarian-tools.test.ts).
  */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import { withLibrary } from "../testing/pg.js";
 import { roundDue, worklist } from "./index.js";
+import { librarianTools } from "./tools.js";
 
 test("6.1 the trigger fires on a write to a curated kind since the session started, and when there is no start; graduation is due either way", async () => {
   await withLibrary(async (library) => {
@@ -55,4 +56,15 @@ test("6.2 the worklist gathers each capability's list: graduation's and the fric
       rmSync(root, { recursive: true, force: true });
     }
   });
+});
+
+test("6.5 the librarian's subagent definition names every tool the librarian serves", () => {
+  const served: string[] = [];
+  librarianTools().registerTools((name) => { served.push(name); });
+  const definition = readFileSync(new URL("../../../../.claude/agents/librarian-curator.md", import.meta.url), "utf8");
+  assert.ok(served.length > 0);
+  // The role's tools field, which the generated definition writes as its "**Tools.**" paragraph.
+  const tools = definition.split("\n").find((line) => line.startsWith("**Tools.**")) ?? "";
+  const named = new Set(tools.match(/[\w-]+/g));
+  assert.deepEqual(served.filter((name) => !named.has(name)), [], "tools the definition does not name");
 });

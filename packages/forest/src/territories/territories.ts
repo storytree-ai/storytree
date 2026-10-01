@@ -256,8 +256,9 @@ type Layout = { readonly circles: FileCircle[]; readonly fits: boolean };
  * Each file's flat circle (ADR-0804 D3), in the order given: wholly inside its capability's territory
  * (its middle at least its radius from the territory's border and the coast), never overlapping another,
  * its diameter growing gently with its lines ({@link circleDiameter}). Within a territory the longest file
- * goes first, each on the free spot nearest the territory's middle where it fits. A circle with no room
- * left is shrunk to the room there is, never stacked; {@link landForCircles} gives an island the land to
+ * goes first, each on the spot with the most room left, so the circles spread over the territory; when spread
+ * they do not all fit, they are packed out from its middle instead. A circle with no room left is shrunk to
+ * the room there is, never stacked; {@link landForCircles} gives an island the land to
  * spare that. A file whose capability has no territory gets no circle.
  */
 export function fileCircles(map: TerritoryMap, files: readonly CircleFile[]): FileCircle[] {
@@ -289,6 +290,7 @@ export function landForCircles(shares: readonly TerritoryShare[], files: readonl
   return land;
 }
 
+/** The circles spread over the room their territories have, or, when spread they do not all fit, packed out from each territory's middle. */
 function layOut(map: TerritoryMap, files: readonly CircleFile[]): Layout {
   const land = map.coast === undefined ? Math.PI * map.radius ** 2 : landArea(map.coast);
   const smallest = Math.min(...files.map((file) => circleDiameter(file.lines) / 2), map.radius);
@@ -304,6 +306,17 @@ function layOut(map: TerritoryMap, files: readonly CircleFile[]): Layout {
     for (const [a, b] of walls) near = Math.min(near, toSegmentSquared(p, a, b));
     return Math.sqrt(near) - CIRCLE_GAP;
   });
+  const spread = place(map, files, spots, ownerOf, room, "spread");
+  return spread.fits ? spread : place(map, files, spots, ownerOf, room, "packed");
+}
+
+/**
+ * Each territory's files, longest first, each on a free spot with room for its whole radius: "spread" takes the
+ * spot with the most room (the territory's deepest point first, then the widest gaps left), "packed" the one
+ * nearest the territory's middle, which fits more. With no such spot left, a circle takes the most room there is.
+ */
+function place(map: TerritoryMap, files: readonly CircleFile[], spots: readonly Point[], ownerOf: readonly Territory[], start: readonly number[], how: "spread" | "packed"): Layout {
+  const room = start.slice();
   const placed = new Map<string, { at: Point; radius: number }>();
   let fits = true;
   map.territories.forEach((territory) => {
@@ -313,12 +326,13 @@ function layOut(map: TerritoryMap, files: readonly CircleFile[]): Layout {
     const middle = { x: free.reduce((sum, at) => sum + spots[at]!.x, 0) / free.length, z: free.reduce((sum, at) => sum + spots[at]!.z, 0) / free.length };
     const fromMiddle = (at: number) => Math.hypot(spots[at]!.x - middle.x, spots[at]!.z - middle.z);
     free.sort((a, b) => fromMiddle(a) - fromMiddle(b) || a - b);
+    const roomiest = () => free.reduce((best, spot) => (room[spot]! > room[best]! ? spot : best));
     for (const file of mine) {
       const full = circleDiameter(file.lines) / 2;
-      let at = free.find((spot) => room[spot]! >= full);
-      if (at === undefined) {
+      let at = how === "spread" ? roomiest() : free.find((spot) => room[spot]! >= full);
+      if (at === undefined || room[at]! < full) {
         fits = false;
-        at = free.reduce((best, spot) => (room[spot]! > room[best]! ? spot : best));
+        at = roomiest();
       }
       const radius = Math.max(0, Math.min(full, room[at]!));
       const middleAt = spots[at]!;

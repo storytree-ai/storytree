@@ -168,11 +168,11 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
           capabilities: [
             {
               id: capability.id,
-              title: "Email form",
+              title: "1 · Email form",
               dependsOn: [],
               proposed: true,
               health: rolledUp,
-              contracts: [{ id: contract.id, title: "Rejects a bad email", health: contractHealth }],
+              contracts: [{ id: contract.id, title: "1.1 · Rejects a bad email", health: contractHealth }],
               status: "proposed",
               why: { reason: "not built", mover: "agent", contracts: [] },
             },
@@ -449,7 +449,7 @@ test("7.4 editStory, editContract and editArc change only the fields they name, 
     });
     assert.deepEqual((await lib.editStory(story.id, { description: undefined }))?.fields, { title: "Visitor can sign up with email" });
     assert.deepEqual((await lib.editContract(contract.id, { capability: link.id }))?.fields, {
-      title: "Rejects a bad email",
+      title: "1.1 · Rejects a bad email",
       capability: link.id,
       description: "Before sending",
     });

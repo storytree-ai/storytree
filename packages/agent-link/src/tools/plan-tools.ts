@@ -57,7 +57,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_capability",
-    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Claim it before you build it.",
+    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Leave its number off the title: it is given the story's next free one. Claim it before you build it.",
     z.object({
       story: id("story it belongs to"),
       title,

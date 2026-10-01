@@ -20,7 +20,12 @@ const tree = [
   { path: "src/claims/claim.test.ts", text: 'import { claim, merge } from "../index.js";\ntest("3.1 a claim holds", () => claim());\ntest("3.2 again", () => claim());\ntest("5.1 via the index", () => merge());\n' },
   { path: "src/claims/refuse.ts", text: "export const refuse = 0;\n" },
   { path: "src/bins/run.ts", text: "export {};\n" },
-  { path: "src/server.ts", text: 'import { tool } from "./tools/tool.js";\n\nexport const serve = () => tool();\n' },
+  { path: "src/server.ts", text: 'import { tool } from "./tools/tool.js";\n\nexport const serve = () => tool();\nexport const later = () => import("./tools/lazy.js");\n' },
+  { path: "src/tools/lazy.ts", text: "export const lazy = () => 4;\n" },
+  { path: "src/testing/fixture.ts", text: 'import { claim } from "../claims/claim.js";\n\nexport const fixture = () => claim();\n' },
+  { path: "src/claims/shapes.ts", text: "export type Shape = { readonly id: string };\n" },
+  { path: "src/claims/typed.ts", text: 'import type { Shape } from "./shapes.js";\n\nexport const typed = (shape: Shape) => shape.id;\n' },
+  { path: "src/claims/typed.test.ts", text: 'import type { typed } from "./typed.js";\nimport type { merge } from "../merges/merge.js";\nimport { refuse } from "./refuse.js";\ntest("3.4 typed", () => refuse);\n' },
   { path: "src/tools/tool.ts", text: 'import { helper } from "./helper.js";\n\nexport const tool = () => helper();\n' },
   { path: "src/tools/helper.ts", text: "export const helper = () => 3;\n" },
   { path: "src/server.test.ts", text: 'import { serve } from "./server.js";\ntest("3.3 a served tool claims", () => serve());\n' },
@@ -33,10 +38,12 @@ test("8.1 a file a test titled N.M reaches through any number of imports and re-
   assert.equal(owner("src/claims/claim.ts"), "cap-claims");
   assert.equal(owner("src/tools/tool.ts"), "cap-claims");
   assert.equal(owner("src/tools/helper.ts"), "cap-claims");
+  assert.equal(owner("src/tools/lazy.ts"), "cap-claims", "a literal dynamic import is an import");
 });
 
-test("8.3 lines of code count source files only, never tests", () => {
-  assert.deepEqual(survey.files.map(({ path }) => path).sort(), ["src/bins/run.ts", "src/claims/claim.ts", "src/claims/refuse.ts", "src/index.ts", "src/merges/merge.ts", "src/server.ts", "src/tools/helper.ts", "src/tools/tool.ts"]);
+test("8.3 lines of code count source files only, never tests nor the test helpers under a testing/ folder", () => {
+  assert.ok(!survey.files.some((file) => file.path === "src/testing/fixture.ts"));
+  assert.deepEqual(survey.files.map(({ path }) => path).sort(), ["src/bins/run.ts", "src/claims/claim.ts", "src/claims/refuse.ts", "src/claims/shapes.ts", "src/claims/typed.ts", "src/index.ts", "src/merges/merge.ts", "src/server.ts", "src/tools/helper.ts", "src/tools/lazy.ts", "src/tools/tool.ts"]);
   assert.equal(survey.files.find((file) => file.path === "src/merges/merge.ts")?.lines, 2);
 });
 
@@ -46,6 +53,8 @@ test("8.4 a relative import between two source files is reported, from the impor
     { from: "src/index.ts", to: "src/claims/claim.ts" },
     { from: "src/merges/merge.ts", to: "src/claims/claim.ts" },
     { from: "src/server.ts", to: "src/tools/tool.ts" },
+    { from: "src/server.ts", to: "src/tools/lazy.ts" },
+    { from: "src/claims/typed.ts", to: "src/claims/shapes.ts" },
     { from: "src/tools/tool.ts", to: "src/tools/helper.ts" },
   ]);
 });
@@ -60,4 +69,10 @@ test("8.6 a file a numbered test's runs executed belongs to the capability whose
   assert.equal(ownerOf("src/bins/run.ts"), "cap-merges");
   assert.equal(ownerOf("src/merges/merge.ts"), "cap-merges");
   assert.equal(ownerOf("src/tools/helper.ts"), "cap-merges");
+});
+
+test("8.7 a file numbered tests reach only through type imports belongs to the capability whose tests reach it so; a value reach outranks a type reach", () => {
+  assert.equal(owner("src/claims/typed.ts"), "cap-claims");
+  assert.equal(owner("src/claims/shapes.ts"), "cap-claims");
+  assert.equal(owner("src/merges/merge.ts"), "cap-merges");
 });

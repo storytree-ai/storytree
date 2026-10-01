@@ -5,7 +5,7 @@ import { Children, isValidElement, type ReactNode } from "react";
 
 import type { Card } from "../look-inside/look-inside.js";
 import * as drawing from "./drawing.js";
-import { createKnowledgeCore } from "./surface.js";
+import { createKnowledgeCore } from "./index.js";
 
 test("4.1 the artifact card shows kind, title and summary without inspection metadata; Close dismisses it", () => {
   const card: Card = { id: "note", kind: "principle", title: "Protect a behaviour", summary: "Write the minimum test.", text: "The full detailed explanation." };

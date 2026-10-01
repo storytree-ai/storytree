@@ -6,11 +6,10 @@ import { openActivityLog, type Line } from "@storytree/agent-link";
 import { pageReads } from "@storytree/app";
 import { connect } from "@storytree/library";
 import pg from "pg";
-import { watchBoard, type BoardState } from "./live-board.js";
-import { boardView } from "./board.js";
+import { arcSmokeProblems, boardView, readBoard, watchBoard } from "../index.js";
+import type { BoardState } from "./live-board.js";
 import { renderBoard } from "../view/render.js";
-import { arcSmokeProblems } from "./smoke.js";
-import { readBoard, type BoardReads } from "./reads.js";
+import type { BoardReads } from "./reads.js";
 import { record } from "../testing/records.js";
 
 async function until(check: () => boolean): Promise<void> {

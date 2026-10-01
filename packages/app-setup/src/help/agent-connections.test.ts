@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { noteCodexHookRan, registerHooks } from "@storytree/agent-link";
-import { setupHelpActions } from "./actions.js";
+import { setupHelpActions } from "../index.js";
 
 test("3.5 the first-run guide says Codex waits for the user to trust storytree's hooks, with the one step, until one has run, then that they run; with no Codex hooks it says nothing of Codex", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-app-agents-"));

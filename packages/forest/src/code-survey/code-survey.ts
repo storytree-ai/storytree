@@ -12,9 +12,12 @@
  *   map (ADR-0838 D3, written by the dev loop's `pnpm survey:coverage`) says which numbered tests
  *   executed it. Executed ranks after a direct import and before a further one: a file a test imports
  *   is its subject, and code a test ran is nearer to it than code only imported along the way.
+ * - A file reached only through type imports (a file of types) goes, after every other reach, to the
+ *   capability whose tests reach it so nearest (ADR-0838 D4). A literal `import("./x.js")` is an import.
  * - A file nothing reaches is Unclaimed: no capability. Its folder's name allocates nothing, since name
  *   matching is brittle (ADR-0838 D3 retired the fallback).
- * - Lines are a file's non-blank lines. Test files are read for their titles and imports, never counted.
+ * - Lines are a file's non-blank lines. Test files, and test helpers under a testing/ folder, are read for
+ *   their titles and imports, never counted.
  * Capability records gain no file list: ownership is derived here, each time.
  */
 
@@ -48,11 +51,17 @@ export function packageOf(title: string): string {
 }
 
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
+/** A test file, or a test helper under a testing/ folder: never counted as source, though a test reaches through a helper. */
+const TEST_SUPPORT = /(?:^|\/)testing\//;
+const isTestCode = (path: string): boolean => TEST_FILE.test(path) || TEST_SUPPORT.test(path);
 const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
 const NUMBERED_TEST = /\b(?:test|it|describe)\s*\(\s*["'`](\d+)\.\d+\b/g;
-/** `import … from "./x.js"`, `export … from "./x.js"` and `import "./x.js"`: kind, names, specifier. */
-const RELATIVE_IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["'](\.{1,2}\/[^"']+)["']|\bimport\s*["'](\.{1,2}\/[^"']+)["']/g;
+/** `import … from "./x.js"`, `export … from "./x.js"`, `import "./x.js"` and `import("./x.js")`: kind, names, specifier. */
+const RELATIVE_IMPORT = /\b(import|export)\s+(type\s+)?([^;'"`]*?)\s*\bfrom\s*["'](\.{1,2}\/[^"']+)["']|\bimport\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g;
+
+/** Where a reach by types alone ranks: after every reach by a value or by running (ADR-0838 D4). */
+const BY_TYPES = 1000;
 
 /** The capability number a numbered title starts with ("3 · Claims" is 3). */
 const numberOf = (title: string): number | undefined => {
@@ -130,7 +139,18 @@ function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, path
       if (onward === "all" || onward.length > 0) queue.unshift({ path: edge.to, wanted: onward, depth: step.depth });
     }
   }
-  return new Map([...taken].map(([path, { depth }]) => [path, depth]));
+  // Then what is reached only by types: through any import, type ones included, from what was reached.
+  const typed = new Map<string, number>();
+  const frontier: [string, number][] = [[test.path, 0], ...[...taken].map(([path, { depth }]) => [path, depth] as [string, number])];
+  for (let next = frontier.shift(); next !== undefined; next = frontier.shift()) {
+    const [path, depth] = next;
+    for (const edge of edgesOf(byPath.get(path)!, paths)) {
+      if (taken.has(edge.to) || typed.has(edge.to) || TEST_FILE.test(edge.to)) continue;
+      typed.set(edge.to, BY_TYPES + depth);
+      frontier.push([edge.to, depth + 1]);
+    }
+  }
+  return new Map([...[...taken].map(([path, { depth }]) => [path, depth] as const), ...typed]);
 }
 
 /** Survey one story's package: every source file with its lines and owner, and the imports between them. */
@@ -172,12 +192,12 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     reach.set(path, tally);
   }
 
-  const sources = code.filter((file) => !TEST_FILE.test(file.path));
+  const sources = code.filter((file) => !isTestCode(file.path));
   const files = sources.map((file): SurveyedFile => {
     const tally = [...(reach.get(file.path) ?? [])].sort(([a, near], [b, far]) => near.depth - far.depth || far.count - near.count || a - b);
     const capability = tally.length > 0 ? byNumber.get(tally[0]![0]) : undefined;
     return capability === undefined ? { path: file.path, lines: linesOf(file.text) } : { path: file.path, lines: linesOf(file.text), capability };
   });
-  const imports = sources.flatMap((file) => edgesOf(file, paths).filter((edge) => !TEST_FILE.test(edge.to)).map((edge) => ({ from: file.path, to: edge.to })));
+  const imports = sources.flatMap((file) => edgesOf(file, paths).filter((edge) => !isTestCode(edge.to)).map((edge) => ({ from: file.path, to: edge.to })));
   return { files, imports };
 }

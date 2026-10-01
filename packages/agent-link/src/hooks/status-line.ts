@@ -50,7 +50,7 @@ function sessionIn(input: unknown): { session?: string; folder?: string } {
 }
 
 async function lineFor(where: ConnectOptions, project: string, session: string, folder: string): Promise<string> {
-  const [{ openActivityLog }, { connect }, { claimsFrom }, { sessionsFrom }] = await Promise.all([
+  const [{ openActivityLog }, { connect }, { claimsFrom, increments }, { sessionsFrom }] = await Promise.all([
     import("../activity/index.js"),
     import("@storytree/library"),
     import("../claims/index.js"),
@@ -63,9 +63,9 @@ async function lineFor(where: ConnectOptions, project: string, session: string, 
     const now = Date.now();
     const quietMs = idleAfterMs();
     const titles = new Map<string, string>();
-    const tree = await library.projectTree();
+    const [tree, live] = await Promise.all([library.projectTree(), increments(library)]);
     for (const story of tree.stories) for (const capability of story.capabilities) titles.set(capability.id, capability.title);
-    for (const arc of tree.arcs) for (const increment of (await library.arcView(arc.id))?.increments ?? []) titles.set(increment.id, increment.fields.title);
+    for (const increment of live) titles.set(increment.id, increment.fields.title);
 
     const held = claimsFrom(lines, { now: new Date(now), quietMs }).filter((claim) => claim.session === session);
     const others = sessionsFrom(lines, { now: new Date(now), quietMs }).filter((other) => other.session !== session && other.state === "working");

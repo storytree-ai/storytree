@@ -10,7 +10,7 @@ import { watchBoard, type BoardState } from "./live-board.js";
 import { boardView } from "./board.js";
 import { renderBoard } from "../view/render.js";
 import { arcSmokeProblems } from "./smoke.js";
-import type { BoardReads } from "./reads.js";
+import { readBoard, type BoardReads } from "./reads.js";
 import { record } from "../testing/records.js";
 
 async function until(check: () => boolean): Promise<void> {
@@ -35,7 +35,7 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
     let state: BoardState | undefined;
     let fail = true;
     const ticks = new Map<number, () => void>();
-    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, arcView: async (p: string, id: string) => { if (fail) throw new Error("read unavailable"); return reads.arcView(p, id); } },
+    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, arcViews: async (p: string) => { if (fail) throw new Error("read unavailable"); return reads.arcViews(p); } },
       timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } }, onState: (next) => { state = next; } });
     stop = watcher.stop;
     assert.equal(state?.status, "loading");
@@ -82,8 +82,7 @@ test("the watched board reads a holder idle at the user's idle-after setting, no
   const reads: BoardReads = {
     changesSince: async () => ({ changes: [], cursor: 1 }),
     linesSince: async () => { const answer = served ? [] : lines; served = true; return { lines: answer, cursor: 2 }; },
-    projectTree: async () => ({ stories: [], arcs: [{ id: "arc_1" }] }) as never,
-    arcView: async () => ({ arc, increments: [increment], questions: [], state: "active" }),
+    arcViews: async () => [{ arc, increments: [increment], questions: [], state: "active" }],
     holds: async () => ({ waits: {}, heldOn: {} }),
     idleAfterMs: async () => 10 * 60_000,
   };
@@ -99,4 +98,20 @@ test("the watched board reads a holder idle at the user's idle-after setting, no
   } finally {
     watcher.stop();
   }
+});
+
+test("the board reads every arc's view in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+  const arcs = ["arc_1", "arc_2", "arc_3"].map((id) => record(id, "arc", { title: id, intent: "See the work", endState: "Shipped" }));
+  const asked = { arcView: 0, arcViews: 0 };
+  const reads = {
+    changesSince: async () => ({ changes: [], cursor: 1 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    projectTree: async () => ({ stories: [], arcs }) as never,
+    arcView: async (_project: string, id: string) => { asked.arcView++; return { arc: arcs.find((arc) => arc.id === id)!, increments: [], questions: [], state: "active" as const }; },
+    arcViews: async () => { asked.arcViews++; return arcs.map((arc) => ({ arc, increments: [], questions: [], state: "active" as const })); },
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const snapshot = await readBoard("p", reads);
+  assert.deepEqual(snapshot.arcs.map(({ arc }) => arc.id), ["arc_1", "arc_2", "arc_3"]);
+  assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
 });

@@ -1,5 +1,5 @@
 import type { SetupHelpBridge } from "../help/bridge.js";
-import { feedbackText } from "../help/feedback.js";
+import { draftSaid, feedbackText } from "../help/feedback.js";
 import { guideOffered, rememberGuideDismissed } from "./first-run.js";
 import { guide, recoveryRequest } from "./guide.js";
 
@@ -109,7 +109,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
       try {
         const result = await bridge.openFeedbackDraft(draft());
         const opened = result.status === "opened";
-        say(feedbackStatus, opened ? "Opened a draft in your browser. Review it on GitHub and submit it yourself." : result.error, !opened);
+        say(feedbackStatus, draftSaid(result), !opened);
         submit.textContent = opened ? "Open GitHub draft" : "Retry opening draft";
       } catch {
         say(feedbackStatus, "The draft could not be opened. Check the title and message, then retry or copy your prepared text.", true);

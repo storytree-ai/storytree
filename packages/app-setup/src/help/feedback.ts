@@ -26,3 +26,8 @@ export async function openFeedbackDraft(value: unknown, openExternal: (url: stri
     return { status: "failed", error: "The browser draft could not be opened. Retry or copy your prepared text." };
   }
 }
+
+/** What the app says once the handoff is done: a draft was opened, never that feedback was received. */
+export function draftSaid(result: DraftResult): string {
+  return result.status === "opened" ? "Opened a draft in your browser. Review it on GitHub and submit it yourself." : result.error;
+}

@@ -376,3 +376,40 @@ test("1.1 first setups that race on a new server all find the trunks table, none
     await client.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`).finally(() => client.end());
   }
 });
+
+test("1.14 setting a new project up seeds its library with the starter roles, an orchestrator and a librarian, and the principles they stand on; joining it from another machine adds no second copy", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const { laptop, box } = machines(dir);
+    const [onLaptop, onBox] = [path.join(dir, "laptop", "app"), path.join(dir, "box", "app")];
+    mkdirSync(onLaptop, { recursive: true });
+    mkdirSync(onBox, { recursive: true });
+    await withStorytree([project], async (storytree) => {
+      const roles = async () => {
+        const library = await storytree.openProject(project);
+        try {
+          const found = [];
+          for (const title of ["orchestrator", "librarian"]) {
+            const agents = (await library.search(title)).map((note) => ({ type: note.type, ...(note.fields as { title?: string; context?: string[] }) })).filter((note) => note.type === "agent" && note.title === title);
+            for (const agent of agents) {
+              for (const id of agent.context ?? []) assert.equal((await library.get(id))?.type, "principle", `${title} stands on a live principle`);
+            }
+            found.push(...agents.map((agent) => agent.title));
+          }
+          return found;
+        } finally {
+          await library.close();
+        }
+      };
+      // A first try that fails at its last step (the choice cannot be saved), then the retry.
+      const choice = path.join(laptop, "project-choice.json");
+      mkdirSync(choice, { recursive: true });
+      await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop }));
+      rmSync(choice, { recursive: true });
+      await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop });
+      assert.deepEqual(await roles(), ["orchestrator", "librarian"], "the retry adds no second copy");
+      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
+      assert.deepEqual(await roles(), ["orchestrator", "librarian"], "joining adds no second copy");
+    });
+  });
+});

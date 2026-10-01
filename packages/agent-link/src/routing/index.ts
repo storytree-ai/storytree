@@ -2,3 +2,4 @@ export { findProject, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NO
 export type { LocateOptions, ProjectLookup, Route, SetUpOptions, StorytreeAddress } from "./routing.js";
 export { forgetTrunk, machineOf, ProjectFolderError, TRUNKS_DATABASE, trunksOn, unusedName } from "./trunks.js";
 export type { Machine, Trunk } from "./trunks.js";
+export { seedStarterPack, STARTER_PACK_VERSION, STARTER_ROLES, starterRolesIn } from "./starter-pack.js";

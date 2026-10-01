@@ -10,7 +10,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { findProject, notAProjectYet, setUpProject, suggestProjectName } from "../routing/index.js";
+import { findProject, notAProjectYet, setUpProject, starterRolesIn, suggestProjectName } from "../routing/index.js";
 import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -55,7 +55,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       }
       said.push(`This folder is storytree project ${quoted(report.project.name)}.`);
       try {
-        const { log } = await connections.reach(report.storytree.library, report.project.name);
+        const { library, log } = await connections.reach(report.storytree.library, report.project.name);
+        // Seeded roles are read only when the agent is pointed at them (1.14, 8.19).
+        const starterRoles = await starterRolesIn(library);
+        if (starterRoles.length > 0) {
+          said.push(`Its library holds the ${starterRoles.join(" and ")} roles, which say how to work in this project: find each with search_notes and read it before you start, and work as it says.`);
+        }
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller((await log.since(report.project.name, 0)).lines, heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
@@ -69,7 +74,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);
           said.push(...verification.fixes.map((fix) => FIX_SENTENCES[fix]), "Then call check_setup again.");
         }
-        return result({ text: said.join(" "), data: { ...data, ...verification } });
+        return result({ text: said.join(" "), data: { ...data, starterRoles, ...verification } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();

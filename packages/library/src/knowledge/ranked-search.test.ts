@@ -177,6 +177,23 @@ for (const backend of [memory, postgres]) {
     assert.ok(ranked.hits.some(({ note }) => note.id === deploys.id), "the artifacts are ranked too");
   });
 
+  contract("14.7", "a record whose title holds every word of the search, or that the search names by its contract number, ranks first", async (_, { knowledge, records }) => {
+    const story = await records.create("story", { title: "Sessions" });
+    const capability = await records.create("capability", { title: "Sessions list", story: story.id, proposed: true });
+    const filler = "The forest and its islands and their trees. ".repeat(40);
+    const strip = await records.create("contract", { title: `7.17 · ${filler} Its header hides the list: collapsed leaves only the header.`, capability: capability.id });
+    await records.create("contract", { title: "7.1 · The list shows each session", capability: capability.id });
+    const closer = await knowledge.defineTerm({ term: "Header", meaning: "The header is collapsed." });
+    const near = await knowledge.defineTerm({ term: "Mailer", meaning: "The mailer needs a verified sender domain." });
+
+    const byWords = await knowledge.rankAll("collapsed leaves only header", { limit: 2 });
+    assert.equal(byWords.hits[0]!.note.id, strip.id, "every word is in its title, though its meaning is far off");
+    assert.equal(byWords.hits[1]!.note.id, closer.id, "the rest still rank by meaning");
+
+    assert.equal((await knowledge.rankAll("7.17 sessions caret", { limit: 1 })).hits[0]!.note.id, strip.id, "named by its number");
+    assert.equal((await knowledge.rankAll("how do I send an email", { limit: 1 })).hits[0]!.note.id, near.id, "a search by meaning ranks as before");
+  });
+
   test(`14.4 [${backend.label}] with no embedding model, rank gives the word matches and says why`, async () => {
     const opened = await backend.open(async () => {
       throw new Error("the embedding model is switched off");

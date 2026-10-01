@@ -2,7 +2,7 @@
 // real `node --test` unit over a fixture file, with the limits cut to seconds.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -14,7 +14,10 @@ import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILIN
 function fixture(t, files) {
   const root = mkdtempSync(path.join(tmpdir(), "unit-run-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const [name, text] of Object.entries(files)) writeFileSync(path.join(root, name), text);
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
+    writeFileSync(path.join(root, name), text);
+  }
   return root;
 }
 
@@ -126,6 +129,25 @@ test("waits on a wedged child", () => {
   assert.match(reason, /timed out/);
   assert.match(reason, /limit 3(\.0)? s/);
   assert.match(reason, /wedged\.test\.mjs › waits on a wedged child/);
+});
+
+// increment_67a3090c077c: a file whose tests have all ended but whose process never exits (a Node
+// exit deadlock seen on CI) fails within seconds, named, instead of waiting out the unit deadline.
+test("6.1 a file whose tests ended but whose process does not exit fails fast, naming the file", async (t) => {
+  const root = fixture(t, {
+    "nested/exit-hang.test.mjs": `import { test } from "node:test";
+process.on("exit", () => { for (;;) {} });
+test("passes", () => {});
+test("passes too", () => {});`,
+    "neighbour.test.mjs": `import { test } from "node:test";\ntest("quick", () => {});`,
+  });
+  const started = Date.now();
+  const result = await runUnit({ root, files: ["nested/exit-hang.test.mjs", "neighbour.test.mjs"], env: process.env, unitLimitMs: 60_000, exitGraceMs: 2_000, ...captured().options });
+  assert.ok(Date.now() - started < 20_000, "it ended within seconds of its tests, not at the unit's deadline");
+  assert.notEqual(result.code, 0);
+  assert.equal(result.timedOut, false, "an exit hang is not a slow unit: its deadline does not grow");
+  assert.deepEqual(result.exitHung.map((file) => path.relative(root, file).replaceAll("\\", "/")), ["nested/exit-hang.test.mjs"]);
+  assert.match(unitReason({ ...result, unitLimitMs: 60_000 }, root), /killed; nested\/exit-hang\.test\.mjs: its tests ended, but its process did not exit/);
 });
 
 test("each unit's time is added to the machine's timing history, outside the checkout", async (t) => {

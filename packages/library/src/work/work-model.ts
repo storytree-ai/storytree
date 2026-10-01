@@ -111,12 +111,15 @@ export class WorkModel {
    * Add a capability to a story. The story, and every capability it depends on, must be live
    * records of those types (MissingReferenceError otherwise). A new capability cannot close a
    * dependency loop, since nothing can depend on it yet. It is born proposed unless told otherwise.
+   * A title given without a number gets the story's next free one, after the highest its live
+   * capabilities carry, so the contracts planned on it are numbered from the start.
    */
   addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "story", capability.story, "story");
       await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
-      return this.#records.create("capability", { ...capability, proposed: capability.proposed ?? true }, options);
+      const title = await this.#capabilityNumbered(capability.title, capability.story);
+      return this.#records.create("capability", { ...capability, title, proposed: capability.proposed ?? true }, options);
     });
   }
 
@@ -258,6 +261,16 @@ export class WorkModel {
     return `${prefix}.${Math.max(0, ...taken) + 1} · ${title}`;
   }
 
+  /** `title` as a new capability of `story` carries it: given the story's next free number when it has none. */
+  async #capabilityNumbered(title: string, story: string): Promise<string> {
+    if (typeof title !== "string" || capabilityNumber(title) !== undefined) return title; // the schema refuses a non-string in the write
+    const taken = (await this.#records.list("capability")).flatMap((capability) => {
+      const number = capability.fields.story === story ? capabilityNumber(capability.fields.title) : undefined;
+      return number === undefined ? [] : [number];
+    });
+    return `${Math.max(0, ...taken) + 1} · ${title}`;
+  }
+
   /** Refuse `title` under `capability` when another live contract there (not `self`) carries its number. */
   async #refuseTakenNumber(title: string, capability: string, self?: string): Promise<void> {
     const number = contractNumber(title);
@@ -350,6 +363,12 @@ function loopThrough(start: string, graph: ReadonlyMap<string, readonly unknown[
     path.push({ id: dependency, next: dependenciesOf(dependency) });
   }
   return undefined;
+}
+
+/** The number a capability's title starts with, if it starts with one ("3 · Email form"). */
+function capabilityNumber(title: unknown): number | undefined {
+  const number = typeof title === "string" ? /^(\d+) · /.exec(title)?.[1] : undefined;
+  return number === undefined ? undefined : Number(number);
 }
 
 /** The number a contract's title starts with (capability, dot, contract), if it starts with one. */

@@ -558,12 +558,12 @@ test("3.8 the status line shows what this session holds, how many other agents a
       await write({ session: "cc-1", harness: "claude-code", source: "tool", kind: "claimed", capability: emailForm.id, reason: "building it" });
       await write({ session: "cc-1", harness: "claude-code", source: "hook", kind: "file-edited", files: [path.join(folder, "src", "signup.ts")] });
       await write({ session: "cx-1", harness: "codex", source: "hook", kind: "file-edited", files: ["src/other.ts"] });
-      assert.equal(await status(folder), "storytree · holds Email form · 1 other agent working");
+      assert.equal(await status(folder), "storytree · holds 1 · Email form · 1 other agent working");
 
       // Codex names the files it edits relative to its folder: the same file, so a warning.
       await write({ session: "cx-1", harness: "codex", source: "hook", kind: "file-edited", files: ["src/signup.ts"] });
       await write({ session: "cx-2", harness: "codex", source: "hook", kind: "session-started", how: "startup" });
-      assert.equal(await status(folder), "storytree · holds Email form · 2 other agents working · ⚠ src/signup.ts is being edited by Codex too");
+      assert.equal(await status(folder), "storytree · holds 1 · Email form · 2 other agents working · ⚠ src/signup.ts is being edited by Codex too");
 
       assert.equal(await status(folder, storytreeHome(path.join(dir, "stopped"), false)), "storytree isn't running");
       const outside = path.join(dir, "elsewhere");

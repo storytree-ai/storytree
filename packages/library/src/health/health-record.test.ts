@@ -518,11 +518,11 @@ for (const backend of [memory, postgres]) {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const untested = await work.addCapability({ title: "Thank-you page", story: story.id });
     const failing = await work.addCapability({ title: "Email form", story: story.id });
-    const check = await work.addContract({ title: "1.1 · Rejects a bad email", capability: failing.id });
+    const check = await work.addContract({ title: "2.1 · Rejects a bad email", capability: failing.id });
     await later();
     const proposed = await work.addCapability({ title: "Password rules", story: story.id });
     const healthy = await work.addCapability({ title: "Sign-up button", story: story.id });
-    const shown = await work.addContract({ title: "2.1 · Shows the button", capability: healthy.id });
+    const shown = await work.addContract({ title: "4.1 · Shows the button", capability: healthy.id });
     await later();
     const routed = await work.addCapability({ title: "Welcome email", story: story.id });
     for (const built of [untested, failing, healthy, routed]) await work.setProposed(built.id, false);
@@ -534,9 +534,9 @@ for (const backend of [memory, postgres]) {
 
     const listed = await health.worklist();
     assert.deepEqual(listed.map(({ capability, title, story: of, status, why, since }) => ({ capability, title, story: of, status, reason: why.reason, mover: why.mover, since })), [
-      { capability: untested.id, title: "Thank-you page", story: story.id, status: "untested", reason: "no test names it", mover: "agent", since: untested.createdAt },
-      { capability: proposed.id, title: "Password rules", story: story.id, status: "proposed", reason: "not built", mover: "agent", since: proposed.createdAt },
-      { capability: failing.id, title: "Email form", story: story.id, status: "unhealthy", reason: "failing", mover: "agent", since: failed.at },
+      { capability: untested.id, title: "1 · Thank-you page", story: story.id, status: "untested", reason: "no test names it", mover: "agent", since: untested.createdAt },
+      { capability: proposed.id, title: "3 · Password rules", story: story.id, status: "proposed", reason: "not built", mover: "agent", since: proposed.createdAt },
+      { capability: failing.id, title: "2 · Email form", story: story.id, status: "unhealthy", reason: "failing", mover: "agent", since: failed.at },
     ], "oldest first by since: a recorded reason's time, else the capability's own; the healthy one and the routed one left off");
     assert.deepEqual(listed[2]!.why.contracts, [check.id]);
 

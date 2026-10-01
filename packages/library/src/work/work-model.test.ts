@@ -94,16 +94,16 @@ for (const backend of [memory, postgres]) {
     const story = await work.addStory({ title: "Visitor can sign up", description: "By email, with a confirmation link" });
     await assertCreated(transactions, story, "story", { title: "Visitor can sign up", description: "By email, with a confirmation link" });
     const capability = await work.addCapability({ title: "Email form", story: story.id });
-    await assertCreated(transactions, capability, "capability", { title: "Email form", story: story.id, proposed: true });
+    await assertCreated(transactions, capability, "capability", { title: "1 · Email form", story: story.id, proposed: true });
     const contract = await work.addContract({ title: "Rejects a bad email", capability: capability.id });
-    await assertCreated(transactions, contract, "contract", { title: "Rejects a bad email", capability: capability.id });
+    await assertCreated(transactions, contract, "contract", { title: "1.1 · Rejects a bad email", capability: capability.id });
 
     const signUp = {
       id: story.id,
       title: "Visitor can sign up",
       description: "By email, with a confirmation link",
       capabilities: [
-        { id: capability.id, title: "Email form", dependsOn: [], proposed: true, contracts: [{ id: contract.id, title: "Rejects a bad email" }] },
+        { id: capability.id, title: "1 · Email form", dependsOn: [], proposed: true, contracts: [{ id: contract.id, title: "1.1 · Rejects a bad email" }] },
       ],
     };
     assert.deepEqual(
@@ -156,18 +156,18 @@ for (const backend of [memory, postgres]) {
     const leaf = (record: SchemaRecord<"capability">) => ({ id: record.id, title: record.fields.title, dependsOn: [], proposed: true, contracts: [] });
     const firstNode = {
       id: first.id,
-      title: "Capability 0",
+      title: first.fields.title,
       dependsOn: [],
       proposed: true,
-      contracts: contracts.map((record, n) => ({ id: record.id, title: `Contract ${n}` })),
+      contracts: contracts.map((record) => ({ id: record.id, title: record.fields.title })),
     };
     const linkNode = {
       id: link.id,
-      title: "Confirmation link",
+      title: link.fields.title,
       description: "Sent once the form is valid",
       dependsOn: [at(capabilities, 2).id, first.id],
       proposed: true,
-      contracts: [{ id: expiry.id, title: "The link expires", description: "After 24 hours" }],
+      contracts: [{ id: expiry.id, title: expiry.fields.title, description: "After 24 hours" }],
     };
     const others = stories.slice(2).map((record) => ({ id: record.id, title: record.fields.title, capabilities: [] }));
     assert.deepEqual(
@@ -319,11 +319,11 @@ for (const backend of [memory, postgres]) {
 
     // Control: the same writes, naming live records of the right type, go through.
     const moved = await work.editCapability(capability.id, { story: elsewhere.id });
-    assert.deepEqual(moved, { ...capability, fields: { title: "Email form", story: elsewhere.id, proposed: true }, updatedAt: moved?.updatedAt });
+    assert.deepEqual(moved, { ...capability, fields: { title: "1 · Email form", story: elsewhere.id, proposed: true }, updatedAt: moved?.updatedAt });
     const second = await work.addCapability({ title: "Password rules", story: elsewhere.id });
-    await assertCreated(transactions, second, "capability", { title: "Password rules", story: elsewhere.id, proposed: true });
+    await assertCreated(transactions, second, "capability", { title: "2 · Password rules", story: elsewhere.id, proposed: true });
     const covered = await work.addContract({ title: "Refuses a short password", capability: second.id });
-    await assertCreated(transactions, covered, "contract", { title: "Refuses a short password", capability: second.id });
+    await assertCreated(transactions, covered, "contract", { title: "2.1 · Refuses a short password", capability: second.id });
     const launch = await work.createArc({ title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id] });
     await assertCreated(transactions, launch, "arc", { title: "Launch v2", intent: "An intent", endState: "An end state", stories: [story.id, elsewhere.id] });
   });
@@ -361,11 +361,11 @@ for (const backend of [memory, postgres]) {
 
     // Control: dependencies on live capabilities are kept as given, on a new capability and on an edit.
     const linked = await work.addCapability({ ...link, dependsOn: [form.id, mailer.id] });
-    await assertCreated(transactions, linked, "capability", { ...link, dependsOn: [form.id, mailer.id], proposed: true });
+    await assertCreated(transactions, linked, "capability", { ...link, title: "3 · Confirmation link", dependsOn: [form.id, mailer.id], proposed: true });
     const none = await work.addCapability({ title: "Welcome email", story: story.id, dependsOn: [] });
-    await assertCreated(transactions, none, "capability", { title: "Welcome email", story: story.id, dependsOn: [], proposed: true });
+    await assertCreated(transactions, none, "capability", { title: "4 · Welcome email", story: story.id, dependsOn: [], proposed: true });
     const edited = await work.editCapability(form.id, { dependsOn: [mailer.id] });
-    assert.deepEqual(edited?.fields, { title: "Email form", story: story.id, proposed: true, dependsOn: [mailer.id] });
+    assert.deepEqual(edited?.fields, { title: "1 · Email form", story: story.id, proposed: true, dependsOn: [mailer.id] });
     // The tree shows each capability's dependencies as stored (these were created too close
     // together for their order to be the point, so they are compared by id).
     const tree = await work.projectTree();

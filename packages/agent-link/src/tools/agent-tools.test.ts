@@ -321,8 +321,8 @@ test("6.1 a test client lists the tools, then plans an arc, a story, a capabilit
 
       const planned = await library.projectTree();
       assert.deepEqual(planned.stories.map((node) => [node.id, node.title]), [[story, "Visitor can sign up"]]);
-      assert.deepEqual(planned.stories[0]?.capabilities.map((node) => [node.id, node.title]), [[capability, "Email form"]]);
-      assert.deepEqual(planned.stories[0]?.capabilities[0]?.contracts.map((node) => [node.id, node.title]), [[contract, "Rejects a bad email"]]);
+      assert.deepEqual(planned.stories[0]?.capabilities.map((node) => [node.id, node.title]), [[capability, "1 · Email form"]]);
+      assert.deepEqual(planned.stories[0]?.capabilities[0]?.contracts.map((node) => [node.id, node.title]), [[contract, "1.1 · Rejects a bad email"]], "the first contract of a capability planned moments before is numbered");
       assert.deepEqual(planned.arcs.map((node) => [node.id, node.title, node.stories]), [[arc, "Launch v1", [story]]]);
       // Each story and capability is born with its founding decision, the first book on its shelf.
       const spines = async (node: string) => (await library.frontCovers(node)).map((cover) => [cover.fields.title, cover.fields.text]);
@@ -1426,12 +1426,12 @@ test("6.25 search_notes finds a story, a capability and a contract by their own 
       assert.deepEqual(
         (answer.data.notes as { id: string; kind: string; spine: string; firstLine: string }[]).map(({ id, kind, spine, firstLine }) => ({ id, kind, spine, firstLine })).sort((a, b) => a.kind.localeCompare(b.kind)),
         [
-          { id: capability.id, kind: "capability", spine: "Postcode form", firstLine: "Takes a postcode" },
-          { id: contract.id, kind: "contract", spine: "Rejects a postcode with letters only", firstLine: "A bad postcode is refused" },
+          { id: capability.id, kind: "capability", spine: "1 · Postcode form", firstLine: "Takes a postcode" },
+          { id: contract.id, kind: "contract", spine: "1.1 · Rejects a postcode with letters only", firstLine: "A bad postcode is refused" },
           { id: story.id, kind: "story", spine: "Visitor can sign up", firstLine: "A visitor leaves a postcode" },
         ],
       );
-      assert.match(answer.text, /"Rejects a postcode with letters only" \(contract_\w+\): A bad postcode is refused/);
+      assert.match(answer.text, /"1\.1 · Rejects a postcode with letters only" \(contract_\w+\): A bad postcode is refused/);
     });
   });
 });
@@ -1478,9 +1478,9 @@ test("6.26 open on a contract shows it whole: its title, its description and the
       const opened = await agent.call("open", { id: contract.id });
 
       assert.equal(opened.isError, false);
-      assert.match(opened.text, /Contract "Rejects a postcode with letters only" \(contract_\w+\):\nA bad postcode is refused/);
-      assert.match(opened.text, new RegExp(`Capability "Postcode form" \\(${capability.id}\\)`));
-      assert.deepEqual(opened.data.contract, { id: contract.id, title: "Rejects a postcode with letters only", description: "A bad postcode is refused", capability: { id: capability.id, title: "Postcode form" } });
+      assert.match(opened.text, /Contract "1\.1 · Rejects a postcode with letters only" \(contract_\w+\):\nA bad postcode is refused/);
+      assert.match(opened.text, new RegExp(`Capability "1 · Postcode form" \\(${capability.id}\\)`));
+      assert.deepEqual(opened.data.contract, { id: contract.id, title: "1.1 · Rejects a postcode with letters only", description: "A bad postcode is refused", capability: { id: capability.id, title: "1 · Postcode form" } });
 
       const refused = await agent.call("open", { id: arc.id });
       assert.equal(refused.isError, true);

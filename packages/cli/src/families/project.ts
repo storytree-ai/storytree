@@ -1,18 +1,20 @@
 /**
  * `storytree project remove <project>`: take a project added by mistake off this computer's list.
- * A front door only: the app setup owns removing a project, and keeps its records in the library.
+ * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
+ * A front door only: the app setup owns removing and deleting a project.
  */
-import { MARKER_FILE } from "@storytree/agent-link";
-import { removeProject } from "@storytree/app-setup";
+import { findProject, MARKER_FILE } from "@storytree/agent-link";
+import { deleteProject, removeProject, whoLoses } from "@storytree/app-setup";
 
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
 
 const USAGE = "project remove <project>";
+const DELETE_USAGE = "project delete <project> --confirm <project> [--no-snapshot]";
 
 export const projectFamily: Family = {
   name: "project",
-  summary: "take a project off this computer's list",
+  summary: "take a project off this computer's list, or delete its records",
   verbs: [{
     name: "remove",
     usage: USAGE,
@@ -27,6 +29,25 @@ export const projectFamily: Family = {
           ? ` Its folder ${removed.freed} is no longer a storytree project here: it can be set up afresh, or made this project's folder again on purpose with \`storytree doctor --join ${removed.project}\` there.`
           : "";
       return { text: `"${removed.project}" is off this computer's list of projects. Its records stay in the library.${folder}` };
+    },
+  }, {
+    name: "delete",
+    usage: DELETE_USAGE,
+    summary: "delete a project's records from the library, for every computer using it, once its name is typed; a snapshot goes to this computer's backups first unless --no-snapshot",
+    switches: ["no-snapshot"],
+    async act(args, context) {
+      if (args.words.length !== 1 || args.names.some((name) => name !== "confirm" && name !== "no-snapshot")) throw new Refusal(`usage: storytree ${DELETE_USAGE}`, { code: 2 });
+      const project = args.word(0, "a project", DELETE_USAGE);
+      const confirm = args.text("confirm");
+      if (confirm === undefined) {
+        throw new Refusal(`${whoLoses(project)}\nA snapshot goes to this computer's backups first; add --no-snapshot to skip it.\nTo delete it, type its name: storytree project delete ${project} --confirm ${project}`);
+      }
+      const inUse = findProject(context.cwd).project;
+      const deleted = await deleteProject(project, { confirm, snapshot: !args.has("no-snapshot"), ...(inUse === undefined ? {} : { inUse }) });
+      if (deleted.status !== "deleted") throw new Refusal(deleted.message);
+      const snapshot = deleted.snapshot === undefined ? " No snapshot was taken." : ` Its snapshot is at ${deleted.snapshot}, and restores it.`;
+      const folder = deleted.kept !== undefined ? ` Its folder ${deleted.kept} still names it in ${MARKER_FILE}, which git tracks: delete that file to free the folder.` : "";
+      return { text: `"${deleted.project}" is deleted: its records are gone from the library, for every computer using it.${snapshot}${folder}` };
     },
   }],
 };

@@ -228,7 +228,7 @@ test("5.4 checking a story runs its own package's tests and records each contrac
     const { contractIds } = contractsOf(story);
     const ran = [];
     const quiet = { log: () => {}, error: () => {} };
-    const result = (name, status) => ({ name, suites: [], file: path.join(root, "packages/kettle/src/kettle.test.mjs"), status });
+    const result = (name, status) => ({ name, suites: [], file: path.join(root, "packages/cli/src/kettle.test.mjs"), status });
     const run = async (globs) => {
       ran.push(...globs);
       return { code: 1, results: [result("1.1 it does a", "passed"), result("1.2 it does b", "failed")] };
@@ -238,12 +238,12 @@ test("5.4 checking a story runs its own package's tests and records each contrac
     assert.deepEqual(ran, [], "a story with no package runs no tests");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), []);
 
-    mkdirSync(path.join(root, "packages/kettle/src"), { recursive: true });
+    mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
     assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: async () => ({ code: 1, results: undefined }), ...quiet }), false);
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), [], "a run with no report records nothing");
 
     assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, ...quiet }), true);
-    assert.deepEqual(ran, ["packages/kettle/src/**/*.test.ts", "packages/kettle/src/**/*.test.mjs"]);
+    assert.deepEqual(ran, ["packages/cli/src/**/*.test.ts", "packages/cli/src/**/*.test.mjs"]);
     assert.equal((await lib.health(contractIds.get("1.1"))).verified.state, "passing");
     assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "a contract with no test is left not checked");

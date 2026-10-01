@@ -36,4 +36,6 @@ for (const name of ['index.html', 'styles.css']) {
   copyFileSync(path.join(root, 'apps/desktop/src/renderer', name), path.join(out, name));
 }
 copyFileSync(require.resolve('@storytree/arc-surface/view/styles.css'), path.join(out, 'arc-surface.css'));
+copyFileSync(require.resolve('@storytree/app-setup/view/styles.css'), path.join(out, 'app-setup.css'));
+copyFileSync(require.resolve('@storytree/forest/view/styles.css'), path.join(out, 'forest.css'));
 console.log('Built the actual desktop page with rendering/navigation observation hooks.');

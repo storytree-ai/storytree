@@ -53,8 +53,11 @@ try {
     await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
     await page.waitForSelector('.app-gear', { timeout: 120000 });
     await page.waitForTimeout(1500);
-    await page.click('.app-gear');
+    // The menu may already have opened itself (first run); the gear would close it again.
+    if (!await page.evaluate(() => document.querySelector('#app-menu')?.matches(':popover-open'))) await page.click('.app-gear');
     await page.waitForSelector('#app-menu:popover-open');
+    // A first run opens the menu on Help; the projects are on their own tab.
+    await page.locator('#app-menu').getByRole('button', { name: 'Projects', exact: true }).click();
     return page;
   }
   const shot = (page, name) => page.locator('.app-menu-window').screenshot({ path: path.join(out, `${name}.png`) });

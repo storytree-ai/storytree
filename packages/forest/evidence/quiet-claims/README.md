@@ -1,5 +1,7 @@
 # Quiet claims
 
+**Retired look (2026-10-02).** The quiet claim dots were replaced by session wisps (ADR-0736), and the wisps in turn by coast tints (see `../../src/view/evidence/session-tints`). Its capture script was deleted with this note, since there is nothing left on the page for it to check; the pictures and measurements below are the record of what landed then.
+
 Forest capability 5 now draws an 8-pixel neutral dot at each claimed capability's tree.
 The map carries no agent name, reason text or hooks warning. A hookless holder stays
 unfaded past the quiet time; a holder with hook evidence still fades when idle.

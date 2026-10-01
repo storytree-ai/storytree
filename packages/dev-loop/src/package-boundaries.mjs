@@ -16,10 +16,11 @@
 //   Windows, and git walks a junction as an ordinary folder, so a cycle is a folder loop: the
 //   desktop app's `git clean` of a reused worktree then never finishes, and nor does the session's
 //   start (0.2 met it in 2026-08, 0.3 on 2026-09-28).
-// - Every workspace dependency runs one way the owner has sanctioned (ADR-0840 D1): package-edges.json
-//   beside this file lists each allowed edge with his own words and the date. Its "enforce" switch
-//   stays off until he has reviewed the seeded edges (D3); on, an edge not sanctioned there is
-//   refused. A listed edge no package.json uses any more is reported either way.
+// - No story leans on the frame or the front door (ADR-0847 D1): a story package depending on
+//   packages/app, apps/desktop or packages/cli, through any dependency field, is refused, unless the
+//   owner sanctioned that edge in package-edges.json beside this file, with his own words and the
+//   date (D2). The list holds only his exceptions; a lane never adds one. Every other edge that runs
+//   one way is allowed unlisted. A listed edge no package.json uses any more is reported.
 //
 // The stories live only in the library (ADR-0641), which CI cannot read, so their ids are declared
 // here: a story added to the library is added to STORIES with its package, in the same change.
@@ -50,7 +51,7 @@ const SKIP = new Set(["node_modules", "dist", ".turbo"]);
 /** This check's own test, whose planted trees are written as the very imports it must refuse. */
 const OWN_TEST = "packages/dev-loop/src/package-boundaries.test.mjs";
 
-/** The owner's list of allowed workspace edges: { enforce, edges: [{ from, to, said, on }] }, `said` null while pending review. */
+/** The owner's exceptions to the frame rule: { edges: [{ from, to, said, on }] }, each in his own words, with the date. */
 export const EDGES = JSON.parse(readFileSync(new URL("./package-edges.json", import.meta.url), "utf8"));
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
@@ -99,11 +100,13 @@ export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YE
     }
   }
   const deps = workspaceDependencies(root, packages);
+  const frame = new Set([...FRAME.dirs, ...FRONT_DOOR.dirs].filter((dir) => packages.includes(dir)).map((dir) => packageName(root, dir)));
   const sanctioned = new Set(edges.edges.filter((edge) => edge.said).map((edge) => `${edge.from} ${edge.to}`));
   for (const [from, tos] of deps) {
+    if (frame.has(from)) continue;
     for (const to of tos) {
-      if (edges.enforce && !sanctioned.has(`${from} ${to}`)) {
-        problems.push(`${from} → ${to} is a workspace dependency the owner has not sanctioned in package-edges.json: raise a question on the arc rather than adding it yourself (ADR-0840 D1)`);
+      if (frame.has(to) && !sanctioned.has(`${from} ${to}`)) {
+        problems.push(`${from} → ${to} is a story depending on the frame or the front door, which the owner has not sanctioned in package-edges.json: move the seam, or raise a question on the arc rather than adding it yourself (ADR-0847)`);
       }
     }
   }
@@ -114,6 +117,11 @@ export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YE
     problems.push(`these packages depend on each other in a cycle: ${cycle.join(" → ")}; pnpm links it into a folder loop that git clean never leaves, so drop one of its edges`);
   }
   return problems;
+}
+
+/** The name the package at the repo-relative folder `dir` has in its package.json. */
+function packageName(root, dir) {
+  return JSON.parse(readFileSync(path.join(root, dir, "package.json"), "utf8")).name;
 }
 
 /** Each workspace package's name and the workspace packages it depends on, through any dependency field. */

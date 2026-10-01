@@ -6,6 +6,7 @@ export type {
   AnnotatedTree,
   CapabilityStatus,
   CapabilityWhy,
+  HealthWorkItem,
   EarlierVerdict,
   HealthColumn,
   HealthColumnName,

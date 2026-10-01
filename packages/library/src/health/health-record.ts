@@ -119,6 +119,18 @@ export interface CapabilityWhy {
   since?: string;
 }
 
+/** One capability on the health worklist (ADR-0825 D4): what is not healthy, why, who moves it, and since when. */
+export interface HealthWorkItem {
+  capability: string;
+  title: string;
+  /** The story it is in. */
+  story: string;
+  status: CapabilityStatus;
+  why: CapabilityWhy;
+  /** The reason's time where one was recorded (`why.since`), else when the capability was recorded. */
+  since: string;
+}
+
 /** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
 export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
   capabilities: AnnotatedCapability[];
@@ -223,6 +235,11 @@ export class HealthRecord {
       }),
       arcs: plan.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })),
     };
+  }
+
+  /** The health worklist (ADR-0825 D4). */
+  async worklist(): Promise<HealthWorkItem[]> {
+    return [];
   }
 
   /**

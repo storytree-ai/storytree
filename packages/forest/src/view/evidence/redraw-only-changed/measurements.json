@@ -1,0 +1,62 @@
+{
+  "instrument": "Long Animation Frames over 40 s, headless Chromium (software GL), one new agent log line per 2 s poll, nothing on show changing",
+  "before": [
+    {
+      "seconds": 40,
+      "lineReads": 40,
+      "longFrames": 42,
+      "longFrameMsTotal": 10745,
+      "blockedShare": 0.269,
+      "longestFrameMs": 431,
+      "blockingMsTotal": 8622,
+      "errors": [],
+      "unknownCalls": []
+    },
+    {
+      "seconds": 40.000200000000184,
+      "lineReads": 40,
+      "longFrames": 41,
+      "longFrameMsTotal": 10286,
+      "blockedShare": 0.257,
+      "longestFrameMs": 360,
+      "blockingMsTotal": 8212,
+      "errors": [],
+      "unknownCalls": []
+    },
+    {
+      "seconds": 40.000800000000744,
+      "lineReads": 40,
+      "longFrames": 40,
+      "longFrameMsTotal": 9968,
+      "blockedShare": 0.249,
+      "longestFrameMs": 362,
+      "blockingMsTotal": 7944,
+      "errors": [],
+      "unknownCalls": []
+    }
+  ],
+  "after": [
+    {
+      "seconds": 40.00019999999925,
+      "lineReads": 40,
+      "longFrames": 0,
+      "longFrameMsTotal": 0,
+      "blockedShare": 0,
+      "longestFrameMs": 0,
+      "blockingMsTotal": 0,
+      "errors": [],
+      "unknownCalls": []
+    },
+    {
+      "seconds": 40.000200000000184,
+      "lineReads": 40,
+      "longFrames": 0,
+      "longFrameMsTotal": 0,
+      "blockedShare": 0,
+      "longestFrameMs": 0,
+      "blockingMsTotal": 0,
+      "errors": [],
+      "unknownCalls": []
+    }
+  ]
+}

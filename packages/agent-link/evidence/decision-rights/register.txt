@@ -1,0 +1,15 @@
+A kind of decision the owner has already given to agents, once and for good: a session decides it and records it, and never asks him again. Re-asking one is not a new question, it spends his attention twice ("The owner-fork bar"; ADR-0826 D1: a delegated kind is not a human requirement at all). Check this list before raising any question.
+
+Delegated today, each with where he said it (0.2 records unless marked 0.3):
+1. Recording a decision he directed in conversation as accepted, and flipping one to accepted when it is decided and its text supports it. ADR-0829 (0.2's ADR-0110), 0.2's ADR-0084.
+2. Signing off anything a machine can check: no human approver or signature on a machine-checked result. 0.2's ADR-0408, 2026-08-21: "no human should need to sign these, they done by a model." Independence is still required: a different session, agent, judge panel or CI, never the author (ADR-0826 D3).
+3. Reversible, internal engineering choices with a defensible answer. 0.2's ADR-0602 and its resteer, 2026-09-23: "2 doesn't sound like its something for me to adjudicate? ... it just sounds like something you should proceed to get codex to fix".
+4. Whether a built look reads right: it lands with its pictures and he raises what looks wrong. 0.3's ADR-0794, 2026-09-30.
+5. The mechanics of carrying out a decision he made, beyond his words (0.2's ADR-0574 D2-D4); record which parts are his and which are yours.
+6. Launching unattended sessions on the Mint box, and sending graphics work there. 0.2's ADR-0505, 2026-09-05: "yes a session can launch unattended i dont need to be involved at all".
+7. Doing work yourself that you can do yourself (installing software, taking screenshots) instead of handing it to him. 0.3 resteer_f4358ef1d675, 2026-09-28: "can't you take screenshots of the app and show me? happy for you to install the required software on that box".
+8. What signal a ground prop on the map carries: propose it, and he adjusts. 0.2's ADR-0463 D4: "you can decide what signal they represent". This covers that vocabulary only, not what things on the map mean in general.
+
+Still his, never delegated: choosing between looks before building (ADR-0794 D3); live attestations a test cannot stand in for, such as a spend or an install on a reset machine (ADR-0794 D4); adopting existing code into a map (0.2's ADR-0408: "Adopting a code thats mapped should require some sort of human signature"); and anything irreversible, outward-facing, or value-laden and unsettled ("The owner-fork bar"). A privileged action is attempted with his inline approval, not handed back ("Attempt privileged actions, approve inline").
+
+When he answers a question with "don't ask me this", add the kind here, with his words and the date.

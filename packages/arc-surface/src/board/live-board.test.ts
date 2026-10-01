@@ -35,7 +35,7 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
     let state: BoardState | undefined;
     let fail = true;
     const ticks = new Map<number, () => void>();
-    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, arcView: async (p: string, id: string) => { if (fail) throw new Error("read unavailable"); return reads.arcView(p, id); } },
+    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, arcViews: async (p: string) => { if (fail) throw new Error("read unavailable"); return reads.arcViews(p); } },
       timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } }, onState: (next) => { state = next; } });
     stop = watcher.stop;
     assert.equal(state?.status, "loading");
@@ -82,8 +82,7 @@ test("the watched board reads a holder idle at the user's idle-after setting, no
   const reads: BoardReads = {
     changesSince: async () => ({ changes: [], cursor: 1 }),
     linesSince: async () => { const answer = served ? [] : lines; served = true; return { lines: answer, cursor: 2 }; },
-    projectTree: async () => ({ stories: [], arcs: [{ id: "arc_1" }] }) as never,
-    arcView: async () => ({ arc, increments: [increment], questions: [], state: "active" }),
+    arcViews: async () => [{ arc, increments: [increment], questions: [], state: "active" }],
     holds: async () => ({ waits: {}, heldOn: {} }),
     idleAfterMs: async () => 10 * 60_000,
   };

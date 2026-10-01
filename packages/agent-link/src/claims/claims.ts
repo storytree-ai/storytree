@@ -252,9 +252,7 @@ async function partNamed(library: Library, id: string): Promise<Found | undefine
   return increment === undefined ? undefined : { part: { increment: id }, status: increment.fields.status };
 }
 
-/** Every live increment in `library`, arc by arc. */
+/** Every live increment in `library`, arc by arc, read in one ask however many arcs there are. */
 export async function increments(library: Library): Promise<SchemaRecord<"increment">[]> {
-  const { arcs } = await library.projectTree();
-  const views = await Promise.all(arcs.map((arc) => library.arcView(arc.id)));
-  return views.flatMap((view) => view?.increments ?? []);
+  return (await library.arcViews()).flatMap((view) => view.increments);
 }

@@ -6,6 +6,7 @@ import type { SettingGroup } from "../settings/settings.js";
 import { settingsStyles } from "./styles.js";
 
 export { SETTINGS_CHANNELS, type SettingsBridge } from "../settings/bridge.js";
+export { mountDecisionRights, renderDecisionRights } from "./decision-rights.js";
 
 /**
  * Capability 10 owns its panel; the app surface only mounts it and supplies the desktop bridge.

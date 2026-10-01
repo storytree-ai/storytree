@@ -75,7 +75,21 @@ test("3.4 the page can ask the app for a story's or capability's shelf of front 
   });
 });
 
-/** A session that ran on another machine: its transcript streamed into the shared log there, and its file out of this app's reach. */
+test("3.8 the page can ask the app for the project's standing delegations, and a project without the register answers with none", async () => {
+  const shown = uniqueProjectName();
+  const bare = uniqueProjectName();
+  await withApp([shown, bare], async ({ storytree, reads }) => {
+    const library = await storytree.openProject(shown);
+    await library.defineTerm({ term: "Name field drop-off", meaning: "Asking for a name lost a third of visitors." });
+    await library.defineTerm({ term: "Standing delegation", meaning: "1. Reversible engineering choices." });
+    await storytree.openProject(bare);
+
+    assert.equal(await reads.standingDelegations(shown), "1. Reversible engineering choices.");
+    assert.equal(await reads.standingDelegations(bare), undefined);
+  });
+});
+
+/** A session that ran on another machine:its transcript streamed into the shared log there, and its file out of this app's reach. */
 async function ranElsewhere(log: ActivityLog, project: string, session: string, records: readonly unknown[]): Promise<string> {
   const folder = mkdtempSync(path.join(tmpdir(), "reads-"));
   const transcript = path.join(folder, `${session}.jsonl`);

@@ -1,4 +1,4 @@
-import { mountSettings, type SettingsBridge } from "@storytree/agent-link/view";
+import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/agent-link/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";
@@ -36,13 +36,21 @@ export function mountAppMenu(host: HTMLElement, options: {
   const menu = host.querySelector<HTMLElement>("#app-menu")!;
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
   const projectError = menu.querySelector<HTMLElement>("[data-app-project-error]")!;
-  const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge & SurfacesBridge }) | null;
+  const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge & SurfacesBridge & { standingDelegations(name: string): Promise<string | undefined> } }) | null;
   const bridge: SettingsBridge = {
     readSettings: () => desktop!.storytree.readSettings(),
     saveSetting: (name, values) => desktop!.storytree.saveSetting(name, values),
   };
   // The agent link offers its settings by group; each group is its own tab.
-  const sessions = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="sessions"]')!, bridge, { returnFocus: gear, embedded: true, group: "sessions" });
+  const sessionSettings = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="sessions"]')!, bridge, { returnFocus: gear, embedded: true, group: "sessions" });
+  // Below them, who decides what (agent link 7.6), with the standing delegations of the project on show.
+  const decisionRights = mountDecisionRights(menu.querySelector<HTMLElement>("[data-app-decision-rights]")!,
+    async () => shown === undefined ? undefined : desktop!.storytree.standingDelegations(shown));
+  const sessions = {
+    open(): void { sessionSettings.open(); decisionRights.open(); },
+    close(): void { sessionSettings.close(); decisionRights.close(); },
+    stop(): void { sessionSettings.stop(); decisionRights.stop(); },
+  };
   const library = mountSettings(menu.querySelector<HTMLElement>('[data-app-settings="library"]')!, bridge, { returnFocus: gear, embedded: true, group: "library" });
   const surfaces = mountSurfaces(menu.querySelector<HTMLElement>("[data-app-surfaces]")!, {
     readSurfaces: () => desktop!.storytree.readSurfaces(),

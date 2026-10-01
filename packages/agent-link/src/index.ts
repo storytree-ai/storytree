@@ -18,7 +18,7 @@ export { codexHookTrust, noteCodexHookRan } from "./hooks/index.js";
 export type { CodexHookTrust } from "./hooks/index.js";
 export { CHECK_COMMAND, CHECK_FILE, CODEX_TRUST_STEP, defaultHomes, markDisconnected, openStorytree, registerHooks, removeHooks, runSetupCheck, runsElevated, suggestedName, verifyHooks } from "./setup/index.js";
 export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
-export { decisionRights, habitsCard, removeCodexInstructions, writeCodexInstructions } from "./instructions/index.js";
+export { decisionRights, habitsCard, removeCodexInstructions, STANDING_DELEGATION, standingDelegations, writeCodexInstructions } from "./instructions/index.js";
 export type { DecisionRights } from "./instructions/index.js";
 export { contextCommand, contextReading, readContext, sessionWindow } from "./context/index.js";
 export { pruneTranscripts, RETAIN_MS, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./transcripts/index.js";

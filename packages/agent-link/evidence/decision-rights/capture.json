@@ -1,0 +1,22 @@
+{
+  "snapshot": "2026-09-28T21-35-29-644Z.json",
+  "shots": [
+    {
+      "shot": "1-sessions-tab",
+      "note": "the Sessions tab opened: its settings, with who decides what below them"
+    },
+    {
+      "shot": "2-who-decides-what",
+      "note": "scrolled to the split"
+    },
+    {
+      "shot": "3-standing-delegations",
+      "note": "storytree's own register, from its library"
+    },
+    {
+      "shot": "4-project-without-register",
+      "note": "a project whose library has no \"Standing delegation\": the split alone"
+    }
+  ],
+  "pageErrors": []
+}

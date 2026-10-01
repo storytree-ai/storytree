@@ -193,6 +193,7 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.linesSince, (_event, name: unknown, cursor: unknown) => open().linesSince(name, cursor));
   ipcMain.handle(CHANNELS.frontCovers, (_event, name: unknown, nodeId: unknown) => open().frontCovers(name, nodeId));
   ipcMain.handle(CHANNELS.relatedNotes, (_event, name: unknown, noteId: unknown) => open().relatedNotes(name, noteId));
+  ipcMain.handle(CHANNELS.standingDelegations, (_event, name: unknown) => open().standingDelegations(name));
   ipcMain.handle(CHANNELS.codeSurvey, async (_event, name: unknown) => {
     const folder = await open().projectFolder(name);
     return folder === undefined ? {} : readCodeSurvey(folder, treesRead.get(name) ?? await open().projectTree(name));

@@ -41,6 +41,7 @@ const bridge: StorytreeBridge & SettingsBridge & SurfacesBridge = {
   linesSince: (name, cursor) => ipcRenderer.invoke(CHANNELS.linesSince, name, cursor) as ReturnType<StorytreeBridge["linesSince"]>,
   frontCovers: (name, nodeId) => ipcRenderer.invoke(CHANNELS.frontCovers, name, nodeId) as ReturnType<StorytreeBridge["frontCovers"]>,
   relatedNotes: (name, noteId) => ipcRenderer.invoke(CHANNELS.relatedNotes, name, noteId) as ReturnType<StorytreeBridge["relatedNotes"]>,
+  standingDelegations: (name) => ipcRenderer.invoke(CHANNELS.standingDelegations, name) as ReturnType<StorytreeBridge["standingDelegations"]>,
   codeSurvey: (name) => ipcRenderer.invoke(CHANNELS.codeSurvey, name) as ReturnType<StorytreeBridge["codeSurvey"]>,
 };
 

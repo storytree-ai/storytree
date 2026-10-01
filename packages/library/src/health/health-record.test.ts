@@ -113,15 +113,15 @@ for (const backend of [memory, postgres]) {
 
     // The annotated tree is projectTree()'s tree with health added to every story, capability and
     // contract, every one of them reading not-checked in both columns, and its arcs as they were.
-    // The tree it is given is left as it was.
+    // The tree it is given is left as it was. Nothing is verified yet, so the project reads unverified.
     const tree = await work.projectTree();
     const asGiven = structuredClone(tree);
-    assert.deepEqual(await health.annotate(tree), withHealth(tree, () => UNCHECKED));
+    assert.deepEqual(await health.annotate(tree), { ...withHealth(tree, () => UNCHECKED), unverified: true });
     assert.deepEqual(tree, asGiven, "annotate leaves the tree it is given unchanged");
     assert.equal(countNodes(tree), 5, "control: the tree holds all five nodes");
     assert.deepEqual(tree.arcs, [{ id: arc.id, title: "Launch v1", stories: [story.id] }], "control: and the arc");
     // Given no tree, it annotates the plan as it is now.
-    assert.deepEqual(await health.annotate(), withHealth(tree, () => UNCHECKED));
+    assert.deepEqual(await health.annotate(), { ...withHealth(tree, () => UNCHECKED), unverified: true });
 
     assert.deepEqual(await transactions.history(), before, "reading health writes nothing");
 
@@ -502,13 +502,13 @@ for (const backend of [memory, postgres]) {
 
   contract("5.8", "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
-    const whyOf = async () => (await health.annotate()).stories[0]!.capabilities[0]!.why;
+    const whyOf = async () => (await health.annotate()).stories[0]!.capabilities.find(({ id }) => id === capability.id)!.why;
     // A project something verifies: one verified entry anywhere in it (5.10 is the other kind).
     const elsewhere = await work.addCapability({ title: "Elsewhere", story: capability.fields.story });
     await health.recordVerified((await work.addContract({ title: "Checked elsewhere", capability: elsewhere.id })).id, "passing");
     assert.deepEqual(await whyOf(), { reason: "not built", mover: "agent", contracts: [] });
     await work.setProposed(capability.id, false);
-    const inOrder = (await health.annotate()).stories[0]!.capabilities[0]!.contracts.map(({ id }) => id);
+    const inOrder = (await health.annotate()).stories[0]!.capabilities.find(({ id }) => id === capability.id)!.contracts.map(({ id }) => id);
     assert.deepEqual(inOrder.toSorted(), [contract.id, sibling.id].toSorted());
     assert.deepEqual(await whyOf(), { reason: "no test names it", mover: "agent", contracts: inOrder }, "in the capability's order");
     await health.recordVerified(contract.id, "passing");

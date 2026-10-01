@@ -1,0 +1,48 @@
+{
+  "story": "The app setup",
+  "release": "0.3.414",
+  "commit": "e221468e8451ac4a6e2a105f87b6c170d34fb9de",
+  "evidence": "packages/app-setup/evidence/acceptance-run-conflict/2026-10-01",
+  "checks": [
+    {
+      "contract": "1.6",
+      "name": "with a storytree command of the user's own on the path, the installer's finish step reports a conflict naming that command's file",
+      "observed": "pass",
+      "detail": "conflict: C:\\Users\\mickh\\.local\\bin\\storytree.cmd"
+    },
+    {
+      "contract": "1.6",
+      "name": "the user's own command is preserved byte for byte, and storytree's own launcher is left as it was",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.6",
+      "name": "storytree doctor, run from the installation, names the conflict and keeps the user's command",
+      "observed": "pass",
+      "detail": "The storytree command: there is a storytree of your own on your path, so storytree's was not put there."
+    },
+    {
+      "contract": "1.6",
+      "name": "a fresh PowerShell still runs the user's own storytree command, not storytree's",
+      "observed": "pass",
+      "detail": "the user's own storytree command (cf01)"
+    },
+    {
+      "contract": "1.6",
+      "name": "the planted command was removed afterwards",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.6",
+      "name": "with the user's command gone, a fresh PowerShell finds storytree's installed command",
+      "observed": "pass",
+      "detail": "C:\\Users\\mickh\\.storytree\\0.3\\bin\\storytree.cmd"
+    },
+    {
+      "contract": "1.6",
+      "name": "storytree doctor, run from that fresh PowerShell, exits 0",
+      "observed": "pass",
+      "detail": "exit 0"
+    }
+  ]
+}

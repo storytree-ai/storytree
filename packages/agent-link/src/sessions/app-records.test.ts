@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Sessions, contract 4.11: which sessions the Claude desktop app and Codex keep in
+ * Capability 4 · Sessions, contract 4.25: which sessions the Claude desktop app and Codex keep in
  * their own records, and whether they are archived there (ADR-0754 D4), read from files made in
  * the formats measured on the owner's laptop on 2026-09-29 (Claude's local_<id>.json, Codex's
  * state_5.sqlite `threads`), and written to the real activity log on the Postgres `pnpm test` provides.
@@ -19,7 +19,7 @@ function claudeSession(folder: string, id: string, cliSessionId: string, isArchi
   writeFileSync(path.join(folder, `local_${id}.json`), JSON.stringify({ sessionId: `local_${id}`, cliSessionId, isArchived, lastActivityAt: Date.now(), title: "a session" }));
 }
 
-test("4.11 the sessions the Claude desktop app and Codex keep are read from their own files, and each one this project knows gets a line saying whether it is archived there, written only when that changes; Codex's headless runs and subagents are not the app's; absent files are read as absent and damaged ones as unreadable, and neither writes anything", async () => {
+test("4.25 the sessions the Claude desktop app and Codex keep are read from their own files, and each one this project knows gets a line saying whether it is archived there, written only when that changes; Codex's headless runs and subagents are not the app's; absent files are read as absent and damaged ones as unreadable, and neither writes anything", async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();
   try {

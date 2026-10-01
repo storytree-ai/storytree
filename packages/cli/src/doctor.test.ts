@@ -170,7 +170,7 @@ test("8.3 in a folder that is not a project, it creates nothing unless told to",
   });
 });
 
-test("8.5 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (agent link 8.16)", async () => {
+test("8.6 with Codex's hooks registered and none of them run yet, it names the one step that lets Codex run them (agent link 8.16)", async () => {
   await inWorld(command, async (world) => {
     const user = aUser(world);
 

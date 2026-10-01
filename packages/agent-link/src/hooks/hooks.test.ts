@@ -717,7 +717,7 @@ test("3.16 every line a hook writes records the git branch its folder is on, bes
   });
 });
 
-test("3.17 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", async () => {
+test("3.19 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", async () => {
   const project = uniqueProjectName();
   const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as { port: number };
   // A store that answers only after 1.6 s: every connection is passed on to the test Postgres late.

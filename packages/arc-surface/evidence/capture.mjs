@@ -64,17 +64,20 @@ try {
     }
   }
   const parked = await makeArc('Later improvements', 'Keep useful ideas available without putting them on the active board.');
-  await library.addIncrement({ arc: parked.id, title: 'Explore refinements', objective: 'Explore', body: 'Explore' }); await library.parkArc(parked.id);
+  await library.addIncrement({ arc: parked.id, title: 'Explore refinements', objective: 'Explore', body: 'Explore' });
+  // Raised before the park: a parked arc takes no new question, and its open one is parked with it (ADR-0835).
+  await library.raiseQuestion({ arc: parked.id, title: 'Which refinement comes first?', statement: 'Which refinement should the arc start with?', stakes: 'It sets the first piece of work when the arc returns.', context: 'Asked before the arc was parked.', options: 'A. Polish. FOR: quick. AGAINST: small.\n\nB. Rework. FOR: thorough. AGAINST: slow.' });
+  await library.parkArc(parked.id);
   const anotherParked = await makeArc('Another parked idea', 'A distinct fallback selection.');
   await library.parkArc(anotherParked.id);
   const closed = await makeArc('Earlier experiment', 'Keep the outcome, including experiments that did not land.');
   await library.addIncrement({ arc: closed.id, title: 'Alternative layout', objective: 'Explore', body: 'Explore', outcome: { disposition: 'withdrawn', note: 'Kept the smaller layout.' } });
   reads = pageReads({ storytree: store });
   let failRead = false;
-  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcView: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcView(...args); },
+  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcViews: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcViews(...args); },
     // The renderer asks for its surfaces setting first; an unread setting means every surface is on.
     readSurfaces: async () => undefined };
-  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds', 'idleAfterMs', 'readSurfaces'];
+  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcViews', 'holds', 'idleAfterMs', 'readSurfaces'];
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
     if (!['index.html', 'renderer.js', 'styles.css', 'app-setup.css', 'arc-surface.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -205,6 +208,7 @@ try {
   assert.equal(await relaunched.locator('[data-arc-scope="parked"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await relaunched.locator(`[data-arc-select="${parked.id}"]`).getAttribute('aria-pressed'), 'true');
   await relaunched.screenshot({ path: path.join(output, 'relaunch-parked-picked.png') });
+  assert.match(await relaunched.locator('.arc-briefing h4').first().innerText(), /parked with the arc/i, 'a parked arc\'s question is parked with it, not waiting on you');
   await relaunched.keyboard.press('Escape');
   await relaunched.reload();
   await relaunched.waitForFunction(() => document.body.dataset.state === 'ready');

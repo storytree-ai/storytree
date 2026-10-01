@@ -366,12 +366,19 @@ export class WorkInFlight {
   }
 
   /**
-   * Raise a question for the owner on a live arc (MissingReferenceError otherwise). It is open, and
+   * Raise a question for the owner on a live arc (MissingReferenceError otherwise) that is not parked
+   * (RangeError, with nothing written: a parked arc raises no questions, ADR-0835 D1). It is open, and
    * stamped as verified now: the start of its review lease (12-a).
    */
   raiseQuestion(question: NewQuestion, options?: WriteOptions): Promise<SchemaRecord<"question">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "arc", question.arc, "arc");
+      const arc = await liveRecord(this.#records, question.arc, ["arc"]);
+      if (arc !== null && isParked(arc)) {
+        throw new RangeError(
+          `arc ${JSON.stringify(question.arc)} is parked, so it raises no questions (ADR-0835): write what you would ask into the arc's residue, its owning increment's body, to be raised when the arc is unparked`,
+        );
+      }
       return this.#records.create(
         "question",
         { ...question, lifecycle: "open", verifiedAt: new Date().toISOString(), leaseDays: question.leaseDays ?? DEFAULT_QUESTION_LEASE_DAYS },
@@ -710,11 +717,16 @@ function arcState(
   questions: readonly SchemaRecord<"question">[],
   at: Date = new Date(),
 ): ArcState {
-  const { parked, parkedUntil } = arc.fields;
-  if (parked === true && (parkedUntil === undefined || at.getTime() < Date.parse(`${parkedUntil}T00:00:00Z`))) return "parked";
+  if (isParked(arc, at)) return "parked";
   if (increments.length === 0) return "active";
   if (increments.some((increment) => increment.fields.status !== "closed")) return "active";
   return questions.some((question) => question.fields.lifecycle === "open") ? "active" : "closed";
+}
+
+/** Whether the owner has `arc` parked at `at`: parked, and, parked until a day, only before UTC midnight of that day (10.6). */
+function isParked(arc: SchemaRecord<"arc">, at: Date = new Date()): boolean {
+  const { parked, parkedUntil } = arc.fields;
+  return parked === true && (parkedUntil === undefined || at.getTime() < Date.parse(`${parkedUntil}T00:00:00Z`));
 }
 
 /** Where `status` sits in the lifecycle. */

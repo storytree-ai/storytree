@@ -87,14 +87,22 @@ const retire: Verb = {
 const list: Verb = {
   name: "list",
   usage: "question list [--arc <arc>]",
-  summary: "the open questions across arcs, or on one arc",
+  summary: "the open questions across arcs, or on one arc; a parked arc's wait until it is unparked",
   async act(args, context) {
     const arc = args.text("arc");
     const library = await context.library();
     const open = (await (arc === undefined ? library.list("question") : library.questions(arc))).filter((question) => question.fields.lifecycle === "open");
+    // A parked arc's questions are parked with it, off the owner's list (ADR-0835 D2).
+    const parkedArcs = new Set<string>();
+    for (const id of new Set(open.map((question) => question.fields.arc))) {
+      if ((await library.arcView(id))?.state === "parked") parkedArcs.add(id);
+    }
+    const waiting = open.filter((question) => !parkedArcs.has(question.fields.arc));
+    const parked = open.length - waiting.length;
     const where = arc === undefined ? "across arcs" : `on ${arc}`;
-    if (open.length === 0) return { text: `No question ${where} waits on the owner.` };
-    return { text: [`${open.length} open ${where}:`, ...open.map((question) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`)].join("\n") };
+    const aside = parked === 0 ? [] : [`${parked} more ${parked === 1 ? "waits" : "wait"} on a parked arc until it is unparked.`];
+    if (waiting.length === 0) return { text: [`No question ${where} waits on the owner.`, ...aside].join("\n") };
+    return { text: [`${waiting.length} open ${where}:`, ...waiting.map((question) => `  - ${question.id}  [${question.fields.arc}]  ${labelOf(question.fields)}`), ...aside].join("\n") };
   },
 };
 

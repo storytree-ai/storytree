@@ -69,7 +69,7 @@ function withDocumentStub<T>(run: () => T): StubbedLoad<T> {
   }
 }
 
-test('the texture is loaded from the embedded PNG as a data: URL, and nothing is fetched', () => {
+test('2.6 the texture is loaded from the embedded PNG as a data: URL, and nothing is fetched', () => {
   const { result, created } = withDocumentStub(() => detailNormalTexture());
   assert.ok(result instanceof Texture, 'detailNormalTexture() did not return a three Texture');
   assert.equal(created.length, 1, 'the loader created more than one image element');
@@ -81,7 +81,7 @@ test('the texture is loaded from the embedded PNG as a data: URL, and nothing is
   );
 });
 
-test('the texture repeats, is linear data, and is mipmapped with trilinear minification', () => {
+test('2.6 the texture repeats, is linear data, and is mipmapped with trilinear minification', () => {
   const { result: tex } = withDocumentStub(() => detailNormalTexture());
   assert.equal(tex.wrapS, RepeatWrapping, 'wrapS');
   assert.equal(tex.wrapT, RepeatWrapping, 'wrapT');
@@ -91,7 +91,7 @@ test('the texture repeats, is linear data, and is mipmapped with trilinear minif
   assert.equal(tex.magFilter, LinearFilter);
 });
 
-test('the texture records that it was routed through the colour convention as a DATA map', () => {
+test('2.6 the texture records that it was routed through the colour convention as a DATA map', () => {
   // The convention leaves a data map alone, so the routing would otherwise be invisible on the
   // texture: `userData` carries the application's own report, and it must name the normal-map
   // slot — a call handed an EMPTY material records nothing routed at all. On both paths, because

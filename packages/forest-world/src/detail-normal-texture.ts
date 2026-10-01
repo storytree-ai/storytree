@@ -4,8 +4,7 @@
 // LAYER 6 of the approved ground material (build_land.py `mat_attribute()` :943-965): the bought
 // kit's cliff NORMAL map as a DETAIL layer — "its relief, not its colour". The bytes live in
 // `detail-normal.ts` (pure, provable under `bun test`); this module is the one that imports
-// `three` and hands the browser a `data:` URL to decode, kept separate the way `kit-mesh.ts` is
-// kept from `kit-asset.ts`.
+// `three` and hands the browser a `data:` URL to decode.
 //
 // ⚠ THE TILE IS 2.4 GROUND UNITS, NOT 2.5. The recipe's Mapping node scales the UV by 2.5
 // (:946), but the plane's UV is `xy / 6.0` (`build_land_grid`, :605-606), so one repeat of the

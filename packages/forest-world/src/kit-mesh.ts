@@ -5,7 +5,7 @@
 // everything the SHIPPED canvas needs to draw a bought object; what stayed is the harness's own
 // FETCH (`loadKit(url)`, which serves the `.glb` off vite) and its LIGHT CALIBRATION, which is an
 // instrument that probes a renderer rather than part of the treatment. In 0.3 the page bundles
-// `assets/dressing-kit.glb` as bytes and hands them to `loadEmbeddedKit` (`kit-asset.ts`).
+// `assets/dressing-kit.glb` as bytes and hands them to `loadEmbeddedKit`.
 //
 // ⚠ IT MERGES PER MATERIAL, IT DOES NOT INSTANCE, and that is what keeps the comparison fair.
 // `hardware-floor.mjs` measured this renderer DRAW-CALL bound, so an arm that issued one draw call
@@ -398,7 +398,7 @@ export async function parseKit(
   meanOf?: LeafMeanReader,
 ): Promise<LoadedKit> {
   // Stryker disable next-line StringLiteral: EQUIVALENT — the second argument is the base PATH
-  // external URIs resolve against, and this asset has none: `kit-asset.test.ts` holds that the
+  // external URIs resolve against, and this asset has none: 0.2's `kit-asset.test.ts` held that the
   // committed `.glb` is self-contained (one BIN chunk, no `uri` anywhere in its JSON), so every
   // path resolves the same asset and no fetch is ever issued.
   const gltf = await new GLTFLoader().parseAsync(bytes, '');
@@ -422,7 +422,7 @@ export async function parseKit(
 
 /**
  * PARSE THE KIT THE PAGE CARRIES — the bundled bytes of `assets/dressing-kit.glb`, not a fetch.
- * 0.2 decoded an embedded base64 copy here; 0.3 bundles the one export as bytes (`kit-asset.ts`).
+ * 0.2 decoded an embedded base64 copy here; 0.3 bundles the one export as bytes.
  */
 export async function loadEmbeddedKit(bytes: Uint8Array): Promise<LoadedKit> {
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;

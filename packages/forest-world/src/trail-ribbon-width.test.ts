@@ -20,7 +20,7 @@ const ZOOMED_OUT = 0.28;
 // An island is drawn in ground units, so its on-screen width is proportional to the zoom.
 const ISLAND_GROUND = 60.3;
 
-test('a road keeps the same share of an island at every zoom above the floor', () => {
+test('5.7 a road keeps the same share of an island at every zoom above the floor', () => {
   // The defect: the old ribbon drew `width` SCREEN px at every zoom, so its share of an island grew
   // 15x from zoomed in to zoomed out. This reds on that rule (`(w) => w`).
   for (const usage of [2, 4, 9]) {
@@ -33,7 +33,7 @@ test('a road keeps the same share of an island at every zoom above the floor', (
   }
 });
 
-test('a road is never thicker on screen, nor a larger share of an island, as you zoom out', () => {
+test('5.7 a road is never thicker on screen, nor a larger share of an island, as you zoom out', () => {
   for (const usage of [1, 2, 4, 9]) {
     const w = trailFillWidth(usage);
     let prevPx = Infinity;
@@ -60,7 +60,7 @@ test('the opening view keeps the width the owner approved (within 2%)', () => {
   }
 });
 
-test('a road never vanishes: the floor holds, and a zoom that projects nothing keeps it', () => {
+test('5.7 a road never vanishes: the floor holds, and a zoom that projects nothing keeps it', () => {
   assert.equal(trailRibbonScreenWidth(trailFillWidth(1), 0.01), RIBBON_MIN_SCREEN_PX);
   for (const z of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     assert.equal(trailRibbonScreenWidth(3, z), RIBBON_MIN_SCREEN_PX);

@@ -16,8 +16,8 @@ export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER } from "./to
 export type { AgentToolOptions, AgentTools, ToolExtension, ToolCall, DefineTool, ToolAnswer } from "./tools/index.js";
 export { codexHookTrust, noteCodexHookRan } from "./hooks/index.js";
 export type { CodexHookTrust } from "./hooks/index.js";
-export { CHECK_COMMAND, CHECK_FILE, CODEX_TRUST_STEP, defaultHomes, markDisconnected, openStorytree, registerHooks, removeHooks, runSetupCheck, runsElevated, suggestedName, verifyHooks } from "./setup/index.js";
-export type { HookCommand, HookRegistration, Homes, HooksReport, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
+export { CHECK_COMMAND, CHECK_FILE, CODEX_TRUST_STEP, defaultHomes, launcherFile, launcherFiles, launcherFor, launcherRuns, markDisconnected, openStorytree, registerHooks, removeHooks, removeLauncher, runSetupCheck, runsElevated, suggestedName, verifyHooks, writeLauncher } from "./setup/index.js";
+export type { HookCommand, HookRegistration, Homes, HooksReport, LauncherRuns, RemovalReport, SetupLine, SetupOptions, SetupReport, StorytreeOpened, Verification } from "./setup/index.js";
 export { decisionRights, habitsCard, removeCodexInstructions, STANDING_DELEGATION, standingDelegations, writeCodexInstructions } from "./instructions/index.js";
 export type { DecisionRights } from "./instructions/index.js";
 export { contextCommand, contextReading, readContext, sessionWindow } from "./context/index.js";

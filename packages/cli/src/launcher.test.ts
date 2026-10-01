@@ -30,23 +30,20 @@ test("8.5 setup installs the full command beside its hooks; the launcher reads t
     };
     const installed = await world.run(["setup", "install"], env);
     assert.equal(installed.code, 0, installed.stderr);
-    const launcher = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
+    // On Windows the launcher is a program of its own (ADR-0854), started like any other.
+    const launcher = path.join(bin, process.platform === "win32" ? "storytree.exe" : "storytree");
     assert.ok(existsSync(launcher), installed.stdout);
     const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "path"));
-    const run = (args: string[]) => execute(
-      process.platform === "win32" ? "cmd.exe" : launcher,
-      process.platform === "win32" ? ["/d", "/s", "/c", `""${launcher}" ${args.join(" ")}"`] : args,
-      { cwd: world.folder, env: { ...inherited, ...env, STORYTREE_HOME: world.home }, windowsVerbatimArguments: true, timeout: 20_000 },
-    );
+    const run = (args: string[]) => execute(launcher, args, { cwd: world.folder, env: { ...inherited, ...env, STORYTREE_HOME: world.home }, timeout: 20_000 });
     const definition = await (await world.library()).defineTerm({ term: "Installed command", meaning: "The installed command reaches the real library." });
     const read = await run(["library", "read", definition.id]);
     assert.ok(read.stdout.includes(definition.fields.meaning), read.stdout);
     const checked = await run(["doctor"]);
     assert.match(checked.stdout, /storytree is running/);
     assert.match(checked.stdout, /Hooks for Claude Code: registered/);
-    // Use the bundled command to remove the wrapper. On Windows a running .cmd cannot remove
-    // itself cleanly: cmd.exe tries to read it again (PR #83's first Windows run). That wrapper
-    // is the agent link's; this contract proves its installed target is the full command line.
+    // Use the bundled command to remove the launcher: removing it through itself, which Windows
+    // will not delete while it runs, is the agent link's own contract (8.9). This contract proves
+    // its installed target is the full command line.
     const removed = await world.run(["setup", "remove"], env);
     assert.equal(removed.code, 0, removed.stderr);
     assert.match(removed.stdout, /taken off the path/);

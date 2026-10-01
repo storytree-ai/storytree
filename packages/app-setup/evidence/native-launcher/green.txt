@@ -1,0 +1,20 @@
+# Contract 1.9's test, and the other delivery tests, with the program (Windows 11 arm64, 2026-10-02):
+# node --import tsx --test packages/app-setup/src/deliver/delivery.test.ts
+✔ 1.1 / 1.5: a delivered payload includes every imported chunk and rejects a damaged or wrong-architecture runtime (207.0033ms)
+✔ 1.2 / 1.3: first delivery and a repeat always launch the app visibly, wait for its database, and preserve projects and settings (32.0454ms)
+✔ 1.4: failure to launch or reach the app never publishes a successful installation over the last usable record (14.6239ms)
+✔ 1.6: command conflicts of every Windows executable kind are named and left untouched (54.6415ms)
+✔ 1.6: finish repoints an older storytree launcher on PATH and says which one it replaced (44.8878ms)
+✔ 1.1: a payload cannot bless a missing entry point or a path outside its installation (22.1301ms)
+✔ 1.6: a fresh shell runs the installed command with spaces and preserves its exit code (246.3694ms)
+✔ 1.9 on Windows, the installed command hands each word on as the caller's line spelled it: run by name from Git Bash, Windows PowerShell or a program, no word is cut at a > or &, nothing else runs and no file is written (ADR-0854) (772.6021ms)
+✔ 1.6 / 2.5: disconnect recognises the delivered launcher and removes it once no agent is connected (20.3184ms)
+✔ delivery on a Cloud SQL library waits for the app itself, not for a local database it never starts (app lifecycle 1.11) (17.0258ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2929.8148

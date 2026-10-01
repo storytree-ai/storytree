@@ -1,0 +1,18 @@
+# The installed command as a program of its own (ADR-0854), same laptop: STUB=<built storytree-launcher.exe> node --import tsx routes.ts
+installed: storytree.exe
+--- Git Bash, by name
+heard: ["a&echo","INJECTED","x|y","x>y","100%PATH%","^caret","he said \"website -> forest -> the rest\" ok","C:\\a folder\\"]
+files written in the folder: []
+output: ""
+--- Git Bash, as storytree.cmd
+heard: (nothing)
+files written in the folder: []
+output: "/usr/bin/bash: line 1: storytree.cmd: command not found"
+--- a program (Node, no shell)
+heard: ["a&echo","INJECTED","x|y","x>y","100%PATH%","^caret","he said \"website -> forest -> the rest\" ok","C:\\a folder\\"]
+files written in the folder: []
+output: ""
+--- Windows PowerShell 5.1
+heard: ["a&echo","INJECTED","x|y","x>y","100%PATH%","^caret"]
+files written in the folder: []
+output: ""

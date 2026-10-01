@@ -14,6 +14,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
+import { buildLauncher, LAUNCHER_PROGRAM } from "./launcher.js";
+
+export { buildLauncher, LAUNCHER_PROGRAM };
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** The commands, by the file each is built to. */
@@ -58,6 +62,8 @@ export async function buildBins(outdir: string, { release }: { release?: { versi
     ],
   });
   await stageNativeProbes(outdir);
+  // On Windows the `storytree` command is a program of its own, beside the script it runs (ADR-0854).
+  if (process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
   // The release beside the scripts, so the setup check can say when installed hooks lag the latest (contract 8.18).
   if (release !== undefined) writeFileSync(path.join(outdir, "release.json"), `${JSON.stringify(release)}\n`);
   return Object.fromEntries(Object.keys(ENTRY_POINTS).map((name) => [name, path.join(outdir, `${name}.mjs`)]));

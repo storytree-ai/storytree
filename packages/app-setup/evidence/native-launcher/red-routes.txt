@@ -1,0 +1,19 @@
+# The installed command as it stood (the batch launcher, storytree.cmd), 2026-10-02, Windows 11 arm64 laptop.
+# node --import tsx routes.ts
+installed: storytree.cmd
+--- Git Bash, by name
+heard: (nothing)
+files written in the folder: []
+output: "/usr/bin/bash: line 1: storytree: command not found"
+--- Git Bash, as storytree.cmd
+heard: (nothing)
+files written in the folder: []
+output: "'C:\\Users\\mickh\\AppData\\Local\\Temp\\storytree' is not recognized as an internal or external command,\r\noperable program or batch file."
+--- a program (Node, no shell)
+heard: (nothing)
+files written in the folder: []
+output: "spawnSync storytree ENOENTundefinedundefined"
+--- Windows PowerShell 5.1
+heard: ["a"]
+files written in the folder: ["y"]
+output: "'y' is not recognized as an internal or external command,\r\noperable program or batch file."

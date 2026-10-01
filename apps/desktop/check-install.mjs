@@ -91,6 +91,11 @@ try {
   checkEmbeddingBinaries(armTools, "arm64");
   const armNode = readFileSync(path.join(armTools, "node.exe"));
   assert.equal(armNode.readUInt16LE(armNode.readUInt32LE(0x3c) + 4), 0xaa64, "arm64 payload contains native arm64 Node");
+  // The command launcher (ADR-0854) is built for each payload's own architecture.
+  for (const [dir, machine] of [[tools, 0x8664], [armTools, 0xaa64]]) {
+    const launcher = readFileSync(path.join(dir, "storytree-launcher.exe"));
+    assert.equal(launcher.readUInt16LE(launcher.readUInt32LE(0x3c) + 4), machine, `${dir} carries a command launcher for its architecture`);
+  }
   assert.equal(JSON.parse(readFileSync(path.join(armTools, "payload.json"), "utf8")).arch, "arm64");
   execFileSync(node, [path.join(tools, "storytree-deliver.mjs"), "inspect", installed, process.arch], { timeout: 30_000 });
   assert.match(readFileSync(path.join(release, "latest.yml"), "utf8"), new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));

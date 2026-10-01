@@ -1,8 +1,8 @@
 /** Capability 2: per-user agent connection. Setup checks and hook verification stay in agent-link. */
-import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { CODEX_TRUST_STEP, codexHookTrust, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, runsElevated, writeCodexInstructions } from "@storytree/agent-link";
+import { CODEX_TRUST_STEP, codexHookTrust, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeCodexInstructions, removeHooks, removeLauncher, runsElevated, writeCodexInstructions } from "@storytree/agent-link";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
 export { installedToolServerCommand };
@@ -209,18 +209,18 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
   return results;
 }
 
+/** This installation's own launchers in the user's home: any of storytree's (the batch file before ADR-0854 too) that runs its Node and command. */
 function removeInstalledCommand(home: string, env: NodeJS.ProcessEnv, installed: InstalledToolServerCommand): "removed" | "none" {
   const target = path.join(path.dirname(installed.args[0]), "storytree.mjs");
-  const marker = "storytree 0.3's command (put here by its setup check)";
-  const wanted = process.platform === "win32"
-    ? `@echo off\r\nrem ${marker}\r\ngoto #_storytree_handoff_# 2>nul || "${installed.command}" "${target}" %*\r\n`
-    : `#!/bin/sh\n# ${marker}\nexec "${installed.command}" "${target}" "$@"\n`;
   let removed = false;
   for (const folder of (env.PATH ?? env.Path ?? "").split(path.delimiter).filter(Boolean)) {
     const relative = path.relative(home, folder);
     if (relative.startsWith("..") || path.isAbsolute(relative)) continue;
-    const file = path.join(folder, process.platform === "win32" ? "storytree.cmd" : "storytree");
-    if (existsSync(file) && readFileSync(file, "utf8") === wanted) { rmSync(file); removed = true; }
+    for (const name of launcherFiles()) {
+      const file = path.join(folder, name);
+      const runs = launcherRuns(file);
+      if (runs?.node === installed.command && runs.target === target) { removeLauncher(file); removed = true; }
+    }
   }
   return removed ? "removed" : "none";
 }

@@ -15,6 +15,8 @@ export interface InstalledTools {
 }
 
 const scripts = ["storytree-mcp.mjs", "storytree-hook.mjs", "storytree-setup.mjs", "storytree.mjs", "storytree-deliver.mjs"];
+/** The program the `storytree` command on Windows is made from, beside the scripts (ADR-0854). */
+const launcher = "storytree-launcher.exe";
 const digest = (file: string): string => createHash("sha256").update(readFileSync(file)).digest("hex");
 
 /** Stable across NSIS updates: no versioned checkout, npm cache or portable extraction path. */
@@ -30,7 +32,7 @@ export function toolPaths(installDir: string, platform: NodeJS.Platform = proces
 
 /** Package the whole buildBins output, including lazy imported chunks. */
 export function writePayloadManifest(dir: string, arch: Architecture, nodeVersion: string): void {
-  for (const file of ["node.exe", ...scripts]) {
+  for (const file of ["node.exe", launcher, ...scripts]) {
     if (!existsSync(path.join(dir, file))) throw new Error(`Missing payload file: ${file}`);
   }
   const files: Record<string, string> = {};
@@ -55,7 +57,7 @@ export function verifyPayload(installDir: string, arch: Architecture, platform: 
   };
   if (payload.schema !== 1 || typeof payload.nodeVersion !== "string" || !/^24\./.test(payload.nodeVersion) || !payload.files) throw new Error("Unsupported tool payload");
   if (payload.arch !== arch) throw new Error(`Tool runtime architecture ${String(payload.arch)} does not match ${arch}`);
-  for (const file of [path.basename(tools.node), ...scripts]) {
+  for (const file of [path.basename(tools.node), ...(platform === "win32" ? [launcher] : []), ...scripts]) {
     if (!(file in payload.files)) throw new Error(`Missing payload entry: ${file}`);
   }
   for (const [file, expected] of Object.entries(payload.files)) {

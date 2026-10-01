@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -26,7 +26,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { builtFromMain, CHECK_FILE, FIX_SENTENCES, ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type GhState, type HookCommand, type Homes } from "./index.js";
+import { builtFromMain, CHECK_FILE, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -551,16 +551,16 @@ test("8.9 in a throwaway home, the first start puts a storytree command on the p
     const command = { path: bin, home: dir };
     const hook: HookCommand = { node: process.execPath, script: hookScript };
     const start = () => runSetupCheck({ ...ANSWERED, folder: dir, hook, homes: home.homes, storytreeHome: home.storytreeHome, command });
-    const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
+    const file = path.join(bin, launcherFile());
 
     assert.equal((await start()).command, "installed");
     // It runs as the user would run it: by its name, through their shell, found on the path.
     const ran = spawnSync("storytree", [], { shell: true, encoding: "utf8", env: { ...process.env, PATH: bin, Path: bin } });
     assert.match(`${ran.stdout}${ran.stderr}`, /storytree setup/, `it is storytree's command: ${ran.stdout}${ran.stderr}`);
-    const first = readFileSync(file, "utf8");
+    const first = readFileSync(file);
 
     assert.equal((await start()).command, "already installed");
-    assert.equal(readFileSync(file, "utf8"), first, "not a byte changed");
+    assert.deepEqual(readFileSync(file), first, "not a byte changed");
 
     assert.equal(removeCommand(command), "removed");
     assert.equal(existsSync(file), false);
@@ -579,21 +579,21 @@ test("8.9 storytree's own command in a folder outside the home is never touched:
     const bin = path.join(home, ".local", "bin");
     const elsewhere = path.join(dir, "elsewhere", "bin");
     for (const folder of [bin, elsewhere]) mkdirSync(folder, { recursive: true });
-    const name = process.platform === "win32" ? "storytree.cmd" : "storytree";
+    const name = launcherFile();
     // Another home's install of storytree, left by the setup check under a different HOME.
     const theirs = path.join(elsewhere, name);
     const hook: HookCommand = { node: process.execPath, script: hookScript };
-    putCommandOnPath({ path: elsewhere, home: path.dirname(elsewhere) }, hook.node, path.join(dir, "an older storytree.mjs"));
-    const before = readFileSync(theirs, "utf8");
+    putCommandOnPath({ path: elsewhere, home: path.dirname(elsewhere) }, hook.node, path.join(path.dirname(hookScript), "an older storytree.mjs"));
+    const before = readFileSync(theirs);
     const command = { path: [bin, elsewhere].join(path.delimiter), home };
 
     assert.equal(putCommandOnPath(command, hook.node, path.join(path.dirname(hookScript), "storytree.mjs")), "installed");
     assert.ok(existsSync(path.join(bin, name)), "put in the home's folder");
-    assert.equal(readFileSync(theirs, "utf8"), before, "the one outside the home, untouched");
+    assert.deepEqual(readFileSync(theirs), before, "the one outside the home, untouched");
 
     assert.equal(removeCommand(command), "removed");
     assert.equal(existsSync(path.join(bin, name)), false);
-    assert.equal(readFileSync(theirs, "utf8"), before, "and still there after removing");
+    assert.deepEqual(readFileSync(theirs), before, "and still there after removing");
   });
 });
 
@@ -602,17 +602,23 @@ test("8.9 an older storytree launcher in the home that runs another build is rep
     const bin = path.join(dir, ".local", "bin");
     mkdirSync(bin, { recursive: true });
     const command = { path: bin, home: dir };
-    const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
     const older = path.join(dir, "an older storytree.mjs");
-    putCommandOnPath(command, process.execPath, older);
+    // On Windows an older install's launcher is the batch file storytree wrote before ADR-0854.
+    const file = path.join(bin, process.platform === "win32" ? "storytree.cmd" : "storytree");
+    if (process.platform === "win32") {
+      writeFileSync(file, `@echo off\r\nrem storytree 0.3's command (put here by its setup check)\r\ngoto #_storytree_handoff_# 2>nul || "${process.execPath}" "${older}" %*\r\n`);
+    } else {
+      putCommandOnPath(command, process.execPath, older);
+    }
 
     const said = putCommandOnPath(command, process.execPath, path.join(path.dirname(hookScript), "storytree.mjs"));
     assert.equal(said, `installed (replaced ${file}, which ran ${older})`);
+    assert.deepEqual(readdirSync(bin), [launcherFile()], "the launcher takes the older one's place in its folder");
   });
 });
 
-test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes (regression: storytree#83)", {
-  skip: process.platform !== "win32" && "platform:win32: cmd.exe reads the .cmd wrapper again after setup remove deletes it",
+test("8.9 setup remove exits cleanly through the Windows launcher it removes: the launcher is off the path when the command returns, and deleted once it has exited (regression: storytree#83; ADR-0854)", {
+  skip: process.platform !== "win32" && "platform:win32: only Windows refuses to delete the running program that setup remove runs through",
 }, async () => {
   await withTempDir(async (dir) => {
     const profile = path.join(dir, "user home");
@@ -630,14 +636,16 @@ test("8.9 setup remove exits cleanly through the Windows wrapper that it deletes
     };
     const installed = spawnSync(process.execPath, [path.join(bins, "storytree.mjs"), "setup", "install"], { env, encoding: "utf8" });
     assert.equal(installed.status, 0, `${installed.stdout}${installed.stderr}`);
-    const wrapper = path.join(bin, "storytree.cmd");
-    assert.ok(existsSync(wrapper), "the real .cmd wrapper is installed on the path");
+    const launcher = path.join(bin, "storytree.exe");
+    assert.ok(existsSync(launcher), "the real launcher is installed on the path");
 
     const invalid = spawnSync("storytree setup invalid", { shell: true, env, cwd: profile, encoding: "utf8" });
-    assert.equal(invalid.status, 2, "the wrapper preserves a failing command's exit code");
+    assert.equal(invalid.status, 2, "the launcher preserves a failing command's exit code");
     const removed = spawnSync("storytree setup remove", { shell: true, env, cwd: profile, encoding: "utf8" });
     assert.equal(removed.status, 0, `${removed.stdout}${removed.stderr}`);
-    assert.equal(existsSync(wrapper), false, "the wrapper is gone when the command returns");
+    assert.equal(existsSync(launcher), false, "the launcher is off the path when the command returns");
+    for (let waited = 0; waited < 10_000 && readdirSync(bin).length > 0; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.deepEqual(readdirSync(bin), [], "and deleted once it has exited");
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS);
     assert.equal(existsSync(home.codexHooks), false);
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);

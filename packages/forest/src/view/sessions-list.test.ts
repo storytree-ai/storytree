@@ -77,11 +77,11 @@ test("the list draws its kept last rows at once, marked as refreshing; a kept va
 
 test("7.8 one expander per row, counting its children; expanded, a row lists its labelled worktrees by folder name (full path on hover), its labelled window's files (gone ones muted) and then its children", () => {
   const busy: SessionRow = { ...row, worktrees: [{ path: "/home/me/code/app/.claude/worktrees/one", branches: [] }, { path: "/home/me/code/app/.claude/worktrees/two", branches: [] }] };
-  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], collapsed: new Set(["parent", "lone"]), onHighlight() {} }));
+  const folded = renderToStaticMarkup(createElement(SessionsList, { rows: [busy, { ...row, id: "lone", children: [] }], onHighlight() {} }));
   assert.equal(folded.match(/<button[^>]*session-children-toggle/g)?.length, 2, "every row has one expander, a childless one too");
   assert.doesNotMatch(folded, /session-detail/);
   const files = new Map([["parent", { files: [{ path: "src/a.ts", resident: true }, { path: "src/b.ts", resident: false }] }]]);
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], files, onHighlight() {} }));
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], files, expanded: new Set(["parent"]), onHighlight() {} }));
   const parentRow = html.match(/data-session-id="parent".*?<\/div>/s)?.[0] ?? "";
   assert.equal(parentRow.match(/<button/g)?.length, 1, "the children do not bring a second control to the row");
   assert.match(parentRow, /^data-session-id="parent"[^>]*><button[^>]*session-children-toggle/, "the expander opens the row");
@@ -94,19 +94,19 @@ test("7.8 one expander per row, counting its children; expanded, a row lists its
   assert.match(detail, /<li[^>]*>src\/a\.ts<\/li>/);
   assert.match(detail, /<li[^>]*data-resident="no"[^>]*>src\/b\.ts<\/li>/);
   assert.ok(html.indexOf("session-detail") < html.indexOf('data-session-id="child"'), "children follow the detail");
-  const unread = renderToStaticMarkup(createElement(SessionsList, { rows: [busy],
+  const unread = renderToStaticMarkup(createElement(SessionsList, { rows: [busy], expanded: new Set(["parent"]),
     files: new Map([["parent", { absent: "no hook has named this session's transcript" }]]), onHighlight() {} }));
   assert.match(unread, /no hook has named this session&#x27;s transcript/);
 });
 
 test("7.14 an expanded row opens with its description, each line its own, before its worktrees; folded, or with none, no description shows", () => {
   const said: SessionRow = { ...row, children: [], worktrees: [{ path: "/w/one", branches: [] }], description: ["Sessions list labelling", "PR #309 awaiting CI"] };
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [said], onHighlight() {} }));
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [said], expanded: new Set(["parent"]), onHighlight() {} }));
   const detail = html.match(/class="session-detail".*?<\/ul>/s)?.[0] ?? "";
   assert.match(detail, /class="session-description"><p>Sessions list labelling<\/p><p>PR #309 awaiting CI<\/p><\/div>/, detail);
   assert.ok(detail.indexOf("session-description") < detail.indexOf(">Worktrees<"));
-  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [said], collapsed: new Set(["parent"]), onHighlight() {} })), /session-description/);
-  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...said, description: [] }], onHighlight() {} })), /session-description/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [said], onHighlight() {} })), /session-description/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...said, description: [] }], expanded: new Set(["parent"]), onHighlight() {} })), /session-description/);
   assert.equal(isSessionRows([{ ...said, description: undefined }]), false, "rows kept by an older build are not drawn");
 });
 
@@ -124,7 +124,7 @@ test("7.9 the list prints no prose about a session: a row with a close-out why s
 test("7.15 an expanded row's worktree carries its label, unmerged or merged or its pull request's state, beside its folder's name; a worktree with none carries none", () => {
   const worktrees: SessionRow["worktrees"] = [{ path: "/w/one", branches: ["fix-one"], state: "unmerged" }, { path: "/w/two", branches: ["fix-two"], state: "merged" }, { path: "/w/site", branches: [] },
     { path: "/w/three", branches: ["fix-three"], state: "unmerged", label: "PR #40 · in CI" }];
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees }], onHighlight() {} }));
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees }], expanded: new Set(["parent"]), onHighlight() {} }));
   const list = html.match(/<ul class="session-detail-worktrees".*?<\/ul>/s)?.[0] ?? "";
   assert.match(list, /<li title="\/w\/one\nfix-one">one<span class="session-worktree-state" data-state="unmerged">unmerged<\/span><\/li>/, list);
   assert.match(list, /<li title="\/w\/two\nfix-two">two<span class="session-worktree-state" data-state="merged">merged<\/span><\/li>/, list);
@@ -135,13 +135,13 @@ test("7.15 an expanded row's worktree carries its label, unmerged or merged or i
 test("7.16 an expanded row's Running block, between its worktrees and its files, lists each running command by its words (the full command on hover) and how long it has run; with nothing running it is not drawn", () => {
   const running: SessionRow["running"] = [{ words: "pnpm run test --full", command: "pnpm run test --full --reason x", ranMs: 12_000 },
     { words: "gh pr checks --watch", command: "gh pr checks --watch", ranMs: 90_000 }, { words: "sleep 9999", command: "sleep 9999", ranMs: 3_900_000 }];
-  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees: [{ path: "/w/one", branches: [] }], running }], onHighlight() {} }));
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], worktrees: [{ path: "/w/one", branches: [] }], running }], expanded: new Set(["parent"]), onHighlight() {} }));
   const block = html.match(/<ul class="session-detail-running".*?<\/ul>/s)?.[0] ?? "";
   assert.match(block, /<li title="pnpm run test --full --reason x"><span class="session-run-command">pnpm run test --full<\/span><span class="session-run-time">12s<\/span><\/li>/, block);
   assert.match(block, /session-run-time">1m<\/span>/, block);
   assert.match(block, /session-run-time">1h 5m<\/span>/, block);
   assert.ok(html.indexOf(">Worktrees<") < html.indexOf(">Running<") && html.indexOf(">Running<") < html.indexOf(">Files<"));
-  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], running: [] }], onHighlight() {} })), />Running</);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(SessionsList, { rows: [{ ...row, children: [], running: [] }], expanded: new Set(["parent"]), onHighlight() {} })), />Running</);
   assert.equal(isSessionRows([{ ...row, children: [], running: undefined }]), false, "rows kept by an older build are not drawn");
 });
 

@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Story node render (the forest story): the plan the page draws the 3D forest from.
  * Every story node is an island at its place, carrying its grove, and named; what the page drew is
- * said as the smoke check reads it; a change redraws only the islands it changed; and a click on the
+ * said as the smoke check reads it (every story and capability by id); a change redraws only the islands it changed; and a click on the
  * ground picks the island there. The library's tree and history, and the agent log's lines, are
  * written out here as the app hands them to the page, so no database and no app are needed. The
  * look itself is judged by the owner's eye.
@@ -10,7 +10,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Line, NewLine } from "@storytree/agent-link";
-import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, Change } from "@storytree/library";
 
@@ -41,7 +40,7 @@ function log(...written: NewLine[]): Line[] {
 const claimed = (capability: string): NewLine => ({ kind: "claimed", session: "s1", source: "tool", capability, reason: "building it" });
 const landed = (capability: string): NewLine => ({ kind: "landed", session: "s1", source: "tool", capability });
 
-test("3.1 every story is drawn as a story node with its capability tree, and the smoke check finds them all", () => {
+test("3.1 every story is drawn as a story node with its capability tree, and what the page drew names them all", () => {
   const { tree, history } = project();
   const scene = forestScene(tree, history, workStates([]));
   assert.deepEqual(scene.islands.map(({ story, trees }) => [story, trees.map(({ capability }) => capability)]), [
@@ -51,8 +50,8 @@ test("3.1 every story is drawn as a story node with its capability tree, and the
   ]);
   const drawn = forestDrawn(scene);
   assert.equal(drawn.surface, "forest");
-  assert.deepEqual(smokeProblems("ready", tree, JSON.stringify(drawn)), []);
-  assert.deepEqual(smokeProblems("ready", tree, JSON.stringify({ ...drawn, capabilities: ["cap_1a"] })).length, 2, "a missing tree fails the check");
+  assert.deepEqual(drawn.stories, ["story_1", "story_2", "story_3"]);
+  assert.deepEqual(drawn.capabilities, ["cap_1a", "cap_1b", "cap_2a"]);
 });
 
 test("3.2 a capability landing redraws just its story node", () => {

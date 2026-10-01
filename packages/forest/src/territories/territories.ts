@@ -116,8 +116,11 @@ function landArea(coast: Coast): number {
 /** The territory under the point (x, z) of the island, or undefined off its coast. */
 export function territoryAt(map: TerritoryMap, x: number, z: number): Territory | undefined {
   if (map.cells.length === 0 || (map.coast === undefined ? Math.hypot(x, z) > map.radius : !onLand({ x, z }, map.coast))) return undefined;
-  let nearest = map.cells[0]!;
-  for (const cell of map.cells) if (Math.hypot(x - cell.site.x, z - cell.site.z) < Math.hypot(x - nearest.site.x, z - nearest.site.z)) nearest = cell;
+  let [nearest, best] = [map.cells[0]!, Infinity];
+  for (const cell of map.cells) {
+    const far = (x - cell.site.x) ** 2 + (z - cell.site.z) ** 2;
+    if (far < best) [nearest, best] = [cell, far];
+  }
   return map.territories[nearest.territory];
 }
 
@@ -239,7 +242,7 @@ const CIRCLE_GAP = 0.15;
 /** Candidate spots per cell to choose circle middles from, at least. */
 const SPOTS_PER_CELL = 8;
 /** The most candidate spots an island is searched over, so a big island stays quick to lay out. */
-const MAX_SPOTS = 6000;
+const MAX_SPOTS = 3000;
 
 /** A file's circle's diameter by its lines: 1.2 + 0.14·√lines, so a 1,000-line file is about 5.6 across, not a huge disc. */
 export function circleDiameter(lines: number): number {
@@ -261,27 +264,46 @@ export function fileCircles(map: TerritoryMap, files: readonly CircleFile[]): Fi
   return layOut(map, files).circles;
 }
 
+/** Below this share of every territory's land the circles cover, they fit without being laid out to see (real islands run to 0.16). */
+const SURE_FIT = 0.15;
+/** Land already worked out, by the island's shares, files and least land, so an unchanged island costs nothing to redraw. */
+const fitted = new Map<string, number>();
+
 /**
  * The least land, from `least` up, on which the island's files' circles all fit at full size: tried on
  * the round island of that land, cut into `shares` as the drawing cuts it, growing a step at a time.
  */
 export function landForCircles(shares: readonly TerritoryShare[], files: readonly CircleFile[], least: number): number {
+  const held = shares.filter((share) => share.lines > 0);
+  const total = held.reduce((sum, share) => sum + share.lines, 0);
+  const cover = (land: number) => Math.max(0, ...held.map((share) => files.filter((file) => file.capability === share.capability)
+    .reduce((sum, file) => sum + Math.PI * (circleDiameter(file.lines) / 2 + CIRCLE_GAP / 2) ** 2, 0) / ((land * share.lines) / total)));
+  if (total === 0 || cover(least) <= SURE_FIT) return least;
+  const key = JSON.stringify([held, files.map(({ path, lines, capability }) => [path, lines, capability]), least]);
+  const known = fitted.get(key);
+  if (known !== undefined) return known;
   let land = least;
   for (let tries = 0; tries < 60 && !layOut(territories(shares, Math.sqrt(land / Math.PI)), files).fits; tries++) land *= 1.08;
+  if (fitted.size >= 256) fitted.clear();
+  fitted.set(key, land);
   return land;
 }
 
 function layOut(map: TerritoryMap, files: readonly CircleFile[]): Layout {
   const land = map.coast === undefined ? Math.PI * map.radius ** 2 : landArea(map.coast);
   const smallest = Math.min(...files.map((file) => circleDiameter(file.lines) / 2), map.radius);
-  const wanted = Math.min(MAX_SPOTS, Math.max(map.cells.length * SPOTS_PER_CELL, Math.ceil((4 * land) / smallest ** 2)));
+  const wanted = Math.min(MAX_SPOTS, Math.max(map.cells.length * SPOTS_PER_CELL, Math.ceil((2 * land) / smallest ** 2)));
   const all = sunflower(Math.ceil((wanted * Math.PI * map.radius ** 2) / Math.max(land, 1e-9)), map.radius);
   const owners = all.map((p) => territoryAt(map, p.x, p.z));
   const spots = all.filter((_, at) => owners[at] !== undefined);
   const ownerOf = owners.filter((owner) => owner !== undefined);
   // Each spot's room: how far it lies from the nearest border, the coast, the round island's edge and, as circles are placed, their rims.
   const walls = [...map.borders.map(({ from, to }) => [from, to] as const), ...(map.coast ?? []).flatMap((ring) => ring.map((p, at) => [p, ring[(at + 1) % ring.length]!] as const))];
-  const room = spots.map((p) => Math.min(map.radius - Math.hypot(p.x, p.z), ...walls.map(([a, b]) => toSegment(p, a, b))) - CIRCLE_GAP);
+  const room = spots.map((p) => {
+    let near = (map.radius - Math.hypot(p.x, p.z)) ** 2;
+    for (const [a, b] of walls) near = Math.min(near, toSegmentSquared(p, a, b));
+    return Math.sqrt(near) - CIRCLE_GAP;
+  });
   const placed = new Map<string, { at: Point; radius: number }>();
   let fits = true;
   map.territories.forEach((territory) => {
@@ -313,9 +335,9 @@ function layOut(map: TerritoryMap, files: readonly CircleFile[]): Layout {
   return { circles, fits };
 }
 
-/** How far `p` lies from the segment a–b. */
-function toSegment(p: Point, a: Point, b: Point): number {
-  const [dx, dz] = [b.x - a.x, b.z - a.z];
+/** How far `p` lies from the segment a–b, squared. */
+function toSegmentSquared(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x, dz = b.z - a.z;
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
-  return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
+  return (p.x - a.x - t * dx) ** 2 + (p.z - a.z - t * dz) ** 2;
 }

@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { fileCircles, territories, territoryAt, type CircleFile } from "./territories.js";
+import { circleDiameter, fileCircles, territories, territoryAt, type CircleFile } from "./territories.js";
 
 const shares = [
   { capability: "cap-a", lines: 600 },
@@ -114,4 +114,10 @@ test("3.16 every circle lies wholly inside its own territory and on the land, an
     const [a, b] = [circles[i]!, circles[j]!];
     assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= a.radius + b.radius, `${a.path} and ${b.path} do not overlap`);
   }
+});
+
+test("3.16 a circle grows gently with its file's lines: a 1,000-line file is under six units across, under five times a one-line file (the old curve: 8.8 across, 5.7 times)", () => {
+  assert.ok(circleDiameter(1000) < 6);
+  assert.ok(circleDiameter(1000) < 5 * circleDiameter(1));
+  assert.ok(circleDiameter(101) > circleDiameter(100));
 });

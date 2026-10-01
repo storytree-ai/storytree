@@ -74,5 +74,5 @@ node --import tsx scripts/restore-library.mjs ~/storytree-lanes/snapshots/2026-0
 node --import tsx packages/forest/src/view/evidence/library-dots-clickable/export.mjs
 flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/library-dots-clickable/measure.mjs
 flock /tmp/storytree-heavy.lock node packages/forest/src/view/evidence/library-dots-clickable/build.mjs
-flock /tmp/storytree-heavy.lock node packages/forest/src/view/evidence/library-dots-clickable/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/library-dots-clickable/capture.mjs
 ```

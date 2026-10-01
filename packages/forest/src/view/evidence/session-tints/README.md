@@ -18,7 +18,7 @@ survey regenerated from this branch (`tsx survey.mjs`). The page's clock is fixe
 `2026-10-01T12:00:00Z` and the stand-in bridge's `linesSince` returns the 13-line agent log written
 in `capture.mjs`, so the tints are the real page's reading of real log lines (`sessionRows`,
 `sessionWisps`, `coastArcs`, `claimTints`), not injected marks. Run `node build.mjs`, then
-`node capture.mjs` (and `CAPTURE_IDS=as-hashed node capture.mjs` for the close-hue set), each under
+`node --import tsx capture.mjs` (and `CAPTURE_IDS=as-hashed node --import tsx capture.mjs` for the close-hue set), each under
 `flock /tmp/storytree-heavy.lock`. Full numbers: [measurements.json](measurements.json),
 [as-hashed-measurements.json](as-hashed-measurements.json).
 

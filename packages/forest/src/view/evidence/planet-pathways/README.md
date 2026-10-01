@@ -83,7 +83,7 @@ From the repository root:
 ```sh
 node packages/forest/src/view/evidence/planet-pathways/build.mjs
 flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/planet-pathways/measure.mjs
-flock /tmp/storytree-heavy.lock node packages/forest/src/view/evidence/planet-pathways/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/planet-pathways/capture.mjs
 ```
 
 `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` can override the installed Mint-box

@@ -50,7 +50,7 @@ capture's Mint-local defaults:
 
 ```sh
 flock /tmp/storytree-heavy.lock node packages/forest/evidence/quiet-claims/build.mjs
-flock /tmp/storytree-heavy.lock node packages/forest/evidence/quiet-claims/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/quiet-claims/capture.mjs
 flock /tmp/storytree-heavy.lock pnpm gate
 ```
 

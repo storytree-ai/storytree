@@ -59,7 +59,8 @@ export interface LiveReading {
   stop(): void;
 }
 
-const pageTimers: Timers = {
+/** The page's own clock and timers. */
+export const pageTimers: Timers = {
   now: () => Date.now(),
   every(ms, run) {
     const handle = setInterval(run, ms);

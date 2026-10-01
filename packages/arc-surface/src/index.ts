@@ -5,6 +5,8 @@ export { workStates } from "./work-states/work-states.js";
 export type { PartState, WorkStates } from "./work-states/work-states.js";
 export { ASK_EVERY_MS, CLOCK_EVERY_MS, liveReading } from "./live-reading/live-reading.js";
 export type { LiveReading, LiveReadingOptions, LiveReads, News, Timers } from "./live-reading/live-reading.js";
+export { joinedReads, pageReading } from "./live-reading/page-reading.js";
+export type { NewsListener, PageReading, PageReadingOptions } from "./live-reading/page-reading.js";
 export { pageKept } from "./live-reading/kept.js";
 export type { Kept, PageStorage } from "./live-reading/kept.js";
 export { arcState, incrementState } from "./work-states/board-states.js";

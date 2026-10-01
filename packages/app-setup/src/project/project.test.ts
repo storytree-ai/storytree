@@ -110,7 +110,7 @@ test("removing a project whose marker git tracks leaves the folder as it is and 
   assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name), "adding its folder again brings it back");
 });
 
-test("3.6: deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {
+test("3.6 deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const token = randomBytes(4).toString("hex");
@@ -151,4 +151,28 @@ test("3.6: deleting a project drops its records for every machine once its name 
   assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "deleted");
   assert.deepEqual(readdirSync(backups), [file], "a skipped snapshot writes none");
   assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "no such project");
+});
+
+test("3.6 a deleted project leaves no activity behind and leaves every computer's hidden list: a new project of its name starts with no old claims, and is shown", async (t) => {
+  const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-traces-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const token = randomBytes(4).toString("hex");
+  const name = `scratch-${token}`;
+  const library = await testLibrary(t, [name]);
+  const [home, other] = [path.join(dir, "home"), path.join(dir, "other")];
+  assert.equal((await addProject(path.join(dir, "first"), name, { home, library })).status, "set up");
+  const log = await openActivityLog(library);
+  t.after(() => log.close());
+  await log.append(name, { session: `old-${token}`, source: "tool", kind: "claimed", capability: `capability_${token}`, reason: "left behind" });
+  await log.transcripts.store(name, `old-${token}`, [{ part: "", start: 0, finish: 3, record: "{}\n" }]);
+  assert.equal((await removeProject(name, { home: other, library })).status, "removed", "another computer hid it");
+  writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: "elsewhere" }));
+
+  assert.equal((await deleteProject(name, { home, library, snapshot: false, confirm: name })).status, "deleted");
+  assert.deepEqual((await log.since(name, 0)).lines, [], "its lines go with it");
+  assert.equal(await log.transcripts.text(name, `old-${token}`), undefined, "and its transcripts");
+  projectsOnThisComputer(await library.listProjects(), other); // the other computer's app lists its projects
+
+  assert.equal((await addProject(path.join(dir, "second"), name, { home, library })).status, "set up");
+  assert.ok(projectsOnThisComputer(await library.listProjects(), other).includes(name), "the new project of that name is shown there");
 });

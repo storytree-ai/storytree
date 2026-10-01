@@ -400,6 +400,30 @@ test("6.3 every call is recorded against the session that made it, using the ses
   });
 });
 
+test("in a folder whose project was deleted from the library, a tool says so and how to free the folder, and does not make the project again", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await (await storytree.openProject(project)).close();
+      await storytree.dropProject(project); // deleted from another computer; this folder still names it
+      await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+        const plan = await agent.call("show_plan");
+        assert.equal(plan.isError, true);
+        assert.match(plan.text, /deleted/);
+        assert.match(plan.text, /\.storytree\.json/);
+      });
+      assert.equal((await storytree.listProjects()).includes(project), false, "nothing made again");
+    } finally {
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 test('6.4 a bad call gets a readable refusal rather than a crash, and with storytree stopped every tool answers "storytree isn\'t running, carry on without it"', async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

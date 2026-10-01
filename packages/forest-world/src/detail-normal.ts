@@ -18,8 +18,7 @@
 // brotli (measured 2026-09-02), i.e. **+5.9% over the wire** for a tile that cannot go missing.
 //
 // THIS MODULE IS PURE — no `three`, no DOM. The browser-bound loader that turns the bytes into a
-// `Texture` is `detail-normal-texture.ts`, kept separate the way `kit-mesh.ts` is kept from
-// `kit-asset.ts`, so this half is provable under `bun test` and the mutation rung.
+// `Texture` is `detail-normal-texture.ts`, kept separate so this half is provable under `bun test` and the mutation rung.
 
 /** Width and height of the tile in texels — read off the PNG's IHDR by the generator, not typed. */
 export const DETAIL_NORMAL_SIZE = 128;

@@ -480,3 +480,10 @@ export function partOf(of: { capability?: string | undefined; increment?: string
 function idOf(of: { capability?: string | undefined; increment?: string | undefined }): string {
   return of.increment ?? of.capability ?? "";
 }
+
+/** The sessions and claims reading, folded as the log's lines arrive (ADR-0836 D1, D4). Not yet built. */
+export class LogFold {
+  add(_lines: readonly Line[]): void {}
+  sessions(_options: SessionOptions = {}): Session[] { return []; }
+  claims(_options: ClaimsOptions = {}): Claim[] { return []; }
+}

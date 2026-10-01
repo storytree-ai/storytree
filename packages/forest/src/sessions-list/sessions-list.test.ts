@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Line, NewLine } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
-import { atWork, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
+import { atWork, clickedSelection, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 
 const now = new Date("2026-09-28T12:00:00Z");
@@ -120,7 +120,7 @@ test("supplied supervision and totals use a view seam without parsing transcript
   assert.deepEqual(walk(sessionRows(tree, lines, [], now, details)).sort(), ["child", "parent"]);
 });
 
-test("the knowledge core's roster is exactly the listed rows, each with its children, in the row's own colour (ADR-0738)", () => {
+test("7.7 the knowledge core's roster is exactly the listed rows, each with its children, in the row's own colour (ADR-0738)", () => {
   const lines = log(claimed("cap-one", "Build signup"),
     { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },
     { ...off, kind: "claimed", increment: "tidy", reason: "Tidy" },
@@ -131,6 +131,18 @@ test("the knowledge core's roster is exactly the listed rows, each with its chil
     { session: "off", label: "Tidy", colour: sessionColour("off"), members: ["off"] },
     { session: "quiet", label: "Codex", colour: sessionColour("quiet"), members: ["quiet"] },
   ]);
+});
+
+test("7.7 clicking a row selects its session, a child's row its parent, and clicking the selected row again goes back to every session", () => {
+  const lines = log(claimed("cap-one", "Build signup"),
+    { ...parent, kind: "subagent-started", subagent: "child", task: "Finish signup" },
+    { ...off, kind: "claimed", increment: "tidy", reason: "Tidy" });
+  const rows = sessionRows(tree, lines, [], now);
+  assert.equal(clickedSelection(rows, "off", undefined), "off", "a row selects its own session");
+  assert.equal(clickedSelection(rows, "child", undefined), "parent", "a child's row selects its parent");
+  assert.equal(clickedSelection(rows, "child", "off"), "parent", "and moves the one selection off another session");
+  assert.equal(clickedSelection(rows, "parent", "parent"), undefined, "the selected row clicked again goes back to every session");
+  assert.equal(clickedSelection(rows, "child", "parent"), undefined, "so does its child's row");
 });
 
 test("7.8 a row's files are its window's opened files, each once in the order first opened, those no longer in the window marked; no reading says why", () => {

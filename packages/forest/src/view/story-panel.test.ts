@@ -158,6 +158,17 @@ test("4.12 a capability that is not healthy says why under its word, who moves i
   assert.equal(whyLine(renderStoryPanel(notGreen({ reason: "out of CI's reach", mover: "agent", contracts: ["3.4"] }), "cap")), "Why not green: 3.4 can only run on another platform. The agent moves this one.");
 });
 
+test("4.13 in a project nothing verifies, a built capability's card and detail lead with the agent's report and say storytree does not check this project's tests yet", () => {
+  const cap: CapabilityLine = { ...line("cap", "landed", "passing", "untested"), reportOnly: true };
+  const html = renderStoryPanel({ ...panel, capabilities: [cap], arrows: [{ from: "cap", to: "away", toTitle: "The away", toStory: "Story t", landed: true, toStatus: "untested", toReported: "failing" }] }, "cap");
+  const shown = (part: string): string => part.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  assert.match(shown(box(html, "The cap")), /^The cap agent: passing/, "its strip says the agent's report");
+  assert.match(shown(box(html, "Story t · The away")), /agent: failing/);
+  const detail = /<section class="panel-detail[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+  assert.match(shown(detail), /^The cap the agent reports passing storytree does not check this project's tests yet\./);
+  assert.doesNotMatch(shown(html), /untested|no test names|moves this one|Why not green/);
+});
+
 test("4.12 a healthy capability says nothing more, and a contract not re-run says what it last saw", () => {
   assert.doesNotMatch(renderStoryPanel(notGreen(undefined), "cap"), /panel-why|Why not green/);
   const html = renderStoryPanel(notGreen({ reason: "not re-run", mover: "agent", contracts: ["2.1"] }, { state: "failing", at: "2026-09-27T10:00:00.000Z" }), "cap");

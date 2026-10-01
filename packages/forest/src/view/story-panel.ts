@@ -46,8 +46,9 @@ function capability(line: CapabilityLine): string {
         .join("")}</ul>`;
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
-      <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.status}</span></h3>
+      <h3>${text(line.title)} <span class="panel-state status-${line.status}">${line.reportOnly ? `the agent reports ${HEALTH[line.reported]}` : line.status}</span></h3>
       ${line.why === undefined ? "" : why(line.why)}
+      ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
       <p>${text(line.description)}</p>
       <p class="panel-health">
         ${badge("the agent reports", line.reported)}
@@ -56,6 +57,9 @@ function capability(line: CapabilityLine): string {
       <details><summary>${line.contracts.length} contract${line.contracts.length === 1 ? "" : "s"}</summary>${contracts}</details>
     </section>`;
 }
+
+/** What a report-only capability says in place of a reason (ADR-0630); the library's words, kept here as the panel's. */
+const NOT_VERIFIED = "storytree does not check this project's tests yet";
 
 /** The reason in the owner's words, by what carries it. */
 const REASON: Readonly<Record<WhyLine["reason"], (named: string) => string>> = {
@@ -142,7 +146,7 @@ function cardOf(card: Card, selected: boolean): string {
       <title>${text(title)}</title>
       <rect class="card-bg" width="${W}" height="${H}" rx="7" />
       <path class="card-strip" d="M 0 ${S} L 0 7 Q 0 0 7 0 L ${W - 7} 0 Q ${W} 0 ${W} 7 L ${W} ${S} Z" />
-      <text class="card-status" x="8" y="${S - 5}">${card.status}</text>
+      <text class="card-status" x="8" y="${S - 5}">${card.agentSays === undefined ? card.status : `agent: ${HEALTH[card.agentSays]}`}</text>
       ${lines.map(({ words, kind }, index) => `<text class="${kind}" x="${W / 2}" y="${S + (card.own ? 17 : 15) + index * 15}">${text(words)}</text>`).join("")}
       ${marks.map((each, index) => each.replace("<text ", `<text x="8" y="${H - 8 - (marks.length - 1 - index) * 14}" `)).join("")}
     </g>`;

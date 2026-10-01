@@ -147,6 +147,21 @@ test("4.12 a capability that is not healthy carries its reason, who moves it, an
   assert.equal(c?.why, undefined, "a healthy capability says nothing more");
 });
 
+test("4.13 in a project nothing verifies, each capability, and each other story's it points at, is marked as shown by the agent's report", () => {
+  const reportOnly = (built: AnnotatedCapability): AnnotatedCapability => ({ ...built, reportOnly: true });
+  const tree: AnnotatedTree = {
+    stories: [story("a", reportOnly(capability("login", ["accounts"], [contract("k1", "passing")], undefined, "untested"))), story("b", reportOnly(capability("accounts", [], [contract("k2", "failing")], undefined, "untested")))],
+    arcs: [],
+    unverified: true,
+  };
+  const panel = drillDown(tree, "a", workStates([]), []);
+  assert.equal(panel?.capabilities[0]?.reportOnly, true);
+  assert.equal(panel?.capabilities[0]?.reported, "passing");
+  assert.equal(panel?.arrows[0]?.toReported, "failing", "another story's card says its agent's report, not its word");
+  const checked = drillDown({ stories: [story("a", capability("login", [], [], undefined, "untested"))], arcs: [] }, "a", workStates([]), []);
+  assert.equal("reportOnly" in (checked?.capabilities[0] ?? {}), false);
+});
+
 test("4.12 a contract whose last verdict was not re-run carries what it last saw and when", () => {
   const was = { state: "failing" as const, at: "2026-09-27T10:00:00.000Z" };
   const tree: AnnotatedTree = {

@@ -122,6 +122,7 @@ const RUNTIME_EXPORTS = [
   "LinkLoopError",
   "MissingReferenceError",
   "MissingUpgradeError",
+  "NOT_VERIFIED",
   "NewerSchemaError",
   "NumberTakenError",
   "ProjectGoneError",
@@ -147,7 +148,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
     const lib = await storytree.openProject(name);
     assert.equal(lib.name, name);
     assert.ok((await storytree.listProjects()).includes(name), "the new project is listed");
-    assert.deepEqual(await lib.projectTree(), { stories: [], arcs: [] }, "its plan is empty");
+    assert.deepEqual(await lib.projectTree(), { stories: [], arcs: [], unverified: true }, "its plan is empty, and nothing verifies it yet");
     assert.deepEqual(await lib.changesSince(0), { changes: [], cursor: 0 }, "and nothing has changed in it yet");
 
     // Add a story, and create an arc that grows it: the arc may list the story because it is there.
@@ -181,7 +182,7 @@ test("7.1 an agent's day against a real local Postgres: every step is visible wh
       ],
       arcs: [{ id: arc.id, title: "Launch v1", stories: [story.id] }],
     });
-    assert.deepEqual(await lib.projectTree(), planWith(UNCHECKED, UNCHECKED), "the plan, nested, with nothing checked yet");
+    assert.deepEqual(await lib.projectTree(), { ...planWith(UNCHECKED, UNCHECKED), unverified: true }, "the plan, nested, with nothing checked yet: nothing verifies the project");
 
     // The agent reports the contract passing: the contract reads it, and it rolls up.
     const reported = await lib.reportHealth(contract.id, "passing", { by: "agent" });

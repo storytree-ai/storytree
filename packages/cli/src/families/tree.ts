@@ -10,15 +10,19 @@
  * worklist (ADR-0825 D4), for the librarian pass to route.
  */
 import type { Claim } from "@storytree/agent-link";
-import { wordAndWhy, type NodeHealth } from "@storytree/library";
+import { NOT_VERIFIED, wordAndWhy, type NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 
-/** A node's health as the tree shows it: the agent's report, labelled as the agent's, then what storytree verified. */
-function healthOf(health: NodeHealth): string {
+/**
+ * A node's health as the tree shows it: the agent's report, labelled as the agent's, then what
+ * storytree verified; the report alone in a project nothing verifies (ADR-0630).
+ */
+function healthOf(health: NodeHealth, unverified: boolean): string {
   const words = (state: string): string => state.replace("-", " ");
-  return `agent says ${words(health.reported.state)} · storytree verified ${words(health.verified.state)}`;
+  const reported = `agent says ${words(health.reported.state)}`;
+  return unverified ? reported : `${reported} · storytree verified ${words(health.verified.state)}`;
 }
 
 /** Who holds `id`, if anyone. */
@@ -41,12 +45,13 @@ const tree: Verb = {
     if (stories.length === 0) return { text: "No stories yet.", next: [{ command: "storytree library new story --title <title>", why: "add one" }] };
     const claims = await context.claims();
     const lines: string[] = [];
+    const unverified = plan.unverified === true;
     for (const story of stories) {
-      lines.push(`${story.title}  [${story.id}]  ${healthOf(story.health)}`);
+      lines.push(`${story.title}  [${story.id}]  ${healthOf(story.health, unverified)}`);
       story.capabilities.forEach((capability, index) => {
-        lines.push(`  ${index + 1} · ${capability.title}  [${capability.id}]  ${healthOf(capability.health)}; ${wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
+        lines.push(`  ${index + 1} · ${capability.title}  [${capability.id}]  ${healthOf(capability.health, unverified)}; ${capability.reportOnly ? NOT_VERIFIED : wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
         for (const contract of capability.contracts) {
-          lines.push(`      - ${contract.title}  [${contract.id}]  ${healthOf(contract.health)}`);
+          lines.push(`      - ${contract.title}  [${contract.id}]  ${healthOf(contract.health, unverified)}`);
         }
       });
     }

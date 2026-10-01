@@ -57,8 +57,10 @@ export interface CapabilityLine {
   /** Its word, as the library gives it: proposed, healthy, unhealthy or untested (ADR-0744). */
   status: CapabilityStatus;
   contracts: ContractLine[];
-  /** Why it is not healthy; absent when it is healthy. */
+  /** Why it is not healthy; absent when it is healthy, and when it is report-only. */
   why?: WhyLine;
+  /** Built, in a project nothing verifies (ADR-0630): it leads with the agent's report instead of its word. */
+  reportOnly?: true;
 }
 
 /** An arrow of the diagram: a capability pointing at one it builds on. */
@@ -73,6 +75,8 @@ export interface Arrow {
   landed: boolean;
   /** The word for the capability pointed at, as the library gives it (ADR-0744). */
   toStatus: CapabilityStatus;
+  /** The agent's report for the capability pointed at, when it is report-only: its card says that instead of its word. */
+  toReported?: HealthState;
 }
 
 /** The panel for one story. */
@@ -115,6 +119,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates
         status: capability.status,
         contracts,
         ...(capability.why === undefined ? {} : { why: whyLine(capability.why, capability.contracts) }),
+        ...(capability.reportOnly ? { reportOnly: true as const } : {}),
       },
     ];
   });
@@ -129,6 +134,7 @@ export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates
         ...(target === undefined || target.owner.id === story ? {} : { toStory: target.owner.title }),
         landed: states.part(to) === "landed",
         toStatus: target?.capability.status ?? "untested",
+        ...(target?.capability.reportOnly ? { toReported: target.capability.health.reported.state } : {}),
       };
     }),
   );

@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, type ReactNode } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, type RootState } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
-import type { Camera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import { planetPathwayDrawing, type PlanetPathwayPlate } from './pathways.js';
 import { Pathways } from './PlanetTrailRibbons.js';
@@ -68,6 +67,10 @@ function Framing({ radius, framing }: { radius: number; framing: number }) {
   return null;
 }
 
+/** The one dev-only seam an evidence capture observes the globe through: a capture build sets this global
+ * before the page runs and is handed the canvas's live state getter. Nothing in the product sets it. */
+const CAPTURE_SEAM = '__storytreeCaptureGlobe';
+
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
 export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, inside, framing = 1.18, orbit = true }: PlanetWorldCanvasProps) {
@@ -75,7 +78,10 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const pathways = drawing.plan;
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
-  const onCreated = useCallback(({ camera }: { camera: Camera }) => camera.lookAt(0, 0, 0), []);
+  const onCreated = useCallback(({ camera, get }: RootState) => {
+    camera.lookAt(0, 0, 0);
+    (globalThis as { [CAPTURE_SEAM]?: (state: () => RootState) => void })[CAPTURE_SEAM]?.(get);
+  }, []);
   return <Canvas orthographic {...EXACT_COLOUR_CANVAS_PROPS} frameloop="demand"
     camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
     <color attach="background" args={['#101418']} />

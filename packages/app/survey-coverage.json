@@ -31,8 +31,17 @@
  "src/surfaces/smoke.ts": {
   "3": 4
  },
+ "src/surfaces/switches.ts": {
+  "3": 39
+ },
+ "src/updates/agent-activity.ts": {
+  "4": 1
+ },
  "src/updates/build-health.ts": {
   "4": 12
+ },
+ "src/updates/follow-main-setup.ts": {
+  "4": 4
  },
  "src/updates/follow-main.ts": {
   "1": 4,
@@ -45,15 +54,25 @@
   "4": 55
  },
  "src/updates/release-source.ts": {
-  "4": 4
+  "4": 9
  },
  "src/updates/releases.ts": {
+  "3": 5,
   "4": 52
  },
  "src/updates/seed-writing.ts": {
   "4": 1
  },
+ "src/updates/version.ts": {
+  "4": 6
+ },
  "src/view/render.ts": {
   "2": 10
+ },
+ "src/view/surfaces.ts": {
+  "3": 24
+ },
+ "src/view/updates.ts": {
+  "4": 3
  }
 }

@@ -180,14 +180,20 @@ async function run(): Promise<void> {
     if (projects === undefined) throw new Error("The library is not open");
     return projects.choose(name);
   });
-  ipcMain.handle(CHANNELS.projectTree, (_event, name: unknown) => open().projectTree(name));
+  // The code survey surveys the tree the page last read, rather than reading it a second time.
+  const treesRead = new Map<unknown, AnnotatedTree>();
+  ipcMain.handle(CHANNELS.projectTree, async (_event, name: unknown) => {
+    const tree = await open().projectTree(name);
+    treesRead.set(name, tree);
+    return tree;
+  });
   ipcMain.handle(CHANNELS.changesSince, (_event, name: unknown, cursor: unknown) => open().changesSince(name, cursor));
   ipcMain.handle(CHANNELS.linesSince, (_event, name: unknown, cursor: unknown) => open().linesSince(name, cursor));
   ipcMain.handle(CHANNELS.frontCovers, (_event, name: unknown, nodeId: unknown) => open().frontCovers(name, nodeId));
   ipcMain.handle(CHANNELS.relatedNotes, (_event, name: unknown, noteId: unknown) => open().relatedNotes(name, noteId));
   ipcMain.handle(CHANNELS.codeSurvey, async (_event, name: unknown) => {
     const folder = await open().projectFolder(name);
-    return folder === undefined ? {} : readCodeSurvey(folder, await open().projectTree(name));
+    return folder === undefined ? {} : readCodeSurvey(folder, treesRead.get(name) ?? await open().projectTree(name));
   });
 
   let problem: string | undefined;

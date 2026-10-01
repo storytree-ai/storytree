@@ -192,3 +192,13 @@ test("the settings file keeps the app's surface choices beside the settings, and
     assert.equal(readFileSync(file, "utf8"), bad);
   });
 });
+
+test("10.2 setting context guidance to 400000 writes it to settings.json in the storytree home, and a fresh read gives 400,000 marked as set", async () => {
+  await withTempDir((home) => {
+    agentLink.setSetting("context-guidance", "400000", home);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8")), { "context-guidance": 400_000 });
+    const reading = agentLink.readSettings(home)["context-guidance"];
+    assert.equal(reading.value, 400_000);
+    assert.equal(reading.source, "set");
+  });
+});

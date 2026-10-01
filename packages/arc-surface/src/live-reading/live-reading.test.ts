@@ -11,7 +11,7 @@ import type { Line, LinesSince } from "@storytree/agent-link";
 import type { Change, Changes } from "@storytree/library";
 
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
-import { joinedReads, pageReading } from "./page-reading.js";
+import { joinedReads, pageReading, type KeptReading } from "./page-reading.js";
 
 /** A stand-in clock whose timers fire only when the test moves it on. */
 class Clock implements Timers {
@@ -256,5 +256,61 @@ test("what the page reading holds keeps only what a surface reads: each reported
   assert.equal(started?.command.slice(0, 300), long.slice(0, 300), "a running command keeps the words the list shows");
   assert.ok((started?.command.length ?? 0) < 310);
   assert.equal(ran?.command, "", "a finished command's text is not shown anywhere");
+  reading.stop();
+});
+
+/** A kept reading in memory, as the page's storage keeps one between starts. */
+class KeptStandIn implements KeptReading {
+  pieces: News[] = [];
+  async read(): Promise<News | undefined> {
+    return this.pieces.length === 0 ? undefined : { changes: this.pieces.flatMap(({ changes }) => changes), lines: this.pieces.flatMap(({ lines }) => lines) };
+  }
+  async add(news: News): Promise<void> { this.pieces.push(news); }
+  async clear(): Promise<void> { this.pieces = []; }
+}
+
+test("a page reading keeps what it reads, and the next start hears the kept reading at once and asks the library only from where it got to", async () => {
+  const app = new App();
+  app.story("Visitor can sign up");
+  app.story("Visitor can pay");
+  app.claim("cap_a");
+  const kept = new KeptStandIn();
+  const clock = new Clock();
+  const first = pageReading({ project: "shop", reads: app, timers: clock, kept });
+  first.subscribe({ onNews: () => {} });
+  await settle();
+  first.stop();
+  assert.deepEqual((await kept.read())?.changes.map(({ seq }) => seq), [1, 2]);
+
+  app.story("Visitor can leave");
+  app.claim("cap_b");
+  app.asked.length = 0;
+  const next = pageReading({ project: "shop", reads: app, timers: clock, kept });
+  const heard: News[] = [];
+  next.subscribe({ onNews: (news) => heard.push(news) });
+  await settle();
+  assert.deepEqual(app.asked, ["changes shop 1", "lines shop 0"], "it asks from just before where it got to, to check the library still knows it");
+  assert.deepEqual(heard.map(({ changes, lines }) => [changes.map(({ seq }) => seq), lines.map(({ seq }) => seq)]), [[[1, 2, 3], [1, 2]]]);
+  await clock.advance(2_000);
+  assert.deepEqual(app.asked.slice(-2), ["changes shop 3", "lines shop 2"]);
+  assert.deepEqual((await kept.read())?.changes.map(({ seq }) => seq), [1, 2, 3], "what is new is kept too");
+  next.stop();
+});
+
+test("a kept reading the library does not know is dropped, and the page reads from the start", async () => {
+  const app = new App();
+  app.story("Visitor can sign up");
+  app.story("Visitor can pay");
+  const kept = new KeptStandIn();
+  const stranger = { ...app.changes[1]!, recordId: "story_elsewhere" };
+  await kept.add({ changes: [app.changes[0]!, stranger], lines: [] });
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock, kept });
+  const heard: News[] = [];
+  reading.subscribe({ onNews: (news) => heard.push(news) });
+  await settle();
+  assert.deepEqual(app.asked, ["changes shop 1", "lines shop 0", "changes shop 0", "lines shop 0"]);
+  assert.deepEqual(heard.map(({ changes }) => changes.map(({ recordId }) => recordId)), [["story_1", "story_2"]]);
+  assert.deepEqual((await kept.read())?.changes.map(({ recordId }) => recordId), ["story_1", "story_2"]);
   reading.stop();
 });

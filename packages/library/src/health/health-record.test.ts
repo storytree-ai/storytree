@@ -523,6 +523,7 @@ for (const backend of [memory, postgres]) {
     const proposed = await work.addCapability({ title: "Password rules", story: story.id });
     const healthy = await work.addCapability({ title: "Sign-up button", story: story.id });
     const shown = await work.addContract({ title: "2.1 · Shows the button", capability: healthy.id });
+    await later();
     const routed = await work.addCapability({ title: "Welcome email", story: story.id });
     for (const built of [untested, failing, healthy, routed]) await work.setProposed(built.id, false);
     await health.recordVerified(shown.id, "passing");

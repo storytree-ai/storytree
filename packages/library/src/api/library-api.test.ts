@@ -128,6 +128,7 @@ const RUNTIME_EXPORTS = [
   "ProjectNameError",
   "RestoreRefusedError",
   "RetireRefusedError",
+  "SEED_CONNECTION",
   "SchemaError",
   "SupersessionLoopError",
   "UnknownTypeError",

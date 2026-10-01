@@ -10,7 +10,8 @@ import { test } from "node:test";
 
 import pg from "pg";
 
-import { SEED_CONNECTION, seedWriting } from "./seed-writing.js";
+import { SEED_CONNECTION } from "@storytree/library";
+import { seedWriting } from "./seed-writing.js";
 
 test("4.1 the restart into a new build waits while a seed is writing the app's library", async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;

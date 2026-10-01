@@ -33,6 +33,7 @@ import { readLibrary } from "../settings/settings.js";
 
 import { keepOnThisComputer, recordProjectChoice } from "./project-choice.js";
 import { forgetTrunk, machineOf, ProjectFolderError, refusal, registerTrunk, type Trunk, trunksOn, unusedName } from "./trunks.js";
+import { seedStarterPack } from "./starter-pack.js";
 
 /** The marker a folder set up as a storytree project holds. */
 export const MARKER_FILE = ".storytree.json";
@@ -97,7 +98,8 @@ export function findProject(from: string): ProjectLookup {
 
 /**
  * Set `folder` up as project `project`, after the user said yes: the one check (ADR-0757) first,
- * then open the project in the library (creating its library the first time), record the folder as
+ * then open the project in the library (creating its library the first time, seeded with the
+ * starter pack, 1.14), record the folder as
  * the project's trunk on this machine, leave the marker, and record the user's choice for the app.
  * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
  * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
@@ -112,9 +114,14 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
   if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
-  await library.close();
-  const registered = trunks.some((trunk) => trunk.project === project) || (await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }));
-  if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
+  try {
+    const registered = trunks.some((trunk) => trunk.project === project) || (await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }));
+    if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
+    // A new project's library starts with the starter pack; one joined was seeded where it was set up.
+    if (!join) await seedStarterPack(library);
+  } finally {
+    await library.close();
+  }
   // Should what follows fail, the trunk stays recorded: a retry here sets its own trunk up again.
   const marker = path.join(at, MARKER_FILE);
   const previous = existsSync(marker) ? readFileSync(marker) : undefined;

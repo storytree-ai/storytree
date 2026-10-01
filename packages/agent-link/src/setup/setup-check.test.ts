@@ -26,7 +26,7 @@ import { locateStorytree, MARKER_FILE } from "../routing/index.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { builtFromMain, FIX_SENTENCES, ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type GhState, type HookCommand, type Homes } from "./index.js";
+import { builtFromMain, CHECK_FILE, FIX_SENTENCES, ghState, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type GhState, type HookCommand, type Homes } from "./index.js";
 
 const STUB_APP = fileURLToPath(new URL("../testing/stub-app.mjs", import.meta.url));
 const FIXTURES = fileURLToPath(new URL("../hooks/fixtures/", import.meta.url));
@@ -499,8 +499,8 @@ async function stop(pid: number): Promise<void> {
 }
 
 /** Run the built hook as `harness` runs it, with a recorded input moved to `folder` and `session`. */
-function fireHook(storytreeHome: string, harness: string, fixture: string, folder: string, session: string): Promise<void> {
-  const input = { ...(readJson(path.join(FIXTURES, harness, `${fixture}.json`)) as object), cwd: folder, session_id: session };
+function fireHook(storytreeHome: string, harness: string, fixture: string, folder: string, session: string, changed: Record<string, unknown> = {}): Promise<void> {
+  const input = { ...(readJson(path.join(FIXTURES, harness, `${fixture}.json`)) as object), cwd: folder, session_id: session, ...changed };
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [hookScript, harness], { env: { ...process.env, STORYTREE_HOME: storytreeHome }, stdio: ["pipe", "ignore", "ignore"] });
     child.on("error", reject);
@@ -925,6 +925,33 @@ test("8.19 in a project whose library holds the starter roles, the check names t
     } finally {
       await storytree.close();
       await dropTestProjects([seeded, older]);
+    }
+  });
+});
+
+test("8.20 once storytree has received the session's edit of the check file, the check deletes the file where the agent wrote it, in a worktree whose tool server runs in the project's folder and while the other hooks are still missing (regression: the laptop's worktree sessions, 2026-10-02)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    const worktree = path.join(folder, ".claude", "worktrees", "a-worktree");
+    mkdirSync(worktree, { recursive: true });
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      // The agent writes the check file in its worktree with its own edit tool, and the edit hook reports it.
+      const checkFile = path.join(worktree, CHECK_FILE);
+      writeFileSync(checkFile, "check");
+      await fireHook(home.storytreeHome, "claude-code", "post-tool-use-write", worktree, "claude-1", { tool_input: { file_path: checkFile, content: "check" } });
+      await withAgent(folder, claudeCode("claude-1", setup), async (agent) => {
+        const { missing } = (await agent.call("check_setup")).data as { missing: string[] };
+        assert.deepEqual(missing, ["session start", "storytree tool call", "command"]);
+        assert.equal(existsSync(checkFile), false);
+      });
+    } finally {
+      await dropTestProjects([project]);
     }
   });
 });

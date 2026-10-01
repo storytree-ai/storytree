@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -214,6 +214,31 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     assert.ok(moved.lines.find((line) => line.check === "hooks")?.message.includes(old), JSON.stringify(moved.lines));
     assert.deepEqual(Object.keys(storytreeHooks(readJson(home.claudeSettings), path.join(dir, "old", "storytree-hook.mjs"), "claude-code")), []);
     assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), HOOK.script, "claude-code")).length, 7);
+  });
+});
+
+test("8.2 the built storytree-setup install registers storytree's hooks, and remove takes out exactly what it added", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    // Every home it could reach is inside the throwaway folder, never the real one.
+    const env = { PATH: bin, Path: bin, SystemRoot: process.env.SystemRoot ?? "", HOME: dir, USERPROFILE: dir, CLAUDE_CONFIG_DIR: home.homes.claude, CODEX_HOME: home.homes.codex, STORYTREE_HOME: home.storytreeHome };
+    const setup = (command: string) => spawnSync(process.execPath, [path.join(bins, "storytree-setup.mjs"), command], { env, encoding: "utf8", timeout: 60_000 });
+
+    const installed = setup("install");
+    assert.equal(installed.status, 0, installed.stderr);
+    assert.match(installed.stdout, /^Claude Code: registered$/m, installed.stdout);
+    assert.match(installed.stdout, /^Codex: registered/m, installed.stdout);
+    // The command names its own hook by its real path (on macOS the temporary folder is a link into /private).
+    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), realpathSync(hookScript), "claude-code")).length, 7, "the hook built beside it is registered");
+
+    const removed = setup("remove");
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.match(removed.stdout, /^Claude Code: storytree's hooks removed$/m, removed.stdout);
+    assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
+    assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
+    assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
   });
 });
 

@@ -191,6 +191,8 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     const change = last.changes.at(-1);
     const line = last.lines.at(-1);
     const from = { changes: Math.max(0, (change?.seq ?? 0) - 1), lines: Math.max(0, (line?.seq ?? 0) - 1) };
+    // The kept reading is let go of once held or dropped: held, it is folded down to what a surface reads.
+    let unheard: News | undefined = last;
     let trying = false;
     const attempt = async (): Promise<boolean> => {
       if (trying || stopped) return stopped;
@@ -201,11 +203,13 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
         const knows = (change === undefined || (changes.changes[0]?.seq === change.seq && changes.changes[0].recordId === change.recordId))
           && (line === undefined || (lines.lines[0]?.seq === line.seq && lines.lines[0].session === line.session && lines.lines[0].kind === line.kind));
         if (!knows) {
+          unheard = undefined;
           await kept!.clear().catch(() => {});
           live();
           return true;
         }
-        held.add(last);
+        if (unheard !== undefined) held.add(unheard);
+        unheard = undefined;
         const news = { changes: changes.changes.filter(({ seq }) => seq > (change?.seq ?? 0)), lines: lines.lines.filter(({ seq }) => seq > (line?.seq ?? 0)) };
         await heard(news, { changes: [...held.changes, ...news.changes], lines: [...held.lines, ...news.lines] });
         live({ changes: changes.cursor, lines: lines.cursor });

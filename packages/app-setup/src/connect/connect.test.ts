@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { noteCodexHookRan, registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
 import { deliveredCommand } from "./installed.js";
-import { makeDevHome } from "./dev-home.js";
+import { makeDevHome, removeDevHome } from "./dev-home.js";
 
 const legacy = '# user comment\nmodel = "kept"\n[mcp_servers.legacy]\ncommand = "storytree-02"\n';
 
@@ -379,4 +379,28 @@ test("2.2 a dev build connects its own commands to a throwaway Codex home with i
   const envFile = readFileSync(made.envFile, "utf8");
   for (const name of ["HOME", "CODEX_HOME", "STORYTREE_HOME"]) assert.ok(envFile.includes(made.env[name]!), name);
   assert.ok(existsSync(path.join(made.env.PATH!.split(path.delimiter)[0]!, process.platform === "win32" ? "storytree.cmd" : "storytree")));
+});
+
+test("2.2 a dev home never copies Claude Code's sign-in, and hands a Codex sign-in refreshed inside it back to the user's own, so its refresh cannot end the user's", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree dev home sign-in "));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const codex = path.join(dir, "the user's codex");
+  const claude = path.join(dir, "the user's claude");
+  for (const folder of [codex, claude]) mkdirSync(folder);
+  writeFileSync(path.join(codex, "auth.json"), '{"refresh":"one"}');
+  writeFileSync(path.join(claude, ".credentials.json"), '{"refresh":"one"}');
+  const build = async (outdir: string) => {
+    mkdirSync(outdir, { recursive: true });
+    const names = ["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"];
+    for (const name of names) writeFileSync(path.join(outdir, `${name}.mjs`), `// ${name}\n`);
+    return Object.fromEntries(names.map((name) => [name, path.join(outdir, `${name}.mjs`)]));
+  };
+  const rig = path.join(dir, "rig");
+  const made = await makeDevHome({ dir: rig, harnesses: ["codex", "claude-code"], signedIn: { codex }, build, run });
+  assert.equal(existsSync(path.join(made.env.CLAUDE_CONFIG_DIR!, ".credentials.json")), false, "a copied Claude Code sign-in refreshes on its own and ends the user's");
+  // Codex refreshed its sign-in inside the throwaway home: the user's old one no longer works.
+  writeFileSync(path.join(made.env.CODEX_HOME!, "auth.json"), '{"refresh":"two"}');
+  await removeDevHome(rig);
+  assert.equal(readFileSync(path.join(codex, "auth.json"), "utf8"), '{"refresh":"two"}');
+  assert.equal(existsSync(rig), false);
 });

@@ -1,0 +1,10 @@
+storytree is running.
+Hooks for Claude Code: registered.
+Hooks for Codex: registered.
+Codex has storytree's hooks but has not run one yet: Codex runs them only once you have trusted them, so until then storytree cannot see Codex's work. Fix: In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.
+This folder is set up as storytree project "st-live-claude-code" now.
+The storytree command: on your path.
+GitHub's gh command is not signed in. storytree works without it: only a claim ending by itself when its pull request merges needs it.
+Claude Code is installed and signed in; Codex is installed and signed in.
+git is installed.
+Node v24.19.0 is installed.

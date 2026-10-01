@@ -1,0 +1,6 @@
+?? .storytree.json
+?? index.html
+?? package.json
+?? src/
+?? test/
+fatal: your current branch 'master' does not have any commits yet

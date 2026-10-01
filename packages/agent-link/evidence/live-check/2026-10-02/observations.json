@@ -1,0 +1,106 @@
+{
+  "story": "The agent link",
+  "commit": "1173ce2dab64c5ac6f2ca3f32899858906c854dc",
+  "evidence": "packages/agent-link/evidence/live-check/2026-10-02",
+  "note": "Run on the Mint box (Linux) against this checkout's dev build, through app setup's dev-home: a throwaway home and database, the agents' own sign-ins.",
+  "checks": [
+    {
+      "contract": "8.6",
+      "name": "Claude Code: the new folder was not a project before it was set up",
+      "observed": "pass"
+    },
+    {
+      "contract": "8.6",
+      "name": "Claude Code: after the session, storytree's command says the folder is project \"st-live-claude-code-1627\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "8.6",
+      "name": "Claude Code: its session shows up live: the activity log has its session start, from Claude Code",
+      "observed": "pass",
+      "detail": "sessions started: 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Claude Code: it planned: the library holds a story, a capability and a contract",
+      "observed": "pass",
+      "detail": "stories 1, capabilities 1, contracts 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Claude Code: it claimed: the activity log has its claim",
+      "observed": "pass",
+      "detail": "capability_d3b1ed9647dd"
+    },
+    {
+      "contract": "8.6",
+      "name": "Claude Code: it reported a contract red, then green",
+      "observed": "pass",
+      "detail": "contracts reported red then green: 1 of 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Claude Code: it landed: the activity log has a capability landed or an increment closed as landed",
+      "observed": "pass",
+      "detail": "landed lines: 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Claude Code: the activity log shows its work: its file edits and the commands it ran",
+      "observed": "pass",
+      "detail": "edits 0, commands 6; counted toward planned work: 4 of 6"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: the new folder was not a project before it was set up",
+      "observed": "pass"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: after the session, storytree's command says the folder is project \"st-live-codex\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: its session shows up live: the activity log has its session start, from Codex",
+      "observed": "pass",
+      "detail": "sessions started: 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: it planned: the library holds a story, a capability and a contract",
+      "observed": "pass",
+      "detail": "stories 1, capabilities 1, contracts 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: it claimed: the activity log has its claim",
+      "observed": "pass",
+      "detail": "capability_5a984bd04144"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: it reported a contract red, then green",
+      "observed": "pass",
+      "detail": "contracts reported red then green: 1 of 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: it landed: the activity log has a capability landed or an increment closed as landed",
+      "observed": "pass",
+      "detail": "landed lines: 1"
+    },
+    {
+      "contract": "8.6",
+      "name": "Codex: the activity log shows its work: its file edits and the commands it ran",
+      "observed": "pass",
+      "detail": "edits 3, commands 13; counted toward planned work: 6 of 16"
+    },
+    {
+      "contract": "8.6",
+      "name": "a second session that ignores storytree and only edits a file shows up as unplanned activity",
+      "observed": "pass",
+      "detail": "its edits: 1, unplanned: 1"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+codex: tools connected; hooks waiting for you to trust them in Codex.
+Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session.
+
+claude-code: tools connected; hooks not verified.
+Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.
+
+Source /home/mickh/st-live86/env.sh, then start the agent in a new folder. Its database starts when a storytree command first needs it; remove it all with: dev-home /home/mickh/st-live86 --remove

@@ -80,6 +80,16 @@ test("7.14 an unclaimed row is named by its app's title; every row carries up to
   assert.deepEqual([plain.label, plain.description], ["Codex · site", []], "no app words, the place names it and nothing describes it");
 });
 
+test("7.18 a session that has named itself is listed by its own name, its latest, ahead of its claim reason and its app's title; until then the row reads as before", () => {
+  const named = (title: string): NewLine => ({ ...off, kind: "session-named", title });
+  const before = log({ ...off, folder: "/home/me/code/site", kind: "prompt-submitted" });
+  assert.equal(sessionRows(tree, before, [], now)[0]!.label, "Codex · site");
+  const lines = log({ ...off, folder: "/home/me/code/site", kind: "prompt-submitted" }, named("Reading the plan"),
+    { ...off, kind: "claimed", increment: "inc", reason: "Finish signup" }, named("Building the signup form"),
+    { session: "reader", harness: "claude-code", source: "hook", kind: "session-described", of: "off", app: "claude-desktop", title: "Help me with signup" });
+  assert.equal(sessionRows(tree, lines, [arc], now)[0]!.label, "Building the signup form");
+});
+
 test("7.13 each row names the machine its session runs on only when the listed sessions span more than one machine", () => {
   const lines = log({ ...parent, kind: "session-started", machine: "laptop" }, { ...off, kind: "session-started", machine: "mint" },
     { session: "quiet", harness: "codex", source: "hook", kind: "session-started" });

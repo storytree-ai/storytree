@@ -16,7 +16,7 @@ import { removeTempDir } from '../testing/folders.js';
 import { connect } from '@storytree/library';
 import { testServerDataDir, testServerUrl, uniqueProjectName, dropTestProjects } from '../testing/pg.js';
 
-for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
+for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: own tools, ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));
   const client = new Client({ name: 'codex-mcp-client', version: 'test' });
   const children: RunRecord[] = [];
@@ -101,7 +101,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
 });
 
 // A Claude MCP server is shared with subagents; its startup environment cannot identify a call.
-test('own 3.6: offline Claude MCP refuses self authority from a stale server environment', async t => {
+test('processes 3.6: own tools, offline Claude MCP refuses self authority from a stale server environment', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-claude-'));
   const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: { CLAUDE_CODE_SESSION_ID: 'stale' } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
@@ -119,7 +119,7 @@ test('own 3.6: offline Claude MCP refuses self authority from a stale server env
   }
 });
 
-test('own online 3.6/4.1: Claude hook identity selects only its named subagent, after a session reset', async t => {
+test('processes 3.6/4.1: own tools online, Claude hook identity selects only its named subagent, after a session reset', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-hook-'));
   const project = uniqueProjectName();
   const children: RunRecord[] = [];

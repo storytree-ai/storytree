@@ -14,7 +14,7 @@
 // the kind of the skip, and any earlier verdict the run did not reproduce, marked "not re-run". Otherwise the column's absence of
 // an entry already reads not-checked.
 
-import { readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 /** Who writes the verified health: a run of the story's tests, seen by storytree for itself. */
@@ -97,14 +97,16 @@ function decode(value) {
 
 /**
  * The contract numbers a test file names, in itself and in every module it imports by a relative
- * path, transitively, within `root`: the leading contract list of each test title (`titlesIn`). It
- * is how the contracts a crashed file would have tested are known when the file reported nothing.
- * It may find more than the file tests, never fewer, so a crash can only ever leave too much not checked.
+ * path, transitively, within `root`: the leading contract list of each test title (`titlesIn`), or,
+ * given a story's `prefix`, of each title that starts with it (a title like cli 1.3: …). It is how the contracts
+ * a crashed file would have tested are known when the file reported nothing, and which of a
+ * dependant's test files name a story's contracts. It may find more than the file tests, never
+ * fewer, so a crash can only ever leave too much not checked.
  * @param {string} file
- * @param {{ root: string }} options
+ * @param {{ root: string, prefix?: string }} options
  * @returns {Set<string>}
  */
-export function contractsCoveredBy(file, { root }) {
+export function contractsCoveredBy(file, { root, prefix }) {
   const numbers = new Set();
   const seen = new Set();
   const queue = [path.resolve(file)];
@@ -118,7 +120,7 @@ export function contractsCoveredBy(file, { root }) {
     } catch {
       continue;
     }
-    for (const title of titlesIn(text)) {
+    for (const title of titlesIn(text, prefix)) {
       for (const number of leadingContracts(title)) numbers.add(number);
     }
     for (const [, specifier] of text.matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)) {
@@ -132,17 +134,53 @@ export function contractsCoveredBy(file, { root }) {
 /**
  * The test titles a source names: each string that is a call's first argument (`test("1.2 …")`,
  * or a helper's, `contract("2.1", …)`), and each constant's string passed as one (`test(TITLE)`,
- * or at the start of a template, `test(`${TITLE} (local)`)`).
+ * or at the start of a template, `test(`${TITLE} (local)`)`). Given a story's `prefix`, only
+ * the titles that start with it count, read from after it (a title cli 1.3: … reads as 1.3: …).
  * A comment or any other string is no title, so it covers nothing.
  * @param {string} text
+ * @param {string} [prefix]
  */
-function titlesIn(text) {
-  const titles = [...text.matchAll(/[\w$.]\s*\(\s*["'`](\d+\.\d+[^"'`\r\n]*)/g)].map(([, title]) => title);
+function titlesIn(text, prefix) {
+  const lead = prefix === undefined ? "" : `${prefix.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")}\\s+`;
+  const titles = [...text.matchAll(new RegExp(`[\\w$.]\\s*\\(\\s*["'\`]${lead}(\\d+\\.\\d+[^"'\`\\r\\n]*)`, "g"))].map(([, title]) => title);
   for (const [, name] of text.matchAll(/[\w$.]\s*\(\s*(?:`\$\{\s*)?([A-Za-z_$][\w$]*)\s*[,)}]/g)) {
-    const constant = text.match(new RegExp(`\\bconst\\s+${name.replaceAll("$", "\\$")}\\s*=\\s*["'\`](\\d+\\.\\d+[^"'\`\\r\\n]*)`));
+    const constant = text.match(new RegExp(`\\bconst\\s+${name.replaceAll("$", "\\$")}\\s*=\\s*["'\`]${lead}(\\d+\\.\\d+[^"'\`\\r\\n]*)`));
     if (constant !== null) titles.push(constant[1]);
   }
   return titles;
+}
+
+/**
+ * The test files of the packages other than a story's own (`packages/<own>/src`) whose titles name
+ * its contracts with its package's name first (a title like cli 1.3: …): a dependant's tests that prove the
+ * story's contracts through the dependant's front door. Paths relative to `root`, with forward slashes.
+ * @param {string} own the story's package
+ * @param {{ root: string }} options
+ * @returns {string[]}
+ */
+export function dependantTestsNaming(own, { root }) {
+  const packages = path.join(root, "packages");
+  let names;
+  try {
+    names = readdirSync(packages);
+  } catch {
+    return [];
+  }
+  const files = [];
+  for (const name of names.filter((name) => name !== own).sort()) {
+    const source = path.join(packages, name, "src");
+    let entries;
+    try {
+      entries = readdirSync(source, { recursive: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries.map(String).filter((entry) => /\.test\.m?[jt]s$/.test(entry) && !entry.split(/[\\/]/).includes("node_modules")).sort()) {
+      const file = path.join(source, entry);
+      if (contractsCoveredBy(file, { root: source, prefix: own }).size > 0) files.push(path.relative(root, file).replaceAll("\\", "/"));
+    }
+  }
+  return files;
 }
 
 /** The source file an import names: as written, or its TypeScript twin (`x.js` -> `x.ts`). */
@@ -163,13 +201,15 @@ function moduleFile(target) {
 
 /**
  * Judge each of `contracts` (their numbers) from a test run's results. A test counts for the
- * contracts its outermost numbered name gives ("8.1 …" around "2.1 [cloud-sql] …" is 8.1's).
+ * contracts its outermost numbered name gives ("8.1 …" around "2.1 [cloud-sql] …" is 8.1's), read
+ * after the story's `prefix` when it starts with it (a title like cli 1.3: …). A test in a dependant's file
+ * (`dependant(file)`) counts only through that prefix, and is otherwise none of the story's business.
  * `coverage(file)` gives the contract numbers a test file holds, for a file that produced no
  * results. Returns each contract's verdict, the results that name no contract of the story, and
  * the files that produced no results with the contracts they leave not checked.
- * @param {{ contracts: string[], results: TestResult[], coverage: (file: string) => Set<string>, show?: (file: string) => string }} input
+ * @param {{ contracts: string[], results: TestResult[], coverage: (file: string) => Set<string>, show?: (file: string) => string, prefix?: string, dependant?: (file: string) => boolean }} input
  */
-export function judge({ contracts, results, coverage, show = (file) => file }) {
+export function judge({ contracts, results, coverage, show = (file) => file, prefix, dependant = () => false }) {
   const known = new Set(contracts);
   /** @type {Map<string, TestResult[]>} */
   const tests = new Map(contracts.map((number) => [number, []]));
@@ -188,7 +228,9 @@ export function judge({ contracts, results, coverage, show = (file) => file }) {
       for (const number of held) if (!crashedUnder.has(number)) crashedUnder.set(number, result.file);
       continue;
     }
-    const numbers = contractsOfResult(result).filter((number) => known.has(number));
+    const prefixedOnly = dependant(result.file);
+    const numbers = contractsOfResult(result, prefix, prefixedOnly).filter((number) => known.has(number));
+    if (numbers.length === 0 && prefixedOnly) continue;
     if (numbers.length === 0) unmapped.push(result);
     else for (const number of numbers) tests.get(number).push(result);
   }
@@ -240,10 +282,14 @@ function isFileResult(result) {
   return result.suites.length === 0 && /\.test\.[cm]?[jt]sx?$/.test(name) && file.endsWith(name);
 }
 
-/** The contracts a test counts for: the list its outermost numbered name starts with. */
-function contractsOfResult(result) {
+/**
+ * The contracts a test counts for: the list its outermost numbered name starts with, after the
+ * story's `prefix` if the name starts with that; with `prefixedOnly`, only a name with the prefix.
+ */
+function contractsOfResult(result, prefix, prefixedOnly) {
   for (const name of [...result.suites, result.name]) {
-    const numbers = leadingContracts(name);
+    const after = prefix === undefined || !name.startsWith(prefix) ? undefined : /^\s+(.*)$/s.exec(name.slice(prefix.length))?.[1];
+    const numbers = leadingContracts(after ?? (prefixedOnly ? "" : name));
     if (numbers.length > 0) return numbers;
   }
   return [];

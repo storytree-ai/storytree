@@ -250,7 +250,7 @@ test("5.4 checking a story runs its own package's tests and records each contrac
   });
 });
 
-test("5.4 checking a story also runs a dependant's test titled with the story's package and a contract ('cli 1.3: …'), crediting only those titles", async (t) => {
+test("5.4 checking a story also runs a dependant's test titled with the story's package and a contract, like cli 1.3, crediting only those titles", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-dependant-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
@@ -259,7 +259,8 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
   const own = path.join(root, "packages/cli/src/kettle.test.mjs");
   const dependant = path.join(root, "packages/agent-link/src/tools/door.test.ts");
   writeFileSync(own, 'test("1.1 it does a", () => {});\n');
-  writeFileSync(dependant, 'test("cli 1.3: the tool does what the command does", () => {});\ntest("1.4 the agent link\'s own 1.4", () => {});\n');
+  const prefixed = ["cli", "1.3: the tool does what the command does"].join(" ");
+  writeFileSync(dependant, `test(${JSON.stringify(prefixed)}, () => {});\ntest("1.4 the agent link's own 1.4", () => {});\n`);
   writeFileSync(path.join(root, "packages/library/src/other.test.ts"), 'test("1.3 the library\'s own 1.3", () => {});\n');
   await withLibrary(async (lib) => {
     const story = await kettle(lib);
@@ -271,7 +272,7 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
         code: 1,
         results: [
           { name: "1.1 it does a", suites: [], file: own, status: "passed" },
-          { name: "cli 1.3: the tool does what the command does", suites: [], file: dependant, status: "passed" },
+          { name: prefixed, suites: [], file: dependant, status: "passed" },
           { name: "1.4 the agent link's own 1.4", suites: [], file: dependant, status: "failed" },
         ],
       };

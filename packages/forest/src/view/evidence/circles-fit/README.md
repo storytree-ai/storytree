@@ -5,8 +5,9 @@ middle on its capability's territory (so a circle could cross a border or the co
 another when a territory had more files than spots, and had diameter 1.3 + 0.24 * sqrt(lines). Now
 (`packages/forest/src/territories/territories.ts`, `fileCircles` / `landForCircles`;
 `packages/forest/src/render/forest-scene.ts`) every circle lies wholly inside its own territory, none
-overlap, the diameter is 1.2 + 0.14 * sqrt(lines), unscaled, and an island whose circles would not fit
-grows its land. These are pictures for the owner to look at; nothing here is recorded as accepted
+overlap, they spread over their territory's room (each on the spot with the most room left, packed
+from the middle only when spread they do not fit), the diameter is 1.2 + 0.14 * sqrt(lines), unscaled,
+and an island whose circles would not fit grows its land. These are pictures for the owner to look at; nothing here is recorded as accepted
 (ADR-0794).
 
 | View | Before | After |
@@ -24,7 +25,8 @@ builds get the same stand-in bridge, seed, survey, viewport, turns and zoom; not
   the islands, is unchanged.
 - **Survey** (`survey.json`): `readCodeSurvey` over this branch's checkout with the seed's tree, by
   `survey.mjs`; 421 files. The same survey feeds both builds, so the files are the same.
-- **Before** is `origin/main` at `2f1bd04c`, built from a throwaway worktree; **after** is this branch.
+- **Before** is `origin/main` at `2f1bd04c`, built from a throwaway worktree; **after** is this branch
+  at `2e3ceec3` (circles spread over their territory's room).
 
 ## Rerun
 
@@ -83,7 +85,10 @@ island ground mesh's area.
   ([before-world.png](before-world.png)) discs sit on the coastline at the top and on the left, and
   across the green/grey border; on The agent link ([before-crowded.png](before-crowded.png)) several
   discs straddle the coast on its right and bottom edges, and The library's and The app's do the same.
-- **After**: no disc crosses a border or the coast in any of the three pictures. The circles of each
-  territory now sit in one tight, packed clump near the territory's middle, leaving most of the
-  territory bare around it (most visible on The world's large grey territory, and in the front view,
-  where each territory reads as one small cluster of dots rather than a scatter across its land).
+- **After**: no disc crosses a border or the coast in any of the three pictures. The circles spread
+  over each territory as an even scatter, with clear space between neighbours, rather than bunching
+  in its middle: on The world ([after-world.png](after-world.png)) they cover the large grey territory
+  and the green ones edge to edge; on The agent link ([after-crowded.png](after-crowded.png)) each
+  territory carries its own scatter. A few of The world's small green cells on its left show no
+  circle at all. The circles are smaller than before's, so at the resting front view
+  ([after-front.png](after-front.png)) they read as fine speckle on each island.

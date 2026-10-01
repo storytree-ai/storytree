@@ -1264,7 +1264,7 @@
           "minRadius": 0.6989949493661166,
           "maxRadius": 2.4520259177452135,
           "groundArea": 5904.275145670081,
-          "circleAreaOverGround": 0.04371182889306583,
+          "circleAreaOverGround": 0.04371182889306584,
           "islandWorldScale": 1,
           "poking": [],
           "largest": [
@@ -1281,7 +1281,7 @@
             {
               "file": "src/api/library.ts",
               "lines": 579,
-              "radius": 2.2843693181722347
+              "radius": 2.284369318172235
             }
           ]
         },
@@ -1293,8 +1293,8 @@
           "notWhollyOnGround": 0,
           "overlappingPairs": 0,
           "deepestOverlap": 0,
-          "minRadius": 0.6989949493661165,
-          "maxRadius": 2.255022658455165,
+          "minRadius": 0.6989949493661166,
+          "maxRadius": 2.2550226584551645,
           "groundArea": 8018.492731869092,
           "circleAreaOverGround": 0.05742852036652317,
           "islandWorldScale": 0.9999999999999998,
@@ -1303,17 +1303,17 @@
             {
               "file": "src/readings.ts",
               "lines": 559,
-              "radius": 2.255022658455165
+              "radius": 2.2550226584551645
             },
             {
               "file": "src/activity/activity-log.ts",
               "lines": 368,
-              "radius": 1.9428328265275616
+              "radius": 1.9428328265275618
             },
             {
               "file": "src/routing/routing.ts",
               "lines": 346,
-              "radius": 1.9020752666416796
+              "radius": 1.9020752666416794
             }
           ]
         },
@@ -1326,7 +1326,7 @@
           "overlappingPairs": 0,
           "deepestOverlap": 0,
           "minRadius": 0.8886173937932362,
-          "maxRadius": 1.4686771552193603,
+          "maxRadius": 1.46867715521936,
           "groundArea": 1735.0999691525326,
           "circleAreaOverGround": 0.06259235580217389,
           "islandWorldScale": 1,
@@ -1335,12 +1335,12 @@
             {
               "file": "src/surfaces/reads.ts",
               "lines": 154,
-              "radius": 1.4686771552193603
+              "radius": 1.46867715521936
             },
             {
               "file": "src/view/index.ts",
               "lines": 148,
-              "radius": 1.4515867542417509
+              "radius": 1.4515867542417504
             },
             {
               "file": "src/updates/follow-main.ts",
@@ -1360,7 +1360,7 @@
           "minRadius": 0.81,
           "maxRadius": 2.001748907615055,
           "groundArea": 3299.945926244097,
-          "circleAreaOverGround": 0.054337940401764616,
+          "circleAreaOverGround": 0.05433794040176461,
           "islandWorldScale": 1,
           "poking": [],
           "largest": [
@@ -1372,12 +1372,12 @@
             {
               "file": "src/view/territory-land.ts",
               "lines": 270,
-              "radius": 1.7502173707608488
+              "radius": 1.750217370760849
             },
             {
               "file": "src/territories/territories.ts",
               "lines": 254,
-              "radius": 1.7156164215356464
+              "radius": 1.7156164215356462
             }
           ]
         },
@@ -1389,10 +1389,10 @@
           "notWhollyOnGround": 0,
           "overlappingPairs": 0,
           "deepestOverlap": 0,
-          "minRadius": 0.6989949493661166,
+          "minRadius": 0.6989949493661167,
           "maxRadius": 1.6934349546269316,
           "groundArea": 1259.2713283064716,
-          "circleAreaOverGround": 0.06275483742756235,
+          "circleAreaOverGround": 0.06275483742756237,
           "islandWorldScale": 0.9999999999999999,
           "poking": [],
           "largest": [
@@ -1421,8 +1421,8 @@
           "notWhollyOnGround": 0,
           "overlappingPairs": 0,
           "deepestOverlap": 0,
-          "minRadius": 0.74,
-          "maxRadius": 1.748085362679971,
+          "minRadius": 0.7400000000000001,
+          "maxRadius": 1.7480853626799713,
           "groundArea": 2347.119305500136,
           "circleAreaOverGround": 0.054645566191203844,
           "islandWorldScale": 1,
@@ -1431,17 +1431,17 @@
             {
               "file": "src/door.ts",
               "lines": 269,
-              "radius": 1.748085362679971
+              "radius": 1.7480853626799713
             },
             {
               "file": "src/families/arc.ts",
               "lines": 253,
-              "radius": 1.713418160441081
+              "radius": 1.7134181604410808
             },
             {
               "file": "src/families/library.ts",
               "lines": 249,
-              "radius": 1.7045813686641649
+              "radius": 1.7045813686641647
             }
           ]
         },
@@ -1454,21 +1454,21 @@
           "overlappingPairs": 0,
           "deepestOverlap": 0,
           "minRadius": 0.6699999999999999,
-          "maxRadius": 1.3888599368709251,
+          "maxRadius": 1.3888599368709253,
           "groundArea": 834.706941779579,
-          "circleAreaOverGround": 0.06627740669411458,
+          "circleAreaOverGround": 0.0662774066941146,
           "islandWorldScale": 0.9999999999999999,
           "poking": [],
           "largest": [
             {
               "file": "src/graduation/graduation.ts",
               "lines": 127,
-              "radius": 1.3888599368709251
+              "radius": 1.3888599368709253
             },
             {
               "file": "src/rounds/tools.ts",
               "lines": 106,
-              "radius": 1.3206941098690899
+              "radius": 1.3206941098690903
             },
             {
               "file": "src/decision-log/decision-log.ts",
@@ -1486,7 +1486,7 @@
           "overlappingPairs": 0,
           "deepestOverlap": 0,
           "minRadius": 0.7400000000000001,
-          "maxRadius": 2.1447653543499743,
+          "maxRadius": 2.144765354349974,
           "groundArea": 1646.886377278532,
           "circleAreaOverGround": 0.04461082851285615,
           "islandWorldScale": 1,
@@ -1495,7 +1495,7 @@
             {
               "file": "src/look-inside/look-inside.ts",
               "lines": 487,
-              "radius": 2.1447653543499743
+              "radius": 2.144765354349974
             },
             {
               "file": "src/view/globe-points.tsx",
@@ -1517,27 +1517,27 @@
           "notWhollyOnGround": 0,
           "overlappingPairs": 0,
           "deepestOverlap": 0,
-          "minRadius": 0.7212435565298213,
-          "maxRadius": 1.635905401086412,
+          "minRadius": 0.7212435565298215,
+          "maxRadius": 1.6359054010864116,
           "groundArea": 1525.6555155529015,
-          "circleAreaOverGround": 0.06018501560122157,
+          "circleAreaOverGround": 0.06018501560122158,
           "islandWorldScale": 0.9999999999999998,
           "poking": [],
           "largest": [
             {
               "file": "src/connect/index.ts",
               "lines": 219,
-              "radius": 1.635905401086412
+              "radius": 1.6359054010864116
             },
             {
               "file": "src/project/index.ts",
               "lines": 196,
-              "radius": 1.5800000000000005
+              "radius": 1.5800000000000003
             },
             {
               "file": "src/view/mount.ts",
               "lines": 180,
-              "radius": 1.5391485505499118
+              "radius": 1.539148550549912
             }
           ]
         },
@@ -1552,7 +1552,7 @@
           "minRadius": 0.7212435565298214,
           "maxRadius": 1.5648834126463158,
           "groundArea": 1126.5934329088016,
-          "circleAreaOverGround": 0.0629305390321855,
+          "circleAreaOverGround": 0.06293053903218548,
           "islandWorldScale": 0.9999999999999998,
           "poking": [],
           "largest": [
@@ -1564,12 +1564,12 @@
             {
               "file": "src/listing/index.ts",
               "lines": 138,
-              "radius": 1.4223138087129512
+              "radius": 1.422313808712951
             },
             {
               "file": "src/closing/index.ts",
               "lines": 135,
-              "radius": 1.4133265027035575
+              "radius": 1.4133265027035573
             }
           ]
         },
@@ -1581,7 +1581,7 @@
           "notWhollyOnGround": 0,
           "overlappingPairs": 0,
           "deepestOverlap": 0,
-          "minRadius": 0.8100000000000002,
+          "minRadius": 0.81,
           "maxRadius": 1.4341462701469092,
           "groundArea": 567.7338668310741,
           "circleAreaOverGround": 0.06305023998676215,
@@ -1601,7 +1601,7 @@
             {
               "file": "src/forest-scene.tsx",
               "lines": 50,
-              "radius": 1.0949747468305833
+              "radius": 1.0949747468305835
             }
           ]
         },
@@ -1613,7 +1613,7 @@
           "notWhollyOnGround": 0,
           "overlappingPairs": 0,
           "deepestOverlap": 0,
-          "minRadius": 0.7714642819948225,
+          "minRadius": 0.7714642819948226,
           "maxRadius": 4.796498540450123,
           "groundArea": 22045.38313154028,
           "circleAreaOverGround": 0.03807104578722446,
@@ -1677,27 +1677,27 @@
           "notWhollyOnGround": 0,
           "overlappingPairs": 0,
           "deepestOverlap": 0,
-          "minRadius": 0.9051229260478473,
-          "maxRadius": 1.9681374199984445,
+          "minRadius": 0.905122926047847,
+          "maxRadius": 1.9681374199984447,
           "groundArea": 2765.0664275765425,
-          "circleAreaOverGround": 0.04932781279304735,
+          "circleAreaOverGround": 0.04932781279304734,
           "islandWorldScale": 1,
           "poking": [],
           "largest": [
             {
               "file": "src/own-health.mjs",
               "lines": 382,
-              "radius": 1.9681374199984445
+              "radius": 1.9681374199984447
             },
             {
               "file": "src/test.mjs",
               "lines": 269,
-              "radius": 1.748085362679971
+              "radius": 1.7480853626799708
             },
             {
               "file": "src/guidance.mjs",
               "lines": 240,
-              "radius": 1.6844353369380767
+              "radius": 1.6844353369380765
             }
           ]
         }
@@ -1706,6 +1706,7 @@
     "errors": [],
     "warnings": [
       "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
-    ]
+    ],
+    "build": "claude/increment-5caf95f9e20c-05e8ee at 2e3ceec3"
   }
 }

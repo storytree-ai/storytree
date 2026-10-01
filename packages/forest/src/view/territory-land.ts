@@ -26,8 +26,8 @@ const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: numb
  * for mapped (ADR-0825 D3). The fill is the globe's own background (`PlanetWorldCanvas`), dense enough that the
  * island's grey ground does not read through, and the hatch a faint cool light, far below the white borders.
  */
-const UNCHARTED_FILL = { colour: "#101418", opacity: 0.9 };
-const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.4 };
+const UNCHARTED_FILL = { colour: "#101418", opacity: 0.92 };
+const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.35 };
 /** The hatch lines lie this far apart, measured across them, in ground units. */
 const HATCH_SPACING = 0.35;
 /** A claim's outline: a band this deep inside the territory's border, in ground units. */

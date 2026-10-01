@@ -52,12 +52,125 @@
     "zoom": 1.6793655730057533,
     "fills": [
       "healthy #97c459 0.8",
-      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 8,
+    "greyFills": 0,
+    "uncharted": [
+      {
+        "story": "story_05e45963ca9f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
+        ]
+      }
+    ],
     "markers": [],
     "islands": [
       {
@@ -131,7 +244,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -152,6 +265,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 498
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -199,12 +320,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_78b33d16d0b6",
@@ -259,12 +388,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_20549f1d48af",
@@ -292,12 +429,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_be32e99ed54f",
@@ -352,7 +497,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -365,6 +510,14 @@
             "opacity": 0.6,
             "faded": true,
             "triangles": 844
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -385,12 +538,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_69d0ee10bbe7",
@@ -454,12 +615,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_eb7d623fb9c8",
@@ -505,7 +674,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -518,6 +687,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 1394
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
           }
         ]
       }
@@ -527,12 +704,125 @@
     "zoom": 4.366350489814959,
     "fills": [
       "healthy #97c459 0.8",
-      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 8,
+    "greyFills": 0,
+    "uncharted": [
+      {
+        "story": "story_05e45963ca9f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
+        ]
+      }
+    ],
     "markers": [],
     "islands": [
       {
@@ -606,7 +896,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -627,6 +917,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 498
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -674,12 +972,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_78b33d16d0b6",
@@ -734,12 +1040,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_20549f1d48af",
@@ -767,12 +1081,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_be32e99ed54f",
@@ -827,7 +1149,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -840,6 +1162,14 @@
             "opacity": 0.6,
             "faded": true,
             "triangles": 844
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -860,12 +1190,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_69d0ee10bbe7",
@@ -929,12 +1267,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_eb7d623fb9c8",
@@ -980,7 +1326,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -993,6 +1339,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 1394
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
           }
         ]
       }
@@ -1002,12 +1356,125 @@
     "zoom": 4.366350489814959,
     "fills": [
       "healthy #97c459 0.8",
-      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 8,
+    "greyFills": 0,
+    "uncharted": [
+      {
+        "story": "story_05e45963ca9f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
+        ]
+      }
+    ],
     "markers": [],
     "islands": [
       {
@@ -1081,7 +1548,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -1102,6 +1569,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 498
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -1149,12 +1624,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_78b33d16d0b6",
@@ -1209,12 +1692,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_20549f1d48af",
@@ -1242,12 +1733,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_be32e99ed54f",
@@ -1302,7 +1801,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -1315,6 +1814,14 @@
             "opacity": 0.6,
             "faded": true,
             "triangles": 844
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -1335,12 +1842,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_69d0ee10bbe7",
@@ -1404,12 +1919,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_eb7d623fb9c8",
@@ -1455,7 +1978,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -1468,6 +1991,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 1394
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
           }
         ]
       }
@@ -1477,12 +2008,125 @@
     "zoom": 4.366350489814959,
     "fills": [
       "healthy #97c459 0.8",
-      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 8,
+    "greyFills": 0,
+    "uncharted": [
+      {
+        "story": "story_05e45963ca9f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
+        ]
+      }
+    ],
     "markers": [],
     "islands": [
       {
@@ -1556,7 +2200,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -1577,6 +2221,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 498
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -1624,12 +2276,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_78b33d16d0b6",
@@ -1684,12 +2344,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_20549f1d48af",
@@ -1717,12 +2385,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_be32e99ed54f",
@@ -1777,7 +2453,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -1790,6 +2466,14 @@
             "opacity": 0.6,
             "faded": true,
             "triangles": 844
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -1810,12 +2494,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_69d0ee10bbe7",
@@ -1879,12 +2571,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_eb7d623fb9c8",
@@ -1930,7 +2630,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -1944,6 +2644,666 @@
             "faded": false,
             "triangles": 1394
           }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
+        ]
+      }
+    ]
+  },
+  "closeUp-command-line": {
+    "zoom": 4.366350489814959,
+    "fills": [
+      "healthy #97c459 0.8",
+      "proposed #f2d16b 0.8",
+      "unhealthy #e24b4a 0.85",
+      "untested #f2d16b 0.8"
+    ],
+    "greyFills": 0,
+    "uncharted": [
+      {
+        "story": "story_05e45963ca9f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
+        ]
+      }
+    ],
+    "markers": [],
+    "islands": [
+      {
+        "story": "story_05e45963ca9f",
+        "territories": [
+          {
+            "capability": "capability_602c631d32a7",
+            "title": "1 · Project routing",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_f3c4cf342304",
+            "title": "3 · Hooks",
+            "word": "unhealthy",
+            "fill": "#e24b4a",
+            "opacity": 0.85,
+            "saturation": 0.72,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_f5d1f85f2dd1",
+            "title": "4 · Sessions",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_05ff7e9f0f99",
+            "title": "5 · Claims",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": "hsl(301, 80%, 68%)"
+          },
+          {
+            "capability": "capability_4da153322012",
+            "title": "6 · Agent tools (the MCP server)",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": "hsl(207, 80%, 68%)"
+          },
+          {
+            "capability": "capability_2b2232e0345d",
+            "title": "7 · Instructions (the habits card)",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_644c46abf9fa",
+            "title": "8 · Setup check",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [
+          {
+            "capability": "capability_05ff7e9f0f99",
+            "colour": "hsl(301, 80%, 68%)",
+            "drawn": "#ef6ced",
+            "opacity": 0.95,
+            "faded": false,
+            "triangles": 594
+          },
+          {
+            "capability": "capability_4da153322012",
+            "colour": "hsl(207, 80%, 68%)",
+            "drawn": "#6cb4ef",
+            "opacity": 0.95,
+            "faded": false,
+            "triangles": 498
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "territories": [
+          {
+            "capability": "capability_9dedb2e237cb",
+            "title": "1 · Lifecycle",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_b59e959e0da8",
+            "title": "2 · Storytree projects",
+            "word": "proposed",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_08d9ed39dc7a",
+            "title": "3 · Surfaces",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_dd7b2b7e8ba0",
+            "title": "4 · Updates",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "territories": [
+          {
+            "capability": "capability_da68dca0d5f4",
+            "title": "1 · Work states",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_3224f4ab8017",
+            "title": "2 · Agents on the board",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_60a15402b053",
+            "title": "3 · Arc surface",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_e0c02f9f5cfa",
+            "title": "4 · Waits",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_34349210675b",
+            "title": "5 · Briefing",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "territories": [
+          {
+            "capability": "capability_d52cb21878a8",
+            "title": "1 · Front door",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_6becd708350e",
+            "title": "3 · Library",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "territories": [
+          {
+            "capability": "capability_cd33386156ad",
+            "title": "1 · Story nodes",
+            "word": "proposed",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_9f02379a2e1a",
+            "title": "3 · Story node render",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": "hsl(248, 80%, 68%)"
+          },
+          {
+            "capability": "capability_5f85ed8b29a7",
+            "title": "4 · Drill-down",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_01edc782b586",
+            "title": "5 · Agent capability claims",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_dda13a1b6f32",
+            "title": "7 · Library entrypoints",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [
+          {
+            "capability": "capability_9f02379a2e1a",
+            "colour": "hsl(248, 80%, 68%)",
+            "drawn": "#7e6cef",
+            "opacity": 0.6,
+            "faded": true,
+            "triangles": 844
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "territories": [
+          {
+            "capability": "capability_83d80a307e18",
+            "title": "4 · Look inside and inspect an artifact",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "territories": [
+          {
+            "capability": "capability_2fa1a37e0d10",
+            "title": "1 · Links",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_625728b42886",
+            "title": "2 · Decision log",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_c7aada819094",
+            "title": "3 · Catalogue",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_d6e345aa554a",
+            "title": "4 · Graduation",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_e07dc33c510d",
+            "title": "5 · Queues",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_741dcbce28ee",
+            "title": "6 · Rounds",
+            "word": "untested",
+            "fill": "#f2d16b",
+            "opacity": 0.8,
+            "saturation": 0.84,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "territories": [
+          {
+            "capability": "capability_10618c4fdcc4",
+            "title": "1 · Project libraries",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_75abfdd699c0",
+            "title": "2 · Library transactions",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": "hsl(207, 80%, 68%)"
+          },
+          {
+            "capability": "capability_9ee4ed8d31a4",
+            "title": "5 · Health record",
+            "word": "healthy",
+            "fill": "#97c459",
+            "opacity": 0.8,
+            "saturation": 0.48,
+            "claimedBy": null
+          },
+          {
+            "capability": "capability_2417a0fb5578",
+            "title": "8 · Cloud connection (GCP)",
+            "word": "unhealthy",
+            "fill": "#e24b4a",
+            "opacity": 0.85,
+            "saturation": 0.72,
+            "claimedBy": null
+          },
+          {
+            "capability": null,
+            "title": "Unclaimed code",
+            "word": null,
+            "fill": "#101418",
+            "opacity": 0.92,
+            "saturation": 0.2,
+            "claimedBy": null
+          }
+        ],
+        "claimOutlines": [
+          {
+            "capability": "capability_75abfdd699c0",
+            "colour": "hsl(207, 80%, 68%)",
+            "drawn": "#6cb4ef",
+            "opacity": 0.95,
+            "faded": false,
+            "triangles": 1394
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
         ]
       }
     ]
@@ -1952,12 +3312,125 @@
     "zoom": 1.6793655730057535,
     "fills": [
       "healthy #97c459 0.8",
-      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 8,
+    "greyFills": 0,
+    "uncharted": [
+      {
+        "story": "story_05e45963ca9f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_16ac26dfa5d6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_78b33d16d0b6",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_20549f1d48af",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_be32e99ed54f",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_4c04d95d52a8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_69d0ee10bbe7",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
+      },
+      {
+        "story": "story_eb7d623fb9c8",
+        "fill": "#101418",
+        "opacity": 0.92,
+        "saturation": 0.2,
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
+          }
+        ]
+      }
+    ],
     "markers": [
       {
         "story": "story_05e45963ca9f",
@@ -2042,7 +3515,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -2063,6 +3536,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 498
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 2544,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -2110,12 +3591,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 971,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_78b33d16d0b6",
@@ -2170,12 +3659,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1360,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_20549f1d48af",
@@ -2203,12 +3700,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 4221,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_be32e99ed54f",
@@ -2263,7 +3768,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -2276,6 +3781,14 @@
             "opacity": 0.6,
             "faded": true,
             "triangles": 844
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1179,
+            "renderOrder": 1.2
           }
         ]
       },
@@ -2296,12 +3809,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 853,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_69d0ee10bbe7",
@@ -2365,12 +3886,20 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
         ],
-        "claimOutlines": []
+        "claimOutlines": [],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 325,
+            "renderOrder": 1.2
+          }
+        ]
       },
       {
         "story": "story_eb7d623fb9c8",
@@ -2416,7 +3945,7 @@
             "title": "Unclaimed code",
             "word": null,
             "fill": "#101418",
-            "opacity": 0.9,
+            "opacity": 0.92,
             "saturation": 0.2,
             "claimedBy": null
           }
@@ -2429,6 +3958,14 @@
             "opacity": 0.95,
             "faded": false,
             "triangles": 1394
+          }
+        ],
+        "hatches": [
+          {
+            "colour": "#8fa8b8",
+            "opacity": 0.35,
+            "segments": 1802,
+            "renderOrder": 1.2
           }
         ]
       }

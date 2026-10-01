@@ -3,7 +3,7 @@ import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AdditiveBlending, Color } from "three";
+import { AdditiveBlending, Color, type InterleavedBufferAttribute } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -196,8 +196,7 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   }, [trail.colour, step?.faded]);
   // Drawn to `end` of the way along; a log path's colours stay dim-to-bright over what is drawn.
   const draw = (end: number) => {
-    line.geometry.setPositions(sample(from, to, end, step?.kind));
-    line.geometry.setColors(colours);
+    moveLine(line.geometry, sample(from, to, end, step?.kind), colours);
     if (step?.edge === "dotted") line.computeLineDistances();
     line.visible = end > 0;
   };
@@ -227,8 +226,7 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
     const run = done.current ? fillAt(now - began.current, FILL) : undefined;
     fill.visible = run !== undefined && run > 0;
     if (fill.visible) {
-      fill.geometry.setPositions(sample(from, to, run!, step?.kind));
-      fill.geometry.setColors(fillColours);
+      moveLine(fill.geometry, sample(from, to, run!, step?.kind), fillColours);
     }
     fill.userData = { fill: run ?? null };
     invalidate();
@@ -238,6 +236,28 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
     <primitive object={line} />
     {fill !== undefined && <primitive object={fill} name={`knowledge-fill:${trail.from}>${trail.to}`} />}
   </group>;
+}
+
+/**
+ * Draws a line through `positions` in `colours`. A line the core animates is redrawn every frame, and
+ * three's `setPositions` and `setColors` make new GPU buffers on every call; this moves its points in
+ * place and uploads its colours only when they change (ADR-0836 D1).
+ */
+export function moveLine(geometry: LineGeometry, positions: readonly number[], colours: readonly number[]): void {
+  const start = geometry.getAttribute("instanceStart") as InterleavedBufferAttribute | undefined;
+  const segments = positions.length / 3 - 1;
+  if (start === undefined || start.count !== segments) geometry.setPositions([...positions]);
+  else {
+    // As `LineGeometry.setPositions` lays them out: each segment is its start point, then its end.
+    const pairs = start.data.array;
+    for (let i = 0; i < segments; i++) for (let k = 0; k < 6; k++) pairs[6 * i + k] = positions[3 * i + k]!;
+    start.data.needsUpdate = true;
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+  }
+  const tinted = geometry.getAttribute("instanceColorStart") as InterleavedBufferAttribute | undefined;
+  if (geometry.userData.colours !== colours || tinted?.count !== segments) geometry.setColors([...colours]);
+  geometry.userData.colours = colours;
 }
 
 /** A thick line whose points change as it grows or glows; additive for a glow, so its dark end adds nothing. */
@@ -290,9 +310,7 @@ function PathGlow({ path, at, starts }: { path: AgentPath; at: ReadonlyMap<strin
       const point = curvePoint(from, to, tail + (head - tail) * index / (GLOW_POINTS - 1));
       positions.push(point.x, point.y, point.z);
     }
-    glow.geometry.setPositions(positions);
-    glow.geometry.setColors(colours);
-    glow.computeLineDistances();
+    moveLine(glow.geometry, positions, colours);
     glow.visible = head > tail;
     glow.userData = { mover: path.mover, step: `${step.from}>${step.to}` };
   });

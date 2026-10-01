@@ -1,0 +1,8 @@
+{
+  "name": "grade-conduit",
+  "private": true,
+  "description": "Runs the official RealWorld (Conduit) Playwright e2e suite against a frontend. Versions pinned to the Angular reference app's lockfile (bun.lock).",
+  "devDependencies": {
+    "@playwright/test": "1.60.0"
+  }
+}

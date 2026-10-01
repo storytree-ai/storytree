@@ -16,6 +16,8 @@ using the API, and run the signing-in sessions one agent at a time.
 |---|---|---|---|---|---|
 | 1 home | Claude Code | 488 s, $2.19 | 5 stories (one per part), 4 capabilities and 10 contracts for part 1, 1 arc, 5 increments | PowerShell static server (`serve.ps1`, no Node), history router, feed, tags, pagination; 15 own tests in headless Edge | **14/14** home area |
 | 1 home | Codex | 1121 s | 5 stories, 1 capability and 1 contract each, 1 arc, 5 increments, a PLAN.md | Node server (`server.cjs`, run with a Node it found in the TodoMVC round's Cypress cache), feed, tags, pagination; 7 own tests | **14/14** home area |
+| 2 accounts (fresh session) | Claude Code | 388 s, $1.80 | found its place from the plan (show_plan, then the part 2 increment and story); 3 capabilities, 8 contracts | session and auth state, sign in / sign up, settings and sign out; 38 own tests (15 + 23); prefixed test labels with the story (account 1.1) because contract numbers repeat per story | **59/59** home + auth |
+| 2 accounts (fresh session) | Codex | 521 s | found its place from the plan; claimed the increment and its one capability (a claim naming both was refused, then made one at a time) | account forms, settings, sign out, stale-request cancelling; 10 own browser checks | **59/59** home + auth |
 
 Session 1 notes:
 - The first start (07:12 local) raced the app's update to 0.3.507: the app's folder was being reinstalled as both
@@ -28,3 +30,9 @@ Session 1 notes:
 - The forest draws all five stories in each project, but the nameplates collide (`shots/k2-…`, `k3-…`) →
   friction_92d59bf69b1e.
 - Codex's Node came from the TodoMVC round's Cypress cache, which a real first user's machine would not have.
+
+Session 2 notes:
+- Both sessions were fresh, prompted only "Let's carry on with Conduit. Next, let people sign up, sign in, sign out and change their settings (part 2 in conduit-requirements.md)." Both found their place from the library within the first handful of calls and built only part 2.
+- Codex's setup check in a fresh session verified its hooks and told the user nothing was needed: the trust message of session 1 (increment_278013a874cf) came only from the session that set the project up.
+- The app updated itself to 0.3.510 between sessions, at a quiet moment.
+- Run one agent at a time on the demo API (it crosses sessions); both grades ran with no agent working.

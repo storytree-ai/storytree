@@ -3,7 +3,9 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { isSessionRows, keptPanelOpen, SessionsList } from "./sessions-list.js";
+import { arcsAfter, isSessionRows, keptPanelOpen, SessionsList, windowsReader } from "./sessions-list.js";
+import type { ArcView } from "@storytree/library";
+import type { SessionWindow } from "@storytree/agent-link";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
@@ -171,4 +173,32 @@ test("7.17 the list is a bottom strip whose header toggles it, like the arcs bar
   assert.equal(keptPanelOpen("other", storage).read(), true, "kept per project");
   store.set("storytree.forest.sessions-open.v1:demo", "\"maybe\"");
   assert.equal(keptPanelOpen("demo", storage).read(), true, "a foreign value is ignored");
+});
+
+test("the list reads every arc in one ask, and again only when a change touches an arc, an increment or a question (ADR-0836 D3)", async () => {
+  const asked: string[] = [];
+  const views = [{ arc: { id: "arc_1" } }] as unknown as ArcView[];
+  const reads = { arcViews: async (project: string) => { asked.push(project); return views; } };
+  const change = (type: string) => ({ type });
+  assert.equal(await arcsAfter(reads, "p", { changes: [] }, undefined), views, "the first reading asks");
+  const last = [] as ArcView[];
+  assert.equal(await arcsAfter(reads, "p", { changes: [change("note"), change("decision")] }, last), last, "no work change keeps the last views");
+  assert.equal(await arcsAfter(reads, "p", { changes: [change("note"), change("increment")] }, last), views);
+  assert.deepEqual(asked, ["p", "p"], "one ask per reading, never one per arc");
+});
+
+test("expanded rows' windows are read in one batched ask, one at a time: rows asked meanwhile wait for the next, and a session in flight is not asked twice", async () => {
+  const asks: string[][] = [];
+  const answers: Array<(windows: SessionWindow[]) => void> = [];
+  const heard: string[] = [];
+  const reader = windowsReader(sessions => { asks.push([...sessions]); return new Promise(resolve => answers.push(resolve)); },
+    files => { heard.push(...files.keys()); });
+  reader.ask(["a", "b"]);
+  reader.ask(["b", "c"]);
+  reader.ask(["d"]);
+  assert.deepEqual(asks, [["a", "b"]], "one ask in flight");
+  answers[0]!([{ absent: "none" }, { absent: "none" }] as SessionWindow[]);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(heard, ["a", "b"]);
+  assert.deepEqual(asks, [["a", "b"], ["c", "d"]], "the rows asked meanwhile, together, without b again");
 });

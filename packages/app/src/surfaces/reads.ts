@@ -27,6 +27,8 @@ export interface PageReads {
   /** The notes in a project that link to a note. */
   relatedNotes(project: unknown, noteId: unknown): Promise<Note[]>;
   arcView(project: unknown, id: unknown): Promise<ArcView | null>;
+  /** Every live arc's view in a project, in one read (library 7.8): what the sessions list builds its rows from. */
+  arcViews(project: unknown): Promise<ArcView[]>;
   /** Every hold on a project's live work, wait and owner, in one reading. */
   holds(project: unknown): Promise<Holds>;
   /** Each named session's context reading in a project (agent link 9.5), parsed now from the transcript records its hooks streamed into the shared log (ADR-0749 D3), in the order asked. */
@@ -107,6 +109,7 @@ export function pageReads({ storytree }: PageReadsOptions): PageReads {
     frontCovers: async (name, nodeId) => (await library(await project(name))).frontCovers(nodeId as string),
     relatedNotes: async (name, noteId) => (await library(await project(name))).relatedNotes(noteId as string),
     arcView: async (name, id) => (await library(await project(name))).arcView(id as string),
+    arcViews: async (name) => (await library(await project(name))).arcViews(),
     holds: async (name) => (await library(await project(name))).holds(),
     contextReadings: async (name, sessions) => {
       const known = await project(name);

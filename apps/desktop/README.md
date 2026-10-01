@@ -27,7 +27,9 @@ guide explains connection, project consent and the received-hook check.
 token is present. It produces a combined x64/arm64 NSIS installer, its update metadata and
 blockmap, plus the existing arm64 portable executable and unpacked app. NSIS installs per user.
 The ARM64 archive uses the BCJ filter because NSIS's bundled extractor cannot decode the newer
-ARM64 filter. Keep this workaround for both targets.
+ARM64 filter. Keep this workaround for both targets. Packaging builds the `storytree` command's
+launcher program for each target with LLVM (clang, lld-link, llvm-dlltool; ADR-0854), which the
+GitHub Windows runners have; elsewhere install it first (`winget install LLVM.LLVM`).
 
 The installed app follows the public GitHub release feed. Only NSIS writes
 `resources/storytree-installed`; unpacked and portable copies keep their existing behaviour.

@@ -22,7 +22,8 @@
     "desktop:dist": "pnpm --filter @storytree/desktop dist",
     "app:follow-main": "node --import tsx packages/app/src/updates/follow-main-setup.ts",
     "build:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs",
-    "check:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs --check"
+    "check:guidance": "node --import tsx packages/dev-loop/src/build-guidance.mjs --check",
+    "check:plan-edges": "node --import tsx packages/dev-loop/src/plan-edges.mjs"
   },
   "devDependencies": {
     "@storytree/agent-link": "workspace:*",

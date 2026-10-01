@@ -85,7 +85,7 @@ export function syncGuidance(expected, { root, check, log = (line) => console.lo
 }
 
 /** Run `read` on the project's library, or say why the library could not be opened and return undefined. */
-async function withLibrary(read, command) {
+export async function withLibrary(read, command) {
   const home = path.dirname(appHome().pgdata);
   const where = locateLibrary({ home, dataDir: appHome().pgdata });
   let options = where.found ? where.connect : undefined;

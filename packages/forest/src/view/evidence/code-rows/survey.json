@@ -1,0 +1,6764 @@
+{
+ "story_754e87e7d531": {
+  "files": [
+   {
+    "path": "src/api/index.ts",
+    "lines": 2,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/api/library.ts",
+    "lines": 592,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/creation-order.ts",
+    "lines": 14,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/health/health-record.ts",
+    "lines": 363,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/health/index.ts",
+    "lines": 19,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 60,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/knowledge/bge-small.ts",
+    "lines": 48,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/knowledge/embedding.ts",
+    "lines": 162,
+    "capability": "capability_556e276756c9"
+   },
+   {
+    "path": "src/knowledge/index.ts",
+    "lines": 5,
+    "capability": "capability_556e276756c9"
+   },
+   {
+    "path": "src/knowledge/knowledge.ts",
+    "lines": 674,
+    "capability": "capability_556e276756c9"
+   },
+   {
+    "path": "src/knowledge/similarity.ts",
+    "lines": 227,
+    "capability": "capability_556e276756c9"
+   },
+   {
+    "path": "src/project/cloud-sql.ts",
+    "lines": 281,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/project/connection-error.ts",
+    "lines": 92,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/project/embeddings.ts",
+    "lines": 38,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/project/index.ts",
+    "lines": 9,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/project/memory-upgrade.ts",
+    "lines": 88,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/project/names.ts",
+    "lines": 46,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/project/schema.ts",
+    "lines": 48,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/project/server.ts",
+    "lines": 112,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/project/snapshot.ts",
+    "lines": 176,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/project/storytree.ts",
+    "lines": 473,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/references.ts",
+    "lines": 131,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/schema/errors.ts",
+    "lines": 100,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/schema/index.ts",
+    "lines": 7,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/schema/records.ts",
+    "lines": 260,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/schema/types.ts",
+    "lines": 460,
+    "capability": "capability_5e0362aae607"
+   },
+   {
+    "path": "src/schema/upgrades.ts",
+    "lines": 43,
+    "capability": "capability_75d059640d9d"
+   },
+   {
+    "path": "src/transactions/behaviour-suite.ts",
+    "lines": 463,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/transactions/index.ts",
+    "lines": 14,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/transactions/memory.ts",
+    "lines": 103,
+    "capability": "capability_5a80222c88c4"
+   },
+   {
+    "path": "src/transactions/pg.ts",
+    "lines": 227,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/transactions/records.ts",
+    "lines": 100,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/transactions/types.ts",
+    "lines": 118,
+    "capability": "capability_a954e1eb16f6"
+   },
+   {
+    "path": "src/work/index.ts",
+    "lines": 18,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/work/work-in-flight.ts",
+    "lines": 700,
+    "capability": "capability_f27ac2abb10b"
+   },
+   {
+    "path": "src/work/work-model.ts",
+    "lines": 327,
+    "capability": "capability_f27ac2abb10b"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/api/index.ts",
+    "to": "src/api/library.ts"
+   },
+   {
+    "from": "src/api/index.ts",
+    "to": "src/api/library.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/health/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/knowledge/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/api/library.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/health/health-record.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/health/index.ts",
+    "to": "src/health/health-record.ts"
+   },
+   {
+    "from": "src/health/index.ts",
+    "to": "src/health/health-record.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/api/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/api/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/knowledge/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/health/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/health/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/knowledge/index.ts"
+   },
+   {
+    "from": "src/knowledge/bge-small.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/embedding.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/index.ts",
+    "to": "src/knowledge/similarity.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/creation-order.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/transactions/index.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/knowledge/bge-small.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/knowledge/knowledge.ts",
+    "to": "src/knowledge/similarity.ts"
+   },
+   {
+    "from": "src/project/cloud-sql.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/cloud-sql.ts",
+    "to": "src/project/server.ts"
+   },
+   {
+    "from": "src/project/embeddings.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/cloud-sql.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/cloud-sql.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/names.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/snapshot.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/snapshot.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/storytree.ts"
+   },
+   {
+    "from": "src/project/index.ts",
+    "to": "src/project/storytree.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/project/memory-upgrade.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/project/server.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/snapshot.ts",
+    "to": "src/transactions/pg.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/health/health-record.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/knowledge/embedding.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/knowledge/knowledge.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/transactions/pg.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/work/work-in-flight.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/work/work-model.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/cloud-sql.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/embeddings.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/connection-error.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/names.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/memory-upgrade.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/schema.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/snapshot.ts"
+   },
+   {
+    "from": "src/project/storytree.ts",
+    "to": "src/project/server.ts"
+   },
+   {
+    "from": "src/references.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/references.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/errors.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/errors.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/errors.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/records.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/index.ts",
+    "to": "src/schema/upgrades.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/schema/errors.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/schema/records.ts",
+    "to": "src/schema/upgrades.ts"
+   },
+   {
+    "from": "src/schema/upgrades.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/transactions/behaviour-suite.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/memory.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/records.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/pg.ts"
+   },
+   {
+    "from": "src/transactions/index.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/memory.ts",
+    "to": "src/transactions/records.ts"
+   },
+   {
+    "from": "src/transactions/memory.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/pg.ts",
+    "to": "src/transactions/records.ts"
+   },
+   {
+    "from": "src/transactions/pg.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/transactions/records.ts",
+    "to": "src/transactions/types.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-in-flight.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-in-flight.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-model.ts"
+   },
+   {
+    "from": "src/work/index.ts",
+    "to": "src/work/work-model.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/creation-order.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/work/work-in-flight.ts",
+    "to": "src/schema/types.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/creation-order.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/references.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/schema/index.ts"
+   },
+   {
+    "from": "src/work/work-model.ts",
+    "to": "src/schema/types.ts"
+   }
+  ],
+  "dependsOn": []
+ },
+ "story_609c3b171b3f": {
+  "files": [
+   {
+    "path": "src/activity/activity-log.ts",
+    "lines": 368,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/activity/branch.ts",
+    "lines": 10,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/activity/index.ts",
+    "lines": 9,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/activity/lines-cache.ts",
+    "lines": 20,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/activity/lines.ts",
+    "lines": 153,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/activity/text.ts",
+    "lines": 43,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/activity/transcript-records.ts",
+    "lines": 122,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/bins/build.ts",
+    "lines": 83,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/bins/storytree-hook.ts",
+    "lines": 51,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/bins/storytree-mcp.ts",
+    "lines": 40,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/bins/storytree-setup.ts",
+    "lines": 39,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/capture/capture.ts",
+    "lines": 112,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/capture/index.ts",
+    "lines": 2,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/claims/claims.ts",
+    "lines": 245,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/claims/index.ts",
+    "lines": 6,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/claims/merges.ts",
+    "lines": 220,
+    "capability": "capability_7077da59ee64"
+   },
+   {
+    "path": "src/claims/workspace.ts",
+    "lines": 186,
+    "capability": "capability_7077da59ee64"
+   },
+   {
+    "path": "src/context/command.ts",
+    "lines": 49,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/context/composition.ts",
+    "lines": 343,
+    "capability": "capability_dbef625bdd09"
+   },
+   {
+    "path": "src/context/context.ts",
+    "lines": 110,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/context/guidance.ts",
+    "lines": 21,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/context/index.ts",
+    "lines": 8,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/context/transcript.ts",
+    "lines": 25,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/context/window.ts",
+    "lines": 247,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/hooks/claude-code.ts",
+    "lines": 82,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/hooks/close-out-reminder.ts",
+    "lines": 60,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/hooks/codex-trust.ts",
+    "lines": 52,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/hooks/codex.ts",
+    "lines": 100,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/hooks/context-nudge.ts",
+    "lines": 21,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/hooks/definitions.ts",
+    "lines": 78,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/hooks/given-once.ts",
+    "lines": 31,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/hooks/hooks.ts",
+    "lines": 277,
+    "capability": "capability_7077da59ee64"
+   },
+   {
+    "path": "src/hooks/index.ts",
+    "lines": 7,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/hooks/queue.ts",
+    "lines": 67,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/hooks/requests.ts",
+    "lines": 19,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/hooks/status-line.ts",
+    "lines": 103,
+    "capability": "capability_10e1dea84e5b"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 28,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/instructions/codex-agents.ts",
+    "lines": 57,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/instructions/habits.ts",
+    "lines": 90,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/instructions/index.ts",
+    "lines": 4,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/readings.ts",
+    "lines": 628,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/routing/index.ts",
+    "lines": 5,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/routing/project-choice.ts",
+    "lines": 73,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/routing/routing.ts",
+    "lines": 357,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/routing/starter-pack.ts",
+    "lines": 102,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/routing/trunks.ts",
+    "lines": 186,
+    "capability": "capability_07c95281a87e"
+   },
+   {
+    "path": "src/sessions/app-records.ts",
+    "lines": 179,
+    "capability": "capability_b91cd36a9783"
+   },
+   {
+    "path": "src/sessions/branch-states.ts",
+    "lines": 264,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/sessions/close-out.ts",
+    "lines": 62,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/sessions/index.ts",
+    "lines": 10,
+    "capability": "capability_b91cd36a9783"
+   },
+   {
+    "path": "src/sessions/listing.ts",
+    "lines": 48,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/sessions/name.ts",
+    "lines": 31,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/sessions/sessions.ts",
+    "lines": 41,
+    "capability": "capability_b91cd36a9783"
+   },
+   {
+    "path": "src/sessions/worktree-reaper.ts",
+    "lines": 160,
+    "capability": "capability_b91cd36a9783"
+   },
+   {
+    "path": "src/settings/bridge.ts",
+    "lines": 22,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/settings/panel.ts",
+    "lines": 26,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/settings/settings.ts",
+    "lines": 288,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/setup/built-from-main.ts",
+    "lines": 80,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/setup/command.ts",
+    "lines": 124,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/setup/diagnostics.ts",
+    "lines": 158,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/setup/hooks-config.ts",
+    "lines": 328,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/setup/hooks-release.ts",
+    "lines": 57,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/setup/index.ts",
+    "lines": 4,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/setup/machine.ts",
+    "lines": 173,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/setup/open-storytree.ts",
+    "lines": 99,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/setup/setup.ts",
+    "lines": 125,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/setup/verify.ts",
+    "lines": 59,
+    "capability": "capability_199d7af33d32"
+   },
+   {
+    "path": "src/tools/answers.ts",
+    "lines": 49,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/claim-tools.ts",
+    "lines": 179,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/connections.ts",
+    "lines": 73,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/context-tools.ts",
+    "lines": 54,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/index.ts",
+    "lines": 2,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/note-tools.ts",
+    "lines": 243,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/own-tools.ts",
+    "lines": 53,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/plan-tools.ts",
+    "lines": 249,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/server.ts",
+    "lines": 279,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/setup-tools.ts",
+    "lines": 121,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/text.ts",
+    "lines": 61,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/tools/work-tools.ts",
+    "lines": 260,
+    "capability": "capability_11fe600afeda"
+   },
+   {
+    "path": "src/transcripts/index.ts",
+    "lines": 4,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/transcripts/scrub.ts",
+    "lines": 22,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/transcripts/ship.ts",
+    "lines": 68,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/transcripts/stored.ts",
+    "lines": 73,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 147
+   },
+   {
+    "path": "src/view/render.ts",
+    "lines": 35,
+    "capability": "capability_2902dfd80083"
+   },
+   {
+    "path": "src/view/styles.ts",
+    "lines": 38
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/activity/activity-log.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/activity/activity-log.ts",
+    "to": "src/activity/transcript-records.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/activity-log.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/branch.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/lines-cache.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/lines-cache.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/activity-log.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/transcript-records.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/text.ts"
+   },
+   {
+    "from": "src/activity/index.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/activity/lines-cache.ts",
+    "to": "src/activity/activity-log.ts"
+   },
+   {
+    "from": "src/activity/lines-cache.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/activity/text.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/activity/text.ts",
+    "to": "src/activity/lines.ts"
+   },
+   {
+    "from": "src/bins/storytree-hook.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/bins/storytree-mcp.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/bins/storytree-mcp.ts",
+    "to": "src/tools/index.ts"
+   },
+   {
+    "from": "src/bins/storytree-setup.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/capture/index.ts",
+    "to": "src/capture/capture.ts"
+   },
+   {
+    "from": "src/capture/index.ts",
+    "to": "src/capture/capture.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/claims/claims.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/workspace.ts"
+   },
+   {
+    "from": "src/claims/index.ts",
+    "to": "src/claims/workspace.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/activity/branch.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/claims/merges.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/workspace.ts",
+    "to": "src/claims/claims.ts"
+   },
+   {
+    "from": "src/claims/workspace.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/context/command.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/context/command.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/command.ts",
+    "to": "src/context/guidance.ts"
+   },
+   {
+    "from": "src/context/command.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/context/composition.ts",
+    "to": "src/context/transcript.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/context/composition.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/context/guidance.ts"
+   },
+   {
+    "from": "src/context/context.ts",
+    "to": "src/context/transcript.ts"
+   },
+   {
+    "from": "src/context/guidance.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/composition.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/composition.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/command.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/command.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/window.ts"
+   },
+   {
+    "from": "src/context/index.ts",
+    "to": "src/context/window.ts"
+   },
+   {
+    "from": "src/context/window.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/context/window.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/context/window.ts",
+    "to": "src/context/transcript.ts"
+   },
+   {
+    "from": "src/hooks/claude-code.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/claude-code.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/claude-code.ts",
+    "to": "src/hooks/requests.ts"
+   },
+   {
+    "from": "src/hooks/close-out-reminder.ts",
+    "to": "src/activity/branch.ts"
+   },
+   {
+    "from": "src/hooks/close-out-reminder.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/hooks/close-out-reminder.ts",
+    "to": "src/hooks/given-once.ts"
+   },
+   {
+    "from": "src/hooks/codex.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/codex.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/codex.ts",
+    "to": "src/hooks/requests.ts"
+   },
+   {
+    "from": "src/hooks/context-nudge.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/context-nudge.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/hooks/context-nudge.ts",
+    "to": "src/hooks/given-once.ts"
+   },
+   {
+    "from": "src/hooks/definitions.ts",
+    "to": "src/hooks/given-once.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/claude-code.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/close-out-reminder.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/codex.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/context-nudge.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/definitions.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/activity/branch.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/hooks/queue.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/transcripts/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/sessions/worktree-reaper.ts"
+   },
+   {
+    "from": "src/hooks/hooks.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/status-line.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/requests.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/hooks.ts"
+   },
+   {
+    "from": "src/hooks/index.ts",
+    "to": "src/hooks/close-out-reminder.ts"
+   },
+   {
+    "from": "src/hooks/queue.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/requests.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/hooks/status-line.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/routing/project-choice.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/tools/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/tools/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/instructions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/instructions/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/context/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transcripts/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/transcripts/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/context/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/instructions/index.ts",
+    "to": "src/instructions/codex-agents.ts"
+   },
+   {
+    "from": "src/instructions/index.ts",
+    "to": "src/instructions/codex-agents.ts"
+   },
+   {
+    "from": "src/instructions/index.ts",
+    "to": "src/instructions/habits.ts"
+   },
+   {
+    "from": "src/instructions/index.ts",
+    "to": "src/instructions/habits.ts"
+   },
+   {
+    "from": "src/readings.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/readings.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/routing.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/routing.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/trunks.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/trunks.ts"
+   },
+   {
+    "from": "src/routing/index.ts",
+    "to": "src/routing/starter-pack.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/routing/project-choice.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/routing/trunks.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/routing/starter-pack.ts"
+   },
+   {
+    "from": "src/routing/routing.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/app-records.ts",
+    "to": "src/transcripts/scrub.ts"
+   },
+   {
+    "from": "src/sessions/branch-states.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/branch-states.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/sessions/branch-states.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/close-out.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/close-out.ts",
+    "to": "src/hooks/close-out-reminder.ts"
+   },
+   {
+    "from": "src/sessions/close-out.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/listing.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/listing.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/worktree-reaper.ts"
+   },
+   {
+    "from": "src/sessions/index.ts",
+    "to": "src/sessions/worktree-reaper.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/sessions/branch-states.ts"
+   },
+   {
+    "from": "src/sessions/listing.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/sessions/name.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/name.ts",
+    "to": "src/sessions/close-out.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/sessions/close-out.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/sessions/name.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/sessions/close-out.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/sessions.ts",
+    "to": "src/readings.ts"
+   },
+   {
+    "from": "src/sessions/worktree-reaper.ts",
+    "to": "src/claims/merges.ts"
+   },
+   {
+    "from": "src/sessions/worktree-reaper.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/sessions/worktree-reaper.ts",
+    "to": "src/sessions/sessions.ts"
+   },
+   {
+    "from": "src/settings/bridge.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/settings/panel.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/settings/panel.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/settings/panel.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/settings/settings.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/built-from-main.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/built-from-main.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/command.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/verify.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/setup.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/setup/diagnostics.ts",
+    "to": "src/setup/hooks-release.ts"
+   },
+   {
+    "from": "src/setup/hooks-config.ts",
+    "to": "src/hooks/index.ts"
+   },
+   {
+    "from": "src/setup/hooks-release.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/setup.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/setup.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/verify.ts"
+   },
+   {
+    "from": "src/setup/index.ts",
+    "to": "src/setup/verify.ts"
+   },
+   {
+    "from": "src/setup/open-storytree.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/open-storytree.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/hooks/codex-trust.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-release.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/open-storytree.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/command.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/diagnostics.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/sessions/app-records.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/diagnostics.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/machine.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/command.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/command.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/hooks-config.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/open-storytree.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/open-storytree.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/built-from-main.ts"
+   },
+   {
+    "from": "src/setup/setup.ts",
+    "to": "src/setup/built-from-main.ts"
+   },
+   {
+    "from": "src/setup/verify.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/answers.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/tools/answers.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/claim-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/connections.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/connections.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/sessions/close-out.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/sessions/name.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/context/index.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/context/guidance.ts"
+   },
+   {
+    "from": "src/tools/context-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/index.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/index.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/note-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/own-tools.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/sessions/index.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/plan-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/instructions/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/claim-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/context-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/connections.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/note-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/plan-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/setup-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/work-tools.ts"
+   },
+   {
+    "from": "src/tools/server.ts",
+    "to": "src/tools/own-tools.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/routing/index.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/setup/index.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/answers.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/connections.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/setup-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/capture/index.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/claims/index.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/tools/server.ts"
+   },
+   {
+    "from": "src/tools/work-tools.ts",
+    "to": "src/tools/text.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/scrub.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/ship.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/stored.ts"
+   },
+   {
+    "from": "src/transcripts/index.ts",
+    "to": "src/transcripts/stored.ts"
+   },
+   {
+    "from": "src/transcripts/ship.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/transcripts/ship.ts",
+    "to": "src/transcripts/scrub.ts"
+   },
+   {
+    "from": "src/transcripts/stored.ts",
+    "to": "src/activity/index.ts"
+   },
+   {
+    "from": "src/transcripts/stored.ts",
+    "to": "src/context/context.ts"
+   },
+   {
+    "from": "src/transcripts/stored.ts",
+    "to": "src/context/window.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/render.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/settings/settings.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/styles.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/settings/bridge.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/settings/settings.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_754e87e7d531",
+   "story_cec2df1b2320",
+   "story_9abd84ab493f"
+  ]
+ },
+ "story_a93c6fb1a257": {
+  "files": [
+   {
+    "path": "src/index.ts",
+    "lines": 36,
+    "capability": "capability_7789d00d3390"
+   },
+   {
+    "path": "src/lifecycle/background.ts",
+    "lines": 89,
+    "capability": "capability_076723ee3066"
+   },
+   {
+    "path": "src/lifecycle/backups.ts",
+    "lines": 44,
+    "capability": "capability_076723ee3066"
+   },
+   {
+    "path": "src/lifecycle/launch.ts",
+    "lines": 50,
+    "capability": "capability_076723ee3066"
+   },
+   {
+    "path": "src/lifecycle/open-where-set.ts",
+    "lines": 54,
+    "capability": "capability_076723ee3066"
+   },
+   {
+    "path": "src/lifecycle/quit.ts",
+    "lines": 55,
+    "capability": "capability_076723ee3066"
+   },
+   {
+    "path": "src/lifecycle/sign-in.ts",
+    "lines": 51,
+    "capability": "capability_076723ee3066"
+   },
+   {
+    "path": "src/projects/follow.ts",
+    "lines": 39,
+    "capability": "capability_076723ee3066"
+   },
+   {
+    "path": "src/projects/selection.ts",
+    "lines": 39,
+    "capability": "capability_3c5ed8b3ca70"
+   },
+   {
+    "path": "src/surfaces/bridge.ts",
+    "lines": 20,
+    "capability": "capability_7789d00d3390"
+   },
+   {
+    "path": "src/surfaces/reads.ts",
+    "lines": 152,
+    "capability": "capability_7789d00d3390"
+   },
+   {
+    "path": "src/surfaces/smoke.ts",
+    "lines": 54,
+    "capability": "capability_7789d00d3390"
+   },
+   {
+    "path": "src/surfaces/switches.ts",
+    "lines": 103,
+    "capability": "capability_7789d00d3390"
+   },
+   {
+    "path": "src/updates/agent-activity.ts",
+    "lines": 24,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/build-health.ts",
+    "lines": 68,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/follow-main-setup.ts",
+    "lines": 73,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/follow-main.ts",
+    "lines": 123,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/install-moment.ts",
+    "lines": 24,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/main-updates.ts",
+    "lines": 83,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/release-source.ts",
+    "lines": 37,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/releases.ts",
+    "lines": 91,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/seed-writing.ts",
+    "lines": 20,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/updates/version.ts",
+    "lines": 17,
+    "capability": "capability_6a0c1b26f586"
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 148
+   },
+   {
+    "path": "src/view/render.ts",
+    "lines": 37,
+    "capability": "capability_3c5ed8b3ca70"
+   },
+   {
+    "path": "src/view/styles.ts",
+    "lines": 105
+   },
+   {
+    "path": "src/view/surfaces.ts",
+    "lines": 97,
+    "capability": "capability_7789d00d3390"
+   },
+   {
+    "path": "src/view/updates.ts",
+    "lines": 91,
+    "capability": "capability_6a0c1b26f586"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/surfaces/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/background.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/background.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/backups.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/backups.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/build-health.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/build-health.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/seed-writing.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/releases.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/install-moment.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/install-moment.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/agent-activity.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/updates/releases.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/launch.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/launch.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/open-where-set.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/open-where-set.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/quit.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/sign-in.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/sign-in.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/lifecycle/quit.ts"
+   },
+   {
+    "from": "src/lifecycle/launch.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/projects/follow.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/projects/follow.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/surfaces/bridge.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/surfaces/switches.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/updates/build-health.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/updates/follow-main-setup.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/updates/main-updates.ts",
+    "to": "src/updates/follow-main.ts"
+   },
+   {
+    "from": "src/updates/releases.ts",
+    "to": "src/lifecycle/background.ts"
+   },
+   {
+    "from": "src/updates/releases.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/updates/version.ts",
+    "to": "src/updates/release-source.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/projects/selection.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/render.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/styles.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/surfaces.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/updates.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/updates/main-updates.ts"
+   },
+   {
+    "from": "src/view/surfaces.ts",
+    "to": "src/surfaces/bridge.ts"
+   },
+   {
+    "from": "src/view/surfaces.ts",
+    "to": "src/surfaces/switches.ts"
+   },
+   {
+    "from": "src/view/updates.ts",
+    "to": "src/updates/main-updates.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_609c3b171b3f",
+   "story_754e87e7d531"
+  ]
+ },
+ "story_deee4230348c": {
+  "files": [
+   {
+    "path": "src/agent-claims/agent-claims.ts",
+    "lines": 81,
+    "capability": "capability_6133809a4139"
+   },
+   {
+    "path": "src/capability-tree/capability-tree.ts",
+    "lines": 64,
+    "capability": "capability_efa4328b624c"
+   },
+   {
+    "path": "src/code-survey/code-survey.ts",
+    "lines": 181,
+    "capability": "capability_7aecfc858e32"
+   },
+   {
+    "path": "src/code-survey/read-survey.ts",
+    "lines": 116,
+    "capability": "capability_7aecfc858e32"
+   },
+   {
+    "path": "src/drill-down/drill-down.ts",
+    "lines": 176,
+    "capability": "capability_f0ffead428df"
+   },
+   {
+    "path": "src/drill-down/tree-layout.ts",
+    "lines": 117,
+    "capability": "capability_f0ffead428df"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 21,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/never-hidden/never-hidden.ts",
+    "lines": 66,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/planet-places/island-growth.ts",
+    "lines": 151,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/planet-places/planet-places.ts",
+    "lines": 28,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/render/forest-reading.ts",
+    "lines": 94,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/render/forest-scene.ts",
+    "lines": 122,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/render/kept-tree.ts",
+    "lines": 20,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/sessions-list/sessions-list.ts",
+    "lines": 213,
+    "capability": "capability_6133809a4139"
+   },
+   {
+    "path": "src/story-nodes/story-nodes.ts",
+    "lines": 103,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/surfaces/surfaces.ts",
+    "lines": 78,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/territories/territories.ts",
+    "lines": 325,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/view/file-circles.ts",
+    "lines": 93,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/view/forest-view.tsx",
+    "lines": 117
+   },
+   {
+    "path": "src/view/globe-picking.ts",
+    "lines": 25,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 9
+   },
+   {
+    "path": "src/view/island-overlays.tsx",
+    "lines": 70
+   },
+   {
+    "path": "src/view/nameplates.ts",
+    "lines": 51
+   },
+   {
+    "path": "src/view/pan-zoom.ts",
+    "lines": 167,
+    "capability": "capability_f0ffead428df"
+   },
+   {
+    "path": "src/view/panel-selection.ts",
+    "lines": 14,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/view/planet-navigation.ts",
+    "lines": 141,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/view/planet-update.ts",
+    "lines": 31
+   },
+   {
+    "path": "src/view/planet-view.tsx",
+    "lines": 262
+   },
+   {
+    "path": "src/view/session-emphasis.tsx",
+    "lines": 56
+   },
+   {
+    "path": "src/view/session-tints.ts",
+    "lines": 63,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/view/sessions-list.tsx",
+    "lines": 398,
+    "capability": "capability_6133809a4139"
+   },
+   {
+    "path": "src/view/story-panel.ts",
+    "lines": 168,
+    "capability": "capability_f0ffead428df"
+   },
+   {
+    "path": "src/view/territory-land.ts",
+    "lines": 270,
+    "capability": "capability_8ffc78a4bad2"
+   },
+   {
+    "path": "src/view/tree-space.ts",
+    "lines": 80
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/agent-claims/agent-claims.ts",
+    "to": "src/sessions-list/sessions-list.ts"
+   },
+   {
+    "from": "src/code-survey/read-survey.ts",
+    "to": "src/code-survey/code-survey.ts"
+   },
+   {
+    "from": "src/drill-down/drill-down.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/drill-down/tree-layout.ts",
+    "to": "src/drill-down/drill-down.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/story-nodes/story-nodes.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/story-nodes/story-nodes.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/planet-places/planet-places.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/planet-places/island-growth.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-scene.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-scene.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/kept-tree.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/render/forest-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/drill-down.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/drill-down.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/tree-layout.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/drill-down/tree-layout.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/never-hidden/never-hidden.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/sessions-list/sessions-list.ts"
+   },
+   {
+    "from": "src/planet-places/island-growth.ts",
+    "to": "src/planet-places/planet-places.ts"
+   },
+   {
+    "from": "src/render/forest-reading.ts",
+    "to": "src/code-survey/code-survey.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/capability-tree/capability-tree.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/code-survey/code-survey.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/planet-places/island-growth.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/story-nodes/story-nodes.ts"
+   },
+   {
+    "from": "src/render/forest-scene.ts",
+    "to": "src/territories/territories.ts"
+   },
+   {
+    "from": "src/sessions-list/sessions-list.ts",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/story-nodes/story-nodes.ts",
+    "to": "src/planet-places/planet-places.ts"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/view/planet-view.tsx"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/view/planet-update.ts"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/view/panel-selection.ts"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/view/planet-navigation.ts"
+   },
+   {
+    "from": "src/view/forest-view.tsx",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/forest-view.tsx"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/story-panel.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/pan-zoom.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/tree-space.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/sessions-list.tsx"
+   },
+   {
+    "from": "src/view/island-overlays.tsx",
+    "to": "src/territories/territories.ts"
+   },
+   {
+    "from": "src/view/island-overlays.tsx",
+    "to": "src/view/nameplates.ts"
+   },
+   {
+    "from": "src/view/nameplates.ts",
+    "to": "src/territories/territories.ts"
+   },
+   {
+    "from": "src/view/pan-zoom.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/planet-navigation.ts",
+    "to": "src/view/globe-picking.ts"
+   },
+   {
+    "from": "src/view/planet-navigation.ts",
+    "to": "src/view/panel-selection.ts"
+   },
+   {
+    "from": "src/view/planet-navigation.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/session-emphasis.tsx"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/session-tints.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/file-circles.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/territory-land.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/territories/territories.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/island-overlays.tsx"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/planet-navigation.ts"
+   },
+   {
+    "from": "src/view/planet-view.tsx",
+    "to": "src/view/planet-update.ts"
+   },
+   {
+    "from": "src/view/sessions-list.tsx",
+    "to": "src/sessions-list/sessions-list.ts"
+   },
+   {
+    "from": "src/view/sessions-list.tsx",
+    "to": "src/agent-claims/agent-claims.ts"
+   },
+   {
+    "from": "src/view/tree-space.ts",
+    "to": "src/surfaces/surfaces.ts"
+   },
+   {
+    "from": "src/view/tree-space.ts",
+    "to": "src/view/pan-zoom.ts"
+   },
+   {
+    "from": "src/view/tree-space.ts",
+    "to": "src/view/story-panel.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_754e87e7d531",
+   "story_7722ddb5461e",
+   "story_609c3b171b3f",
+   "story_ca702fee28cb",
+   "story_d754d997f22a",
+   "story_a93c6fb1a257"
+  ]
+ },
+ "story_7722ddb5461e": {
+  "files": [
+   {
+    "path": "src/agents/agents.ts",
+    "lines": 46,
+    "capability": "capability_62c8006ef894"
+   },
+   {
+    "path": "src/board/board.ts",
+    "lines": 84,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/board/live-board.ts",
+    "lines": 47,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/board/reads.ts",
+    "lines": 16,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/board/smoke.ts",
+    "lines": 15,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/briefing/briefing.ts",
+    "lines": 65,
+    "capability": "capability_ee7d649bbc20"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 28,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/live-reading/kept.ts",
+    "lines": 125,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/live-reading/live-reading.ts",
+    "lines": 102,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/live-reading/page-reading.ts",
+    "lines": 271,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/surfaces/surfaces.ts",
+    "lines": 10,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 2
+   },
+   {
+    "path": "src/view/mount.ts",
+    "lines": 115
+   },
+   {
+    "path": "src/view/preferences.ts",
+    "lines": 22,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/view/render.ts",
+    "lines": 72,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/view/smoke.ts",
+    "lines": 46,
+    "capability": "capability_d077e76e50d7"
+   },
+   {
+    "path": "src/waits/waits.ts",
+    "lines": 106,
+    "capability": "capability_fa8ea39882fe"
+   },
+   {
+    "path": "src/work-states/board-states.ts",
+    "lines": 53,
+    "capability": "capability_396a53756a5c"
+   },
+   {
+    "path": "src/work-states/work-states.ts",
+    "lines": 56,
+    "capability": "capability_396a53756a5c"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/board/board.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/board/board.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/board/board.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/board/board.ts",
+    "to": "src/work-states/board-states.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/live-reading/page-reading.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/board/live-board.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/board/reads.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/board/reads.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/board/smoke.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/work-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/work-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/page-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/page-reading.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/board-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/work-states/board-states.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/live-board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/live-board.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/view/smoke.ts"
+   },
+   {
+    "from": "src/live-reading/kept.ts",
+    "to": "src/live-reading/page-reading.ts"
+   },
+   {
+    "from": "src/live-reading/page-reading.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/mount.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/mount.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/live-board.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/live-reading/kept.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/live-reading/live-reading.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/live-reading/page-reading.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/view/render.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/view/preferences.ts"
+   },
+   {
+    "from": "src/view/preferences.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/agents/agents.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/briefing/briefing.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/render.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/waits/waits.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/board/board.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/board/reads.ts"
+   },
+   {
+    "from": "src/view/smoke.ts",
+    "to": "src/board/smoke.ts"
+   },
+   {
+    "from": "src/waits/waits.ts",
+    "to": "src/work-states/board-states.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_609c3b171b3f",
+   "story_754e87e7d531",
+   "story_a93c6fb1a257"
+  ]
+ },
+ "story_f9fb5136c28f": {
+  "files": [
+   {
+    "path": "src/answer.ts",
+    "lines": 47,
+    "capability": "capability_ab59a8461dd7"
+   },
+   {
+    "path": "src/args.ts",
+    "lines": 94,
+    "capability": "capability_bfc6fa737f09"
+   },
+   {
+    "path": "src/bins/build.ts",
+    "lines": 41,
+    "capability": "capability_ab59a8461dd7"
+   },
+   {
+    "path": "src/bins/storytree.ts",
+    "lines": 11,
+    "capability": "capability_ab59a8461dd7"
+   },
+   {
+    "path": "src/door.ts",
+    "lines": 269,
+    "capability": "capability_7b7421be1a1b"
+   },
+   {
+    "path": "src/families/adr.ts",
+    "lines": 193,
+    "capability": "capability_562b2527ebca"
+   },
+   {
+    "path": "src/families/app.ts",
+    "lines": 34,
+    "capability": "capability_7b7421be1a1b"
+   },
+   {
+    "path": "src/families/arc.ts",
+    "lines": 250,
+    "capability": "capability_81ad90bacdbc"
+   },
+   {
+    "path": "src/families/capability.ts",
+    "lines": 31,
+    "capability": "capability_ab59a8461dd7"
+   },
+   {
+    "path": "src/families/capture.ts",
+    "lines": 103,
+    "capability": "capability_8419d8d4cdae"
+   },
+   {
+    "path": "src/families/context.ts",
+    "lines": 22,
+    "capability": "capability_7b7421be1a1b"
+   },
+   {
+    "path": "src/families/doctor.ts",
+    "lines": 164,
+    "capability": "capability_053416712f7c"
+   },
+   {
+    "path": "src/families/index.ts",
+    "lines": 47,
+    "capability": "capability_7b7421be1a1b"
+   },
+   {
+    "path": "src/families/library.ts",
+    "lines": 249,
+    "capability": "capability_ab59a8461dd7"
+   },
+   {
+    "path": "src/families/noticeboard.ts",
+    "lines": 60,
+    "capability": "capability_56dfc9b9c3cf"
+   },
+   {
+    "path": "src/families/processes.ts",
+    "lines": 57,
+    "capability": "capability_7b7421be1a1b"
+   },
+   {
+    "path": "src/families/project.ts",
+    "lines": 50,
+    "capability": "capability_ab59a8461dd7"
+   },
+   {
+    "path": "src/families/question.ts",
+    "lines": 136,
+    "capability": "capability_bfc6fa737f09"
+   },
+   {
+    "path": "src/families/session.ts",
+    "lines": 63,
+    "capability": "capability_8c01238b7f31"
+   },
+   {
+    "path": "src/families/settings.ts",
+    "lines": 62,
+    "capability": "capability_7b7421be1a1b"
+   },
+   {
+    "path": "src/families/setup.ts",
+    "lines": 48,
+    "capability": "capability_3c32df358d67"
+   },
+   {
+    "path": "src/families/tree.ts",
+    "lines": 77,
+    "capability": "capability_f874f7de8110"
+   },
+   {
+    "path": "src/families/workspace.ts",
+    "lines": 84,
+    "capability": "capability_8c01238b7f31"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 4,
+    "capability": "capability_7b7421be1a1b"
+   },
+   {
+    "path": "src/writer.ts",
+    "lines": 20,
+    "capability": "capability_ab59a8461dd7"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/args.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/bins/storytree.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/families/index.ts"
+   },
+   {
+    "from": "src/door.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/adr.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/app.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/app.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/arc.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/capability.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/capability.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/capture.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/capture.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/capture.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/context.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/doctor.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/doctor.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/doctor.ts",
+    "to": "src/families/setup.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/adr.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/app.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/arc.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/capability.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/capture.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/context.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/doctor.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/question.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/noticeboard.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/project.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/tree.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/workspace.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/processes.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/session.ts"
+   },
+   {
+    "from": "src/families/index.ts",
+    "to": "src/families/settings.ts"
+   },
+   {
+    "from": "src/families/library.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/library.ts",
+    "to": "src/args.ts"
+   },
+   {
+    "from": "src/families/library.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/noticeboard.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/noticeboard.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/processes.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/processes.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/processes.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/project.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/project.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/question.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/question.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/question.ts",
+    "to": "src/families/library.ts"
+   },
+   {
+    "from": "src/families/session.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/session.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/session.ts",
+    "to": "src/writer.ts"
+   },
+   {
+    "from": "src/families/settings.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/settings.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/setup.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/setup.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/tree.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/tree.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/families/workspace.ts",
+    "to": "src/answer.ts"
+   },
+   {
+    "from": "src/families/workspace.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/door.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/door.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_609c3b171b3f",
+   "story_a93c6fb1a257",
+   "story_b91056a06337",
+   "story_7722ddb5461e",
+   "story_deee4230348c",
+   "story_cec2df1b2320",
+   "story_754e87e7d531",
+   "story_9abd84ab493f"
+  ]
+ },
+ "story_cec2df1b2320": {
+  "files": [
+   {
+    "path": "src/catalogue/catalogue.ts",
+    "lines": 65,
+    "capability": "capability_36bcae448803"
+   },
+   {
+    "path": "src/catalogue/index.ts",
+    "lines": 2,
+    "capability": "capability_36bcae448803"
+   },
+   {
+    "path": "src/decision-log/decision-log.ts",
+    "lines": 93,
+    "capability": "capability_b7a12a2b7273"
+   },
+   {
+    "path": "src/decision-log/index.ts",
+    "lines": 2,
+    "capability": "capability_b7a12a2b7273"
+   },
+   {
+    "path": "src/graduation/graduation.ts",
+    "lines": 127,
+    "capability": "capability_53fd994f7b4c"
+   },
+   {
+    "path": "src/graduation/index.ts",
+    "lines": 2,
+    "capability": "capability_53fd994f7b4c"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 16,
+    "capability": "capability_389fd5e3722d"
+   },
+   {
+    "path": "src/links/index.ts",
+    "lines": 1,
+    "capability": "capability_a19bf216935b"
+   },
+   {
+    "path": "src/links/links.ts",
+    "lines": 52,
+    "capability": "capability_a19bf216935b"
+   },
+   {
+    "path": "src/notes.ts",
+    "lines": 46,
+    "capability": "capability_a19bf216935b"
+   },
+   {
+    "path": "src/queues/index.ts",
+    "lines": 2,
+    "capability": "capability_d8451645c169"
+   },
+   {
+    "path": "src/queues/queues.ts",
+    "lines": 51,
+    "capability": "capability_d8451645c169"
+   },
+   {
+    "path": "src/rounds/host.ts",
+    "lines": 39,
+    "capability": "capability_389fd5e3722d"
+   },
+   {
+    "path": "src/rounds/index.ts",
+    "lines": 2,
+    "capability": "capability_a19bf216935b"
+   },
+   {
+    "path": "src/rounds/rounds.ts",
+    "lines": 79,
+    "capability": "capability_a19bf216935b"
+   },
+   {
+    "path": "src/rounds/tools.ts",
+    "lines": 106,
+    "capability": "capability_389fd5e3722d"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/catalogue/catalogue.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/catalogue/index.ts",
+    "to": "src/catalogue/catalogue.ts"
+   },
+   {
+    "from": "src/catalogue/index.ts",
+    "to": "src/catalogue/catalogue.ts"
+   },
+   {
+    "from": "src/decision-log/decision-log.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/decision-log/index.ts",
+    "to": "src/decision-log/decision-log.ts"
+   },
+   {
+    "from": "src/decision-log/index.ts",
+    "to": "src/decision-log/decision-log.ts"
+   },
+   {
+    "from": "src/graduation/graduation.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/graduation/index.ts",
+    "to": "src/graduation/graduation.ts"
+   },
+   {
+    "from": "src/graduation/index.ts",
+    "to": "src/graduation/graduation.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/links/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/rounds/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/rounds/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/rounds/tools.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/links/index.ts",
+    "to": "src/links/links.ts"
+   },
+   {
+    "from": "src/links/links.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/queues/index.ts",
+    "to": "src/queues/queues.ts"
+   },
+   {
+    "from": "src/queues/index.ts",
+    "to": "src/queues/queues.ts"
+   },
+   {
+    "from": "src/queues/queues.ts",
+    "to": "src/notes.ts"
+   },
+   {
+    "from": "src/rounds/index.ts",
+    "to": "src/rounds/rounds.ts"
+   },
+   {
+    "from": "src/rounds/index.ts",
+    "to": "src/rounds/rounds.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/links/index.ts"
+   },
+   {
+    "from": "src/rounds/rounds.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/catalogue/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/decision-log/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/graduation/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/links/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/queues/index.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/rounds/host.ts"
+   },
+   {
+    "from": "src/rounds/tools.ts",
+    "to": "src/rounds/rounds.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_754e87e7d531"
+  ]
+ },
+ "story_d754d997f22a": {
+  "files": [
+   {
+    "path": "src/ghosts/ghosts.ts",
+    "lines": 131,
+    "capability": "capability_062b84e5c6b0"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 14,
+    "capability": "capability_c72570081c61"
+   },
+   {
+    "path": "src/look-inside/look-inside.ts",
+    "lines": 487,
+    "capability": "capability_062b84e5c6b0"
+   },
+   {
+    "path": "src/reads/reads.ts",
+    "lines": 122,
+    "capability": "capability_062b84e5c6b0"
+   },
+   {
+    "path": "src/shelves/positions.ts",
+    "lines": 117,
+    "capability": "capability_c72570081c61"
+   },
+   {
+    "path": "src/shelves/shelves.ts",
+    "lines": 161,
+    "capability": "capability_c72570081c61"
+   },
+   {
+    "path": "src/shelves/story-text.ts",
+    "lines": 7,
+    "capability": "capability_c72570081c61"
+   },
+   {
+    "path": "src/view/drawing.tsx",
+    "lines": 18,
+    "capability": "capability_062b84e5c6b0"
+   },
+   {
+    "path": "src/view/globe-points.tsx",
+    "lines": 306,
+    "capability": "capability_062b84e5c6b0"
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 4,
+    "capability": "capability_062b84e5c6b0"
+   },
+   {
+    "path": "src/view/ring.tsx",
+    "lines": 17,
+    "capability": "capability_062b84e5c6b0"
+   },
+   {
+    "path": "src/view/surface.tsx",
+    "lines": 239,
+    "capability": "capability_062b84e5c6b0"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/index.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/story-text.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/look-inside/look-inside.ts",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/shelves/positions.ts",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/shelves/positions.ts",
+    "to": "src/shelves/story-text.ts"
+   },
+   {
+    "from": "src/shelves/shelves.ts",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/view/drawing.tsx",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/view/globe-points.tsx",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/view/globe-points.tsx",
+    "to": "src/view/ring.tsx"
+   },
+   {
+    "from": "src/view/globe-points.tsx",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/surface.tsx"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/surface.tsx"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/ghosts/ghosts.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/look-inside/look-inside.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/reads/reads.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/shelves/shelves.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/shelves/positions.ts"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/view/globe-points.tsx"
+   },
+   {
+    "from": "src/view/surface.tsx",
+    "to": "src/view/drawing.tsx"
+   }
+  ],
+  "dependsOn": [
+   "story_754e87e7d531",
+   "story_609c3b171b3f"
+  ]
+ },
+ "story_b91056a06337": {
+  "files": [
+   {
+    "path": "src/connect/harness.ts",
+    "lines": 139,
+    "capability": "capability_01dc27eec57f"
+   },
+   {
+    "path": "src/connect/index.ts",
+    "lines": 219,
+    "capability": "capability_01dc27eec57f"
+   },
+   {
+    "path": "src/connect/installed.ts",
+    "lines": 45,
+    "capability": "capability_01dc27eec57f"
+   },
+   {
+    "path": "src/deliver/command.ts",
+    "lines": 52,
+    "capability": "capability_790ee7f22546"
+   },
+   {
+    "path": "src/deliver/delivery.ts",
+    "lines": 110,
+    "capability": "capability_790ee7f22546"
+   },
+   {
+    "path": "src/deliver/index.ts",
+    "lines": 8,
+    "capability": "capability_790ee7f22546"
+   },
+   {
+    "path": "src/deliver/payload.ts",
+    "lines": 62,
+    "capability": "capability_790ee7f22546"
+   },
+   {
+    "path": "src/deliver/runtime.ts",
+    "lines": 28,
+    "capability": "capability_790ee7f22546"
+   },
+   {
+    "path": "src/deliver/uninstall.ts",
+    "lines": 154,
+    "capability": "capability_790ee7f22546"
+   },
+   {
+    "path": "src/help/actions.ts",
+    "lines": 75,
+    "capability": "capability_47e1fb495a56"
+   },
+   {
+    "path": "src/help/bridge.ts",
+    "lines": 35,
+    "capability": "capability_47e1fb495a56"
+   },
+   {
+    "path": "src/help/feedback.ts",
+    "lines": 29,
+    "capability": "capability_418c90ffcd4c"
+   },
+   {
+    "path": "src/help/license.ts",
+    "lines": 3,
+    "capability": "capability_fc05f276586f"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 9,
+    "capability": "capability_47e1fb495a56"
+   },
+   {
+    "path": "src/project/index.ts",
+    "lines": 200,
+    "capability": "capability_47e1fb495a56"
+   },
+   {
+    "path": "src/view/add-project.ts",
+    "lines": 23
+   },
+   {
+    "path": "src/view/delete-project.ts",
+    "lines": 80,
+    "capability": "capability_47e1fb495a56"
+   },
+   {
+    "path": "src/view/first-run.ts",
+    "lines": 11,
+    "capability": "capability_47e1fb495a56"
+   },
+   {
+    "path": "src/view/guide.ts",
+    "lines": 25
+   },
+   {
+    "path": "src/view/index.ts",
+    "lines": 4
+   },
+   {
+    "path": "src/view/mount.ts",
+    "lines": 180
+   },
+   {
+    "path": "src/view/remove-project.ts",
+    "lines": 66,
+    "capability": "capability_47e1fb495a56"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/connect/index.ts",
+    "to": "src/connect/harness.ts"
+   },
+   {
+    "from": "src/connect/installed.ts",
+    "to": "src/connect/index.ts"
+   },
+   {
+    "from": "src/deliver/command.ts",
+    "to": "src/deliver/payload.ts"
+   },
+   {
+    "from": "src/deliver/delivery.ts",
+    "to": "src/deliver/command.ts"
+   },
+   {
+    "from": "src/deliver/delivery.ts",
+    "to": "src/connect/installed.ts"
+   },
+   {
+    "from": "src/deliver/delivery.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/deliver/delivery.ts",
+    "to": "src/deliver/payload.ts"
+   },
+   {
+    "from": "src/deliver/delivery.ts",
+    "to": "src/deliver/uninstall.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/payload.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/payload.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/command.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/command.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/delivery.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/uninstall.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/uninstall.ts"
+   },
+   {
+    "from": "src/deliver/index.ts",
+    "to": "src/deliver/runtime.ts"
+   },
+   {
+    "from": "src/deliver/runtime.ts",
+    "to": "src/deliver/payload.ts"
+   },
+   {
+    "from": "src/deliver/uninstall.ts",
+    "to": "src/connect/index.ts"
+   },
+   {
+    "from": "src/deliver/uninstall.ts",
+    "to": "src/deliver/payload.ts"
+   },
+   {
+    "from": "src/help/actions.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/help/actions.ts",
+    "to": "src/help/bridge.ts"
+   },
+   {
+    "from": "src/help/actions.ts",
+    "to": "src/help/feedback.ts"
+   },
+   {
+    "from": "src/help/actions.ts",
+    "to": "src/help/license.ts"
+   },
+   {
+    "from": "src/help/bridge.ts",
+    "to": "src/help/feedback.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/help/actions.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/help/bridge.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/help/feedback.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/help/feedback.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/help/license.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/deliver/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/connect/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/project/index.ts"
+   },
+   {
+    "from": "src/view/add-project.ts",
+    "to": "src/help/bridge.ts"
+   },
+   {
+    "from": "src/view/delete-project.ts",
+    "to": "src/help/bridge.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/mount.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/add-project.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/delete-project.ts"
+   },
+   {
+    "from": "src/view/index.ts",
+    "to": "src/view/remove-project.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/help/bridge.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/help/feedback.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/view/first-run.ts"
+   },
+   {
+    "from": "src/view/mount.ts",
+    "to": "src/view/guide.ts"
+   },
+   {
+    "from": "src/view/remove-project.ts",
+    "to": "src/help/bridge.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_609c3b171b3f",
+   "story_754e87e7d531"
+  ]
+ },
+ "story_9abd84ab493f": {
+  "files": [
+   {
+    "path": "src/closing/index.ts",
+    "lines": 135,
+    "capability": "capability_d401990d9a5e"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 14,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/launch/launch.ts",
+    "lines": 77,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/ledger/files.ts",
+    "lines": 77,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/ledger/records.ts",
+    "lines": 53,
+    "capability": "capability_a3e608293417"
+   },
+   {
+    "path": "src/listing/index.ts",
+    "lines": 138,
+    "capability": "capability_611029207d9a"
+   },
+   {
+    "path": "src/observation/observe.ts",
+    "lines": 56,
+    "capability": "capability_a3e608293417"
+   },
+   {
+    "path": "src/process/darwin.ts",
+    "lines": 32,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/process/index.ts",
+    "lines": 38,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/process/linux.ts",
+    "lines": 45,
+    "capability": "capability_77a22d55c99e"
+   },
+   {
+    "path": "src/process/windows.ts",
+    "lines": 35,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/stopping/darwin.ts",
+    "lines": 24,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/stopping/index.ts",
+    "lines": 3,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/stopping/linux.ts",
+    "lines": 19,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/stopping/signal.ts",
+    "lines": 18,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/stopping/stop.ts",
+    "lines": 190,
+    "capability": "capability_f3a301d328cd"
+   },
+   {
+    "path": "src/stopping/windows.ts",
+    "lines": 47,
+    "capability": "capability_f3a301d328cd"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/closing/index.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/closing/index.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/closing/index.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/closing/index.ts",
+    "to": "src/listing/index.ts"
+   },
+   {
+    "from": "src/closing/index.ts",
+    "to": "src/listing/index.ts"
+   },
+   {
+    "from": "src/closing/index.ts",
+    "to": "src/observation/observe.ts"
+   },
+   {
+    "from": "src/closing/index.ts",
+    "to": "src/observation/observe.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/launch/launch.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/launch/launch.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/observation/observe.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/observation/observe.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/closing/index.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/closing/index.ts"
+   },
+   {
+    "from": "src/launch/launch.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/launch/launch.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/launch/launch.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/launch/launch.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/launch/launch.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/launch/launch.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/ledger/files.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/ledger/files.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/listing/index.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/listing/index.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/listing/index.ts",
+    "to": "src/observation/observe.ts"
+   },
+   {
+    "from": "src/listing/index.ts",
+    "to": "src/observation/observe.ts"
+   },
+   {
+    "from": "src/listing/index.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/listing/index.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/listing/index.ts",
+    "to": "src/stopping/stop.ts"
+   },
+   {
+    "from": "src/observation/observe.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/observation/observe.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/observation/observe.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/observation/observe.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/observation/observe.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/observation/observe.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/process/darwin.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/process/index.ts",
+    "to": "src/process/linux.ts"
+   },
+   {
+    "from": "src/process/index.ts",
+    "to": "src/process/darwin.ts"
+   },
+   {
+    "from": "src/process/index.ts",
+    "to": "src/process/windows.ts"
+   },
+   {
+    "from": "src/process/linux.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/process/windows.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/darwin.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/darwin.ts",
+    "to": "src/stopping/signal.ts"
+   },
+   {
+    "from": "src/stopping/index.ts",
+    "to": "src/stopping/stop.ts"
+   },
+   {
+    "from": "src/stopping/index.ts",
+    "to": "src/stopping/stop.ts"
+   },
+   {
+    "from": "src/stopping/index.ts",
+    "to": "src/stopping/signal.ts"
+   },
+   {
+    "from": "src/stopping/linux.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/linux.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/linux.ts",
+    "to": "src/stopping/signal.ts"
+   },
+   {
+    "from": "src/stopping/signal.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/signal.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/signal.ts",
+    "to": "src/stopping/linux.ts"
+   },
+   {
+    "from": "src/stopping/signal.ts",
+    "to": "src/stopping/darwin.ts"
+   },
+   {
+    "from": "src/stopping/signal.ts",
+    "to": "src/stopping/windows.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/ledger/files.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/ledger/records.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/observation/observe.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/stopping/signal.ts"
+   },
+   {
+    "from": "src/stopping/stop.ts",
+    "to": "src/stopping/signal.ts"
+   },
+   {
+    "from": "src/stopping/windows.ts",
+    "to": "src/process/index.ts"
+   },
+   {
+    "from": "src/stopping/windows.ts",
+    "to": "src/stopping/signal.ts"
+   }
+  ],
+  "dependsOn": []
+ },
+ "story_769e230c466d": {
+  "files": [
+   {
+    "path": "src/build.ts",
+    "lines": 52,
+    "capability": "capability_edbdd439d9b4"
+   },
+   {
+    "path": "src/copy-command.ts",
+    "lines": 30,
+    "capability": "capability_edbdd439d9b4"
+   },
+   {
+    "path": "src/forest-data.ts",
+    "lines": 9,
+    "capability": "capability_88dfe8ee2706"
+   },
+   {
+    "path": "src/forest-scene.tsx",
+    "lines": 50
+   },
+   {
+    "path": "src/forest-snapshot.ts",
+    "lines": 25,
+    "capability": "capability_88dfe8ee2706"
+   },
+   {
+    "path": "src/forest.ts",
+    "lines": 62
+   },
+   {
+    "path": "src/install-command.ts",
+    "lines": 17,
+    "capability": "capability_edbdd439d9b4"
+   },
+   {
+    "path": "src/main.ts",
+    "lines": 5
+   },
+   {
+    "path": "src/publish-source.ts",
+    "lines": 30,
+    "capability": "capability_d3ee9737837e"
+   },
+   {
+    "path": "src/publish.ts",
+    "lines": 142,
+    "capability": "capability_d3ee9737837e"
+   },
+   {
+    "path": "src/refresh-forest.ts",
+    "lines": 30,
+    "capability": "capability_88dfe8ee2706"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/build.ts",
+    "to": "src/install-command.ts"
+   },
+   {
+    "from": "src/forest-scene.tsx",
+    "to": "src/forest-data.ts"
+   },
+   {
+    "from": "src/forest-snapshot.ts",
+    "to": "src/forest-data.ts"
+   },
+   {
+    "from": "src/forest.ts",
+    "to": "src/forest-scene.tsx"
+   },
+   {
+    "from": "src/main.ts",
+    "to": "src/copy-command.ts"
+   },
+   {
+    "from": "src/refresh-forest.ts",
+    "to": "src/forest-snapshot.ts"
+   }
+  ],
+  "dependsOn": [
+   "story_ca702fee28cb",
+   "story_deee4230348c",
+   "story_7722ddb5461e",
+   "story_609c3b171b3f",
+   "story_754e87e7d531"
+  ]
+ },
+ "story_ca702fee28cb": {
+  "files": [
+   {
+    "path": "src/ForestWorldCanvas.causal.ts",
+    "lines": 109,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/ForestWorldCanvas.growth-material.ts",
+    "lines": 92,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/ForestWorldCanvas.readiness.ts",
+    "lines": 28,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/ForestWorldCanvas.registered-camera.ts",
+    "lines": 71,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/ForestWorldCanvas.regrow.ts",
+    "lines": 44,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/ForestWorldCanvas.tsx",
+    "lines": 1871,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/banded-ground-material.ts",
+    "lines": 1468,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/camera-framing.ts",
+    "lines": 465,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/cell-ground-geometry.ts",
+    "lines": 717,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/coast-clip.ts",
+    "lines": 631,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/contact-shade.ts",
+    "lines": 433,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/core/camera.ts",
+    "lines": 158,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/core/coast.ts",
+    "lines": 217,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/core/hex.ts",
+    "lines": 238,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/core/index.ts",
+    "lines": 159,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/core/resting-view.ts",
+    "lines": 175,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/core/rng.ts",
+    "lines": 19,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/core/routing.ts",
+    "lines": 1336,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/core/scene.ts",
+    "lines": 3594,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/core/sizing.ts",
+    "lines": 85,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/core/substrate.ts",
+    "lines": 553,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/cover-dressing.ts",
+    "lines": 387,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/detail-normal-texture.ts",
+    "lines": 87,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/detail-normal.ts",
+    "lines": 48,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/dressing-ground.ts",
+    "lines": 255,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/exact-colour.ts",
+    "lines": 127,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/forest-ground/forest-ground.ts",
+    "lines": 230,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/geometry.ts",
+    "lines": 11,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/ground-casters.ts",
+    "lines": 332,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/ground-dependency.ts",
+    "lines": 294,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 5,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/island-path.ts",
+    "lines": 437,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/kit-mesh.ts",
+    "lines": 626,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/kit-status-presentation.ts",
+    "lines": 52,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/kit-vocabulary.ts",
+    "lines": 1223,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/land-blight.ts",
+    "lines": 358,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/land-grain.ts",
+    "lines": 520,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/land-grass.ts",
+    "lines": 482,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/land-per-capability.ts",
+    "lines": 269,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/land-relief.ts",
+    "lines": 151,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/land-rock.ts",
+    "lines": 148,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/land-sand.ts",
+    "lines": 221,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/land-shadow.ts",
+    "lines": 657,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/land-wear.ts",
+    "lines": 203,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/land-wheat.ts",
+    "lines": 343,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/leaf-tint.ts",
+    "lines": 163,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/light-calibration.ts",
+    "lines": 272,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/map-dressing.ts",
+    "lines": 315,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/map-texels.ts",
+    "lines": 169,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/native-prop-hit-projection.ts",
+    "lines": 45,
+    "capability": "capability_e92b424b2d70"
+   },
+   {
+    "path": "src/native-prop-hit-records.ts",
+    "lines": 50,
+    "capability": "capability_e92b424b2d70"
+   },
+   {
+    "path": "src/native-prop-targets.ts",
+    "lines": 40,
+    "capability": "capability_e92b424b2d70"
+   },
+   {
+    "path": "src/parcel-cells.ts",
+    "lines": 106,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/planet/PlanetTrailRibbons.tsx",
+    "lines": 43,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/planet/PlanetWorldCanvas.tsx",
+    "lines": 101,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/planet/island-surface.ts",
+    "lines": 152,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/planet/pathways.ts",
+    "lines": 299,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/planet/planet.ts",
+    "lines": 91,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/prop-lighting.ts",
+    "lines": 214,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/scene.ts",
+    "lines": 58,
+    "capability": "capability_41b7ca034e07"
+   },
+   {
+    "path": "src/shade-ladder.ts",
+    "lines": 405,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/shadow-atlas.ts",
+    "lines": 503,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/shadow-rung.ts",
+    "lines": 392,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/shore-atlas.ts",
+    "lines": 190,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/shore-fall.ts",
+    "lines": 474,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/shore-grid.ts",
+    "lines": 404,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/shore-ring.ts",
+    "lines": 607,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/stepped-skirt.ts",
+    "lines": 683,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/texture-convention.ts",
+    "lines": 135,
+    "capability": "capability_660c49dca74b"
+   },
+   {
+    "path": "src/trail-ribbon-width.ts",
+    "lines": 79,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/trail-wear.ts",
+    "lines": 79,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/true-footprint.ts",
+    "lines": 242,
+    "capability": "capability_5538879d8b9d"
+   },
+   {
+    "path": "src/wear-atlas.ts",
+    "lines": 72,
+    "capability": "capability_4e8180e33f69"
+   },
+   {
+    "path": "src/wisp-asset.ts",
+    "lines": 27,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/wisp-mesh.ts",
+    "lines": 20,
+    "capability": "capability_cd7ea3b6ca01"
+   },
+   {
+    "path": "src/world-to-3d.ts",
+    "lines": 733,
+    "capability": "capability_5538879d8b9d"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/ForestWorldCanvas.causal.ts",
+    "to": "src/ForestWorldCanvas.regrow.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.causal.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/ForestWorldCanvas.regrow.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/ForestWorldCanvas.causal.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/ForestWorldCanvas.readiness.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/ForestWorldCanvas.registered-camera.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/camera-framing.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/cell-ground-geometry.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/trail-ribbon-width.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/shore-fall.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/shore-ring.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/stepped-skirt.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/shadow-atlas.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/ground-casters.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/ground-dependency.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/ForestWorldCanvas.growth-material.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/contact-shade.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/shadow-rung.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/kit-mesh.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/kit-status-presentation.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/wisp-asset.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/prop-lighting.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/native-prop-hit-projection.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/native-prop-targets.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/land-grass.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/land-wheat.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/land-blight.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/land-rock.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/shore-atlas.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/island-path.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/wear-atlas.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/detail-normal-texture.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/exact-colour.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/light-calibration.ts"
+   },
+   {
+    "from": "src/ForestWorldCanvas.tsx",
+    "to": "src/banded-ground-material.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-grain.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-grass.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-wheat.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-blight.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-rock.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-sand.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-wear.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/shadow-atlas.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/banded-ground-material.ts",
+    "to": "src/shadow-rung.ts"
+   },
+   {
+    "from": "src/camera-framing.ts",
+    "to": "src/core/index.ts"
+   },
+   {
+    "from": "src/camera-framing.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/camera-framing.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/cell-ground-geometry.ts",
+    "to": "src/stepped-skirt.ts"
+   },
+   {
+    "from": "src/cell-ground-geometry.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/cell-ground-geometry.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/coast-clip.ts",
+    "to": "src/core/index.ts"
+   },
+   {
+    "from": "src/coast-clip.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/coast-clip.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/contact-shade.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/core/camera.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/core/coast.ts",
+    "to": "src/core/rng.ts"
+   },
+   {
+    "from": "src/core/coast.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/core/hex.ts",
+    "to": "src/core/camera.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/rng.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/camera.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/resting-view.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/sizing.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/coast.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/substrate.ts"
+   },
+   {
+    "from": "src/core/index.ts",
+    "to": "src/core/routing.ts"
+   },
+   {
+    "from": "src/core/routing.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/core/routing.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/core/routing.ts",
+    "to": "src/core/rng.ts"
+   },
+   {
+    "from": "src/core/routing.ts",
+    "to": "src/core/camera.ts"
+   },
+   {
+    "from": "src/core/scene.ts",
+    "to": "src/core/rng.ts"
+   },
+   {
+    "from": "src/core/scene.ts",
+    "to": "src/core/camera.ts"
+   },
+   {
+    "from": "src/core/scene.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/core/scene.ts",
+    "to": "src/core/sizing.ts"
+   },
+   {
+    "from": "src/core/scene.ts",
+    "to": "src/core/routing.ts"
+   },
+   {
+    "from": "src/core/scene.ts",
+    "to": "src/core/coast.ts"
+   },
+   {
+    "from": "src/core/scene.ts",
+    "to": "src/core/substrate.ts"
+   },
+   {
+    "from": "src/core/sizing.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/core/sizing.ts",
+    "to": "src/core/camera.ts"
+   },
+   {
+    "from": "src/core/substrate.ts",
+    "to": "src/core/rng.ts"
+   },
+   {
+    "from": "src/core/substrate.ts",
+    "to": "src/core/camera.ts"
+   },
+   {
+    "from": "src/core/substrate.ts",
+    "to": "src/core/hex.ts"
+   },
+   {
+    "from": "src/cover-dressing.ts",
+    "to": "src/dressing-ground.ts"
+   },
+   {
+    "from": "src/cover-dressing.ts",
+    "to": "src/island-path.ts"
+   },
+   {
+    "from": "src/cover-dressing.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/cover-dressing.ts",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/cover-dressing.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/cover-dressing.ts",
+    "to": "src/parcel-cells.ts"
+   },
+   {
+    "from": "src/detail-normal-texture.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/detail-normal-texture.ts",
+    "to": "src/detail-normal.ts"
+   },
+   {
+    "from": "src/detail-normal-texture.ts",
+    "to": "src/texture-convention.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/island-path.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/land-sand.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/land-wear.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/parcel-cells.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/shore-fall.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/trail-wear.ts"
+   },
+   {
+    "from": "src/dressing-ground.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/forest-ground/forest-ground.ts",
+    "to": "src/scene.ts"
+   },
+   {
+    "from": "src/forest-ground/forest-ground.ts",
+    "to": "src/core/index.ts"
+   },
+   {
+    "from": "src/forest-ground/forest-ground.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/parcel-cells.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/planet/planet.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/planet/island-surface.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/planet/pathways.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/core/routing.ts"
+   },
+   {
+    "from": "src/geometry.ts",
+    "to": "src/trail-ribbon-width.ts"
+   },
+   {
+    "from": "src/ground-casters.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/ground-casters.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/ground-casters.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/ground-dependency.ts",
+    "to": "src/ground-casters.ts"
+   },
+   {
+    "from": "src/ground-dependency.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/ground-dependency.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/ground-dependency.ts",
+    "to": "src/map-dressing.ts"
+   },
+   {
+    "from": "src/ground-dependency.ts",
+    "to": "src/ForestWorldCanvas.causal.ts"
+   },
+   {
+    "from": "src/ground-dependency.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/forest-ground/forest-ground.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/island-path.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/island-path.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/island-path.ts",
+    "to": "src/land-sand.ts"
+   },
+   {
+    "from": "src/island-path.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/island-path.ts",
+    "to": "src/shore-atlas.ts"
+   },
+   {
+    "from": "src/island-path.ts",
+    "to": "src/shore-grid.ts"
+   },
+   {
+    "from": "src/island-path.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/leaf-tint.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/map-texels.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/map-texels.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/prop-lighting.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/texture-convention.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/texture-convention.ts"
+   },
+   {
+    "from": "src/kit-mesh.ts",
+    "to": "src/kit-status-presentation.ts"
+   },
+   {
+    "from": "src/kit-status-presentation.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/kit-vocabulary.ts",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/kit-vocabulary.ts",
+    "to": "src/parcel-cells.ts"
+   },
+   {
+    "from": "src/kit-vocabulary.ts",
+    "to": "src/parcel-cells.ts"
+   },
+   {
+    "from": "src/land-blight.ts",
+    "to": "src/land-grass.ts"
+   },
+   {
+    "from": "src/land-blight.ts",
+    "to": "src/land-wheat.ts"
+   },
+   {
+    "from": "src/land-blight.ts",
+    "to": "src/land-grain.ts"
+   },
+   {
+    "from": "src/land-blight.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/land-grain.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/land-grain.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/land-grass.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/land-grass.ts",
+    "to": "src/land-grain.ts"
+   },
+   {
+    "from": "src/land-grass.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/land-per-capability.ts",
+    "to": "src/core/index.ts"
+   },
+   {
+    "from": "src/land-per-capability.ts",
+    "to": "src/true-footprint.ts"
+   },
+   {
+    "from": "src/land-per-capability.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/land-relief.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/land-rock.ts",
+    "to": "src/land-grass.ts"
+   },
+   {
+    "from": "src/land-rock.ts",
+    "to": "src/land-grain.ts"
+   },
+   {
+    "from": "src/land-rock.ts",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/land-rock.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/land-rock.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/land-sand.ts",
+    "to": "src/land-grass.ts"
+   },
+   {
+    "from": "src/land-sand.ts",
+    "to": "src/land-grain.ts"
+   },
+   {
+    "from": "src/land-sand.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/land-sand.ts",
+    "to": "src/shore-fall.ts"
+   },
+   {
+    "from": "src/land-sand.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/land-shadow.ts",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/land-shadow.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/land-wear.ts",
+    "to": "src/land-grass.ts"
+   },
+   {
+    "from": "src/land-wear.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/land-wear.ts",
+    "to": "src/land-grain.ts"
+   },
+   {
+    "from": "src/land-wear.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/land-wheat.ts",
+    "to": "src/land-grass.ts"
+   },
+   {
+    "from": "src/land-wheat.ts",
+    "to": "src/land-grain.ts"
+   },
+   {
+    "from": "src/land-wheat.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/leaf-tint.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/leaf-tint.ts",
+    "to": "src/texture-convention.ts"
+   },
+   {
+    "from": "src/light-calibration.ts",
+    "to": "src/exact-colour.ts"
+   },
+   {
+    "from": "src/light-calibration.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/map-dressing.ts",
+    "to": "src/cover-dressing.ts"
+   },
+   {
+    "from": "src/map-dressing.ts",
+    "to": "src/dressing-ground.ts"
+   },
+   {
+    "from": "src/map-dressing.ts",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/map-dressing.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/map-dressing.ts",
+    "to": "src/parcel-cells.ts"
+   },
+   {
+    "from": "src/map-dressing.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/map-texels.ts",
+    "to": "src/texture-convention.ts"
+   },
+   {
+    "from": "src/map-texels.ts",
+    "to": "src/texture-convention.ts"
+   },
+   {
+    "from": "src/native-prop-hit-projection.ts",
+    "to": "src/core/index.ts"
+   },
+   {
+    "from": "src/native-prop-hit-projection.ts",
+    "to": "src/native-prop-hit-records.ts"
+   },
+   {
+    "from": "src/native-prop-hit-records.ts",
+    "to": "src/ground-dependency.ts"
+   },
+   {
+    "from": "src/native-prop-hit-records.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/native-prop-targets.ts",
+    "to": "src/ground-dependency.ts"
+   },
+   {
+    "from": "src/native-prop-targets.ts",
+    "to": "src/kit-vocabulary.ts"
+   },
+   {
+    "from": "src/native-prop-targets.ts",
+    "to": "src/native-prop-hit-records.ts"
+   },
+   {
+    "from": "src/native-prop-targets.ts",
+    "to": "src/native-prop-hit-projection.ts"
+   },
+   {
+    "from": "src/parcel-cells.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/planet/PlanetTrailRibbons.tsx",
+    "to": "src/planet/pathways.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/scene.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/planet/pathways.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/planet/PlanetTrailRibbons.tsx"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/exact-colour.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/camera-framing.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/planet/planet.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/planet/island-surface.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/planet/planet.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/planet/planet.ts"
+   },
+   {
+    "from": "src/planet/PlanetWorldCanvas.tsx",
+    "to": "src/planet/island-surface.ts"
+   },
+   {
+    "from": "src/planet/island-surface.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/planet/island-surface.ts",
+    "to": "src/planet/planet.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/scene.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/core/routing.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/forest-ground/forest-ground.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/shore-fall.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/trail-ribbon-width.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/planet/pathways.ts",
+    "to": "src/planet/planet.ts"
+   },
+   {
+    "from": "src/planet/planet.ts",
+    "to": "src/camera-framing.ts"
+   },
+   {
+    "from": "src/planet/planet.ts",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/planet/planet.ts",
+    "to": "src/shore-fall.ts"
+   },
+   {
+    "from": "src/planet/planet.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/prop-lighting.ts",
+    "to": "src/light-calibration.ts"
+   },
+   {
+    "from": "src/prop-lighting.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/shadow-atlas.ts",
+    "to": "src/contact-shade.ts"
+   },
+   {
+    "from": "src/shadow-atlas.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/shadow-atlas.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/shadow-rung.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/shadow-rung.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/shore-atlas.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/shore-atlas.ts",
+    "to": "src/shadow-atlas.ts"
+   },
+   {
+    "from": "src/shore-atlas.ts",
+    "to": "src/shore-fall.ts"
+   },
+   {
+    "from": "src/shore-atlas.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/shore-atlas.ts",
+    "to": "src/land-sand.ts"
+   },
+   {
+    "from": "src/shore-atlas.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/shore-fall.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/shore-fall.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/shore-fall.ts",
+    "to": "src/land-relief.ts"
+   },
+   {
+    "from": "src/shore-fall.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/shore-fall.ts",
+    "to": "src/shore-grid.ts"
+   },
+   {
+    "from": "src/shore-grid.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/shore-grid.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/shore-ring.ts",
+    "to": "src/cell-ground-geometry.ts"
+   },
+   {
+    "from": "src/shore-ring.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/shore-ring.ts",
+    "to": "src/shore-fall.ts"
+   },
+   {
+    "from": "src/shore-ring.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/shore-ring.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/stepped-skirt.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/stepped-skirt.ts",
+    "to": "src/shade-ladder.ts"
+   },
+   {
+    "from": "src/stepped-skirt.ts",
+    "to": "src/cell-ground-geometry.ts"
+   },
+   {
+    "from": "src/stepped-skirt.ts",
+    "to": "src/land-per-capability.ts"
+   },
+   {
+    "from": "src/stepped-skirt.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/trail-wear.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/trail-wear.ts",
+    "to": "src/land-wear.ts"
+   },
+   {
+    "from": "src/trail-wear.ts",
+    "to": "src/land-shadow.ts"
+   },
+   {
+    "from": "src/trail-wear.ts",
+    "to": "src/shore-grid.ts"
+   },
+   {
+    "from": "src/true-footprint.ts",
+    "to": "src/world-to-3d.ts"
+   },
+   {
+    "from": "src/wear-atlas.ts",
+    "to": "src/land-wear.ts"
+   },
+   {
+    "from": "src/wear-atlas.ts",
+    "to": "src/coast-clip.ts"
+   },
+   {
+    "from": "src/wear-atlas.ts",
+    "to": "src/shadow-atlas.ts"
+   },
+   {
+    "from": "src/wear-atlas.ts",
+    "to": "src/shore-atlas.ts"
+   },
+   {
+    "from": "src/wear-atlas.ts",
+    "to": "src/trail-wear.ts"
+   },
+   {
+    "from": "src/wisp-asset.ts",
+    "to": "src/wisp-mesh.ts"
+   },
+   {
+    "from": "src/world-to-3d.ts",
+    "to": "src/core/index.ts"
+   },
+   {
+    "from": "src/world-to-3d.ts",
+    "to": "src/land-per-capability.ts"
+   }
+  ],
+  "dependsOn": []
+ },
+ "story_1d360b6227d8": {
+  "files": [
+   {
+    "path": "src/binaries.ts",
+    "lines": 78,
+    "capability": "capability_59d797f251ac"
+   },
+   {
+    "path": "src/index.ts",
+    "lines": 7,
+    "capability": "capability_59d797f251ac"
+   },
+   {
+    "path": "src/server.ts",
+    "lines": 322,
+    "capability": "capability_59d797f251ac"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/index.ts",
+    "to": "src/binaries.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/binaries.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/server.ts"
+   },
+   {
+    "from": "src/index.ts",
+    "to": "src/server.ts"
+   },
+   {
+    "from": "src/server.ts",
+    "to": "src/binaries.ts"
+   }
+  ],
+  "dependsOn": []
+ },
+ "story_95ed402f9bd3": {
+  "files": [
+   {
+    "path": "src/acceptance-health.mjs",
+    "lines": 84,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/build-guidance.mjs",
+    "lines": 135,
+    "capability": "capability_661aa4646f5e"
+   },
+   {
+    "path": "src/check-own-health.mjs",
+    "lines": 181,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/export-library.mjs",
+    "lines": 70,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/gate.mjs",
+    "lines": 143,
+    "capability": "capability_16aefb07d01c"
+   },
+   {
+    "path": "src/guidance.mjs",
+    "lines": 240,
+    "capability": "capability_661aa4646f5e"
+   },
+   {
+    "path": "src/heavy-lock.mjs",
+    "lines": 99,
+    "capability": "capability_ec11e74b2c5d"
+   },
+   {
+    "path": "src/library-export.mjs",
+    "lines": 149,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/library-server.mjs",
+    "lines": 104,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/node-runtime.mjs",
+    "lines": 41,
+    "capability": "capability_ec11e74b2c5d"
+   },
+   {
+    "path": "src/own-health.mjs",
+    "lines": 383,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/package-boundaries.mjs",
+    "lines": 185,
+    "capability": "capability_4f49c7e670a9"
+   },
+   {
+    "path": "src/provision-worktree.mjs",
+    "lines": 181,
+    "capability": "capability_e5e96336b290"
+   },
+   {
+    "path": "src/record-acceptance.mjs",
+    "lines": 89,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/restore-library.mjs",
+    "lines": 57,
+    "capability": "capability_27e4cc672308"
+   },
+   {
+    "path": "src/server-log.mjs",
+    "lines": 19,
+    "capability": "capability_ec11e74b2c5d"
+   },
+   {
+    "path": "src/survey-coverage.mjs",
+    "lines": 149,
+    "capability": "capability_e5e96336b290"
+   },
+   {
+    "path": "src/test-ratio.mjs",
+    "lines": 142,
+    "capability": "capability_ec11e74b2c5d"
+   },
+   {
+    "path": "src/test-running-reporter.mjs",
+    "lines": 50,
+    "capability": "capability_ec11e74b2c5d"
+   },
+   {
+    "path": "src/test-scope.mjs",
+    "lines": 207,
+    "capability": "capability_308fe9e3dacb"
+   },
+   {
+    "path": "src/test.mjs",
+    "lines": 269,
+    "capability": "capability_ec11e74b2c5d"
+   },
+   {
+    "path": "src/unit-run.mjs",
+    "lines": 212,
+    "capability": "capability_ec11e74b2c5d"
+   }
+  ],
+  "imports": [
+   {
+    "from": "src/acceptance-health.mjs",
+    "to": "src/own-health.mjs"
+   },
+   {
+    "from": "src/acceptance-health.mjs",
+    "to": "src/own-health.mjs"
+   },
+   {
+    "from": "src/acceptance-health.mjs",
+    "to": "src/own-health.mjs"
+   },
+   {
+    "from": "src/acceptance-health.mjs",
+    "to": "src/own-health.mjs"
+   },
+   {
+    "from": "src/build-guidance.mjs",
+    "to": "src/guidance.mjs"
+   },
+   {
+    "from": "src/check-own-health.mjs",
+    "to": "src/library-server.mjs"
+   },
+   {
+    "from": "src/check-own-health.mjs",
+    "to": "src/own-health.mjs"
+   },
+   {
+    "from": "src/export-library.mjs",
+    "to": "src/library-server.mjs"
+   },
+   {
+    "from": "src/export-library.mjs",
+    "to": "src/library-export.mjs"
+   },
+   {
+    "from": "src/gate.mjs",
+    "to": "src/heavy-lock.mjs"
+   },
+   {
+    "from": "src/gate.mjs",
+    "to": "src/guidance.mjs"
+   },
+   {
+    "from": "src/gate.mjs",
+    "to": "src/test-scope.mjs"
+   },
+   {
+    "from": "src/record-acceptance.mjs",
+    "to": "src/acceptance-health.mjs"
+   },
+   {
+    "from": "src/record-acceptance.mjs",
+    "to": "src/library-server.mjs"
+   },
+   {
+    "from": "src/record-acceptance.mjs",
+    "to": "src/own-health.mjs"
+   },
+   {
+    "from": "src/restore-library.mjs",
+    "to": "src/library-server.mjs"
+   },
+   {
+    "from": "src/survey-coverage.mjs",
+    "to": "src/unit-run.mjs"
+   },
+   {
+    "from": "src/survey-coverage.mjs",
+    "to": "src/heavy-lock.mjs"
+   },
+   {
+    "from": "src/test.mjs",
+    "to": "src/heavy-lock.mjs"
+   },
+   {
+    "from": "src/test.mjs",
+    "to": "src/node-runtime.mjs"
+   },
+   {
+    "from": "src/test.mjs",
+    "to": "src/server-log.mjs"
+   },
+   {
+    "from": "src/test.mjs",
+    "to": "src/test-scope.mjs"
+   },
+   {
+    "from": "src/test.mjs",
+    "to": "src/unit-run.mjs"
+   }
+  ],
+  "dependsOn": [
+   "story_609c3b171b3f",
+   "story_a93c6fb1a257",
+   "story_754e87e7d531",
+   "story_1d360b6227d8"
+  ]
+ }
+}

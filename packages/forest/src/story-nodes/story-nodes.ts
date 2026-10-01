@@ -11,12 +11,16 @@
  * ordered with the story most depended on (directly or not) in the middle and the rest outward; a
  * higher row by where the stories it depends on sit in theirs. Ties go by the order the stories were
  * created in, and a loop in the dependencies is broken where it is found, so it never stops the layout.
+ * Where the code survey says which other stories' packages a story's package depends on, those are
+ * its dependencies instead of its capabilities' (ADR-0840 D2): the code is the source of truth for
+ * the direction, so a code edge the plan never recorded still places the island.
  *
  * Everything here is a pure function of what the library hands the forest, so it is tested
  * without a database.
  */
 import type { AnnotatedTree, Change, HealthState } from "@storytree/library";
 
+import type { StorySurvey } from "../code-survey/code-survey.js";
 import { placeInRow } from "../planet-places/planet-places.js";
 
 /** A point on the forest's ground, in place-widths from its centre. */
@@ -45,12 +49,13 @@ export interface StoryNode {
  * The story nodes of a project: one for each story in `tree` (the library's projectTree()), in the
  * tree's order. `history` is the project's changes from the start, as changesSince(0) hands them
  * out; the order the stories were created in, which breaks ties in a row, is read from it. A story
- * the history does not show being created comes after every story it does show.
+ * the history does not show being created comes after every story it does show. `survey` is the
+ * project's code survey: a story it names package dependencies for is placed by those.
  */
-export function storyNodes(tree: AnnotatedTree, history: readonly Change[]): StoryNode[] {
+export function storyNodes(tree: AnnotatedTree, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "dependsOn">>> = {}): StoryNode[] {
   const created = history.filter(({ type, action }) => type === "story" && action === "created").map(({ recordId }) => recordId);
   const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])].filter((id) => tree.stories.some((story) => story.id === id));
-  const rows = storyRows(tree, order);
+  const rows = storyRows(tree, order, survey);
   return tree.stories.map((story) => {
     const { row, slot, width } = rows.get(story.id)!;
     return { id: story.id, title: story.title, reported: story.health.reported.state, place: placeInRow(row, slot), at: { x: slot - (width - 1) / 2, y: -row } };
@@ -58,10 +63,12 @@ export function storyNodes(tree: AnnotatedTree, history: readonly Change[]): Sto
 }
 
 /** Each story's row, its slot in the row from the west, and how many the row holds; `order` is the stories in creation order. */
-function storyRows(tree: AnnotatedTree, order: readonly string[]): Map<string, { row: number; slot: number; width: number }> {
+function storyRows(tree: AnnotatedTree, order: readonly string[], survey: Readonly<Record<string, Pick<StorySurvey, "dependsOn">>>): Map<string, { row: number; slot: number; width: number }> {
   const owner = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
-  const dependsOn = new Map(tree.stories.map((story) => [story.id, [...new Set(story.capabilities.flatMap(({ dependsOn: on }) =>
-    on.flatMap((capability) => { const other = owner.get(capability); return other === undefined || other === story.id ? [] : [other]; })))]]));
+  const known = new Set(order);
+  const dependsOn = new Map(tree.stories.map((story) => [story.id, survey[story.id]?.dependsOn?.filter((other) => known.has(other) && other !== story.id)
+    ?? [...new Set(story.capabilities.flatMap(({ dependsOn: on }) =>
+      on.flatMap((capability) => { const other = owner.get(capability); return other === undefined || other === story.id ? [] : [other]; })))]]));
   const dependents = new Map(order.map((id) => [id, order.filter((other) => dependsOn.get(other)!.includes(id))]));
 
   // Longest path from the bottom: one above the deepest dependency; a dependency still being visited closes a loop and counts as none.

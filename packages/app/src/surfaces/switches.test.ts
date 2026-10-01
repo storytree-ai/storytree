@@ -26,7 +26,7 @@ function home(t: TestContext): string {
   return dir;
 }
 
-test("with nothing saved, every surface is listed in order, on, with its settings at their defaults", (t) => {
+test("3.7 with nothing saved, every surface is listed in order, on, with its settings at their defaults", (t) => {
   const read = readSurfaces(declared, home(t));
   assert.deepEqual(read.map(({ id, on, source }) => ({ id, on, source })), declared.map(({ id }) => ({ id, on: true, source: "default" })));
   assert.deepEqual(read[0]!.settings.map(({ id, value, source }) => ({ id, value, source })), [{ id: "opening-zoom", value: "whole", source: "default" }]);
@@ -34,7 +34,7 @@ test("with nothing saved, every surface is listed in order, on, with its setting
   assert.equal(read[0]!.description, "The planet.");
 });
 
-test("a surface switched off is saved in the settings file and reads off; one that follows it goes off with it", (t) => {
+test("3.7 a surface switched off is saved in the settings file and reads off; one that follows it goes off with it", (t) => {
   const dir = home(t);
   setSurface(declared, ["tree", "off"], dir);
   setSurface(declared, ["globe", "opening-zoom", "close"], dir);
@@ -49,7 +49,7 @@ test("a surface switched off is saved in the settings file and reads off; one th
   assert.equal(readSurfaces(declared, dir).find(({ id }) => id === "details")!.on, true);
 });
 
-test("switching an always-on surface, an unknown surface or an unknown choice is refused with its reason, the file untouched", (t) => {
+test("3.7 switching an always-on surface, an unknown surface or an unknown choice is refused with its reason, the file untouched", (t) => {
   const dir = home(t);
   assert.throws(() => setSurface(declared, ["globe", "off"], dir), /Globe is always on/);
   assert.throws(() => setSurface(declared, ["moon", "off"], dir), /no surface "moon".*globe/);

@@ -81,26 +81,22 @@ function busyLog(seed: number, count: number): Line[] {
   return lines;
 }
 
-/** The fold fed `lines` in pieces cut at `cuts`. */
-function foldedInPieces(lines: readonly Line[], cuts: readonly number[]): LogFold {
-  const fold = new LogFold();
-  let from = 0;
-  for (const cut of [...cuts, lines.length]) {
-    fold.add(lines.slice(from, cut));
-    from = cut;
-  }
-  return fold;
-}
-
 test("a fold fed the log a piece at a time reads the same sessions and claims as the whole history, at every time it is read", () => {
   for (const seed of [1, 2, 3, 4, 5]) {
     const lines = busyLog(seed, 600);
-    const fold = foldedInPieces(lines, [1, 7, 50, 51, 200, 433, 599]);
-    const last = Date.parse(lines.at(-1)!.at);
-    for (const later of [0, 5 * 60_000, 31 * 60_000, 2 * 3_600_000, 13 * 3_600_000]) {
-      const options = { now: new Date(last + later), quietMs: 20 * 60_000, leaveMs: 3_600_000 };
-      assert.deepEqual(fold.sessions(options), sessionsFrom(lines, options), `sessions, seed ${seed}, ${later} ms after the last line`);
-      assert.deepEqual(fold.claims(options), claimsFrom(lines, options), `claims, seed ${seed}, ${later} ms after the last line`);
+    const fold = new LogFold();
+    let from = 0;
+    for (const cut of [1, 2, 7, 30, 50, 51, 90, 140, 200, 260, 330, 433, 500, 599, 600]) {
+      fold.add(lines.slice(from, cut));
+      from = cut;
+      const heard = lines.slice(0, cut);
+      const last = Date.parse(heard.at(-1)!.at);
+      for (const later of [0, 5 * 60_000, 31 * 60_000, 2 * 3_600_000, 13 * 3_600_000]) {
+        const options = { now: new Date(last + later), quietMs: 20 * 60_000, leaveMs: 3_600_000 };
+        const at = `seed ${seed}, ${cut} lines, ${later} ms after the last`;
+        assert.deepEqual(fold.sessions(options), sessionsFrom(heard, options), `sessions, ${at}`);
+        assert.deepEqual(fold.claims(options), claimsFrom(heard, options), `claims, ${at}`);
+      }
     }
   }
 });

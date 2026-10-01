@@ -165,108 +165,9 @@ const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state
 
 /** The sessions `lines` show, in the order they started, each judged at `options.now`. */
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {
-  const now = (options.now ?? new Date()).getTime();
-  const quietMs = options.quietMs ?? QUIET_MS;
-  const leaveMs = options.leaveMs ?? LEAVE_MS;
-  const bySession = new Map<string, Line[]>();
-  // What lines written by other sessions say about a branch, and about a session the apps keep: the latest of each.
-  // A claim's merge resolves its branch as a branch-state line does, until a later look says otherwise.
-  const branchStates = new Map<string, { open: boolean; at: string; pr?: number | undefined; draft?: true | undefined; checks?: PullState["checks"] | undefined; queued?: true | undefined }>();
-  const appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
-  const appWords = new Map<string, Line & { kind: "session-described" }>();
-  for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
-    // A line about others is no work of its writer's: a person or the app that looked is no session (contract 4.20).
-    if (!ABOUT_OTHERS.has(line.kind)) {
-      const own = bySession.get(line.session);
-      if (own === undefined) bySession.set(line.session, [line]);
-      else own.push(line);
-    }
-    if (line.kind === "branch-state") branchStates.set(line.of, line);
-    else if (line.kind === "merged") branchStates.set(line.branch, { open: false, at: line.at });
-    else if (line.kind === "session-archived" || line.kind === "session-unarchived") appRecords.set(line.of, line);
-    else if (line.kind === "session-described") appWords.set(line.of, line);
-  }
-  return [...bySession.entries()].map(([session, own]) => {
-    const first = own[0]!;
-    const latest = own.at(-1)!;
-    const harness = own.find((line) => line.harness !== undefined)?.harness;
-    const folder = (own.find((line) => line.kind === "session-started" && line.folder !== undefined) ?? own.find((line) => line.folder !== undefined))?.folder;
-    const worktrees = [...new Set(own.flatMap((line) => (line.folder === undefined ? [] : [line.folder])))];
-    const state: SessionState = latest.kind === "session-ended" ? "ended"
-      : now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone" : (turnState(own, now) ?? (isQuiet(own, now, quietMs) ? "waiting" : "working"));
-    // A merged line names the claim's branch, not its writer's.
-    const branches = [...new Set(own.flatMap((line) => (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch) ? [] : [line.branch])))];
-    const openWork = branches.filter((branch) => branchStates.get(branch)?.open !== false);
-    const branchesByFolder = branchesInFolders(own, (branch) => {
-      const state = branchStates.get(branch);
-      if (state?.open === false) return { open: false };
-      if (state?.pr === undefined) return { open: true };
-      return { open: true, pr: { number: state.pr, draft: state.draft === true, ...(state.checks === undefined ? {} : { checks: state.checks }), queued: state.queued === true } };
-    });
-    const record = appRecords.get(session);
-    const archived = record?.kind === "session-archived";
-    const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(branchStates.get(branch)?.at ?? latest.at)));
-    const settled = state === "ended" || now - settledSince > leaveMs;
-    const closeOut = closeOutOf(own, openWork);
-    // A verified close-out leaves at once; one that needs you stays, whatever else says (ADR-0758 D3).
-    const listing: Listing = closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
-      : openWork.length > 0 ? "listed"
-      : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
-      : settled ? "hidden" : "listed";
-    return {
-      session,
-      ...(harness === undefined ? {} : { harness }),
-      label: labelOf(harness),
-      ...(folder === undefined ? {} : { folder }),
-      worktrees,
-      startedAt: first.at,
-      lastSeenAt: latest.at,
-      state,
-      hooksRunning: own.some((line) => line.source === "hook"),
-      branches,
-      openWork,
-      branchesByFolder,
-      running: commandsRunning(own, now).map(({ command, since }) => ({ command, since })),
-      ...(record === undefined ? {} : { app: record.app }),
-      archived,
-      ...(appWords.get(session)?.title === undefined ? {} : { title: appWords.get(session)!.title! }),
-      ...(appWords.get(session)?.status === undefined ? {} : { status: appWords.get(session)!.status! }),
-      ...(closeOut === undefined ? {} : { closeOut }),
-      listing,
-    };
-  });
-}
-
-/** Each branch `own` (a session's lines, oldest first) recorded in a folder, once each, with whether it is open by `isOpen`. */
-function branchesInFolders(own: readonly Line[], stateOf: (branch: string) => Pick<BranchInFolder, "open" | "pr">): BranchInFolder[] {
-  const placed = new Map<string, BranchInFolder>();
-  let folder: string | undefined;
-  for (const line of own) {
-    if (line.folder !== undefined) folder = line.folder;
-    if (line.branch === undefined || line.kind === "merged" || MAIN_BRANCHES.has(line.branch)) continue;
-    const key = `${folder ?? ""} ${line.branch}`;
-    if (!placed.has(key)) placed.set(key, { ...(folder === undefined ? {} : { folder }), branch: line.branch, ...stateOf(line.branch) });
-  }
-  return [...placed.values()];
-}
-
-/** A session's standing close-out, by its own lines `own` (oldest first) and its branches still open. */
-function closeOutOf(own: readonly Line[], openWork: readonly string[]): CloseOut | undefined {
-  const index = own.findLastIndex((line) => line.kind === "closed-out");
-  const line = own[index];
-  if (line?.kind !== "closed-out") return undefined;
-  const since = own.slice(index + 1);
-  if (since.some((later) => later.kind === "prompt-submitted" || (later.kind === "session-started" && later.how !== "compact"))) return undefined;
-  const said = { safe: line.safe, why: line.why, at: line.at };
-  if (!line.safe) return { ...said, verified: false, needsYou: line.why };
-  const turn = own.findLast((later) => later.kind === "turn-ended");
-  const disagreements = [
-    ...(openWork.length === 0 ? [] : [`${openWork.join(", ")} ${openWork.length === 1 ? "is" : "are"} unmerged`]),
-    ...(line.running === undefined ? ["its own runs could not be counted"]
-      : line.running === 0 ? [] : [`${line.running} run${line.running === 1 ? "" : "s"} of its own still ${line.running === 1 ? "runs" : "run"}`]),
-    ...(turn?.kind === "turn-ended" && turn.seq > line.seq && (turn.background ?? 0) > 0 ? ["a background task still runs"] : []),
-  ];
-  return disagreements.length === 0 ? { ...said, verified: true } : { ...said, verified: false, needsYou: `says safe, but ${disagreements.join("; ")}` };
+  const fold = new LogFold();
+  fold.add(lines);
+  return fold.sessions(options);
 }
 
 /**
@@ -369,12 +270,9 @@ export const CLAIM_KINDS = ["claimed", "released", "landed", "closed", "merged",
 
 /** Who holds what, as `lines` show it, each holder judged live or idle at `options.now`. In the order they were claimed. */
 export function claimsFrom(lines: readonly Line[], options: ClaimsOptions = {}): Claim[] {
-  const ordered = [...lines].sort((a, b) => a.seq - b.seq);
-  const lastSeen = new Map<string, string>();
-  for (const line of ordered) lastSeen.set(line.session, line.at);
-  const claimLines = ordered.filter((line) => (CLAIM_KINDS as readonly string[]).includes(line.kind));
-  const now = (options.now ?? new Date()).getTime();
-  return [...held(claimLines, lastSeen, runningIn(ordered, now), now, options.quietMs ?? QUIET_MS).values()];
+  const fold = new LogFold();
+  fold.add(lines);
+  return fold.claims(options);
 }
 
 /** The current holder of one capability or increment, or undefined when nobody holds it. */
@@ -436,26 +334,7 @@ export function runningIn(lines: readonly Line[], now: number): Set<string> {
 /** The claims standing after `claimLines`, by what they are on, each holder judged by when its session last wrote and whether a command of its is running. */
 export function held(claimLines: readonly Line[], lastSeen: ReadonlyMap<string, string>, running: ReadonlySet<string>, now: number, quietMs: number): Map<string, Claim> {
   const holders = new Map<string, Omit<Claim, "holder">>();
-  for (const line of claimLines) {
-    switch (line.kind) {
-      case "claimed":
-        holders.set(idOf(line), claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch));
-        break;
-      case "released":
-      case "landed":
-        if (holders.get(idOf(line))?.session === line.session) holders.delete(idOf(line));
-        break;
-      case "merged":
-        if (holders.get(idOf(line))?.session === line.holder) holders.delete(idOf(line));
-        break;
-      case "closed":
-        holders.delete(line.increment);
-        break;
-      case "session-ended":
-        for (const [id, holder] of holders) if (holder.session === line.session) holders.delete(id);
-        break;
-    }
-  }
+  for (const line of claimLines) holding(holders, line);
   const claims = new Map<string, Claim>();
   for (const [id, holder] of holders) {
     const quiet = now - Date.parse(lastSeen.get(holder.session) ?? holder.since);
@@ -481,9 +360,209 @@ function idOf(of: { capability?: string | undefined; increment?: string | undefi
   return of.increment ?? of.capability ?? "";
 }
 
-/** The sessions and claims reading, folded as the log's lines arrive (ADR-0836 D1, D4). Not yet built. */
+/** What a session's own lines (oldest first) have said so far: everything sessionsFrom reads, without the lines. */
+interface SessionFold {
+  session: string;
+  firstAt: string;
+  latest: { kind: Line["kind"]; at: string };
+  harness?: string;
+  /** The folder of its first start line that names one, and of its first line that names one. */
+  startedIn?: string;
+  firstFolder?: string;
+  worktrees: Set<string>;
+  hooksRunning: boolean;
+  branches: Set<string>;
+  /** The folder its latest line naming one named, and each branch it recorded in a folder, once, by folder and branch. */
+  folder?: string;
+  placed: Map<string, { folder?: string; branch: string }>;
+  prompted: boolean;
+  inTurn: boolean;
+  /** Its commands started and not seen finish, by call, in the order started; and finishes no running command took. */
+  running: Map<string, CommandRunning>;
+  finished: Set<string>;
+  closedOut?: { line: Line & { kind: "closed-out" }; reopened: boolean };
+  lastTurnEnded?: { seq: number; background: number };
+}
+
+/**
+ * The sessions and claims reading, folded as the log's lines arrive (ADR-0836 D1, D4): it keeps what
+ * each session's lines have said, the claims standing, and the latest that others' lines say about a
+ * branch and about a session the apps keep, never the lines themselves. The time is applied only
+ * when it is read, so it reads the same as sessionsFrom and claimsFrom over every line it was fed.
+ * Feed it lines in the log's order; a line at or before the last one taken changes nothing.
+ */
 export class LogFold {
-  add(_lines: readonly Line[]): void {}
-  sessions(_options: SessionOptions = {}): Session[] { return []; }
-  claims(_options: ClaimsOptions = {}): Claim[] { return []; }
+  #last = -Infinity;
+  #sessions = new Map<string, SessionFold>();
+  /** When each session, about others' work or its own, last wrote. */
+  #lastSeen = new Map<string, string>();
+  #branchStates = new Map<string, { open: boolean; at: string; pr?: number | undefined; draft?: true | undefined; checks?: PullState["checks"] | undefined; queued?: true | undefined }>();
+  #appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
+  #appWords = new Map<string, Line & { kind: "session-described" }>();
+  #holders = new Map<string, Omit<Claim, "holder">>();
+
+  /** Take what is new. */
+  add(lines: readonly Line[]): void {
+    for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
+      if (line.seq <= this.#last) continue;
+      this.#last = line.seq;
+      this.#lastSeen.set(line.session, line.at);
+      if (!ABOUT_OTHERS.has(line.kind)) this.#own(line);
+      if (line.kind === "branch-state") this.#branchStates.set(line.of, line);
+      else if (line.kind === "merged") this.#branchStates.set(line.branch, { open: false, at: line.at });
+      else if (line.kind === "session-archived" || line.kind === "session-unarchived") this.#appRecords.set(line.of, line);
+      else if (line.kind === "session-described") this.#appWords.set(line.of, line);
+      holding(this.#holders, line);
+    }
+  }
+
+  #own(line: Line): void {
+    let own = this.#sessions.get(line.session);
+    if (own === undefined) {
+      own = { session: line.session, firstAt: line.at, latest: line, worktrees: new Set(), hooksRunning: false, branches: new Set(), placed: new Map(),
+        prompted: false, inTurn: false, running: new Map(), finished: new Set() };
+      this.#sessions.set(line.session, own);
+    }
+    own.latest = { kind: line.kind, at: line.at };
+    if (line.harness !== undefined) own.harness ??= line.harness;
+    if (line.folder !== undefined) {
+      own.firstFolder ??= line.folder;
+      if (line.kind === "session-started") own.startedIn ??= line.folder;
+      own.worktrees.add(line.folder);
+      own.folder = line.folder;
+    }
+    if (line.source === "hook") own.hooksRunning = true;
+    if (line.branch !== undefined && line.kind !== "merged" && !MAIN_BRANCHES.has(line.branch)) {
+      own.branches.add(line.branch);
+      const key = `${own.folder ?? ""}\u0000${line.branch}`;
+      if (!own.placed.has(key)) own.placed.set(key, { ...(own.folder === undefined ? {} : { folder: own.folder }), branch: line.branch });
+    }
+    // Its turns (turnState), and its commands (commandsRunning).
+    if (line.kind === "prompt-submitted") own.prompted = own.inTurn = true;
+    else if (line.kind === "turn-ended" || line.kind === "session-ended" || (line.kind === "session-started" && line.how !== "compact")) own.inTurn = false;
+    if (line.kind === "command-started") {
+      if (!own.finished.has(line.call)) {
+        own.running.set(line.call, { command: line.command, since: line.at,
+          until: Date.parse(line.at) + (line.limitMs ?? (line.harness === "claude-code" ? CLAUDE_CODE_COMMAND_MS : LONGEST_COMMAND_MS)) });
+      }
+    } else if (line.kind === "command-run" && line.call !== undefined) {
+      // A finish ends its command; one that came before its start ends it as it starts.
+      if (!own.running.delete(line.call)) own.finished.add(line.call);
+    } else if (line.kind === "turn-ended" && line.background !== undefined && line.background > 0) {
+      for (const one of own.running.values()) one.until = Date.parse(one.since) + LONGEST_COMMAND_MS;
+    } else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") own.running.clear();
+    // Its close-out, and what came after it.
+    if (line.kind === "closed-out") own.closedOut = { line, reopened: false };
+    else if (own.closedOut !== undefined && (line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;
+    if (line.kind === "turn-ended") own.lastTurnEnded = { seq: line.seq, background: line.background ?? 0 };
+  }
+
+  /** The sessions it has been fed, in the order they started, each judged at `options.now`. */
+  sessions(options: SessionOptions = {}): Session[] {
+    const now = (options.now ?? new Date()).getTime();
+    const quietMs = options.quietMs ?? QUIET_MS;
+    const leaveMs = options.leaveMs ?? LEAVE_MS;
+    return [...this.#sessions.values()].map((own) => {
+      const { session, harness, latest } = own;
+      const folder = own.startedIn ?? own.firstFolder;
+      const running = [...own.running.values()].filter(({ until }) => now <= until);
+      const quiet = now - Date.parse(latest.at) > quietMs && running.length === 0;
+      const state: SessionState = latest.kind === "session-ended" ? "ended"
+        : now - Date.parse(latest.at) > LONGEST_COMMAND_MS ? "gone"
+        : own.prompted ? (own.inTurn || running.length > 0 ? "working" : "waiting")
+        : quiet ? "waiting" : "working";
+      const branches = [...own.branches];
+      const openWork = branches.filter((branch) => this.#branchStates.get(branch)?.open !== false);
+      const branchesByFolder = [...own.placed.values()].map((placed): BranchInFolder => ({ ...placed, ...this.#branchState(placed.branch) }));
+      const record = this.#appRecords.get(session);
+      const archived = record?.kind === "session-archived";
+      const settledSince = Math.max(Date.parse(latest.at), ...branches.map((branch) => Date.parse(this.#branchStates.get(branch)?.at ?? latest.at)));
+      const settled = state === "ended" || now - settledSince > leaveMs;
+      const closeOut = this.#closeOut(own, openWork);
+      // A verified close-out leaves at once; one that needs you stays, whatever else says (ADR-0758 D3).
+      const listing: Listing = closeOut !== undefined ? (closeOut.verified ? "hidden" : "listed")
+        : openWork.length > 0 ? "listed"
+        : record !== undefined ? (archived ? "hidden" : settled ? "done" : "listed")
+        : settled ? "hidden" : "listed";
+      const words = this.#appWords.get(session);
+      return {
+        session,
+        ...(harness === undefined ? {} : { harness }),
+        label: labelOf(harness),
+        ...(folder === undefined ? {} : { folder }),
+        worktrees: [...own.worktrees],
+        startedAt: own.firstAt,
+        lastSeenAt: latest.at,
+        state,
+        hooksRunning: own.hooksRunning,
+        branches,
+        openWork,
+        branchesByFolder,
+        running: running.map(({ command, since }) => ({ command, since })),
+        ...(record === undefined ? {} : { app: record.app }),
+        archived,
+        ...(words?.title === undefined ? {} : { title: words.title }),
+        ...(words?.status === undefined ? {} : { status: words.status }),
+        ...(closeOut === undefined ? {} : { closeOut }),
+        listing,
+      };
+    });
+  }
+
+  /** Who holds what, each holder judged live or idle at `options.now`, in the order they were claimed. */
+  claims(options: ClaimsOptions = {}): Claim[] {
+    const now = (options.now ?? new Date()).getTime();
+    const quietMs = options.quietMs ?? QUIET_MS;
+    return [...this.#holders.values()].map((holder) => {
+      const quiet = now - Date.parse(this.#lastSeen.get(holder.session) ?? holder.since);
+      const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
+      return { ...holder, holder: quiet > quietMs && !running ? "idle" : "live" } as Claim;
+    });
+  }
+
+  /** Whether `branch` still holds open work, with its open pull request once a look has read it. */
+  #branchState(branch: string): Pick<BranchInFolder, "open" | "pr"> {
+    const state = this.#branchStates.get(branch);
+    if (state?.open === false) return { open: false };
+    if (state?.pr === undefined) return { open: true };
+    return { open: true, pr: { number: state.pr, draft: state.draft === true, ...(state.checks === undefined ? {} : { checks: state.checks }), queued: state.queued === true } };
+  }
+
+  /** A session's standing close-out, by what its lines said and its branches still open. */
+  #closeOut(own: SessionFold, openWork: readonly string[]): CloseOut | undefined {
+    if (own.closedOut === undefined || own.closedOut.reopened) return undefined;
+    const { line } = own.closedOut;
+    const said = { safe: line.safe, why: line.why, at: line.at };
+    if (!line.safe) return { ...said, verified: false, needsYou: line.why };
+    const turn = own.lastTurnEnded;
+    const disagreements = [
+      ...(openWork.length === 0 ? [] : [`${openWork.join(", ")} ${openWork.length === 1 ? "is" : "are"} unmerged`]),
+      ...(line.running === undefined ? ["its own runs could not be counted"]
+        : line.running === 0 ? [] : [`${line.running} run${line.running === 1 ? "" : "s"} of its own still ${line.running === 1 ? "runs" : "run"}`]),
+      ...(turn !== undefined && turn.seq > line.seq && turn.background > 0 ? ["a background task still runs"] : []),
+    ];
+    return disagreements.length === 0 ? { ...said, verified: true } : { ...said, verified: false, needsYou: `says safe, but ${disagreements.join("; ")}` };
+  }
+}
+
+/** Take one line into `holders`, the claims standing by what they are on. */
+function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void {
+  switch (line.kind) {
+    case "claimed":
+      holders.set(idOf(line), claimOf(line.session, line.harness, partOf(line), line.reason, line.at, line.branch));
+      break;
+    case "released":
+    case "landed":
+      if (holders.get(idOf(line))?.session === line.session) holders.delete(idOf(line));
+      break;
+    case "merged":
+      if (holders.get(idOf(line))?.session === line.holder) holders.delete(idOf(line));
+      break;
+    case "closed":
+      holders.delete(line.increment);
+      break;
+    case "session-ended":
+      for (const [id, holder] of holders) if (holder.session === line.session) holders.delete(id);
+      break;
+  }
 }

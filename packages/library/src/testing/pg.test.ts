@@ -17,14 +17,14 @@ test("database cleanup propagates errors other than a refusal to terminate a bac
   }
 });
 
-test("database cleanup propagates a failed fallback instead of leaving a database silently or retrying forever", async () => {
+test("database cleanup propagates a database still in use after a bounded number of tries instead of leaving it silently or retrying forever", async () => {
   const termination = Object.assign(new Error("permission denied to terminate process"), {
     code: "42501", routine: "TerminateOtherDBBackends",
   });
-  const occupied = Object.assign(new Error("database is being accessed by other users"), { code: "55006" });
+  const occupied = Object.assign(new Error("database is being accessed by other users"), { code: "55006", routine: "dropdb" });
   let attempts = 0;
   await assert.rejects(dropTestDatabases([uniqueProjectName()], {
     query: async () => { throw ++attempts === 1 ? termination : occupied; },
   }), (caught: unknown) => caught === occupied);
-  assert.equal(attempts, 2);
+  assert.equal(attempts, 7, "FORCE, then plain DROP and its five retries");
 });

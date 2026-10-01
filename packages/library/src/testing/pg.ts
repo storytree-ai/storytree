@@ -103,15 +103,25 @@ export async function dropTestDatabases(databases: Iterable<string>, server?: Qu
   const drop = async (client: Queryable): Promise<void> => {
     for (const name of names) {
       const sql = `DROP DATABASE IF EXISTS ${quoteIdentifier(name)}`;
-      try {
-        await client.query(`${sql} WITH (FORCE)`);
-      } catch (error) {
-        if (typeof error !== "object" || error === null ||
-          !("code" in error) || error.code !== "42501" ||
-          !("routine" in error) || error.routine !== "TerminateOtherDBBackends") throw error;
-        // FORCE can refuse an autovacuum worker (which has no login role). Plain DROP ends
-        // autovacuum itself and waits for departing backends. Still fail if it cannot drop it.
-        await client.query(sql);
+      let statement = `${sql} WITH (FORCE)`;
+      let retries = 0;
+      for (;;) {
+        try {
+          await client.query(statement);
+          break;
+        } catch (error) {
+          if (statement !== sql && isError(error, "42501", "TerminateOtherDBBackends")) {
+            // FORCE can refuse an autovacuum worker (which has no login role). Plain DROP ends
+            // autovacuum itself and waits for departing backends. Still fail if it cannot drop it.
+            statement = sql;
+          } else if (isError(error, "55006", "dropdb") && retries++ < DEPARTED_RETRIES) {
+            // A backend still leaving after DROP's own 5-second wait (a terminated one on Windows
+            // has been seen to): try again, a bounded number of times, then fail.
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          } else {
+            throw error;
+          }
+        }
       }
     }
   };
@@ -158,6 +168,14 @@ export async function dropTestRoles(roles: Iterable<string>): Promise<void> {
   await withTestClient(async (client) => {
     for (const name of names) await client.query(`DROP ROLE IF EXISTS ${quoteIdentifier(name)}`);
   });
+}
+
+/** How many more times a drop is tried while the database is still being accessed. */
+const DEPARTED_RETRIES = 5;
+
+function isError(error: unknown, code: string, routine: string): boolean {
+  return typeof error === "object" && error !== null &&
+    "code" in error && error.code === code && "routine" in error && error.routine === routine;
 }
 
 function assertTestName(action: "create" | "drop", what: "database" | "role", name: string): void {

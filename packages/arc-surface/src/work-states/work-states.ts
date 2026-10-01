@@ -33,13 +33,22 @@ export interface WorkStates {
 
 /** The work states `lines` show: the project's agent activity log, oldest first, as linesSince hands it out. */
 export function workStates(lines: readonly Line[]): WorkStates {
+  const kept = keptWorkStates();
+  kept.add(lines);
+  return kept;
+}
+
+/** Work states kept as the log's lines arrive: `add` takes only what is new, so old lines are never read again (ADR-0836 D1). */
+export function keptWorkStates(): WorkStates & { add(lines: readonly Line[]): void } {
   const parts = new Map<string, PartState>();
-  for (const line of lines) {
-    if (line.kind === "claimed" && line.capability !== undefined) parts.set(line.capability, "in-progress");
-    else if (line.kind === "landed") parts.set(line.capability, "landed");
-  }
   const part = (id: string): PartState => parts.get(id) ?? "planned";
   return {
+    add(lines) {
+      for (const line of lines) {
+        if (line.kind === "claimed" && line.capability !== undefined) parts.set(line.capability, "in-progress");
+        else if (line.kind === "landed") parts.set(line.capability, "landed");
+      }
+    },
     part,
     story(ids) {
       const states = ids.map(part);

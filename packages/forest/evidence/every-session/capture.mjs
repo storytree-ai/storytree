@@ -6,9 +6,10 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = path.join(here, '../sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
@@ -78,7 +79,7 @@ try {
   assert.match(await list.locator(`[data-session-id="${ids.twoTrees}"]`).innerText(), /2 worktrees/);
   assert.equal(await list.locator(`[data-session-id="${ids.idle}"]`).getAttribute('data-state'), 'idle', 'idle past the 60-minute setting');
   await page.waitForTimeout(500);
-  await list.screenshot({ path: path.join(here, 'every-session.png') });
+  await list.screenshot({ path: path.join(out, 'every-session.png') });
   assert.deepEqual(errors, []);
   console.log('Captured every-session.png:', shown.join(', '));
 } finally {

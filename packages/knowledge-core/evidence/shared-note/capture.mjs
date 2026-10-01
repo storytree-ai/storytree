@@ -9,9 +9,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -118,7 +119,7 @@ try {
       const box = document.querySelector('canvas').getBoundingClientRect();
       return { x: box.left + (v.x + 1) / 2 * size.width, y: box.top + (1 - v.y) / 2 * size.height };
     }, note);
-    await page.screenshot({ path: path.join(here, file), clip: { x: at.x - 120, y: at.y - 80, width: 240, height: 160 } });
+    await page.screenshot({ path: path.join(out, file), clip: { x: at.x - 120, y: at.y - 80, width: 240, height: 160 } });
   };
 
   // Converged: covers[3] was reached by a, then b, then c, and c read it last.
@@ -135,7 +136,7 @@ try {
   await page.evaluate(() => 0);
   white = await page.evaluate(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.material?.color?.getHexString?.() === 'ffffff' && o.geometry?.type === 'SphereGeometry') n++; }); return n; });
   assert.equal(white, 0, 'the white shared halo is gone');
-  await page.screenshot({ path: path.join(here, 'converged-overview.png') });
+  await page.screenshot({ path: path.join(out, 'converged-overview.png') });
   await close(covers[3], 'converged-close.png');
   await close(covers[4], 'converged-close-latest-b.png');
 
@@ -158,7 +159,7 @@ try {
   assert.deepEqual(await rgbs(reached.arcs), [b, a], "and a's arc joins b's");
   await close(covers[12], 'arrival-reached.png');
   assert.deepEqual(errors, []);
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify({
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify({
     converged: { [covers[3]]: { dot: ids.c, arcs: [ids.a, ids.b, ids.c] }, [covers[4]]: { dot: ids.b, arcs: [ids.a, ids.b, ids.c] } },
     arrival: { note: covers[12], before: { dot: ids.b, arcs: [] }, after: { dot: ids.a, arcs: [ids.b, ids.a] } },
     whiteHalos: white,

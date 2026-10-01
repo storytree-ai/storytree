@@ -1,10 +1,13 @@
 /**
  * The capture kit: what a renderer evidence capture imports instead of copying the last one's
  * harness. A fake bridge typed against the desktop app's StorytreeBridge, a launch that finds
- * Playwright and Chromium from this checkout on any machine, and seeded work states.
+ * Playwright and Chromium from this checkout on any machine, seeded work states, and an output
+ * folder that leaves the committed evidence alone unless the run is named to re-take it.
  */
 export { fakeBridge } from "./fake-bridge.js";
 export type { FakeBridge } from "./fake-bridge.js";
 export { launch, launchPlan } from "./launch.js";
 export type { LaunchPlan, Machine } from "./launch.js";
+export { captureOutput, outputFolder } from "./output.js";
+export type { CaptureRun } from "./output.js";
 export { seedWorkStates } from "./seed.js";

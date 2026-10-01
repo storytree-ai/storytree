@@ -5,9 +5,10 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const built = path.join(here, '../sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const story = title => seed.tree.stories.find(item => item.title === title);
@@ -127,14 +128,14 @@ try {
   await frames();
   assert.deepEqual((await wisps()).map(({ x, y }) => [x, y]), drawn.map(({ x, y }) => [x, y]), 'reduced motion holds every phase still');
   assert.equal(await page.locator('.forest-claim-dot').count(), 0, 'the claim dots are gone');
-  await page.screenshot({ path: path.join(here, 'wisps-globe.png') });
+  await page.screenshot({ path: path.join(out, 'wisps-globe.png') });
 
   // Hover a row: its wisps swell and its islands light.
   await row(ids.a).hover();
   await frames();
   assert.ok((await wisps()).filter(wisp => wisp.session === ids.a).every(wisp => wisp.scale > 1.5), 'hovering a row swells its wisps');
   assert.ok((await wisps()).filter(wisp => wisp.session !== ids.a).every(wisp => wisp.scale < 1.5));
-  await page.screenshot({ path: path.join(here, 'wisps-globe-row-hover.png') });
+  await page.screenshot({ path: path.join(out, 'wisps-globe-row-hover.png') });
   await page.mouse.move(1400, 930);
   await frames();
 
@@ -144,7 +145,7 @@ try {
   await frames();
   await page.waitForFunction(id => document.querySelector(`.session-row[data-session-id="${id}"]`)?.dataset.highlighted === 'true', ids.b);
   assert.equal(await row(ids.a).getAttribute('data-highlighted'), null);
-  await page.screenshot({ path: path.join(here, 'wisps-globe-wisp-hover.png') });
+  await page.screenshot({ path: path.join(out, 'wisps-globe-wisp-hover.png') });
   await page.mouse.move(1400, 930);
   await frames();
   await page.waitForFunction(id => document.querySelector(`.session-row[data-session-id="${id}"]`)?.dataset.highlighted === undefined, ids.b);
@@ -153,7 +154,7 @@ try {
   await page.evaluate(() => { window.__globe.camera.zoom *= 3.2; window.__globe.camera.updateProjectionMatrix(); });
   await row(ids.a).hover();
   await frames();
-  await page.screenshot({ path: path.join(here, 'wisps-ground-row-hover.png') });
+  await page.screenshot({ path: path.join(out, 'wisps-ground-row-hover.png') });
   await page.mouse.move(1400, 930);
 
   // With motion allowed, the wisps orbit.
@@ -184,7 +185,7 @@ try {
     controls.update();
   }, ids.b);
   await frames();
-  await page.screenshot({ path: path.join(here, 'wisps-model-closeup.png') });
+  await page.screenshot({ path: path.join(out, 'wisps-model-closeup.png') });
   assert.deepEqual(errors, [], 'no browser runtime or console errors');
   const renderer = await page.evaluate(() => {
     const ctx = window.__globe.gl.getContext(), debug = ctx.getExtension('WEBGL_debug_renderer_info');
@@ -194,7 +195,7 @@ try {
     assertions: ['one wisp per listed session and island', 'folded lane and ended session draw none', 'wisp colour equals row colour',
       'all wisps share one core and shell geometry', 'quiet holder fades on both model layers', 'claim dots gone', 'row hover swells its wisps', 'wisp hover highlights its row and leaving clears it',
       'reduced motion holds wisps still; otherwise they orbit'] };
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
 } finally {
   await browser?.close();

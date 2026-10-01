@@ -5,9 +5,10 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const story = seed.tree.stories[0];
 const capabilities = story.capabilities.slice(0, 4).map(cap => cap.id);
@@ -90,7 +91,7 @@ try {
       opacity: Number(css.opacity), pointerEvents: css.pointerEvents, before: getComputedStyle(element, '::before').content, visible };
   }));
   // Save the page before asserting, so the same instrument captures its red state too.
-  await page.screenshot({ path: path.join(here, process.env.CAPTURE_IMAGE ?? 'quiet-claims.png') });
+  await page.screenshot({ path: path.join(out, process.env.CAPTURE_IMAGE ?? 'quiet-claims.png') });
   assert.deepEqual(dots.map(dot => dot.capability).sort(), [...capabilities].sort(), 'one marker per claimed tree');
   for (const dot of dots) {
     assert.equal(dot.text, '', 'a quiet claim has no visible text');
@@ -116,7 +117,7 @@ try {
   });
   const result = { browser: await browser.version(), renderer, fixture: 'read-only prior library snapshot; three synthetic hookless claims and one synthetic hooked idle claim',
     story: story.id, dots, releaseObserved: true, errors, warnings: [...new Set(warnings)] };
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
 } finally {
   await browser?.close();

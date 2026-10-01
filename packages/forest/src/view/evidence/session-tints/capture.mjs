@@ -7,11 +7,12 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 // survey.json is readCodeSurvey(<this checkout>, seed.tree), precomputed by `tsx survey.mjs`.
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
@@ -149,7 +150,7 @@ try {
     return { key: key ?? null, rows: Array.isArray(rows) ? rows.map(r => ({ id: r.id, label: r.label, agent: r.agent, state: r.state, idle: r.idle, stories: r.stories })) : kept };
   });
   results.front = await measure(page);
-  await page.screenshot({ path: path.join(here, `${prefix}front.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${prefix}front.png`), timeout: 180000 });
 
   const AGENT_LINK = 'story_05e45963ca9f', FOREST = 'story_be32e99ed54f';
   const faceIt = async story => {
@@ -168,17 +169,17 @@ try {
   await faceIt(AGENT_LINK);
   await zoomed();
   results.closeUpAgentLink = await measure(page);
-  await page.screenshot({ path: path.join(here, `${prefix}close-up-agent-link.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${prefix}close-up-agent-link.png`), timeout: 180000 });
   await unzoom();
   await faceIt(FOREST);
   await zoomed();
   results.closeUpForest = await measure(page);
-  await page.screenshot({ path: path.join(here, `${prefix}close-up-forest.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${prefix}close-up-forest.png`), timeout: 180000 });
   await page.mouse.move(2, 2); await settle(page);
 
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
   results.seed = seed.stats;
-  writeFileSync(path.join(here, `${prefix}measurements.json`), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, `${prefix}measurements.json`), JSON.stringify(results, null, 2) + '\n');
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: results.browser, sessionRows: results.sessionRows, wispObjects: results.front.wispObjects,
     islands: results.front.islands.filter(i => i.coastTintBands.length || i.claimedTerritories.length).map(i => [i.story, i.coastTintBands.map(b => [b.session, b.colour, b.opacity]), i.claimedTerritories.map(t => [t.capability, t.claimedBy])]), errors }));

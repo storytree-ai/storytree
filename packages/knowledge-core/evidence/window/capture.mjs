@@ -9,9 +9,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -115,7 +116,7 @@ try {
   // None selected: the running session lights what it read, and no window is drawn.
   assert.deepEqual(await drawn(), { rings: [], links: [] }, 'no window while no session is selected');
   assert.deepEqual(await page.evaluate(() => window.__asked), [], 'nothing asked while no session is selected');
-  await page.screenshot({ path: path.join(here, 'window-none-selected.png') });
+  await page.screenshot({ path: path.join(out, 'window-none-selected.png') });
 
   // Select its row: the core asks for that session's window and draws it.
   await row.click();
@@ -126,14 +127,14 @@ try {
   assert.deepEqual(selected.rings, [...held].sort(), 'a ring on each note it holds now, and not on the one a compaction dropped');
   assert.deepEqual(selected.links.map(({ from, to }) => [from, to]).sort(), [...inViewPairs].sort(), 'one in-view line per pair the reading names; none from a search');
   assert.ok(selected.links.every(({ kind, heads }) => kind === 'in-view' && heads === 0), 'in-view lines carry no head');
-  await page.screenshot({ path: path.join(here, 'window-selected.png') });
+  await page.screenshot({ path: path.join(out, 'window-selected.png') });
 
   // Back to every session: the window goes.
   await row.click();
   await frames();
   assert.deepEqual(await drawn(), { rings: [], links: [] }, 'deselecting takes the window away');
   assert.deepEqual(errors, []);
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify({ read: read.length, held: selected.rings.length, inViewLines: selected.links.length }, null, 2) + '\n');
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify({ read: read.length, held: selected.rings.length, inViewLines: selected.links.length }, null, 2) + '\n');
   console.log('ADR-0746 D1 capture passed: ' + JSON.stringify({ held: selected.rings.length, inViewLines: selected.links.length }));
 } finally {
   await browser?.close();

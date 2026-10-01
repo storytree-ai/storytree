@@ -10,9 +10,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const built = path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(root, 'packages/forest/src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -143,7 +144,7 @@ try {
   assert.deepEqual(steps, opened.slice(1).map((to, i) => `${opened[i]}>${to}`), 'one step per move, in reading order');
   assert.deepEqual(still.shown, steps, 'reduced motion: every step drawn whole');
   assert.deepEqual(still.glows, [], 'no glow while a session is selected');
-  await page.screenshot({ path: path.join(here, '0-reduced-motion.png') });
+  await page.screenshot({ path: path.join(out, '0-reduced-motion.png') });
 
   // Motion: reselect, so the replay starts from nothing, and sample it over one whole cycle.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -172,7 +173,7 @@ try {
     if (i % 2 === 0 || partway) await aim(opened);
     if (i % 2 === 0) strip.push(await shot());
     // The first frame caught partway through, with some steps drawn and some still to come.
-    if (partway) { mid = true; writeFileSync(path.join(here, '1-mid-replay.png'), Buffer.from(await shot(), 'base64')); }
+    if (partway) { mid = true; writeFileSync(path.join(out, '1-mid-replay.png'), Buffer.from(await shot(), 'base64')); }
     await page.waitForTimeout(400);
   }
   assert.ok(mid, 'a frame was caught partway through');
@@ -185,7 +186,7 @@ try {
   // The last line is drawn from the moment it starts growing: wait out its growth, into the rest.
   await page.waitForTimeout(900);
   await aim(opened);
-  writeFileSync(path.join(here, '2-at-rest.png'), Buffer.from(await shot(), 'base64'));
+  writeFileSync(path.join(out, '2-at-rest.png'), Buffer.from(await shot(), 'base64'));
   const png = await page.evaluate(async frames => {
     const images = await Promise.all(frames.map(src => new Promise(resolve => { const image = new Image(); image.onload = () => resolve(image); image.src = `data:image/png;base64,${src}`; })));
     const crop = { x: images[0].width * 0.3, y: images[0].height * 0.25, w: images[0].width * 0.36, h: images[0].height * 0.5 };
@@ -196,9 +197,9 @@ try {
     images.forEach((image, i) => context.drawImage(image, crop.x, crop.y, crop.w, crop.h, (i % 5) * crop.w * scale, Math.floor(i / 5) * crop.h * scale, crop.w * scale, crop.h * scale));
     return canvas.toDataURL('image/png').split(',')[1];
   }, strip);
-  writeFileSync(path.join(here, '3-replay-strip.png'), Buffer.from(png, 'base64'));
+  writeFileSync(path.join(out, '3-replay-strip.png'), Buffer.from(png, 'base64'));
   assert.deepEqual(errors, []);
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify({ steps, samples }, null, 2) + '\n');
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify({ steps, samples }, null, 2) + '\n');
   console.log('ADR-0797 capture passed');
 } finally {
   await browser?.close();

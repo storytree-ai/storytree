@@ -7,11 +7,12 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
@@ -116,16 +117,16 @@ try {
     await settle(page);
   };
   results.front = await measure(page);
-  await page.screenshot({ path: path.join(here, 'front.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'front.png'), timeout: 180000 });
   // Close-up: the same page, camera zoom x3 (Framing sets the resting zoom; nothing is panned).
   await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom *= 2.6; camera.updateProjectionMatrix(); invalidate(); });
   await settle(page);
   results.closeUp = await measure(page);
-  await page.screenshot({ path: path.join(here, 'close-up.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'close-up.png'), timeout: 180000 });
   await page.evaluate(() => { const { camera, invalidate } = window.__globe; camera.zoom /= 2.6; camera.updateProjectionMatrix(); invalidate(); });
   await turn(Math.PI / 2);
   results.quarterTurn = await measure(page);
-  await page.screenshot({ path: path.join(here, 'quarter-turn.png'), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, 'quarter-turn.png'), timeout: 180000 });
   await turn(-Math.PI / 2);
   // Clicking the surface still picks the story (panel opens).
   const target = await page.evaluate(() => {
@@ -152,7 +153,7 @@ try {
   assert.deepEqual(errors, []);
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
   results.seed = seed.stats;
-  writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
   console.log(JSON.stringify({ browser: results.browser, renderer: results.front.renderer, stories: results.front.plates.length,
     pines: results.front.pinesOrProps, triangles: results.front.plates.map(p => p.triangles), draws: results.front.render.calls, errors }));
 } finally {

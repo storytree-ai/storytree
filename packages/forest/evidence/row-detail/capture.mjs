@@ -6,9 +6,10 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = path.join(here, '../sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
@@ -80,7 +81,7 @@ try {
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);
   await row.waitFor();
   await page.waitForTimeout(500);
-  await list.screenshot({ path: path.join(here, 'collapsed.png') });
+  await list.screenshot({ path: path.join(out, 'collapsed.png') });
   await row.getByRole('button', { name: /^Show detail/ }).click();
   const detail = list.locator('.session-detail');
   await detail.locator('.session-detail-files li').first().waitFor();
@@ -92,7 +93,7 @@ try {
   assert.equal(await detail.locator('li[data-resident="no"]').count(), 1);
   await list.locator(`.session-row[data-session-id="${ids.helper}"]`).waitFor();
   await page.waitForTimeout(300);
-  await list.screenshot({ path: path.join(here, 'expanded.png') });
+  await list.screenshot({ path: path.join(out, 'expanded.png') });
   assert.deepEqual(errors, []);
   console.log('Captured collapsed.png and expanded.png');
 } finally {

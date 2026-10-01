@@ -6,9 +6,10 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
 const app = seed.tree.stories.find(story => story.title === 'The app');
@@ -168,7 +169,7 @@ try {
     for (let i = 0; i < 8; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); }
   });
   await frames();
-  await page.screenshot({ path: path.join(here, 'sessions-list.png') });
+  await page.screenshot({ path: path.join(out, 'sessions-list.png') });
 
   const plateState = async () => page.evaluate(storyIds => {
     const plates = [];
@@ -190,7 +191,7 @@ try {
   await row(ids.parent).hover();
   await frames();
   const hovered = await plateState();
-  await page.screenshot({ path: path.join(here, 'sessions-list-hover.png') });
+  await page.screenshot({ path: path.join(out, 'sessions-list-hover.png') });
   console.log('Hover reading:', JSON.stringify(hovered.map(({ id, emphasis, materials }) => ({ id, emphasis, brightness: [...new Set(materials.map(material => material.brightness))] }))));
   for (const plate of hovered) {
     assert.equal(plate.emphasis, [forest.id, app.id].includes(plate.id) ? 'held' : 'dimmed', 'all held islands light together and the rest dim');
@@ -238,7 +239,7 @@ try {
   await page.mouse.move(1400, 930);
   await page.getByRole('button', { name: 'Open arc surface', exact: true }).focus();
   await frames();
-  await page.screenshot({ path: path.join(here, 'sessions-list-expanded.png') });
+  await page.screenshot({ path: path.join(out, 'sessions-list-expanded.png') });
 
   // Exercise real two-second polling, without remounting: settle the question and end the child.
   await page.evaluate(({ child }) => {
@@ -271,7 +272,7 @@ try {
       'hover and focus link all claimed islands and restore materials', 'question settlement refreshes',
       'session ending refreshes', 'polling preserves both expansions'],
     errors, warnings: [...new Set(warnings)] };
-  writeFileSync(path.join(here, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(path.join(out, 'capture.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
 } finally {
   await browser?.close();

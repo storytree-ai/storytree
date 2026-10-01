@@ -5,14 +5,14 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = here;
-const seed = JSON.parse(readFileSync(path.join(out, 'seed.json'), 'utf8'));
-const census = JSON.parse(readFileSync(path.join(out, 'measurements.json'), 'utf8'));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
+const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
+const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
 const server = createServer((req, res) => {
   const [variant, name] = new URL(req.url, 'http://localhost').pathname.slice(1).split('/');
   if (variant === 'favicon.ico') { res.writeHead(204).end(); return; }

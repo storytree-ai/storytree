@@ -6,9 +6,10 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = path.join(here, 'dist/production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
@@ -137,7 +138,7 @@ try {
     assert.ok(expanded.worktreeLabels.includes('unmerged') && expanded.worktreeLabels.includes('merged'));
     assert.equal(expanded.running, 3);
     await page.waitForTimeout(300);
-    await page.screenshot({ path: path.join(here, `bottom-${name}-expanded.png`) });
+    await page.screenshot({ path: path.join(out, `bottom-${name}-expanded.png`) });
 
     // Collapse by clicking the header; only the header strip remains.
     await list.locator('header').click();
@@ -148,7 +149,7 @@ try {
     assert.ok(collapsed.headerHeight <= 70 && Math.abs(collapsed.box.height - collapsed.headerHeight) <= 2, `only the header strip: ${collapsed.box.height}`);
     assert.equal(collapsed.kept, 'false', 'the choice is kept');
     await page.waitForTimeout(300);
-    await page.screenshot({ path: path.join(here, `bottom-${name}-collapsed.png`) });
+    await page.screenshot({ path: path.join(out, `bottom-${name}-collapsed.png`) });
     // Kept across a restart, and the keyboard button expands it again.
     await ready();
     assert.equal(await list.locator('.sessions-handle').getAttribute('aria-expanded'), 'false', 'still collapsed after a reload');
@@ -172,13 +173,13 @@ try {
       assert.deepEqual([clear.panel, clear.mark], [false, false], `no collision with the story panel or the stale mark: ${JSON.stringify(clear)}`);
       measures.desktopClear = clear;
       await page.waitForTimeout(300);
-      await page.screenshot({ path: path.join(here, 'bottom-desktop-story-panel-and-stale-mark.png') });
+      await page.screenshot({ path: path.join(out, 'bottom-desktop-story-panel-and-stale-mark.png') });
     }
     measures[name] = { expanded, collapsed };
     assert.deepEqual(errors, []);
     await context.close();
   }
-  writeFileSync(path.join(here, 'measures.json'), JSON.stringify(measures, null, 2) + '\n');
+  writeFileSync(path.join(out, 'measures.json'), JSON.stringify(measures, null, 2) + '\n');
   console.log(JSON.stringify(measures));
 } finally {
   await browser?.close();

@@ -14,10 +14,11 @@ import { openActivityLog, claim } from '@storytree/agent-link';
 // The frame is reached through the desktop app, which mounts this surface: arc-surface itself never depends on it (ADR-0847).
 const { pageReads } = await import(createRequire(new URL('../../../../apps/desktop/package.json', import.meta.url)).resolve('@storytree/app'));
 import { start } from '@storytree/local-postgres';
-import { fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts';
+import { captureOutput, fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts';
 
-const output = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(output, '../../../../apps/desktop/dist/renderer');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const output = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
+const dist = path.resolve(here, '../../../../apps/desktop/dist/renderer');
 const temporary = mkdtempSync(path.join(tmpdir(), 'storytree-lane-rollup-'));
 let postgres, store, log, reads, browser, server;
 try {

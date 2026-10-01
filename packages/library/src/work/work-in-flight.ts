@@ -512,6 +512,27 @@ export class WorkInFlight {
     return { arc, state: arcState(arc, increments, questions, at), increments, questions };
   }
 
+  /** Every live arc's view, oldest arc first, as arcView answers each, read in three lists however many arcs there are. */
+  async arcViews(at: Date = new Date()): Promise<ArcView[]> {
+    const [arcs, increments, questions] = await Promise.all([
+      this.#records.list("arc"),
+      this.#records.list("increment"),
+      this.#records.list("question"),
+    ]);
+    const byArc = <T extends { fields: { arc: string } }>(records: readonly T[]): Map<string, T[]> => {
+      const grouped = new Map<string, T[]>();
+      for (const record of records) grouped.set(record.fields.arc, [...(grouped.get(record.fields.arc) ?? []), record]);
+      return grouped;
+    };
+    const incrementsOf = byArc([...increments].sort(byCreation));
+    const questionsOf = byArc([...questions].sort(byCreation));
+    return [...arcs].sort(byCreation).map((arc) => {
+      const its = incrementsOf.get(arc.id) ?? [];
+      const asked = questionsOf.get(arc.id) ?? [];
+      return { arc, state: arcState(arc, its, asked, at), increments: its, questions: asked };
+    });
+  }
+
   /** Every live arc, increment and question, and what each wait of theirs reads as, now. */
   async #snapshot(): Promise<Snapshot> {
     const [arcs, increments, questions] = await Promise.all([

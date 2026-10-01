@@ -164,6 +164,8 @@ export interface Library {
   unparkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null>;
   /** An arc whole: its state (worked out on every read at `at`, now unless given, or parked) and its increments, oldest first. Null if `id` is not a live arc. */
   arcView(id: string, at?: Date): Promise<ArcView | null>;
+  /** Every live arc whole, oldest first, as arcView answers each, in a few reads however many arcs there are. */
+  arcViews(at?: Date): Promise<ArcView[]>;
 
   /**
    * Make an arc wait on an arc, or an increment on an increment on any arc, with a reason. A wait
@@ -476,6 +478,10 @@ class LibraryHandle implements Library {
 
   arcView(id: string, at?: Date): Promise<ArcView | null> {
     return this.#project.flight.arcView(id, at);
+  }
+
+  arcViews(at?: Date): Promise<ArcView[]> {
+    return this.#project.flight.arcViews(at);
   }
 
   addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {

@@ -17,7 +17,7 @@ import { MissingReferenceError } from "../references.js";
 import { SchemaError, SchemaRecords } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
-import { LifecycleError, WorkInFlight, WorkModel, type NewIncrement } from "./index.js";
+import { LifecycleError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
 
 interface Library {
   readonly work: WorkModel;
@@ -191,6 +191,30 @@ for (const backend of [memory, postgres]) {
     await flight.unparkArc(arc.id);
     assert.equal(await at("2026-10-01T00:00:00Z"), "active", "unpark clears the day");
     await assert.rejects(flight.parkArc(arc.id, { until: "next week" }));
+  });
+
+  contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
+    const arcs = [];
+    for (let i = 0; i < 4; i++) {
+      const arc = await work.createArc(ARC);
+      arcs.push(arc);
+      await flight.addIncrement({ arc: arc.id, ...WORK });
+    }
+    await flight.parkArc(arcs[1]!.id);
+    await flight.raiseQuestion({ arc: arcs[2]!.id, title: "Copy?", stakes: "Blocks the form", statement: "Which words?", context: "None yet", options: "Short or long" });
+    await records.retire(arcs[3]!.id, "withdrawn");
+    const at = new Date();
+    const one = await Promise.all(arcs.map(({ id }) => flight.arcView(id, at)));
+
+    let reads = 0;
+    for (const method of ["get", "list"] as const) {
+      const real = records[method].bind(records) as (...args: unknown[]) => Promise<unknown>;
+      (records as unknown as Record<string, unknown>)[method] = (...args: unknown[]) => { reads += 1; return real(...args); };
+    }
+    const views = await flight.arcViews(at);
+    const byId = (list: readonly ArcView[]): ArcView[] => [...list].sort((a, b) => a.arc.id.localeCompare(b.arc.id));
+    assert.deepEqual(byId(views), byId(one.filter((view) => view !== null)), "the same views, retired arcs left out");
+    assert.ok(reads <= 3, `${reads} reads for ${arcs.length} arcs`);
   });
 
   contract("10.5", "an open increment moves to another live arc keeping its id and waits, the history recording the move and its reason; a closed increment, or a move to a closed arc, is refused with nothing written", async ({ work, flight, transactions }) => {

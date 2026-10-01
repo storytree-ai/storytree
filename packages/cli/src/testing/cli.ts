@@ -110,6 +110,8 @@ export interface RunOptions {
   readonly home: string;
   /** More of the environment, over the test's own. */
   readonly env?: Readonly<Record<string, string>>;
+  /** What it reads on standard input; none when not given. */
+  readonly input?: string;
 }
 
 /** Run the built command as a shell runs it: directly, no shell, in `cwd`, with the storytree home given. */
@@ -124,9 +126,10 @@ export function storytree(script: string, args: readonly string[], options: RunO
     const child = spawn(process.execPath, [script, ...args], {
       cwd: options.cwd,
       env: { ...env, ...given },
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
       shell: false,
     });
+    if (options.input !== undefined) child.stdin!.end(options.input);
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));

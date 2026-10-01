@@ -24,12 +24,13 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "dev-loop", "forest", "forest-world", "knowledge-core", "librarian", "library", "local-postgres", "processes", "website"];
+export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", "dev-loop", "forest", "forest-world", "keys", "knowledge-core", "librarian", "library", "local-postgres", "processes", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest-world: story_ca702fee28cb (The world, ADR-0805 D1).
 // local-postgres: story_1d360b6227d8 (The local database, ADR-0805 D2).
+// keys: Keys (ADR-0843).
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that

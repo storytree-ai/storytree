@@ -14,7 +14,7 @@ export function renderAppMenu(): string {
           <button type="button" class="app-menu-close" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button>
         </nav>
         <div class="app-menu-content">
-          <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Choose the project to show in the forest, or add a folder as a new one.</p><div data-app-switcher></div><p class="app-project-error" data-app-project-error role="alert" hidden></p><div data-app-add-project></div><div data-app-remove-project></div></section>
+          <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Choose the project to show in the forest, or add a folder as a new one.</p><div data-app-switcher></div><p class="app-project-error" data-app-project-error role="alert" hidden></p><div data-app-add-project></div><div data-app-remove-project></div><div data-app-delete-project></div></section>
           <section id="app-sessions" aria-label="Sessions" hidden><div data-app-settings="sessions"></div></section>
           <section id="app-library" aria-label="Library" hidden><div data-app-settings="library"></div></section>
           <section id="app-surfaces" aria-label="Surfaces" hidden><div data-app-surfaces></div></section>

@@ -1,8 +1,8 @@
 import { homedir } from "node:os";
 import path from "node:path";
-import { CODEX_TRUST_STEP, codexHookTrust, runSetupCheck } from "@storytree/agent-link";
+import { CODEX_TRUST_STEP, codexHookTrust, readProjectChoice, runSetupCheck } from "@storytree/agent-link";
 import type { Storytree } from "@storytree/library";
-import { addProject, keepOnThisComputer, projectFolder, removeProject } from "../project/index.js";
+import { addProject, deleteProject, keepOnThisComputer, projectFolder, removeProject, whoLoses } from "../project/index.js";
 import type { AgentConnection, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "./feedback.js";
 import { readShippedLicense } from "./license.js";
@@ -56,6 +56,16 @@ export function setupHelpActions(options: {
       const removed = await removeProject(name, { home: options.storytreeHome, library: options.library() });
       if (removed.status === "no such project") throw new Error(removed.message);
       return removed;
+    },
+    async deletableProjects() {
+      const shown = readProjectChoice(path.join(options.storytreeHome, "project-choice.json"));
+      return (await options.library().listProjects()).filter((project) => project !== shown).map((project) => ({ project, warning: whoLoses(project, options.storytreeHome) }));
+    },
+    async deleteProject(name, typed, snapshot) {
+      if (typeof name !== "string" || typeof typed !== "string" || typeof snapshot !== "boolean") throw new Error("There is no project with that name.");
+      const deleted = await deleteProject(name, { confirm: typed, snapshot, home: options.storytreeHome, library: options.library() });
+      if (deleted.status !== "deleted") throw new Error(deleted.message);
+      return deleted;
     },
     openFeedbackDraft: (draft) => openFeedbackDraft(draft, options.openExternal),
     async copyHelpText(text) {

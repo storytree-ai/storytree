@@ -78,3 +78,18 @@
 .setup-remove-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
 .setup-remove-project-status:empty { display: none; }
 .setup-remove-project-status[role="alert"] { color: var(--fail-text, #e0a09a); }
+.setup-delete-project { margin-top: 1rem; }
+.setup-help .setup-delete-project-ask { color: var(--muted, #a9b0ba); }
+.setup-help .setup-delete-project-ask:hover:not(:disabled) { color: var(--fail-text, #e0a09a); }
+.setup-help .setup-delete-project-ask:disabled { cursor: default; }
+.setup-delete-project-dialog { margin-top: .75rem; padding: .75rem .85rem; max-width: 34rem; display: grid; gap: .65rem; border: 1px solid var(--line); border-left: 4px solid var(--fail-text, #e0a09a); border-radius: 6px; background: var(--code-bg); }
+.setup-delete-project-dialog[hidden] { display: none; }
+.setup-delete-project-field { display: grid; gap: .3rem; }
+.setup-delete-project-warning { margin: 0; color: var(--fail-text, #e0a09a); }
+.setup-delete-project-snapshot { display: flex; gap: .45rem; align-items: center; }
+.setup-delete-project-actions { display: flex; gap: .5rem; }
+.setup-help .setup-delete-project-yes { border-color: var(--fail-text, #e0a09a); }
+.setup-help .setup-delete-project-yes:disabled { opacity: .5; cursor: default; }
+.setup-delete-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
+.setup-delete-project-status:empty { display: none; }
+.setup-delete-project-status[role="alert"] { color: var(--fail-text, #e0a09a); }

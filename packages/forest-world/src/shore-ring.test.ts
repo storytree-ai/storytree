@@ -345,7 +345,7 @@ test('the coast test is a floating-point epsilon, not a tolerance on the art', (
 // The division
 // ---------------------------------------------------------------------------
 
-test('a coastal parcel is divided into a band and a core, and the band is the seaward one', () => {
+test('2.4 a coastal parcel is divided into a band and a core, and the band is the seaward one', () => {
   const field = straightShore(20);
   const ring = coastalBox(20, 36, 12);
   const split = shoreRingSplit(ring, field, [3.5]);
@@ -367,7 +367,7 @@ test('a coastal parcel is divided into a band and a core, and the band is the se
   for (const p of core) assert.ok(p.z >= COAST_Z + 3.5 - 1e-6, `core vertex at ${p.z}`);
 });
 
-test('⚠⚠ THE FACES TILE THE PARCEL EXACTLY — no ground lost, none drawn twice', () => {
+test('2.4 ⚠⚠ THE FACES TILE THE PARCEL EXACTLY — no ground lost, none drawn twice', () => {
   // THE CHECK THAT MAKES THIS SAFE ON GROUND WHOSE COLOUR REPORTS A CAPABILITY'S STATUS. Ground
   // covered twice is one capability's status painted over another's (ADR-0392 D5 / ADR-0398 D7);
   // ground lost is a hole in the island. Both show up as area, exactly.
@@ -424,7 +424,7 @@ test('every face triangulates upward, and to the count the buffer is sized for',
   }
 });
 
-test('an INTERIOR parcel is left exactly alone — no crossing, no division, no cost', () => {
+test('2.4 an INTERIOR parcel is left exactly alone — no crossing, no division, no cost', () => {
   const field = straightShore(20);
   const ring = inlandBox(20, 36, 9, 21);
   const split = shoreRingSplit(ring, field, [3.5]);
@@ -808,7 +808,7 @@ test('a plan skips descriptors with no ring, and with too short a one', () => {
   assert.equal(plan.decompose(triangle).faces.length, 1, 'a lone triangle has no shore to band');
 });
 
-test('the whole island’s faces tile it — no ground lost, none drawn twice, over nine parcels', () => {
+test('2.4 the whole island’s faces tile it — no ground lost, none drawn twice, over nine parcels', () => {
   const cells = islandCells();
   const plan = shoreRingPlan(cells, [3.5]);
   let faced = 0;

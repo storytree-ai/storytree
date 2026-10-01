@@ -89,7 +89,7 @@ test('the wear atlas rides the OCCLUSION atlas`s tiles — structurally, not by 
   assert.equal(wear.unassigned, 0);
 });
 
-test('⚠ AN UNWRITTEN TEXEL READS AS NO WEAR, NOT AS THE PATH', () => {
+test('2.5 ⚠ AN UNWRITTEN TEXEL READS AS NO WEAR, NOT AS THE PATH', () => {
   // Zero encodes distance ZERO — the centreline — so a zero-filled atlas would deliver pure dirt
   // on every gap between tiles. The padding is DERIVED, not guessed at (the shore's first version
   // of this test sampled a texel that turned out to be inside a tile).
@@ -128,7 +128,7 @@ test('⚠ each texel samples its OWN corner — the grid mapping is pinned again
   assert.ok(distinct.has(0) && distinct.has(255), 'the sweep must span centreline to capped far field');
 });
 
-test('⚠⚠ AN ISLAND WITH NO PATH STAYS AT 255 — no whole-map fallback, ever', () => {
+test('2.5 ⚠⚠ AN ISLAND WITH NO PATH STAYS AT 255 — no whole-map fallback, ever', () => {
   // isle-b is absent from the path map entirely: its tile is untouched.
   const wear = buildAtlasWear(A_PATHS(), OCC());
   assert.equal(A_PATHS().has('isle-a'), true);
@@ -146,7 +146,7 @@ test('⚠⚠ AN ISLAND WITH NO PATH STAYS AT 255 — no whole-map fallback, ever
   assert.ok(none.data.every((v) => v === 255));
 });
 
-test('the field reads ZERO on the path and rises to the cap away from it', () => {
+test('2.5 the field reads ZERO on the path and rises to the cap away from it', () => {
   const wear = buildAtlasWear(A_PATHS(), OCC());
   const tile = wear.tiles.find((t) => t.island === 'isle-a')!;
   const at = (i: number, j: number): number => decodeShore(wear.data[(tile.y + j) * wear.w + (tile.x + i)]!, WEAR_FIELD_WIDTH);

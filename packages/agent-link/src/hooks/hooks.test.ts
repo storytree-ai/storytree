@@ -32,7 +32,7 @@ import pg from "pg";
 import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
 import { buildBins } from "../bins/build.js";
 import { readContext } from "../context/index.js";
-import { MARKER_FILE } from "../routing/index.js";
+import { MARKER_FILE, setUpProject } from "../routing/index.js";
 import { hookLines } from "./hooks.js";
 import { readSettings, setSetting } from "../settings/settings.js";
 import { registerHooks } from "../setup/hooks-config.js";
@@ -237,6 +237,29 @@ test("3.3 with storytree stopped, with garbage input, or outside a storytree pro
     }
     assert.deepEqual(await linesOf(project), [], "nothing written for the project");
     assert.equal(await linesAnywhereFor(session), 0, "nothing written anywhere for the session");
+  });
+});
+
+test("a folder set up for a project that was then deleted writes no lines under its name: not while it is gone, nor into a new project of that name set up since (app setup 3.6)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, true);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await setUpProject({ folder, project, storytree, storytreeHome: home });
+      await storytree.dropProject(project); // deleted from another computer; this folder still names it
+      const start = recorded("claude-code", "session-start-startup", folder);
+      assert.equal((await runHook("claude-code", start, home)).code, 0);
+      assert.deepEqual(await linesOf(project), [], "nothing written while it is gone");
+      await (await storytree.openProject(project)).close(); // a new project of that name, set up elsewhere
+      assert.equal((await runHook("claude-code", start, home)).code, 0);
+      assert.deepEqual(await linesOf(project), [], "nothing written into the new project");
+    } finally {
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
   });
 });
 

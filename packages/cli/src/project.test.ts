@@ -16,11 +16,11 @@ after(() => command.remove());
 
 test("project remove takes a project off this computer's list and keeps its records; an unknown name is refused", async () => {
   await inWorld(command, async ({ project, home, run, library }) => {
-    await library();
+    const { identity } = await library();
     const removed = await run(["project", "remove", project]);
     assert.equal(removed.code, 0, removed.stderr);
     assert.match(removed.stdout, /records stay/);
-    assert.deepEqual(projectsOnThisComputer([project], home), []);
+    assert.deepEqual(projectsOnThisComputer({ [project]: identity }, home), []);
 
     const unknown = await run(["project", "remove", `${project}-none`]);
     assert.notEqual(unknown.code, 0);

@@ -41,7 +41,7 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   picked = path.join(dir, `Blog Posts ${token}`);
   mkdirSync(picked);
   assert.deepEqual(await actions.addProject(), { status: "set up", project: blog, folder: picked });
-  assert.deepEqual(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")), { project: blog });
+  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")).project, blog);
   assert.equal(JSON.parse(readFileSync(path.join(home, "project-choice.json"), "utf8")).current, blog, "the new project is the one shown");
 
   picked = path.join(dir, "other", site);
@@ -56,6 +56,6 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   assert.deepEqual(await library.listProjects(), projects, "the app's library stays open");
 
   assert.deepEqual(await actions.removeProject(blog), { status: "removed", project: blog, freed: picked });
-  assert.equal(projectsOnThisComputer(await library.listProjects(), home).includes(blog), false, "a removed project leaves this computer's list");
+  assert.equal(projectsOnThisComputer(await library.projectIdentities(), home).includes(blog), false, "a removed project leaves this computer's list");
   await assert.rejects(actions.removeProject(`nothing-${token}`), /no project called/);
 });

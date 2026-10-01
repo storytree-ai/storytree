@@ -5,7 +5,8 @@
  * is routed to that project. It never picks a project by itself, and when storytree isn't running
  * it says so at once.
  *
- * - The marker is `.storytree.json` in the project's folder: `{ "project": "<name>" }`. A folder
+ * - The marker is `.storytree.json` in the project's folder: `{ "project": "<name>", "identity": "<its
+ *   database's>" }`; one written before the identity was recorded names the project only. A folder
  *   belongs to the project of the nearest marker at or above it. A git worktree kept outside its
  *   folder has no marker of its own unless the marker was committed, so a worktree is also looked
  *   up in the folder it is a worktree of.
@@ -42,8 +43,11 @@ export const NOT_A_PROJECT = "not a storytree project";
 /** What routing says while the app's database is not running. */
 export const NOT_RUNNING = "storytree isn't running";
 
-/** The project a folder belongs to, and the folder holding its marker; or why there is none. */
-export type ProjectLookup = { project: string; folder: string } | { project: undefined; message: string };
+/**
+ * The project a folder belongs to, and the folder holding its marker, with the identity of the
+ * project's database when the marker records it; or why there is none.
+ */
+export type ProjectLookup = { project: string; folder: string; identity?: string } | { project: undefined; message: string };
 
 export interface SetUpOptions {
   /** The folder the user said yes for. */
@@ -76,7 +80,7 @@ export type StorytreeAddress = { running: true; url: string } | { running: false
 
 /** Where an agent's activity in a folder goes. */
 export type Route =
-  | { status: "routed"; project: string; folder: string; library: ConnectOptions }
+  | { status: "routed"; project: string; folder: string; identity?: string; library: ConnectOptions }
   | { status: "not-a-project"; message: string }
   | { status: "not-running"; project: string; message: string };
 
@@ -98,12 +102,13 @@ export function findProject(from: string): ProjectLookup {
 
 /**
  * Open the project a folder names, only reaching it: a project deleted from the library, perhaps
- * from another computer, is never made again by a folder that still names it (ADR-0831). Refused
- * with what to do: free the folder, or set it up again on purpose.
+ * from another computer, is never made again by a folder that still names it (ADR-0831), and with
+ * the `identity` its marker records, a new project set up since under the same name is not the
+ * folder's. Refused with what to do: free the folder, or set it up again on purpose.
  */
-export async function openNamedProject(storytree: Pick<Storytree, "openProject">, project: string): Promise<Library> {
+export async function openNamedProject(storytree: Pick<Storytree, "openProject">, project: string, identity?: string): Promise<Library> {
   try {
-    return await storytree.openProject(project, { create: false });
+    return await storytree.openProject(project, { create: false, ...(identity === undefined ? {} : { identity }) });
   } catch (error) {
     // By name: the hooks load the library only when they need it.
     if (!(error instanceof Error && error.name === "ProjectGoneError")) throw error;
@@ -129,7 +134,10 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   const refused = refusal({ folder: at, inMain: inMainCheckout(at), project, join, projects, trunks, suggestion: unusedName(suggestedName(at), projects) });
   if (refused !== undefined) throw refused;
   const library = await storytree.openProject(project);
+  const { identity } = library;
   try {
+    // A new project inherits no lines written under its name before it: an older install's hooks, in a deleted project's folder.
+    if (!join) await (await import("../activity/index.js")).forgetProjectActivity(storytree, project);
     const registered = trunks.some((trunk) => trunk.project === project) || (await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }));
     if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
     // A new project's library starts with the starter pack; one joined was seeded where it was set up.
@@ -140,7 +148,7 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   // Should what follows fail, the trunk stays recorded: a retry here sets its own trunk up again.
   const marker = path.join(at, MARKER_FILE);
   const previous = existsSync(marker) ? readFileSync(marker) : undefined;
-  writeFileSync(marker, `${JSON.stringify({ project }, null, 2)}\n`);
+  writeFileSync(marker, `${JSON.stringify({ project, identity }, null, 2)}\n`);
   try {
     recordProjectChoice(path.join(home, "project-choice.json"), project);
     // A project removed from this computer and joined again on purpose is back on its list.
@@ -160,7 +168,9 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
  * trunks were recorded (ADR-0757) keeps working and gains its record, and a project whose folder
  * moved follows it. It never refuses and never moves a live trunk: true only when it recorded one.
  */
-export async function recordTrunkOnSight(storytree: Storytree, project: string, folder: string, home: string = storytreeHome()): Promise<boolean> {
+export async function recordTrunkOnSight(storytree: Storytree, project: string, folder: string, home: string = storytreeHome(), identity?: string): Promise<boolean> {
+  // A folder whose marker names a deleted project's database is not the trunk of a new one of its name.
+  if (identity !== undefined && (await storytree.projectIdentities())[project] !== identity) return false;
   const machine = machineOf(home);
   const trunk = { project, machine: machine.id, machineName: machine.name, folder: canonical(inMainCheckout(canonical(folder))) };
   if (await registerTrunk(storytree, trunk)) return true;
@@ -252,7 +262,7 @@ export function route(from: string, options: LocateOptions = {}): Route {
   if (found.project === undefined) return { status: "not-a-project", message: found.message };
   const library = locateLibrary(options);
   if (!library.found) return { status: "not-running", project: found.project, message: library.message };
-  return { status: "routed", project: found.project, folder: found.folder, library: library.connect };
+  return { status: "routed", project: found.project, folder: found.folder, ...(found.identity === undefined ? {} : { identity: found.identity }), library: library.connect };
 }
 
 /** A project name to suggest for `folder`: its own name, as the library's project-name rule allows. */
@@ -293,17 +303,18 @@ function markerAbove(start: string): ProjectLookup | undefined {
   for (let dir = start; ; dir = path.dirname(dir)) {
     const marker = path.join(dir, MARKER_FILE);
     if (isFile(marker)) {
-      const project = projectIn(marker);
-      return project === undefined ? { project: undefined, message: NOT_A_PROJECT } : { project, folder: canonical(dir) };
+      const named = projectIn(marker);
+      return named === undefined ? { project: undefined, message: NOT_A_PROJECT } : { ...named, folder: canonical(dir) };
     }
     if (path.dirname(dir) === dir) return undefined;
   }
 }
 
-function projectIn(marker: string): string | undefined {
+function projectIn(marker: string): { project: string; identity?: string } | undefined {
   try {
-    const { project } = JSON.parse(readFileSync(marker, "utf8")) as { project?: unknown };
-    return typeof project === "string" && project !== "" ? project : undefined;
+    const { project, identity } = JSON.parse(readFileSync(marker, "utf8")) as { project?: unknown; identity?: unknown };
+    if (typeof project !== "string" || project === "") return undefined;
+    return typeof identity === "string" && identity !== "" ? { project, identity } : { project };
   } catch {
     return undefined;
   }

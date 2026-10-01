@@ -36,6 +36,7 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } f
 /** What a Library offers: the API's list, restated from the spec and the brief. */
 const LIBRARY_API = [
   "name",
+  "identity",
   "get",
   "list",
   "history",
@@ -384,7 +385,7 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
     // connect() hands back exactly openProject, listProjects, snapshot, restore, dropProject (1.12), ownDatabase (7.7) and
     // close (snapshot and restore are contracts 1.6 to 1.8, ADR-0641 B1), and openProject a Library
     // with exactly the API's name and methods. Neither exposes the internals.
-    assert.deepEqual(surface(storytree), ["close", "dropProject", "listProjects", "openProject", "ownDatabase", "restore", "snapshot"]);
+    assert.deepEqual(surface(storytree), ["close", "dropProject", "listProjects", "openProject", "ownDatabase", "projectIdentities", "restore", "snapshot"]);
     const lib = await storytree.openProject(name);
     assert.deepEqual(surface(lib), [...LIBRARY_API].sort());
     for (const internal of ["pool", "transactions", "records", "work", "knowledge", "project", "server"]) {

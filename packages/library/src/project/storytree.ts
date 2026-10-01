@@ -59,6 +59,12 @@ export interface OpenOptions {
    * names a project only reaches it: one deleted from the library is never made again by being opened.
    */
   readonly create?: boolean;
+  /**
+   * With `create: false`, the identity of the database the caller knows the project by (a folder's
+   * marker records it): a project deleted and made again under the same name has another, and is
+   * refused as gone, since the one the caller knew was deleted (ADR-0831).
+   */
+  readonly identity?: string;
 }
 
 /** A connection to one Postgres server and the storytree projects on it. */
@@ -71,6 +77,11 @@ export interface Storytree {
   openProject(name: string, options?: OpenOptions): Promise<Project>;
   /** The names of the storytree projects on the server, sorted. No other database is listed. */
   listProjects(): Promise<string[]>;
+  /**
+   * Each project's name and the identity of its database. The identity is the database's own, so a
+   * project deleted and made again under the same name has a new one: the database is the project.
+   */
+  projectIdentities(): Promise<Record<string, string>>;
   /** Every record of the project called `name` and its whole history, read at one moment (contract 1.6). */
   snapshot(name: string): Promise<ProjectSnapshot>;
   /** Restore a snapshot into the project called `name`, only if it holds no record and no history (1.7, 1.8). */
@@ -94,6 +105,8 @@ export interface Storytree {
 /** One project's library: its own database on the server. */
 export interface Project {
   readonly name: string;
+  /** The identity of the project's database, as projectIdentities() gives it. */
+  readonly identity: string;
   /**
    * The connection pool to this project's database. Internal: tests and later capabilities use
    * it, and capability 7 keeps it out of the public API.
@@ -148,9 +161,9 @@ class ServerConnection implements Storytree {
     assertProjectName(name); // before anything touches the server
     const database = projectDatabase(name);
     try {
-      if (options.create === false) {
-        if (!(await this.#databaseExists(database))) throw new ProjectGoneError(name);
-      } else await this.#createDatabaseIfMissing(database);
+      if (options.create !== false) await this.#createDatabaseIfMissing(database);
+      const identity = await this.#databaseIdentity(database);
+      if (identity === undefined || (options.create === false && options.identity !== undefined && identity !== options.identity)) throw new ProjectGoneError(name);
       const pool = this.#server.pool(database, await this.#owningRole(database));
       try {
         await openTables(pool, name);
@@ -158,7 +171,7 @@ class ServerConnection implements Storytree {
         await pool.end();
         throw error;
       }
-      const project = new ProjectLibrary(name, pool, () => this.#projects.delete(project), this.#embedder);
+      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#embedder);
       this.#projects.add(project);
       return project;
     } catch (error) {
@@ -190,6 +203,18 @@ class ServerConnection implements Storytree {
         [PROJECT_DATABASE_PREFIX],
       );
       return rows.map((row) => row.datname.slice(PROJECT_DATABASE_PREFIX.length)).sort();
+    } catch (error) {
+      throw this.#server.explain(error);
+    }
+  }
+
+  async projectIdentities(): Promise<Record<string, string>> {
+    try {
+      const { rows } = await this.#server.admin.query<{ datname: string; identity: string }>(
+        "SELECT datname, oid::text AS identity FROM pg_database WHERE starts_with(datname, $1) ORDER BY datname",
+        [PROJECT_DATABASE_PREFIX],
+      );
+      return Object.fromEntries(rows.map((row) => [row.datname.slice(PROJECT_DATABASE_PREFIX.length), row.identity]));
     } catch (error) {
       throw this.#server.explain(error);
     }
@@ -261,6 +286,11 @@ class ServerConnection implements Storytree {
     return (await this.#server.admin.query("SELECT 1 FROM pg_database WHERE datname = $1", [database])).rows.length > 0;
   }
 
+  /** The database's identity (its oid, which a database made again under the same name does not keep), or undefined when there is none. */
+  async #databaseIdentity(database: string): Promise<string | undefined> {
+    return (await this.#server.admin.query<{ identity: string }>("SELECT oid::text AS identity FROM pg_database WHERE datname = $1", [database])).rows[0]?.identity;
+  }
+
   async #createDatabaseIfMissing(database: string): Promise<void> {
     const { admin } = this.#server;
     if (await this.#databaseExists(database)) return;
@@ -309,6 +339,7 @@ class ServerConnection implements Storytree {
 
 class ProjectLibrary implements Project {
   readonly name: string;
+  readonly identity: string;
   readonly pool: Pool;
   readonly transactions: Transactions;
   readonly records: SchemaRecords;
@@ -319,8 +350,9 @@ class ProjectLibrary implements Project {
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
-  constructor(name: string, pool: Pool, forget: () => void, embedder?: EmbedderSource) {
+  constructor(name: string, identity: string, pool: Pool, forget: () => void, embedder?: EmbedderSource) {
     this.name = name;
+    this.identity = identity;
     this.pool = pool;
     this.transactions = new PgTransactions(pool);
     this.records = new SchemaRecords(this.transactions);

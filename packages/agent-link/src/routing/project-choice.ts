@@ -39,27 +39,42 @@ export function recordProjectChoice(file: string, project: string): void {
 
 const REMOVED_FILE = "removed-projects.json";
 
+/**
+ * A project taken off this computer's list, with the identity of its database when it was known: a
+ * project deleted and made again under the same name has another, and is a new project, shown.
+ */
+export interface HiddenProject {
+  readonly name: string;
+  readonly identity?: string;
+}
+
 /** The projects taken off this computer's list (the app's Projects picker), kept in the app's home. */
-export function removedProjects(home: string): string[] {
+export function removedProjects(home: string): HiddenProject[] {
   try {
-    const { removed } = JSON.parse(readFileSync(path.join(home, REMOVED_FILE), "utf8")) as { removed?: unknown };
-    return Array.isArray(removed) ? removed.filter((name): name is string => typeof name === "string") : [];
+    const { removed, identities } = JSON.parse(readFileSync(path.join(home, REMOVED_FILE), "utf8")) as { removed?: unknown; identities?: unknown };
+    const known = typeof identities === "object" && identities !== null ? (identities as Record<string, unknown>) : {};
+    if (!Array.isArray(removed)) return [];
+    return removed
+      .filter((name): name is string => typeof name === "string")
+      .map((name) => (typeof known[name] === "string" ? { name, identity: known[name] } : { name }));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
   }
 }
 
-export function recordRemovedProjects(home: string, removed: readonly string[]): void {
+/** Record `removed` as the projects taken off this computer's list: the names, and beside them each identity known. */
+export function recordRemovedProjects(home: string, removed: readonly HiddenProject[]): void {
   mkdirSync(home, { recursive: true });
   const file = path.join(home, REMOVED_FILE);
   const temp = `${file}.${process.pid}.tmp`;
-  writeFileSync(temp, `${JSON.stringify({ removed: [...new Set(removed)].sort() }, null, 2)}\n`);
+  const identities = Object.fromEntries(removed.flatMap((each) => (each.identity === undefined ? [] : [[each.name, each.identity]])));
+  writeFileSync(temp, `${JSON.stringify({ removed: [...new Set(removed.map((each) => each.name))].sort(), identities }, null, 2)}\n`);
   renameSync(temp, file);
 }
 
 /** Put `project` back on this computer's list, if it was taken off: adding its folder again, or joining it on purpose. */
 export function keepOnThisComputer(project: string, home: string): void {
   const removed = removedProjects(home);
-  if (removed.includes(project)) recordRemovedProjects(home, removed.filter((name) => name !== project));
+  if (removed.some((each) => each.name === project)) recordRemovedProjects(home, removed.filter((each) => each.name !== project));
 }

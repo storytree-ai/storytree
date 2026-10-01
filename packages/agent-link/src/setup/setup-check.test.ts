@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -230,7 +230,8 @@ test("8.2 the built storytree-setup install registers storytree's hooks, and rem
     assert.equal(installed.status, 0, installed.stderr);
     assert.match(installed.stdout, /^Claude Code: registered$/m, installed.stdout);
     assert.match(installed.stdout, /^Codex: registered/m, installed.stdout);
-    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), hookScript, "claude-code")).length, 7, "the hook built beside it is registered");
+    // The command names its own hook by its real path (on macOS the temporary folder is a link into /private).
+    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), realpathSync(hookScript), "claude-code")).length, 7, "the hook built beside it is registered");
 
     const removed = setup("remove");
     assert.equal(removed.status, 0, removed.stderr);

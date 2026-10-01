@@ -3,8 +3,8 @@
 // once, and tells the agent plainly if it still cannot. Ported from storytree 0.2's
 // packages/cli/provision-worktree.mjs (ADR-0636 D1, b4 folded into b5; ADR-0633 D2).
 //
-// Three conditions call for an install, and each is named in what the agent is told, because all
-// three look the same at the first tool call (a module that will not resolve) and have different
+// Four conditions call for an install, and each is named in what the agent is told, because all
+// four look the same at the first tool call (a module that will not resolve) and have different
 // causes:
 //   - FRESH: no install ever completed here. pnpm writes node_modules/.modules.yaml only when an
 //     install completes, so an install killed midway is fresh too, and heals next session.
@@ -14,6 +14,10 @@
 //   - UNLINKED: an install reported success but no workspace package got a node_modules of its own
 //     (0.2 met this: "Already up to date", exit 0, and nothing could run). The root's node_modules
 //     holds no .bin in a pnpm workspace even when healthy, so the packages are where to look.
+//   - BEHIND: a workspace package depends on another (`workspace:` in its package.json) that its
+//     node_modules has no link to. It happens when main adds a workspace package after the last
+//     install: the lockfile can match and every package still has a node_modules, yet the first
+//     import of the new package fails, naming it, not the cause.
 // Anything else is left alone at no cost, so the hook is safe to run at every session start.
 //
 // With --serve it is how 0.3's own sessions start the agent link's tool server (.mcp.json and
@@ -21,8 +25,8 @@
 // so in a worktree still being installed it waits for that install, then runs the server from this
 // worktree's source. It never installs itself, so two installs never run in one worktree at once.
 //
-// With --check it is what `pnpm storytree` runs first: a worktree that is FRESH or UNLINKED cannot
-// start the command line at all, and the crash names a missing module (often @storytree/app), not
+// With --check it is what `pnpm storytree` runs first: a worktree that is FRESH, UNLINKED or BEHIND
+// cannot start the command line at all, and the crash names a missing module (often @storytree/app), not
 // the cause, so it is refused in one line that names the command to run. A session reaches it when
 // its start hook never ran in this worktree (a launch path that skips it). STALE is let through: the
 // command line usually still runs, and the session-start refresh or `pnpm install` is its fix.
@@ -45,6 +49,41 @@ function conditionOf(root) {
   if (!existsSync(path.join(modules, ".modules.yaml"))) return "fresh";
   if (lockfileAdvanced(root)) return "stale";
   if (unlinked(root)) return "unlinked";
+  if (missingLink(root)) return "behind";
+  return undefined;
+}
+
+/** Each workspace package's folder and parsed package.json, skipping any that cannot be read. */
+function* workspacePackages(root) {
+  for (const group of WORKSPACE_GROUPS) {
+    let entries;
+    try {
+      entries = readdirSync(path.join(root, group), { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const dir = path.join(root, group, entry.name);
+      try {
+        yield { dir, manifest: JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) };
+      } catch {
+        // No package.json, or one that will not parse: not a package this check can judge.
+      }
+    }
+  }
+}
+
+/** The first workspace dependency with no link in its dependant's node_modules, as "dependant → dependency", or undefined. */
+function missingLink(root) {
+  for (const { dir, manifest } of workspacePackages(root)) {
+    for (const field of ["dependencies", "devDependencies"]) {
+      for (const [name, spec] of Object.entries(manifest[field] ?? {})) {
+        if (typeof spec !== "string" || !spec.startsWith("workspace:")) continue;
+        if (!existsSync(path.join(dir, "node_modules", name))) return `${manifest.name ?? path.basename(dir)} → ${name}`;
+      }
+    }
+  }
   return undefined;
 }
 
@@ -63,19 +102,9 @@ function lockfileAdvanced(root) {
 /** True when the workspace has packages and not one of them has its own node_modules. */
 function unlinked(root) {
   let packages = 0;
-  for (const group of WORKSPACE_GROUPS) {
-    let entries;
-    try {
-      entries = readdirSync(path.join(root, group), { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      const pkg = path.join(root, group, entry.name);
-      if (!entry.isDirectory() || !existsSync(path.join(pkg, "package.json"))) continue;
-      packages++;
-      if (existsSync(path.join(pkg, "node_modules"))) return false;
-    }
+  for (const { dir } of workspacePackages(root)) {
+    packages++;
+    if (existsSync(path.join(dir, "node_modules"))) return false;
   }
   return packages > 0;
 }
@@ -144,14 +173,21 @@ const WHAT_HAPPENED = {
     "is UNLINKED: a pnpm install reported success but linked no workspace package, and the automatic " +
     'reinstall at session start failed. A later install may again print "Already up to date"; check ' +
     "that the packages have a node_modules afterwards",
+  behind:
+    "is BEHIND: a workspace package depends on another its node_modules has no link to (a workspace " +
+    "package landed on main since the last install), and the automatic reinstall at session start failed",
 };
 
 /** The one line --check writes to stderr for an uninstalled root, or "" when the command line can run. */
 export function checkOutput(root) {
   const condition = conditionOf(root);
-  if (condition !== "fresh" && condition !== "unlinked") return "";
+  if (condition !== "fresh" && condition !== "unlinked" && condition !== "behind") return "";
+  const state =
+    condition === "behind"
+      ? `BEHIND, its install lacking the link ${missingLink(root)}`
+      : `${condition.toUpperCase()}, not installed`;
   return (
-    `storytree: this worktree (${root}) is ${condition.toUpperCase()}, not installed, so the command line cannot start: ` +
+    `storytree: this worktree (${root}) is ${state}, so the command line cannot start: ` +
     "run `node packages/dev-loop/src/provision-worktree.mjs` in it, then run the command again."
   );
 }

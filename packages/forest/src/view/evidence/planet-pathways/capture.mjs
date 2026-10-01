@@ -15,7 +15,7 @@ const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
   if (name === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css'].includes(name)) {
+  if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) {
     console.error(`Capture asset not found: ${name}`);
     res.writeHead(404).end(); return;
   }

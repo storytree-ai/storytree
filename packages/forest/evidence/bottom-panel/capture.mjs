@@ -84,6 +84,8 @@ try {
           composition: { injected: 40_000, grounding: 150_000, implementation: 90_000, other: 30_000 }, guidance: { value: 700_000 } })),
         idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000,
         readSurfaces: async () => ({ ok: false }), holds: async () => [],
+        // The list reads every row's window in one batch (forest 7.17), answered as one read per session.
+        windowReadings(project, sessions) { return Promise.all(sessions.map(one => this.windowReading(project, one))); },
         windowReading: async (_, session) => session === 'fp-builder'
           ? { session, at: new Date().toISOString(), inView: [], glimpses: [], compactions: 0,
             opens: [open('packages/forest/src/view/sessions-list.tsx'), open('packages/forest/src/view/styles.css'), open('packages/agent-link/src/readings.ts', false)] }

@@ -16,7 +16,7 @@ const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'ut
 const server = createServer((req, res) => {
   const [variant, name] = new URL(req.url, 'http://localhost').pathname.slice(1).split('/');
   if (variant === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['production'].includes(variant) || !['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css'].includes(name)) {
+  if (!['production'].includes(variant) || !['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) {
     console.error(`Capture asset not found: ${name}`);
     res.writeHead(404).end(); return;
   }

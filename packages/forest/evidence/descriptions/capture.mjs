@@ -71,6 +71,10 @@ try {
   if (await closeHelp.isVisible()) await closeHelp.click();
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   await list.locator('.session-row[data-session-id="mn-mint"]').waitFor();
+  // Every row starts expanded (forest 7.17): fold the laptop's row first, for the folded picture.
+  await list.locator('.session-row[data-session-id="mn-explorer"]').waitFor();
+  await list.locator('.session-row[data-session-id="mn-laptop"] .session-children-toggle').click();
+  await list.locator('.session-row[data-session-id="mn-explorer"]').waitFor({ state: 'detached' });
   await page.waitForTimeout(800);
   await list.screenshot({ path: path.join(out, 'descriptions-list.png') });
   assert.equal(await list.locator('.session-row[data-session-id="mn-mint"] .session-machine').innerText(), 'mint');

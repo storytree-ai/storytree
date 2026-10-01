@@ -63,8 +63,9 @@ try {
       linesSince: async (_, cursor) => ({ lines: copy(data.lines.lines.filter(item => item.seq > cursor)), cursor: data.lines.cursor }),
       frontCovers: async () => [], relatedNotes: async () => [], arcView: async () => null, waitHolds: async () => [], heldOnQuestion: async () => [],
       contextReadings: async (_, sessions) => sessions.map(session => ({ session, tokens: 310_000,
-        composition: { injected: 40_000, grounding: 150_000, implementation: 90_000, other: 30_000 } })),
+        composition: { injected: 40_000, grounding: 150_000, implementation: 90_000, other: 30_000 }, guidance: { value: 700_000 } })),
       idleAfterMs: async () => 60 * 60_000,
+      leaveAfterMs: async () => 120 * 60_000, // a quiet session leaves the list after this; the idle one, quiet 90 minutes, stays
     };
   }, seed);
   await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { waitUntil: 'domcontentloaded' });
@@ -73,11 +74,15 @@ try {
   if (await closeHelp.isVisible()) await closeHelp.click();
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   await list.locator(`.session-row[data-session-id="${ids.unclaimed}"]`).waitFor();
+  // Quiet sessions fold into one "N idle" row (ADR-0758 D5): open it, so every listed session shows.
+  const fold = list.locator('.session-idle-fold');
+  if (await fold.count() > 0 && await fold.getAttribute('aria-expanded') === 'false') await fold.click();
+  await list.locator(`.session-row[data-session-id="${ids.idle}"]`).waitFor();
   const shown = await list.locator('.session-row').evaluateAll(nodes => nodes.map(node => node.dataset.sessionId).sort());
   assert.deepEqual(shown, [ids.claimed, ids.idle, ids.twoTrees, ids.unclaimed].sort(), 'every non-ended session shows; the ended one does not');
   assert.match(await list.locator(`[data-session-id="${ids.unclaimed}"]`).innerText(), /Codex · tidy-readme/);
   assert.match(await list.locator(`[data-session-id="${ids.twoTrees}"]`).innerText(), /2 worktrees/);
-  assert.equal(await list.locator(`[data-session-id="${ids.idle}"]`).getAttribute('data-state'), 'idle', 'idle past the 60-minute setting');
+  assert.equal(await list.locator(`[data-session-id="${ids.idle}"]`).getAttribute('data-idle'), 'true', 'idle past the 60-minute setting');
   await page.waitForTimeout(500);
   await list.screenshot({ path: path.join(out, 'every-session.png') });
   assert.deepEqual(errors, []);

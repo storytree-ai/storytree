@@ -70,6 +70,8 @@ try {
         composition: { injected: 40_000, grounding: 150_000, implementation: 90_000, other: 30_000 }, guidance: { value: 700_000 } })),
       idleAfterMs: async () => 60 * 60_000,
       readSurfaces: async () => ({ ok: false }), holds: async () => [],
+      // The list reads every row's window in one batch (forest 7.17), answered as one read per session.
+      windowReadings(project, sessions) { return Promise.all(sessions.map(one => this.windowReading(project, one))); },
       windowReading: async (_, session) => session === data.window.session ? copy(data.window) : { session, at: data.window.at, absent: "no hook has named this session's transcript" },
     };
   }, seed);
@@ -80,10 +82,13 @@ try {
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);
   await row.waitFor();
+  // Every row starts expanded (forest 7.17): fold it first, for the collapsed picture.
+  await row.getByRole('button', { name: /^Hide detail/ }).click();
+  await row.getByRole('button', { name: /^Show detail/ }).waitFor();
   await page.waitForTimeout(500);
   await list.screenshot({ path: path.join(out, 'collapsed.png') });
   await row.getByRole('button', { name: /^Show detail/ }).click();
-  const detail = list.locator('.session-detail');
+  const detail = list.locator('li', { has: page.locator(`.session-row[data-session-id="${ids.builder}"]`) }).locator('.session-detail');
   await detail.locator('.session-detail-files li').first().waitFor();
   const text = await detail.innerText();
   assert.ok(text.includes('Worktrees') && text.includes('Files'), 'labels both blocks');

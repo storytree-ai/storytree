@@ -11,6 +11,7 @@ import type { Line, LinesSince } from "@storytree/agent-link";
 import type { Change, Changes } from "@storytree/library";
 
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
+import { joinedReads, pageReading } from "./page-reading.js";
 
 /** A stand-in clock whose timers fire only when the test moves it on. */
 class Clock implements Timers {
@@ -152,4 +153,83 @@ test("a read that fails is reported, and the next ask tries again from the same 
   await clock.advance(2_000);
   assert.deepEqual(news.at(-1)?.lines.map((line) => line.kind === "claimed" && line.capability), ["cap_b"]);
   reading.stop();
+});
+
+test("one page reading asks once per tick however many surfaces hear it, and each hears the same news", async () => {
+  const app = new App();
+  app.story("Visitor can sign up");
+  app.claim("cap_a");
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock });
+  const forest: News[] = [];
+  const sessions: News[] = [];
+  reading.subscribe({ onNews: (news) => forest.push(news) });
+  reading.subscribe({ onNews: (news) => sessions.push(news) });
+  await settle();
+  app.claim("cap_b");
+  await clock.advance(2_000);
+  await clock.advance(2_000);
+
+  assert.deepEqual(app.asked, ["changes shop 0", "lines shop 0", "changes shop 1", "lines shop 1", "changes shop 1", "lines shop 2"], "one changes ask and one lines ask per tick");
+  assert.deepEqual(forest.map(({ changes, lines }) => [changes.length, lines.length]), [[1, 1], [0, 1]]);
+  assert.deepEqual(sessions, forest);
+  reading.stop();
+});
+
+test("a surface that starts listening late first hears everything the page reading holds", async () => {
+  const app = new App();
+  app.story("Visitor can sign up");
+  app.claim("cap_a");
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock });
+  reading.subscribe({ onNews: () => {} });
+  await settle();
+  app.claim("cap_b");
+  await clock.advance(2_000);
+
+  const board: News[] = [];
+  reading.subscribe({ onNews: (news) => board.push(news) });
+  await settle();
+  assert.deepEqual(board.map(({ changes, lines }) => [changes.length, lines.map((line) => line.kind === "claimed" && line.capability)]), [[1, ["cap_a", "cap_b"]]]);
+  const asks = app.asked.length;
+  await settle();
+  assert.equal(app.asked.length, asks, "joining asks the library nothing");
+  reading.stop();
+});
+
+test("a surface whose handling fails hears that news again with the next, while the others hear it once", async () => {
+  const app = new App();
+  app.claim("cap_a");
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock });
+  const steady: News[] = [];
+  const shaky: News[] = [];
+  const errors: unknown[] = [];
+  let fail = false;
+  reading.subscribe({ onNews: (news) => steady.push(news) });
+  reading.subscribe({ onNews: (news) => { if (fail) throw new Error("the tree could not be read"); shaky.push(news); }, onError: (error) => errors.push(error) });
+  await settle();
+
+  fail = true;
+  app.claim("cap_b");
+  await clock.advance(2_000);
+  assert.equal(errors.length, 1);
+  fail = false;
+  app.claim("cap_c");
+  await clock.advance(2_000);
+
+  const claimed = (news: News[]) => news.map(({ lines }) => lines.map((line) => line.kind === "claimed" && line.capability));
+  assert.deepEqual(claimed(steady), [["cap_a"], ["cap_b"], ["cap_c"]]);
+  assert.deepEqual(claimed(shaky), [["cap_a"], ["cap_b", "cap_c"]]);
+  reading.stop();
+});
+
+test("the surfaces hearing one news share one read of the project's tree", async () => {
+  let reads = 0;
+  const tree = joinedReads({ projectTree: async (project: string) => { reads++; await settle(); return project; } });
+  const [a, b] = await Promise.all([tree.projectTree("shop"), tree.projectTree("shop")]);
+  assert.equal(reads, 1);
+  assert.equal(a, b);
+  await tree.projectTree("shop");
+  assert.equal(reads, 2, "a read asked once the last has landed reads again");
 });

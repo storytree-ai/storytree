@@ -9,6 +9,10 @@
  * Every call to a capability-6 tool:
  * - is routed from the folder the server works in (capability 1), afresh each time, so a project
  *   set up mid-session is found, and a storytree that has stopped is noticed;
+ * - works in the folder the hook run just before the call was in, when that is in the same project:
+ *   the harness starts the server where the session started, and a session that has since moved
+ *   into a workspace claims on that workspace's branch, which its merge ends (6.34). A call no hook
+ *   saw works in the server's own folder;
  * - answers "storytree isn't running, carry on without it" while it is not;
  * - is recorded in the agent activity log as a `tool-called` line on the calling session: Claude
  *   Code names it in the server's environment (`CLAUDE_CODE_SESSION_ID`), Codex on each call's
@@ -25,6 +29,7 @@
  *   never a crash.
  */
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
@@ -148,15 +153,17 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         const { lines } = await log.since(where.project, 0);
         const caller = seenCaller(lines, callerOf(context), meta);
         // The hook's line for this very call, joined by the id the harness gave it: never a guess by time.
-        const request = requestOf(lines, meta)?.seq;
+        const requested = requestOf(lines, meta);
+        const request = requested?.seq;
         const cause = request === undefined ? {} : { causedBy: request };
-        await log.append(where.project, { ...lineOf(caller), source: "tool", folder: options.folder, kind: "tool-called", tool: name, ...cause });
+        const folder = requested?.folder !== undefined && existsSync(requested.folder) && findProject(requested.folder).project === where.project ? requested.folder : options.folder;
+        await log.append(where.project, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: name, ...cause });
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
-        await endMergedClaims({ log, project: where.project, folder: options.folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
+        await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool" }, options.merges).catch(() => []);
         return result(await act(args as never, {
           library, log, project: where.project, caller,
           writer: { actor: `session:${caller.session}`, signal: context.mcpReq.signal },
-          folder: options.folder,
+          folder,
           // Read once for this call, only if it needs liveness. Independent context readings
           // still return tokens and explain unusable settings (9.7), as routing's readLibrary does.
           get quietMs() { return quietMs ??= idleAfterMs(); },

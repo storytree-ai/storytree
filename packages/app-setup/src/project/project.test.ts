@@ -110,7 +110,7 @@ test("removing a project whose marker git tracks leaves the folder as it is and 
   assert.ok(projectsOnThisComputer(await library.listProjects(), home).includes(name), "adding its folder again brings it back");
 });
 
-test("deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {
+test("3.6: deleting a project drops its records for every machine once its name is typed, after a snapshot into this machine's backups that restores it; refused for a wrong name, the project in use, or one a live session holds a claim in", async (t) => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-delete-project-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const token = randomBytes(4).toString("hex");

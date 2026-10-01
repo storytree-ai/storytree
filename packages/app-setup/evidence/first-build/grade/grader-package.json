@@ -1,0 +1,9 @@
+{
+  "name": "todomvc-grade",
+  "private": true,
+  "description": "Runs the official tastejs/todomvc Cypress spec against a local app folder",
+  "devDependencies": {
+    "cypress": "15.14.2",
+    "express": "5.2.1"
+  }
+}

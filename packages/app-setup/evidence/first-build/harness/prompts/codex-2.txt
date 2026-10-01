@@ -1,0 +1,5 @@
+Yes, go ahead and finish the storytree setup.
+
+Also, I had the official TodoMVC test suite run against the app (Cypress, from tastejs/todomvc at commit ff43b02e, run with framework vanillajs). It stopped straight away: 0 of 29 tests ran. The first test failed with "Error: Cannot determine what kind of selectors this app uses. Add it to usesIDSelectors." and the other 28 were skipped.
+
+Can you fix the app so it passes the official suite?

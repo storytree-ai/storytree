@@ -1,8 +1,8 @@
 /**
  * Capability 3 · Story node render: an island's capability territories as drawn (ADR-0804 D2). Each
  * territory is one mesh named `territory:<capability>`, filled by its capability's word (ADR-0825 D3);
- * Unclaimed code's is `territory:unclaimed`, with no capability and no fill, so a click on its land
- * picks it. The borders between territories are one set of line segments, and a claimed territory's
+ * Unclaimed code's is `territory:unclaimed`, with no capability: uncharted land, a night-dark fill with a
+ * thin diagonal hatch (`territory-hatch:unclaimed`), still picked by a click on its land. The borders between territories are one set of line segments, and a claimed territory's
  * border is outlined just inside it in the claiming session's colour. All stop at the island's coast.
  * Plain three.js, so the marks are read without a browser.
  */
@@ -20,6 +20,16 @@ const WORD_FILL: Readonly<Record<CapabilityWord, { colour: string; opacity: numb
   proposed: { colour: "#F2D16B", opacity: 0.8 },
   untested: { colour: "#F2D16B", opacity: 0.8 },
 };
+/**
+ * Unclaimed code, land no contract has surveyed, is drawn as uncharted land: the cartographic no-data convention.
+ * A region with no data gets no hue and is hatched, since green, yellow and red are health words and grey is kept
+ * for mapped (ADR-0825 D3). The fill is the globe's own background (`PlanetWorldCanvas`), dense enough that the
+ * island's grey ground does not read through, and the hatch a faint cool light, far below the white borders.
+ */
+const UNCHARTED_FILL = { colour: "#101418", opacity: 0.9 };
+const UNCHARTED_HATCH = { colour: "#8fa8b8", opacity: 0.4 };
+/** The hatch lines lie this far apart, measured across them, in ground units. */
+const HATCH_SPACING = 0.35;
 /** A claim's outline: a band this deep inside the territory's border, in ground units. */
 const CLAIM_INSET = 0.3;
 const CLAIM_OPACITY = 0.95;
@@ -56,6 +66,7 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
       : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, word: territory.status ?? "untested", ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
     group.add(mesh);
+    if (territory.capability === undefined) group.add(hatch(pieces, onSurface));
     if (claimant !== undefined) group.add(claimOutline(territory.capability!, claimant, cells, pieces, coast, onSurface));
   });
   const kept = coast === undefined ? land.borders : land.borders.flatMap(({ from, to }) => insideOf(from, to, coast));
@@ -70,10 +81,34 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
   return group;
 }
 
-/** A territory's fill: its word's colour, or none for Unclaimed code, whose land is left bare. */
+/** A territory's fill: its word's colour, or the uncharted-land ink for Unclaimed code. */
 function territoryFill(territory: DrawnLand["territories"][number]): MeshBasicMaterial {
-  const fill = territory.capability === undefined ? { colour: "#ffffff", opacity: 0 } : WORD_FILL[territory.status ?? "untested"];
+  const fill = territory.capability === undefined ? UNCHARTED_FILL : WORD_FILL[territory.status ?? "untested"];
   return new MeshBasicMaterial({ color: new Color(fill.colour), transparent: true, opacity: fill.opacity, side: DoubleSide, depthWrite: false });
+}
+
+/**
+ * Diagonal hatching across convex land pieces: lines x + z = n * spacing, the same lines on every piece so the
+ * hatch runs on unbroken across cells, each cut to the piece by the same clipping the claim bands use.
+ */
+function hatch(pieces: readonly (readonly Point[])[], onSurface: (point: Point) => Vector3): LineSegments {
+  const step = HATCH_SPACING * Math.SQRT2;
+  const positions = pieces.flatMap((piece) => {
+    const [x0, x1] = [Math.min(...piece.map((p) => p.x)), Math.max(...piece.map((p) => p.x))];
+    const sums = piece.map((p) => p.x + p.z);
+    const lines: { from: Point; to: Point }[] = [];
+    for (let n = Math.ceil(Math.min(...sums) / step); n * step <= Math.max(...sums); n++) {
+      lines.push(...segmentInConvex({ x: x0, z: n * step - x0 }, { x: x1, z: n * step - x1 }, piece));
+    }
+    return lines.flatMap(({ from, to }) => [onSurface(from), onSurface(to)]);
+  }).flatMap((point) => [point.x, point.y, point.z]);
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  const lines = new LineSegments(geometry, new LineBasicMaterial({ color: UNCHARTED_HATCH.colour, transparent: true, opacity: UNCHARTED_HATCH.opacity, depthWrite: false }));
+  lines.name = "territory-hatch:unclaimed";
+  lines.raycast = () => {};
+  lines.renderOrder = 1.2;
+  return lines;
 }
 
 /** Convex pieces as triangles on the surface: a fan from each piece's first corner covers it. */

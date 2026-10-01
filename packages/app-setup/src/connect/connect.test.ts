@@ -396,7 +396,7 @@ test("2.2 a dev home never copies Claude Code's sign-in, and hands a Codex sign-
     return Object.fromEntries(names.map((name) => [name, path.join(outdir, `${name}.mjs`)]));
   };
   const rig = path.join(dir, "rig");
-  const made = await makeDevHome({ dir: rig, harnesses: ["codex", "claude-code"], signedIn: { codex, claude }, build, run });
+  const made = await makeDevHome({ dir: rig, harnesses: ["codex", "claude-code"], signedIn: { codex }, build, run });
   assert.equal(existsSync(path.join(made.env.CLAUDE_CONFIG_DIR!, ".credentials.json")), false, "a copied Claude Code sign-in refreshes on its own and ends the user's");
   // Codex refreshed its sign-in inside the throwaway home: the user's old one no longer works.
   writeFileSync(path.join(made.env.CODEX_HOME!, "auth.json"), '{"refresh":"two"}');

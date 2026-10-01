@@ -53,4 +53,5 @@ installer or setup check. See the [join evidence](../../evidence/join/README.md)
 A dev build has no installed helper, so `storytree setup connect` refuses there. To connect a dev build's own
 commands to a throwaway home instead (its own HOME, CODEX_HOME, CLAUDE_CONFIG_DIR, storytree home and Postgres),
 run `pnpm --filter @storytree/app-setup dev-home <dir> --codex [--claude]`, source the `env.sh` it writes, and
-remove it with `dev-home <dir> --remove`. See the [dev home evidence](../../evidence/dev-home/README.md).
+remove it with `dev-home <dir> --remove`. Claude Code's sign-in is not copied: export `CLAUDE_CODE_OAUTH_TOKEN`
+(`claude setup-token`) before starting it there. See the [dev home evidence](../../evidence/dev-home/README.md).

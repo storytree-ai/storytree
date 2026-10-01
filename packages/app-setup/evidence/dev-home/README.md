@@ -14,10 +14,18 @@ codex exec --skip-git-repo-check --approve-for-me --dangerously-bypass-hook-trus
 pnpm --filter @storytree/app-setup dev-home /tmp/st-devhome-codex --remove      # stops its database, deletes it all
 ```
 
-It builds the dev build's commands into `<dir>/tools`, makes a fresh home under `<dir>/home` (copying only the
-agents' sign-in from the user's own `~/.codex` / `~/.claude`), and connects the chosen agents there with the same
+It builds the dev build's commands into `<dir>/tools`, makes a fresh home under `<dir>/home` (copying only
+Codex's sign-in from the user's own `~/.codex`), and connects the chosen agents there with the same
 code an installed storytree's `setup connect` runs. The home's own Postgres starts on demand, the way a storytree
 command opens a closed app: its `app.json` names `dev-database.ts`. `--remove` refuses a folder it did not make.
+
+**Sign-ins (corrected 2026-10-02).** A copied sign-in can refresh on its own inside the throwaway home, and a refresh
+ends the sign-in it replaced: the first version copied Claude Code's `~/.claude/.credentials.json`, a session there
+refreshed it, and the Mint box's own `~/.claude` sign-in stopped working until the refreshed one was copied back
+(`../../../agent-link/evidence/live-check`). So Claude Code's sign-in is no longer copied: start it with
+`CLAUDE_CODE_OAUTH_TOKEN` exported (a long-lived token, `claude setup-token`), which never refreshes. Codex's is
+still copied, and `--remove` (or remaking the home) hands it back to `~/.codex/auth.json` when Codex refreshed it
+inside and the user's has not changed since.
 
 ## Run on the Mint box, Codex 0.153.4 signed in
 

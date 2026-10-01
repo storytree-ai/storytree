@@ -2,13 +2,16 @@
  * A dev build's commands, connected to a throwaway home: what a live Codex or Claude Code check runs
  * against on any box, instead of a rig hand-built for it. Its own HOME, CODEX_HOME, CLAUDE_CONFIG_DIR
  * and storytree home, its own Postgres (started on demand, as the app would start), and the same
- * connection an installed storytree makes. The user's own homes are only read, for the sign-in.
+ * connection an installed storytree makes. The user's own homes are only read, for Codex's sign-in, which
+ * goes back to the user's when Codex refreshed it inside (a refresh ends the sign-in it replaced). Claude
+ * Code's sign-in is never copied, for the same reason: start it with CLAUDE_CODE_OAUTH_TOKEN set (a
+ * long-lived token from `claude setup-token`).
  *
  *   pnpm --filter @storytree/app-setup dev-home <dir> --codex [--claude]
  *   . <dir>/env.sh            (PowerShell: . <dir>/env.ps1), then codex or claude in a new folder
  *   pnpm --filter @storytree/app-setup dev-home <dir> --remove
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -23,8 +26,8 @@ const MARK = "storytree-dev-home.json";
 export interface DevHomeOptions {
   readonly dir: string;
   readonly harnesses: readonly Harness[];
-  /** Where each agent's sign-in is read from. By default the user's own ~/.codex and ~/.claude. */
-  readonly signedIn?: { readonly codex?: string; readonly claude?: string };
+  /** Where Codex's sign-in is read from (and handed back to). By default the user's own ~/.codex. */
+  readonly signedIn?: { readonly codex?: string };
   /** Builds the dev build's commands into a folder. By default the agent link's own build. */
   readonly build?: (outdir: string) => Promise<Record<string, string>>;
   readonly run?: RunHarness;
@@ -48,13 +51,12 @@ export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
   const claude = path.join(home, ".claude");
   const storytree = path.join(home, ".storytree", "0.3");
   for (const folder of [codex, claude, storytree]) mkdirSync(folder, { recursive: true });
-  writeFileSync(path.join(dir, MARK), `${JSON.stringify({ made: new Date().toISOString() })}\n`);
+  const userAuth = path.join(options.signedIn?.codex ?? path.join(homedir(), ".codex"), "auth.json");
+  const copied = options.harnesses.includes("codex") && existsSync(userAuth) ? readFileSync(userAuth, "utf8") : undefined;
+  if (copied !== undefined) writeFileSync(path.join(codex, "auth.json"), copied, { mode: 0o600 });
+  writeFileSync(path.join(dir, MARK), `${JSON.stringify({ made: new Date().toISOString(), ...(copied === undefined ? {} : { codexSignIn: { from: userAuth, copied } }) })}\n`);
 
   const bins = await (options.build ?? buildBins)(tools);
-  const signedIn = { codex: options.signedIn?.codex ?? path.join(homedir(), ".codex"), claude: options.signedIn?.claude ?? path.join(homedir(), ".claude") };
-  if (options.harnesses.includes("codex")) copyIfThere(path.join(signedIn.codex, "auth.json"), path.join(codex, "auth.json"));
-  // Claude Code keeps its sign-in in this file on Linux and Windows; on macOS it is in the keychain, which a session reads as it is.
-  if (options.harnesses.includes("claude-code")) copyIfThere(path.join(signedIn.claude, ".credentials.json"), path.join(claude, ".credentials.json"));
 
   // Its own database: a storytree command that finds it closed opens it from this record, as it opens the app.
   const database = fileURLToPath(new URL("./dev-database.ts", import.meta.url));
@@ -78,10 +80,24 @@ export async function makeDevHome(options: DevHomeOptions): Promise<DevHome> {
   return { results, env, envFile };
 }
 
-/** Stop the throwaway home's database, if it runs, and delete the home. Refuses a folder this did not make. */
+/**
+ * Stop the throwaway home's database, if it runs, hand back a Codex sign-in refreshed inside it, and delete
+ * the home. Refuses a folder this did not make.
+ */
 export async function removeDevHome(dir: string): Promise<void> {
   if (!existsSync(dir)) return;
   if (!existsSync(path.join(dir, MARK))) throw new Error(`${dir} exists and is not a dev home made by this command: choose a new folder.`);
+  const { codexSignIn } = JSON.parse(readFileSync(path.join(dir, MARK), "utf8")) as { codexSignIn?: { from: string; copied: string } };
+  const inside = path.join(dir, "home", ".codex", "auth.json");
+  if (codexSignIn !== undefined && existsSync(inside)) {
+    const now = readFileSync(inside, "utf8");
+    const users = existsSync(codexSignIn.from) ? readFileSync(codexSignIn.from, "utf8") : undefined;
+    if (now !== codexSignIn.copied) {
+      // Refreshed inside, so the user's copy is spent. Theirs changed too only if they signed in again meanwhile: keep theirs.
+      if (users === codexSignIn.copied) writeFileSync(codexSignIn.from, now, { mode: 0o600 });
+      else throw new Error(`Codex refreshed its sign-in inside ${dir}, and ${codexSignIn.from} changed meanwhile: check that codex login status works, then remove ${dir} by hand.`);
+    }
+  }
   const owner = path.join(dir, "home", ".storytree", "0.3", "pgdata.owner.json");
   if (existsSync(owner)) {
     const { pid } = JSON.parse(readFileSync(owner, "utf8")) as { pid: number };
@@ -89,10 +105,6 @@ export async function removeDevHome(dir: string): Promise<void> {
     for (let waited = 0; existsSync(owner) && waited < 20_000; waited += 250) await sleep(250);
   }
   rmSync(dir, { recursive: true, force: true });
-}
-
-function copyIfThere(from: string, to: string): void {
-  if (existsSync(from)) copyFileSync(from, to);
 }
 
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -109,6 +121,7 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
   } else {
     const made = await makeDevHome({ dir, harnesses });
     for (const result of made.results) console.log(`${result.harness}: tools ${result.tools}; hooks ${result.hooks}.\n${result.next}\n`);
+    if (harnesses.includes("claude-code") && process.env.CLAUDE_CODE_OAUTH_TOKEN === undefined) console.log("Claude Code: its sign-in is not copied (a copy refreshes on its own and ends yours). Export CLAUDE_CODE_OAUTH_TOKEN (from claude setup-token) before starting it.\n");
     console.log(`Source ${made.envFile}, then start the agent in a new folder. Its database starts when a storytree command first needs it; remove it all with: dev-home ${dir} --remove`);
     if (made.results.some((result) => result.tools === "not connected")) process.exitCode = 1;
   }

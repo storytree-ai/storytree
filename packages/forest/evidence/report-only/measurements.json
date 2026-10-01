@@ -1,0 +1,83 @@
+[
+  {
+    "shot": "reported-passing",
+    "name": "reported-passing",
+    "selected": "add",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "dark",
+    "why": [
+      "storytree does not check this project's tests yet."
+    ],
+    "lastSeen": [],
+    "text": "Keep a todo list\n×\n\nA visitor adds, completes and clears todos, and the list survives a reload.\n\nAGENT: PASSING\nAdd a todo\n✓ the agent reports: passing\nAGENT: FAILING\nComplete a todo\n✗ the agent reports: failing\nAGENT: PASSING\nMain and footer\n✓ the agent reports: passing\nAGENT: NOT CHECKED\nSurvives a reload\n– the agent reports: not checked\nPROPOSED\nFilter by address\n– the agent reports: not checked\nAdd a todo the agent reports passing\n\nstorytree does not check this project's tests yet.\n\nTyping a todo and pressing Enter adds it to the list.\n\nthe agent reports: passing\n\n2 contracts",
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "reported-failing-light",
+    "name": "reported-failing-light",
+    "selected": "complete",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "light",
+    "why": [
+      "storytree does not check this project's tests yet."
+    ],
+    "lastSeen": [],
+    "text": "Keep a todo list\n×\n\nA visitor adds, completes and clears todos, and the list survives a reload.\n\nAGENT: PASSING\nAdd a todo\n✓ the agent reports: passing\nAGENT: FAILING\nComplete a todo\n✗ the agent reports: failing\nAGENT: PASSING\nMain and footer\n✓ the agent reports: passing\nAGENT: NOT CHECKED\nSurvives a reload\n– the agent reports: not checked\nPROPOSED\nFilter by address\n– the agent reports: not checked\nComplete a todo the agent reports failing\n\nstorytree does not check this project's tests yet.\n\nTicking a todo marks it done and updates the count.\n\nthe agent reports: failing\n\n2 contracts",
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "nothing-reported",
+    "name": "nothing-reported",
+    "selected": "persist",
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "scheme": "dark",
+    "why": [
+      "storytree does not check this project's tests yet."
+    ],
+    "lastSeen": [],
+    "text": "Keep a todo list\n×\n\nA visitor adds, completes and clears todos, and the list survives a reload.\n\nAGENT: PASSING\nAdd a todo\n✓ the agent reports: passing\nAGENT: FAILING\nComplete a todo\n✗ the agent reports: failing\nAGENT: PASSING\nMain and footer\n✓ the agent reports: passing\nAGENT: NOT CHECKED\nSurvives a reload\n– the agent reports: not checked\nPROPOSED\nFilter by address\n– the agent reports: not checked\nSurvives a reload the agent reports not checked\n\nstorytree does not check this project's tests yet.\n\nThe list is kept in the browser's storage.\n\nthe agent reports: not checked\n\n1 contract",
+    "panel": {
+      "width": 478,
+      "scrollWidth": 478
+    },
+    "fontPx": "14.4px"
+  },
+  {
+    "shot": "reported-passing-narrow",
+    "name": "reported-passing-narrow",
+    "selected": "footer",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scheme": "dark",
+    "open": true,
+    "why": [
+      "storytree does not check this project's tests yet."
+    ],
+    "lastSeen": [],
+    "text": "Keep a todo list\n×\n\nA visitor adds, completes and clears todos, and the list survives a reload.\n\nAGENT: PASSING\nAdd a todo\n✓ the agent reports: passing\nAGENT: FAILING\nComplete a todo\n✗ the agent reports: failing\nAGENT: PASSING\nMain and footer\n✓ the agent reports: passing\nAGENT: NOT CHECKED\nSurvives a reload\n– the agent reports: not checked\nPROPOSED\nFilter by address\n– the agent reports: not checked\nMain and footer the agent reports passing\n\nstorytree does not check this project's tests yet.\n\nThe list and its footer are hidden when there are no todos.\n\nthe agent reports: passing\n\n1 contract\n3.1 · Hidden with no todos\nthe agent reports: passing\nnot reported yet",
+    "panel": {
+      "width": 364,
+      "scrollWidth": 364
+    },
+    "fontPx": "14.4px"
+  }
+]

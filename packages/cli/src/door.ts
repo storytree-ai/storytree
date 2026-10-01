@@ -30,6 +30,8 @@ export interface Io {
   readonly cwd: string;
   /** The command's own script, as Node ran it: storytree's other commands sit beside an installed one. */
   readonly script?: string;
+  /** The words as pnpm was handed them, when pnpm's script ran this command (./handed.ts). */
+  readonly handed?: readonly string[];
   out(text: string): void;
   err(text: string): void;
 }
@@ -84,6 +86,14 @@ export interface Family {
 
 /** Run one `storytree` command, and return the exit code. */
 export async function run(argv: readonly string[], io: Io): Promise<number> {
+  const changed = io.handed === undefined ? -1 : changedWord(argv, io.handed);
+  if (changed !== -1) {
+    const word = io.handed?.[changed] ?? "";
+    const line = word.split(/\r?\n/, 1)[0] ?? "";
+    const preview = line.length > 40 || line.length < word.length ? `${line.slice(0, 40)}…` : line;
+    io.err(render({ text: `storytree did nothing: the shell pnpm runs scripts through changed word ${changed + 1} ("${preview}") on its way here, as it does a $ or a line break. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt.` }));
+    return 1;
+  }
   const opened = new Opened(io.cwd);
   let writer: WriteOptions | undefined;
   try {
@@ -109,6 +119,12 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
   } finally {
     await opened.close();
   }
+}
+
+/** The index of the first handed word that did not arrive as handed, or -1 when every one did (contract 1.11). */
+function changedWord(argv: readonly string[], handed: readonly string[]): number {
+  const at = handed.findIndex((word, index) => argv[index] !== word);
+  return at !== -1 || argv.length === handed.length ? at : handed.length;
 }
 
 async function dispatch(argv: readonly string[], context: Context): Promise<Answer> {

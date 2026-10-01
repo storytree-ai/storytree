@@ -66,6 +66,12 @@ export interface Storytree {
   /** Restore a snapshot into the project called `name`, only if it holds no record and no history (1.7, 1.8). */
   restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
   /**
+   * Delete the project called `name`: its database, and every record and all history in it, for
+   * every machine using this server (contract 1.12, ADR-0831). Connections others hold to it are
+   * ended. Irreversible: a snapshot taken first is the only way back. An unknown project is refused.
+   */
+  dropProject(name: string): Promise<void>;
+  /**
    * A database of the caller's own called `name`, beside the projects on the same server, local or
    * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, never listed
    * as a project, and closed with this connection. A project's database is never handed out.
@@ -194,6 +200,17 @@ class ServerConnection implements Storytree {
       await writeSnapshot(project.pool, name, snapshot);
     } finally {
       await project.close();
+    }
+  }
+
+  async dropProject(name: string): Promise<void> {
+    assertProjectName(name); // before anything touches the server
+    if (!(await this.listProjects()).includes(name)) throw new Error(`There is no project "${name}" to delete.`);
+    await Promise.all([...this.#projects].filter((project) => project.name === name).map((project) => project.close()));
+    try {
+      await this.#server.admin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(projectDatabase(name))} WITH (FORCE)`);
+    } catch (error) {
+      throw this.#server.explain(error);
     }
   }
 

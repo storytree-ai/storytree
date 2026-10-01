@@ -178,6 +178,23 @@ test("1.3 listProjects returns exactly the storytree projects, sorted, and no ot
   });
 });
 
+test("1.12 dropProject deletes a project's database and every record in it; it is listed no more, and an unknown project is refused", async () => {
+  const run = uniqueProjectName();
+  const site = `${run}-site`;
+  const kept = `${run}-kept`;
+  await withStorytree([databaseOf(site), databaseOf(kept)], async (storytree) => {
+    const library = await storytree.openProject(site);
+    await library.pool.query("INSERT INTO library_meta (key, value) VALUES ('drop-probe', 'here')");
+    await storytree.openProject(kept);
+
+    await storytree.dropProject(site);
+
+    assert.deepEqual(await databasesContaining(run.slice("t-".length)), [databaseOf(kept)], "only its own database goes");
+    assert.equal((await storytree.listProjects()).includes(site), false);
+    await assert.rejects(storytree.dropProject(site), /no project/);
+  });
+});
+
 test("1.4 a record saved in one project cannot be read from another", async () => {
   const run = uniqueProjectName();
   const site = `${run}-site`;

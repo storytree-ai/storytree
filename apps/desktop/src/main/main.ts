@@ -163,6 +163,8 @@ async function run(): Promise<void> {
   ipcMain.handle(CHANNELS.checkSetupFolder, () => help.checkSetupFolder());
   ipcMain.handle(CHANNELS.addProject, () => help.addProject());
   ipcMain.handle(CHANNELS.removeProject, (_event, name: unknown) => help.removeProject(name));
+  ipcMain.handle(CHANNELS.deletableProjects, () => help.deletableProjects());
+  ipcMain.handle(CHANNELS.deleteProject, (_event, name: unknown, typed: unknown, snapshot: unknown) => help.deleteProject(name, typed, snapshot));
   ipcMain.handle(CHANNELS.openFeedbackDraft, (_event, draft: unknown) => help.openFeedbackDraft(draft));
   ipcMain.handle(CHANNELS.copyHelpText, (_event, text: string) => help.copyHelpText(text));
 

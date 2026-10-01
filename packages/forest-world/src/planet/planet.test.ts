@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DoubleSide, Quaternion, Raycaster, Vector3 } from 'three';
+import { BackSide, DoubleSide, FrontSide, Quaternion, Raycaster, Vector3, type Material } from 'three';
 import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 import { LIGHT_DIRECTION } from '../shade-ladder.js';
 import { landHeightRange } from '../land-relief.js';
@@ -48,7 +48,7 @@ test('6.2 L1 gives the island under the flat viewing angle its original local li
 test('6.3 the glass has a nearly clear middle, retaining the 80% far-side minimum through both faces', () => {
   const surface = planet.createPlanetSurface(160);
   try {
-    const material = surface.material;
+    const material = [surface.material].flat()[0] as typeof surface.material & { uniforms: Record<string, { value: unknown }> };
     assert.ok(material.transparent);
     const opacity = material.uniforms.opacity!.value as number;
     assert.ok(opacity > 0 && opacity < 1, 'the ball still has a visible, transparent surface');
@@ -58,11 +58,27 @@ test('6.3 the glass has a nearly clear middle, retaining the 80% far-side minimu
     // The glass request follows #93: move the visible shell toward the rim, clearing its middle.
     assert.ok(farSideTransmission >= 0.95, `the clear middle leaves only ${farSideTransmission} of the far side`);
     assert.equal(material.depthWrite, false, 'the shell must not hide interior or far-side draws');
-    assert.equal(material.side, DoubleSide, 'both faces of the ball remain visible');
     assert.equal(surface.geometry.parameters.radius, 160);
   } finally {
     surface.geometry.dispose();
-    surface.material.dispose();
+    for (const material of [surface.material].flat()) material.dispose();
+  }
+});
+
+// Three draws a see-through, double-sided material in two passes, re-versioning it before each, so every frame
+// would re-derive its shader program twice (WebGLRenderer's renderObject; ADR-0836 D1).
+test('6.3 an animating globe redraws the glass, far face then near face, without re-deriving a shader program', () => {
+  const surface = planet.createPlanetSurface(160);
+  try {
+    const materials: Material[] = [surface.material].flat();
+    assert.deepEqual(materials.filter(material => material.transparent && material.side === DoubleSide && !material.forceSinglePass), []);
+    // Both faces of the ball remain visible, the far one blended first: three draws an object's groups in order.
+    const whole = surface.geometry.index!.count;
+    assert.deepEqual(surface.geometry.groups.map(group => ({ start: group.start, count: group.count, side: materials[group.materialIndex!]!.side })),
+      [{ start: 0, count: whole, side: BackSide }, { start: 0, count: whole, side: FrontSide }]);
+  } finally {
+    surface.geometry.dispose();
+    for (const material of [surface.material].flat()) material.dispose();
   }
 });
 

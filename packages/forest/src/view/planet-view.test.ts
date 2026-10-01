@@ -10,6 +10,7 @@ import { focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, plan
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
+import { coastTintMarks } from "./session-tints.js";
 
 test("the globe opens every story with its grove at its permanent place, readable by the smoke check", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -315,4 +316,37 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
   const claimed = territoryLand({ territories: land.territories, cells, borders: [] }, flat, undefined, new Map([["cap-healthy", { colour: "hsl(200, 80%, 68%)", faded: false }]]));
   assert.ok(fill(claimed, "territory:cap-healthy").color.equals(fill(drawn, "territory:cap-healthy").color), "a claim never changes the fill");
   assert.equal(fill(claimed, "territory:cap-healthy").opacity, fill(drawn, "territory:cap-healthy").opacity);
+});
+
+/**
+ * Three draws a see-through, double-sided material in two passes, back faces then front, re-versioning it
+ * before each (WebGLRenderer's renderObject), so every frame re-derives its shader program twice (ADR-0836 D1).
+ */
+const programsEveryFrame = (root: Group): string[] => {
+  const found: string[] = [];
+  root.traverse(object => {
+    for (const material of [(object as Mesh).material ?? []].flat()) if (material.transparent && material.side === DoubleSide && !material.forceSinglePass) found.push(object.name);
+  });
+  return found;
+};
+
+test("an animating globe redraws a session-lit island's land, circles and tints without re-deriving a shader program", () => {
+  const land = {
+    radius: 2,
+    territories: [{ capability: "cap-a", status: "healthy" as const }, { capability: "cap-b" }],
+    cells: [
+      { polygon: [{ x: -2, z: -2 }, { x: 0, z: -2 }, { x: 0, z: 2 }, { x: -2, z: 2 }], territory: 0 },
+      { polygon: [{ x: 0, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: 0, z: 2 }], territory: 1 },
+    ],
+    borders: [],
+  };
+  const plate = new Group();
+  const drawn = territoryLand(land, flat.onSurface, undefined, new Map([["cap-a", { colour: "#e69f00", faded: false }]]));
+  lightTerritories(drawn, new Map([["cap-a", "in-window" as const], ["cap-b", "faded" as const]]), "#e69f00");
+  const circles = circlesOf();
+  lightFileCircles(circles, new Map([[codePathKey("story", "src/a.ts"), "in-window" as const], [codePathKey("story", "src/b.ts"), "faded" as const]]), "#e69f00", "story");
+  const coast = [[{ x: -2, z: -2 }, { x: 2, z: -2 }, { x: 2, z: 2 }, { x: -2, z: 2 }]];
+  plate.add(drawn, circles, coastTintMarks(coast, [{ session: "A", colour: "#e69f00", faded: false, from: 0, to: 1 }], flat.onSurface));
+  assert.ok(plate.getObjectByName("territory-claim:cap-a") && plate.getObjectByName("file-ring:src/a.ts") && plate.getObjectByName("coast-tint:A"), "the fixture draws every kind of mark");
+  assert.deepEqual(programsEveryFrame(plate), []);
 });

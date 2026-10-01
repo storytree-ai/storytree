@@ -2,7 +2,7 @@
 import React, { Fragment, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading, SessionWindow } from "@storytree/agent-link";
-import type { Line } from "@storytree/agent-link/readings";
+import type { Line, LogReading } from "@storytree/agent-link/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -115,7 +115,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   const root = createRoot(host);
   let tree: AnnotatedTree | undefined;
   let arcs: readonly ArcView[] | undefined;
-  let lines: readonly Line[] = [];
+  let log: readonly Line[] | LogReading = [];
   // The rows last drawn for this project, shown marked as refreshing until the first read lands.
   const kept = pageKept(`storytree.forest.sessions.v1:${options.project}`, isSessionRows);
   let rows: SessionRow[] = kept.read() ?? [];
@@ -184,10 +184,10 @@ export function mountSessionsList(container: HTMLElement, options: {
   };
   const refresh = (now: Date, ask = true): void => {
     if (stopped || tree === undefined || arcs === undefined) return;
-    rows = sessionRows(tree, lines, arcs, now, merged(), quietMs, leaveMs);
+    rows = sessionRows(tree, log, arcs, now, merged(), quietMs, leaveMs);
     kept.write(rows);
     askFiles(everyId(rows).filter(session => !collapsed.has(session) && !files.has(session)));
-    options.onWisps?.(sessionWisps(rows, lines, now, quietMs));
+    options.onWisps?.(sessionWisps(rows, log, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
     if (ask) askReadings();
@@ -206,8 +206,8 @@ export function mountSessionsList(container: HTMLElement, options: {
       if (stopped) return;
       tree = nextTree;
       arcs = nextArcs;
-      // The page reading holds the log once for every surface, thinned to what they read (ADR-0836 D4).
-      lines = page.held().lines;
+      // The page reading holds the log once for every surface, folded and thinned to what they read (ADR-0836 D4).
+      log = page.held();
       refresh(new Date());
     },
     onClock(now) { refresh(new Date(now)); },

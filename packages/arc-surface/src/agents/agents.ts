@@ -1,5 +1,5 @@
 /** Capability 2: decorate the agent link's own claim/session readings, never infer another holder. */
-import { claimsFrom, sessionsFrom, type Claim, type Line } from "@storytree/agent-link/readings";
+import { logReading, type Claim, type Line, type LogReading } from "@storytree/agent-link/readings";
 
 export type BoardAgent = Claim & {
   startedAt: string;
@@ -19,10 +19,11 @@ export interface BoardAgents {
 }
 
 /** `quietMs` is the user's idle-after setting; without it the readings' 30-minute default applies. */
-export function agentsOnBoard(lines: readonly Line[], now: Date = new Date(), quietMs?: number): BoardAgents {
+export function agentsOnBoard(log: readonly Line[] | LogReading, now: Date = new Date(), quietMs?: number): BoardAgents {
   const judged = quietMs === undefined ? { now } : { now, quietMs };
-  const sessions = new Map(sessionsFrom(lines, judged).map((session) => [session.session, session]));
-  const all = claimsFrom(lines, judged).map((claim): BoardAgent => {
+  const { fold } = logReading(log);
+  const sessions = new Map(fold.sessions(judged).map((session) => [session.session, session]));
+  const all = fold.claims(judged).map((claim): BoardAgent => {
     // A claim is itself a session line, so every claim has a session reading.
     const session = sessions.get(claim.session)!;
     const quietMinutes = Math.max(0, Math.floor((now.getTime() - Date.parse(session.lastSeenAt)) / 60_000));

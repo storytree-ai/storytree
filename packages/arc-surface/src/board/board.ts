@@ -1,4 +1,4 @@
-import type { Line } from "@storytree/agent-link";
+import { logReading, type Line, type LogReading } from "@storytree/agent-link/readings";
 import type { ArcView, Hold } from "@storytree/library";
 import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";
 import { firstBriefing } from "../briefing/briefing.js";
@@ -41,8 +41,11 @@ export interface BoardView {
 const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, queued: 1, claimed: 2, idle: 3, ready: 4, quiet: 5, parked: 6, closed: 7 };
 const time = (at: string) => Date.parse(at) || 0;
 
-export function boardView(snapshot: BoardSnapshot, lines: readonly Line[], now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
-  const agents = agentsOnBoard(lines, now, quietMs);
+/** The log is the lines themselves, or a reading that holds its claims folded and keeps its claim lines. */
+export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogReading, now: Date, scope: BoardScope = "active", quietMs?: number): BoardView {
+  const reading = logReading(log);
+  const { lines } = reading;
+  const agents = agentsOnBoard(reading, now, quietMs);
   const names = snapshot.arcs.flatMap(({ arc, increments }): WorkName[] => [
     { id: arc.id, title: arc.fields.title },
     ...increments.map((increment) => ({ id: increment.id, title: increment.fields.title, arc: { id: arc.id, title: arc.fields.title } })),

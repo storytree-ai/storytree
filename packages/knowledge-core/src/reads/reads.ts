@@ -46,8 +46,9 @@ type Started = Extract<Line, { kind: "subagent-started" }>;
 
 /**
  * A project's recorded reads, kept in memory and fed from the activity log's lines as the page
- * reads them (from 0, then its new lines). Each line is taken once, by its number, so lines read
- * twice count once. It owns no store: switching projects starts again.
+ * reads them (from 0, then its new lines). Each read and subagent line is taken once, by its number,
+ * so lines read twice count once; no other line is kept, not even its number. It owns no store:
+ * switching projects starts again.
  */
 export class ReadRecord {
   #project: string;
@@ -63,7 +64,7 @@ export class ReadRecord {
   /** Take lines from the log; lines of another project, or already taken, change nothing. */
   add(lines: readonly Line[]): void {
     for (const line of lines) {
-      if (line.project !== this.#project || this.#seen.has(line.seq)) continue;
+      if (line.project !== this.#project || (line.kind !== "note-read" && line.kind !== "subagent-started") || this.#seen.has(line.seq)) continue;
       this.#seen.add(line.seq);
       if (line.kind === "note-read") this.#reads.push(line);
       else if (line.kind === "subagent-started") this.#started.set(`${line.session} ${line.subagent}`, line);

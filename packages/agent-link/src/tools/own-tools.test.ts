@@ -3,12 +3,12 @@ import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { setTimeout as pause } from 'node:timers/promises';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { buildBins } from '../bins/build.js';
 import { InMemoryTransport } from '@modelcontextprotocol/server';
-import { launchOwned, probeProcess, type RunRecord } from '@storytree/processes';
+import { launchOwned, type RunRecord } from '@storytree/processes';
+import { stopTestChild, testChildArgs } from '@storytree/processes/testing';
 import { listRuns } from '@storytree/processes/listing';
 import { createAgentTools } from './server.js';
 import { openActivityLog } from '../activity/index.js';
@@ -23,8 +23,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   t.after(async () => {
     await client.close();
     await tools?.close();
-    await Promise.all(children.map(stopChild));
-    await removeTempDir(home);
+    try { await Promise.all(children.map(stopTestChild)); } finally { await removeTempDir(home); }
   });
   if (installed) {
     const bins = await buildBins(path.join(home, 'bin'));
@@ -42,7 +41,7 @@ for (const installed of [false, true]) test(`own 3.4/3.6/4.1/5.1: ${installed ? 
   for (const subagent of ['builder', 'sibling']) {
     const launched = await launchOwned({ home: path.join(home, 'own'),
       owner: { session: 'caller', harness: 'codex', agent: { subagent } },
-      command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
+      command: process.execPath, args: testChildArgs(), folder: home });
     if (launched.status === 'tracked') children.push(launched.run);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
@@ -129,10 +128,11 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
   t.after(async () => {
     await client.close();
     await tools?.close();
-    await Promise.all(children.map(stopChild));
-    await log?.close();
-    await dropTestProjects([project]);
-    await removeTempDir(home);
+    try { await Promise.all(children.map(stopTestChild)); } finally {
+      await log?.close();
+      await dropTestProjects([project]);
+      await removeTempDir(home);
+    }
   });
   await writeFile(path.join(home, '.storytree.json'), JSON.stringify({ project }));
   await copyFile(`${testServerDataDir()}.owner.json`, path.join(home, 'pgdata.owner.json'));
@@ -143,7 +143,7 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
   for (const subagent of ['builder', 'sibling']) {
     const launched = await launchOwned({ home: path.join(home, 'own'),
       owner: { session: 'reset-session', harness: 'claude-code', agent: { subagent } },
-      command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
+      command: process.execPath, args: testChildArgs(), folder: home });
     if (launched.status === 'tracked') children.push(launched.run);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
@@ -169,18 +169,3 @@ test('own online 3.6/4.1: Claude hook identity selects only its named subagent, 
   assert.equal(unresolved.isError, true);
   assert.match(JSON.stringify(unresolved), /list_all_runs/);
 });
-
-/** Kill a test child still running, never whatever process has since been given its PID. */
-async function stopChild(run: RunRecord): Promise<void> {
-  if (run.birth.state !== 'live') return;
-  const { identity } = run.birth;
-  // Windows reuses a PID at once: a raw kill after the child exits can end a Postgres backend and
-  // send the shared test server into crash recovery under every other test.
-  if ((await probeProcess(identity)).state !== 'live') return;
-  try { process.kill(identity.pid, 'SIGKILL'); } catch { return; }
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if ((await probeProcess(identity)).state === 'gone') return;
-    await pause(20);
-  }
-  assert.fail(`test child ${identity.pid} did not exit`);
-}

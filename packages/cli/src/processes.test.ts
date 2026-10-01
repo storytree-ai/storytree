@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import test from 'node:test';
-import { setTimeout as pause } from 'node:timers/promises';
 import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/deliver';
 import { buildBins } from '@storytree/agent-link/bins';
-import { launchOwned, probeProcess, type RunRecord } from '@storytree/processes';
+import { launchOwned, type RunRecord } from '@storytree/processes';
+import { stopTestChild, testChildArgs } from '@storytree/processes/testing';
 import { BuiltCommand, storytree } from './testing/cli.js';
 
 for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
@@ -15,9 +15,11 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${instal
   const command = new BuiltCommand();
   const children: RunRecord[] = [];
   t.after(async () => {
-    await Promise.all(children.map(stopChild));
-    command.remove();
-    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    // A child that will not die must not also strand the folders: remove them either way.
+    try { await Promise.all(children.map(stopTestChild)); } finally {
+      command.remove();
+      await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
   });
   await command.build(installed ? async dir => {
     const install = path.join(dir, 'installed app');
@@ -45,7 +47,7 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${instal
   const runs = [];
   for (const session of ['caller', 'other']) {
     const launched = await launchOwned({ home: path.join(home, 'own'), owner: { session, harness: 'codex' },
-      command: process.execPath, args: ['-e', 'setInterval(() => {}, 1000)'], folder: home });
+      command: process.execPath, args: testChildArgs(), folder: home });
     if (launched.status === 'tracked') children.push(launched.run);
     assert.equal(launched.status, 'tracked');
     if (launched.status !== 'tracked') throw new Error('untracked test child');
@@ -120,18 +122,3 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${instal
     assert.equal((await invoke(args)).code, 2, `invalid arguments: ${args.join(' ')}`);
   }
 });
-
-/** Kill a test child still running, never whatever process has since been given its PID. */
-async function stopChild(run: RunRecord): Promise<void> {
-  if (run.birth.state !== 'live') return;
-  const { identity } = run.birth;
-  // Windows reuses a PID at once: a raw kill after the child exits can end a Postgres backend and
-  // send the shared test server into crash recovery under every other test.
-  if ((await probeProcess(identity)).state !== 'live') return;
-  try { process.kill(identity.pid, 'SIGKILL'); } catch { return; }
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if ((await probeProcess(identity)).state === 'gone') return;
-    await pause(20);
-  }
-  assert.fail(`test child ${identity.pid} did not exit`);
-}

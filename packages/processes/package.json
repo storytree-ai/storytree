@@ -7,7 +7,8 @@
     "./process": "./src/process/index.ts",
     "./listing": "./src/listing/index.ts",
     "./stopping": "./src/stopping/index.ts",
-    "./closing": "./src/closing/index.ts"
+    "./closing": "./src/closing/index.ts",
+    "./testing": "./src/testing/child.ts"
   },
   "scripts": { "typecheck": "tsc -p ." },
   "dependencies": {

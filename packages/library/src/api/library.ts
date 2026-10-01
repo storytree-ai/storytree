@@ -60,6 +60,12 @@ export interface Storytree {
    */
   restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
   /**
+   * Delete the project called `name`: its database, with every record and all its history, for
+   * every machine using this server (ADR-0831). Others' connections to it are ended. There is no
+   * undo: a snapshot taken first is the only way back. An unknown project is refused.
+   */
+  dropProject(name: string): Promise<void>;
+  /**
    * A database of the caller's own called `name`, beside the projects on the same server, local or
    * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, borrowing a
    * creator role where the user may not create databases; never listed as a project; closed with
@@ -354,6 +360,10 @@ class ServerHandle implements Storytree {
 
   restore(name: string, snapshot: ProjectSnapshot): Promise<void> {
     return this.#server.restore(name, snapshot);
+  }
+
+  dropProject(name: string): Promise<void> {
+    return this.#server.dropProject(name);
   }
 
   ownDatabase(name: string): Promise<Pool> {

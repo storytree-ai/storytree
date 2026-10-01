@@ -14,7 +14,7 @@ export interface SetupLine {
 }
 
 export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
-  const { storytree, hooks, codexServer, command, gh, machine, project } = report;
+  const { storytree, hooks, codexServer, codexHooks, command, gh, machine, project } = report;
   const lines: SetupLine[] = [storytree.state === "not running"
     ? { check: "storytree", state: "needs-attention", message: storytree.message, fix: "Open the storytree app and run the setup check again." }
     : { check: "storytree", state: storytree.state === "opened" ? "fixed" : "ok", message: storytree.state === "opened" ? "storytree was closed, so it has been opened." : "storytree is running." }];
@@ -33,7 +33,9 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
         ? `storytree's hooks are registered for ${present.map(name).join(" and ")}; receiving them is verified inside a session.`
         : "No harness here has storytree's hooks: neither Claude Code nor Codex is on this machine and connected." });
     if (present.length > 0) {
-      lines.push({ check: "transcripts", state: "ok", message: "Each session's transcript streams into the library's shared log as the session works, so every machine's app can read it. " +
+      // Said plainly, so neither the user nor an agent's own reviewer takes this check for what sends the transcript.
+      lines.push({ check: "transcripts", state: "ok", message: "This check sends nothing of the session. storytree's hooks send each session's transcript into the library's shared log as the session works, so every machine's app can read it" +
+        `${codexHooks === "waiting" ? "; in Codex they send nothing until the user trusts them" : ""}. ` +
         "Obvious secrets (API keys, bearer and OAuth tokens, private keys, connection-string passwords) are scrubbed before they leave this machine; " +
         "the scrub is best-effort, not a guarantee, so a secret in another shape can still reach the log. Raw transcript records are kept 180 days." });
     }

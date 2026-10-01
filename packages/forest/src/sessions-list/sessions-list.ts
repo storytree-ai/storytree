@@ -207,6 +207,13 @@ export function sessionRoster(rows: readonly SessionRow[]): RosterEntry[] {
   return rows.map(row => ({ session: row.id, label: row.label, colour: sessionColour(row.id), members: members(row) }));
 }
 
+/** The selection a click on a row leaves (ADR-0738 D5): its top-level session, a child's row its parent's, or none when that one was selected. */
+export function clickedSelection(rows: readonly SessionRow[], clicked: string, selected: string | undefined): string | undefined {
+  const holds = (row: SessionRow): boolean => row.id === clicked || row.children.some(holds);
+  const top = rows.find(holds)?.id ?? clicked;
+  return top === selected ? undefined : top;
+}
+
 function contextTotal(detail: SessionDetails | undefined): number | undefined {
   const total = detail?.totalTokens;
   return total !== undefined && Number.isFinite(total) && total >= 0 ? total : undefined;

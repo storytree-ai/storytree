@@ -1,11 +1,13 @@
 // ADR-0731 / increment_4745a73cdd64: `pnpm test` and the gate always end, and name what hung. Each test runs a
 // real `node --test` unit over a fixture file, with the limits cut to seconds.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 
 import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
@@ -192,4 +194,19 @@ test("any agent can set a unit's deadline on this machine with a reason, and cle
 test("a unit's row gives its time, its deadline and where the deadline came from", () => {
   assert.equal(unitReason({ ms: 12_345, timedOut: false, unitLimitMs: 80_000, limitSource: "learned" }, "/"), "12.3 s (limit 80 s, learned)");
   assert.match(unitReason({ ms: 80_100, timedOut: true, running: [], unitLimitMs: 80_000, limitSource: "learned" }, "/"), /timed out after 80\.1 s \(limit 80 s, learned\), killed/);
+});
+
+// increment_88b282227250: a run of named files killed at its deadline says why it exited 1.
+test("6.1 a run of named files past its deadline says it was killed, naming the test still running", async (t) => {
+  const dir = fixture(t, {
+    "hangs.test.mjs": `import { test } from "node:test";\ntest("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
+  });
+  const repo = fileURLToPath(new URL("../../..", import.meta.url));
+  const env = { ...process.env, STORYTREE_HOME: path.join(dir, "home"), STORYTREE_TEST_PG_URL: "postgres://unused", STORYTREE_UNIT_LIMIT_MS: "3000" };
+  delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
+  delete env.NODE_TEST_CONTEXT;
+  const run = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", path.join(dir, "hangs.test.mjs")], { cwd: repo, env, encoding: "utf8", timeout: 40_000 });
+  const output = `${run.stdout}${run.stderr}`;
+  assert.equal(run.status, 1, output);
+  assert.match(output, /test harness: .*timed out after .*limit 3(\.0)? s.*killed; still running: .*hangs\.test\.mjs › never ends/);
 });

@@ -59,9 +59,10 @@
 // waits (at most an hour), and it takes over a lock whose holder's process has gone. Under
 // `pnpm gate`, the gate holds the lock and its test step runs under that hold. No flock wrapper.
 //
-// Logs: .pgtest/pg.log (the server, last run) and .pgtest/tools.log (initdb and pg_ctl).
+// Logs: .pgtest/pg.log (the server, this run), .pgtest/pg.previous.log (the server, the run before,
+// so a --rerun-failed keeps the red run's; server-log.mjs) and .pgtest/tools.log (initdb and pg_ctl).
 
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -69,6 +70,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
+import { keepPreviousServerLog } from "./server-log.mjs";
 import { planRun, readWorkspace, resultsTable, scopeFor, scopeLine, unitGlobs } from "./test-scope.mjs";
 import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
@@ -158,9 +160,8 @@ async function runHeavy(units) {
     console.log("test Postgres: STORYTREE_TEST_PG_URL is set; using that server");
     return runTests(process.env, units);
   }
-  try {
-    rmSync(serverLog, { force: true }); // the last run's; a live run still writing it keeps it
-  } catch {}
+  const kept = keepPreviousServerLog(serverLog);
+  if (kept !== undefined) console.log(`test Postgres: the previous run's server log is kept in ${path.relative(root, kept)}`);
   let server;
   try {
     server = await start({

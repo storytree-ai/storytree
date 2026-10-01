@@ -14,6 +14,7 @@ import { connect, type Library } from "@storytree/library";
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { readSessions } from "../sessions/index.js";
 import { claim, makeWorkspace, readClaims, type ClaimContext } from "./index.js";
 import * as workspace from "./workspace.js";
 
@@ -122,6 +123,16 @@ test("5.12 session A makes a workspace for a proposed increment: a new folder wh
     assert.equal(await statusOf(library, increment), "active");
 
 
+  });
+});
+
+test("4.22 a workspace made from the main checkout places its branch under the workspace's folder, not the main checkout's (regression, 2026-10-02: the main checkout labelled unmerged)", async () => {
+  await withWorld(async ({ log, project, site, park, as }) => {
+    await log.append(project, { session: "A", harness: "claude-code", source: "hook", folder: site, branch: "main", kind: "session-started", how: "startup" });
+    const made = await makeWorkspace(as("A"), await park("email form"), "building the email form");
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    const [session] = await readSessions(log, project);
+    assert.deepEqual(session?.branchesByFolder.map(({ folder, branch }) => ({ folder, branch })), [{ folder: made.folder, branch: made.branch }]);
   });
 });
 

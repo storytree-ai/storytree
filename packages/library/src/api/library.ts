@@ -19,6 +19,7 @@ import type { HistoryEntry, HistoryFilter, RecordEnvelope } from "../transaction
 import type {
   ArcEdit,
   ArcView,
+  ParkOptions,
   CapabilityEdit,
   CloseInput,
   ContractEdit,
@@ -59,6 +60,12 @@ export interface Storytree {
    * restore can never overwrite live edits.
    */
   restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
+  /**
+   * Delete the project called `name`: its database, with every record and all its history, for
+   * every machine using this server (ADR-0831). Others' connections to it are ended. There is no
+   * undo: a snapshot taken first is the only way back. An unknown project is refused.
+   */
+  dropProject(name: string): Promise<void>;
   /**
    * A database of the caller's own called `name`, beside the projects on the same server, local or
    * Cloud SQL (contract 7.7, ADR-0735 D3): created the first time as a project's is, borrowing a
@@ -151,12 +158,12 @@ export interface Library {
   moveIncrement(id: string, arc: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
   /** Change an increment's title, objective, body, or what it touches and remedies. Null if `id` is not a live increment. */
   editIncrement(id: string, fields: IncrementEdit, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null>;
-  /** Park an arc: it reads parked until unparked. Null if `id` is not a live arc. */
-  parkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null>;
+  /** Park an arc: it reads parked until unparked, or, given `until` (YYYY-MM-DD), until UTC midnight of that day. Null if `id` is not a live arc. */
+  parkArc(id: string, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null>;
   /** Unpark an arc. Null if `id` is not a live arc. */
   unparkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null>;
-  /** An arc whole: its state (worked out on every read, or parked) and its increments, oldest first. Null if `id` is not a live arc. */
-  arcView(id: string): Promise<ArcView | null>;
+  /** An arc whole: its state (worked out on every read at `at`, now unless given, or parked) and its increments, oldest first. Null if `id` is not a live arc. */
+  arcView(id: string, at?: Date): Promise<ArcView | null>;
 
   /**
    * Make an arc wait on an arc, or an increment on an increment on any arc, with a reason. A wait
@@ -356,6 +363,10 @@ class ServerHandle implements Storytree {
     return this.#server.restore(name, snapshot);
   }
 
+  dropProject(name: string): Promise<void> {
+    return this.#server.dropProject(name);
+  }
+
   ownDatabase(name: string): Promise<Pool> {
     return this.#server.ownDatabase(name);
   }
@@ -455,7 +466,7 @@ class LibraryHandle implements Library {
     return this.#project.flight.editIncrement(id, fields, options);
   }
 
-  parkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+  parkArc(id: string, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#project.flight.parkArc(id, options);
   }
 
@@ -463,8 +474,8 @@ class LibraryHandle implements Library {
     return this.#project.flight.unparkArc(id, options);
   }
 
-  arcView(id: string): Promise<ArcView | null> {
-    return this.#project.flight.arcView(id);
+  arcView(id: string, at?: Date): Promise<ArcView | null> {
+    return this.#project.flight.arcView(id, at);
   }
 
   addWait(waiter: string, blocker: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"arc" | "increment"> | null> {

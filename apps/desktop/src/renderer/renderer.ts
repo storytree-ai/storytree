@@ -10,7 +10,7 @@ import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
 import { mountAppMenu } from "@storytree/app/view";
-import { mountAddProject, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
+import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
 import { workStates, type LiveReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drillDown, forestDrawn, forestReading, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
@@ -45,6 +45,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   mountHelp: (host, returnFocus, onOpen) => mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen }),
   mountAddProject: (host, onAdded) => mountAddProject(host, window.storytree, { onAdded }),
   mountRemoveProject: (host, current, onRemoved) => mountRemoveProject(host, window.storytree, { current, onRemoved }),
+  mountDeleteProject: (host, onDeleted) => mountDeleteProject(host, window.storytree, { onDeleted }),
 });
 window.addEventListener("beforeunload", () => appMenu.stop());
 

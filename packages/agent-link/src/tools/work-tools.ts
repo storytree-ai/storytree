@@ -83,12 +83,17 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "park_arc",
-    "Park an arc, so that it reads parked whatever its work, or unpark it (parked: false).",
-    z.object({ arc: id("arc"), parked: z.boolean().describe("true to park it, false to unpark it") }),
-    async ({ arc, parked }, { library, writer }) => {
-      const done = parked ? await library.parkArc(arc, writer) : await library.unparkArc(arc, writer);
+    "Park an arc, so that it reads parked whatever its work, or unpark it (parked: false). Give until (a day) and it wakes by itself at UTC midnight of that day.",
+    z.object({
+      arc: id("arc"),
+      parked: z.boolean().describe("true to park it, false to unpark it"),
+      until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Only when parking: the day it wakes, YYYY-MM-DD (UTC midnight)"),
+    }),
+    async ({ arc, parked, until }, { library, writer }) => {
+      const done = parked ? await library.parkArc(arc, { ...writer, ...(until === undefined ? {} : { until }) }) : await library.unparkArc(arc, writer);
       if (done === null) return { text: `There is no arc ${arc} in this project's plan.`, refused: true };
-      return { text: parked ? `Parked arc ${quoted(done.fields.title)} (${arc}).` : `Unparked arc ${quoted(done.fields.title)} (${arc}).`, data: { id: arc } };
+      const day = until === undefined ? "" : ` until ${until}: it wakes by itself at UTC midnight`;
+      return { text: parked ? `Parked arc ${quoted(done.fields.title)} (${arc})${day}.` : `Unparked arc ${quoted(done.fields.title)} (${arc}).`, data: { id: arc } };
     },
   );
 

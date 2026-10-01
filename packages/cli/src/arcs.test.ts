@@ -21,6 +21,8 @@ test("4.5 `arc list` names each live arc with the library's state", async () => 
     const first = await anArc(world);
     const parked = await anArc(world);
     await library.parkArc(parked);
+    const dated = await anArc(world);
+    await library.parkArc(dated, { until: "2099-01-01" });
     const retired = await anArc(world);
     await library.retire(retired, "Duplicate plan");
     const ran = await world.run(["arc", "list"]);
@@ -30,6 +32,7 @@ test("4.5 `arc list` names each live arc with the library's state", async () => 
       const line = ran.stdout.split("\n").find((line) => line.includes(id));
       assert.ok(line?.includes(view!.arc.fields.title) && line.includes(view!.state), ran.stdout);
     }
+    assert.ok(ran.stdout.split("\n").find((line) => line.includes(dated))?.includes("parked until 2099-01-01"), ran.stdout);
     assert.ok(!ran.stdout.includes(retired), ran.stdout);
   });
 });

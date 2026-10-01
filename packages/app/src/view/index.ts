@@ -21,6 +21,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void };
   /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
   mountRemoveProject?(host: HTMLElement, current: () => string | undefined, onRemoved: (project: string) => Promise<void>): { stop(): void; refresh(): void };
+  /** The app setup's Delete a project control: offers every project but the one on show; once deleted, the frame refreshes the list. */
+  mountDeleteProject?(host: HTMLElement, onDeleted: (project: string) => Promise<void>): { stop(): void; refresh(): void };
   /** Hears a surface switched or set in the Surfaces menu, saved already, for the frame to apply. */
   onSurfacesChanged(): void;
 }) {
@@ -57,6 +59,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   });
   let shown: string | undefined;
   const removeProject = options.mountRemoveProject?.(menu.querySelector<HTMLElement>("[data-app-remove-project]")!, () => shown, async () => { await options.onChosen(); });
+  const deleteProject = options.mountDeleteProject?.(menu.querySelector<HTMLElement>("[data-app-delete-project]")!, async () => { await options.onChosen(); });
   const updates = mountUpdates(menu, options.checkForUpdates, (waiting) => {
     gear.toggleAttribute("data-update-pending", waiting);
     gear.title = waiting ? "App menu: an update is ready to install" : "App menu";
@@ -114,6 +117,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     update({ projects, current }: ProjectSelection): void {
       shown = current !== undefined && projects.includes(current) ? current : undefined;
       removeProject?.refresh();
+      deleteProject?.refresh();
       switcher.innerHTML = projects.length === 0 ? '<p class="app-no-projects">No projects yet</p>' : renderSwitcher(projects, current);
       const select = switcher.querySelector<HTMLSelectElement>("select");
       if (select === null) return;
@@ -134,7 +138,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop();
+      updates.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop(); deleteProject?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Work in flight (ADR-0640): one test per contract 10.1-10.4 in the library story,
+ * Capability 10 · Work in flight (ADR-0640): one test per contract 10.1-10.6 in the library story,
  * each run on BOTH backends:
  *
  * - memory: a WorkModel and a WorkInFlight over SchemaRecords over a fresh MemoryTransactions;
@@ -175,6 +175,22 @@ for (const backend of [memory, postgres]) {
     await flight.unparkArc(arc.id);
     assert.equal(await state(), "active");
     assert.equal(await flight.arcView("arc_000000000000"), null);
+  });
+
+  contract("10.6", "an arc parked until a day reads parked before that day (UTC midnight) and as if unparked from it on, worked out on read with no write in between", async ({ work, flight }) => {
+    const arc = await work.createArc(ARC);
+    await flight.parkArc(arc.id, { until: "2026-10-07" });
+    const at = async (instant: string) => (await flight.arcView(arc.id, new Date(instant)))?.state;
+    assert.equal(await at("2026-10-06T23:59:59Z"), "parked", "before the day");
+    assert.equal(await at("2026-10-07T00:00:00Z"), "active", "from the day on, with no write in between");
+    assert.equal((await flight.arcView(arc.id))?.arc.fields.parkedUntil, "2026-10-07");
+
+    await flight.parkArc(arc.id);
+    assert.equal(await at("2030-01-01T00:00:00Z"), "parked", "a plain park holds until unparked");
+    await flight.parkArc(arc.id, { until: "2026-10-07" });
+    await flight.unparkArc(arc.id);
+    assert.equal(await at("2026-10-01T00:00:00Z"), "active", "unpark clears the day");
+    await assert.rejects(flight.parkArc(arc.id, { until: "next week" }));
   });
 
   contract("10.5", "an open increment moves to another live arc keeping its id and waits, the history recording the move and its reason; a closed increment, or a move to a closed arc, is refused with nothing written", async ({ work, flight, transactions }) => {

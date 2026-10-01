@@ -17,7 +17,7 @@
 //
 // It runs under the machine's heavy-run lock, against a throwaway test Postgres as `pnpm test` does.
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { SourceMap } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -98,7 +98,9 @@ export function executedFiles(coverageDir) {
  * for each capability number, the tests carrying it times the file's functions their file ran.
  * `root` is where tests run from.
  */
-export async function coverageOf({ root, pkgDir, env, log = () => {} }) {
+export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
+  // Coverage names files by their real path (macOS's temporary folder is a link to /private/var).
+  const pkgDir = realpathSync(given);
   const src = path.join(pkgDir, "src");
   const tally = new Map();
   for (const testFile of codeFiles(src).filter((file) => TEST_FILE.test(file)).sort()) {

@@ -22,10 +22,11 @@ test("6.5 a coverage run records, for each source file, the numbered tests of ea
     write("dist/bundle.mjs.map", JSON.stringify({ version: 3, sources: ["../src/mapped.ts"], names: [], mappings: "AAAA" }));
     write("src/run.test.mjs", [
       'import { execFileSync } from "node:child_process";',
+      'import { fileURLToPath } from "node:url";',
       'import { test } from "node:test";',
       'const here = new URL(".", import.meta.url);',
-      'test("2.1 runs the child", () => { execFileSync(process.execPath, [new URL("child.mjs", here).pathname]); });',
-      'test("2.2 runs the bundle", () => { execFileSync(process.execPath, [new URL("../dist/bundle.mjs", here).pathname]); });',
+      'test("2.1 runs the child", () => { execFileSync(process.execPath, [fileURLToPath(new URL("child.mjs", here))]); });',
+      'test("2.2 runs the bundle", () => { execFileSync(process.execPath, [fileURLToPath(new URL("../dist/bundle.mjs", here))]); });',
       'test("unnumbered", () => {});',
       "",
     ].join("\n"));

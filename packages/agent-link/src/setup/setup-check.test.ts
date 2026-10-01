@@ -868,3 +868,36 @@ test("8.18 the check says when the hooks run an older release than the latest, s
     assert.equal((await hooksLine("0.3.333"))?.state, "ok");
   });
 });
+
+test("8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [seeded, older] = [uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } });
+      const newFolder = path.join(dir, seeded);
+      mkdirSync(newFolder);
+      await withAgent(newFolder, agentIn(newFolder), async (agent) => {
+        assert.equal((await agent.call("set_up_project", { name: seeded })).isError, false);
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian"]);
+        assert.match(checked.text, /orchestrator/);
+        assert.match(checked.text, /librarian/);
+      });
+      // A project set up before the starter pack: its library has no roles to name.
+      const oldFolder = path.join(dir, older);
+      mkdirSync(oldFolder);
+      await (await storytree.openProject(older)).close();
+      writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
+      await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterRoles, []);
+        assert.doesNotMatch(checked.text, /orchestrator|librarian/);
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([seeded, older]);
+    }
+  });
+});

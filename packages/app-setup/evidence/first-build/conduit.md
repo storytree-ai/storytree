@@ -22,6 +22,9 @@ using the API, and run the signing-in sessions one agent at a time.
 | 3 follow-up (same session) | Claude Code | 203 s, $1.04 | parked and claimed a new increment, 1 contract | Your Feed tab and /?feed=following; 58 own tests | **87/87** home + auth + articles |
 | 3 articles (fresh session) | Codex | 753 s | from the plan; its one capability, 1 contract | article page with vendored Marked 18 rendered as safe DOM nodes, editor, delete; 14 own browser checks | 86/87: a 400 on article creation showed no .error-messages |
 | 3 follow-up (same session) | Codex | 282 s | parked and claimed a fix increment | the editor form's browser validation stopped blank fields reaching the API (form.noValidate); regression test | **87/87** home + auth + articles |
+| 4 comments (fresh session) | Claude Code | 182 s, $0.96 | from the plan; 1 capability, 3 contracts | comments list, post, delete, logged-out prompt; 68 own tests | **101/101** through comments |
+| 4 comments (fresh session) | Codex | 555 s | from the plan; its one capability (a claim naming the increment and capability together was refused again, then made one at a time) | comments; 18 own browser checks | 100/101: a network failure posting a comment showed no visible .error-messages |
+| 4 follow-up (same session) | Codex | 268 s | parked and claimed a fix increment | an empty, hidden error list was the first .error-messages on the page; it now renders only populated lists | **101/101** through comments |
 
 Session 1 notes:
 - The first start (07:12 local) raced the app's update to 0.3.507: the app's folder was being reinstalled as both
@@ -46,3 +49,8 @@ Session 3 notes:
 - Claude Code's failure came from the user's spec, not the agent: the suite clicks Your Feed once sign-in exists, and the spec's part list put Your Feed in part 5. The grader's NOTES.md says so; the requirements file did not.
 - Claude Code tried to record the redirection as a resteer twice; both were refused because the quoted words had no quotation marks, and the refusal ("quote what the owner actually said") read as "use the exact words" → increment_9f9bf0367bf5.
 - The app updated to 0.3.517 at 08:47, between part 3 and part 4.
+
+Session 4 notes:
+- Claude Code's part 4 was its fastest session (3 minutes): the article page it built in part 3 left a clear seam for comments.
+- Codex's two part-specific failures (parts 3 and 4) were both in showing API errors; each was fixed in one follow-up turn, test-first.
+- Codex closed out "not safe" because a folder without Git has no pull request or clean tree to point to; Claude Code closed out "safe" in the same situation. The close-out question does not fit a user's project without Git.

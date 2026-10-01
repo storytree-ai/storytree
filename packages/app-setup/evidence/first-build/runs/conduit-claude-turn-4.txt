@@ -1,0 +1,65 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 51
+  - ToolSearch
+  - Read C:\Users\mickh\conduit-claude\conduit-requirements.md
+  - st:check_setup {}
+  - Write C:\Users\mickh\conduit-claude\.storytree-check
+  - PowerShell echo storytree-check
+  - ToolSearch
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:show_plan {}
+  - ToolSearch
+  - st:open {"id":"agent_0ed30a28aaf0"}
+  - st:open {"id":"agent_1684401f1e27"}
+  - st:open {"id":"story_71ced0ed6299"}
+  - Glob
+  - st:name_session {"title":"Build part 4: comments"}
+  - Read C:\Users\mickh\conduit-claude\public\article.js
+  - Read C:\Users\mickh\conduit-claude\tests\article.test.js
+  - Read C:\Users\mickh\conduit-claude\tests\lib.js
+  - Read C:\Users\mickh\conduit-claude\README.md
+  - Read C:\Users\mickh\conduit-claude\public\forms.js
+  - Read C:\Users\mickh\conduit-claude\public\api.js
+  - Read C:\Users\mickh\conduit-claude\public\dom.js
+  - Read C:\Users\mickh\conduit-claude\tests\runner.html
+  - st:open {"id":"decision_ec6eaa36d398"}
+  - st:plan_capability {"story":"story_71ced0ed6299","title":"Comments under an article","description":"Below the article, GET /articles/<slug>/comments lists comm
+  - st:plan_contract {"capability":"capability_31c7e023e7b2","title":"Comments list under the article","description":"At /article/<slug>, each comment from GET /
+  - st:plan_contract {"capability":"capability_31c7e023e7b2","title":"Signed-in users post a comment","description":"Signed in, .card.comment-form has textarea[p
+  - st:plan_contract {"capability":"capability_31c7e023e7b2","title":"Authors delete their own comments","description":"Only the comment's author sees span.mod-o
+  - st:claim {"increment":"increment_262fa3cd9502","reason":"Build part 4: comments"}
+  - st:claim {"capability":"capability_31c7e023e7b2","reason":"Build comments"}
+  - Write C:\Users\mickh\conduit-claude\tests\comments.test.js
+  - Edit C:\Users\mickh\conduit-claude\tests\runner.html
+  - Read C:\Users\mickh\conduit-claude\tests\run.ps1
+  - PowerShell powershell -ExecutionPolicy Bypass -File tests\run.ps1 | Select-String -Pattern "comments|passed"
+  - st:report {"contract":"contract_eceb7d939838","result":"red"}
+  - st:report {"contract":"contract_c24052292994","result":"red"}
+  - st:report {"contract":"contract_e6fafb52dd50","result":"red"}
+  - Write C:\Users\mickh\conduit-claude\public\comments.js
+  - Edit C:\Users\mickh\conduit-claude\public\article.js
+  - Edit C:\Users\mickh\conduit-claude\public\article.js
+  - Read C:\Users\mickh\conduit-claude\public\app.js
+  - PowerShell powershell -ExecutionPolicy Bypass -File tests\run.ps1 | Select-String -Pattern "FAIL|comments|passe
+  - st:report {"contract":"contract_eceb7d939838","result":"green","note":"3 tests pass; full suite 68/68."}
+  - st:report {"contract":"contract_c24052292994","result":"green","note":"4 tests pass; full suite 68/68."}
+  - st:report {"contract":"contract_e6fafb52dd50","result":"green","note":"3 tests pass; full suite 68/68."}
+  - st:land {"capability":"capability_31c7e023e7b2"}
+  - st:mark_built {"capability":"capability_31c7e023e7b2","built":true}
+  - st:close_increment {"increment":"increment_262fa3cd9502","disposition":"landed","note":"No PR: folder is not a git repo. public/comments.js mounted from articl
+  - Glob
+  - st:close_out {"safe":true,"why":"Part 4 landed, 68/68 tests pass, no servers left running; folder is not a git repo"}
+RESULT success turns 52 ms 172989 cost 0.9601760000000001 
+Comments are now built (part 4). All 68 tests pass: the 58 from before plus 10 new ones.
+
+**What now works on `/article/<slug>`:**
+- **Reading:** comments appear under the article. Each one shows its text, the author's picture (`default-avatar.svg` if they have none), their name and the date. Comment text is always shown as plain text, never as HTML. If the comments fail to load, the article still shows, with a "Could not load comments" message under it.
+- **Posting:** signed-in users get the "Write a comment..." box with their picture and a **Post Comment** button. A new comment appears at the top of the list and the box clears. If posting fails, the error shows in `.error-messages`, the typed text stays and the button works again.
+- **Deleting:** only a comment's author sees the trash icon. Clicking it deletes the comment and removes it from the list; a 200 reply with `{}` counts as success.
+- **Logged out:** the comment box is replaced by "Sign in or sign up to add comments on this article." Signing in or out while on the page swaps them over.
+
+The code is in `public/comments.js`, which the article page (`public/article.js`) adds below the article. The tests are in `tests/comments.test.js`. The tests use a fake API, so this hasn't been run against the real demo API or the official end-to-end suite yet.
+
+In storytree, the "Comment on articles" story now has its capability and three contracts, all reported passing, and the Part 4 increment is closed. Part 5 (profiles, following, favourites) is next. It will also make the Follow and Favorite buttons on the article page work; right now they show but do nothing when clicked.

@@ -1,0 +1,66 @@
+MSG: Ill check part 4 and the existing article flow, then add comment reading, posting, and deletion with the relevant checks.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Force; rg --files -g AGENTS.md exit 0
+  - st:check_setup {} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content conduit-requirements.md; Get-Cont exit 0
+  - file add C:\Users\mickh\conduit-codex\.storytree-check
+  - st:check_setup {} completed 
+  - st:search_notes {"query":"orchestrator librarian roles","limit":5} completed 
+  - st:show_plan {} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/article-cases.cjs; Get-Cont exit 0
+  - st:open {"id":"agent_339193b5867c"} completed 
+  - st:open {"id":"agent_92534bb7c323"} completed 
+  - st:open {"id":"capability_ad14d502734c"} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/home.test.cjs -TotalCount 1 exit 0
+MSG: The article page and shared API handling are ready to support comments. Ill use the required RealWorld card layout and keep comment failures separate so the article stays readable.
+
+Storytrees setup checks passed; it needs no action from you. Im adding browser tests for posting, ownership, deletion, and failed-request retries.
+
+  - st:open {"id":"decision_c637af7fef7b"} completed 
+  - st:ready_increment {"increment":"increment_b23aeba878b3"} completed 
+  - st:claim {"increment":"increment_b23aeba878b3","capability":"capability_ad14d502734c","reason":"Build article comments"} failed 
+  - web_search https://docs.realworld.show/specifications/frontend/templates/
+  - st:claim {"increment":"increment_b23aeba878b3","reason":"Build article comments"} completed 
+  - st:claim {"capability":"capability_ad14d502734c","reason":"Build article comments"} completed 
+  - file add C:\Users\mickh\conduit-codex\tests\comment-cases.cjs, update C:\Users\mickh\conduit-codex\tests\home.test.cjs
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content app.css; Get-Content app.js -Tota exit 0
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+MSG: The new tests fail as expected because comments arent rendered yet. The browsers debugging connection needed a run outside the sandbox; that worked, and the tests reached the app.
+
+Im now adding the comment controls, including draft preservation on errors and protection against duplicate requests or late responses after navigation.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - st:report {"contract":"contract_2dd6ea7342de","result":"red","note":"New deterministic browser contracts fail on missing comment cards and r completed 
+  - file update C:\Users\mickh\conduit-codex\app.css, update C:\Users\mickh\conduit-codex\article.js, add C:\Users\mickh\conduit-codex\comments.js, update C:\Users\mickh\conduit-codex\server.cjs
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - file update C:\Users\mickh\conduit-codex\tests\home.test.cjs
+MSG: The comment lifecycle and error-recovery tests now pass: posting clears the textarea, failed posts preserve the draft, and deletion controls appear only on your own comments. Both `200 {}` and `204` delete responses work.
+
+Im checking navigation races, mobile layout, and the existing home, account, and article tests next.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content README.md -TotalCount 60; Get-Chi exit 0
+  - st:name_session {"title":"Build article comments"} completed 
+  - st:health_worklist {} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - file update C:\Users\mickh\conduit-codex\PLAN.md, update C:\Users\mickh\conduit-codex\README.md
+MSG: All 18 local browser tests passed, and the desktop and mobile screenshots look good. Comments use the required selectors, render user text safely, and leave drafts or comments in place when a request fails.
+
+Ive updated the README and delivery plan. The full official suite remains for after part 5.
+
+  - st:report {"contract":"contract_2dd6ea7342de","result":"green","note":"Start.ps1 -Test: 18 passed, 0 failed, including 3 new comment browser completed 
+  - st:land {"capability":"capability_ad14d502734c"} completed 
+  - st:mark_built {"capability":"capability_ad14d502734c","built":true} completed 
+  - st:close_increment {"increment":"increment_b23aeba878b3","disposition":"landed","note":"Implemented part 4 in the shared folder with comments.js, art completed 
+  - st:read_context {} completed 
+  - st:close_out {"safe":false,"why":"Part 4 complete in local files, 18 browser tests pass and test processes finished. No PR or Git working tree  completed 
+MSG: Implemented part 4: comments.
+
+- Anyone can read comments beneath articles.
+- Signed-in users can post and delete their own comments.
+- Successful posts clear the textarea; failures preserve drafts and allow retry.
+- Required selectors, safe text rendering, and avatar fallbacks are included.
+
+All 18 local browser tests pass. Desktop and mobile layouts checked. README, plan, and Storytree updated.
+
+The full official suite hasnt been run; part 5 remains.
+USAGE {"input_tokens":1088528,"cached_input_tokens":1004416,"cache_write_input_tokens":0,"output_tokens":8833,"reasoning_output_tokens":611}

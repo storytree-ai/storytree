@@ -95,15 +95,18 @@ export type RemovedProject =
   | { status: "no such project"; project: string; message: string };
 
 /**
- * `projects` (every project in the library) less those removed from this computer. A removed name
- * no longer in the library was deleted (from any computer), so it leaves this computer's list too:
- * a later project of that name is a new one, shown here.
+ * `projects` (every project in the library, by the identity of its database) less those removed
+ * from this computer. A removed project no longer in the library was deleted (from any computer),
+ * so it leaves this computer's list too: a later project of that name has a database of its own, a
+ * new project, shown here, even when this computer did not look in between.
  */
-export function projectsOnThisComputer(projects: readonly string[], home: string = storytreeHome()): string[] {
+export function projectsOnThisComputer(projects: Readonly<Record<string, string>>, home: string = storytreeHome()): string[] {
   const removed = removedProjects(home);
-  const kept = removed.filter((name) => projects.includes(name));
+  const kept = removed.filter((each) => projects[each.name] !== undefined && (each.identity === undefined || each.identity === projects[each.name]));
   if (kept.length < removed.length) recordRemovedProjects(home, kept);
-  return projects.filter((name) => !kept.includes(name));
+  return Object.keys(projects)
+    .filter((name) => !kept.some((each) => each.name === name))
+    .sort();
 }
 
 /** Take `project` off this computer's list and free its folder here. Nothing in the library is deleted. */
@@ -128,7 +131,8 @@ async function freeOnThisComputer(storytree: Storytree, project: string, home: s
     }
     await forgetTrunk(storytree, { project, machine });
   }
-  recordRemovedProjects(home, [...removedProjects(home), project]);
+  const identity = (await storytree.projectIdentities())[project];
+  recordRemovedProjects(home, [...removedProjects(home).filter((each) => each.name !== project), { name: project, ...(identity === undefined ? {} : { identity }) }]);
   if (trunk === undefined) return { status: "removed", project };
   return kept ? { status: "removed", project, kept: trunk.folder } : { status: "removed", project, freed: trunk.folder };
 }
@@ -190,7 +194,7 @@ export async function deleteProject(project: string, options: DeleteProjectOptio
     await storytree.dropProject(project);
     await forgetProjectActivity(storytree, project);
     await forgetTrunk(storytree, { project });
-    recordRemovedProjects(home, removedProjects(home).filter((name) => name !== project));
+    recordRemovedProjects(home, removedProjects(home).filter((each) => each.name !== project));
     return { status: "deleted", project, ...(snapshot === undefined ? {} : { snapshot }), ...(freed === undefined ? {} : { freed }), ...(kept === undefined ? {} : { kept }) };
   });
 }

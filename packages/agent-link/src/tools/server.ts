@@ -142,8 +142,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       const meta = metaOf(context);
       try {
         let quietMs = options.quietMs;
-        const { library, log } = await connections.reach(where.library, where.project);
-        await (sighted ??= connections.server(where.library).then((storytree) => recordTrunkOnSight(storytree, where.project, where.folder, options.setup?.storytreeHome)).catch(() => undefined));
+        const { library, log } = await connections.reach(where.library, where.project, where.identity);
+        await (sighted ??= connections.server(where.library).then((storytree) => recordTrunkOnSight(storytree, where.project, where.folder, options.setup?.storytreeHome, where.identity)).catch(() => undefined));
         // What the hooks have written, the one run just before this call included (ADR-0629 D2).
         const { lines } = await log.since(where.project, 0);
         const caller = seenCaller(lines, callerOf(context), meta);
@@ -195,7 +195,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
       const where = route(options.folder, locate);
       if (where.status === 'routed') {
         try {
-          const { log } = await connections.reach(where.library, where.project);
+          const { log } = await connections.reach(where.library, where.project, where.identity);
           const { lines } = await log.since(where.project, 0);
           caller = seenCaller(lines, caller, meta);
           agent = requestOf(lines, meta) || caller.harness === 'codex' ? agentOf(lines, meta) : 'unknown';

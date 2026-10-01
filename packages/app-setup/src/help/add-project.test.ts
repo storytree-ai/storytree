@@ -41,7 +41,7 @@ test("3.4 Add project: the picked folder becomes a project under its own name (k
   picked = path.join(dir, `Blog Posts ${token}`);
   mkdirSync(picked);
   assert.deepEqual(await actions.addProject(), { status: "set up", project: blog, folder: picked });
-  assert.deepEqual(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")), { project: blog });
+  assert.equal(JSON.parse(readFileSync(path.join(picked, ".storytree.json"), "utf8")).project, blog);
   assert.equal(JSON.parse(readFileSync(path.join(home, "project-choice.json"), "utf8")).current, blog, "the new project is the one shown");
 
   picked = path.join(dir, "other", site);

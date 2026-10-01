@@ -55,7 +55,9 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       }
       said.push(`This folder is storytree project ${quoted(report.project.name)}.`);
       try {
-        const { library, log } = await connections.reach(report.storytree.library, report.project.name);
+        const found = findProject(folder);
+        const identity = found.project === undefined ? undefined : found.identity;
+        const { library, log } = await connections.reach(report.storytree.library, report.project.name, identity);
         // Seeded roles are read only when the agent is pointed at them (1.14, 8.19).
         const starterRoles = await starterRolesIn(library);
         if (starterRoles.length > 0) {

@@ -36,14 +36,14 @@ export class Connections {
   }
 
   /** The library of `project` and the activity log, where `library` says. */
-  async reach(library: ConnectOptions, project: string): Promise<Reached> {
+  async reach(library: ConnectOptions, project: string, identity?: string): Promise<Reached> {
     const storytree = await this.server(library);
     const machine = thisMachine();
     const opened = () => openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     const log = (this.#log ??= forgetOnFailure(opened(), () => (this.#log = undefined)));
     let opening = this.#libraries.get(project);
     if (opening === undefined) {
-      opening = forgetOnFailure(openNamedProject(storytree, project), () => this.#libraries.delete(project));
+      opening = forgetOnFailure(openNamedProject(storytree, project, identity), () => this.#libraries.delete(project));
       this.#libraries.set(project, opening);
     }
     try {

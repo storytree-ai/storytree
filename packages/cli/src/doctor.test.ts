@@ -163,7 +163,7 @@ test("8.3 in a folder that is not a project, it creates nothing unless told to",
     try {
       const told = await storytree(command.script, ["doctor", "--set-up", project], { cwd: world.elsewhere, home: world.home, env: user.env });
       assert.equal(told.code, 0, told.stderr);
-      assert.deepEqual(JSON.parse(readFileSync(path.join(world.elsewhere, ".storytree.json"), "utf8")), { project });
+      assert.equal(JSON.parse(readFileSync(path.join(world.elsewhere, ".storytree.json"), "utf8")).project, project);
     } finally {
       await dropTestProjects([project]);
     }

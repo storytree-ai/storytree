@@ -262,7 +262,7 @@ class Opened {
 
   async #open(): Promise<Library> {
     const where = this.#routed();
-    return openNamedProject(await this.#server(), where.project);
+    return openNamedProject(await this.#server(), where.project, where.identity);
   }
 
   /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */
@@ -274,7 +274,7 @@ class Opened {
   }
 
   /** The project and where its library is, or the refusal saying why there are none. */
-  #routed(): { project: string; library: ConnectOptions } {
+  #routed(): { project: string; identity?: string; library: ConnectOptions } {
     const where = route(this.#cwd);
     if (where.status === "not-a-project") {
       throw new Refusal(`${where.message}: no .storytree.json in ${this.#cwd} or any folder above it`, {

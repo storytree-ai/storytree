@@ -326,7 +326,7 @@ test("8.4 setup records the chosen project only after a successful yes, never on
 
         const yes = await agent.call("set_up_project", { name });
         assert.equal(yes.isError, false, yes.text);
-        assert.deepEqual(readJson(path.join(folder, MARKER_FILE)), { project: name });
+        assert.equal(readJson(path.join(folder, MARKER_FILE)).project, name);
         assert.ok((await storytree.listProjects()).includes(name), "the project, once the user said yes");
         assert.equal(readJson(choice).current, name, "yes records the choice in the app's home");
         writeFileSync(choice, JSON.stringify({ current: "another-project" }));

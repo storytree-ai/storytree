@@ -44,7 +44,7 @@ test("1.7 / 3.4: a chosen folder becomes a project (created if missing, suggeste
 
   const added = await addProject(folder, name, { home, library });
   assert.deepEqual(added, { status: "set up", folder, project: name });
-  assert.deepEqual(JSON.parse(readFileSync(path.join(folder, ".storytree.json"), "utf8")), { project: name });
+  assert.equal(JSON.parse(readFileSync(path.join(folder, ".storytree.json"), "utf8")).project, name);
   assert.ok((await library.listProjects()).includes(name));
   assert.equal(JSON.parse(readFileSync(path.join(home, "project-choice.json"), "utf8")).current, name, "the new project is the one shown");
   assert.deepEqual(await projectFolder(folder, { library }), { folder, project: name });

@@ -169,6 +169,8 @@ async function writeLines(harness: string, input: string, flags: readonly string
     const { storytree, log } = opened;
     let written = 0;
     try {
+      // A folder whose marker names a deleted project's database writes nothing, under its name or into a new project of it (ADR-0831).
+      if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return;
       // Lines that waited go first, so the log keeps each session's lines in the order they happened.
       await uploadQueued(home, log);
       for (const line of made.lines) {
@@ -263,7 +265,7 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
   const { connect } = await import("@storytree/library");
   const storytree = await connect(where.library);
   try {
-    const library = await openNamedProject(storytree, where.project);
+    const library = await openNamedProject(storytree, where.project, where.identity);
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));
     const fresh = notYetGiven(session, named);
     const nudge = harness === "claude-code" ? await contextNudge(storytree, where.project, session) : undefined;

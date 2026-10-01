@@ -43,7 +43,8 @@ export interface Storytree {
   /**
    * Open the library of the project called `name`, creating its database the first time, or, with
    * `create: false`, only if its database is there: a project deleted from the library is refused
-   * (ProjectGoneError), never made again by being opened. A name
+   * (ProjectGoneError), never made again by being opened, and so is one made again since under the
+   * same name when `identity` names the database the caller knew. A name
    * that breaks the project-name rule is refused (ProjectNameError) before anything touches the
    * server. A server user that may not create databases borrows a role granted to it that may;
    * with none to borrow, it is refused (ConnectionError) with the two lines that grant one.
@@ -51,6 +52,11 @@ export interface Storytree {
   openProject(name: string, options?: OpenOptions): Promise<Library>;
   /** The names of the storytree projects on the server, sorted. No other database is listed. */
   listProjects(): Promise<string[]>;
+  /**
+   * Each project's name and the identity of its database. A project deleted and made again under
+   * the same name has a new identity: the database is the project (ADR-0831).
+   */
+  projectIdentities(): Promise<Record<string, string>>;
   /**
    * A snapshot of the project called `name`: every record and its whole history, as they stood at
    * one moment, read while writes go on. It is plain data, to be kept as a file (ADR-0641 B1).
@@ -87,6 +93,8 @@ export interface Storytree {
 export interface Library {
   /** The project's name. */
   readonly name: string;
+  /** The identity of the project's database, as Storytree.projectIdentities() gives it. */
+  readonly identity: string;
 
   /** The live record whole, upgraded to its current schema, or null if missing or retired. */
   get(id: string): Promise<SchemaRecord | null>;
@@ -359,6 +367,10 @@ class ServerHandle implements Storytree {
     return this.#server.listProjects();
   }
 
+  projectIdentities(): Promise<Record<string, string>> {
+    return this.#server.projectIdentities();
+  }
+
   snapshot(name: string): Promise<ProjectSnapshot> {
     return this.#server.snapshot(name);
   }
@@ -386,10 +398,12 @@ class ServerHandle implements Storytree {
  */
 class LibraryHandle implements Library {
   readonly name: string;
+  readonly identity: string;
   readonly #project: Project;
 
   constructor(project: Project) {
     this.name = project.name;
+    this.identity = project.identity;
     this.#project = project;
   }
 

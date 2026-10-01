@@ -24,12 +24,17 @@ import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { setUpTrunks } from "./trunks.js";
-import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, recordTrunkOnSight, route, setUpProject, suggestProjectName } from "./index.js";
+import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, recordTrunkOnSight, route, setUpProject, suggestProjectName, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
 const QUICK_MS = 500;
 
 /** Run `body` with a connection to the test server; afterwards close it and drop `projects`' libraries. */
+/** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
+function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
+  return lookup.project === undefined ? lookup : { project: lookup.project, folder: lookup.folder };
+}
+
 async function withStorytree(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });
   try {
@@ -76,7 +81,7 @@ test('1.1 setting a folder up as project "site" leaves a marker naming it, and a
     await withStorytree([project], async (storytree) => {
       const setUp = await setUpProject({ folder, project, storytree, storytreeHome: path.join(dir, "app-home") });
       assert.equal(setUp.project, project);
-      assert.deepEqual(JSON.parse(readFileSync(path.join(folder, MARKER_FILE), "utf8")), { project }, "the marker names the project");
+      assert.deepEqual(JSON.parse(readFileSync(path.join(folder, MARKER_FILE), "utf8")), { project, identity: (await storytree.projectIdentities())[project] }, "the marker names the project and its database");
       assert.ok((await storytree.listProjects()).includes(project), "the project's library now exists");
     });
 
@@ -88,7 +93,7 @@ test('1.1 setting a folder up as project "site" leaves a marker naming it, and a
     assert.equal(existsSync(path.join(worktree, MARKER_FILE)), false, "the worktree holds no marker");
 
     for (const from of [folder, path.join(folder, "src", "components"), worktree, path.join(worktree, "src")]) {
-      assert.deepEqual(findProject(from), { project, folder }, `asked from ${from}`);
+      assert.deepEqual(named(findProject(from)), { project, folder }, `asked from ${from}`);
     }
   });
 });
@@ -267,7 +272,7 @@ test("1.9 a second folder for a project already living on this machine is refuse
         await assert.rejects(setUpProject({ folder: second, project, storytree, storytreeHome: laptop, join }), folderRefusal(first, "worktree"));
       }
       assert.equal(existsSync(path.join(second, MARKER_FILE)), false);
-      assert.deepEqual(findProject(first), { project, folder: first });
+      assert.deepEqual(named(findProject(first)), { project, folder: first });
     });
   });
 });
@@ -286,7 +291,7 @@ test("1.10 a new folder named like an existing project is refused unless it join
       await assert.rejects(setUpProject({ folder: other, project, storytree, storytreeHome: box }), folderRefusal(`${project}-2`));
       assert.equal(existsSync(path.join(other, MARKER_FILE)), false);
       await setUpProject({ folder: other, project: `${project}-2`, storytree, storytreeHome: box });
-      assert.deepEqual(findProject(other), { project: `${project}-2`, folder: other });
+      assert.deepEqual(named(findProject(other)), { project: `${project}-2`, folder: other });
     });
   });
 });
@@ -305,7 +310,7 @@ test("1.11 another machine adds its checkout to an existing project only on purp
       await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
       const worktree = path.join(dir, "box", "app-feature");
       git(onBox, "worktree", "add", "-q", "-b", "feature", worktree);
-      assert.deepEqual(findProject(worktree), { project, folder: onBox });
+      assert.deepEqual(named(findProject(worktree)), { project, folder: onBox });
       assert.deepEqual(await storytree.listProjects().then((names) => names.filter((name) => name === project)), [project], "one project, shared by both machines");
       const elsewhere = path.join(dir, "elsewhere");
       mkdirSync(elsewhere);
@@ -328,7 +333,7 @@ test("1.12 a project set up before trunks were recorded keeps routing, and the f
     git(trunk, "worktree", "add", "-q", "-b", "feature", worktree);
     await withStorytree([project], async (storytree) => {
       await (await storytree.openProject(project)).close();
-      assert.deepEqual(findProject(worktree), { project, folder: worktree }, "the committed marker routes the worktree as before");
+      assert.deepEqual(named(findProject(worktree)), { project, folder: worktree }, "the committed marker routes the worktree as before");
       assert.equal(await recordTrunkOnSight(storytree, project, worktree, laptop), true);
       assert.equal(await recordTrunkOnSight(storytree, project, trunk, laptop), false, "seen again, nothing changes");
       const second = path.join(dir, "copy");
@@ -355,7 +360,7 @@ test("1.13 a trunk whose folder moved follows it on first sight, and one whose f
 
       rmSync(moved, { recursive: true });
       await setUpProject({ folder: copy, project, storytree, storytreeHome: laptop, join: true });
-      assert.deepEqual(findProject(copy), { project, folder: copy }, "a fresh folder joins in place of the deleted one");
+      assert.deepEqual(named(findProject(copy)), { project, folder: copy }, "a fresh folder joins in place of the deleted one");
     });
   });
 });

@@ -35,7 +35,7 @@ export async function statusLine(input: string): Promise<string> {
     const where = route(folder);
     if (where.status === "not-a-project") return "";
     if (where.status === "not-running") return "storytree isn't running";
-    return (await withinTime(lineFor(where.library, where.project, session, folder))) ?? "";
+    return (await withinTime(lineFor(where.library, where.project, session, folder, where.identity))) ?? "";
   } catch {
     return "";
   }
@@ -49,7 +49,7 @@ function sessionIn(input: unknown): { session?: string; folder?: string } {
   return { ...(typeof session === "string" && session !== "" ? { session } : {}), ...(folder === undefined ? {} : { folder }) };
 }
 
-async function lineFor(where: ConnectOptions, project: string, session: string, folder: string): Promise<string> {
+async function lineFor(where: ConnectOptions, project: string, session: string, folder: string, identity: string | undefined): Promise<string> {
   const [{ openActivityLog }, { connect }, { claimsFrom, increments }, { sessionsFrom }] = await Promise.all([
     import("../activity/index.js"),
     import("@storytree/library"),
@@ -59,7 +59,7 @@ async function lineFor(where: ConnectOptions, project: string, session: string, 
   const storytree = await connect(withConnectTimeout(where, WAIT_MS));
   const log = await openActivityLog(storytree, { connectTimeoutMs: WAIT_MS });
   try {
-    const [{ lines }, library] = await Promise.all([log.since(project, 0), openNamedProject(storytree, project)]);
+    const [{ lines }, library] = await Promise.all([log.since(project, 0), openNamedProject(storytree, project, identity)]);
     const now = Date.now();
     const quietMs = idleAfterMs();
     const titles = new Map<string, string>();

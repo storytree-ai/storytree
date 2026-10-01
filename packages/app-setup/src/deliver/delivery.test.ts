@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -150,6 +150,41 @@ test("1.6: a fresh shell runs the installed command with spaces and preserves it
     });
     assert.equal(result.status, 23, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), ["an argument with spaces"]);
+  } finally { f.close(); }
+});
+
+test("1.9 on Windows, the installed command hands each word on as the caller's line spelled it: run by name from Git Bash, Windows PowerShell or a program, no word is cut at a > or &, nothing else runs and no file is written (ADR-0854)", {
+  skip: process.platform !== "win32" && "platform:win32: only Windows starts a command's file through cmd.exe, which reads its words as its own syntax",
+}, () => {
+  const f = fixture();
+  try {
+    const heard = path.join(f.dir, "heard.jsonl");
+    writeFileSync(f.tools.cli, 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.STORYTREE_HEARD, JSON.stringify(process.argv.slice(2)) + "\\n");');
+    const installed = installCommand({ home: f.home, tools: { ...f.tools, node: process.execPath }, searchPath: "" });
+    const folder = path.join(f.dir, "a project");
+    mkdirSync(folder);
+    const env = { ...process.env, PATH: installed.pathEntry, Path: installed.pathEntry, STORYTREE_HEARD: heard };
+    const hears = (caller: string, words: string[], run: () => { stdout: string; stderr: string; error?: Error }) => {
+      rmSync(heard, { force: true });
+      const ran = run();
+      const said = `${caller}: ${ran.error?.message ?? ""}${ran.stdout}${ran.stderr}`;
+      assert.deepEqual(existsSync(heard) ? readFileSync(heard, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : [], [words], said);
+      assert.deepEqual(readdirSync(folder), [], `${caller} wrote a file: ${said}`);
+      assert.doesNotMatch(ran.stdout, /INJECTED/, `${caller} ran a second command: ${said}`);
+    };
+    // Words cmd.exe would read as its own syntax; then free text with an inner double quote, and a folder.
+    const plain = ["a&echo", "INJECTED", "x|y", "x>y", "100%PATH%", "^caret"];
+    const words = [...plain, 'he said "website -> forest -> the rest" ok', "C:\\a folder\\"];
+    const bash = path.join(process.env.ProgramFiles ?? "C:\\Program Files", "Git", "bin", "bash.exe");
+    assert.ok(existsSync(bash), `Git for Windows, which storytree needs, brings Git Bash: ${bash}`);
+    const quoted = words.map((word) => `'${word.replaceAll("'", "'\\''")}'`).join(" ");
+    hears("Git Bash", words, () => spawnSync(bash, ["-c", `storytree ${quoted}`], { cwd: folder, env, encoding: "utf8", timeout: 30_000 }));
+    hears("a program", words, () => spawnSync("storytree", words, { cwd: folder, env, encoding: "utf8", timeout: 30_000 }));
+    // Windows PowerShell 5.1 quotes a word with a space for every program it starts without escaping what is in it
+    // (increment_e95ceec15288), so it is given only the words cmd.exe would misread.
+    const script = `& storytree ${plain.map((word) => `'${word.replaceAll("'", "''")}'`).join(" ")}`;
+    const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    hears("Windows PowerShell", plain, () => spawnSync(powershell, ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { cwd: folder, env, encoding: "utf8", timeout: 60_000 }));
   } finally { f.close(); }
 });
 

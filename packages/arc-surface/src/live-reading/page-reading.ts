@@ -9,7 +9,12 @@
  *   history held is thinned as it arrives, so the page never keeps the whole history in memory.
  * - Each surface takes news at its own pace: one whose handling fails is told so, and hears that
  *   news again together with the next, while the others hear it once.
- * - It never writes.
+ * - Given a kept reading (the page's storage, ADR-0836 D4), it keeps what it holds there, a piece at
+ *   a time, and the next start hears the kept reading at once and asks the library only from where
+ *   it got to. The first ask overlaps the kept reading by one change and one line, so a kept reading
+ *   the library does not know (another library, a project made again) is dropped and read again
+ *   from the start, and the reading converges either way (D5).
+ * - It never writes to the library.
  */
 import type { Line } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
@@ -49,26 +54,43 @@ class Held {
   readonly lines: Line[] = [];
   #reported = new Map<string, unknown>();
 
-  add({ changes, lines }: News): void {
+  /** Hold what is new, and say what of it was held. */
+  add({ changes, lines }: News): News {
+    const added: News = { changes: [], lines: [] };
     for (const change of changes) {
-      if (change.type !== "health") { this.changes.push(change); continue; }
+      if (change.type !== "health") { added.changes.push(change); continue; }
       const { node, column, state } = change.record.fields as { node?: unknown; column?: unknown; state?: unknown };
       if (change.action === "retired" || column !== "reported" || typeof node !== "string" || this.#reported.get(node) === state) continue;
       this.#reported.set(node, state);
-      this.changes.push({ ...change, record: { ...change.record, fields: { node, column, state } } });
+      added.changes.push({ ...change, record: { ...change.record, fields: { node, column, state } } });
     }
     for (const line of lines) {
-      if (line.kind === "command-run") this.lines.push({ ...line, command: "" });
-      else if (line.kind === "command-started" && line.command.length > COMMAND_SHOWN) this.lines.push({ ...line, command: `${line.command.slice(0, COMMAND_SHOWN)} …` });
-      else this.lines.push(line);
+      if (line.kind === "command-run") added.lines.push({ ...line, command: "" });
+      else if (line.kind === "command-started" && line.command.length > COMMAND_SHOWN) added.lines.push({ ...line, command: `${line.command.slice(0, COMMAND_SHOWN)} …` });
+      else added.lines.push(line);
     }
+    this.changes.push(...added.changes);
+    this.lines.push(...added.lines);
+    return added;
   }
+}
+
+/** Where a page reading is kept between starts: pieces added in order, read back as one. */
+export interface KeptReading {
+  /** Everything kept, oldest first, or undefined when nothing is. */
+  read(): Promise<News | undefined>;
+  /** Keep this piece after what is kept. */
+  add(news: News): Promise<void>;
+  /** Keep nothing. */
+  clear(): Promise<void>;
 }
 
 export interface PageReadingOptions {
   project: string;
   reads: LiveReads;
   timers?: Timers;
+  /** Where to keep the reading between starts; without it every start reads from the start. */
+  kept?: KeptReading;
 }
 
 interface Ears {
@@ -84,12 +106,13 @@ interface Ears {
 const joined = (a: News | undefined, b: News): News => a === undefined ? b : { changes: [...a.changes, ...b.changes], lines: [...a.lines, ...b.lines] };
 
 /** Start the page's one live reading of `project`. */
-export function pageReading({ project, reads, timers }: PageReadingOptions): PageReading {
+export function pageReading({ project, reads, timers, kept }: PageReadingOptions): PageReading {
   const clock = timers ?? pageTimers;
   const everyone = new Set<Ears>();
   const held = new Held();
   let read = false;
   let stopped = false;
+  let reading: LiveReading | undefined;
 
   /** Hand `ears` what it is owed, unless it is still taking the last. */
   async function hand(ears: Ears): Promise<void> {
@@ -108,25 +131,81 @@ export function pageReading({ project, reads, timers }: PageReadingOptions): Pag
     }
   }
 
-  const reading = liveReading({
-    project,
-    reads,
-    ...(timers ? { timers } : {}),
-    async onNews(news) {
-      held.add(news);
-      read = true;
-      await Promise.all([...everyone].map((ears) => {
-        ears.owed = joined(ears.owed, news);
-        return hand(ears);
-      }));
-    },
-    onClock(now) {
-      for (const { listener } of everyone) listener.onClock?.(now);
-    },
-    onError(error) {
-      for (const { listener } of everyone) listener.onError?.(error);
-    },
-  });
+  /** Hold `news`, keep what was held, and hand it on; `whole` is what surfaces hear. */
+  async function heard(news: News, whole: News = news): Promise<void> {
+    if (read && whole.changes.length === 0 && whole.lines.length === 0) return;
+    const added = held.add(news);
+    read = true;
+    if (kept !== undefined && (added.changes.length > 0 || added.lines.length > 0)) kept.add(added).catch(() => { /* This start still holds it. */ });
+    await Promise.all([...everyone].map((ears) => {
+      ears.owed = joined(ears.owed, whole);
+      return hand(ears);
+    }));
+  }
+
+  const failed = (error: unknown): void => {
+    if (!stopped) for (const { listener } of everyone) listener.onError?.(error);
+  };
+
+  function live(from?: { changes: number; lines: number }): void {
+    if (stopped) return;
+    reading = liveReading({
+      project,
+      reads,
+      ...(timers ? { timers } : {}),
+      ...(from ? { from } : {}),
+      onNews: (news) => heard(news),
+      onClock(now) {
+        for (const { listener } of everyone) listener.onClock?.(now);
+      },
+      onError: failed,
+    });
+  }
+
+  /**
+   * Start from the kept reading: ask from one change and one line before where it got to, and hear
+   * it with what is new when the library still knows where it got to; drop it otherwise. A failed
+   * ask is tried again at the next.
+   */
+  async function resume(): Promise<void> {
+    const last = await kept!.read().catch(() => undefined);
+    if (stopped) return;
+    if (last === undefined || (last.changes.length === 0 && last.lines.length === 0)) return live();
+    const change = last.changes.at(-1);
+    const line = last.lines.at(-1);
+    const from = { changes: Math.max(0, (change?.seq ?? 0) - 1), lines: Math.max(0, (line?.seq ?? 0) - 1) };
+    let trying = false;
+    const attempt = async (): Promise<boolean> => {
+      if (trying || stopped) return stopped;
+      trying = true;
+      try {
+        const [changes, lines] = await Promise.all([reads.changesSince(project, from.changes), reads.linesSince(project, from.lines)]);
+        if (stopped) return true;
+        const knows = (change === undefined || (changes.changes[0]?.seq === change.seq && changes.changes[0].recordId === change.recordId))
+          && (line === undefined || (lines.lines[0]?.seq === line.seq && lines.lines[0].session === line.session && lines.lines[0].kind === line.kind));
+        if (!knows) {
+          await kept!.clear().catch(() => {});
+          live();
+          return true;
+        }
+        held.add(last);
+        const news = { changes: changes.changes.filter(({ seq }) => seq > (change?.seq ?? 0)), lines: lines.lines.filter(({ seq }) => seq > (line?.seq ?? 0)) };
+        await heard(news, { changes: [...held.changes, ...news.changes], lines: [...held.lines, ...news.lines] });
+        live({ changes: changes.cursor, lines: lines.cursor });
+        return true;
+      } catch (error) {
+        failed(error);
+        return false;
+      } finally {
+        trying = false;
+      }
+    };
+    if (await attempt()) return;
+    const stopTrying = clock.every(ASK_EVERY_MS, () => void attempt().then((done) => { if (done) stopTrying(); }));
+  }
+
+  if (kept === undefined) live();
+  else void resume();
 
   // A surface still owed news is offered it again at the next ask, even when nothing is new.
   const stopRetrying = clock.every(ASK_EVERY_MS, () => {
@@ -144,7 +223,7 @@ export function pageReading({ project, reads, timers }: PageReadingOptions): Pag
       stopped = true;
       everyone.clear();
       stopRetrying();
-      reading.stop();
+      reading?.stop();
     },
   };
 }

@@ -52,6 +52,8 @@ export interface LiveReadingOptions {
   /** Called when a read fails; the next ask tries again. */
   onError?(error: unknown): void;
   timers?: Timers;
+  /** Where to start reading from, just read by the caller: the first ask waits for the first tick. By default, the start, read at once. */
+  from?: { changes: number; lines: number };
 }
 
 export interface LiveReading {
@@ -68,11 +70,11 @@ export const pageTimers: Timers = {
   },
 };
 
-/** Start reading `project` live. The first read starts at once. */
-export function liveReading({ project, reads, onNews, onClock, onError, timers = pageTimers }: LiveReadingOptions): LiveReading {
-  let changesCursor = 0;
-  let linesCursor = 0;
-  let first = true;
+/** Start reading `project` live. The first read starts at once, unless it starts `from` where the caller has just read. */
+export function liveReading({ project, reads, onNews, onClock, onError, timers = pageTimers, from }: LiveReadingOptions): LiveReading {
+  let changesCursor = from?.changes ?? 0;
+  let linesCursor = from?.lines ?? 0;
+  let first = from === undefined;
   let asking = false;
   let stopped = false;
 
@@ -96,7 +98,7 @@ export function liveReading({ project, reads, onNews, onClock, onError, timers =
 
   const stopAsking = timers.every(ASK_EVERY_MS, () => void ask());
   const stopClock = timers.every(CLOCK_EVERY_MS, () => onClock(timers.now()));
-  void ask();
+  if (from === undefined) void ask();
   return {
     stop() {
       stopped = true;

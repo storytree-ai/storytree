@@ -304,7 +304,8 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
   for (const word of words) assert.ok(!uncharted.color.equals(fill(drawn, `territory:cap-${word}`).color), `nor ${word}'s colour`);
   assert.deepEqual(drawn.getObjectByName("territory:unclaimed")!.userData, { territory: true }, "it stays pickable as land");
   const hatch = drawn.getObjectByName("territory-hatch:unclaimed") as LineSegments;
-  const ends = Array.from({ length: hatch.geometry.attributes.position.count }, (_, i) => ({ x: hatch.geometry.attributes.position.getX(i), z: hatch.geometry.attributes.position.getZ(i) }));
+  const at = hatch.geometry.attributes.position!;
+  const ends = Array.from({ length: at.count }, (_, i) => ({ x: at.getX(i), z: at.getZ(i) }));
   assert.ok(ends.length >= 4, "a hatch lies across Unclaimed code's land");
   assert.ok(ends.every(({ x, z }) => x >= 8 - 1e-6 && x <= 10 + 1e-6 && z >= -1e-6 && z <= 2 + 1e-6), "every hatch line stays inside that territory's cell");
   assert.ok(ends.some((p, i) => i % 2 === 0 && Math.abs((ends[i + 1]!.x - p.x) * (ends[i + 1]!.z - p.z)) > 1e-6), "the hatch runs diagonally");

@@ -52,11 +52,12 @@
     "zoom": 1.6793655730057533,
     "fills": [
       "healthy #97c459 0.8",
+      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 0,
+    "greyFills": 8,
     "markers": [],
     "islands": [
       {
@@ -129,9 +130,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -197,9 +198,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -257,9 +258,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -290,9 +291,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -350,9 +351,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -383,9 +384,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -452,9 +453,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -503,9 +504,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -526,11 +527,12 @@
     "zoom": 4.366350489814959,
     "fills": [
       "healthy #97c459 0.8",
+      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 0,
+    "greyFills": 8,
     "markers": [],
     "islands": [
       {
@@ -603,9 +605,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -671,9 +673,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -731,9 +733,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -764,9 +766,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -824,9 +826,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -857,9 +859,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -926,9 +928,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -977,9 +979,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1000,11 +1002,12 @@
     "zoom": 4.366350489814959,
     "fills": [
       "healthy #97c459 0.8",
+      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 0,
+    "greyFills": 8,
     "markers": [],
     "islands": [
       {
@@ -1077,9 +1080,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1145,9 +1148,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1205,9 +1208,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1238,9 +1241,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1298,9 +1301,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1331,9 +1334,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1400,9 +1403,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1451,9 +1454,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1474,11 +1477,12 @@
     "zoom": 4.366350489814959,
     "fills": [
       "healthy #97c459 0.8",
+      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 0,
+    "greyFills": 8,
     "markers": [],
     "islands": [
       {
@@ -1551,9 +1555,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1619,9 +1623,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1679,9 +1683,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1712,9 +1716,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1772,9 +1776,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1805,9 +1809,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1874,9 +1878,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1925,9 +1929,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -1948,11 +1952,12 @@
     "zoom": 1.6793655730057535,
     "fills": [
       "healthy #97c459 0.8",
+      "null #101418 0.9",
       "proposed #f2d16b 0.8",
       "unhealthy #e24b4a 0.85",
       "untested #f2d16b 0.8"
     ],
-    "greyFills": 0,
+    "greyFills": 8,
     "markers": [
       {
         "story": "story_05e45963ca9f",
@@ -2036,9 +2041,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -2104,9 +2109,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -2164,9 +2169,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -2197,9 +2202,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -2257,9 +2262,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -2290,9 +2295,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -2359,9 +2364,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],
@@ -2410,9 +2415,9 @@
             "capability": null,
             "title": "Unclaimed code",
             "word": null,
-            "fill": "#ffffff",
-            "opacity": 0,
-            "saturation": 0,
+            "fill": "#101418",
+            "opacity": 0.9,
+            "saturation": 0.2,
             "claimedBy": null
           }
         ],

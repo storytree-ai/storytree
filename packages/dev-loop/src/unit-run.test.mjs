@@ -29,7 +29,7 @@ function captured() {
 }
 
 // increment_655d99c13fc3: a file dying before it reports any test must explain its failure.
-test("file failures name the file, exit status and its own stderr under concurrent execution", async (t) => {
+test("6.6 file failures name the file, exit status and its own stderr under concurrent execution", async (t) => {
   const files = {
     "exit.test.mjs": `import { writeSync } from "node:fs";
 writeSync(2, "loader stopped before tests\\n"); process.exit(7);`,

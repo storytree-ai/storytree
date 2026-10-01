@@ -217,6 +217,30 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
   });
 });
 
+test("8.2 the built storytree-setup install registers storytree's hooks, and remove takes out exactly what it added", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const bin = path.join(dir, ".local", "bin");
+    mkdirSync(bin, { recursive: true });
+    // Every home it could reach is inside the throwaway folder, never the real one.
+    const env = { PATH: bin, Path: bin, SystemRoot: process.env.SystemRoot ?? "", HOME: dir, USERPROFILE: dir, CLAUDE_CONFIG_DIR: home.homes.claude, CODEX_HOME: home.homes.codex, STORYTREE_HOME: home.storytreeHome };
+    const setup = (command: string) => spawnSync(process.execPath, [path.join(bins, "storytree-setup.mjs"), command], { env, encoding: "utf8", timeout: 60_000 });
+
+    const installed = setup("install");
+    assert.equal(installed.status, 0, installed.stderr);
+    assert.match(installed.stdout, /^Claude Code: registered$/m, installed.stdout);
+    assert.match(installed.stdout, /^Codex: registered/m, installed.stdout);
+    assert.equal(Object.keys(storytreeHooks(readJson(home.claudeSettings), hookScript, "claude-code")).length, 7, "the hook built beside it is registered");
+
+    const removed = setup("remove");
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.match(removed.stdout, /^Claude Code: storytree's hooks removed$/m, removed.stdout);
+    assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
+    assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
+    assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
+  });
+});
+
 /** Run one of storytree's registered hooks as `harness` runs it: Claude Code a program with arguments, Codex a line through this machine's shell. */
 function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"][number], input: string, storytreeHome: string): string {
   const env = { ...process.env, STORYTREE_HOME: storytreeHome };

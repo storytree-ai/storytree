@@ -17,12 +17,17 @@ export function renderSettings(readings: PanelReadings, group?: SettingGroup): s
       ? `<select id="${id}" name="value" aria-describedby="${id}-meaning ${id}-source ${id}-error">
           <option value="local"${reading.location === "local" ? " selected" : ""}>On this computer</option>
           <option value="cloudsql"${reading.location === "cloudsql" ? " selected" : ""}>Google Cloud SQL</option>
+          <option value="postgres"${reading.location === "postgres" ? " selected" : ""}>Postgres address</option>
         </select>`
       : `<div class="settings-number"><input id="${id}" name="value" type="text" inputmode="${reading.type === "duration" ? "text" : "numeric"}" autocomplete="off" spellcheck="false" value="${escape(String(reading.value))}" aria-describedby="${id}-meaning ${id}-source ${id}-error">${reading.unit ? `<span>${escape(reading.unit)}</span>` : ""}</div>`;
-    const fields = library ? `<div class="settings-cloud"${reading.location === "local" ? " hidden" : ""}>
+    const fields = library ? `<div class="settings-cloud" data-location="cloudsql"${reading.location === "cloudsql" ? "" : " hidden"}>
       <label>Instance connection name<input name="instance" autocomplete="off" spellcheck="false" placeholder="project:region:instance" value="${escape(reading.location === "cloudsql" ? reading.instance : "")}"></label>
       <label>Google account email<input name="user" type="text" inputmode="email" autocomplete="off" spellcheck="false" placeholder="you@example.com" value="${escape(reading.location === "cloudsql" ? reading.user : "")}"></label>
       <p>Library location takes effect when storytree next opens.</p>
+    </div>
+    <div class="settings-cloud" data-location="postgres"${reading.location === "postgres" ? "" : " hidden"}>
+      <label>Postgres address<input name="address" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="postgres://user@host:5432/postgres" value="${escape(reading.location === "postgres" ? reading.address : "")}"></label>
+      <p>No password here: save it once as a key with <code>storytree auth set postgres</code>. Library location takes effect when storytree next opens.</p>
     </div>` : "";
     return `<form class="settings-row" data-setting="${escape(reading.name)}" novalidate>
       <div class="settings-description"><label for="${id}">${escape(title)}</label><p id="${id}-meaning">${escape(reading.meaning).replace(/\x60([^\x60]+)\x60/g, "<code>$1</code>")}</p></div>

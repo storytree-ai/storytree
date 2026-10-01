@@ -23,7 +23,7 @@ import type { ConnectOptions } from "@storytree/library";
 import { locateStorytree, storytreeHome } from "../routing/index.js";
 import { readLibrary } from "../settings/settings.js";
 
-/** Where the library is once storytree is up (the local app's database, or the Cloud SQL instance), or why it is not. */
+/** Where the library is once storytree is up (the local app's database, the Cloud SQL instance, or the Postgres address), or why it is not. */
 export type StorytreeOpened =
   | { state: "running"; library: ConnectOptions }
   | { state: "opened"; library: ConnectOptions }
@@ -43,6 +43,7 @@ export async function openStorytree(options: OpenOptions = {}): Promise<Storytre
   const deadline = Date.now() + (options.waitMs ?? 60_000);
   const setting = readLibrary(home);
   if (setting.location === "cloudsql") return { state: "running", library: { cloudSql: { instance: setting.instance, user: setting.user } } };
+  if (setting.location === "postgres") return { state: "running", library: { address: setting.address } };
 
   const now = locateStorytree({ dataDir });
   if (now.running) {

@@ -20,7 +20,13 @@ export type ConnectionProblem =
   /** The project's tables need setting up or upgrading, and the account may not: only the role that owns its database may. */
   | "project-owner"
   /** The server did not answer in time. */
-  | "timeout";
+  | "timeout"
+  /** A library reached by address has no password saved: no `postgres` key, and no PGPASSWORD. */
+  | "no-password"
+  /** A library reached by address refused the password saved for it. */
+  | "password"
+  /** A library reached by address is at a host that cannot be reached, or did not answer in time. */
+  | "unreachable";
 
 /** Storytree cannot reach or use the server as it is set up. The message says what to fix. */
 export class ConnectionError extends Error {

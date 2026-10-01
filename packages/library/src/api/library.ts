@@ -342,8 +342,9 @@ export interface Changes {
 }
 
 /**
- * Connect to a Postgres server: `{ url }` for one at a postgres:// URL, or `{ cloudSql: { instance,
- * user } }` for a Cloud SQL instance, signed in to as your own Google account (capability 8).
+ * Connect to a Postgres server: `{ url }` for one at a postgres:// URL, `{ cloudSql: { instance,
+ * user } }` for a Cloud SQL instance, signed in to as your own Google account (capability 8), or
+ * `{ address }` for any Postgres by address, its password the `postgres` key (capability 15).
  * Nothing touches the server until a call needs it, but a Cloud SQL instance is signed in to and
  * looked up here. Whatever stops storytree reaching or using a server as it is set up is refused
  * with a ConnectionError saying what to fix.

@@ -106,7 +106,7 @@ test("8.2 a cloudSql setting that is not an instance's connection name and a Goo
     [{ cloudSql: [INSTANCE, USER] }, notSettings],
     [
       { cloudSql: { instance: INSTANCE, user: USER }, url: "postgres://postgres@127.0.0.1:5432/postgres" },
-      "Give connect() either a url or a cloudSql instance, not both.",
+      "Give connect() one of a url, a cloudSql instance or an address, not more.",
     ],
   ];
   for (const [options, message] of refused) {

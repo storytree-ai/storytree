@@ -162,8 +162,9 @@ export interface DeleteProjectOptions extends AddProjectOptions {
 /** Where `project`'s records live and who loses them when it is deleted, in plain words. */
 export function whoLoses(project: string, home: string = storytreeHome()): string {
   const library = readLibrary(home);
-  return library.location === "cloudsql"
-    ? `Deleting “${project}” deletes its plan, notes and whole history from your shared library on Cloud SQL (${library.instance}): every computer using that library loses it, at once. There is no undo except a snapshot.`
+  const shared = library.location === "cloudsql" ? `on Cloud SQL (${library.instance})` : library.location === "postgres" ? `at ${library.address}` : undefined;
+  return shared !== undefined
+    ? `Deleting “${project}” deletes its plan, notes and whole history from your shared library ${shared}: every computer using that library loses it, at once. There is no undo except a snapshot.`
     : `Deleting “${project}” deletes its plan, notes and whole history from this computer’s library. There is no undo except a snapshot.`;
 }
 

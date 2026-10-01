@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { withTempDir } from "../testing/folders.js";
+import { renderSettings } from "../view/render.js";
 import { settingsActions } from "./panel.js";
 import { readSettings, setSetting } from "./settings.js";
 
@@ -21,6 +22,22 @@ test("10.7 the panel reads every setting and writes through the CLI's writers", 
     assert.equal(readSettings(home).library.location, "cloudsql");
     assert.equal((await panel.saveSetting("library", ["local"])).ok, true);
     assert.equal(readSettings(home).library.location, "local");
+  });
+});
+
+test("10.13 the panel offers a Postgres address as a third library location, saved through the same writer", async () => {
+  await withTempDir(async (home) => {
+    const panel = settingsActions(home);
+    const address = "postgres://me@db.example.com:5432/postgres";
+    assert.equal((await panel.saveSetting("library", ["postgres", address])).ok, true);
+    const library = readSettings(home).library;
+    assert.equal(library.location, "postgres");
+    assert.equal(library.location === "postgres" && library.address, address);
+    const html = renderSettings(readSettings(home), "library");
+    assert.match(html, /<option value="local">On this computer<\/option>/);
+    assert.match(html, /<option value="cloudsql">Google Cloud SQL<\/option>/);
+    assert.match(html, /<option value="postgres" selected>[^<]+<\/option>/);
+    assert.match(html, new RegExp(`<input name="address"[^>]* value="${address.replaceAll("/", "\\/")}"`));
   });
 });
 

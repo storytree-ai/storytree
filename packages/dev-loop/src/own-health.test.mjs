@@ -97,6 +97,8 @@ test("judge: every contract in a leading list shares the test's result, once eac
     ["2.1–2.4 the board names each window", ["2.1", "2.2", "2.3", "2.4"]],
     ["3.1, 3.4–3.6 the open overlay", ["3.1", "3.4", "3.5", "3.6"]],
     ["2.2, 2.2–2.4 / 2.4 and 2.3", ["2.2", "2.3", "2.4"]],
+    ["3.6: delete a project", ["3.6"]],
+    ["1.4, 1.6: deliver writes the hooks", ["1.4", "1.6"]],
   ]) {
     await t.test(title, () => {
       for (const [status, state] of [["passed", "passing"], ["failed", "failing"], ["skipped", "not-checked"]]) {

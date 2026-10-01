@@ -263,6 +263,22 @@ export interface ClaimsOptions {
   readonly now?: Date;
   /** How long a holder may be quiet before it reads as idle. By default, QUIET_MS in browser readings; the per-user setting in Node readers. */
   readonly quietMs?: number;
+  /**
+   * A machine, and when it last started: a holder whose lines name that machine and were last
+   * written before then died with it, so it reads idle at once, whatever its quiet time.
+   */
+  readonly restarted?: Restart;
+}
+
+/** A machine, by the name lines record, and when it last started. */
+export interface Restart {
+  readonly machine: string;
+  readonly at: Date;
+}
+
+/** Whether a session last seen at `lastSeen` on `machine` died in `restarted`. */
+function diedIn(restarted: Restart | undefined, machine: string | undefined, lastSeen: string): boolean {
+  return restarted !== undefined && machine === restarted.machine && Date.parse(lastSeen) < restarted.at.getTime();
 }
 
 /** The kinds of line that decide who holds what. */
@@ -332,13 +348,18 @@ export function runningIn(lines: readonly Line[], now: number): Set<string> {
 }
 
 /** The claims standing after `claimLines`, by what they are on, each holder judged by when its session last wrote and whether a command of its is running. */
-export function held(claimLines: readonly Line[], lastSeen: ReadonlyMap<string, string>, running: ReadonlySet<string>, now: number, quietMs: number): Map<string, Claim> {
+export function held(claimLines: readonly Line[], lastSeen: ReadonlyMap<string, string>, running: ReadonlySet<string>, now: number, quietMs: number, restarted?: Restart): Map<string, Claim> {
   const holders = new Map<string, Omit<Claim, "holder">>();
-  for (const line of claimLines) holding(holders, line);
+  const machines = new Map<string, string>();
+  for (const line of claimLines) {
+    holding(holders, line);
+    if (line.machine !== undefined) machines.set(line.session, line.machine);
+  }
   const claims = new Map<string, Claim>();
   for (const [id, holder] of holders) {
-    const quiet = now - Date.parse(lastSeen.get(holder.session) ?? holder.since);
-    claims.set(id, { ...holder, holder: quiet > quietMs && !running.has(holder.session) ? "idle" : "live" } as Claim);
+    const seen = lastSeen.get(holder.session) ?? holder.since;
+    const idle = (now - Date.parse(seen) > quietMs && !running.has(holder.session)) || diedIn(restarted, machines.get(holder.session), seen);
+    claims.set(id, { ...holder, holder: idle ? "idle" : "live" } as Claim);
   }
   return claims;
 }
@@ -513,9 +534,10 @@ export class LogFold {
     const now = (options.now ?? new Date()).getTime();
     const quietMs = options.quietMs ?? QUIET_MS;
     return [...this.#holders.values()].map((holder) => {
-      const quiet = now - Date.parse(this.#lastSeen.get(holder.session) ?? holder.since);
+      const seen = this.#lastSeen.get(holder.session) ?? holder.since;
       const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
-      return { ...holder, holder: quiet > quietMs && !running ? "idle" : "live" } as Claim;
+      const idle = (now - Date.parse(seen) > quietMs && !running) || diedIn(options.restarted, this.#machines.get(holder.session), seen);
+      return { ...holder, holder: idle ? "idle" : "live" } as Claim;
     });
   }
 

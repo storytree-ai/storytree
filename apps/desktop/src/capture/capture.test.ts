@@ -4,12 +4,15 @@
  * the arc surface and the forest read.
  */
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 
 import type { Line, NewLine } from "@storytree/agent-link";
 import { workStates } from "@storytree/arc-surface";
 
-import { fakeBridge, launchPlan, seedWorkStates } from "./index.js";
+import { fakeBridge, launchPlan, outputFolder, seedWorkStates } from "./index.js";
+
+const checkout = path.resolve(import.meta.dirname, "../../../..");
 
 test("a call the fake bridge cannot answer fails at once, naming the method", async () => {
   const bridge = fakeBridge({ listProjects: async () => ["storytree"] });
@@ -49,4 +52,13 @@ test("seeding a capability landed makes the work states read it landed", async (
   assert.equal(states.part("capability_a"), "landed");
   assert.equal(states.part("capability_b"), "in-progress");
   assert.equal(states.part("capability_c"), "planned");
+});
+
+test("a capture run to check it writes to a scratch folder, and re-takes into its own folder only when named", () => {
+  const folder = path.join(checkout, "packages", "forest", "evidence", "sessions-list");
+  const scratch = outputFolder(folder, { argv: ["node", "capture.mjs"], tmp: "/scratch" });
+  assert.notEqual(scratch, folder);
+  assert.ok(scratch.startsWith(path.join("/scratch", "")), scratch);
+  assert.notEqual(outputFolder(path.join(checkout, "packages", "forest", "evidence", "wisps"), { argv: [], tmp: "/scratch" }), scratch, "two evidence folders get two scratch folders");
+  assert.equal(outputFolder(folder, { argv: ["node", "capture.mjs", "--retake"], tmp: "/scratch" }), folder);
 });

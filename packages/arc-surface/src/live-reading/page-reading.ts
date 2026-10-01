@@ -17,6 +17,7 @@
  * - It never writes to the library.
  */
 import type { Line } from "@storytree/agent-link";
+import { LogFold, type LogReading } from "@storytree/agent-link/readings";
 import type { Change } from "@storytree/library";
 
 import { ASK_EVERY_MS, liveReading, pageTimers, type LiveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
@@ -34,12 +35,18 @@ export interface NewsListener {
 export interface PageReading extends LiveReading {
   /** Start hearing news: the first is everything held so far, once the first read has landed. Returns a function that stops. */
   subscribe(listener: NewsListener): () => void;
-  /** Everything read so far, oldest first, thinned to what a surface reads; it grows as news comes. */
-  held(): News;
+  /**
+   * Everything read so far, oldest first, thinned to what a surface reads; it grows as news comes.
+   * Its log's sessions and claims are folded, and its lines are only those a surface reads one by one.
+   */
+  held(): News & LogReading;
 }
 
 /** The most of a running command's text a surface shows (the sessions list's title on its words). */
 const COMMAND_SHOWN = 300;
+
+/** The kinds of log line a surface reads one by one, rather than through the fold: claims and closes, subagents and reads. */
+const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released", "landed", "closed", "merged", "subagent-started", "note-read"]);
 
 /**
  * What is held of the history and the log, kept as news arrives. Every surface reads the history and
@@ -47,14 +54,17 @@ const COMMAND_SHOWN = 300;
  * - a health change other than a reported one (verified health is not drawn, ADR-0630), and a
  *   reported state the same as that contract's last held one (the drill-down's trail shows each
  *   change of state once), each held with only its node, column and state;
- * - a finished command's text, and a running command's text past what the sessions list shows.
+ * - a finished command's text, and a running command's text past what the sessions list shows;
+ * - once folded into the sessions and claims reading, every line no surface reads one by one: a
+ *   session's commands, edits, prompts and turns, which are most of the log.
  */
-class Held {
+class Held implements News, LogReading {
   readonly changes: Change[] = [];
   readonly lines: Line[] = [];
+  readonly fold = new LogFold();
   #reported = new Map<string, unknown>();
 
-  /** Hold what is new, and say what of it was held. */
+  /** Hold what is new, and say what of it was kept, before the lines folded were dropped. */
   add({ changes, lines }: News): News {
     const added: News = { changes: [], lines: [] };
     for (const change of changes) {
@@ -70,7 +80,8 @@ class Held {
       else added.lines.push(line);
     }
     this.changes.push(...added.changes);
-    this.lines.push(...added.lines);
+    this.fold.add(added.lines);
+    this.lines.push(...added.lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)));
     return added;
   }
 }

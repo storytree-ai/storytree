@@ -389,10 +389,9 @@ interface SessionFold {
  * each session's lines have said, the claims standing, and the latest that others' lines say about a
  * branch and about a session the apps keep, never the lines themselves. The time is applied only
  * when it is read, so it reads the same as sessionsFrom and claimsFrom over every line it was fed.
- * Feed it lines in the log's order; a line at or before the last one taken changes nothing.
+ * Feed it the log's lines in order, each once: each piece is put in order, and pieces are taken as they come.
  */
 export class LogFold {
-  #last = -Infinity;
   #sessions = new Map<string, SessionFold>();
   /** When each session, about others' work or its own, last wrote. */
   #lastSeen = new Map<string, string>();
@@ -400,13 +399,13 @@ export class LogFold {
   #appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
   #appWords = new Map<string, Line & { kind: "session-described" }>();
   #holders = new Map<string, Omit<Claim, "holder">>();
+  #machines = new Map<string, string>();
 
   /** Take what is new. */
   add(lines: readonly Line[]): void {
     for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
-      if (line.seq <= this.#last) continue;
-      this.#last = line.seq;
       this.#lastSeen.set(line.session, line.at);
+      if (line.machine !== undefined) this.#machines.set(line.session, line.machine);
       if (!ABOUT_OTHERS.has(line.kind)) this.#own(line);
       if (line.kind === "branch-state") this.#branchStates.set(line.of, line);
       else if (line.kind === "merged") this.#branchStates.set(line.branch, { open: false, at: line.at });
@@ -520,6 +519,11 @@ export class LogFold {
     });
   }
 
+  /** The machine each session's latest line naming one was written on. */
+  machines(): ReadonlyMap<string, string> {
+    return this.#machines;
+  }
+
   /** Whether `branch` still holds open work, with its open pull request once a look has read it. */
   #branchState(branch: string): Pick<BranchInFolder, "open" | "pr"> {
     const state = this.#branchStates.get(branch);
@@ -543,6 +547,23 @@ export class LogFold {
     ];
     return disagreements.length === 0 ? { ...said, verified: true } : { ...said, verified: false, needsYou: `says safe, but ${disagreements.join("; ")}` };
   }
+}
+
+/**
+ * The log as a surface reads it: its sessions and claims folded, and its lines of the kinds a
+ * surface reads one by one (a reading may hold only those, as the page's does).
+ */
+export interface LogReading {
+  readonly fold: LogFold;
+  readonly lines: readonly Line[];
+}
+
+/** `log` as a reading: every line of it folded, when it is the lines themselves. */
+export function logReading(log: readonly Line[] | LogReading): LogReading {
+  if (!Array.isArray(log)) return log as LogReading;
+  const fold = new LogFold();
+  fold.add(log);
+  return { fold, lines: log };
 }
 
 /** Take one line into `holders`, the claims standing by what they are on. */

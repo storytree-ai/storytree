@@ -1,5 +1,5 @@
 /** The forest's running sessions, read from the agent link; no transcript or liveness reader here. */
-import { claimsFrom, QUIET_MS, sessionsFrom, type Line, type PullState, type Session, type SessionState } from "@storytree/agent-link/readings";
+import { logReading, QUIET_MS, type Line, type LogReading, type PullState, type Session, type SessionState } from "@storytree/agent-link/readings";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/agent-link";
 import type { RosterEntry } from "@storytree/knowledge-core";
@@ -69,20 +69,23 @@ export interface SessionRow {
 const LABEL_LIMIT = 40;
 
 /**
+ * The log is the lines themselves, or a reading that holds its sessions and claims folded and keeps
+ * its claim and subagent lines.
  * One row per session that has not ended, claimed or not (ADR-0749 D1), each working or waiting by
  * its turns (ADR-0754 D5); one whose hooks report no turns is judged by `quietMs`, the user's
  * idle-after setting (the 30-minute default when the caller has none). A quiet session leaves by `leaveMs`,
  * the user's leave-after setting (the 1-hour default when the caller has none).
  */
-export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: readonly ArcView[], now: Date,
+export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReading, arcs: readonly ArcView[], now: Date,
   details: ReadonlyMap<string, SessionDetails> = new Map(), quietMs?: number, leaveMs?: number): SessionRow[] {
   const judged = quietMs === undefined ? { now } : { now, quietMs };
-  const sessions = sessionsFrom(lines, leaveMs === undefined ? judged : { ...judged, leaveMs });
+  const { fold, lines } = logReading(log);
+  const sessions = fold.sessions(leaveMs === undefined ? judged : { ...judged, leaveMs });
   // Who is listed is the agent link's reading (ADR-0754 D4, ADR-0758 D3): a verified close-out, or an ended or
   // silent session with no open work, is hidden.
   const ended = new Set(sessions.filter(session => session.listing === "hidden").map(session => session.session));
   const quiet = quietMs ?? QUIET_MS;
-  const claims = claimsFrom(lines, judged);
+  const claims = fold.claims(judged);
   const increments = arcs.flatMap(arc => arc.increments);
   const storyOf = new Map(tree.stories.flatMap(story => [[story.id, story.id], ...story.capabilities.map(cap => [cap.id, story.id])] as [string, string][]));
   const rows = new Map<string, SessionRow>();
@@ -134,8 +137,7 @@ export function sessionRows(tree: AnnotatedTree, lines: readonly Line[], arcs: r
   for (const row of roots) includeChildren(row);
   for (const row of roots) row.idle &&= !row.children.some(child => child.state === "working");
   // A session's machine is the latest one its lines name; worth showing only when the list spans several.
-  const machines = new Map<string, string>();
-  for (const line of [...lines].sort((a, b) => a.seq - b.seq)) if (line.machine !== undefined) machines.set(line.session, line.machine);
+  const machines = fold.machines();
   if (new Set(roots.flatMap(row => machines.has(row.id) ? [machines.get(row.id)!] : [])).size > 1) {
     for (const row of roots) if (machines.has(row.id)) row.machine = machines.get(row.id)!;
   }

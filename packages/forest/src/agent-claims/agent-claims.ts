@@ -14,7 +14,7 @@
  * time fades; landing, releasing or its window closing takes the wisp away. Folded subagents and
  * lanes orbit only through their parent's wisp (ADR-0736 D4).
  */
-import { claimsFrom, sessionsFrom, type Line } from "@storytree/agent-link/readings";
+import { logReading, type Line, type LogReading } from "@storytree/agent-link/readings";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 /** One session's wisp round one island. */
@@ -31,11 +31,12 @@ export interface SessionWisp {
 }
 
 /** The wisps the listed `rows` draw at time `now`: one per row and island, in list order. */
-export function sessionWisps(rows: readonly SessionRow[], lines: readonly Line[], now: Date, quietMs?: number): SessionWisp[] {
+export function sessionWisps(rows: readonly SessionRow[], log: readonly Line[] | LogReading, now: Date, quietMs?: number): SessionWisp[] {
   const judged = quietMs === undefined ? { now } : { now, quietMs };
+  const { fold } = logReading(log);
   // Faded by the claim's quiet time, as takeover judges it, never by a session waiting between turns (ADR-0754 D5).
-  const hooked = new Set(sessionsFrom(lines, judged).filter(session => session.hooksRunning).map(session => session.session));
-  const claims = claimsFrom(lines, judged);
+  const hooked = new Set(fold.sessions(judged).filter(session => session.hooksRunning).map(session => session.session));
+  const claims = fold.claims(judged);
   const quiet = new Set(claims.filter(claim => claim.holder === "idle" && hooked.has(claim.session)).map(claim => claim.session));
   const held = (session: string) => claims.flatMap(claim => (claim.session === session && claim.capability !== undefined ? [claim.capability] : []));
   return rows.flatMap(row => row.stories.map(story => ({ session: row.id, story, colour: sessionColour(row.id),

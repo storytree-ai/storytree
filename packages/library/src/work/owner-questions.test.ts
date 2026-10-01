@@ -179,6 +179,21 @@ for (const backend of [memory, postgres]) {
     await flight.retire(question.id, "no longer asked");
     assert.equal(await records.get(question.id), null, "with nothing held on it, it retires");
   });
+
+  contract("12.8", "a question raised on a parked arc is refused, naming the arc, and nothing is written; once its wake day passes, it is raised", async ({ work, flight, transactions }) => {
+    const arc = await work.createArc(ARC);
+    await flight.parkArc(arc.id);
+    const history = await transactions.history();
+    await assert.rejects(
+      flight.raiseQuestion({ arc: arc.id, ...ASK }),
+      (error: unknown) => error instanceof RangeError && error.message.includes(arc.id) && /parked/.test(error.message),
+    );
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    await flight.parkArc(arc.id, { until: "2020-01-01" });
+    const raised = await flight.raiseQuestion({ arc: arc.id, ...ASK });
+    assert.equal(raised.fields.lifecycle, "open", "an arc past its wake day is active again, and takes questions");
+  });
 }
 
 const DAY = 86_400_000;

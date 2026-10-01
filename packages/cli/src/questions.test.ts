@@ -35,6 +35,30 @@ test("5.5 `question list` lists open questions across arcs, or on one arc", asyn
   });
 });
 
+test("5.8 `question list` leaves out a parked arc's open questions and says how many wait there until it is unparked", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const active = await arcWithWork(world);
+    const parked = await arcWithWork(world);
+    const fields = { title: "Mailer?", stakes: "Reach readers", statement: "Which?", context: "Email", options: "Mailgun or SES" };
+    const shown = await library.raiseQuestion({ ...fields, arc: active.arc });
+    const hidden = await library.raiseQuestion({ ...fields, arc: parked.arc });
+    await library.parkArc(parked.arc);
+    const all = await world.run(["question", "list"]);
+    assert.equal(all.code, 0, all.stderr);
+    assert.ok(all.stdout.includes(shown.id), all.stdout);
+    assert.ok(!all.stdout.includes(hidden.id), all.stdout);
+    assert.match(all.stdout, /1 more waits? on a parked arc/, "it says what it left out");
+    const one = await world.run(["question", "list", "--arc", parked.arc]);
+    assert.equal(one.code, 0, one.stderr);
+    assert.ok(!one.stdout.includes(hidden.id), one.stdout);
+    assert.match(one.stdout, /parked/, one.stdout);
+    await library.unparkArc(parked.arc);
+    const back = await world.run(["question", "list"]);
+    assert.ok(back.stdout.includes(hidden.id), "unparked, its question is back on the list");
+  });
+});
+
 /** A question's fields as flags, all but those in `leaving`. */
 function questionFlags(arc: string, leaving: readonly string[] = []): string[] {
   const flags: Record<string, string> = {

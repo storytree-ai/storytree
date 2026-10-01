@@ -35,7 +35,7 @@ test("7.1 the gate runs typecheck and scoped tests, and explains guidance NOT RU
   const calls = [];
   const output = [];
   const code = await runGate({ root, run: async (step) => { calls.push(step); return 0; }, log: (line) => output.push(line) });
-  assert.deepEqual(calls, ["typecheck", "test"]);
+  assert.deepEqual(calls, ["typecheck", "test", "check:plan-edges"]);
   assert.equal(code, 0);
   const table = output.at(-1);
   assert.match(table, /PASS\s+typecheck/);
@@ -45,9 +45,9 @@ test("7.1 the gate runs typecheck and scoped tests, and explains guidance NOT RU
   assert.doesNotMatch(table, /rerun-failed/);
 });
 
-test("library-only guidance edits can request all three checks, continuing past failure or launch error", async (t) => {
+test("library-only guidance edits can request every check, plan edges included (3.7), continuing past failure or launch error", async (t) => {
   const { root } = checkout(t);
-  for (const broken of ["typecheck", "test", "check:guidance"]) {
+  for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges"]) {
     const calls = [];
     const output = [];
     const code = await runGate({ root, guidance: true, log: (line) => output.push(line), run: async (step) => {
@@ -55,7 +55,7 @@ test("library-only guidance edits can request all three checks, continuing past 
       if (step === broken && step === "typecheck") throw new Error("cannot start typechecker");
       return step === broken ? 2 : 0;
     } });
-    assert.deepEqual(calls, ["typecheck", "test", "check:guidance"]);
+    assert.deepEqual(calls, ["typecheck", "test", "check:guidance", "check:plan-edges"]);
     assert.equal(code, 1);
     assert.ok(output.at(-1).includes(`FAIL    ${broken}`));
     assert.match(output.at(-1), /rerun: pnpm run gate --guidance/);

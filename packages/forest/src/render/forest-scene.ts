@@ -49,7 +49,7 @@ const HEIGHT: Readonly<Record<TreeForm, number>> = { seedling: 0.5, pale: 1, gre
  * story (capability 8): a surveyed story's island is cut into its capabilities' territories.
  */
 export function forestScene(tree: AnnotatedTree, history: readonly Change[], states: WorkStates, survey: Readonly<Record<string, StorySurvey>> = {}): ForestScene {
-  const nodes = new Map(storyNodes(tree, history).map((node) => [node.id, node]));
+  const nodes = new Map(storyNodes(tree, history, survey).map((node) => [node.id, node]));
   const islands = tree.stories.map((story): Island => {
     const node = nodes.get(story.id);
     const trees = grove(story, states);

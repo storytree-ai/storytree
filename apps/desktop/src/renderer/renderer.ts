@@ -240,7 +240,7 @@ async function showForest(name: string): Promise<void> {
       tree = read;
       states.add(news.lines);
       const scene = forestScene(tree, history(), states, survey);
-      view.show(scene, new Map(storyNodes(tree, history()).map(node => [node.id, node.place])));
+      view.show(scene, new Map(storyNodes(tree, history(), survey).map(node => [node.id, node.place])));
       core.take(history(), news.lines);
       sayWhatWasDrawn(forestDrawn(scene));
       if (!panel.hidden) showPanel();

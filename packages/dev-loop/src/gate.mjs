@@ -4,6 +4,7 @@
 // left the committed files unchanged. A hand-written CLAUDE.md header edit alone is not one.
 // Flags go as `pnpm run gate --guidance`: Windows PowerShell 5.1 drops a bare `--` before pnpm
 // sees it, so `pnpm gate -- --guidance` fails there; `pnpm run` passes them on in every shell.
+// check:plan-edges (ADR-0840 D2) reads the plan from the library, which CI cannot, so it runs here every time.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
 // concurrent sessions' gates queue; its test step runs under that hold.
 import { execFileSync, spawn } from "node:child_process";
@@ -48,7 +49,7 @@ function generatedRegion(text) {
 /** Continue after ordinary failures, but never report an interrupted check as a pass. */
 export async function runGate({ root = repoRoot, guidance = false, signal, forceSignal, log = console.log, run = runCheck } = {}) {
   const decision = guidanceFor(root, guidance);
-  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run" };
+  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run" };
   const reasons = { "check:guidance": decision.reason };
   for (const step of Object.keys(results)) {
     if (signal?.aborted) break;
@@ -84,6 +85,7 @@ function runCheck(step, { root, signal, forceSignal }) {
   let shell = false;
   if (step === "test") args = ["--import", "tsx", "packages/dev-loop/src/test.mjs"];
   else if (step === "check:guidance") args = ["--import", "tsx", "packages/dev-loop/src/build-guidance.mjs", "--check"];
+  else if (step === "check:plan-edges") args = ["--import", "tsx", "packages/dev-loop/src/plan-edges.mjs"];
   else if (process.env.npm_execpath) args = [process.env.npm_execpath, "run", "typecheck"];
   else {
     command = "pnpm";

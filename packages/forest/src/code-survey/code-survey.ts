@@ -33,7 +33,12 @@ export type SurveyedFile = { readonly path: string; readonly lines: number; read
 /** An import from one source file to another. */
 export type FileImport = { readonly from: string; readonly to: string };
 
-export type StorySurvey = { readonly files: readonly SurveyedFile[]; readonly imports: readonly FileImport[] };
+export type StorySurvey = {
+  readonly files: readonly SurveyedFile[];
+  readonly imports: readonly FileImport[];
+  /** The stories whose packages this story's package depends on, through any field of its package.json; absent when it has none (ADR-0840 D2). */
+  readonly dependsOn?: readonly string[];
+};
 
 /** A package's coverage map: for each source file, how many numbered tests of each capability number executed it. */
 export type CoverageMap = Readonly<Record<string, Readonly<Record<string, number>>>>;

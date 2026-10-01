@@ -22,6 +22,31 @@ Once it is installed, **Help → First-run guide** in the app covers setup, conn
 offline license and feedback. Help is available before you have a project and while viewing any
 forest.
 
+## Keys
+
+Storytree borrows the logins you already have (Claude Code or Codex, `gh`, Google sign-in), so most
+people never give it a key. When a feature does need one, save it once, typed or piped in, never
+as an argument:
+
+```sh
+storytree auth set anthropic      # then type or paste the key; nothing is shown
+storytree auth list               # names and where each comes from, never the values
+storytree auth remove anthropic
+```
+
+The app, the command line and the agent's tools all find it. It is kept in `auth.json` in
+storytree's home (`~/.storytree/0.3`, or `STORYTREE_HOME`), readable only by you. A key given on a
+command wins over the saved one, and the saved one over its environment variable (such as
+`ANTHROPIC_API_KEY`).
+
+To keep a key in your own store instead, save a command that prints it, starting with `!`.
+Storytree runs it once per process when the key is needed:
+
+```sh
+echo '!op read op://Private/Anthropic/credential' | storytree auth set anthropic
+echo '!gcloud secrets versions access latest --secret=anthropic-key' | storytree auth set anthropic
+```
+
 ## Where this stands
 
 This repo is new. Its first story is the **library**: the project-scoped store every later story

@@ -14,8 +14,18 @@ import { fakeBridge, launchPlan, seedWorkStates } from "./index.js";
 test("a call the fake bridge cannot answer fails at once, naming the method", async () => {
   const bridge = fakeBridge({ listProjects: async () => ["storytree"] });
   assert.deepEqual(await bridge.call("listProjects", []), ["storytree"]);
-  await assert.rejects(bridge.call("readSurfaces", []), /readSurfaces/);
-  await assert.rejects(bridge.unanswered, /the fake bridge does not answer readSurfaces/);
+  await assert.rejects(bridge.call("heldOnQuestion", []), /heldOnQuestion/);
+  await assert.rejects(bridge.unanswered, /the fake bridge does not answer heldOnQuestion/);
+});
+
+test("a bridge method the capture left unanswered gets a safe answer, and the fake records the page asked for it", async () => {
+  const bridge = fakeBridge({ listProjects: async () => ["storytree"] });
+  await bridge.call("listProjects", []);
+  assert.deepEqual(await bridge.call("readSignIn", []), { available: false, on: false });
+  const [window] = await bridge.call("windowReadings", ["storytree", ["s1"]]) as { session: string; absent?: string }[];
+  assert.equal(window?.session, "s1");
+  assert.ok(window?.absent);
+  assert.deepEqual(bridge.defaulted, ["readSignIn", "windowReadings"]);
 });
 
 test("on Windows, launch finds Playwright and Chromium from the checkout, with no /home path", () => {

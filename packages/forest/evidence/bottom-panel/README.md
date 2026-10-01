@@ -5,7 +5,7 @@ Playwright on Windows) with synthetic activity; `capture.mjs` drives it at 1440x
 
 ```sh
 node packages/forest/evidence/bottom-panel/build.mjs
-PLANET_PLAYWRIGHT=<playwright-core/index.mjs> PLANET_CHROMIUM=<chrome-headless-shell> node packages/forest/evidence/bottom-panel/capture.mjs
+PLANET_PLAYWRIGHT=<playwright-core/index.mjs> PLANET_CHROMIUM=<chrome-headless-shell> node --import tsx packages/forest/evidence/bottom-panel/capture.mjs
 ```
 
 ## Pictures

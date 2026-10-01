@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -44,10 +45,13 @@ try {
     if (message.type() === 'warning') warnings.push(message.text());
     if (message.type() === 'error') errors.push(message.text());
   });
+  const bridge = fakeBridge({});
+  await bridge.install(page);
+  process.once('exit', () => console.log('Bridge methods left to the stand-in:', bridge.defaulted.join(', ') || 'none'));
   await page.addInitScript(data => {
     const copy = value => structuredClone(value);
     window.__claimLines = copy(data.lines.lines);
-    window.storytree = {
+    window.storytreeAnswers = {
       projectSelection: async () => ({ projects: data.projects, current: 'storytree' }),
       projectTree: async () => copy(data.tree),
       changesSince: async (_, cursor) => cursor === 0 ? copy(data.changes) : { changes: [], cursor: data.changes.cursor },

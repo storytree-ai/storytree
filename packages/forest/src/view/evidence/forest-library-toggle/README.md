@@ -59,7 +59,7 @@ STORYTREE_HOME="$TASK_FOREST_HOME" node --import tsx \
 
 node --import tsx packages/forest/src/view/evidence/forest-library-toggle/measure.mjs
 node packages/forest/src/view/evidence/forest-library-toggle/build.mjs
-flock /tmp/storytree-heavy.lock node packages/forest/src/view/evidence/forest-library-toggle/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/forest-library-toggle/capture.mjs
 ```
 
 The harness was adapted from #120. `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` override its existing

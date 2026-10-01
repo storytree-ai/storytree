@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, '../sessions-list/dist/production');
@@ -42,9 +43,12 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
+  const bridge = fakeBridge({});
+  await bridge.install(page);
+  process.once('exit', () => console.log('Bridge methods left to the stand-in:', bridge.defaulted.join(', ') || 'none'));
   await page.addInitScript(data => {
     const copy = value => structuredClone(value);
-    window.storytree = {
+    window.storytreeAnswers = {
       projectSelection: async () => ({ projects: data.projects, current: 'storytree' }),
       projectTree: async () => copy(data.tree),
       changesSince: async (_, cursor) => ({ changes: [], cursor }),

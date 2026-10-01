@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
@@ -69,11 +70,14 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  const bridge = fakeBridge({});
+  await bridge.install(page);
+  process.once('exit', () => console.log('Bridge methods left to the stand-in:', bridge.defaulted.join(', ') || 'none'));
   await page.addInitScript(data => {
     const copy = value => structuredClone(value);
     window.__asked = [];
     window.__window = data.reading;
-    window.storytree = {
+    window.storytreeAnswers = {
       projectSelection: async () => ({ projects: data.seed.projects, current: 'storytree' }),
       projectTree: async () => copy(data.seed.tree),
       changesSince: async (_, cursor) => ({ changes: copy(data.seed.changes.changes.filter(change => change.seq > cursor)), cursor: data.seed.changes.changes.at(-1)?.seq ?? cursor }),

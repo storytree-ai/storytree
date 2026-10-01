@@ -58,7 +58,7 @@ const REGENERATE = "Regenerate with `pnpm build:guidance`; `pnpm check:guidance`
  */
 export async function readRoles(library) {
   const notes = await library.search(""); // every live note: an empty query holds no word to miss
-  const titles = new Map(notes.map((note) => [note.id, note.fields.title]));
+  const titles = new Map(notes.map((note) => [note.id, note.fields.title ?? note.fields.term])); // a definition's title is its term
   const roles = notes.filter((note) => note.type === "agent");
   const isRoot = (role) => nameOf(role) === ROOT_ROLE || (role.fields.aliases ?? []).includes(ROOT_ROLE);
   return {

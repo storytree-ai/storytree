@@ -147,6 +147,7 @@ test("4.4 a process note marked as a skill is written out as a Claude Code and a
       why: "The owner reads cold",
       howToApply: "Answer first",
     });
+    const term = await library.defineTerm({ term: "Standing delegation", meaning: "What a session may decide alone" });
     const process = (title, extra = {}) =>
       library.writeKnowledge("process", {
         title,
@@ -158,7 +159,7 @@ test("4.4 a process note marked as a skill is written out as a Claude Code and a
         failureModes: `Failure modes of ${title}`,
         ...extra,
       });
-    await process("Question round", { skill: "grill-me", links: [reading.id], verification: "Verification of Question round" });
+    await process("Question round", { skill: "grill-me", links: [reading.id, term.id], verification: "Verification of Question round" });
     await process("Merge ceremony");
     const files = expectedFiles(await readRoles(library), CLAUDE_MD);
     assert.deepEqual([...files.keys()].filter((file) => file.includes("skills/")).sort(), [".agents/skills/grill-me/SKILL.md", ".claude/skills/grill-me/SKILL.md"], "only the note marked as a skill is written, for each harness");
@@ -166,7 +167,7 @@ test("4.4 a process note marked as a skill is written out as a Claude Code and a
     const skill = files.get(".claude/skills/grill-me/SKILL.md");
     assert.equal(files.get(".agents/skills/grill-me/SKILL.md"), skill, "Codex reads the same file");
     assert.match(skill, /^---\nname: grill-me\ndescription: "Question round: use when he says \\"grill me\\""\n---\n/);
-    for (const text of ["Statement of Question round", "Trigger of Question round", "1. Steps of Question round", "Surfaces of Question round", "Failure modes of Question round", "Verification of Question round", "Register follows audience"]) {
+    for (const text of ["Statement of Question round", "Trigger of Question round", "1. Steps of Question round", "Surfaces of Question round", "Failure modes of Question round", "Verification of Question round", "Register follows audience", "Standing delegation"]) {
       assert.ok(skill.includes(text), `the skill holds "${text}"`);
     }
 

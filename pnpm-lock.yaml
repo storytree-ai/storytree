@@ -226,6 +226,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
+      '@storytree/keys':
+        specifier: workspace:*
+        version: link:../keys
       '@storytree/librarian':
         specifier: workspace:*
         version: link:../librarian

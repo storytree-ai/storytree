@@ -30,7 +30,7 @@ export const STORIES = ["agent-link", "app", "app-setup", "arc-surface", "cli", 
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest-world: story_ca702fee28cb (The world, ADR-0805 D1).
 // local-postgres: story_1d360b6227d8 (The local database, ADR-0805 D2).
-// keys: Keys (ADR-0843).
+// keys: story_55eb820f95c9 (Keys, ADR-0843).
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that

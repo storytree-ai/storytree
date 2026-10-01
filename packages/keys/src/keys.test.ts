@@ -1,4 +1,4 @@
-/** Keys 1–4: the owner-only file, its lock, the resolution order and `!command` entries (ADR-0843). */
+/** Keys 1.1–1.4: the owner-only file, its lock, the resolution order and `!command` entries (ADR-0843). */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
@@ -15,7 +15,7 @@ function scratch(t: { after(fn: () => void): void }): string {
   return path.join(dir, "home");
 }
 
-test("keys 1: saving creates auth.json in storytree's home, readable and writable by the user alone", (t) => {
+test("keys 1.1: saving creates auth.json in storytree's home, readable and writable by the user alone", (t) => {
   const home = scratch(t);
   saveKey("anthropic", "sk-one", { home });
   const file = path.join(home, "auth.json");
@@ -40,7 +40,7 @@ test("keys 1: saving creates auth.json in storytree's home, readable and writabl
   assert.equal(resolveKey("anthropic", { home, env: {} }), undefined);
 });
 
-test("keys 2: two writers at once lose nothing", async (t) => {
+test("keys 1.2: two writers at once lose nothing", async (t) => {
   const home = scratch(t);
   const writer = fileURLToPath(new URL("./testing-writer.ts", import.meta.url));
   const tsx = import.meta.resolve("tsx");
@@ -60,7 +60,7 @@ test("keys 2: two writers at once lose nothing", async (t) => {
   }
 });
 
-test("keys 3: an explicit value beats the saved entry, which beats the environment variable", (t) => {
+test("keys 1.3: an explicit value beats the saved entry, which beats the environment variable", (t) => {
   const home = scratch(t);
   const env = { ANTHROPIC_API_KEY: "from-env", MY_TOKEN: "token-env" };
   assert.equal(resolveKey("anthropic", { home, env }), "from-env");
@@ -71,7 +71,7 @@ test("keys 3: an explicit value beats the saved entry, which beats the environme
   assert.equal(resolveKey("anthropic", { home, env, explicit: "given" }), "given");
 });
 
-test("keys 4: a !command entry runs once per process, and a failing one names the key, not its output", (t) => {
+test("keys 1.4: a !command entry runs once per process, and a failing one names the key, not its output", (t) => {
   const home = scratch(t);
   const counter = path.join(path.dirname(home), "ran.txt").replaceAll("\\", "/");
   const node = `"${process.execPath}"`;

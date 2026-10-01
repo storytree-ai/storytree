@@ -132,8 +132,8 @@ export function storytree(script: string, args: readonly string[], options: RunO
     if (options.input !== undefined) child.stdin!.end(options.input);
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
-    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    child.stdout!.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+    child.stderr!.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
     child.on("error", reject);
     child.on("close", (code) => resolve({ code, stdout, stderr, ms: performance.now() - started }));
   });

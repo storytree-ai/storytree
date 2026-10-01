@@ -119,6 +119,18 @@ export interface CapabilityWhy {
   since?: string;
 }
 
+/** One capability on the health worklist (ADR-0825 D4): what is not healthy, why, who moves it, and since when. */
+export interface HealthWorkItem {
+  capability: string;
+  title: string;
+  /** The story it is in. */
+  story: string;
+  status: CapabilityStatus;
+  why: CapabilityWhy;
+  /** The reason's time where one was recorded (`why.since`), else when the capability was recorded. */
+  since: string;
+}
+
 /** A story in the annotated tree, with its health rolled up from all its capabilities' contracts. */
 export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
   capabilities: AnnotatedCapability[];
@@ -223,6 +235,22 @@ export class HealthRecord {
       }),
       arcs: plan.arcs.map((arc) => ({ ...arc, stories: [...arc.stories] })),
     };
+  }
+
+  /**
+   * The health worklist (ADR-0825 D4): every capability that is not healthy, with its reason, who
+   * moves it and since when, oldest first (the plan's order on a tie). Since is when its reason was
+   * recorded, or, where nothing was (not built, no test names it), when the capability was. One an
+   * increment not yet closed touches is routed, and is left off until that increment closes.
+   */
+  async worklist(): Promise<HealthWorkItem[]> {
+    const routed = new Set((await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.touches ?? []));
+    const recorded = new Map((await this.#records.list("capability")).map(({ id, createdAt }) => [id, createdAt]));
+    return (await this.annotate()).stories
+      .flatMap((story) => story.capabilities.flatMap(({ id, title, status, why }) =>
+        why === undefined || routed.has(id) ? [] : [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "" }],
+      ))
+      .sort((a, b) => (a.since < b.since ? -1 : a.since > b.since ? 1 : 0));
   }
 
   /**

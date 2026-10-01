@@ -5,6 +5,9 @@
  *
  * One reading of the library's projectTree, whose health is already rolled up by the library, and
  * one of the agent link's claims. A story is named by its id or its title.
+ *
+ * `storytree health worklist` prints the oldest three capabilities on the library's health
+ * worklist (ADR-0825 D4), for the librarian pass to route.
  */
 import type { Claim } from "@storytree/agent-link";
 import { wordAndWhy, type NodeHealth } from "@storytree/library";
@@ -56,4 +59,26 @@ export const plan: Family = {
   summary: "the plan as a tree, with each part's reported health",
   verbs: [],
   bare: tree,
+};
+
+const worklist: Verb = {
+  name: "worklist",
+  usage: "health worklist",
+  summary: "the oldest three capabilities that are not healthy, with why, who moves each and since when",
+  async act(_args, context) {
+    const listed = await (await context.library()).healthWorklist();
+    if (listed.length === 0) return { text: "Nothing waits on the health worklist: every capability is healthy or already routed." };
+    const shown = listed.slice(0, 3);
+    const lines = shown.map(({ capability, title, status, why, since }) =>
+      `${title}  [${capability}]  ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `: ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
+    );
+    if (listed.length > shown.length) lines.push(`${listed.length - shown.length} more wait.`);
+    return { text: lines.join("\n"), next: [{ command: "storytree arc increment new --arc <arc> --title <t> --objective <o> --body <text> --touches <capability> [--held-on <question>]", why: "route one: an increment that touches it, held on a question when it needs the owner" }] };
+  },
+};
+
+export const health: Family = {
+  name: "health",
+  summary: "the health worklist: what is not healthy, oldest first",
+  verbs: [worklist],
 };

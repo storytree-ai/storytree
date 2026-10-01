@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Health record: one test per contract 5.1-5.8 in the library story, each run on
+ * Capability 5 · Health record: one test per contract 5.1-5.9 in the library story, each run on
  * BOTH backends, as capabilities 2-4 and 6 are:
  *
  * - memory: a HealthRecord over SchemaRecords and a WorkModel over a fresh MemoryTransactions;
@@ -21,13 +21,14 @@ import { MissingReferenceError } from "../references.js";
 import { NewerSchemaError, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
-import { WorkModel, type ProjectTree } from "../work/index.js";
+import { WorkInFlight, WorkModel, type ProjectTree } from "../work/index.js";
 import { capabilityStatus, capabilityWhy, HealthRecord, type AnnotatedTree, type HealthColumn, type HealthEntry, type NodeHealth } from "./index.js";
 
 /** A fresh, empty library: the health record under test, and the layers it runs over. */
 interface Library {
   readonly health: HealthRecord;
   readonly work: WorkModel;
+  readonly flight: WorkInFlight;
   readonly records: SchemaRecords;
   readonly transactions: Transactions;
   cleanup(): Promise<void>;
@@ -44,7 +45,7 @@ const memory: Backend = {
     const transactions = new MemoryTransactions();
     const records = new SchemaRecords(transactions);
     const work = new WorkModel(records);
-    return { health: new HealthRecord(records, work), work, records, transactions, cleanup: async () => {} };
+    return { health: new HealthRecord(records, work), work, flight: new WorkInFlight(records), records, transactions, cleanup: async () => {} };
   },
 };
 
@@ -63,8 +64,8 @@ const postgres: Backend = {
     try {
       // The project handle's own health record and layers: health as later stories reach it.
       const project = await storytree.openProject(name);
-      const { health, work, records, transactions } = project;
-      return { health, work, records, transactions, cleanup };
+      const { health, work, flight, records, transactions } = project;
+      return { health, work, flight, records, transactions, cleanup };
     } catch (error) {
       await cleanup();
       throw error;
@@ -513,6 +514,40 @@ for (const backend of [memory, postgres]) {
     await health.recordVerified(sibling.id, "passing");
     assert.equal(await whyOf(), undefined, "healthy: no reason");
   });
+  contract("5.9", "the health worklist lists each capability not healthy with its reason and since when, oldest first, leaving off one an open increment touches", async ({ health, work, flight }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const untested = await work.addCapability({ title: "Thank-you page", story: story.id });
+    const failing = await work.addCapability({ title: "Email form", story: story.id });
+    const check = await work.addContract({ title: "1.1 · Rejects a bad email", capability: failing.id });
+    await later();
+    const proposed = await work.addCapability({ title: "Password rules", story: story.id });
+    const healthy = await work.addCapability({ title: "Sign-up button", story: story.id });
+    const shown = await work.addContract({ title: "2.1 · Shows the button", capability: healthy.id });
+    await later();
+    const routed = await work.addCapability({ title: "Welcome email", story: story.id });
+    for (const built of [untested, failing, healthy, routed]) await work.setProposed(built.id, false);
+    await health.recordVerified(shown.id, "passing");
+    await later();
+    const failed = await health.recordVerified(check.id, "failing");
+    const arc = await work.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    const fix = await flight.addIncrement({ arc: arc.id, title: "Send the welcome email", objective: "Test it", body: "Red then green", touches: [routed.id] });
+
+    const listed = await health.worklist();
+    assert.deepEqual(listed.map(({ capability, title, story: of, status, why, since }) => ({ capability, title, story: of, status, reason: why.reason, mover: why.mover, since })), [
+      { capability: untested.id, title: "Thank-you page", story: story.id, status: "untested", reason: "no test names it", mover: "agent", since: untested.createdAt },
+      { capability: proposed.id, title: "Password rules", story: story.id, status: "proposed", reason: "not built", mover: "agent", since: proposed.createdAt },
+      { capability: failing.id, title: "Email form", story: story.id, status: "unhealthy", reason: "failing", mover: "agent", since: failed.at },
+    ], "oldest first by since: a recorded reason's time, else the capability's own; the healthy one and the routed one left off");
+    assert.deepEqual(listed[2]!.why.contracts, [check.id]);
+
+    await flight.closeIncrement(fix.id, { disposition: "landed", pr: "1" });
+    assert.deepEqual((await health.worklist()).map(({ capability }) => capability), [untested.id, proposed.id, routed.id, failing.id], "its route closed, it is offered again");
+  });
+}
+
+/** Past the current millisecond, so the next write's time sorts after the last one's. */
+function later(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 5));
 }
 
 /** One story › one capability › two contracts: the plan most of these tests write health on. */

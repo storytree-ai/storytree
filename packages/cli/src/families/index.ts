@@ -14,7 +14,7 @@ import { library } from "./library.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { projectFamily } from "./project.js";
-import { plan } from "./tree.js";
+import { health, plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
 import { session } from "./session.js";
@@ -37,6 +37,7 @@ export const FAMILIES: readonly Family[] = [
   friction,
   resteer,
   plan,
+  health,
   capabilities,
   setupFamily,
   projectFamily,

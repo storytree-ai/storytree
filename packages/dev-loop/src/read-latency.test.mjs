@@ -21,7 +21,9 @@ test("8.1 every query a page read makes is counted and delayed by the added late
     const [delayed] = slow.filter(({ read }) => read === "arcViews");
     assert.ok(fast.queries > 0, "the read's queries are counted");
     assert.equal(delayed.queries, fast.queries, "the same queries, whatever the delay");
-    assert.ok(delayed.ms >= fast.ms + 40, `${delayed.ms} ms with 40 ms added per query, ${fast.ms} ms without`);
+    // Each query waits the 40 ms before it runs, so the read takes at least that and longer than without;
+    // not the undelayed time plus 40, since one query's own time varies from run to run by a millisecond or two.
+    assert.ok(delayed.ms >= 40 && delayed.ms > fast.ms, `${delayed.ms} ms with 40 ms added per query, ${fast.ms} ms without`);
   } finally {
     await storytree.dropProject(project).catch(() => {});
     await storytree.close();

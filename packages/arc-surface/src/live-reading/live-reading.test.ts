@@ -233,3 +233,28 @@ test("the surfaces hearing one news share one read of the project's tree", async
   await tree.projectTree("shop");
   assert.equal(reads, 2, "a read asked once the last has landed reads again");
 });
+
+test("what the page reading holds keeps only what a surface reads: each reported health state once, and a command's shown words", async () => {
+  const app = new App();
+  const at = new Date(0).toISOString();
+  const health = (seq: number, column: string, state: string): Change => ({ seq, recordId: "health_1", type: "health", action: "updated",
+    record: { id: "health_1", type: "health", version: seq, fields: { node: "contract_1", column, state, evidence: "x".repeat(1_000) }, createdAt: at, updatedAt: at } });
+  app.changes.push(health(1, "reported", "failing"), health(2, "verified", "passing"), health(3, "reported", "failing"), health(4, "reported", "passing"));
+  const common = { session: "s1", project: "shop", at };
+  const long = `node build.mjs ${"--flag ".repeat(100)}`;
+  app.lines.push({ ...common, seq: 1, kind: "command-started", command: long, call: "c1" } as Line, { ...common, seq: 2, kind: "command-run", command: long, call: "c1" } as Line);
+  const clock = new Clock();
+  const reading = pageReading({ project: "shop", reads: app, timers: clock });
+  const heard: News[] = [];
+  reading.subscribe({ onNews: (news) => heard.push(news) });
+  await settle();
+
+  assert.equal(heard[0]?.changes.length, 4, "the news itself is whole");
+  const held = reading.held();
+  assert.deepEqual(held.changes.map(({ seq, record }) => [seq, record.fields]), [[1, { node: "contract_1", column: "reported", state: "failing" }], [4, { node: "contract_1", column: "reported", state: "passing" }]]);
+  const [started, ran] = held.lines as (Line & { command: string })[];
+  assert.equal(started?.command.slice(0, 300), long.slice(0, 300), "a running command keeps the words the list shows");
+  assert.ok((started?.command.length ?? 0) < 310);
+  assert.equal(ran?.command, "", "a finished command's text is not shown anywhere");
+  reading.stop();
+});

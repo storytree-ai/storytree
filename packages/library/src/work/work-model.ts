@@ -10,8 +10,8 @@
  * checks every write.
  */
 import { byCreation } from "../creation-order.js";
-import { checkReference, checkReferences, DependencyLoopError, liveRecord } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
+import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
+import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import type { FieldsOf } from "../schema/types.js";
 
 /** A new story's fields. */
@@ -147,11 +147,18 @@ export class WorkModel {
     return this.editCapability(id, { proposed }, options);
   }
 
-  /** Add a contract to a capability, which must be a live capability (MissingReferenceError otherwise). */
+  /**
+   * Add a contract to a capability, which must be a live capability (MissingReferenceError
+   * otherwise). Under a numbered capability (its title starts with its number) a title given
+   * without a number gets the capability's next free one, after the highest its live contracts
+   * carry, and a title whose number another live contract of the capability carries is refused
+   * with a SchemaError on `title`, nothing written. A capability with no number numbers nothing.
+   */
   addContract(contract: NewContract, options?: WriteOptions): Promise<SchemaRecord<"contract">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "capability", contract.capability, "capability");
-      return this.#records.create("contract", contract, options);
+      const title = await this.#numbered(contract.title, contract.capability);
+      return this.#records.create("contract", { ...contract, title }, options);
     });
   }
 
@@ -168,12 +175,20 @@ export class WorkModel {
 
   /**
    * Change only the named fields of a contract, as capability 3's edit does. A new capability is
-   * checked as addContract checks it. Returns null, and writes nothing, if `id` is not a live contract.
+   * checked as addContract checks it, and a title or capability that would leave its number carried
+   * by another live contract of the capability is refused as addContract refuses it. Returns null,
+   * and writes nothing, if `id` is not a live contract.
    */
   editContract(id: string, fields: ContractEdit, options?: WriteOptions): Promise<SchemaRecord<"contract"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["contract"])) === null) return null;
       await checkReference(this.#records, "capability", fields.capability, "capability");
+      if (fields.title !== undefined || fields.capability !== undefined) {
+        const stored = (await this.#records.get(id)) as SchemaRecord<"contract">;
+        const title = fields.title ?? stored.fields.title;
+        const capability = fields.capability ?? stored.fields.capability;
+        if (typeof title === "string" && couldBeId(capability)) await this.#refuseTakenNumber(title, capability, id);
+      }
       return (await this.#records.edit(id, fields, options)) as SchemaRecord<"contract"> | null;
     });
   }
@@ -222,6 +237,45 @@ export class WorkModel {
   async arcsFor(storyId: string): Promise<SchemaRecord<"arc">[]> {
     const arcs = await this.#records.list("arc");
     return arcs.filter((arc) => arc.fields.stories?.includes(storyId) === true).sort(byCreation);
+  }
+
+  /**
+   * `title` as a new contract of `capability` carries it: refused if its number is taken there, and
+   * given the next free number when it has none and the capability has one.
+   */
+  async #numbered(title: string, capability: string): Promise<string> {
+    if (typeof title !== "string" || !couldBeId(capability)) return title; // the schema refuses it in the write
+    if (contractNumber(title) !== undefined) {
+      await this.#refuseTakenNumber(title, capability);
+      return title;
+    }
+    const prefix = /^(\d+) · /.exec((await this.#titleOf(capability)) ?? "")?.[1];
+    if (prefix === undefined) return title;
+    const taken = (await this.#contractsOf(capability)).flatMap((contract) => {
+      const number = contractNumber(contract.fields.title);
+      return number?.startsWith(`${prefix}.`) ? [Number(number.slice(prefix.length + 1))] : [];
+    });
+    return `${prefix}.${Math.max(0, ...taken) + 1} · ${title}`;
+  }
+
+  /** Refuse `title` under `capability` when another live contract there (not `self`) carries its number. */
+  async #refuseTakenNumber(title: string, capability: string, self?: string): Promise<void> {
+    const number = contractNumber(title);
+    if (number === undefined) return;
+    const holder = (await this.#contractsOf(capability)).find((contract) => contract.id !== self && contractNumber(contract.fields.title) === number);
+    if (holder !== undefined) {
+      throw new SchemaError("contract", [{ field: "title", problem: `contract number ${number} is taken: ${holder.id} carries it in this capability; leave the number off to be given the next free one` }]);
+    }
+  }
+
+  async #contractsOf(capability: string): Promise<SchemaRecord<"contract">[]> {
+    return (await this.#records.list("contract")).filter((contract) => contract.fields.capability === capability);
+  }
+
+  /** The title of `capability`, when it names a stored capability (the schema refuses the rest in the write). */
+  async #titleOf(capability: string): Promise<string | undefined> {
+    const record = await this.#records.get(capability);
+    return record?.type === "capability" ? (record as SchemaRecord<"capability">).fields.title : undefined;
   }
 
   /**
@@ -296,4 +350,9 @@ function loopThrough(start: string, graph: ReadonlyMap<string, readonly unknown[
     path.push({ id: dependency, next: dependenciesOf(dependency) });
   }
   return undefined;
+}
+
+/** The number a contract's title starts with (capability, dot, contract), if it starts with one. */
+function contractNumber(title: string): string | undefined {
+  return /^(\d+\.\d+)(?![\d.])/.exec(title)?.[1];
 }

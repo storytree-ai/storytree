@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Work model: one test per contract 4.1-4.6 in the library story, each run on
+ * Capability 4 · Work model: one test per contract 4.1-4.7 in the library story, each run on
  * BOTH backends, as capabilities 2 and 3 are:
  *
  * - memory: a WorkModel over SchemaRecords over a fresh MemoryTransactions;
@@ -478,6 +478,31 @@ for (const backend of [memory, postgres]) {
 
     await transactions.save({ id: "capability-old", type: "capability", version: 1, fields: { title: "Old one", story: story.id } });
     assert.equal(((await records.get("capability-old"))?.fields as { proposed?: boolean } | undefined)?.proposed, true, "a capability written before the flag reads proposed");
+  });
+
+  contract("4.7", "a contract planned without a number gets its capability's next free one, and a number another live contract of the capability carries is refused", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "3 · Email form", story: story.id });
+    const other = await work.addCapability({ title: "4 · Confirmation link", story: story.id });
+    const titleOf = (record: SchemaRecord<"contract">) => record.fields.title;
+
+    assert.equal(titleOf(await work.addContract({ title: "Rejects a bad email", capability: form.id })), "3.1 · Rejects a bad email");
+    assert.equal(titleOf(await work.addContract({ title: "Accepts a plus address", capability: form.id })), "3.2 · Accepts a plus address");
+    assert.equal(titleOf(await work.addContract({ title: "3.5 · Trims spaces", capability: form.id })), "3.5 · Trims spaces", "a free number is kept");
+    const next = await work.addContract({ title: "Lowercases the domain", capability: form.id });
+    assert.equal(titleOf(next), "3.6 · Lowercases the domain", "the next free number follows the highest");
+    assert.equal(titleOf(await work.addContract({ title: "The link expires", capability: other.id })), "4.1 · The link expires", "each capability numbers its own");
+    const unnumbered = await work.addCapability({ title: "Password form", story: story.id });
+    assert.equal(titleOf(await work.addContract({ title: "Refuses a short password", capability: unnumbered.id })), "Refuses a short password", "a capability with no number gives none");
+
+    const before = await transactions.history();
+    await assert.rejects(work.addContract({ title: "3.2 · Accepts a plus address again", capability: form.id }), schemaError("contract", ["title"]));
+    await assert.rejects(work.editContract(next.id, { title: "3.5 · Moved onto a taken number" }), schemaError("contract", ["title"]));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+    assert.equal((await work.editContract(next.id, { title: "3.6 · Lowercases the whole address" }))?.fields.title, "3.6 · Lowercases the whole address", "a contract keeps its own number");
+    await records.retire(next.id, "out of scope");
+    assert.equal(titleOf(await work.addContract({ title: "3.6 · Lowercases the domain, again", capability: form.id })), "3.6 · Lowercases the domain, again", "only a live contract holds its number");
   });
 }
 

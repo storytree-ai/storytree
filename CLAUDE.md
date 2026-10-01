@@ -10,7 +10,8 @@ The text above that marker is written by hand, and it counts toward the file's 4
   PASS / FAIL / NOT RUN table. Guidance runs when generated roles changed; otherwise it is NOT RUN
   with the reason. After editing a role or note in the library, use `pnpm run gate --guidance`, even
   if regeneration left no Git diff. It also runs check:plan-edges every time: a capability depending on
-  another story's against the code's package direction fails it (ADR-0840 D2). A failure does not stop the remaining checks.
+  another story's against the code's package direction fails it when the branch changes both stories'
+  packages, and is printed as a note otherwise (ADR-0840 D2). A failure does not stop the remaining checks.
 - `pnpm test` runs the packages a change can reach (its first line, `scope: ...`, says which) against a
   throwaway local Postgres; `pnpm run test --full` runs everything, `pnpm run test --rerun-failed` only
   what failed. Give flags in that `pnpm run <script> --flag` form: Windows PowerShell 5.1 drops a bare `--`.

@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.5 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.6 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -88,6 +88,27 @@ test("10.4 each capability's line gives its word, and for one not healthy its re
     assert.match(line("Password rules"), /proposed — not built, the agent's to move/);
     assert.match(line("Email form"), /untested — no test names it, the agent's to move: 1\.2$/);
     assert.match(line("Thank-you page"), /healthy$/);
+  });
+});
+
+test("10.6 in a project whose health nothing verifies, each part gives the agent's report alone, and a built capability says storytree does not check this project's tests yet", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.setProposed(form.id, false);
+    await library.reportHealth(check.id, "passing", { by: "agent" });
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const line = (text: string): string => lines.find((each) => each.includes(text)) ?? "";
+    assert.match(line("Visitor can sign up"), /agent says passing$/);
+    assert.match(line("Email form"), /agent says passing; storytree does not check this project's tests yet$/);
+    assert.match(line("Rejects an email"), /agent says passing$/);
+    assert.doesNotMatch(ran.stdout, /untested|no test names it|to move|verified/);
   });
 });
 

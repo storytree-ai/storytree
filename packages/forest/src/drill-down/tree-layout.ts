@@ -26,6 +26,8 @@ export interface Card {
   story?: string;
   /** Its word, which its strip says (ADR-0744). */
   status: CapabilityStatus;
+  /** The agent's report, which its strip says in place of its word when it is report-only (ADR-0630). */
+  agentSays?: HealthState;
   /** The agent's report and storytree's own column, for the story's own (storytree's only where written). */
   reported?: HealthState;
   verified?: HealthState;
@@ -66,12 +68,13 @@ export function layoutTree(panel: StoryPanel): TreeLayout {
       own: true,
       status: line.status,
       reported: line.reported,
+      ...(line.reportOnly ? { agentSays: line.reported } : {}),
       ...(line.verified === undefined ? {} : { verified: line.verified }),
     });
   }
   for (const arrow of panel.arrows) {
     if (cards.has(arrow.to)) continue;
-    cards.set(arrow.to, { id: arrow.to, title: arrow.toTitle, own: false, ...(arrow.toStory === undefined ? {} : { story: arrow.toStory }), status: arrow.toStatus });
+    cards.set(arrow.to, { id: arrow.to, title: arrow.toTitle, own: false, ...(arrow.toStory === undefined ? {} : { story: arrow.toStory }), status: arrow.toStatus, ...(arrow.toReported === undefined ? {} : { agentSays: arrow.toReported }) });
   }
 
   const graph = new dagre.graphlib.Graph();

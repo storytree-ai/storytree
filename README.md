@@ -15,8 +15,9 @@ agent. What the command does and checks: [apps/desktop/README.md](apps/desktop/R
 **Storytree 0.3.** Storytree is the observability layer beside your coding agent. You build a
 project with Claude Code or Codex, and storytree shows you what is being built: each project as a
 forest that grows as stories land, an arc surface for what is planned, in progress and done, and a
-plain-language view of how each story works and whether it is healthy. Health shows what the agent
-*reported* separately from what storytree *verified* for itself.
+plain-language view of how each story works and whether it is healthy. Health shows what your agent
+*reported*, labelled as the agent's report. Storytree does not yet check your project's tests
+itself: so far it checks only its own project's tests, and shows what it found separately.
 
 Once it is installed, **Help → First-run guide** in the app covers setup, connection checks, the
 offline license and feedback. Help is available before you have a project and while viewing any

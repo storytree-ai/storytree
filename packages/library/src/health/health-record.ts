@@ -99,8 +99,13 @@ export interface AnnotatedCapability extends Omit<CapabilityNode, "contracts"> {
   contracts: AnnotatedContract[];
   health: NodeHealth;
   status: CapabilityStatus;
-  /** Why it is not healthy, and who moves it; absent when it is healthy (ADR-0825 D1). */
+  /** Why it is not healthy, and who moves it; absent when it is healthy (ADR-0825 D1), and when it is report-only. */
   why?: CapabilityWhy;
+  /**
+   * Built, in a project whose health nothing verifies (ADR-0630: any user's project in the MVP): what
+   * the agent reports is all there is to show, labelled as the agent's, and no agent can move its word.
+   */
+  reportOnly?: true;
 }
 
 /**
@@ -141,6 +146,8 @@ export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
 export interface AnnotatedTree {
   stories: AnnotatedStory[];
   arcs: ArcNode[];
+  /** Present when nothing verifies this project's health: no verified entry exists anywhere in it (ADR-0630). */
+  unverified?: true;
 }
 
 /** The columns, in the order a node's health shows them. */
@@ -221,14 +228,17 @@ export class HealthRecord {
   async annotate(tree?: ProjectTree): Promise<AnnotatedTree> {
     const plan = tree ?? (await this.#work.projectTree());
     const entries = await this.#entries();
+    const unverified = ![...entries.values()].some(({ fields }) => fields.column === "verified");
     return {
+      ...(unverified ? { unverified } : {}),
       stories: plan.stories.map((story) => {
         const capabilities = story.capabilities.map((capability) => {
           const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) }));
           const health = rolledUp(contracts.map((contract) => contract.health));
           const status = capabilityStatus(capability.proposed, contracts.map((contract) => contract.health.verified.state));
-          const why = capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
-          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }) };
+          const reportOnly = unverified && !capability.proposed;
+          const why = reportOnly ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
+          return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}) };
         });
         const health = rolledUp(capabilities.flatMap((capability) => capability.contracts.map((contract) => contract.health)));
         return { ...story, capabilities, health };
@@ -366,15 +376,24 @@ export function capabilityWhy(proposed: boolean, contracts: readonly { id: strin
 /**
  * A capability's word, and when it is not healthy its reason, who moves it and the contracts
  * carrying it, each by the number its title starts with or, without one, its id; for example
- * "untested — needs owner, the owner's to move: 8.1". How the command line and the agent link say it.
+ * "untested — needs owner, the owner's to move: 8.1". A report-only one says what the agent
+ * reports and that storytree does not check this project's tests yet. How the command line and the
+ * agent link say it.
  */
-export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why" | "contracts">): string {
+export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why" | "contracts" | "health" | "reportOnly">): string {
   const { status, why } = capability;
+  if (capability.reportOnly) return `the agent ${REPORTS[capability.health.reported.state]}; ${NOT_VERIFIED}`;
   if (why === undefined) return status;
   const titles = new Map(capability.contracts.map((contract) => [contract.id, contract.title]));
   const named = why.contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? id);
   return `${status} — ${why.reason}, the ${why.mover}'s to move${named.length === 0 ? "" : `: ${named.join(", ")}`}`;
 }
+
+/** What a report-only capability says in place of a reason (ADR-0630). */
+export const NOT_VERIFIED = "storytree does not check this project's tests yet";
+
+/** The agent's reported state, as a report-only capability says it. */
+const REPORTS: Readonly<Record<HealthState, string>> = { passing: "reports passing", failing: "reports failing", "not-checked": "has reported nothing yet" };
 
 /** The reasons a built capability can have, the one it shows first. */
 const RANKED: readonly HealthReason[] = ["failing", "not re-run", "no test names it", "out of CI's reach", "needs owner"];

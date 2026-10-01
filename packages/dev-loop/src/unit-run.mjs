@@ -3,6 +3,9 @@
 //   --test-force-exit   a file whose tests have finished exits even if a failed test left a handle
 //                       open (a connection, a held lock): it reports its real failure, not a hang;
 //   --test-timeout      a test that never ends fails at TEST_LIMIT_MS, and node names it;
+//   the exit watch      a file whose tests have all ended but whose process has not exited for
+//                       EXIT_GRACE_MS (a Node exit deadlock seen on CI, increment_67a3090c077c)
+//                       fails the unit at once, named, instead of waiting out its deadline;
 //   the unit deadline   past UNIT_LIMIT_MS the unit's whole process tree is killed, and the tests
 //                       still running are named (test-running-reporter.mjs records them).
 // TEST_LIMIT_MS is about three times the slowest test seen anywhere on 2026-09-28 (117 CI jobs on
@@ -18,6 +21,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const TEST_LIMIT_MS = 60_000;
 export const UNIT_LIMIT_MS = 180_000;
+export const EXIT_GRACE_MS = 20_000; // a root after() hook or coverage written at exit fits well inside
 export const UNIT_LIMIT_FLOOR_MS = 60_000;
 export const UNIT_LIMIT_CEILING_MS = 900_000;
 const LEARN_FROM_PASSES = 5; // fewer passes than this on this machine: the fixed deadline
@@ -29,8 +33,8 @@ const tsx = import.meta.resolve("tsx"); // from here, so a unit whose cwd is els
 const reporter = fileURLToPath(new URL("./test-running-reporter.mjs", import.meta.url));
 let runs = 0;
 
-/** Run one unit's files under node:test, resolving { code, ms, timedOut, running, unitLimitMs }. */
-export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, stdio = "inherit", onSpawn = () => {} }) {
+/** Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs }. */
+export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, stdio = "inherit", onSpawn = () => {} }) {
   const runningFile = path.join(tmpdir(), `storytree-running-${process.pid}-${++runs}.jsonl`);
   rmSync(runningFile, { force: true });
   const guard = ["--test-force-exit"];
@@ -52,20 +56,29 @@ export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_
     onSpawn(child);
     let timedOut = false;
     let running = [];
+    let exitHung = [];
     const deadline = setTimeout(() => {
       timedOut = true;
       running = stillRunning(runningFile);
       killTree(child);
     }, unitLimitMs);
-    child.on("error", (error) => {
+    const exitWatch = setInterval(() => {
+      exitHung = endedNotExited(runningFile, Date.now() - exitGraceMs);
+      if (exitHung.length > 0) killTree(child);
+    }, Math.min(1_000, exitGraceMs / 2));
+    const stop = () => {
       clearTimeout(deadline);
+      clearInterval(exitWatch);
+    };
+    child.on("error", (error) => {
+      stop();
       rmSync(runningFile, { force: true });
       reject(error);
     });
     child.on("exit", (code) => {
-      clearTimeout(deadline);
+      stop();
       rmSync(runningFile, { force: true });
-      resolve({ code: timedOut ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, unitLimitMs });
+      resolve({ code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs });
     });
   });
 }
@@ -107,23 +120,40 @@ function descendants(pid) {
   return found;
 }
 
-/** The tests started and not yet ended, the innermost of each file; a file stuck outside any test is named alone. */
-function stillRunning(runningFile) {
-  let lines;
-  try {
-    lines = readFileSync(runningFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
-  } catch {
-    return [];
-  }
+/** The entries started and not yet ended in a unit's running file. */
+function openEntries(runningFile) {
+  const lines = readJsonLines(runningFile);
   const open = new Map();
   for (const entry of lines) {
     const key = JSON.stringify([entry.file, entry.nesting, entry.name]);
     if (entry.event === "start") open.set(key, entry);
     else open.delete(key);
   }
+  return { lines, open: [...open.values()] };
+}
+
+/**
+ * A file's own entry, named by the path it was given: its basename, or a path relative to the unit's
+ * root, which `file` ends with (compared by suffix: on macOS `file` is the real path under /private).
+ */
+const isFileEntry = (entry) => entry.nesting === 0 && entry.file && `/${entry.file.replaceAll("\\", "/")}`.endsWith(`/${entry.name.replaceAll("\\", "/").replace(/^\.\//, "")}`);
+
+/** The files whose own entry is still open, with no test open, after tests that all ended before `since`. */
+function endedNotExited(runningFile, since) {
+  const { lines, open } = openEntries(runningFile);
+  const busy = new Set(open.filter((entry) => !isFileEntry(entry)).map((entry) => entry.file));
+  const lastTest = new Map();
+  for (const entry of lines) if (!isFileEntry(entry)) lastTest.set(entry.file, entry.at);
+  return open
+    .filter((entry) => isFileEntry(entry) && !busy.has(entry.file) && lastTest.get(entry.file) < since)
+    .map((entry) => entry.file);
+}
+
+/** The tests started and not yet ended, the innermost of each file; a file stuck outside any test is named alone. */
+function stillRunning(runningFile) {
   const byFile = new Map();
-  for (const entry of open.values()) {
-    const isFile = entry.nesting === 0 && entry.file && path.basename(entry.file) === entry.name;
+  for (const entry of openEntries(runningFile).open) {
+    const isFile = isFileEntry(entry);
     const list = byFile.get(entry.file) ?? { tests: [], file: false };
     if (isFile) list.file = true;
     else list.tests.push(entry);
@@ -202,9 +232,11 @@ function readJsonLines(file) {
 }
 
 /** A unit's row note in the results table: its time and deadline, and on a timeout what was still running. */
-export function unitReason({ ms, timedOut, running = [], unitLimitMs, limitSource }, root) {
+export function unitReason({ ms, timedOut, running = [], exitHung = [], unitLimitMs, limitSource }, root) {
   const took = `${(ms / 1000).toFixed(1)} s`;
   const limit = `limit ${unitLimitMs / 1000} s${limitSource ? `, ${limitSource}` : ""}`;
+  const shown = (file) => path.relative(root, file).replaceAll("\\", "/");
+  if (exitHung.length > 0) return `failed after ${took} (${limit}), killed; ${exitHung.map((file) => `${shown(file)}: its tests ended, but its process did not exit`).join("; ")}`;
   if (!timedOut) return limitSource ? `${took} (${limit})` : took;
   const named = running.map(({ file, name }) => {
     const shown = file ? path.relative(root, file).replaceAll("\\", "/") : "(unknown file)";

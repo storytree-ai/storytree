@@ -8,9 +8,11 @@ Increment `increment_5d33661e9ce5`. Selecting a session's row draws its window a
 - [Ten frames, 260 ms apart, after a fifth open arrives: its dotted line grows, then fills](3-grow-and-fill-strip.png)
 - [What the capture asserted](capture.json)
 
+**Since ADR-0797 (2026-10-02 re-run):** with motion on, a selected session replays its steps instead of growing and filling them (see `../replay`), so the capture now runs the reduced-motion part only; the motion pictures above show the retired look and are not re-taken.
+
 The real desktop page in headless Chromium (SwiftShader) on Linux at 2x, over the forest snapshot with one synthetic session reading four real shelf-placed notes (the snapshot stores only two links between them, which fixes the chain) and a synthetic window reading. The camera framing of the strip is rough: the lines are small in it.
 
 ```sh
 node packages/forest/evidence/sessions-list/build.mjs
-PLANET_PLAYWRIGHT=file:///…/playwright-core/index.mjs PLANET_CHROMIUM=…/chrome-headless-shell node --import tsx packages/knowledge-core/evidence/traversal/capture.mjs
+node --import tsx packages/knowledge-core/evidence/traversal/capture.mjs
 ```

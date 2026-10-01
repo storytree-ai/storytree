@@ -13,5 +13,5 @@ The real desktop page in headless Chromium (SwiftShader) on Linux at 3x, over th
 
 ```sh
 node packages/forest/evidence/sessions-list/build.mjs
-PLANET_PLAYWRIGHT=file:///…/playwright-core/index.mjs PLANET_CHROMIUM=…/chrome-headless-shell node --import tsx packages/knowledge-core/evidence/shared-note/capture.mjs
+node --import tsx packages/knowledge-core/evidence/shared-note/capture.mjs
 ```

@@ -7,10 +7,9 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { captureOutput, fakeBridge, launch } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
@@ -52,8 +51,6 @@ const reading = {
 };
 const opened = [old, hub, next, jump, later, last];
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? 'file:///C:/code/storytree/node_modules/.pnpm/playwright-core@1.61.1/node_modules/playwright-core/index.mjs');
 const server = createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1);
   if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
@@ -63,9 +60,7 @@ const server = createServer((req, res) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 let browser;
 try {
-  browser = await chromium.launch({ executablePath: process.env.PLANET_CHROMIUM
-    ?? path.join(os.homedir(), 'AppData/Local/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-win64/chrome-headless-shell.exe'), headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2, colorScheme: 'dark', reducedMotion: 'reduce' });
   page.setDefaultTimeout(30_000);
   const errors = [];

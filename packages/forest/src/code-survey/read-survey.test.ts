@@ -40,3 +40,26 @@ test("8.5 a second survey with no file changed reads no file again, and a change
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("8.8 each surveyed story names the stories whose packages its package depends on, through any dependency field", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-"));
+  const stories = { arcs: [], stories: ["Shop", "Till", "Bank"].map((title) => ({ id: `story-${title.toLowerCase()}`, title, capabilities: [] })) } as unknown as AnnotatedTree;
+  try {
+    const manifests = {
+      shop: { name: "@x/shop", dependencies: { "@x/till": "workspace:*", lodash: "4" }, devDependencies: { "@x/bank": "workspace:*" } },
+      till: { name: "@x/till", peerDependencies: { "@x/bank": "workspace:*" } },
+      bank: { name: "@x/bank" },
+    };
+    for (const [name, manifest] of Object.entries(manifests)) {
+      await mkdir(path.join(folder, "packages", name, "src"), { recursive: true });
+      await writeFile(path.join(folder, "packages", name, "package.json"), JSON.stringify(manifest));
+      await writeFile(path.join(folder, "packages", name, "src", "index.ts"), "export const it = 1;\n");
+    }
+    const survey = await codeSurveyReader().read(folder, stories);
+    assert.deepEqual(survey["story-shop"]?.dependsOn, ["story-till", "story-bank"]);
+    assert.deepEqual(survey["story-till"]?.dependsOn, ["story-bank"]);
+    assert.deepEqual(survey["story-bank"]?.dependsOn, []);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});

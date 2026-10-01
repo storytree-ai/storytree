@@ -48,6 +48,19 @@ test("1.5 adding a dependency moves an island up a row", () => {
   assert.ok(near(latitude(after.get("b")!), latitude(after.get("c")!)), "in the row above, with c");
 });
 
+test("1.9 where the code survey names stories' package dependencies, rows are by those, not by the plan's; without them the plan's roll-up stands", () => {
+  // The plan says c depends on a; the code says b depends on c and a on nothing, and c on nothing.
+  const tree = project({ a: [], b: [], c: ["a"] });
+  const files = { files: [], imports: [] };
+  const spots = new Map(growPlanet(storyNodes(tree, [], { a: { ...files, dependsOn: [] }, b: { ...files, dependsOn: ["c"] }, c: { ...files, dependsOn: [] } })
+    .map(({ id, place }) => ({ story: id, place, reach: REACH }))).spots);
+  const at = (id: string) => latitude(spots.get(id)!);
+  assert.ok(at("b") > at("c"), "b's package depends on c's: b is north of c");
+  assert.ok(near(at("c"), at("a")), "c's package depends on nothing: the plan's c → a no longer lifts it");
+  const rolled = globe(tree);
+  assert.ok(latitude(rolled.get("c")!) > latitude(rolled.get("a")!), "with no survey, the plan's c → a places c");
+});
+
 test("1.3 the bottom row puts the most depended-on story at the front and the rest outward, packed round the front with the sea between neighbours", () => {
   // a holds up four stories, b three, c two, d one and e none.
   const spots = globe(project({ a: [], b: [], c: [], d: [], e: [], p: ["a", "b", "c", "d"], q: ["a", "b", "c"], r: ["a", "b"], s: ["a"] }));

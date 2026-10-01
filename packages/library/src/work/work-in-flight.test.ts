@@ -193,6 +193,29 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.parkArc(arc.id, { until: "next week" }));
   });
 
+  contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
+    const arcs = [];
+    for (let i = 0; i < 4; i++) {
+      const arc = await work.createArc(ARC);
+      arcs.push(arc);
+      await flight.addIncrement({ arc: arc.id, ...WORK });
+    }
+    await flight.parkArc(arcs[1]!.id);
+    await flight.raiseQuestion({ arc: arcs[2]!.id, title: "Copy?", stakes: "Blocks the form", statement: "Which words?", context: "None yet", options: "Short or long" });
+    await records.retire(arcs[3]!.id, "withdrawn");
+    const at = new Date();
+    const one = await Promise.all(arcs.map(({ id }) => flight.arcView(id, at)));
+
+    let reads = 0;
+    for (const method of ["get", "list"] as const) {
+      const real = records[method].bind(records) as (...args: unknown[]) => Promise<unknown>;
+      (records as unknown as Record<string, unknown>)[method] = (...args: unknown[]) => { reads += 1; return real(...args); };
+    }
+    const views = await flight.arcViews(at);
+    assert.deepEqual(views, one.filter((view) => view !== null), "the same views, oldest arc first, retired ones left out");
+    assert.ok(reads <= 3, `${reads} reads for ${arcs.length} arcs`);
+  });
+
   contract("10.5", "an open increment moves to another live arc keeping its id and waits, the history recording the move and its reason; a closed increment, or a move to a closed arc, is refused with nothing written", async ({ work, flight, transactions }) => {
     const from = await work.createArc(ARC);
     const to = await work.createArc(ARC);

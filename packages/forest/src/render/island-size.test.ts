@@ -4,9 +4,9 @@ import { test } from "node:test";
 
 import { workStates } from "@storytree/arc-surface";
 import type { InstanceDescriptor } from "@storytree/forest-world";
-import { buildPlanetPathways } from "@storytree/forest-world/geometry";
+import { buildPlanetPathways, islandCoastReach } from "@storytree/forest-world/geometry";
 
-import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from "../index.js";
+import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from "../index.js";
 import { islandArea, LAND_PER_LINE, MIN_ISLAND_AREA } from "../planet-places/island-growth.js";
 import type { StorySurvey } from "../code-survey/code-survey.js";
 import { circleDiameter, fileCircles, territories } from "../territories/territories.js";
@@ -42,7 +42,7 @@ test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floo
   assert.equal(areaOf("tiny"), MIN_ISLAND_AREA);
   assert.equal(areaOf("unsurveyed"), undefined, "no survey, no area: the capability ratio stands");
 
-  const spots = new Map(tree.stories.map((s, i) => [s.id, placeOnPackedGlobe(i + 1)]));
+  const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
   const plates = buildPlanetPathways(scene, spots, PLANET_RADIUS).plates;
   const drawn = (story: string) => drawnArea(plates.get(story)!.descriptors as InstanceDescriptor[]);
   for (const story of ["big", "small", "tiny"]) assert.ok(Math.abs(drawn(story) - areaOf(story)! ) < 1e-3 * areaOf(story)!, `${story} draws the land its lines give it`);
@@ -58,7 +58,7 @@ test("3.19 an island whose files' circles do not fit on the land its lines give 
   const scene = forestScene(crowded, [], workStates([]), { crowded: { files, imports: [] } });
   const island = scene.islands[0]!;
   assert.ok(island.area! > islandArea(600), `the island grew past the ${islandArea(600)} units² its lines give it (to ${island.area!.toFixed(0)})`);
-  const coast = buildPlanetPathways(scene, new Map([["crowded", placeOnPackedGlobe(1)]]), PLANET_RADIUS).plates.get("crowded")!.coast;
+  const coast = buildPlanetPathways(scene, new Map([["crowded", { x: 0, y: 0, z: 1 }]]), PLANET_RADIUS).plates.get("crowded")!.coast;
   const circles = fileCircles(territories(island.land!.territories, coast), island.land!.files);
   assert.equal(circles.length, files.length);
   for (const circle of circles) assert.ok(Math.abs(circle.radius - circleDiameter(circle.lines) / 2) < 1e-9, `${circle.path} keeps its full size`);

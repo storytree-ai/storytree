@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DoubleSide, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
 import { workStates } from '@storytree/arc-surface';
-import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from '../index.js';
-import { buildPlanetPathways, islandSurface, PLATE_CLEARANCE } from '@storytree/forest-world/geometry';
+import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from '../index.js';
+import { buildPlanetPathways, islandCoastReach, islandSurface, PLATE_CLEARANCE } from '@storytree/forest-world/geometry';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) =>
@@ -14,7 +14,7 @@ const tree = { arcs: [], stories: [
   { id: 'b', title: 'B', health, capabilities: [capability('b1', ['a1']), capability('b2', ['b1', 'a2'])] },
 ] };
 const scene = forestScene(tree, [], workStates([]));
-const spots = new Map(tree.stories.map((s, i) => [s.id, placeOnPackedGlobe(i + 1)]));
+const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
 const plates = buildPlanetPathways(scene, spots, PLANET_RADIUS).plates;
 
 function all(root: Object3D): Object3D[] {

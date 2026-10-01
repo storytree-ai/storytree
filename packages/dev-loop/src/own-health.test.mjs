@@ -164,6 +164,24 @@ test("contractsCoveredBy: a crashed multi-contract file leaves every named contr
   }
 });
 
+test("contractsCoveredBy reads only test titles: a comment or a fixture string naming a contract covers nothing", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "planted.test.ts");
+  writeFileSync(
+    file,
+    [
+      "/** Health as `1.2 · a doc comment` describes it. */",
+      'const fixture = { name: "1.3 · a fixture string" };',
+      'const TITLE = "1.4 · titled through a constant";',
+      'test("1.1 · a test", () => {});',
+      "test(TITLE, () => {});",
+      'contract(\n  "1.5", "titled through a helper", () => {});',
+    ].join("\n"),
+  );
+  assert.deepEqual([...contractsCoveredBy(file, { root: directory })].sort(), ["1.1", "1.4", "1.5"]);
+});
+
 test("contractsCoveredBy finds the contract numbers a test file names, in itself and in the modules it imports", () => {
   const covered = (file) => [...contractsCoveredBy(path.join(librarySrc, file), { root: librarySrc })].sort();
   assert.deepEqual(covered("transactions/pg.test.ts"), ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9"], "through behaviour-suite.ts");

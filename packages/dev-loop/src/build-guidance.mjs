@@ -1,7 +1,7 @@
 // `pnpm build:guidance`: generate this repo's own agent guidance from the agent roles in the project
 // `storytree` in the desktop app's library (~/.storytree/0.3): CLAUDE.md's generated region,
-// AGENTS.md, and a Claude Code and a Codex role file for every other role, removing role files
-// nothing generates any more. `pnpm check:guidance` (`--check`) writes nothing and exits 1 when a
+// AGENTS.md, a Claude Code and a Codex role file for every other role, and a SKILL.md for each
+// harness for every process marked as a skill, removing role and skill files nothing generates any more. `pnpm check:guidance` (`--check`) writes nothing and exits 1 when a
 // committed file has drifted from the library. Both exit 1 when a file is over its size budget.
 //
 // The generated files stay committed, because Claude Code and Codex read them at session start,
@@ -14,7 +14,7 @@
 // directory, and otherwise starts the app's Postgres on that directory, as `pnpm library:export`
 // does, and stops it again at the end. The rules live in packages/dev-loop/src/guidance.mjs.
 
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,7 +23,7 @@ import { connect } from "@storytree/library";
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
-import { driftOf, expectedFiles, overBudget, readRoles, ROLE_DIRS } from "./guidance.mjs";
+import { driftOf, expectedFiles, overBudget, readRoles, ROLE_DIRS, SKILL_DIRS } from "./guidance.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -54,7 +54,10 @@ async function main() {
 
   if (!check) {
     for (const { file, problem } of drift) {
-      if (problem === "orphan") rmSync(path.join(root, file));
+      if (problem === "orphan") {
+        rmSync(path.join(root, file));
+        if (file.endsWith("/SKILL.md") && readdirSync(path.dirname(path.join(root, file))).length === 0) rmSync(path.dirname(path.join(root, file)), { recursive: true });
+      }
       else {
         mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
         writeFileSync(path.join(root, file), expected.get(file));
@@ -116,6 +119,15 @@ const disk = {
     }
   },
   list(dir) {
+    if (SKILL_DIRS.includes(dir)) {
+      try {
+        return readdirSync(path.join(root, dir))
+          .map((name) => `${dir}/${name}/SKILL.md`)
+          .filter((file) => existsSync(path.join(root, file)));
+      } catch {
+        return [];
+      }
+    }
     if (!(dir in ROLE_DIRS)) return [];
     try {
       return readdirSync(path.join(root, dir)).map((name) => `${dir}/${name}`);

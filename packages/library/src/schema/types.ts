@@ -241,6 +241,16 @@ export const RECORD_SCHEMAS = {
       verification: nonEmpty.optional(),
       /** The artifacts this process hands on to, each with an optional one-line gloss. */
       branchEdges: z.array(z.object({ to: z.string(), label: nonEmpty.optional() }).strict()).optional(),
+      /**
+       * Set, this process is also a skill by this name, which `pnpm build:guidance` writes out as
+       * SKILL.md for Claude Code and Codex. Added on version 1, optional, so an older reader takes
+       * it as it is. The Agent Skills rule: lowercase letters, digits and single hyphens, 64 at most.
+       */
+      skill: z
+        .string()
+        .max(64)
+        .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "a skill's name is lowercase letters, digits and single hyphens, such as grill-me")
+        .optional(),
     })
     .strict(),
   /** An agent role. Its required reading (`context`), rules and anti-patterns are links to artifacts (6-a). */

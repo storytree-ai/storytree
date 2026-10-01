@@ -1,0 +1,108 @@
+{
+  "story": "The app setup",
+  "release": "0.3.414",
+  "commit": "e221468e8451ac4a6e2a105f87b6c170d34fb9de",
+  "evidence": "packages/app-setup/evidence/acceptance-run-codex/2026-10-01",
+  "checks": [
+    {
+      "contract": "2.6",
+      "name": "the installation result says Codex's tools are connected, apart from its hooks",
+      "observed": "pass",
+      "detail": "Codex: tools connected; hooks waiting for you to trust them in Codex."
+    },
+    {
+      "contract": "2.6",
+      "name": "with no hook trusted, the installation result says Codex's hooks wait for the user to trust them, naming /hooks",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.6",
+      "name": "run from an administrator terminal, the installation result says Codex cannot run commands from one",
+      "observed": "pass",
+      "detail": "elevated: True"
+    },
+    {
+      "contract": "2.2",
+      "name": "the first folder: storytree's command says it was not a project before the session",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "the first folder: after one new Codex session there, storytree's command says it is project \"st-accept-cx02-a\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.6",
+      "name": "the first folder: with no hook trusted in Codex's home, storytree's command says Codex's hooks wait for the user to trust them, naming /hooks",
+      "observed": "pass",
+      "detail": "trusted hooks in the trial's Codex home: 0"
+    },
+    {
+      "contract": "1.6",
+      "name": "the first folder: a fresh PowerShell finds storytree's installed command",
+      "observed": "pass",
+      "detail": "C:\\Users\\mickh\\.storytree\\0.3\\bin\\storytree.cmd"
+    },
+    {
+      "contract": "1.6",
+      "name": "the first folder: storytree doctor, run from that fresh PowerShell, exits 0",
+      "observed": "pass",
+      "detail": "exit 0"
+    },
+    {
+      "contract": "1.5",
+      "name": "the first folder: with no Node and no Git on the machine's path, the Codex session's tools set the folder up",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "a second folder, later: storytree's command says it was not a project before the session",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.2",
+      "name": "a second folder, later: after one new Codex session there, storytree's command says it is project \"st-accept-cx02-b\"",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.6",
+      "name": "a second folder, later: with no hook trusted in Codex's home, storytree's command says Codex's hooks wait for the user to trust them, naming /hooks",
+      "observed": "pass",
+      "detail": "trusted hooks in the trial's Codex home: 0"
+    },
+    {
+      "contract": "1.6",
+      "name": "a second folder, later: a fresh PowerShell finds storytree's installed command",
+      "observed": "pass",
+      "detail": "C:\\Users\\mickh\\.storytree\\0.3\\bin\\storytree.cmd"
+    },
+    {
+      "contract": "1.6",
+      "name": "a second folder, later: storytree doctor, run from that fresh PowerShell, exits 0",
+      "observed": "pass",
+      "detail": "exit 0"
+    },
+    {
+      "contract": "1.5",
+      "name": "a second folder, later: with no Node and no Git on the machine's path, the Codex session's tools set the folder up",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.5",
+      "name": "Codex starts storytree's tool server from the installed app's own folder, not a checkout or a package cache",
+      "observed": "pass",
+      "detail": "args = [\"C:\\\\Users\\\\mickh\\\\AppData\\\\Local\\\\Programs\\\\storytree-0.3\\\\resources\\\\agent-tools\\\\storytree-mcp.mjs\"]"
+    },
+    {
+      "contract": "1.6",
+      "name": "an existing unrelated storytree command is preserved and the conflict named",
+      "observed": "not-observed"
+    },
+    {
+      "contract": "1.5",
+      "name": "the app took an ordinary release update before these sessions started",
+      "observed": "not-observed",
+      "detail": "undefined -> 0.3.414.0"
+    }
+  ]
+}

@@ -10,6 +10,11 @@
 //   generated, and the whole of AGENTS.md, which Codex reads as Claude Code reads CLAUDE.md.
 // - Every other role becomes a Claude Code subagent (.claude/agents/<name>.md) and a Codex one
 //   (.codex/agents/<name>.toml), <name> being its title in kebab case.
+// - Every process note with a `skill` name becomes a skill by that name, one SKILL.md that Claude
+//   Code reads from .claude/skills/<name>/ and Codex from .agents/skills/<name>/: a procedure run in
+//   the conversation with the owner, which a subagent role cannot be, since subagents cannot talk
+//   to him. Its description is what both harnesses match a request against, held to 1,024
+//   characters because Codex loads no skill with a longer one.
 // - Not ported, since they did not last in 0.2 (ADR-0639; counted 2026-09-27 over 2026-08-15 to
 //   2026-09-26): the .cursor, .gemini and .opencode role files. Cursor was retired as a harness
 //   (0.2's ADR-0198), Gemini never ran, OpenCode ran once (2026-08-07), and none of the three had a
@@ -31,36 +36,45 @@ export const BUDGETS = { "CLAUDE.md": 40_000, "AGENTS.md": 32_768, role: 36_000 
 export const ROOT_ROLE = "session-orchestrator";
 /** The role files' directories, and the extension each holds. */
 export const ROLE_DIRS = { ".claude/agents": ".md", ".codex/agents": ".toml" };
+/** The skill directories, Claude Code's then Codex's: each skill is <dir>/<name>/SKILL.md. */
+export const SKILL_DIRS = [".claude/skills", ".agents/skills"];
+/** The longest skill description Codex loads. */
+export const SKILL_DESCRIPTION_MAX = 1024;
 
 const REGENERATE = "Regenerate with `pnpm build:guidance`; `pnpm check:guidance` fails when this file has drifted from the library.";
 
 /**
  * @typedef {{ id: string, fields: Record<string, any> }} Role
- * @typedef {{ root: Role | undefined, others: Role[], titles: Map<string, string> }} Roles
+ * @typedef {{ root: Role | undefined, others: Role[], skills?: Role[], titles: Map<string, string> }} Roles
  * @typedef {{ file: string, problem: "missing" | "stale" | "orphan" }} Drift
  */
 
 /**
- * The agent roles a library holds: the root role, the others in name order, and the title of every
- * live note, for printing the notes a role links to.
+ * The agent roles a library holds: the root role, the others in name order, the process notes marked
+ * as skills in skill-name order, and the title of every live note, for printing the notes a role or
+ * a skill links to.
  * @param {{ search(query: string): Promise<{ id: string, type: string, fields: Record<string, any> }[]> }} library
  * @returns {Promise<Roles>}
  */
 export async function readRoles(library) {
   const notes = await library.search(""); // every live note: an empty query holds no word to miss
-  const titles = new Map(notes.map((note) => [note.id, note.fields.title]));
+  const titles = new Map(notes.map((note) => [note.id, note.fields.title ?? note.fields.term])); // a definition's title is its term
   const roles = notes.filter((note) => note.type === "agent");
   const isRoot = (role) => nameOf(role) === ROOT_ROLE || (role.fields.aliases ?? []).includes(ROOT_ROLE);
   return {
     root: roles.find(isRoot),
     others: roles.filter((role) => !isRoot(role)).sort((a, b) => nameOf(a).localeCompare(nameOf(b))),
+    skills: notes
+      .filter((note) => note.type === "process" && note.fields.skill !== undefined)
+      .sort((a, b) => a.fields.skill.localeCompare(b.fields.skill)),
     titles,
   };
 }
 
 /**
  * Every generated file as it should read, by its path from the repo root: CLAUDE.md (the committed
- * one, `claudeMd`, with its region regenerated), AGENTS.md, then each role's two files.
+ * one, `claudeMd`, with its region regenerated), AGENTS.md, each role's two files, then each skill's
+ * two copies. A skill whose description Codex would not load is refused, naming it.
  * @param {Roles} roles
  * @param {string} claudeMd
  * @returns {Map<string, string>}
@@ -85,12 +99,22 @@ export function expectedFiles(roles, claudeMd) {
         `developer_instructions = """\n${tomlMultiline(`${marker}\n\n${prompt}`)}\n"""\n`,
     );
   }
+  for (const skill of roles.skills ?? []) {
+    const { description, skill: name, title } = skill.fields;
+    if (description.length > SKILL_DESCRIPTION_MAX) {
+      throw new Error(`the skill "${name}" (${title}) has a description of ${description.length.toLocaleString("en")} characters; Codex loads none over ${SKILL_DESCRIPTION_MAX.toLocaleString("en")}`);
+    }
+    const marker = `<!-- GENERATED from the library's "${title}" process; do not edit by hand. ${REGENERATE} -->`;
+    const text = `---\nname: ${name}\ndescription: ${JSON.stringify(description)}\n---\n\n${marker}\n\n${skillOf(skill, roles.titles)}\n`;
+    for (const dir of SKILL_DIRS) files.set(`${dir}/${name}/SKILL.md`, text);
+  }
   return files;
 }
 
 /**
  * How the files on disk differ from `expected`, line endings aside: each expected file that is
- * missing or reads differently, then each file in a role directory that nothing generates.
+ * missing or reads differently, then each file in a role directory, and each SKILL.md in a skill
+ * directory, that nothing generates.
  * @param {Map<string, string>} expected
  * @param {{ read(file: string): string | undefined, list(dir: string): string[] }} disk
  * @returns {Drift[]}
@@ -106,6 +130,11 @@ export function driftOf(expected, disk) {
   for (const [dir, extension] of Object.entries(ROLE_DIRS)) {
     for (const file of disk.list(dir)) {
       if (file.endsWith(extension) && !expected.has(file)) drift.push({ file, problem: "orphan" });
+    }
+  }
+  for (const dir of SKILL_DIRS) {
+    for (const file of disk.list(dir)) {
+      if (file.endsWith("/SKILL.md") && !expected.has(file)) drift.push({ file, problem: "orphan" });
     }
   }
   return drift;
@@ -155,6 +184,29 @@ function promptOf(role, titles) {
   ].join("\n\n");
 }
 
+/** A skill's body: the process's own fields as sections, then the notes it links and hands on to. */
+function skillOf(skill, titles) {
+  const { fields } = skill;
+  const sections = [
+    ["trigger", "When to use"],
+    ["steps", "Steps"],
+    ["surfaces", "Surfaces"],
+    ["failureModes", "Failure modes"],
+    ["verification", "Verification"],
+  ].filter(([key]) => fields[key] !== undefined);
+  const named = (id) => titleOf(id, skill, titles, "process");
+  const links = [
+    ...(fields.links ?? []).map((id) => `- ${named(id)}`),
+    ...(fields.branchEdges ?? []).map((edge) => `- hands on to ${named(edge.to)}${edge.label === undefined ? "" : `: ${edge.label}`}`),
+  ];
+  return [
+    `# ${fields.title}`,
+    fields.statement,
+    ...sections.map(([key, label]) => `## ${label}\n\n${fields[key]}`),
+    ...(links.length === 0 ? [] : [`## Stands on\n\nNotes in the library; find one by its title with the agent link's \`search_notes\`.\n\n${links.join("\n")}`]),
+  ].join("\n\n");
+}
+
 function paragraphs(fields, ...named) {
   return named.filter(([key]) => fields[key] !== undefined).map(([key, label]) => `**${label}.** ${fields[key]}`);
 }
@@ -172,9 +224,9 @@ function standsOn(role, titles) {
   return ["**Stands on:** notes in the library; find one by its title with the agent link's `search_notes`.", ...lines].join("\n");
 }
 
-function titleOf(id, role, titles) {
+function titleOf(id, note, titles, kind = "agent role") {
   const title = titles.get(id);
-  if (title === undefined) throw new Error(`the agent role "${role.fields.title}" links to ${id}, which is not a live note`);
+  if (title === undefined) throw new Error(`the ${kind} "${note.fields.title}" links to ${id}, which is not a live note`);
   return title;
 }
 

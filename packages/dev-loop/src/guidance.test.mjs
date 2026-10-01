@@ -138,6 +138,55 @@ test("4.3 a file over its size budget is named with its size and its budget", ()
   ], "bytes are counted, not characters, and a file at its budget is within it");
 });
 
+test("4.4 a process note marked as a skill is written out as a Claude Code and a Codex skill, and drift-checked", async () => {
+  await withLibrary(async (library) => {
+    const reading = await library.writeKnowledge("principle", {
+      title: "Register follows audience",
+      description: "Write for who reads it",
+      statement: "Lead with the answer",
+      why: "The owner reads cold",
+      howToApply: "Answer first",
+    });
+    const term = await library.defineTerm({ term: "Standing delegation", meaning: "What a session may decide alone" });
+    const process = (title, extra = {}) =>
+      library.writeKnowledge("process", {
+        title,
+        description: `${title}: use when he says "grill me"`,
+        statement: `Statement of ${title}`,
+        trigger: `Trigger of ${title}`,
+        steps: `1. Steps of ${title}`,
+        surfaces: `Surfaces of ${title}`,
+        failureModes: `Failure modes of ${title}`,
+        ...extra,
+      });
+    await process("Question round", { skill: "grill-me", links: [reading.id, term.id], verification: "Verification of Question round" });
+    await process("Merge ceremony");
+    const files = expectedFiles(await readRoles(library), CLAUDE_MD);
+    assert.deepEqual([...files.keys()].filter((file) => file.includes("skills/")).sort(), [".agents/skills/grill-me/SKILL.md", ".claude/skills/grill-me/SKILL.md"], "only the note marked as a skill is written, for each harness");
+
+    const skill = files.get(".claude/skills/grill-me/SKILL.md");
+    assert.equal(files.get(".agents/skills/grill-me/SKILL.md"), skill, "Codex reads the same file");
+    assert.match(skill, /^---\nname: grill-me\ndescription: "Question round: use when he says \\"grill me\\""\n---\n/);
+    for (const text of ["Statement of Question round", "Trigger of Question round", "1. Steps of Question round", "Surfaces of Question round", "Failure modes of Question round", "Verification of Question round", "Register follows audience", "Standing delegation"]) {
+      assert.ok(skill.includes(text), `the skill holds "${text}"`);
+    }
+
+    const disk = (onDisk) => ({ read: (file) => onDisk.get(file), list: (dir) => [...onDisk.keys()].filter((file) => file.startsWith(`${dir}/`)) });
+    const drifted = new Map(files);
+    drifted.set(".claude/skills/grill-me/SKILL.md", `${skill}edited by hand\n`);
+    drifted.set(".agents/skills/gone/SKILL.md", "left behind\n");
+    assert.deepEqual(driftOf(files, disk(drifted)), [
+      { file: ".claude/skills/grill-me/SKILL.md", problem: "stale" },
+      { file: ".agents/skills/gone/SKILL.md", problem: "orphan" },
+    ]);
+  });
+});
+
+test("4.4 a skill whose description is over 1,024 characters is refused, since Codex would not load it", () => {
+  const skill = { id: "process_1", fields: { title: "Long", description: "x".repeat(1025), statement: "s", trigger: "t", steps: "1.", surfaces: "u", failureModes: "f", skill: "long" } };
+  assert.throws(() => expectedFiles({ root: undefined, others: [], skills: [skill], titles: new Map() }, CLAUDE_MD), /"long".*1,025 characters.*1,024/);
+});
+
 test("4.2 a CLAUDE.md without the region's markers is refused, naming them", () => {
   const roles = { root: undefined, others: [], titles: new Map() };
   assert.throws(() => expectedFiles(roles, "# no region here\n"), (error) => error.message.includes(REGION_START) && error.message.includes(REGION_END));

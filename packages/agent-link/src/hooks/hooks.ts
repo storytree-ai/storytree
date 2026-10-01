@@ -137,9 +137,12 @@ async function writeLines(harness: string, input: string, flags: readonly string
     const where = route(made.folder, locate);
     if (where.status === "not-a-project") return;
     // The branch the folder is on now, on every line, before any waits on this machine (ADR-0754 D4).
-    const { currentBranch } = await import("../activity/branch.js");
+    const { currentBranch, worktreeRoot } = await import("../activity/branch.js");
     const branch = currentBranch(made.folder);
     if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
+    // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22).
+    const root = worktreeRoot(made.folder);
+    if (root !== undefined && root !== path.resolve(made.folder)) made = { ...made, lines: made.lines.map((line) => (line.folder === made.folder ? { ...line, folder: root } : line)) };
     // Storytree cannot be reached: the lines wait on this machine for the next hook that reaches it.
     const home = storytreeHome();
     const { enqueue, uploadQueued } = await import("./queue.js");

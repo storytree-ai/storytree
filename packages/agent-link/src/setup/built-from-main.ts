@@ -10,8 +10,10 @@
  * on the machine should run. Hooks the app installed stay the app's.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync, symlinkSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { storytreeHome } from "../routing/index.js";
 import { defaultHomes, registeredHookScripts, type HookCommand, type Homes } from "./hooks-config.js";
@@ -84,5 +86,25 @@ function prune(builds: string, current: string): void {
 async function buildBins(outdir: string): Promise<unknown> {
   const source = new URL("../bins/build.ts", import.meta.url).href;
   const { buildBins: build } = (await import(source)) as { buildBins: (outdir: string) => Promise<unknown> };
-  return build(outdir);
+  const built = await build(outdir);
+  linkEmbeddingRuntime(outdir);
+  return built;
+}
+
+/**
+ * The build leaves the embedding runtime (transformers.js and its native ONNX Runtime) outside its
+ * bundle; the app's payload carries a copy, but a build of main has no app. It is linked to the
+ * checkout's own install instead, which is there for as long as the checkout's tool server runs:
+ * without it ranked search would fall back to words (friction_35d68b222871).
+ */
+function linkEmbeddingRuntime(outdir: string): void {
+  const library = createRequire(fileURLToPath(import.meta.resolve("@storytree/library")));
+  const name = "@huggingface/transformers";
+  // Its exports hide package.json, so the package is found on the paths Node would look in.
+  const installed = (library.resolve.paths(name) ?? []).map((modules) => path.join(modules, name)).find((dir) => existsSync(path.join(dir, "package.json")));
+  if (installed === undefined) throw new Error(`the checkout has no ${name} installed: run pnpm install`);
+  const link = path.join(outdir, "node_modules", name);
+  mkdirSync(path.dirname(link), { recursive: true });
+  // From its real folder, it resolves its own dependencies (ONNX Runtime, sharp) where pnpm put them. A junction needs no administrator on Windows.
+  symlinkSync(realpathSync(installed), link, "junction");
 }

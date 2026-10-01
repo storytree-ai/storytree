@@ -117,6 +117,11 @@ export interface QuestionLease {
   readonly lapsesAt?: string;
 }
 
+/** How to park an arc: a write's options, and the day it wakes (YYYY-MM-DD, UTC), if it has one. */
+export interface ParkOptions extends WriteOptions {
+  readonly until?: string;
+}
+
 /** An arc whole: its record, its state, its increments and its questions, oldest first. */
 export interface ArcView {
   readonly arc: SchemaRecord<"arc">;
@@ -484,8 +489,12 @@ export class WorkInFlight {
     });
   }
 
-  /** Park an arc: it reads parked, whatever its work, until unparked. Null if `id` is not a live arc. */
-  parkArc(id: string, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+  /**
+   * Park an arc: it reads parked, whatever its work, until unparked, or, given `until` (a day,
+   * YYYY-MM-DD), until UTC midnight of that day, when it wakes by itself on read (10.6). A plain park
+   * drops a wake day. Null if `id` is not a live arc.
+   */
+  parkArc(id: string, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#setParked(id, true, options);
   }
 
@@ -495,12 +504,12 @@ export class WorkInFlight {
   }
 
   /** The arc whole, with its state, its increments and its questions, oldest first; null if `id` is not a live arc. */
-  async arcView(id: string): Promise<ArcView | null> {
+  async arcView(id: string, at: Date = new Date()): Promise<ArcView | null> {
     const arc = await liveRecord(this.#records, id, ["arc"]);
     if (arc === null) return null;
     const increments = (await this.#records.list("increment")).filter((increment) => increment.fields.arc === id).sort(byCreation);
     const questions = await this.questions(id);
-    return { arc, state: arcState(arc, increments, questions), increments, questions };
+    return { arc, state: arcState(arc, increments, questions, at), increments, questions };
   }
 
   /** Every live arc, increment and question, and what each wait of theirs reads as, now. */
@@ -538,10 +547,11 @@ export class WorkInFlight {
     }
   }
 
-  #setParked(id: string, parked: true | undefined, options?: WriteOptions): Promise<SchemaRecord<"arc"> | null> {
+  #setParked(id: string, parked: true | undefined, options?: ParkOptions): Promise<SchemaRecord<"arc"> | null> {
     return this.#serially(async () => {
       if ((await liveRecord(this.#records, id, ["arc"])) === null) return null;
-      return (await this.#records.edit(id, { parked }, options)) as SchemaRecord<"arc"> | null;
+      const parkedUntil = parked === undefined ? undefined : options?.until;
+      return (await this.#records.edit(id, { parked, parkedUntil }, options)) as SchemaRecord<"arc"> | null;
     });
   }
 
@@ -688,7 +698,8 @@ function loopThrough(start: string, next: (id: string) => readonly string[]): st
 }
 
 /**
- * An arc's state (10.3): parked while the owner has parked it; otherwise closed exactly when it has
+ * An arc's state (10.3): parked while the owner has parked it, and, parked until a day, only before
+ * UTC midnight of that day at `at` (10.6); otherwise closed exactly when it has
  * increments, none of them is open and none of its questions waits on the owner, and active while
  * any does, or while it has no increments yet. (A drained arc still waiting on an answer stays
  * active, as 0.2's ADR-0526 settled: closed, it would leave every worklist with the question open.)
@@ -697,8 +708,10 @@ function arcState(
   arc: SchemaRecord<"arc">,
   increments: readonly SchemaRecord<"increment">[],
   questions: readonly SchemaRecord<"question">[],
+  at: Date = new Date(),
 ): ArcState {
-  if (arc.fields.parked === true) return "parked";
+  const { parked, parkedUntil } = arc.fields;
+  if (parked === true && (parkedUntil === undefined || at.getTime() < Date.parse(`${parkedUntil}T00:00:00Z`))) return "parked";
   if (increments.length === 0) return "active";
   if (increments.some((increment) => increment.fields.status !== "closed")) return "active";
   return questions.some((question) => question.fields.lifecycle === "open") ? "active" : "closed";

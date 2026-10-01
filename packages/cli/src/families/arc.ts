@@ -12,7 +12,7 @@
  * close or re-open of an arc (the owner's R1). `arc list` reads list(kind), then each arc's view.
  */
 import { closed } from "@storytree/agent-link";
-import type { Library } from "@storytree/library";
+import type { ArcView, Library } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
 import type { Args } from "../args.js";
@@ -65,7 +65,7 @@ const show: Verb = {
     const view = await library.arcView(id);
     if (view === null) throw new Refusal(`no arc "${id}" in this project`);
     const { arc, state, increments, questions } = view;
-    const lines = [`${arc.fields.title}  [${arc.id}]  ${state}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
+    const lines = [`${arc.fields.title}  [${arc.id}]  ${stateOf(view)}`, "", `Intent: ${arc.fields.intent}`, `End state: ${arc.fields.endState}`];
     for (const line of await holdsOn(library, arc.id)) lines.push(`This arc ${line}`);
     const open = increments.filter((increment) => increment.fields.status !== "closed");
     const closed = increments.filter((increment) => increment.fields.status === "closed");
@@ -121,16 +121,22 @@ const edit: Verb = {
 function parking(name: "park" | "unpark"): Verb {
   return {
     name,
-    usage: `arc ${name} <arc>`,
-    summary: name === "park" ? "hold an arc: it reads parked until unparked" : "take an arc off hold",
+    usage: name === "park" ? "arc park <arc> [--until YYYY-MM-DD]" : "arc unpark <arc>",
+    summary: name === "park" ? "hold an arc: it reads parked until unparked, or until the day given (UTC midnight)" : "take an arc off hold",
     async act(args, context) {
       const id = args.word(0, "the arc's id", this.usage);
+      const until = name === "park" ? args.text("until") : undefined;
       const library = await context.library();
-      const done = name === "park" ? await library.parkArc(id, context.writer()) : await library.unparkArc(id, context.writer());
+      const done = name === "park" ? await library.parkArc(id, { ...context.writer(), ...(until === undefined ? {} : { until }) }) : await library.unparkArc(id, context.writer());
       if (done === null) throw new Refusal(`no arc "${id}" in this project`);
-      return { text: `${name === "park" ? "Parked" : "Unparked"} arc ${id}.` };
+      return { text: `${name === "park" ? "Parked" : "Unparked"} arc ${id}${until === undefined ? "" : ` until ${until} (it wakes at UTC midnight)`}.` };
     },
   };
+}
+
+/** An arc's state as said: "parked until <day>" while a dated park holds, its state otherwise. */
+function stateOf({ arc, state }: ArcView): string {
+  return state === "parked" && arc.fields.parkedUntil !== undefined ? `parked until ${arc.fields.parkedUntil} (UTC)` : state;
 }
 
 /** Make an arc or increment wait on another, or clear the wait: the library's addWait and removeWait, which take either. */
@@ -251,7 +257,7 @@ const list: Verb = {
     const lines: string[] = [];
     for (const arc of await library.list("arc")) {
       const view = await library.arcView(arc.id);
-      if (view !== null) lines.push(`  ${arc.id}  [${view.state}]  ${view.arc.fields.title}`);
+      if (view !== null) lines.push(`  ${arc.id}  [${stateOf(view)}]  ${view.arc.fields.title}`);
     }
     return {
       text: lines.length === 0 ? "No arcs in this project." : [`${lines.length} arcs:`, ...lines].join("\n"),

@@ -65,7 +65,8 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
 
   const where = placeFor(repository, id);
   // A claim this session still holds is on a branch in the merge queue (workspaceRefusal): it moves to the new one.
-  const claimed = await claim({ ...context, branch: where.branch }, id, reason, { moveBranch: true });
+  // Its line names the workspace's folder, where the branch lives, not the caller's (4.22).
+  const claimed = await claim({ ...context, folder: where.folder, branch: where.branch }, id, reason, { moveBranch: true });
   if (!claimed.ok) return claimed;
   try {
     mkdirSync(path.dirname(where.folder), { recursive: true });
@@ -104,7 +105,7 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
   }
 
   const branch = existingBranch || `codex/${attachment.name}`; // Only Codex's may be detached.
-  const claimed = await claim({ ...context, branch }, id, reason);
+  const claimed = await claim({ ...context, folder, branch }, id, reason);
   if (!claimed.ok) return claimed; // Another session may have claimed since preparation.
   // A claim this session took elsewhere while checking must not be retargeted or released.
   if (claimed.alreadyHeld) return { ok: false, refused: "yours", claim: claimed.claim };

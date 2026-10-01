@@ -1,5 +1,0 @@
-$env:CODEX_HOME = "$HOME\st-codexharden\home-LABEL"
-Set-Location -LiteralPath "$HOME\CH Live LABEL"
-# Stands in for the user's trust: --dangerously-bypass-hook-trust runs the hooks untrusted, which only a test may do.
-$null | codex exec --skip-git-repo-check --approve-for-me --dangerously-bypass-hook-trust "Reply with the single word ok. Do not call any tool." 2>&1 | Select-String -Pattern '^hook:' | Out-String
-"--- note in the storytree home: $(Test-Path "$HOME\.storytree\0.3\codex-hooks-ran")"

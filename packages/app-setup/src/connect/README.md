@@ -49,3 +49,8 @@ Failure for any selected agent exits nonzero while reporting each result. Missin
 invalid delivery metadata names the installer as the recovery path. This adds no second
 installer or setup check. See the [join evidence](../../evidence/join/README.md) and
 [connection evidence](../../evidence/connect/README.md) for proofs and acceptance limits.
+
+A dev build has no installed helper, so `storytree setup connect` refuses there. To connect a dev build's own
+commands to a throwaway home instead (its own HOME, CODEX_HOME, CLAUDE_CONFIG_DIR, storytree home and Postgres),
+run `pnpm --filter @storytree/app-setup dev-home <dir> --codex [--claude]`, source the `env.sh` it writes, and
+remove it with `dev-home <dir> --remove`. See the [dev home evidence](../../evidence/dev-home/README.md).

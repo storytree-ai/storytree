@@ -1,6 +1,0 @@
-& "$HOME\.storytree\0.3\bin\storytree.cmd" app quit
-Start-Sleep 5
-"storytree processes after quit: $(@(Get-Process storytree-0.3 -EA SilentlyContinue).Count)"
-Start-Process -FilePath "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe" -ArgumentList '--remote-debugging-port=9222'
-Start-Sleep 25
-try { "debug targets: $(((Invoke-WebRequest -UseBasicParsing http://127.0.0.1:9222/json).Content | ConvertFrom-Json | Where-Object type -eq page).title)" } catch { "debug port: $($_.Exception.Message)" }

@@ -1,6 +1,0 @@
-$env:CODEX_HOME = "$HOME\st-codexharden\home-LABEL"
-Set-Location -LiteralPath "$HOME\CH Live LABEL"
-"--- storytree setup connect --codex (desktop session, not elevated):"
-storytree setup connect --codex 2>&1 | Out-String -Width 200
-"--- storytree doctor (desktop session), codex-hooks and elevated lines:"
-storytree doctor 2>&1 | Select-String -Pattern 'Codex|administrator|elevated' | Out-String -Width 300

@@ -164,6 +164,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

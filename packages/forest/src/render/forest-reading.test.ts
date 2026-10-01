@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Timers } from "@storytree/arc-surface";
+import { joinedReads, pageReading, type Timers } from "@storytree/arc-surface";
 import type { AnnotatedTree } from "@storytree/library";
 
 import { forestReading, type ForestReads } from "./forest-reading.js";
@@ -121,4 +121,26 @@ test("the code is surveyed again at most every 10 seconds however often the tree
   assert.equal(surveys, 2);
   assert.deepEqual(drawn.at(-1), survey);
   reading.stop();
+});
+
+test("the forest draws from the page's one reading, and the surfaces hearing it share one read of the tree", async () => {
+  const asked: string[] = [];
+  const reads: ForestReads = {
+    changesSince: async (_project, cursor) => (asked.push(`changes ${cursor}`), { changes: [], cursor }),
+    linesSince: async (_project, cursor) => (asked.push(`lines ${cursor}`), { lines: [], cursor }),
+    projectTree: async () => (asked.push("tree"), await settle(), tree),
+  };
+  const shared = joinedReads(reads);
+  const timers = handTimers();
+  const page = pageReading({ project: "shop", reads: shared, timers });
+  const drawn: AnnotatedTree[] = [];
+  const reading = forestReading({ project: "shop", reads: shared, reading: page, timers, onTree: (read) => drawn.push(read), onError: () => {} });
+  page.subscribe({ onNews: () => shared.projectTree("shop") });
+  await settle();
+  await settle();
+  await timers.tick();
+  assert.deepEqual(drawn, [tree]);
+  assert.deepEqual(asked, ["changes 0", "lines 0", "tree", "changes 0", "lines 0"]);
+  reading.stop();
+  page.stop();
 });

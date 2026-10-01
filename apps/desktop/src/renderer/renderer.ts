@@ -6,15 +6,14 @@
  * smoke check reads. `data-fresh="no"` marks a forest drawn from the tree kept at the last start,
  * shown while the state is still loading. `data-selected` names the story node a click selected.
  */
-import type { Line } from "@storytree/agent-link";
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
 import { mountAppMenu } from "@storytree/app/view";
 import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
-import { workStates, type LiveReading } from "@storytree/arc-surface";
+import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drillDown, forestDrawn, forestReading, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
-import type { AnnotatedTree, Change } from "@storytree/library";
+import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
@@ -50,7 +49,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
 window.addEventListener("beforeunload", () => appMenu.stop());
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined } | undefined;
+let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined } | undefined;
 let current: string | undefined;
 let following: ReturnType<typeof followProjects> | undefined;
 
@@ -111,7 +110,7 @@ async function showForest(name: string): Promise<void> {
   panel.hidden = true;
   content.replaceChildren(holder, panel);
   document.body.dataset.surface = "forest";
-  const mine: NonNullable<typeof showing> = { reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined, tree: undefined };
+  const mine: NonNullable<typeof showing> = { page: undefined, reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined, tree: undefined };
   showing = mine;
   // The surfaces switched on in the settings file (ADR-0750); if they cannot be read, all are on.
   const read = await window.storytree.readSurfaces().catch(() => undefined);
@@ -121,9 +120,14 @@ async function showForest(name: string): Promise<void> {
   // Each is one of the choices the forest declared, or undefined for its default (the app checks it).
   const treeOpening = surfaceSetting(surfaces, "capability-tree", "opening-zoom") as TreeOpening | undefined;
   const globeOpening = surfaceSetting(surfaces, "globe", "opening-zoom") as GlobeOpening | undefined;
-  if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads: window.storytree });
-  const history: Change[] = [];
-  const lines: Line[] = [];
+  // One live reading for every surface on the page, started from the reading kept at the last start
+  // (ADR-0836 D3, D4); the surfaces hearing one news share one read of the tree.
+  const reads = joinedReads(window.storytree);
+  const page = pageReading({ project: name, reads, kept: pageKeptReading(`storytree.page-reading.v1:${name}`) });
+  mine.page = page;
+  const history = () => page.held().changes;
+  const states = keptWorkStates();
+  if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads, reading: page });
   let tree: AnnotatedTree | undefined;
   /**
    * The capability shown below the open story's diagram (ADR-0659 D2): the one clicked, or the one
@@ -146,7 +150,7 @@ async function showForest(name: string): Promise<void> {
     mine.card?.();
     mine.card = undefined;
     const story = document.body.dataset.selected;
-    const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, workStates(lines), history);
+    const drilled = story === undefined || tree === undefined ? undefined : drillDown(tree, story, states, history());
     panel.hidden = drilled === undefined;
     if (story === undefined || drilled === undefined) {
       mine.tree?.close();
@@ -206,7 +210,7 @@ async function showForest(name: string): Promise<void> {
   if (showing !== mine) return view.dispose();
   mine.view = view;
   // Sessions off is a quiet globe: no list, no session tints and no islands lit on hover.
-  if (surfaceOn(surfaces, "sessions")) mine.sessions = mountSessionsList(content, { project: name, reads: window.storytree,
+  if (surfaceOn(surfaces, "sessions")) mine.sessions = mountSessionsList(content, { project: name, reads, reading: page,
     onHighlight: (stories, session) => view.highlight(stories, session), onWisps: wisps => view.showWisps(wisps),
     onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
   core.onSelect(session => mine.sessions?.select(session));
@@ -216,7 +220,7 @@ async function showForest(name: string): Promise<void> {
   const kept = keptTree(name);
   const last = kept.read();
   if (last !== undefined) {
-    view.show(forestScene(last, history, workStates(lines)), new Map(storyNodes(last, history).map(node => [node.id, node.place])));
+    view.show(forestScene(last, history(), states), new Map(storyNodes(last, history()).map(node => [node.id, node.place])));
     showFreshness("Showing the forest as last read. Refreshing…");
   }
   // A read that fails before the first one lands keeps the reading going: the next ask tries again,
@@ -229,15 +233,15 @@ async function showForest(name: string): Promise<void> {
   };
   mine.reading = forestReading({
     project: name,
-    reads: window.storytree,
+    reads,
+    reading: page,
     onTree: (read, news, survey) => {
       if (showing !== mine) return;
       tree = read;
-      history.push(...news.changes);
-      lines.push(...news.lines);
-      const scene = forestScene(tree, history, workStates(lines), survey);
-      view.show(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
-      core.take(history, news.lines);
+      states.add(news.lines);
+      const scene = forestScene(tree, history(), states, survey);
+      view.show(scene, new Map(storyNodes(tree, history()).map(node => [node.id, node.place])));
+      core.take(history(), news.lines);
       sayWhatWasDrawn(forestDrawn(scene));
       if (!panel.hidden) showPanel();
       kept.write(tree);
@@ -264,6 +268,7 @@ function stopShowing(): void {
   showing?.arcs?.stop();
   showing?.reading?.stop();
   showing?.sessions?.stop();
+  showing?.page?.stop();
   showing?.view?.dispose();
   showing = undefined;
   showFreshness(undefined);

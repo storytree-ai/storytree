@@ -3,7 +3,7 @@ import React, { Fragment, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading, SessionWindow } from "@storytree/agent-link";
 import type { Line } from "@storytree/agent-link/readings";
-import { liveReading, pageKept, type LiveReads } from "@storytree/arc-surface";
+import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
 import { atWork, sessionRoster, sessionRows, windowFiles, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
@@ -107,13 +107,15 @@ export function mountSessionsList(container: HTMLElement, options: {
   onRoster?(roster: readonly RosterEntry[]): void;
   /** A row was clicked: select its session, or undefined to go back to every session (ADR-0738 D5). */
   onSelect?(session: string | undefined): void;
+  /** The page's one live reading, which the list hears; without it the list reads for itself. */
+  reading?: PageReading;
 }) {
   const host = document.createElement("div");
   container.append(host);
   const root = createRoot(host);
   let tree: AnnotatedTree | undefined;
   let arcs: readonly ArcView[] | undefined;
-  let lines: Line[] = [];
+  let lines: readonly Line[] = [];
   // The rows last drawn for this project, shown marked as refreshing until the first read lands.
   const kept = pageKept(`storytree.forest.sessions.v1:${options.project}`, isSessionRows);
   let rows: SessionRow[] = kept.read() ?? [];
@@ -191,7 +193,9 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (ask) askReadings();
   };
   draw();
-  const reading = liveReading({ project: options.project, reads: options.reads,
+  const own = options.reading === undefined ? pageReading({ project: options.project, reads: options.reads }) : undefined;
+  const page = options.reading ?? own!;
+  const stopHearing = page.subscribe({
     async onNews(news) {
       let nextTree = tree;
       let nextArcs = arcs;
@@ -202,7 +206,8 @@ export function mountSessionsList(container: HTMLElement, options: {
       if (stopped) return;
       tree = nextTree;
       arcs = nextArcs;
-      lines = [...lines, ...news.lines];
+      // The page reading holds the log once for every surface, thinned to what they read (ADR-0836 D4).
+      lines = page.held().lines;
       refresh(new Date());
     },
     onClock(now) { refresh(new Date(now)); },
@@ -216,7 +221,8 @@ export function mountSessionsList(container: HTMLElement, options: {
     select(session: string | undefined) { selected = session; draw(); },
     stop() {
       stopped = true;
-      reading.stop();
+      stopHearing();
+      own?.stop();
       options.onHighlight(undefined);
       root.unmount();
       host.remove();

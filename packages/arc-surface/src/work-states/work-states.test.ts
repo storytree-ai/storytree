@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import type { Line, NewLine } from "@storytree/agent-link";
 
-import { workStates } from "./work-states.js";
+import { keptWorkStates, workStates } from "./work-states.js";
 
 /** A project's agent activity log, as linesSince hands it out. */
 class Log {
@@ -78,4 +78,17 @@ test("1.3 a story is planned while every part is planned or it has none, landed 
 
   log.claim("s1", "cap_b").land("s1", "cap_b");
   assert.equal(workStates(log.lines).story(parts), "landed");
+});
+
+test("work states kept as the lines arrive read the same as work states over every line, without reading the old lines again", () => {
+  const log = new Log().claim("s1", "cap_a").claim("s1", "cap_b");
+  const kept = keptWorkStates();
+  kept.add(log.lines);
+  const seen = log.lines.length;
+  log.land("s1", "cap_a").claim("s2", "cap_c");
+  const fresh = log.lines.slice(seen);
+  kept.add(fresh);
+  const whole = workStates(log.lines);
+  for (const part of ["cap_a", "cap_b", "cap_c", "cap_d"]) assert.equal(kept.part(part), whole.part(part));
+  assert.equal(kept.story(["cap_a", "cap_b"]), whole.story(["cap_a", "cap_b"]));
 });

@@ -4,12 +4,13 @@ import { pageKept } from "../live-reading/kept.js";
 import type { BoardScope } from "../board/board.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
+import type { PageReading } from "../live-reading/page-reading.js";
 import { renderBoard, renderHandle } from "./render.js";
 import { readPreferences, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { open(): void; close(): void; stop(): void }
 /** A nonmodal top drawer: its host and the forest below keep receiving input. */
-export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers }): ArcSurface {
+export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
   root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" hidden>${renderHandle(options.project, true)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;

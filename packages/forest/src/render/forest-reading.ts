@@ -4,7 +4,7 @@
  * of its code (capability 8), when the host can read the code. The tree never waits for the survey:
  * it is drawn with the last survey, and drawn again when a newer one lands (ADR-0836 D2).
  */
-import { ASK_EVERY_MS, liveReading, type LiveReading, type LiveReads, type News, type Timers } from "@storytree/arc-surface";
+import { ASK_EVERY_MS, pageReading, type LiveReading, type LiveReads, type News, type PageReading, type Timers } from "@storytree/arc-surface";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorySurvey } from "../code-survey/code-survey.js";
@@ -26,6 +26,8 @@ export interface ForestReadingOptions {
   /** Called once a minute with the time. */
   onClock?(now: number): void;
   timers?: Timers;
+  /** The page's one live reading, which the forest hears; without it the forest reads for itself. */
+  reading?: PageReading;
 }
 
 /** How often, at most, the code is surveyed again: the land may lag the checkout by this much (ADR-0836 D2). */
@@ -67,7 +69,7 @@ const pageTimers: Timers = {
  * once the library answers. The live reading takes one news at a time, in order, so a slow tree read
  * never draws over a newer one.
  */
-export function forestReading({ project, reads, onTree, onError, onClock = () => {}, timers = pageTimers }: ForestReadingOptions): LiveReading {
+export function forestReading({ project, reads, onTree, onError, onClock = () => {}, timers = pageTimers, reading: page }: ForestReadingOptions): LiveReading {
   let tree: AnnotatedTree | undefined;
   let survey: Survey = {};
   let stopped = false;
@@ -77,10 +79,8 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
     survey = next;
     if (tree !== undefined) Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey)).catch(onError);
   }, timers);
-  const reading = liveReading({
-    project,
-    reads,
-    timers,
+  const own = page === undefined ? pageReading({ project, reads, timers }) : undefined;
+  const stopHearing = (page ?? own!).subscribe({
     onNews: async (news) => {
       if (tree === undefined || news.changes.length > 0) {
         tree = await reads.projectTree(project);
@@ -95,7 +95,8 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
     stop() {
       stopped = true;
       pacing.stop();
-      reading.stop();
+      stopHearing();
+      own?.stop();
     },
   };
 }

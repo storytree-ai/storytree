@@ -163,7 +163,8 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
     take(history, lines) {
       reads.add(lines);
       for (const { seq } of lines) clock = Math.max(clock, seq);
-      store.set({ history: [...history], version: state.version + 1 });
+      // The same history again keeps its knowledge: only lines came (ADR-0836 D1).
+      store.set({ history: history.length === state.history.length ? state.history : [...history], version: state.version + 1 });
     },
     dispose() {
       if (windowTimer !== undefined) clearInterval(windowTimer);

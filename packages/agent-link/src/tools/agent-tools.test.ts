@@ -120,12 +120,19 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
     const before = await library.history({ id: story.id });
     const url = new URL(testServerUrl());
     url.pathname = `/${projectDatabase(project)}`;
-    const pool = new pg.Pool({ connectionString: url.href });
-    const blocker = await pool.connect();
+    const blocker = new pg.Client({ connectionString: url.href });
+    const observer = new pg.Client({ connectionString: url.href });
+    const openConnections = new Set<pg.Client>();
+    for (const connection of [blocker, observer]) {
+      connection.once("connect", () => openConnections.add(connection));
+      connection.once("end", () => openConnections.delete(connection));
+    }
     const tools = createAgentTools({ folder, dataDir: testServerDataDir(), env: { CLAUDE_CODE_SESSION_ID: "cancelled-writer" } });
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: "claude-code", version: "test" });
     try {
+      await blocker.connect();
+      await observer.connect();
       await tools.server.connect(serverSide);
       let cancellationReceived = false;
       const receive = serverSide.onmessage!;
@@ -143,7 +150,7 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       // Observe a real queued writer, not a sleep that guesses when it reached the lock.
       const deadline = Date.now() + 10_000;
       while (true) {
-        const waiting = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'");
+        const waiting = await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'");
         if (waiting.rowCount) break;
         assert.ok(Date.now() < deadline, "the MCP edit reached the project's write lock");
         await delay(10);
@@ -164,11 +171,12 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       assert.deepEqual((await library.get(story.id))?.fields, { title: "Wanted edit" });
       assert.equal((await library.history({ id: story.id })).at(-1)?.actor, "session:cancelled-writer");
     } finally {
-      await blocker.query("ROLLBACK");
-      blocker.release();
+      // Client.end waits for the socket to close (and releases any held lock). Pool.end
+      // returns before idle sockets close, so DROP DATABASE ... FORCE could overtake them.
+      await Promise.all([blocker.end(), observer.end()]);
       await client.close();
       await tools.close();
-      await pool.end();
+      assert.equal(openConnections.size, 0, "test connections have ended before the project is force-dropped");
     }
   });
 });

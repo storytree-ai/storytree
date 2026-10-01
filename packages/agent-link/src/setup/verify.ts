@@ -4,6 +4,8 @@
  * a storytree tool (check_setup's own call fires it), a file edit and a command, each written by a
  * hook. Until then each missing one is named, with its fix.
  */
+import path from "node:path";
+
 import type { Line } from "../activity/index.js";
 
 /** The four hooks a session's setup is verified by, in the order they fire. */
@@ -48,6 +50,22 @@ export function verifyHooks(lines: readonly Line[], session: string, harness: st
 }
 
 /**
+ * Where `session`'s agent wrote the check file, as its edit hook reported it (8.20): its own folder,
+ * which in a worktree is not the tool server's. A path the harness gave relative is to that folder.
+ */
+export function checkFilesWritten(lines: readonly Line[], session: string): string[] {
+  const written = new Set<string>();
+  for (const line of lines) {
+    if (line.session !== session || line.source !== "hook" || line.kind !== "file-edited") continue;
+    for (const file of line.files) {
+      const where = line.folder === undefined ? file : path.resolve(line.folder, file);
+      if (path.isAbsolute(where) && path.basename(where) === CHECK_FILE) written.add(where);
+    }
+  }
+  return [...written];
+}
+
+/**
  * The one step that lets Codex run storytree's hooks, in words for the user: shown at connect, in the
  * app and by the setup check alike (8.16). Codex asks by itself when it starts; /hooks asks again.
  */
@@ -62,6 +80,6 @@ export const FIX_SENTENCES: Readonly<Record<Fix, string>> = {
     `Codex runs storytree's hooks only once the user has trusted them, so until then storytree cannot see this session's work. Tell the user, in these words: ${CODEX_TRUST_STEP}`,
   "codex-elevated":
     "This Codex runs as administrator (it was started from an elevated terminal), and Codex cannot run commands there: its Windows sandbox times out on every one, so storytree never hears them. Tell the user: close this Codex, open a normal terminal (not \"Run as administrator\"), and start Codex from there.",
-  "edit-check-file": `To fire the edit hook, write any text to the file ${CHECK_FILE} in this folder.`,
+  "edit-check-file": `To fire the edit hook, write any text to the file ${CHECK_FILE} in this folder with your own file-editing tool, not a shell command, which storytree hears only as a command; check_setup deletes the file once storytree has received the edit.`,
   "run-check-command": `To fire the command hook, run the command \`${CHECK_COMMAND}\`.`,
 };

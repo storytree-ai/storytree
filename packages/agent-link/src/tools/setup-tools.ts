@@ -4,14 +4,13 @@
  * calls only when the user asks for storytree in this folder (ADR-0752 D2). Unlike the other tools they work in a
  * folder that is not a project yet, and open storytree when it is closed.
  */
-import { existsSync, rmSync } from "node:fs";
-import path from "node:path";
+import { rmSync } from "node:fs";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import { findProject, notAProjectYet, setUpProject, starterRolesIn, suggestProjectName } from "../routing/index.js";
-import { CHECK_FILE, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
+import { checkFilesWritten, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { lineOf, metaOf, seenCaller, type Caller } from "./server.js";
@@ -68,9 +67,15 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
         const { lines } = await log.since(report.project.name, 0);
         const verification = verifyHooks(lines, caller.session, caller.harness, report.machine);
+        // The check file's work is done once its edit has arrived (8.20): it goes from where the agent wrote it.
+        for (const file of checkFilesWritten(lines, caller.session)) {
+          try {
+            rmSync(file, { force: true });
+          } catch {
+            // Left for the agent: a file that cannot go never fails the check.
+          }
+        }
         if (verification.verified) {
-          const checkFile = path.join(folder, CHECK_FILE);
-          if (existsSync(checkFile)) rmSync(checkFile, { force: true });
           said.push("The connection is verified: storytree has received this session's start, a storytree tool call, a file edit and a command from its hooks.");
         } else {
           said.push(`Not verified yet: storytree has not received this session's ${verification.missing.join(", ")} from its hooks.`);

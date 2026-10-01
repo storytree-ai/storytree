@@ -45,7 +45,8 @@
 // and then dies at its first connection to Postgres, which reads as a flaky test.
 //
 // No unit can hang the run (unit-run.mjs): a test fails at 60 s, a unit's process tree is
-// killed at its deadline and its row names the tests still running, and the run goes on to the next
+// killed at its deadline and its row names the tests still running (or within 20 s, naming the
+// file, when a file's tests have all ended but its process does not exit), and the run goes on to the next
 // unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
 // default ~/.storytree/0.3), and its deadline is learned from that history: twice its slowest recent
 // pass, 3 min until it has five, doubled after each kill since it last passed, at most 15 min. Each
@@ -191,7 +192,7 @@ async function runHeavy(units) {
 async function runTests(env, units) {
   if (units === undefined) {
     const run = await runNodeTest(env, []);
-    if (run.timedOut) console.log(`\ntest harness: the named files ${unitReason(run, root)}`);
+    if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: the named files ${unitReason(run, root)}`);
     return run.code;
   }
   const results = Object.fromEntries(units.map((unit) => [unit, "not run"]));
@@ -205,7 +206,7 @@ async function runTests(env, units) {
     results[unit] = run.code === 0 ? "pass" : "fail";
     reasons[unit] = unitReason(run, root);
     timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut };
-    if (run.timedOut) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
+    if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
   }
   writeRecord(results);
   try {

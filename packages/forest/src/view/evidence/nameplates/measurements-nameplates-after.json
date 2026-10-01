@@ -1,0 +1,76 @@
+{
+  "label": "nameplates-after",
+  "errors": [],
+  "opening": [
+    {
+      "story": "The app",
+      "below": true,
+      "under": true,
+      "gap": 12
+    },
+    {
+      "story": "The website",
+      "below": true,
+      "under": true,
+      "gap": 6
+    },
+    {
+      "story": "The world",
+      "below": true,
+      "under": true,
+      "gap": 6
+    },
+    {
+      "story": "The local database",
+      "below": true,
+      "under": true,
+      "gap": 2
+    },
+    {
+      "story": "The dev loop",
+      "below": true,
+      "under": true,
+      "gap": 6
+    }
+  ],
+  "afterDrags": [
+    {
+      "story": "The website",
+      "below": true,
+      "under": true,
+      "gap": 6
+    },
+    {
+      "story": "The world",
+      "below": true,
+      "under": true,
+      "gap": 7
+    },
+    {
+      "story": "The local database",
+      "below": true,
+      "under": true,
+      "gap": 1
+    },
+    {
+      "story": "The dev loop",
+      "below": true,
+      "under": false,
+      "gap": 17
+    }
+  ],
+  "selected": {
+    "story": "The world",
+    "capabilityPlates": [
+      "1 · Scene layout",
+      "2 · Island ground",
+      "3 · Props and dressing",
+      "4 · Hit targets",
+      "5 · The canvas",
+      "6 · The planet"
+    ],
+    "dimmedOthers": 13
+  },
+  "openingSummary": "5 of 5 plates on show hang below and under their island",
+  "afterDragsSummary": "3 of 4 plates on show hang below and under their island"
+}

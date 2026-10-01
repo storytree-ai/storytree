@@ -1,0 +1,81 @@
+{
+  "label": "nameplates-before",
+  "errors": [],
+  "opening": [
+    {
+      "story": "The agent link",
+      "below": false,
+      "under": false,
+      "gap": -61
+    },
+    {
+      "story": "The app",
+      "below": false,
+      "under": false,
+      "gap": -110
+    },
+    {
+      "story": "The website",
+      "below": false,
+      "under": true,
+      "gap": -74
+    },
+    {
+      "story": "The world",
+      "below": false,
+      "under": true,
+      "gap": -187
+    },
+    {
+      "story": "The local database",
+      "below": false,
+      "under": false,
+      "gap": -45
+    },
+    {
+      "story": "The dev loop",
+      "below": false,
+      "under": false,
+      "gap": -102
+    }
+  ],
+  "afterDrags": [
+    {
+      "story": "The library",
+      "below": true,
+      "under": true,
+      "gap": 0
+    },
+    {
+      "story": "The website",
+      "below": false,
+      "under": false,
+      "gap": -82
+    },
+    {
+      "story": "The world",
+      "below": false,
+      "under": true,
+      "gap": -178
+    },
+    {
+      "story": "The local database",
+      "below": false,
+      "under": false,
+      "gap": -37
+    },
+    {
+      "story": "The dev loop",
+      "below": false,
+      "under": false,
+      "gap": -84
+    }
+  ],
+  "selected": {
+    "story": "The world",
+    "capabilityPlates": [],
+    "dimmedOthers": 0
+  },
+  "openingSummary": "0 of 6 plates on show hang below and under their island",
+  "afterDragsSummary": "1 of 5 plates on show hang below and under their island"
+}

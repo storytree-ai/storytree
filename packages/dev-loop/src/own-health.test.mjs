@@ -176,10 +176,12 @@ test("contractsCoveredBy reads only test titles: a comment or a fixture string n
       'const TITLE = "1.4 · titled through a constant";',
       'test("1.1 · a test", () => {});',
       "test(TITLE, () => {});",
+      'const SHARED = "1.6 · titled through a template";',
+      "test(`${SHARED} (one way)`, () => {});",
       'contract(\n  "1.5", "titled through a helper", () => {});',
     ].join("\n"),
   );
-  assert.deepEqual([...contractsCoveredBy(file, { root: directory })].sort(), ["1.1", "1.4", "1.5"]);
+  assert.deepEqual([...contractsCoveredBy(file, { root: directory })].sort(), ["1.1", "1.4", "1.5", "1.6"]);
 });
 
 test("contractsCoveredBy finds the contract numbers a test file names, in itself and in the modules it imports", () => {

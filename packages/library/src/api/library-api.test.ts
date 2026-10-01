@@ -73,6 +73,7 @@ const LIBRARY_API = [
   "recordVerified",
   "health",
   "healthHistory",
+  "healthWorklist",
   "recordDecision",
   "numberDecision",
   "numberDecisionsFromFullRecord",

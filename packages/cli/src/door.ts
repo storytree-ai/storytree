@@ -16,7 +16,7 @@
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import { currentBranch, openActivityLog, readClaims, route, thisMachine, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
+import { currentBranch, openActivityLog, openNamedProject, readClaims, route, thisMachine, type ActivityLog, type Claim, type ClaimContext } from "@storytree/agent-link";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
@@ -262,7 +262,7 @@ class Opened {
 
   async #open(): Promise<Library> {
     const where = this.#routed();
-    return (await this.#server()).openProject(where.project);
+    return openNamedProject(await this.#server(), where.project);
   }
 
   /** The connection to the library where routing says it is: the app's local database, or the Cloud SQL instance the user set. */

@@ -164,6 +164,7 @@ test("3.6 a deleted project leaves no activity behind and leaves every computer'
   const log = await openActivityLog(library);
   t.after(() => log.close());
   await log.append(name, { session: `old-${token}`, source: "tool", kind: "claimed", capability: `capability_${token}`, reason: "left behind" });
+  await log.append(name, { session: `old-${token}`, source: "tool", kind: "released", capability: `capability_${token}` });
   await log.transcripts.store(name, `old-${token}`, [{ part: "", start: 0, finish: 3, record: "{}\n" }]);
   assert.equal((await removeProject(name, { home: other, library })).status, "removed", "another computer hid it");
   writeFileSync(path.join(home, "project-choice.json"), JSON.stringify({ current: "elsewhere" }));

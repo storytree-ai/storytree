@@ -177,7 +177,9 @@ export async function inWorld(command: BuiltCommand, body: (world: World) => Pro
     for (const made of [folder, elsewhere, home, stoppedHome]) mkdirSync(made, { recursive: true });
     writeFileSync(path.join(folder, ".storytree.json"), `${JSON.stringify({ project })}\n`);
     copyFileSync(`${testServerDataDir()}.owner.json`, path.join(home, "pgdata.owner.json"));
-    let opened: Promise<Library> | undefined;
+    // The folder names a project that is set up: a folder never makes its project by being opened.
+    const opened: Promise<Library> = storytreeServer.openProject(project);
+    await opened;
     await body({
       project,
       folder,
@@ -185,7 +187,7 @@ export async function inWorld(command: BuiltCommand, body: (world: World) => Pro
       home,
       stoppedHome,
       run: (args, env) => storytree(command.script, args, { cwd: folder, home, ...(env === undefined ? {} : { env }) }),
-      library: () => (opened ??= storytreeServer.openProject(project)),
+      library: () => opened,
     });
   } finally {
     await storytreeServer.close();

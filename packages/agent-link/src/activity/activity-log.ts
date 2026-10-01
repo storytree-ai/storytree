@@ -29,7 +29,7 @@ import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, type TranscriptRecords } from "
 /** The database the log lives in, on the same server as the projects' libraries. */
 export const ACTIVITY_DATABASE = "storytree-activity";
 
-/** The agent activity log on one Postgres server: one log per project, only ever added to. */
+/** The agent activity log on one Postgres server: one log per project, only ever added to until the project is deleted. */
 export interface ActivityLog {
   /** Add a line to `project`'s log, and return it as the log keeps it. A line that is not one the log knows is refused. */
   append(project: string, line: NewLine, options?: AppendOptions): Promise<Line>;
@@ -136,6 +136,32 @@ export async function openActivityLog(server: string | Storytree, options: OpenO
     return new PgActivityLog(pool, options.machine, false, options.branchOf);
   }
   return openAtUrl(new URL(server), options);
+}
+
+/**
+ * Delete `project`'s lines and transcripts from the log on `server` (ADR-0831): deleting a project
+ * deletes its records, and these are its records in the shared log, so a later project of the same
+ * name starts with no old claims, sessions or lines. Held under the project's lock, as a write is.
+ */
+export async function forgetProjectActivity(server: Storytree, project: string): Promise<void> {
+  assertProject(project);
+  const pool = await server.ownDatabase(ACTIVITY_DATABASE);
+  await applySchema(pool);
+  const client = await pool.connect();
+  let broken = false;
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
+    for (const table of ["activity", "transcript_records", "transcript_readings"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {
+      broken = true;
+    });
+    throw error;
+  } finally {
+    client.release(broken);
+  }
 }
 
 async function openAtUrl(server: URL, options: OpenOptions): Promise<ActivityLog> {

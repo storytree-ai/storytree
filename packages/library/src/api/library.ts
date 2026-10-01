@@ -10,7 +10,7 @@
  */
 import type { AnnotatedTree, HealthEntry, HealthWorkItem, HealthOptions, HealthState, NodeHealth } from "../health/index.js";
 import type { DecisionNumberPlan, DecisionView, Findable, NewDecision, NewDefinition, NewKnowledge, Note, NoteEdit, Ranked, RankOptions, Related, RelatedOptions } from "../knowledge/index.js";
-import { connect as connectServer, type ConnectOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
+import { connect as connectServer, type ConnectOptions, type OpenOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
@@ -41,12 +41,14 @@ import type {
 /** A connection to one Postgres server and the storytree projects on it. */
 export interface Storytree {
   /**
-   * Open the library of the project called `name`, creating its database the first time. A name
+   * Open the library of the project called `name`, creating its database the first time, or, with
+   * `create: false`, only if its database is there: a project deleted from the library is refused
+   * (ProjectGoneError), never made again by being opened. A name
    * that breaks the project-name rule is refused (ProjectNameError) before anything touches the
    * server. A server user that may not create databases borrows a role granted to it that may;
    * with none to borrow, it is refused (ConnectionError) with the two lines that grant one.
    */
-  openProject(name: string): Promise<Library>;
+  openProject(name: string, options?: OpenOptions): Promise<Library>;
   /** The names of the storytree projects on the server, sorted. No other database is listed. */
   listProjects(): Promise<string[]>;
   /**
@@ -349,8 +351,8 @@ class ServerHandle implements Storytree {
     this.#server = server;
   }
 
-  async openProject(name: string): Promise<Library> {
-    return new LibraryHandle(await this.#server.openProject(name));
+  async openProject(name: string, options?: OpenOptions): Promise<Library> {
+    return new LibraryHandle(await this.#server.openProject(name, options));
   }
 
   listProjects(): Promise<string[]> {

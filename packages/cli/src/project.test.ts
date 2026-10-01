@@ -1,6 +1,7 @@
 /** Removing a project from a terminal: a thin front door onto the app setup's own removal. */
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { connect } from "@storytree/library";
@@ -52,6 +53,31 @@ test("3.6: project delete says who loses the records and needs the name typed; r
     const after = await connect({ url: testServerUrl() });
     try {
       assert.equal((await after.listProjects()).includes(project), false);
+    } finally {
+      await after.close();
+    }
+  });
+});
+
+test("a folder whose project was deleted (from another computer) is refused by a command run there, saying so, and the project is not made again", async () => {
+  await inWorld(command, async ({ project, folder, elsewhere, home, run }) => {
+    const server = await connect({ url: testServerUrl() });
+    try {
+      await server.openProject(project);
+    } finally {
+      await server.close();
+    }
+    const deleted = await storytree(command.script, ["project", "delete", project, "--confirm", project, "--no-snapshot"], { cwd: elsewhere, home });
+    assert.equal(deleted.code, 0, deleted.stderr);
+    writeFileSync(path.join(folder, ".storytree.json"), `${JSON.stringify({ project })}\n`); // the other computer's folder still names it
+
+    const listed = await run(["arc", "list"]);
+    assert.notEqual(listed.code, 0);
+    assert.match(listed.stderr, /deleted/);
+    assert.match(listed.stderr, /\.storytree\.json/);
+    const after = await connect({ url: testServerUrl() });
+    try {
+      assert.equal((await after.listProjects()).includes(project), false, "nothing made again");
     } finally {
       await after.close();
     }

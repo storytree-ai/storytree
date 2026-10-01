@@ -7,7 +7,7 @@
  */
 import { connect, ConnectionError, type ConnectOptions, type Library, type Storytree } from "@storytree/library";
 
-import { withConnectTimeout } from "../routing/index.js";
+import { openNamedProject, withConnectTimeout } from "../routing/index.js";
 
 import { currentBranch, openActivityLog, thisMachine, type ActivityLog } from "../activity/index.js";
 
@@ -43,7 +43,7 @@ export class Connections {
     const log = (this.#log ??= forgetOnFailure(opened(), () => (this.#log = undefined)));
     let opening = this.#libraries.get(project);
     if (opening === undefined) {
-      opening = forgetOnFailure(storytree.openProject(project), () => this.#libraries.delete(project));
+      opening = forgetOnFailure(openNamedProject(storytree, project), () => this.#libraries.delete(project));
       this.#libraries.set(project, opening);
     }
     try {

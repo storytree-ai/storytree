@@ -123,6 +123,7 @@ const RUNTIME_EXPORTS = [
   "MissingUpgradeError",
   "NewerSchemaError",
   "NumberTakenError",
+  "ProjectGoneError",
   "ProjectNameError",
   "RestoreRefusedError",
   "RetireRefusedError",

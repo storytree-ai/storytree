@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
 import { saveForestSnapshot, forestSnapshot } from "./forest-snapshot.js";
+import { refreshForest } from "./refresh-forest.js";
 
 const health = { reported: { state: "passing" }, verified: { state: "not-checked" } } as const;
 const plan = {
@@ -31,6 +32,21 @@ test("3.1 · refresh saves only public drawing fields with capture time and agen
   assert.equal(saved.scene.islands[0].trees[0].form, "green");
   assert.deepEqual(saved.spots[0], ["story_example", { x: 0, y: 0, z: 1 }]);
   assert.doesNotMatch(JSON.stringify(saved), /PRIVATE_|verified|credential|session|description/);
+});
+
+test("3.1 · refresh draws the selected plan with its history and work states, captured now", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "website-snapshot-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "forest.json");
+  const asked: unknown[] = [];
+  await refreshForest(file, {
+    library: { projectTree: async () => plan, changesSince: async (cursor) => (asked.push(cursor), { changes: [] }) },
+    activity: { since: async (project, cursor) => (asked.push(project, cursor), { lines: [] }) },
+  }, () => new Date("2026-10-01T00:00:00.000Z"));
+  const saved = JSON.parse(await readFile(file, "utf8"));
+  assert.equal(saved.capturedAt, "2026-10-01T00:00:00.000Z");
+  assert.equal(saved.scene.islands[0].story, "story_example");
+  assert.deepEqual(asked, [0, "storytree", 0], "the whole history and the selected project's whole activity log");
 });
 
 test("3.2 · a failed refresh leaves the last saved scene byte-for-byte intact", async (t) => {

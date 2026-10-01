@@ -1,0 +1,12 @@
+The sign-up form is built, and its 14 tests pass with `npm test`. I haven't opened `index.html` in a browser. Nothing is committed yet.
+
+- **`index.html`**: a form with name, email, password and confirm-password fields. Each field has an inline error message, and a "Thanks, you're signed up." message appears after a valid submit.
+- **`src/validate.js`**: the validation rules. Name is required, the email must look valid, and the password needs at least 8 characters including a digit. The confirmation must match.
+- **`src/form.js`**: connects the form to the validation and shows the errors.
+- **Tests**: `test/validate.test.js` and `test/form.test.js`.
+
+Nothing is sent anywhere on submit; the page only shows the thank-you message. You'll need to say where the account should be created.
+
+To try it, serve the folder (for example `npx serve .`) and open `index.html`. The page loads ES modules, so opening the file directly may be blocked by the browser.
+
+I used plain JS with Node's built-in test runner and no dependencies, since the repo was empty. I also recorded the story and its validation capability in storytree and marked the capability landed and built.

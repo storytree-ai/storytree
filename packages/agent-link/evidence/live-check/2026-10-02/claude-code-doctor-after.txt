@@ -1,0 +1,11 @@
+storytree is running.
+Hooks for Claude Code: registered.
+Hooks for Codex: registered.
+Codex runs storytree's hooks: one has reached storytree since they were registered.
+This folder is storytree project "st-live-claude-code-1627".
+Hooks last seen firing: 2026-10-01T16:28:18.181Z, from Claude Code.
+The storytree command: on your path.
+GitHub's gh command is not signed in. storytree works without it: only a claim ending by itself when its pull request merges needs it.
+Claude Code is installed and signed in; Codex is installed and signed in.
+git is installed.
+Node v24.19.0 is installed.

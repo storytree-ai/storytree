@@ -70,6 +70,7 @@ const QUIET: StorytreeBridge = {
   linesSince: async (_, cursor) => ({ lines: [], cursor }),
   frontCovers: async () => [],
   relatedNotes: async () => [],
+  standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
 };
 

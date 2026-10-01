@@ -50,3 +50,25 @@ test("1.8 when a row no longer fits round the globe, the radius grows until noth
   }
   assert.deepEqual(growPlanet(set), grown, "the same islands always give the same globe");
 });
+
+test("1.4 after nudging, on storytree's own seven rows at their real sizes, every island sits north of every island in a lower row, and none overlap", () => {
+  // Rows and coast reaches as storytree's library and code gave them on 2026-10-02 (view/evidence/code-rows): seven rows, The world the largest.
+  const rows: [string, number, number][][] = [
+    [["The local database", 26.6], ["Process ledger", 23.3], ["The library", 54.1], ["The world", 102], ["Keys", 13.5]],
+    [["The librarian", 20.4]],
+    [["The agent link", 75.6]],
+    [["The app", 33.5], ["The knowledge core", 31.9], ["The app setup", 28.8]],
+    [["The dev loop", 33.2], ["The arc surface", 26.8]],
+    [["The forest", 37]],
+    [["The command line", 35.5], ["The website", 20]],
+  ].map((row, r) => row.map(([story, reach], slot) => [story as string, placeInRow(r, slot), reach as number]));
+  const set = rows.flat().map(([story, place, reach]): GrowingIsland => ({ story, place, reach }));
+  const grown = growPlanet(set);
+  const latitude = (story: string) => Math.asin(grown.spots.get(story)!.y);
+  rows.forEach((row, r) => rows.slice(0, r).flat().forEach(([below]) => row.forEach(([story]) => {
+    assert.ok(latitude(story) > latitude(below), `${story} (row ${r}) sits north of ${below}`);
+  })));
+  for (let i = 0; i < set.length; i++) for (let j = i + 1; j < set.length; j++) {
+    assert.ok(overlap(set[i]!, set[j]!, grown.spots, grown.radius) <= 1e-6, `${set[i]!.story} and ${set[j]!.story} do not overlap`);
+  }
+});

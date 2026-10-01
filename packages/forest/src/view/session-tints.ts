@@ -37,7 +37,7 @@ export function coastTintMarks(coast: readonly (readonly Point[])[], arcs: reado
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new Float32BufferAttribute(position, 3));
     geometry.setIndex(index);
-    const band = new Mesh(geometry, new MeshBasicMaterial({ color: new Color(arc.colour), transparent: true, opacity: arc.faded ? FADED_OPACITY : TINT_OPACITY, side: DoubleSide, depthWrite: false }));
+    const band = new Mesh(geometry, new MeshBasicMaterial({ color: new Color(arc.colour), transparent: true, opacity: arc.faded ? FADED_OPACITY : TINT_OPACITY, side: DoubleSide, forceSinglePass: true, depthWrite: false }));
     band.name = `coast-tint:${arc.session}`;
     band.userData = { session: arc.session, colour: arc.colour };
     band.renderOrder = 4;

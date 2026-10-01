@@ -84,7 +84,8 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
 /** A territory's fill: its word's colour, or the uncharted-land ink for Unclaimed code. */
 function territoryFill(territory: DrawnLand["territories"][number]): MeshBasicMaterial {
   const fill = territory.capability === undefined ? UNCHARTED_FILL : WORD_FILL[territory.status ?? "untested"];
-  return new MeshBasicMaterial({ color: new Color(fill.colour), transparent: true, opacity: fill.opacity, side: DoubleSide, depthWrite: false });
+  // One pass, as every flat mark on the globe: two would re-derive its shader program twice a frame (ADR-0836 D1).
+  return new MeshBasicMaterial({ color: new Color(fill.colour), transparent: true, opacity: fill.opacity, side: DoubleSide, forceSinglePass: true, depthWrite: false });
 }
 
 /**
@@ -149,7 +150,7 @@ function claimOutline(capability: string, claimant: { colour: string; faded: boo
     const quad = [from, to, { x: to.x + normal.x * CLAIM_INSET, z: to.z + normal.z * CLAIM_INSET }, { x: from.x + normal.x * CLAIM_INSET, z: from.z + normal.z * CLAIM_INSET }];
     return pieces.map((piece) => clipToConvex(quad, piece)).filter((cut) => cut.length >= 3);
   });
-  const outline = new Mesh(fan(band, onSurface), new MeshBasicMaterial({ color: new Color(claimant.colour), transparent: true, opacity: claimant.faded ? FADED_CLAIM_OPACITY : CLAIM_OPACITY, side: DoubleSide, depthWrite: false }));
+  const outline = new Mesh(fan(band, onSurface), new MeshBasicMaterial({ color: new Color(claimant.colour), transparent: true, opacity: claimant.faded ? FADED_CLAIM_OPACITY : CLAIM_OPACITY, side: DoubleSide, forceSinglePass: true, depthWrite: false }));
   outline.name = `territory-claim:${capability}`;
   outline.userData = { claim: true, capability, colour: claimant.colour, faded: claimant.faded };
   outline.raycast = () => {};
@@ -275,7 +276,7 @@ export function lightTerritories(land: Group, lit: ReadonlyMap<string, "in-windo
     mesh.userData.window = state;
     const wear = new Color(colour);
     if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
-    const fill = new Mesh(mesh.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_TERRITORY[state], side: DoubleSide, depthWrite: false }));
+    const fill = new Mesh(mesh.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_TERRITORY[state], side: DoubleSide, forceSinglePass: true, depthWrite: false }));
     fill.name = `territory-lit:${capability}`;
     fill.raycast = () => {};
     fill.userData = { traversal: true };

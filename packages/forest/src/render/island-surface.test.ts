@@ -1,7 +1,7 @@
 /** Story node render 3.8 (ADR-0804 D1): an island is one flat, pale, see-through surface with a coast line. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
+import { DoubleSide, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
 import { workStates } from '@storytree/arc-surface';
 import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from '../index.js';
 import { buildPlanetPathways, islandSurface, PLATE_CLEARANCE } from '@storytree/forest-world/geometry';
@@ -80,4 +80,14 @@ test('3.8 the coast is a thin band centred on every point of the island rim, on 
       assert.ok(Math.abs(a!.distanceTo(centre) - S) < 1e-6 && Math.abs(b!.distanceTo(centre) - S) < 1e-6);
     }
   });
+});
+
+// Three draws a see-through, double-sided material in two passes, re-versioning it before each, so every frame
+// would re-derive its shader program twice (WebGLRenderer's renderObject; ADR-0836 D1).
+test('5.4 an animating globe redraws every island\'s ground and coast without re-deriving a shader program', () => {
+  for (const [story, plate] of plates) {
+    const materials = all(islandSurface(plate.coast, PLANET_RADIUS, story)).map(object => (object as Mesh).material as MeshBasicMaterial);
+    assert.ok(materials.length > 1);
+    assert.deepEqual(materials.filter(material => material.transparent && material.side === DoubleSide && !material.forceSinglePass), []);
+  }
 });

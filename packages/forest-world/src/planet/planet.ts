@@ -1,4 +1,4 @@
-import { DoubleSide, Mesh, Object3D, Quaternion, ShaderMaterial, Sphere, SphereGeometry, Vector3, type Intersection, type Raycaster } from 'three';
+import { BackSide, FrontSide, Mesh, Object3D, Quaternion, ShaderMaterial, Sphere, SphereGeometry, Vector3, type Intersection, type Raycaster, type Side } from 'three';
 import { SHIPPED_ELEVATION_DEG } from '../camera-framing.js';
 import { landHeightRange } from '../land-relief.js';
 import { SHORE_DIP } from '../shore-fall.js';
@@ -35,14 +35,13 @@ export function lightForCamera(camera: Quaternion, target = new Vector3()): Vect
 /** The actual surface mounted by the globe. It admits far land and the future core through it,
  * while retaining ray hits for the page's existing near-side selection and label rule. */
 export function createPlanetSurface(radius: number) {
-  const surface = new Mesh(new SphereGeometry(radius, 96, 64), new ShaderMaterial({
-    transparent: true,
-    depthWrite: false, side: DoubleSide, forceSinglePass: false,
-    uniforms: {
-      opacity: { value: 0.012 },
-      // L1 is fixed in view space; orbiting updates the normal, not this lamp.
-      sunInView: { value: sunInView.clone() },
-    },
+  const uniforms = {
+    opacity: { value: 0.012 },
+    // L1 is fixed in view space; orbiting updates the normal, not this lamp.
+    sunInView: { value: sunInView.clone() },
+  };
+  const face = (side: Side) => new ShaderMaterial({
+    transparent: true, depthWrite: false, side, uniforms,
     vertexShader: `
       varying vec3 shellNormal;
       void main() {
@@ -66,7 +65,13 @@ export function createPlanetSurface(radius: number) {
         gl_FragColor = vec4(colour, alpha);
       }
     `,
-  }));
+  });
+  // The far face blends first, then the near one, as three's own two-pass double-sided draw would; but each
+  // face keeps its own program, where that draw re-versions one material twice a frame (ADR-0836 D1).
+  const geometry = new SphereGeometry(radius, 96, 64);
+  geometry.addGroup(0, geometry.index!.count, 0);
+  geometry.addGroup(0, geometry.index!.count, 1);
+  const surface = new Mesh(geometry, [face(BackSide), face(FrontSide)]);
   surface.name = 'planet:shell';
   return surface;
 }

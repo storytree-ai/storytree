@@ -52,7 +52,7 @@ const Plate = memo(function Plate({ island, spot, radius, plate, children }: {
 
 function Surface({ radius }: { radius: number }) {
   const surface = useMemo(() => createPlanetSurface(radius), [radius]);
-  useEffect(() => () => { surface.geometry.dispose(); surface.material.dispose(); }, [surface]);
+  useEffect(() => () => { surface.geometry.dispose(); for (const face of surface.material) face.dispose(); }, [surface]);
   return <primitive object={surface} />;
 }
 

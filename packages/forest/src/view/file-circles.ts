@@ -24,7 +24,7 @@ export function fileCircleMarks(circles: readonly FileCircleMark[], onSurface: (
   const group = new Group();
   group.name = "file-circles";
   const geometry = new CircleGeometry(1, 32);
-  const material = new MeshBasicMaterial({ color: CIRCLE_COLOUR, transparent: true, opacity: CIRCLE_OPACITY, side: DoubleSide, depthWrite: false });
+  const material = new MeshBasicMaterial({ color: CIRCLE_COLOUR, transparent: true, opacity: CIRCLE_OPACITY, side: DoubleSide, forceSinglePass: true, depthWrite: false });
   for (const circle of circles) {
     const mark = new Mesh(geometry, material);
     const normal = normalAt(circle).clone().normalize();
@@ -89,11 +89,11 @@ export function lightFileCircles(marks: Group, lit: ReadonlyMap<string, CodeStat
     const wear = new Color(colour);
     if (state === "faded") wear.lerp(new Color("#ffffff"), 0.55);
     // Children of the circle, so they lie as flat as it does and grow with it.
-    const fill = traversalMark(new Mesh(mark.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_OPACITY[state], side: DoubleSide, depthWrite: false })), `file-lit:${path}`);
+    const fill = traversalMark(new Mesh(mark.geometry, new MeshBasicMaterial({ color: wear, transparent: true, opacity: LIT_OPACITY[state], side: DoubleSide, forceSinglePass: true, depthWrite: false })), `file-lit:${path}`);
     fill.renderOrder = 4;
     mark.add(fill);
     if (state === "in-window") {
-      const ring = traversalMark(new Mesh(new RingGeometry(RING_INNER, RING_OUTER, 40), new MeshBasicMaterial({ color: IN_VIEW, transparent: true, opacity: 0.95, side: DoubleSide, depthWrite: false })), `file-ring:${path}`);
+      const ring = traversalMark(new Mesh(new RingGeometry(RING_INNER, RING_OUTER, 40), new MeshBasicMaterial({ color: IN_VIEW, transparent: true, opacity: 0.95, side: DoubleSide, forceSinglePass: true, depthWrite: false })), `file-ring:${path}`);
       ring.renderOrder = 5;
       mark.add(ring);
     }

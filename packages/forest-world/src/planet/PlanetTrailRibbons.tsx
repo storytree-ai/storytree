@@ -40,7 +40,7 @@ export function Pathways({ plan }: { plan: PlanetPathways }) {
       <meshBasicMaterial color="#c7bba1" side={DoubleSide} />
     </mesh>
     <mesh name={`pathway-halo:${route.id}`} geometry={halo} raycast={ignoreRay}>
-      <meshBasicMaterial color="#dacaaa" transparent opacity={0.10} depthWrite={false} side={DoubleSide} />
+      <meshBasicMaterial color="#dacaaa" transparent opacity={0.10} depthWrite={false} side={DoubleSide} forceSinglePass />
     </mesh>
   </group>)}</group>;
 }

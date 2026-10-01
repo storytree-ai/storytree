@@ -3,8 +3,10 @@
  * `storytree session close-out --safe yes|no --why <text>` (ADR-0758 D2): the calling agent session
  * records whether it is safe to close, and why. A front door only: the agent link reads the
  * sessions, writes the line and counts the session's own running work.
+ * `storytree session name <title>` (contract 6.32): the calling agent session names its row in the
+ * sessions list; the latest name shows.
  */
-import { closeOut, sessionsListing } from "@storytree/agent-link";
+import { closeOut, nameRefusal, nameSession, sessionsListing } from "@storytree/agent-link";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -31,6 +33,21 @@ const close: Verb = {
   },
 };
 
+const NAME_USAGE = "session name <title>";
+
+const name: Verb = {
+  name: "name",
+  usage: NAME_USAGE,
+  summary: "name this session's row in the sessions list, in 40 characters or fewer; again when the work shifts",
+  async act(args, context) {
+    const title = args.word(0, "the session's name, quoted", NAME_USAGE);
+    if (commandSession() === undefined) throw new Refusal("Run session name from the agent's shell: it names the agent session that runs it.");
+    const answer = await nameSession(await context.claimContext(), title);
+    if (!answer.ok) throw new Refusal(nameRefusal(answer), { code: 2 });
+    return { text: `Named this session "${answer.line.kind === "session-named" ? answer.line.title : title}" in the sessions list.` };
+  },
+};
+
 const list: Verb = {
   name: "list",
   usage: "session list [--all] [--json]",
@@ -48,6 +65,6 @@ const list: Verb = {
 
 export const session: Family = {
   name: "session",
-  summary: "list the running sessions, or close out this one (the agent link's)",
-  verbs: [list, close],
+  summary: "list the running sessions, name this one, or close it out (the agent link's)",
+  verbs: [list, name, close],
 };

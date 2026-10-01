@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { currentBranch } from "../activity/index.js";
 import { closeOut } from "../sessions/close-out.js";
+import { nameRefusal, nameSession, SESSION_NAME_LIMIT } from "../sessions/name.js";
 
 import { readContext } from "../context/index.js";
 import { guidanceSentence } from "../context/guidance.js";
@@ -42,6 +43,18 @@ export function registerContextTools(define: Define, home?: string): void {
       );
       const counted = running === undefined ? "Your own running work could not be counted, so a yes will show as needing the owner." : running === 0 ? "Nothing of yours is running here." : `${running} of your runs still run here: stop them (stop_own_run) and close out again.`;
       return { text: `Closed out: ${safe ? "safe to close" : "not safe to close"} (${why.trim()}). ${counted}`, data: { safe, ...(running === undefined ? {} : { running }) } };
+    },
+  );
+
+  define(
+    "name_session",
+    `Name your session's row in the sessions list: what you are doing, in ${SESSION_NAME_LIMIT} characters or fewer. Name it once you know what you are doing, and again when your work shifts: the latest name shows.`,
+    z.object({ title: z.string().min(1).describe(`What you are doing, in ${SESSION_NAME_LIMIT} characters or fewer`) }),
+    async ({ title }, { log, project, caller, folder }) => {
+      const branch = currentBranch(folder);
+      const answer = await nameSession({ log, project, ...lineOf(caller), folder, ...(branch === undefined ? {} : { branch }) }, title);
+      if (!answer.ok) return { text: nameRefusal(answer), refused: true };
+      return { text: `Your session is named "${answer.line.kind === "session-named" ? answer.line.title : title}" in the sessions list.` };
     },
   );
 }

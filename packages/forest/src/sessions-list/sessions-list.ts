@@ -98,7 +98,8 @@ export function sessionRows(tree: AnnotatedTree, log: readonly Line[] | LogReadi
     for (const increment of heldIncrements) for (const id of increment.fields.touches ?? []) held.add(id);
     const detail = details.get(session.session);
     if (detail?.parentSession) parents.set(session.session, detail.parentSession);
-    const label = own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title
+    // The name a session gave itself comes first (7.18): eventually consistent, the row reads as before until it does.
+    const label = (session.name === undefined ? undefined : fitted(session.name)) || own.find(claim => claim.reason.trim())?.reason.trim() || heldIncrements[0]?.fields.title
       || (session.title === undefined ? workingIn(session.label, lines, session.session, session.worktrees) : fitted(session.title));
     const objective = (heldIncrements[0]?.fields as { objective?: string } | undefined)?.objective?.trim();
     rows.set(session.session, { id: session.session, label,

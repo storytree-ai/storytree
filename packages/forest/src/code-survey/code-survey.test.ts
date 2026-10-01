@@ -28,7 +28,7 @@ const tree = [
 const survey = surveyStory(tree, capabilities);
 const owner = (path: string) => survey.files.find((file) => file.path === path)?.capability;
 
-test("8.1 a file a test titled N.M reaches through any number of imports and re-exports belongs to capability N; when several reach it, the one whose tests reach it most owns it", () => {
+test("8.1 a file a test titled N.M reaches through any number of imports and re-exports belongs to capability N; when several reach it, the one whose tests reach it nearest, then most, owns it", () => {
   assert.equal(owner("src/merges/merge.ts"), "cap-merges");
   assert.equal(owner("src/claims/claim.ts"), "cap-claims");
   assert.equal(owner("src/tools/tool.ts"), "cap-claims");

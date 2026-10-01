@@ -3,9 +3,11 @@
  * capability it belongs to, and the relative imports between them.
  *
  * - A test titled "N.M …" pins capability N of its story. A test file reaches the source files it imports,
- *   and through a re-export (`export … from`) the files that re-export names, so a test of the package's
- *   index reaches what it takes from there. A file belongs to the capability whose numbered tests reach it
- *   most; a tie goes to the lower number.
+ *   every file those import in turn, through any number of ordinary imports (ADR-0838 D2), and through a
+ *   re-export (`export … from`) the files the names it takes come from, so a test of the package's index
+ *   reaches what it takes from there. A file belongs to the capability whose numbered tests reach it
+ *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
+ *   subject stays its own, and a file reached only through others goes to the capability nearest it.
  * - A file no numbered test reaches falls back to its top source folder, when the folder is a capability's
  *   title slug. Otherwise it is Unclaimed: no capability.
  * - Lines are a file's non-blank lines. Test files are read for their titles and imports, never counted.
@@ -90,23 +92,38 @@ function edgesOf(file: SourceFile, paths: ReadonlySet<string>): Edge[] {
   });
 }
 
-/** The source files a test file reaches: what it imports, and through re-exports the files the names it takes come from. */
-function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, paths: ReadonlySet<string>): Set<string> {
-  const found = new Set<string>();
-  const visit = (path: string, wanted: readonly string[] | "all", seen: ReadonlySet<string>): void => {
-    const file = byPath.get(path);
-    if (file === undefined || seen.has(path)) return;
-    found.add(path);
+/**
+ * The source files a test file reaches, each with how near: what it imports (0), and through a re-export
+ * the file the names it takes come from (as near as the file re-exporting them), and every file those
+ * import in turn through any number of ordinary imports (one further for each).
+ */
+function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, paths: ReadonlySet<string>): Map<string, number> {
+  type Step = { readonly path: string; readonly wanted: readonly string[] | "all"; readonly depth: number };
+  /** Each reached file: how near, and the names re-exports were followed for ("all" once every name was). */
+  const taken = new Map<string, { readonly depth: number; names: Set<string> | "all" }>();
+  // Nearest first: a re-export keeps its depth (to the front), an ordinary import is one further (to the back).
+  const queue: Step[] = edgesOf(test, paths).filter((edge) => !edge.typeOnly && !edge.reexport).map((edge) => ({ path: edge.to, wanted: edge.names === "all" ? "all" : edge.names.map(([name]) => name), depth: 0 }));
+  for (let step = queue.shift(); step !== undefined; step = queue.shift()) {
+    const file = byPath.get(step.path);
+    if (file === undefined || TEST_FILE.test(step.path)) continue;
+    const before = taken.get(step.path);
+    if (before?.names === "all") continue;
+    const fresh = step.wanted === "all" ? "all" : step.wanted.filter((name) => before === undefined || !(before.names as Set<string>).has(name));
+    if (before !== undefined && fresh !== "all" && fresh.length === 0) continue;
+    if (before === undefined) taken.set(step.path, { depth: step.depth, names: fresh === "all" ? "all" : new Set(fresh) });
+    else before.names = fresh === "all" ? "all" : new Set([...before.names, ...fresh]);
     for (const edge of edgesOf(file, paths)) {
-      if (!edge.reexport || edge.typeOnly) continue;
-      const onward = edge.names === "all" ? wanted : edge.names.filter(([, as]) => wanted === "all" || wanted.includes(as)).map(([name]) => name);
-      if (onward === "all" || onward.length > 0) visit(edge.to, onward, new Set([...seen, path]));
+      if (edge.typeOnly) continue;
+      // A file that runs runs its own imports, once; a re-export carries only the names asked of it.
+      if (!edge.reexport) {
+        if (before === undefined) queue.push({ path: edge.to, wanted: edge.names === "all" ? "all" : edge.names.map(([name]) => name), depth: step.depth + 1 });
+        continue;
+      }
+      const onward = edge.names === "all" ? fresh : edge.names.filter(([, as]) => fresh === "all" || fresh.includes(as)).map(([name]) => name);
+      if (onward === "all" || onward.length > 0) queue.unshift({ path: edge.to, wanted: onward, depth: step.depth });
     }
-  };
-  for (const edge of edgesOf(test, paths)) {
-    if (!edge.typeOnly && !edge.reexport && !TEST_FILE.test(edge.to)) visit(edge.to, edge.names === "all" ? "all" : edge.names.map(([name]) => name), new Set());
   }
-  return found;
+  return new Map([...taken].map(([path, { depth }]) => [path, depth]));
 }
 
 /** Survey one story's package: every source file with its lines and owner, and the imports between them. */
@@ -120,22 +137,26 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   }));
   const bySlug = new Map(capabilities.map((capability) => [slugOf(capability.title), capability.id]));
 
-  /** For each source file, how many numbered tests of each capability number reach it. */
-  const reach = new Map<string, Map<number, number>>();
+  /** For each source file and capability number, how near that capability's numbered tests reach it, and how many reach it that near. */
+  const reach = new Map<string, Map<number, { depth: number; count: number }>>();
   for (const test of code.filter((file) => TEST_FILE.test(file.path))) {
     const counts = new Map<number, number>();
     for (const [, number] of test.text.matchAll(NUMBERED_TEST)) if (byNumber.has(Number(number))) counts.set(Number(number), (counts.get(Number(number)) ?? 0) + 1);
     if (counts.size === 0) continue;
-    for (const path of reached(test, byPath, paths)) {
-      const tally = reach.get(path) ?? new Map<number, number>();
-      for (const [number, count] of counts) tally.set(number, (tally.get(number) ?? 0) + count);
+    for (const [path, depth] of reached(test, byPath, paths)) {
+      const tally = reach.get(path) ?? new Map<number, { depth: number; count: number }>();
+      for (const [number, count] of counts) {
+        const was = tally.get(number);
+        if (was === undefined || depth < was.depth) tally.set(number, { depth, count });
+        else if (depth === was.depth) was.count += count;
+      }
       reach.set(path, tally);
     }
   }
 
   const sources = code.filter((file) => !TEST_FILE.test(file.path));
   const files = sources.map((file): SurveyedFile => {
-    const tally = [...(reach.get(file.path) ?? [])].sort(([a, countA], [b, countB]) => countB - countA || a - b);
+    const tally = [...(reach.get(file.path) ?? [])].sort(([a, near], [b, far]) => near.depth - far.depth || far.count - near.count || a - b);
     const folder = /^src\/([^/]+)\//.exec(file.path)?.[1];
     const capability = tally.length > 0 ? byNumber.get(tally[0]![0]) : folder === undefined ? undefined : bySlug.get(folder);
     return capability === undefined ? { path: file.path, lines: linesOf(file.text) } : { path: file.path, lines: linesOf(file.text), capability };

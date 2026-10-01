@@ -33,6 +33,8 @@ export interface PlanetWorldCanvasProps {
   inside?: ReactNode;
   /** How many radii half the short side spans: 1.18 by default, the planet filling 85% of it. */
   framing?: number | undefined;
+  /** False keeps the eye where it is, zooming only, for a host that turns the globe itself. */
+  orbit?: boolean;
 }
 
 const Plate = memo(function Plate({ island, spot, radius, plate, children }: {
@@ -68,7 +70,7 @@ function Framing({ radius, framing }: { radius: number; framing: number }) {
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, inside, framing = 1.18 }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, inside, framing = 1.18, orbit = true }: PlanetWorldCanvasProps) {
   const drawing = useMemo(() => planetPathwayDrawing(scene, spots, radius), [scene, spots, radius]);
   const pathways = drawing.plan;
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
@@ -88,7 +90,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
       {surface && <Pathways plan={pathways} />}
       {inside}
     </group>
-    <OrbitControls makeDefault enablePan={false} minZoom={0.1} maxZoom={30} />
+    <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={0.1} maxZoom={30} />
     {children}
     {surface && drawing.issue && <Html fullscreen zIndexRange={[45, 45]} style={{ pointerEvents: 'none' }}>
       <div role="alert" title={drawing.issue} style={{ position: 'absolute', right: 16, bottom: 16,

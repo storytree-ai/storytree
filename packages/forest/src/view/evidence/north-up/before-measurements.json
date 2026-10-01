@@ -1,0 +1,37 @@
+{
+  "readings": [
+    {
+      "after": "opening",
+      "bearing": 0,
+      "towardEye": 0.1
+    },
+    {
+      "after": "drag 90, 0",
+      "bearing": -23,
+      "towardEye": 4.1
+    },
+    {
+      "after": "drag 0, 70",
+      "bearing": -31.1,
+      "towardEye": 26.5
+    },
+    {
+      "after": "drag -140, -50",
+      "bearing": 7.6,
+      "towardEye": 12.5
+    },
+    {
+      "after": "drag 70, 40",
+      "bearing": -2.7,
+      "towardEye": 22.2
+    },
+    {
+      "after": "drag 0, -700",
+      "bearing": -171.8,
+      "towardEye": -40.1
+    }
+  ],
+  "errors": [
+    "TypeError: Cannot read properties of undefined (reading 'map')"
+  ]
+}

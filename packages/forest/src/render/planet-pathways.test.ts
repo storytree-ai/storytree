@@ -2,10 +2,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
-import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from '../index.js';
+import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from '../index.js';
 import { workStates } from '@storytree/arc-surface';
 import type { InstanceDescriptor } from '@storytree/forest-world';
-import { buildPlanetPathways, clipToCoast, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
+import { buildPlanetPathways, clipToCoast, islandCoastReach, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) => ({ id, title: id, dependsOn, proposed: true, status: "proposed" as const, contracts: [], health });
@@ -15,7 +15,7 @@ const tree = { arcs: [], stories: [
   { id: 'c', title: 'C', health, capabilities: [capability('c1', ['a1', 'b2']), capability('c2', ['c1'])] },
 ] };
 const scene = forestScene(tree, [], workStates([]));
-const spots = new Map(tree.stories.map((s, i) => [s.id, placeOnPackedGlobe(i + 1)]));
+const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
 const links = tree.stories.flatMap(s => s.capabilities.flatMap(c => c.dependsOn.map(to => `${c.id}->${to}`))).sort();
 
 test('3.6 every recorded builds-on link has one continuous trail chain, with shared trunks drawn once', () => {

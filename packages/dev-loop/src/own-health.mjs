@@ -97,9 +97,9 @@ function decode(value) {
 
 /**
  * The contract numbers a test file names, in itself and in every module it imports by a relative
- * path, transitively, within `root`: the leading contract list of each string. It is how the contracts a
- * crashed file would have tested are known when the file reported nothing. It may find more than
- * the file tests, never fewer, so a crash can only ever leave too much not checked.
+ * path, transitively, within `root`: the leading contract list of each test title (`titlesIn`). It
+ * is how the contracts a crashed file would have tested are known when the file reported nothing.
+ * It may find more than the file tests, never fewer, so a crash can only ever leave too much not checked.
  * @param {string} file
  * @param {{ root: string }} options
  * @returns {Set<string>}
@@ -118,7 +118,7 @@ export function contractsCoveredBy(file, { root }) {
     } catch {
       continue;
     }
-    for (const [, title] of text.matchAll(/["'`](\d+\.\d+[^"'`\r\n]*)/g)) {
+    for (const title of titlesIn(text)) {
       for (const number of leadingContracts(title)) numbers.add(number);
     }
     for (const [, specifier] of text.matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)) {
@@ -127,6 +127,22 @@ export function contractsCoveredBy(file, { root }) {
     }
   }
   return numbers;
+}
+
+/**
+ * The test titles a source names: each string that is a call's first argument (`test("1.2 …")`,
+ * or a helper's, `contract("2.1", …)`), and each constant's string passed as one (`test(TITLE)`,
+ * or at the start of a template, `test(`${TITLE} (local)`)`).
+ * A comment or any other string is no title, so it covers nothing.
+ * @param {string} text
+ */
+function titlesIn(text) {
+  const titles = [...text.matchAll(/[\w$.]\s*\(\s*["'`](\d+\.\d+[^"'`\r\n]*)/g)].map(([, title]) => title);
+  for (const [, name] of text.matchAll(/[\w$.]\s*\(\s*(?:`\$\{\s*)?([A-Za-z_$][\w$]*)\s*[,)}]/g)) {
+    const constant = text.match(new RegExp(`\\bconst\\s+${name.replaceAll("$", "\\$")}\\s*=\\s*["'\`](\\d+\\.\\d+[^"'\`\\r\\n]*)`));
+    if (constant !== null) titles.push(constant[1]);
+  }
+  return titles;
 }
 
 /** The source file an import names: as written, or its TypeScript twin (`x.js` -> `x.ts`). */

@@ -1,0 +1,52 @@
+{
+  "controls": [
+    {
+      "name": "storytree.",
+      "height": 44
+    },
+    {
+      "name": "Install",
+      "height": 44
+    },
+    {
+      "name": "GitHub ↗",
+      "height": 44
+    },
+    {
+      "name": "Copy command",
+      "height": 44
+    },
+    {
+      "name": "Read the installation notes on GitHub ↗",
+      "height": 44
+    },
+    {
+      "name": "Say hello on LinkedIn ↗",
+      "height": 44
+    },
+    {
+      "name": "storytree.",
+      "height": 44
+    },
+    {
+      "name": "PolyForm Shield License 1.0.0",
+      "height": 44
+    },
+    {
+      "name": "Follow the work ↗",
+      "height": 44
+    }
+  ],
+  "focus": [
+    {
+      "width": 3,
+      "style": "solid",
+      "inside": true
+    },
+    {
+      "width": 3,
+      "style": "solid",
+      "inside": true
+    }
+  ]
+}

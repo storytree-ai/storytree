@@ -13,7 +13,8 @@ import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.j
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
 import { Names, Overlay, SelectionRing } from "./island-overlays.js";
-import { focusRotation, hiddenMarkers, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
+import { focusRotation, hiddenMarkers, oncePerFrame, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
+import { claimsOn } from "./planet-update.js";
 
 export function PlanetView({ core, scene, places, wisps, selected, highlighted, highlightedSession, onPick, onNote, onWispHover, mode = "forest", framing, library = true }: {
   mode?: ForestMode;
@@ -34,7 +35,10 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
   onNote: (note: string) => void;
   onWispHover: (session: string | undefined) => void;
 }) {
-  const layout = useMemo(() => planetLayout(scene, places), [scene, places]);
+  // A live update that moved no island keeps the spots on show, so only a changed island's plate draws again (ADR-0836 D1).
+  const shown = useRef<ReturnType<typeof planetLayout>>(undefined);
+  const layout = useMemo(() => planetLayout(scene, places, shown.current), [scene, places]);
+  shown.current = layout;
   const [rotation, setRotation] = useState(() => new Quaternion());
   // ADR-0804 D9, narrowed by ADR-0825 D3: a running session tints its islands' coasts and outlines its claimed territories; no wisps.
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
@@ -46,11 +50,15 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
     else next.set(story, stops);
     return next;
   }), []);
+  const code = useKept(useMemo(() => ({
+    imports: scene.islands.flatMap(({ land }) => land?.package === undefined ? [] : (land.imports ?? []).map(({ from, to }) => ({ from: codePathKey(land.package!, from), to: codePathKey(land.package!, to) }))),
+    capabilities: scene.islands.flatMap(({ land }) => land === undefined ? [] : land.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability])),
+  }), [scene]), JSON.stringify);
   const codePlaces = useMemo((): CodePlaces => ({
     files: new Map([...stopsByStory.values()].flatMap(stops => [...stops])),
-    imports: scene.islands.flatMap(({ land }) => land?.package === undefined ? [] : (land.imports ?? []).map(({ from, to }) => ({ from: codePathKey(land.package!, from), to: codePathKey(land.package!, to) }))),
-    capabilities: new Set(scene.islands.flatMap(({ land }) => land === undefined ? [] : land.territories.flatMap(({ capability }) => capability === undefined ? [] : [capability]))),
-  }), [stopsByStory, scene]);
+    imports: code.imports,
+    capabilities: new Set(code.capabilities),
+  }), [stopsByStory, code]);
   const lighting = useCodeLighting(core, codePlaces);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
     // Lane B has already centred the descriptors in the plate's own ground coordinates.
@@ -65,7 +73,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
       <CoastTints arcs={coastArcs(wisps, island.story)} coast={coast} radius={layout.radius} />
       <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [wisps, claimed, selected, highlighted, layout, lighting, reportStops]);
+  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops]);
   return <PlanetWorldCanvas scene={layout.scene} spots={layout.spots} radius={layout.radius}
     surface={mode === "forest"} framing={framing}
     inside={library ? <KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} /> : undefined}
@@ -73,6 +81,14 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPick={onPick} onNote={onNote} mode={mode} />
   </PlanetWorldCanvas>;
+}
+
+/** `value`, or the one kept before while `keyOf` reads both the same: a reading equal to the last keeps its identity. */
+function useKept<T>(value: T, keyOf: (value: T) => string): T {
+  const kept = useRef<{ key: string; value: T }>(undefined);
+  const key = keyOf(value);
+  if (kept.current?.key !== key) kept.current = { key, value };
+  return kept.current.value;
 }
 
 /** Lifted just off the surface, so a territory's tint never fights the ground it lies on. */
@@ -94,13 +110,15 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, onSt
   onStops: (story: string, stops: ReadonlyMap<string, { x: number; y: number; z: number }> | undefined) => void;
 }) {
   const invalidate = useThree(state => state.invalidate);
+  // A claim on another island leaves this one's territories as they were.
+  const tints = useKept(claimed, tints => claimsOn(tints, land));
   const drawn = useMemo(() => {
     const map = territories(land.territories, coast);
-    const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, claimed);
+    const group = territoryLand(map, onIslandSurface(radius, TERRITORY_LIFT), coast, tints);
     const circles = fileCircleMarks(fileCircles(map, land.files), onIslandSurface(radius), islandNormal(radius));
     group.add(circles);
     return { group, circles };
-  }, [land, coast, claimed, radius]);
+  }, [land, coast, tints, radius]);
   useEffect(() => {
     if (land.package === undefined) return;
     const { position, quaternion } = plateTransform(spot, radius);
@@ -175,7 +193,19 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
     const element = gl.domElement;
     let down: { x: number; y: number; id: number; dragged: boolean } | undefined;
     const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, mode);
-    const clearHover = (): void => { setHover(undefined); element.style.cursor = ""; };
+    // Picking is costly: a pointer that moves many times a frame is picked once, where it last was.
+    let cleared = 0, stopped = false;
+    const clearHover = (): void => { cleared++; setHover(undefined); element.style.cursor = ""; };
+    const hoverAt = oncePerFrame(({ event, at }: { event: PointerEvent; at: number }): void => {
+      if (stopped || at !== cleared || down !== undefined) return;
+      const hit = pick(event);
+      element.style.cursor = hit === undefined ? "" : "pointer";
+      const file = hit?.kind === "note" ? undefined : pointedFile(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY });
+      const title = hit?.kind === "note" ? scene.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined
+        : file === undefined ? undefined : `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : scene.getObjectByName(`territory:${file.capability}`)?.userData.title ?? file.capability}`;
+      const box = element.getBoundingClientRect();
+      setHover(title === undefined ? undefined : { title, x: Math.max(8, Math.min(box.width - 220, event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
+    });
     const onDown = (event: PointerEvent): void => {
       down = event.button === 0 && event.isPrimary ? { x: event.clientX, y: event.clientY, id: event.pointerId, dragged: false } : undefined;
       clearHover();
@@ -187,13 +217,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
         clearHover();
         return;
       }
-      const hit = pick(event);
-      element.style.cursor = hit === undefined ? "" : "pointer";
-      const file = hit?.kind === "note" ? undefined : pointedFile(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY });
-      const title = hit?.kind === "note" ? scene.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined
-        : file === undefined ? undefined : `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : scene.getObjectByName(`territory:${file.capability}`)?.userData.title ?? file.capability}`;
-      const box = element.getBoundingClientRect();
-      setHover(title === undefined ? undefined : { title, x: Math.max(8, Math.min(box.width - 220, event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
+      hoverAt({ event, at: cleared });
     };
     const onUp = (event: PointerEvent): void => {
       const from = down;
@@ -212,6 +236,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPick, onNot
     element.addEventListener("wheel", clearHover, { passive: true });
     clearHover();
     return () => {
+      stopped = true;
       element.removeEventListener("pointerdown", onDown);
       element.removeEventListener("pointerup", onUp);
       element.removeEventListener("pointermove", onMove);

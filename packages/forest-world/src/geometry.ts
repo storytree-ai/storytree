@@ -7,5 +7,5 @@ export { clipToCoast, rimLoops, SHIPPED_COAST } from "./coast-clip.js";
 export { plateTransform, PLATE_CLEARANCE } from "./planet/planet.js";
 export { islandSurface } from "./planet/island-surface.js";
 export { buildPlanetPathways, islandCoastReach, planetPathwayDrawing } from "./planet/pathways.js";
-export { trailFillWidth } from "./core/routing.js";
+export { routeTrails, trailFillWidth } from "./core/routing.js";
 export { RIBBON_GROUND_SCALE } from "./trail-ribbon-width.js";

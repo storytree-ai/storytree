@@ -44,7 +44,7 @@ export default async function* running(source) {
       }
       if (fd === undefined || (event.type !== "test:dequeue" && event.type !== "test:complete")) continue;
       const { file: testFile, name, nesting } = event.data;
-      writeSync(fd, `${JSON.stringify({ event: event.type === "test:dequeue" ? "start" : "end", file: testFile, name, nesting })}\n`);
+      writeSync(fd, `${JSON.stringify({ event: event.type === "test:dequeue" ? "start" : "end", file: testFile, name, nesting, at: Date.now() })}\n`);
     }
   } finally {
     if (fd !== undefined) closeSync(fd);

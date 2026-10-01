@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3 and 7.5 in
  * the agent link story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is capability 8's live check.
@@ -14,7 +14,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../tools/index.js";
-import { habitsCard } from "./index.js";
+import { decisionRights, habitsCard } from "./index.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
 async function sessionStart(harness = "claude-code"): Promise<{ client: Client; close(): Promise<void> }> {
@@ -60,5 +60,19 @@ test("7.3 the tool server hands the card to the agent at the start of every sess
     } finally {
       await started.close();
     }
+  }
+});
+
+test("7.5 the card handed at session start says who decides what, and what no file moves", async () => {
+  const rights = decisionRights();
+  for (const kinds of [rights.decides, rights.asks, rights.honesty]) assert.ok(kinds.length > 0);
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    for (const line of [...rights.decides, ...rights.asks, rights.delegations, rights.override, ...rights.honesty]) {
+      assert.ok(served.includes(line), `the served card lacks: ${line}`);
+    }
+  } finally {
+    await session.close();
   }
 });

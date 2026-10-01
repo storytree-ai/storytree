@@ -4,16 +4,20 @@
  * follow the library, so a new story appears as a new node and a retired story's node goes, with
  * nothing arranged by hand.
  *
- * Its shelf's founding book (P1): a node's place comes from its story alone. The first story the
- * project ever had sits at the centre, and each later one takes the next place on a spiral, in the
- * order the stories were created, for good. A retired story's place stays open sea and is never
- * given to another, so nothing ever moves a node. A later placement, such as the planet of
- * ADR-0629, is a new book: another rule for where a place is, in place of placeOnSpiral.
+ * A node's place is a row and a slot in it, by dependency depth (the rows decision, superseding the
+ * creation-order places of ADR-0646, ported from 0.2's ranking): a story depending on nothing is in the
+ * bottom row, and every other story is one row above the deepest story it depends on, where a story
+ * depends on another when one of its capabilities depends on one of the other's. The bottom row is
+ * ordered with the story most depended on (directly or not) in the middle and the rest outward; a
+ * higher row by where the stories it depends on sit in theirs. Ties go by the order the stories were
+ * created in, and a loop in the dependencies is broken where it is found, so it never stops the layout.
  *
  * Everything here is a pure function of what the library hands the forest, so it is tested
  * without a database.
  */
 import type { AnnotatedTree, Change, HealthState } from "@storytree/library";
+
+import { placeInRow } from "../planet-places/planet-places.js";
 
 /** A point on the forest's ground, in place-widths from its centre. */
 export interface Point {
@@ -31,40 +35,77 @@ export interface StoryNode {
    * from its contracts. It is the agent's word, and is always labelled so (ADR-0630).
    */
   reported: HealthState;
-  /** Its place: 1 for the first story the project ever had, 2 for the next, and so on, retired stories included. */
+  /** Its place: its row and its slot in that row (planet-places' placeInRow). */
   place: number;
-  /** Where its place is. */
+  /** Where its place is on flat ground: its slot across the row from the row's middle, and its row northward (−y). */
   at: Point;
 }
 
 /**
  * The story nodes of a project: one for each story in `tree` (the library's projectTree()), in the
  * tree's order. `history` is the project's changes from the start, as changesSince(0) hands them
- * out; the order the stories were created in, retired ones included, is read from it. A story the
- * history does not show being created (a history read from later than the start) takes a place
- * after every story it does show.
+ * out; the order the stories were created in, which breaks ties in a row, is read from it. A story
+ * the history does not show being created comes after every story it does show.
  */
 export function storyNodes(tree: AnnotatedTree, history: readonly Change[]): StoryNode[] {
   const created = history.filter(({ type, action }) => type === "story" && action === "created").map(({ recordId }) => recordId);
-  const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])];
+  const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])].filter((id) => tree.stories.some((story) => story.id === id));
+  const rows = storyRows(tree, order);
   return tree.stories.map((story) => {
-    const place = order.indexOf(story.id) + 1;
-    return { id: story.id, title: story.title, reported: story.health.reported.state, place, at: placeOnSpiral(place) };
+    const { row, slot, width } = rows.get(story.id)!;
+    return { id: story.id, title: story.title, reported: story.health.reported.state, place: placeInRow(row, slot), at: { x: slot - (width - 1) / 2, y: -row } };
   });
 }
 
-/**
- * Where place `place` is: place 1 at the centre, and each later place one place-width further
- * along a spiral whose turns are one place-width apart, starting one place-width out. So every
- * place is about a place-width from the one before it, and none is ever closer than that to
- * another.
- */
-function placeOnSpiral(place: number): Point {
-  if (place <= 1) return { x: 0, y: 0 };
-  // The spiral is r = 1 + θ/2π, and measured round the centre the length along it to θ is
-  // θ + θ²/4π. Place n sits n - 2 place-widths along it from place 2, at (1, 0), so
-  // r = √(1 + (n - 2)/π).
-  const r = Math.sqrt(1 + (place - 2) / Math.PI);
-  const angle = 2 * Math.PI * (r - 1);
-  return { x: r * Math.cos(angle), y: r * Math.sin(angle) };
+/** Each story's row, its slot in the row from the west, and how many the row holds; `order` is the stories in creation order. */
+function storyRows(tree: AnnotatedTree, order: readonly string[]): Map<string, { row: number; slot: number; width: number }> {
+  const owner = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id }) => [id, story.id] as const)));
+  const dependsOn = new Map(tree.stories.map((story) => [story.id, [...new Set(story.capabilities.flatMap(({ dependsOn: on }) =>
+    on.flatMap((capability) => { const other = owner.get(capability); return other === undefined || other === story.id ? [] : [other]; })))]]));
+  const dependents = new Map(order.map((id) => [id, order.filter((other) => dependsOn.get(other)!.includes(id))]));
+
+  // Longest path from the bottom: one above the deepest dependency; a dependency still being visited closes a loop and counts as none.
+  const rank = new Map<string, number>();
+  const visiting = new Set<string>();
+  const rankOf = (id: string): number => {
+    const known = rank.get(id);
+    if (known !== undefined) return known;
+    if (visiting.has(id)) return -1;
+    visiting.add(id);
+    const row = Math.max(0, ...dependsOn.get(id)!.map((other) => rankOf(other) + 1));
+    visiting.delete(id);
+    rank.set(id, row);
+    return row;
+  };
+  order.forEach(rankOf);
+
+  // How many stories rest on each, directly or not.
+  const holds = new Map(order.map((id) => {
+    const seen = new Set<string>();
+    for (const stack = [...dependents.get(id)!]; stack.length > 0;) {
+      const next = stack.pop()!;
+      if (!seen.has(next) && next !== id) { seen.add(next); stack.push(...dependents.get(next)!); }
+    }
+    return [id, seen.size];
+  }));
+
+  const placed = new Map<string, { row: number; slot: number; width: number }>();
+  const across = (id: string) => { const at = placed.get(id)!; return at.slot - (at.width - 1) / 2; };
+  const under = (id: string) => {
+    const below = dependsOn.get(id)!.filter((other) => placed.has(other));
+    return below.length === 0 ? 0 : below.reduce((sum, other) => sum + across(other), 0) / below.length;
+  };
+  for (let row = 0, rows = Math.max(0, ...rank.values()) + 1; row < rows; row++) {
+    const members = order.filter((id) => rank.get(id) === row);
+    let line: string[];
+    if (row === 0) {
+      // Most held up in the middle, the rest alternately to either side.
+      line = [];
+      [...members].sort((a, b) => holds.get(b)! - holds.get(a)!).forEach((id, k) => (k % 2 === 0 ? line.push(id) : line.unshift(id)));
+    } else {
+      line = [...members].sort((a, b) => under(a) - under(b));
+    }
+    line.forEach((id, slot) => placed.set(id, { row, slot, width: line.length }));
+  }
+  return placed;
 }

@@ -3,7 +3,9 @@
  *
  * - A surveyed story's island has land in proportion to its lines of code: {@link LAND_PER_LINE} ground
  *   units² a line, never below {@link MIN_ISLAND_AREA}, so a tiny story stays visible.
- * - Each island keeps its permanent place (ADR-0646) as an ANCHOR. When islands grow into each other,
+ * - Each island's ANCHOR is its place in the rows (planet-places): its row's latitude, packed along the parallel
+ *   in slot order with two reaches and {@link SEA_GAP} between neighbours, each row centred on the front of the
+ *   globe. When islands still grow into each other (across rows),
  *   {@link growPlanet} nudges them apart: first by pushing every overlapping pair away from each other
  *   along the sphere, then by pulling each back toward its anchor as far as it can go without touching
  *   another. Islands that do not overlap never move, so a small project keeps its places exactly.
@@ -13,7 +15,7 @@
  *
  * Pure and deterministic: the same islands always give the same globe (no random, no clock).
  */
-import { placeOnPackedGlobe, PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
+import { PLANET_RADIUS, rowLatitude, rowOf, type PlanetPoint } from "./planet-places.js";
 
 /**
  * Ground units² of land per line of code in a surveyed story.
@@ -37,7 +39,7 @@ export function islandArea(lines: number): number {
 
 /**
  * The farthest an island may be nudged from its anchor, in radians of arc: about 65 ground units on the
- * shipped globe, the spacing of the two closest places. A judgement, not a measurement: it keeps an island
+ * shipped globe. A judgement, not a measurement: it keeps an island
  * near enough to its place to be found there, and when nudging would need more, the globe grows instead.
  */
 export const MAX_NUDGE = 0.3;
@@ -53,7 +55,7 @@ export const SEA_GAP = 12;
 /** How much the radius rises at each try when nudging cannot make room. */
 export const GROWTH_STEP = 1.02;
 
-/** An island to place: its permanent place, and how far its coast reaches from its middle, in ground units. */
+/** An island to place: its place in the rows (planet-places' placeInRow), and how far its coast reaches from its middle, in ground units. */
 export interface GrowingIsland { readonly story: string; readonly place: number; readonly reach: number }
 
 export interface GrownPlanet {
@@ -123,12 +125,43 @@ function settle(anchors: readonly Vec[], reaches: readonly number[], radius: num
   return spots.some((spot, i) => angleBetween(spot, anchors[i]!) > MAX_NUDGE) ? undefined : spots;
 }
 
-/** Every island at its anchor, nudged as little as needed; the globe's radius grows only when nudging cannot make room. */
+/** Every island at its anchor, nudged as little as needed; the globe's radius grows only when a row no longer fits round it or nudging cannot make room. */
 export function growPlanet(islands: readonly GrowingIsland[]): GrownPlanet {
-  const anchors = islands.map(({ place }): Vec => { const p = placeOnPackedGlobe(place); return [p.x / PLANET_RADIUS, p.y / PLANET_RADIUS, p.z / PLANET_RADIUS]; });
   const reaches = islands.map(({ reach }) => reach);
   for (let radius = PLANET_RADIUS; ; radius *= GROWTH_STEP) {
-    const spots = settle(anchors, reaches, radius);
+    const anchors = rowAnchors(islands, radius);
+    const spots = anchors === undefined ? undefined : settle(anchors, reaches, radius);
     if (spots !== undefined) return { radius, spots: new Map(islands.map(({ story }, i) => [story, { x: spots[i]![0], y: spots[i]![1], z: spots[i]![2] }])) };
   }
+}
+
+/**
+ * Each island's anchor at `radius`: on its row's latitude, west to east in slot order, each neighbour two reaches
+ * and the sea gap away along the globe, the row centred on the front; undefined when a row no longer fits round it.
+ */
+function rowAnchors(islands: readonly GrowingIsland[], radius: number): Vec[] | undefined {
+  const rows = Math.max(0, ...islands.map(({ place }) => rowOf(place).row + 1));
+  const anchors: Vec[] = [];
+  for (let row = 0; row < rows; row++) {
+    const members = islands.flatMap((island, i) => (rowOf(island.place).row === row ? [i] : [])).sort((a, b) => rowOf(islands[a]!.place).slot - rowOf(islands[b]!.place).slot);
+    const latitude = rowLatitude(row, rows);
+    const apart = (a: number, b: number) => longitudeApart(latitude, (islands[a]!.reach + islands[b]!.reach + SEA_GAP) / radius);
+    const steps = members.slice(1).map((member, k) => apart(members[k]!, member));
+    const round = members.length > 1 ? apart(members[members.length - 1]!, members[0]!) : 0;
+    if (round === undefined || steps.some(step => step === undefined)) return undefined;
+    const span = steps.reduce<number>((sum, step) => sum + step!, 0);
+    if (span + round > 2 * Math.PI) return undefined;
+    let longitude = -span / 2;
+    members.forEach((member, k) => {
+      if (k > 0) longitude += steps[k - 1]!;
+      anchors[member] = [Math.cos(latitude) * Math.sin(longitude), Math.sin(latitude), Math.cos(latitude) * Math.cos(longitude)];
+    });
+  }
+  return anchors;
+}
+
+/** How far apart in longitude two points on `latitude` must be to be `angle` apart along the globe; undefined when the parallel is too small. */
+function longitudeApart(latitude: number, angle: number): number | undefined {
+  const cosine = (Math.cos(angle) - Math.sin(latitude) ** 2) / Math.cos(latitude) ** 2;
+  return cosine < -1 ? undefined : Math.acos(Math.min(1, cosine));
 }

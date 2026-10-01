@@ -8,12 +8,12 @@ node --import tsx packages/website/src/refresh-forest.ts
 
 The command reads the `storytree` library through the public library and agent-link
 functions, then uses the forest story's public `forestScene`, `storyNodes` and
-`placeOnPackedGlobe` functions. It writes `src/forest-snapshot.json` only after all
+`growPlanet` functions. It writes `src/forest-snapshot.json` only after all
 reads and drawing preparation succeed. A failed refresh keeps the old file.
 
 The committed file contains the capture time, story names and islands, capability
 forms derived from agent-reported health and work state, dependency links, and
-permanent globe positions. It contains no raw records, descriptions, activity
+globe positions, in rows by dependency depth as the app lays them out. It contains no raw records, descriptions, activity
 lines, session identities, credentials or source paths. Library, history and
 activity are read separately; this is a saved drawing, not an atomic database
 backup. Retired stories retain their places through the creation history.

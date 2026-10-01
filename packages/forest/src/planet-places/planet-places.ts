@@ -1,61 +1,34 @@
-/** Story nodes' packed globe book (ADR-0648, widened by ADR-0655 D3 for pathways). Distances use the forest engine's ground units. */
+/**
+ * Story nodes' places on the globe: rows by dependency depth (the rows decision, which supersedes ADR-0646's
+ * permanent places and ADR-0648's packed book). A place is a row and a slot in it; the rows are bands of
+ * latitude, the bottom one about 42° south and the top one about 42° north, evenly spaced, so a story with a
+ * deeper chain of dependencies sits further north. Distances use the forest engine's ground units.
+ */
 export const PLANET_RADIUS = 218;
-/** Historical places, including retired stories. Later places await a new placement book. */
-export const PLANET_CAPACITY = 36;
 
-// Frozen directions using spike/globe-land's front-pole spiral (pitch 72), corrected before
-// landing to fit both the original and fresh seeded shores plus its 36-story sample. Never refit this table to story count, ids or growth.
-// See measurements.md for the bounded clearance proof; arbitrary island growth is unbounded.
-const SPOTS = [
-  [0, 0, 1],
-  [0.4298421775331947, -0.028059147912601588, 0.9024679421630113],
-  [0.32111873000915514, 0.36910905506709824, 0.8721475028369806],
-  [-0.13021486743697652, 0.5320622126616584, 0.8366324701778857],
-  [-0.5350728743349136, 0.268292890731142, 0.8010717470577159],
-  [-0.6250384182564062, -0.10936650306898908, 0.7728945230172035],
-  [-0.40928797801901495, -0.5366363699231319, 0.7379056562493811],
-  [0.07154822345060091, -0.7100525437789635, 0.7005042732161495],
-  [0.38227395273964865, -0.6285352724977264, 0.6773551773501209],
-  [0.6142703155335523, -0.4388768884080681, 0.6557888808721617],
-  [0.7807356459620052, -0.033100059178712976, 0.6239841642274715],
-  [0.6936257361124699, 0.4116696934071724, 0.5911103126595566],
-  [0.44643119643639195, 0.6947089556320407, 0.5639846219650062],
-  [-0.5007496580449061, 0.7121578316161706, 0.4920172790011176],
-  [-0.7777760418971283, 0.4248638932562099, 0.4632009292499447],
-  [-0.9015666506242486, 0.016196825481299703, 0.4323369488333172],
-  [-0.8686531388071664, -0.27637428278192894, 0.411167824929471],
-  [-0.146944302509174, -0.9296954201140306, 0.3377481277210703],
-  [0.34225462479848423, -0.8896852482638608, 0.3021951866355935],
-  [0.6869416155606557, -0.6735508869155632, 0.27283771650227234],
-  [0.9055859798752396, -0.346621446310163, 0.24447414180492189],
-  [0.9689633266776638, 0.1310619923966902, 0.2096015880253889],
-  [0.8383120334590686, 0.5144858318492466, 0.18038088419816017],
-  [0.6136882104128565, 0.7740499325321231, 0.15567107100319333],
-  [0.2033410713384794, 0.971381092814639, 0.12276473935604242],
-  [-0.2072105836749447, 0.9738519194729514, 0.09314619129055614],
-  [-0.7684440077489361, 0.6383028162314571, 0.04542380153337726],
-  [-0.9846664109284554, 0.17424838078230998, 0.008340322776564013],
-  [-0.9582747459142305, -0.28476318372141707, -0.024888562430556406],
-  [-0.8295682184415347, -0.556465627274439, -0.046503511843766714],
-  [-0.5680094027354459, -0.8197567675740591, -0.07324042886720424],
-  [-0.21122633219377696, -0.9721833647576371, -0.10120742006633413],
-  [0.3021721392593384, -0.9431436136595797, -0.1384634329654745],
-  [0.6412648931224603, -0.7490077653691056, -0.16663344281811676],
-  [0.8812242088121295, 0.3969799752732199, -0.25661409360265064],
-  [0.11834164441236386, 0.9377218983790728, -0.3266081696744977],
-] as const;
+/** The latitude of the top row, and (south) of the bottom row, in radians. */
+export const ROW_LATITUDE = 42 * Math.PI / 180;
 
-/** A point relative to the globe's centre: x right, y up, z toward the initial viewer. */
+/** The slots a row's places are numbered across: a place is its row times this, plus its slot, plus one. */
+const ROW_PLACES = 1000;
+
+/** A point relative to the globe's centre: x right, y up (north), z toward the initial viewer. */
 export interface PlanetPoint { x: number; y: number; z: number }
 
-/** The permanent 1-based story place selects a fixed point, regardless of live project size. */
-export function placeOnPackedGlobe(place: number): PlanetPoint {
-  if (!Number.isInteger(place) || place < 1 || place > PLANET_CAPACITY) {
-    throw new RangeError(`Globe places are integers from 1 to ${PLANET_CAPACITY}; received ${place}`);
+/** The 1-based place of slot `slot` (0 the westernmost) in row `row` (0 the bottom). */
+export function placeInRow(row: number, slot: number): number {
+  if (!Number.isInteger(row) || !Number.isInteger(slot) || row < 0 || slot < 0 || slot >= ROW_PLACES) {
+    throw new RangeError(`A place is a row from 0 and a slot from 0 to ${ROW_PLACES - 1}; received row ${row}, slot ${slot}`);
   }
-  const [x, y, z] = SPOTS[place - 1]!;
-  return { x: x * PLANET_RADIUS, y: y * PLANET_RADIUS, z: z * PLANET_RADIUS };
+  return row * ROW_PLACES + slot + 1;
 }
 
-/** Compatibility for the existing forest barrel's readers; the even-spread W2 book is retired. */
-export const placeOnGlobe = placeOnPackedGlobe;
+/** The row and slot a place names. */
+export function rowOf(place: number): { row: number; slot: number } {
+  return { row: Math.floor((place - 1) / ROW_PLACES), slot: (place - 1) % ROW_PLACES };
+}
+
+/** The latitude, in radians, of row `row` of `rows`: evenly spaced from the bottom row's to the top row's; one row sits on the equator. */
+export function rowLatitude(row: number, rows: number): number {
+  return rows <= 1 ? 0 : -ROW_LATITUDE + 2 * ROW_LATITUDE * row / (rows - 1);
+}

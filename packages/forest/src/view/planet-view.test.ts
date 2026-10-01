@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
 import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
-import { forestDrawn, forestScene, openingTurn, placeOnGlobe, PLANET_RADIUS, storyNodes, type FacingIsland } from "@storytree/forest";
+import { forestDrawn, forestScene, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { dragTurn, focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
 import { codePathKey } from "@storytree/knowledge-core";
@@ -12,7 +12,7 @@ import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.j
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { coastTintMarks } from "./session-tints.js";
 
-test("the globe opens every story with its grove at its permanent place, readable by the smoke check", () => {
+test("the globe opens every story with its grove at its place in the rows, readable by the smoke check", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
   const tree: AnnotatedTree = { arcs: [], stories: [
     { id: "new", title: "A new story", health, capabilities: [] },
@@ -29,10 +29,7 @@ test("the globe opens every story with its grove at its permanent place, readabl
   const layout = planetLayout(scene, places);
   assert.ok(layout.islands.every(i => i.spot.z > 0.75), "the page uses the packed front patch");
   assert.deepEqual([...layout.spots.keys()], ["new", "kept"]);
-  for (const [id, place] of [["new", 3], ["kept", 2]] as const) {
-    const position = placeOnGlobe(place);
-    assert.deepEqual(layout.spots.get(id), { x: position.x / PLANET_RADIUS, y: position.y / PLANET_RADIUS, z: position.z / PLANET_RADIUS });
-  }
+  assert.equal(layout.spots.get("new")!.y, layout.spots.get("kept")!.y, "neither depends on anything: one row");
   assert.deepEqual(layout.scene.islands.map(i => i.trees.map(t => t.capability)), [[undefined], ["cap"]]);
   assert.deepEqual(smokeProblems("ready", tree, JSON.stringify(forestDrawn(layout.scene))), []);
 });

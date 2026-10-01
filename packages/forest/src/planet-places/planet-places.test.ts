@@ -1,61 +1,78 @@
-/** Story nodes' globe book (ADR-0648): fixed places, unchanged by other stories, with room for real shores. */
+/** Story nodes on the globe in rows by dependency depth (ADR-0646 and ADR-0804 D7 as superseded by the rows decision). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { AnnotatedStory, Change } from "@storytree/library";
+import type { AnnotatedTree } from "@storytree/library";
 
+import { growPlanet, SEA_GAP } from "./island-growth.js";
+import { PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
-import { placeOnGlobe, PLANET_CAPACITY, PLANET_RADIUS, type PlanetPoint } from "./planet-places.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
-function story(index: number, capabilities = 0): AnnotatedStory {
-  return { id: `story_${index}`, title: `Story ${index}`, health,
-    capabilities: Array.from({ length: capabilities }, (_, c) => ({
-      id: `cap_${index}_${c}`, title: `Capability ${c}`, health, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [],
-    })),
-  };
+const REACH = 20;
+
+/** A project whose stories each have one capability, depending on the capabilities of the stories named. */
+function project(dependsOn: Record<string, readonly string[]>): AnnotatedTree {
+  return { arcs: [], stories: Object.entries(dependsOn).map(([id, on]) => ({ id, title: id, health, capabilities: [
+    { id: `${id}-cap`, title: "A part", dependsOn: on.map(other => `${other}-cap`), proposed: true, status: "proposed" as const, contracts: [], health },
+  ] })) };
 }
 
-const distance = (a: PlanetPoint, b: PlanetPoint): number => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+/** Each story's spot on the globe, as the page lays it out from the story nodes' places. */
+function globe(tree: AnnotatedTree): Map<string, PlanetPoint> {
+  return new Map(growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: REACH }))).spots);
+}
 
-test("1.4 the same places always give the same globe spots, packed from the front pole on a fixed sphere", () => {
-  const spots = Array.from({ length: PLANET_CAPACITY }, (_, i) => placeOnGlobe(i + 1));
-  for (let i = spots.length - 1; i >= 0; i--) {
-    assert.deepEqual(placeOnGlobe(i + 1), spots[i], "reading in another order changes nothing");
-    assert.ok(Math.abs(Math.hypot(spots[i]!.x, spots[i]!.y, spots[i]!.z) - 218) < 1e-9);
-  }
-  // Every previously frozen direction survives the radius increase; future reads stay fixed.
-  const anchors: [number, PlanetPoint][] = [
-    [1, { x: 0, y: 0, z: 160 }],
-    [2, { x: 68.77474840531116, y: -4.489463666016254, z: 144.3948707460818 }],
-    [36, { x: 18.934663105978217, y: 150.03550374065165, z: -52.25730714791963 }],
-  ];
-  for (const [place, point] of anchors) assert.ok(distance(placeOnGlobe(place), { x: point.x * 218 / 160, y: point.y * 218 / 160, z: point.z * 218 / 160 }) < 1e-9, `place ${place} stays fixed`);
-  assert.equal(PLANET_CAPACITY, 36);
-  // The occupied patch grows outward; seven stories still share the front of the ball.
-  for (let i = 1; i < spots.length; i++) assert.ok(spots[i]!.z < spots[i - 1]!.z);
-  assert.ok(spots.slice(0, 7).every(p => p.z > Math.SQRT1_2 * PLANET_RADIUS));
-  // A caller must not be able to move a later read by mutating the returned point.
-  placeOnGlobe(1).x = 123;
-  assert.deepEqual(placeOnGlobe(1), spots[0]);
-  for (const invalid of [0, -1, 1.5, 37, NaN, Infinity]) assert.throws(() => placeOnGlobe(invalid), RangeError);
+const latitude = (p: PlanetPoint) => Math.asin(p.y) * 180 / Math.PI;
+const longitude = (p: PlanetPoint) => Math.atan2(p.x, p.z) * 180 / Math.PI;
+const near = (a: number, b: number, within = 1e-6) => Math.abs(a - b) <= within;
+
+test("1.4 a story's island sits north of every story it depends on, and stories that depend on nothing share the bottom row", () => {
+  const spots = globe(project({ a: [], b: [], c: [], d: ["a"], e: ["d", "b"], f: ["c"] }));
+  const at = (id: string) => latitude(spots.get(id)!);
+  assert.ok(at("d") > at("a"), "d depends on a");
+  assert.ok(at("e") > at("d") && at("e") > at("b"), "e depends on d and b");
+  assert.ok(at("f") > at("c"), "f depends on c");
+  for (const id of ["b", "c"]) assert.ok(near(at(id), at("a")), "a, b and c depend on nothing: one row");
+  assert.ok([...spots.values()].every(p => latitude(p) >= at("a") - 1e-6), "and it is the bottom row");
+  assert.ok(near(at("f"), at("d")), "d and f are each one above what they depend on: one row");
+  assert.ok(near(at("a"), -42, 1) && near(at("e"), 42, 1), "rows run from about 42° south to 42° north");
+  assert.ok(near(at("d") - at("a"), at("e") - at("d")), "evenly spaced");
 });
 
-test("1.5 adding or retiring a story moves no other globe island and never reuses a retired spot", () => {
-  const stories = Array.from({ length: 6 }, (_, i) => story(i));
-  const at = "2026-09-27T00:00:00.000Z";
-  const history = stories.map(({ id, title }, i): Change => ({
-    seq: i + 1, recordId: id, type: "story", action: "created",
-    record: { id, type: "story", version: 1, fields: { title }, createdAt: at, updatedAt: at },
-  }));
-  const placed = (live: AnnotatedStory[], changes: Change[]) => new Map(
-    storyNodes({ stories: live, arcs: [] }, changes).map(node => [node.id, placeOnGlobe(node.place)]),
-  );
-  const before = placed(stories.slice(0, 5), history.slice(0, 5));
-  const retired: Change = { ...history[1]!, seq: 7, action: "retired" };
-  const after = placed(stories.filter((_, i) => i !== 1).reverse(), [...history, retired]);
-  assert.equal(after.has("story_1"), false);
-  for (const [id, point] of before) if (id !== "story_1") assert.deepEqual(after.get(id), point);
-  assert.equal(after.size, 5);
-  for (const point of before.values()) assert.notDeepEqual(after.get("story_5"), point);
+test("1.5 adding a dependency moves an island up a row", () => {
+  const before = globe(project({ a: [], b: [], c: ["a"] }));
+  const after = globe(project({ a: [], b: ["a"], c: ["a"] }));
+  assert.ok(near(latitude(before.get("b")!), latitude(before.get("a")!)), "b depended on nothing");
+  assert.ok(latitude(after.get("b")!) > latitude(after.get("a")!), "now it is north of a");
+  assert.ok(near(latitude(after.get("b")!), latitude(after.get("c")!)), "in the row above, with c");
+});
+
+test("1.3 the bottom row puts the most depended-on story at the front and the rest outward, packed round the front with the sea between neighbours", () => {
+  // a holds up four stories, b three, c two, d one and e none.
+  const spots = globe(project({ a: [], b: [], c: [], d: [], e: [], p: ["a", "b", "c", "d"], q: ["a", "b", "c"], r: ["a", "b"], s: ["a"] }));
+  const lon = (id: string) => Math.abs(longitude(spots.get(id)!));
+  assert.ok(lon("a") < 1e-6, "a, the most depended on, is at the front");
+  assert.ok(Math.sign(longitude(spots.get("b")!)) !== Math.sign(longitude(spots.get("c")!)), "the next two sit either side of it");
+  assert.ok(Math.min(lon("d"), lon("e")) > Math.max(lon("b"), lon("c")), "the least depended on are furthest out");
+  const row = (ids: string[]) => ids.map(id => longitude(spots.get(id)!));
+  assert.ok(near(Math.min(...row(["p", "q", "r", "s"])) + Math.max(...row(["p", "q", "r", "s"])), 0), "a higher row is centred on the front too");
+  const bottom = ["a", "b", "c", "d", "e"].map(id => spots.get(id)!).sort((m, n) => longitude(m) - longitude(n));
+  for (let i = 1; i < bottom.length; i++) {
+    const apart = PLANET_RADIUS * Math.acos(Math.min(1, bottom[i]!.x * bottom[i - 1]!.x + bottom[i]!.y * bottom[i - 1]!.y + bottom[i]!.z * bottom[i - 1]!.z));
+    assert.ok(near(apart, 2 * REACH + SEA_GAP, 1e-6), "packed: two reaches and the sea gap apart");
+  }
+});
+
+test("1.3 a higher row is ordered by where the stories it depends on sit", () => {
+  const spots = globe(project({ a: [], b: [], c: [], x: ["a"], z: ["c"] }));
+  const lon = (id: string) => longitude(spots.get(id)!);
+  assert.notEqual(Math.sign(lon("a") - lon("c")), 0);
+  assert.equal(Math.sign(lon("x") - lon("z")), Math.sign(lon("a") - lon("c")), "x sits on a's side of z, as a does of c");
+});
+
+test("1.3 a loop in the dependencies still gives every story a row", () => {
+  const spots = globe(project({ a: ["b"], b: ["a"], c: [] }));
+  assert.equal(spots.size, 3);
+  for (const spot of spots.values()) assert.ok(Number.isFinite(latitude(spot)));
 });

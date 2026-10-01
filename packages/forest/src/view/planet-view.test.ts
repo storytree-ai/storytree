@@ -1,7 +1,7 @@
 /** The page's planet joins: permanent places, mesh picking, and failure markers after orbiting. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Color, DoubleSide, Euler, Group, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
+import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
 import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, placeOnGlobe, PLANET_RADIUS, storyNodes, type FacingIsland } from "@storytree/forest";
@@ -292,11 +292,24 @@ test("3.20 each territory is filled by its capability's word, green, red or yell
   }
   drawn.traverse((object) => {
     const material = (object as Mesh).material as MeshBasicMaterial | undefined;
-    if (!(object instanceof Mesh) || material === undefined || material.opacity === 0) return;
+    if (!(object instanceof Mesh) || material === undefined || object.name === "territory:unclaimed") return;
     const hsl = material.color.getHSL({ h: 0, s: 0, l: 0 });
     assert.ok(hsl.s > 0.3, `${object.name} is drawn in a colour, not grey`);
   });
-  assert.equal(fill(drawn, "territory:unclaimed").opacity, 0, "Unclaimed code's land is left bare, neither grey nor a word's colour");
+  // Unclaimed code is uncharted land: a night-dark fill that hides the grey ground, hatched, never a hue (no-data convention).
+  const uncharted = fill(drawn, "territory:unclaimed");
+  const unchartedHsl = uncharted.color.getHSL({ h: 0, s: 0, l: 0 });
+  assert.ok(uncharted.opacity > 0.5, "Unclaimed code's land is drawn, so the island's grey ground does not show through");
+  assert.ok(!(unchartedHsl.s < 0.1 && unchartedHsl.l > 0.3 && unchartedHsl.l < 0.75), "and its fill is not a mid grey, which is kept for mapped");
+  for (const word of words) assert.ok(!uncharted.color.equals(fill(drawn, `territory:cap-${word}`).color), `nor ${word}'s colour`);
+  assert.deepEqual(drawn.getObjectByName("territory:unclaimed")!.userData, { territory: true }, "it stays pickable as land");
+  const hatch = drawn.getObjectByName("territory-hatch:unclaimed") as LineSegments;
+  const ends = Array.from({ length: hatch.geometry.attributes.position.count }, (_, i) => ({ x: hatch.geometry.attributes.position.getX(i), z: hatch.geometry.attributes.position.getZ(i) }));
+  assert.ok(ends.length >= 4, "a hatch lies across Unclaimed code's land");
+  assert.ok(ends.every(({ x, z }) => x >= 8 - 1e-6 && x <= 10 + 1e-6 && z >= -1e-6 && z <= 2 + 1e-6), "every hatch line stays inside that territory's cell");
+  assert.ok(ends.some((p, i) => i % 2 === 0 && Math.abs((ends[i + 1]!.x - p.x) * (ends[i + 1]!.z - p.z)) > 1e-6), "the hatch runs diagonally");
+  assert.equal((hatch.material as LineBasicMaterial).opacity < 0.85 && hatch.renderOrder > 1 && hatch.renderOrder < 2, true, "fainter than the white borders, between fill and borders");
+  assert.equal(drawn.getObjectByName("territory-hatch:cap-healthy"), undefined, "only land no contract has surveyed is hatched");
 
   const claimed = territoryLand({ territories: land.territories, cells, borders: [] }, flat, undefined, new Map([["cap-healthy", { colour: "hsl(200, 80%, 68%)", faded: false }]]));
   assert.ok(fill(claimed, "territory:cap-healthy").color.equals(fill(drawn, "territory:cap-healthy").color), "a claim never changes the fill");

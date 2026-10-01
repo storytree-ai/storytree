@@ -16,7 +16,7 @@ const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
   ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
-assert.ok(['before', 'after'].includes(label), 'usage: node capture.mjs <before|after>');
+assert.ok(['before', 'after', 'nudged'].includes(label), 'usage: node capture.mjs <before|after|nudged>');
 const dist = path.join(here, 'dist', label);
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));

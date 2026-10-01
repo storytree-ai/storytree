@@ -16,9 +16,33 @@ export function screenOnPlate(plate: Quaternion, eye: Quaternion): PlateView {
   return { down: { x: down.x, z: down.z }, right: { x: right.x, z: right.z } };
 }
 
+/** How squarely a plate turned by `plate` (world frame) faces an eye turned by `eye`: 1 face on, 0 edge-on at the rim, below 0 turned away. */
+export function facing(plate: Quaternion, eye: Quaternion): number {
+  return new Vector3(0, 1, 0).applyQuaternion(plate).dot(new Vector3(0, 0, 1).applyQuaternion(eye));
+}
+
 /** Whether a plate turned by `plate` (world frame) faces an eye turned by `eye`: once its island turns away, its nameplate hides. */
 export function facesEye(plate: Quaternion, eye: Quaternion): boolean {
-  return new Vector3(0, 1, 0).applyQuaternion(plate).dot(new Vector3(0, 0, 1).applyQuaternion(eye)) > 0;
+  return facing(plate, eye) > 0;
+}
+
+/** A story nameplate as the screen shows it: its box in pixels, and how squarely its island faces the eye. */
+export interface ShownPlate { story: string; box: { left: number; top: number; right: number; bottom: number }; facing: number }
+
+/**
+ * The story nameplates to hide so that no two overlap on screen. Islands near the rim crowd together as the
+ * globe foreshortens them, so where two plates would overlap, the one whose island faces the eye less gives way;
+ * the `selected` story's plate never does.
+ */
+export function crowdedOut(plates: readonly ShownPlate[], selected?: string): Set<string> {
+  const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected) || b.facing - a.facing);
+  const kept: ShownPlate[] = [], hidden = new Set<string>();
+  for (const plate of order) {
+    const { box } = plate;
+    if (kept.some(({ box: other }) => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom)) hidden.add(plate.story);
+    else kept.push(plate);
+  }
+  return hidden;
 }
 
 /**

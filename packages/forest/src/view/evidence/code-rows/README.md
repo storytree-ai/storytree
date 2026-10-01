@@ -37,3 +37,24 @@ get the same stand-in bridge, seed, survey, viewport and turns; nothing is hand-
 
 As ../rows/README.md: `tsx seed.mts`, `tsx survey.mjs`, `node build.mjs <before checkout> before`,
 `node build.mjs <this checkout> after`, then `flock /tmp/storytree-heavy.lock node capture.mjs before|after`.
+
+## Nudged within the rows' bands, and crowded nameplates give way
+
+Branch `claude/increment-5a60190bc5af-a57e8e`, the follow-up on both pictures' faults. The **after** pictures above
+are its before; **nudged** is this branch, same seed, survey, viewport and turns.
+
+| View | Before (after, above) | Nudged |
+| --- | --- | --- |
+| The globe unturned, its front facing the eye | [after-front.png](after-front.png) | [nudged-front.png](nudged-front.png) |
+| The same, zoomed out (x0.7) | [after-wide.png](after-wide.png) | [nudged-wide.png](nudged-wide.png) |
+| As the app opens it | [after-opening.png](after-opening.png) | [nudged-opening.png](nudged-opening.png) |
+
+- Nudging now keeps each island within 0.4 of the rows' spacing of its row's latitude, so it can never be
+  pushed past a row below or above; where that leaves no room, the globe grows instead. The librarian goes
+  from 43.9° S (below the library, 40.6° S) to 33.6° S (the library is at 46.8° S); code edges pointing north,
+  **35 of 36 before, 36 of 36 now**. The globe's radius grows from 222.4 to 226.8 ground units (two 2% steps).
+- Where two story nameplates would overlap on screen, the one whose island faces the eye less is hidden until
+  they clear (the selected story's never is). Unturned, the local database sits edge-on at the rim behind
+  the process ledger, so its plate gives way; turned as the app opens, both show.
+
+Rerun: `node build.mjs <this checkout> nudged`, then `flock /tmp/storytree-heavy.lock node capture.mjs nudged`.

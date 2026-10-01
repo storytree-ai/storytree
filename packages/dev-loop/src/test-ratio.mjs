@@ -14,7 +14,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
@@ -23,33 +23,39 @@ const SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 const BEFORE_REGEX = new Set(["", "(", ",", "=", ":", "[", "!", "&", "|", "?", "{", "}", ";", "+", "-", "*", "%", "<", ">", "~", "^"]);
 const WORDS_BEFORE_REGEX = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
 
-const listed = execFileSync(
-  "git",
-  ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "packages", "apps"],
-  { cwd: root, encoding: "utf8" },
-);
-const files = [...new Set(listed.split("\0"))].filter((file) => SOURCE.test(file) && existsSync(path.join(root, file)));
-
-const groups = new Map();
-for (const file of files.sort()) {
-  const source = readFileSync(path.join(root, file), "utf8");
-  const [top, name] = file.split("/");
-  const group = `${top}/${name}`;
-  const counts = groups.get(group) ?? { test: 0, implementation: 0 };
-  counts[isTest(file, source) ? "test" : "implementation"] += codeLines(source);
-  groups.set(group, counts);
-}
-const all = { test: 0, implementation: 0 };
-for (const counts of groups.values()) {
-  all.test += counts.test;
-  all.implementation += counts.implementation;
+/** The report's rows: a header, then test and implementation code lines and their ratio for each package and app, and for all. */
+export function ratioRows(files) {
+  const groups = new Map();
+  for (const { path: file, text } of [...files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))) {
+    const [top, name] = file.split("/");
+    const group = `${top}/${name}`;
+    const counts = groups.get(group) ?? { test: 0, implementation: 0 };
+    counts[isTest(file, text) ? "test" : "implementation"] += codeLines(text);
+    groups.set(group, counts);
+  }
+  const all = { test: 0, implementation: 0 };
+  for (const counts of groups.values()) {
+    all.test += counts.test;
+    all.implementation += counts.implementation;
+  }
+  return [["", "test", "implementation", "ratio"], ...[...groups].map(([group, counts]) => row(group, counts)), row("all", all)];
 }
 
-const rows = [["", "test", "implementation", "ratio"], ...[...groups].map(([group, counts]) => row(group, counts)), row("all", all)];
-const widths = rows[0].map((_, column) => Math.max(...rows.map((cells) => cells[column].length)));
-console.log("Test code per line of implementation, in code lines (comments and blanks left out):\n");
-for (const cells of rows) {
-  console.log(`  ${cells.map((cell, column) => (column === 0 ? cell.padEnd(widths[column]) : cell.padStart(widths[column]))).join("   ")}`);
+function main() {
+  const listed = execFileSync(
+    "git",
+    ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "packages", "apps"],
+    { cwd: root, encoding: "utf8" },
+  );
+  const files = [...new Set(listed.split("\0"))]
+    .filter((file) => SOURCE.test(file) && existsSync(path.join(root, file)))
+    .map((file) => ({ path: file, text: readFileSync(path.join(root, file), "utf8") }));
+  const rows = ratioRows(files);
+  const widths = rows[0].map((_, column) => Math.max(...rows.map((cells) => cells[column].length)));
+  console.log("Test code per line of implementation, in code lines (comments and blanks left out):\n");
+  for (const cells of rows) {
+    console.log(`  ${cells.map((cell, column) => (column === 0 ? cell.padEnd(widths[column]) : cell.padStart(widths[column]))).join("   ")}`);
+  }
 }
 
 function row(group, { test, implementation }) {
@@ -141,3 +147,5 @@ function codeLines(source) {
   if (code) lines++;
   return lines;
 }
+
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) main();

@@ -4,6 +4,7 @@ import type { SurfacesBridge } from "../surfaces/bridge.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";
 import { appMenuStyles } from "./styles.js";
 import { mountSurfaces } from "./surfaces.js";
+import { switchProject } from "./switch.js";
 import { mountSignIn, mountUpdates, type SignInBridge } from "./updates.js";
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
@@ -123,17 +124,21 @@ export function mountAppMenu(host: HTMLElement, options: {
       if (select === null) return;
       if (!projects.includes(current ?? "")) select.selectedIndex = -1;
       select.addEventListener("change", () => {
-        select.disabled = true;
         projectError.hidden = true;
-        void options.chooseProject(select.value).then(async () => {
-          close();
-          gear.focus();
-          await options.onChosen();
-        }).catch((error: unknown) => {
-          projectError.textContent = `Couldn’t switch project: ${error instanceof Error ? error.message : String(error)}`;
-          projectError.hidden = false;
-          options.onError(error);
-        }).finally(() => { select.disabled = false; });
+        void switchProject(select.value, {
+          choose: options.chooseProject,
+          chosen: async () => {
+            close();
+            gear.focus();
+            await options.onChosen();
+          },
+          failed: (message, error) => {
+            projectError.textContent = message;
+            projectError.hidden = false;
+            options.onError(error);
+          },
+          busy: (on) => { select.disabled = on; },
+        });
       });
     },
     stop(): void {

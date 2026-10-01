@@ -11,13 +11,13 @@
 //
 // And once connected, two scripts never write at once: each writer holds a writing lock (a Postgres
 // advisory lock) on a connection named `storytree-seed`, which is also how the app knows not to
-// restart into an update while a script is writing (@storytree/app's seedWriting).
+// restart into an update while a script is writing (the app's seedWriting).
 
 import pg from "pg";
 
 import { DataDirInUseError } from "@storytree/local-postgres";
 
-import { SEED_CONNECTION } from "@storytree/app";
+import { SEED_CONNECTION } from "@storytree/library";
 
 /** The advisory lock a seed holds while it writes: any fixed number, the same in every seed. */
 const SEED_LOCK = 3_000_300;

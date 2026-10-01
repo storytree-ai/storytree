@@ -1,6 +1,7 @@
 // @storytree/library: the project library every later storytree story reads and writes, and the
 // only way to reach it (capability 7 · Library API, the library story). At run time this entry
-// exports connect() and the errors a caller may need to catch by class. Everything else it exports
+// exports connect(), the errors a caller may need to catch by class, and the name a seed's
+// connection carries while it writes (SEED_CONNECTION). Everything else it exports
 // is a type, and none of them reaches a connection pool, a store or a table, but for one: a
 // connection's own database beside the projects (contract 7.7). The package exports
 // nothing but this entry, so the internals behind it cannot be imported at all.
@@ -8,7 +9,7 @@ export { connect } from "./api/index.js";
 export type { Change, Changes, Library, Storytree } from "./api/index.js";
 export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, OpenOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
-export { ConnectionError, ProjectGoneError, ProjectNameError, RestoreRefusedError } from "./project/index.js";
+export { ConnectionError, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";

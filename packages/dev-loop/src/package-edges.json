@@ -20,7 +20,6 @@
     {"from": "@storytree/cli", "to": "@storytree/library", "said": null, "on": null},
     {"from": "@storytree/cli", "to": "@storytree/processes", "said": null, "on": null},
     {"from": "@storytree/dev-loop", "to": "@storytree/agent-link", "said": null, "on": null},
-    {"from": "@storytree/dev-loop", "to": "@storytree/app", "said": null, "on": null},
     {"from": "@storytree/dev-loop", "to": "@storytree/library", "said": null, "on": null},
     {"from": "@storytree/dev-loop", "to": "@storytree/local-postgres", "said": null, "on": null},
     {"from": "@storytree/forest", "to": "@storytree/agent-link", "said": null, "on": null},

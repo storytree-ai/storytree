@@ -266,9 +266,6 @@ importers:
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
-      '@storytree/app':
-        specifier: workspace:*
-        version: link:../app
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

@@ -471,7 +471,7 @@ export class Knowledge {
       return { by: "words", why, hits: holdingEvery(await read(), query).slice(0, limit).map((note) => ({ note })) };
     }
     const notes = await read();
-    const ranked = await rankByMeaning(notes.map((note) => ({ item: note, text: renderNote(note) })), query, embedder, this.#ranking.vectors);
+    const ranked = liftByTitle(await rankByMeaning(notes.map((note) => ({ item: note, text: renderNote(note) })), query, embedder, this.#ranking.vectors), query);
     return { by: "meaning", hits: ranked.slice(0, limit).map(({ item, score }) => ({ note: item, score })) };
   }
 
@@ -577,6 +577,25 @@ export class Knowledge {
  */
 function textsOf(note: SchemaRecord): string[] {
   return textsIn(note.fields);
+}
+
+/**
+ * A meaning ranking with the records the search names by their title put first, each group keeping
+ * its meaning order: those whose contract number (a title's leading `7.17`) is one of its words, then
+ * those whose title (a definition's term) holds every word, ignoring case. A long title's later
+ * words weigh little in its meaning, so without this a search in its own words can miss it.
+ */
+function liftByTitle<T extends SchemaRecord>(ranked: readonly { item: T; score: number }[], query: string): { item: T; score: number }[] {
+  const words = query.toLowerCase().split(/\s+/).filter((word) => word !== "");
+  const tier = ({ item }: { item: T }): number => {
+    const fields = item.fields as Record<string, unknown>;
+    const heading = (typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : "").toLowerCase();
+    const number = /^(\d+(?:\.\d+)+)(?![\d.])/.exec(heading)?.[1];
+    if (number !== undefined && words.includes(number)) return 0;
+    if (heading !== "" && words.every((word) => heading.includes(word))) return 1;
+    return 2;
+  };
+  return ranked.map((hit) => ({ hit, tier: tier(hit) })).sort((a, b) => a.tier - b.tier).map(({ hit }) => hit);
 }
 
 /** The records among `records` holding every whitespace-separated word of `query`, ignoring case, in order. */

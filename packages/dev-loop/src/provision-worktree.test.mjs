@@ -95,6 +95,27 @@ test("before a storytree command, an uninstalled worktree is refused with the co
   assert.equal(current.stdout + current.stderr, "", "an installed worktree runs the command with nothing said");
 });
 
+test("before a storytree command, a worktree missing the link to a workspace package main added is refused with the fix", (t) => {
+  // Installed and current, but packages/library now depends on packages/keys, which landed after the install.
+  const root = worktree(t, "current");
+  mkdirSync(path.join(root, "packages", "keys"));
+  writeFileSync(path.join(root, "packages", "keys", "package.json"), JSON.stringify({ name: "@storytree/keys" }));
+  const library = { name: "@storytree/library", dependencies: { "@storytree/keys": "workspace:*" } };
+  writeFileSync(path.join(root, "packages", "library", "package.json"), JSON.stringify(library));
+  const run = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /node packages\/dev-loop\/src\/provision-worktree\.mjs/, "it names the fix");
+  assert.ok(run.stderr.includes("@storytree/keys"), "it names the package the install lacks");
+  let calls = 0;
+  provision({ root, install: () => (calls++, { ok: true }) });
+  assert.equal(calls, 1, "the session-start hook reinstalls it");
+
+  // Once the install links it, the command runs.
+  mkdirSync(path.join(root, "packages", "library", "node_modules", "@storytree", "keys"), { recursive: true });
+  const linked = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
+  assert.equal(linked.status, 0, linked.stderr);
+});
+
 test("the tool server starts in a fresh worktree once the session-start install has finished", async (t) => {
   const root = worktree(t, "fresh");
   let started = 0;

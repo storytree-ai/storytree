@@ -9,6 +9,7 @@
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "pg": "^8.23.0",
+    "playwright-core": "1.60.0",
     "tsx": "^4.23.15"
   }
 }

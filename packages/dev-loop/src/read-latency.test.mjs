@@ -15,8 +15,8 @@ test("8.1 every query a page read makes is counted and delayed by the added late
   const storytree = await connect({ url });
   try {
     await seedLagProject(storytree, url, project, { arcs: 3, incrementsPerArc: 2, stories: 1 });
-    const quick = await measureReads({ storytree, url, project, delayMs: 0, rounds: 1, reads: ["arcViews"] });
-    const slow = await measureReads({ storytree, url, project, delayMs: 40, rounds: 1, reads: ["arcViews"] });
+    const quick = await measureReads({ storytree, project, delayMs: 0, rounds: 1, reads: ["arcViews"] });
+    const slow = await measureReads({ storytree, project, delayMs: 40, rounds: 1, reads: ["arcViews"] });
     const [fast] = quick.filter(({ read }) => read === "arcViews");
     const [delayed] = slow.filter(({ read }) => read === "arcViews");
     assert.ok(fast.queries > 0, "the read's queries are counted");

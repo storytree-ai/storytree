@@ -16,7 +16,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { locateLibrary, readLibrary } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
@@ -27,31 +27,38 @@ import { driftOf, expectedFiles, overBudget, readRoles, ROLE_DIRS, SKILL_DIRS } 
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
-const check = process.argv.includes("--check");
-const COMMAND = check ? "pnpm check:guidance" : "pnpm build:guidance";
 
 let server; // the app's Postgres, when this started it
-process.once("SIGINT", () => {
-  console.error("\nguidance: interrupted");
-  void (server?.stop() ?? Promise.resolve()).finally(() => process.exit(130));
-});
 
-main().then(
-  (code) => {
-    process.exitCode = code;
-  },
-  (error) => {
-    console.error(`\nguidance: ${error.stack ?? error.message}`);
-    process.exitCode = 1;
-  },
-);
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.once("SIGINT", () => {
+    console.error("\nguidance: interrupted");
+    void (server?.stop() ?? Promise.resolve()).finally(() => process.exit(130));
+  });
+  main(process.argv.includes("--check")).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error) => {
+      console.error(`\nguidance: ${error.stack ?? error.message}`);
+      process.exitCode = 1;
+    },
+  );
+}
 
-async function main() {
-  const roles = await withLibrary(readRoles);
+async function main(check) {
+  const roles = await withLibrary(readRoles, check ? "pnpm check:guidance" : "pnpm build:guidance");
   if (roles === undefined) return 1;
-  const expected = expectedFiles(roles, readFileSync(path.join(root, "CLAUDE.md"), "utf8"));
-  const drift = driftOf(expected, disk);
+  return syncGuidance(expectedFiles(roles, readFileSync(path.join(root, "CLAUDE.md"), "utf8")), { root, check });
+}
 
+/**
+ * Bring the guidance files under `root` to `expected`: the build writes each stale or missing file and
+ * removes each orphan; the check (`check`) writes nothing and says what drifted. The exit code: 1 when
+ * the check found drift or a file is over its size budget, else 0.
+ */
+export function syncGuidance(expected, { root, check, log = (line) => console.log(line), error = (line) => console.error(line) }) {
+  const drift = driftOf(expected, diskAt(root));
   if (!check) {
     for (const { file, problem } of drift) {
       if (problem === "orphan") {
@@ -62,32 +69,32 @@ async function main() {
         mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
         writeFileSync(path.join(root, file), expected.get(file));
       }
-      console.log(`${problem === "orphan" ? "removed" : "wrote"} ${file}`);
+      log(`${problem === "orphan" ? "removed" : "wrote"} ${file}`);
     }
-    if (drift.length === 0) console.log("the guidance already matches the library");
+    if (drift.length === 0) log("the guidance already matches the library");
   } else if (drift.length > 0) {
-    console.error(`The committed guidance has drifted from the library:\n${drift.map(({ file, problem }) => `  ${problem}: ${file}`).join("\n")}`);
-    console.error("Run `pnpm build:guidance` and commit what it changes.");
+    error(`The committed guidance has drifted from the library:\n${drift.map(({ file, problem }) => `  ${problem}: ${file}`).join("\n")}`);
+    error("Run `pnpm build:guidance` and commit what it changes.");
   } else {
-    console.log("the guidance matches the library");
+    log("the guidance matches the library");
   }
 
   const over = overBudget(expected);
-  for (const { file, bytes, budget } of over) console.error(`over budget: ${file} is ${bytes} bytes; its budget is ${budget}`);
+  for (const { file, bytes, budget } of over) error(`over budget: ${file} is ${bytes} bytes; its budget is ${budget}`);
   return (check && drift.length > 0) || over.length > 0 ? 1 : 0;
 }
 
 /** Run `read` on the project's library, or say why the library could not be opened and return undefined. */
-async function withLibrary(read) {
+async function withLibrary(read, command) {
   const home = path.dirname(appHome().pgdata);
   const where = locateLibrary({ home, dataDir: appHome().pgdata });
   let options = where.found ? where.connect : undefined;
   if (options === undefined && readLibrary(home).location === "local") {
     try {
-      server = await start({ dataDir: appHome().pgdata, owner: COMMAND });
+      server = await start({ dataDir: appHome().pgdata, owner: command });
     } catch (error) {
       if (!(error instanceof DataDirInUseError)) throw error;
-      console.error(`The app's library in ${appHome().pgdata} is in use by process ${error.pid}. When it has finished, run \`${COMMAND}\` again.`);
+      console.error(`The app's library in ${appHome().pgdata} is in use by process ${error.pid}. When it has finished, run \`${command}\` again.`);
       return undefined;
     }
     options = { url: server.url };
@@ -110,7 +117,8 @@ async function withLibrary(read) {
   }
 }
 
-const disk = {
+/** The guidance files as they are under `root`. */
+const diskAt = (root) => ({
   read(file) {
     try {
       return readFileSync(path.join(root, file), "utf8");
@@ -135,4 +143,4 @@ const disk = {
       return [];
     }
   },
-};
+});

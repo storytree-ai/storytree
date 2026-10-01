@@ -28,7 +28,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { readLibrary } from "@storytree/agent-link";
 import { connect } from "@storytree/library";
@@ -42,20 +42,22 @@ const PROJECT = "storytree";
 const COMMAND = "pnpm check:own-health";
 
 let server; // the app's Postgres, while it runs
-process.once("SIGINT", () => {
-  console.error("\ncheck: interrupted; stopping Postgres");
-  void (server?.stop() ?? Promise.resolve()).finally(() => process.exit(130));
-});
 
-main().then(
-  (code) => {
-    process.exitCode = code;
-  },
-  (error) => {
-    console.error(`\ncheck: ${error.stack ?? error.message}`);
-    process.exitCode = 1;
-  },
-);
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.once("SIGINT", () => {
+    console.error("\ncheck: interrupted; stopping Postgres");
+    void (server?.stop() ?? Promise.resolve()).finally(() => process.exit(130));
+  });
+  main().then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (error) => {
+      console.error(`\ncheck: ${error.stack ?? error.message}`);
+      process.exitCode = 1;
+    },
+  );
+}
 
 async function main() {
   const home = appHome();
@@ -85,7 +87,7 @@ async function main() {
     try {
       let code = 0;
       for (const story of (await library.projectTree()).stories) {
-        if (!(await checkStory(library, story, target.writer))) code = 1;
+        if (!(await checkStory(library, story, target.writer, { root }))) code = 1;
       }
       return code;
     } finally {
@@ -98,26 +100,27 @@ async function main() {
 }
 
 /**
- * Run `story`'s own tests and record each of its contracts' verified health from what they showed.
- * False if the run produced no report, so no health could be recorded.
+ * Run `story`'s own tests (those of its package under `root`, through `runTests`) and record each of
+ * its contracts' verified health from what they showed. False if the run produced no report, so no
+ * health could be recorded.
  */
-async function checkStory(library, story, writer) {
+export async function checkStory(library, story, writer, { root, runTests = runStoryTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story.title);
   const source = path.join(root, "packages", name, "src");
   if (!existsSync(source)) {
-    console.log(`\n"${story.title}" has no tests yet (no packages/${name}), so its ${numbers.length} contracts are left not checked.`);
+    log(`\n"${story.title}" has no tests yet (no packages/${name}), so its ${numbers.length} contracts are left not checked.`);
     return true;
   }
   const tests = [`packages/${name}/src/**/*.test.ts`, `packages/${name}/src/**/*.test.mjs`];
-  console.log(`\nrunning the tests of "${story.title}" (${tests.join(", ")}, junit reporter) …`);
-  const run = await runTests(tests);
+  log(`\nrunning the tests of "${story.title}" (${tests.join(", ")}, junit reporter) …`);
+  const run = await runTests(tests, root);
   if (run.results === undefined) {
-    console.error(`\nThe test run (exit code ${run.code}) produced no report, so no health was recorded for "${story.title}".`);
+    error(`\nThe test run (exit code ${run.code}) produced no report, so no health was recorded for "${story.title}".`);
     return false;
   }
   const count = (status) => run.results.filter((result) => result.status === status).length;
-  console.log(`tests: ${run.results.length} results: ${count("passed")} passed, ${count("failed")} failed, ${count("skipped")} skipped`);
+  log(`tests: ${run.results.length} results: ${count("passed")} passed, ${count("failed")} failed, ${count("skipped")} skipped`);
 
   const { verdicts, unmapped, crashedFiles } = judge({
     contracts: numbers,
@@ -126,19 +129,19 @@ async function checkStory(library, story, writer) {
     show: (test) => path.relative(root, test),
   });
   for (const { file: crashed, contracts: held } of crashedFiles) {
-    console.log(
+    log(
       `\n${path.relative(root, crashed)} produced no results: its process died before running any test (a known flake).\n` +
         `  Its contracts are left not checked, not failed: ${held.join(", ") || "(none found)"}. Run the check again to check them.`,
     );
   }
   if (unmapped.length > 0) {
-    console.log(`\n${unmapped.length} test(s) name no contract of the story, so they count for none:`);
-    for (const result of unmapped) console.log(`  ${result.status.padEnd(7)} ${result.name}`);
+    log(`\n${unmapped.length} test(s) name no contract of the story, so they count for none:`);
+    for (const result of unmapped) log(`  ${result.status.padEnd(7)} ${result.name}`);
   }
 
-  console.log(`\nverified health of "${story.title}", by "${writer.by}"${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}:`);
+  log(`\nverified health of "${story.title}", by "${writer.by}"${writer.commit === undefined ? "" : ` at commit ${writer.commit}`}:`);
   for (const capability of story.capabilities) {
-    console.log(`  ${capability.title}`);
+    log(`  ${capability.title}`);
     for (const contract of capability.contracts) {
       const number = /^(\d+\.\d+) · /.exec(contract.title)?.[1];
       const verdict = number === undefined ? undefined : verdicts.get(number);
@@ -149,11 +152,11 @@ async function checkStory(library, story, writer) {
         if (earlier.state !== "not-checked") line += `; its earlier entry (${earlier.state}, ${earlier.at}) is marked not re-run`;
         if (verdict.skip !== undefined) line += ` [skip: ${verdict.skip}]`;
       }
-      console.log(line);
+      log(line);
     }
   }
   const written = await recordHealth(library, contractIds, verdicts, writer);
-  console.log(
+  log(
     `\nrecorded: ${written.passing} passing, ${written.failing} failing; ` +
       `${written.notChecked} not checked, ${written.marked} of them marked with a skip's kind or as not re-run. The reported column is untouched.`,
   );
@@ -161,7 +164,7 @@ async function checkStory(library, story, writer) {
 }
 
 /** Run the tests `globs` name through the test harness (its own throwaway Postgres), reading their junit report. */
-async function runTests(globs) {
+async function runStoryTests(globs, root) {
   const work = mkdtempSync(path.join(tmpdir(), "storytree-health-"));
   const report = path.join(work, "tests.xml");
   try {

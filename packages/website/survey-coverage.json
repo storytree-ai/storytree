@@ -4,10 +4,10 @@
   "2": 1
  },
  "src/copy-command.ts": {
-  "1": 2
+  "1": 9
  },
  "src/forest-snapshot.ts": {
-  "3": 6
+  "3": 12
  },
  "src/install-command.ts": {
   "1": 20,
@@ -18,5 +18,8 @@
  },
  "src/publish.ts": {
   "4": 32
+ },
+ "src/refresh-forest.ts": {
+  "3": 6
  }
 }

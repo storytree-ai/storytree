@@ -5,7 +5,7 @@
 // afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { connect } from "@storytree/library";
 import pg from "pg";
 
+import { checkStory } from "./check-own-health.mjs";
 import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, recordingTarget } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -217,6 +218,36 @@ test("own health reads a story's contracts from the library, each number from it
   assert.equal(packageOf("The world"), "forest-world");
   assert.equal(packageOf("The local database"), "local-postgres");
   assert.equal(packageOf("Process ledger"), "processes");
+});
+
+test("5.4 checking a story runs its own package's tests and records each contract's verified health from them; a run with no report, or a story with no package, records nothing", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-check-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const { contractIds } = contractsOf(story);
+    const ran = [];
+    const quiet = { log: () => {}, error: () => {} };
+    const result = (name, status) => ({ name, suites: [], file: path.join(root, "packages/cli/src/kettle.test.mjs"), status });
+    const run = async (globs) => {
+      ran.push(...globs);
+      return { code: 1, results: [result("1.1 it does a", "passed"), result("1.2 it does b", "failed")] };
+    };
+
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, ...quiet }), true);
+    assert.deepEqual(ran, [], "a story with no package runs no tests");
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), []);
+
+    mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: async () => ({ code: 1, results: undefined }), ...quiet }), false);
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), [], "a run with no report records nothing");
+
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, ...quiet }), true);
+    assert.deepEqual(ran, ["packages/cli/src/**/*.test.ts", "packages/cli/src/**/*.test.mjs"]);
+    assert.equal((await lib.health(contractIds.get("1.1"))).verified.state, "passing");
+    assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "a contract with no test is left not checked");
+  });
 });
 
 test("recordHealth writes each passing or failing verdict to the verified column, with who and how many tests, and nothing for not checked", async () => {

@@ -1,8 +1,7 @@
 import type { SetupHelpBridge } from "../help/bridge.js";
 import { feedbackText } from "../help/feedback.js";
+import { guideOffered, rememberGuideDismissed } from "./first-run.js";
 import { guide, recoveryRequest } from "./guide.js";
-
-const SEEN = "storytree:setup:guide-seen:v1";
 
 /** A single help surface survives empty/error states and project switching in the thin frame. */
 export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, options: { returnFocus?: HTMLElement; embedded?: boolean; onOpen?: () => void } = {}): { open(): void; close(): void; stop(): void } {
@@ -163,7 +162,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
   function close(): void {
     if (panel.hidden) return;
     panel.hidden = true; launch?.setAttribute("aria-expanded", "false");
-    try { localStorage.setItem(SEEN, "yes"); } catch { /* Help remains usable without preference storage. */ }
+    rememberGuideDismissed(() => localStorage);
     if (!options.embedded) (options.returnFocus ?? launch)?.focus();
   }
   function key(event: KeyboardEvent): void {
@@ -174,9 +173,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
   launch?.addEventListener("click", () => { if (panel.hidden) open(); else close(); });
   panel.querySelector("[data-close-help]")?.addEventListener("click", close);
   if (!options.embedded) document.addEventListener("keydown", key, true);
-  let seen = false;
-  try { seen = localStorage.getItem(SEEN) === "yes"; } catch { /* First launch offers the guide. */ }
-  if (!seen) {
+  if (guideOffered(() => localStorage)) {
     if (options.embedded) queueMicrotask(() => { if (!stopped) (options.onOpen ?? open)(); });
     else open();
   }

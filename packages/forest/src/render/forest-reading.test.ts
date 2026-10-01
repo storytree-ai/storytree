@@ -137,6 +137,7 @@ test("the forest draws from the page's one reading, and the surfaces hearing it 
   const reading = forestReading({ project: "shop", reads: shared, reading: page, timers, onTree: (read) => drawn.push(read), onError: () => {} });
   page.subscribe({ onNews: () => shared.projectTree("shop") });
   await settle();
+  await settle();
   await timers.tick();
   assert.deepEqual(drawn, [tree]);
   assert.deepEqual(asked, ["changes 0", "lines 0", "tree", "changes 0", "lines 0"]);

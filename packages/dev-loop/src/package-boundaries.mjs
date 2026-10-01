@@ -8,7 +8,10 @@
 //   (the cli story's `packages/cli`: command families that call the story package owning the
 //   work). What gives such code away is its name: a folder or file in the frame named after a
 //   story, or a folder in the front door (a command family is one file, named after the story it
-//   fronts, so the front door's files may carry a story's name).
+//   fronts, so the front door's files may carry a story's name). A test there that reaches the
+//   story it is named after through that story's package is the frame testing its own mounting of
+//   it, and passes. A refused file that leans on the frame is not told to move into the story's
+//   package, which would make the story depend on the frame (ADR-0847).
 // - No package reaches into another story's files: not by a relative path into its folder, and not
 //   by a subpath of `@storytree/<story>` that its package.json does not export.
 // - No workspace packages depend on each other in a cycle, not even through a devDependency. pnpm
@@ -47,6 +50,7 @@ export const NOT_YET_MOVED = [];
 const FRAME = { story: "app", dirs: ["packages/app", "apps/desktop"] };
 const FRONT_DOOR = { story: "cli", dirs: ["packages/cli"] };
 const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+const TEST = /\.test\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 const SKIP = new Set(["node_modules", "dist", ".turbo"]);
 /** This check's own test, whose planted trees are written as the very imports it must refuse. */
 const OWN_TEST = "packages/dev-loop/src/package-boundaries.test.mjs";
@@ -71,6 +75,7 @@ export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YE
     if (!known) problems.push(`${dir} is neither a story's package nor the frame: every package belongs to a story (ADR-0805 D5)`);
   }
 
+  const frameNames = new Set([...FRAME.dirs, ...FRONT_DOOR.dirs].filter((dir) => packages.includes(dir)).map((dir) => packageName(root, dir)));
   const moved = new Map(notYetMoved.map((entry) => [entry.path, { ...entry, holds: false }]));
   for (const { story: own, dirs } of [FRAME, FRONT_DOOR]) {
     const frontDoor = own === FRONT_DOOR.story;
@@ -80,9 +85,13 @@ export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YE
         const named = frontDoor ? segments.slice(0, -1) : segments;
         const story = stories.find((id) => id !== own && named.some((segment) => namedAfter(segment, id)));
         if (story === undefined) continue;
+        const imports = CODE.test(file) ? importsOf(readFileSync(path.join(root, file), "utf8")) : [];
+        if (TEST.test(file) && imports.some((specifier) => specifier === `@storytree/${story}` || specifier.startsWith(`@storytree/${story}/`))) continue;
         const entry = [...moved.values()].find((held) => file.startsWith(`${held.path}/`));
         if (entry) entry.holds = true;
-        else problems.push(`${file} is the ${story} story's code in the ${frontDoor ? "front door" : "frame"}: move it into packages/${story}`);
+        else if (imports.some((specifier) => specifier.startsWith(".") || frameNames.has(specifier.split("/").slice(0, 2).join("/")))) {
+          problems.push(`${file} is named after the ${story} story but leans on the ${frontDoor ? "front door" : "frame"}, so moving it into packages/${story} would make that story depend on the frame (ADR-0847): a test of the frame mounting the story reaches it through @storytree/${story}; anything else keeps a name of the frame's own, or moves its story part into packages/${story} behind its exports`);
+        } else problems.push(`${file} is the ${story} story's code in the ${frontDoor ? "front door" : "frame"}: move it into packages/${story}`);
       }
     }
   }
@@ -100,12 +109,11 @@ export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YE
     }
   }
   const deps = workspaceDependencies(root, packages);
-  const frame = new Set([...FRAME.dirs, ...FRONT_DOOR.dirs].filter((dir) => packages.includes(dir)).map((dir) => packageName(root, dir)));
   const sanctioned = new Set(edges.edges.filter((edge) => edge.said).map((edge) => `${edge.from} ${edge.to}`));
   for (const [from, tos] of deps) {
-    if (frame.has(from)) continue;
+    if (frameNames.has(from)) continue;
     for (const to of tos) {
-      if (frame.has(to) && !sanctioned.has(`${from} ${to}`)) {
+      if (frameNames.has(to) && !sanctioned.has(`${from} ${to}`)) {
         problems.push(`${from} → ${to} is a story depending on the frame or the front door, which the owner has not sanctioned in package-edges.json: move the seam, or raise a question on the arc rather than adding it yourself (ADR-0847)`);
       }
     }

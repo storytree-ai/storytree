@@ -64,6 +64,35 @@ test("3.2 a story's code in the frame or the front door is refused", (t) => {
   assert.match(problems.join("\n"), /packages\/cli\/src\/forest\/scene\.ts.*forest/);
 });
 
+// increment_5c95db0bb297: the frame tests its own mounting of a story under that story's name.
+test("3.2 a frame test of mounting a story may carry the story's name, when it reaches the story through its package", (t) => {
+  const problems = boundaryProblems(
+    plant(t, {
+      "apps/desktop/src/forest/forest.test.ts": 'import { forestScene } from "@storytree/forest";\nimport { mount } from "@storytree/app";\n',
+      "apps/desktop/src/library/library.test.ts": 'import { mount } from "@storytree/app";\n',
+    }),
+    DECLARED,
+  );
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assert.match(problems[0], /apps\/desktop\/src\/library\/library\.test\.ts.*library/);
+});
+
+test("3.2 a refused file that leans on the frame is never told to move into the story's package, which would make the story depend on the frame", (t) => {
+  const problems = boundaryProblems(
+    plant(t, {
+      "apps/desktop/src/forest/panel.ts": 'import { mount } from "@storytree/app";\n',
+      "packages/app/src/forest/glue.ts": 'import { start } from "../lifecycle/start.js";\n',
+    }),
+    DECLARED,
+  );
+  assert.equal(problems.length, 2, problems.join("\n"));
+  for (const problem of problems) {
+    assert.match(problem, /forest/);
+    assert.doesNotMatch(problem, /move it into packages\/forest/);
+    assert.match(problem, /ADR-0847/);
+  }
+});
+
 test("story code the frame still holds passes only while it is declared, and its declaration only while it is there", (t) => {
   const declared = { ...DECLARED, notYetMoved: [{ path: "apps/desktop/src/forest", question: "oq-move-it" }] };
   assert.deepEqual(boundaryProblems(plant(t, { "apps/desktop/src/forest/story-panel.ts": "" }), declared), []);

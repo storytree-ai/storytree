@@ -1321,6 +1321,38 @@ test("6.19 it makes a workspace for an increment: a worktree on a fresh branch f
   });
 });
 
+test("6.34 a call a hook saw works in the worktree that hook ran in, so a claim it takes carries that worktree's branch; a call no hook saw, or one whose hook ran in another project, works in the server's own folder", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "commit", "-m", "first");
+    // The session moved into a workspace after the harness started the tool server in the checkout.
+    const worktree = path.join(folder, ".claude", "worktrees", "form");
+    git(folder, "worktree", "add", "-q", "-b", "claude/form", worktree);
+    const elsewhere = path.join(path.dirname(folder), "other");
+    mkdirSync(elsewhere);
+    writeFileSync(path.join(elsewhere, MARKER_FILE), `${JSON.stringify({ project: uniqueProjectName() })}\n`);
+    git(elsewhere, "init", "-b", "theirs");
+    const hook = { session: "claude-1", harness: "claude-code", source: "hook", kind: "tool-requested", tool: "claim", agent: "orchestrator" } as const;
+    await log.append(project, { ...hook, folder: worktree, call: "toolu_in_worktree" });
+    await log.append(project, { ...hook, folder: elsewhere, call: "toolu_elsewhere" });
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { story, capability } = await planned(agent);
+      const capabilityTitled = async (title: string) => idOf(await agent.call("plan_capability", { story, title, ...FOUNDED }));
+      const [unseen, foreign] = [await capabilityTitled("Welcome mail"), await capabilityTitled("Password reset")];
+
+      for (const [id, call] of [[capability, "toolu_in_worktree"], [unseen, undefined], [foreign, "toolu_elsewhere"]] as const) {
+        const claimed = await agent.call("claim", { capability: id, reason: "building it" }, call === undefined ? undefined : { "claudecode/toolUseId": call });
+        assert.equal(claimed.isError, false, claimed.text);
+      }
+      const branchOf = async (id: string) => (await readClaims(log, project)).find((claim) => claim.capability === id)?.branch;
+      assert.equal(await branchOf(capability), "claude/form", "the worktree's branch, which its merge ends");
+      assert.equal(await branchOf(unseen), "main", "no hook saw it: the server's own folder");
+      assert.equal(await branchOf(foreign), "main", "a folder of another project is never worked in");
+    });
+  });
+});
+
 test("ADR-0650 writes proper artifact kinds with default filing and refuses harness memory without writing", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("artifact-writer"), async (agent) => {

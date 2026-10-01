@@ -53,3 +53,11 @@ test("1.8 when the code no longer fits the globe, the globe and its islands' coa
   assert.ok(layout.radius > PLANET_RADIUS, "the radius grew");
   assert.ok(nearestCoasts(scene, layout) >= SEA_GAP - 1, "and nothing overlaps");
 });
+
+test("1.7 a change on one island keeps every unmoved island's spot as it was, so its plate is not drawn again (ADR-0836 D1)", () => {
+  const before = planetLayout(forestScene(tree, [], workStates([])), places);
+  const after = planetLayout(forestScene(tree, [], workStates([]), { [ids[7]!]: survey(40) }), places, before);
+  assert.equal(after.spots.get(ids[0]!), before.spots.get(ids[0]!));
+  const same = planetLayout(forestScene(tree, [], workStates([])), places, before);
+  assert.equal(same.spots, before.spots, "nothing moved: the same spots");
+});

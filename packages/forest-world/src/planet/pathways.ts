@@ -141,7 +141,7 @@ function requireNetwork(network: TrailNetwork, where: string, cross = false): vo
 
 /** One ordered chain per recorded capability edge, including its two shore connections.
  * The azimuthal chart covers the fixed 36-place spiral, including its occupied far hemisphere. */
-export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): PlanetPathways {
+export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
   const plan: PlanetPathways = { plates: new Map(), segments: [], edges: [], docks: [] };
   const chart = (v: Vector3): Point => {
     const n = v.clone().normalize(), angle = Math.acos(Math.max(-1, Math.min(1, n.z))), s = Math.hypot(n.x, n.y);
@@ -181,7 +181,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     return [keyOf(pair), pair];
   })).values()];
   const maxWidth = trailFillWidth(cross.length) * RIBBON_GROUND_SCALE;
-  const network = routeTrails([...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r })), pairs,
+  const network = route([...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r })), pairs,
     'globe-pathways-real-seed', { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 });
   requireNetwork(network, 'between islands', true);
   const crossSegments = new Map(network.segments.map(segment => [segment.id, segment]));
@@ -238,7 +238,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
       if (!endpoints.some(p => p.id === dock.id)) endpoints.push({ id: dock.id, x: dock.local.x, y: dock.local.z, r: 0 });
       input.push({ from: link.source === g.id ? link.from : link.to, to: dock.id });
     }
-    const local = routeTrails(endpoints, input, `island:${g.id}`, { cellSize: 1, clearance: 0.3, falloff: 1,
+    const local = route(endpoints, input, `island:${g.id}`, { cellSize: 1, clearance: 0.3, falloff: 1,
       falloffCost: 2, meanderAmp: 0.1, meanderWavelength: 5, reclusterOnApproach: false,
       dockMergeGap: 0, dockMergeSpan: 0, junctionWeld: 0 });
     requireNetwork(local, `on island ${g.id}`);

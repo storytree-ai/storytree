@@ -1,5 +1,5 @@
 /** What a live update hands the globe (ADR-0836 D1): only what changed, and nothing when nothing on show did. */
-import type { ForestScene, SessionWisp } from "@storytree/forest";
+import type { ClaimTint, ForestScene, Island, SessionWisp } from "@storytree/forest";
 
 /** The globe's drawing as it stands: the scene and each story's permanent place. */
 export interface OnShow {
@@ -27,4 +27,9 @@ export function sameWisps(a: readonly SessionWisp[], b: readonly SessionWisp[]):
     return wisp.session === other.session && wisp.story === other.story && wisp.colour === other.colour && wisp.phase === other.phase
       && wisp.faded === other.faded && wisp.capabilities.length === other.capabilities.length && wisp.capabilities.every((c, i) => c === other.capabilities[i]);
   });
+}
+
+/** What of `claimed` tints island land `land`: equal while only other islands' claims change. */
+export function claimsOn(claimed: ReadonlyMap<string, ClaimTint>, _land: NonNullable<Island["land"]>): string {
+  return JSON.stringify([...claimed]);
 }

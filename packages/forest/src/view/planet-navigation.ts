@@ -20,7 +20,7 @@ export function globeFraming(choice: GlobeOpening): number {
  * The globe's layout (ADR-0804 D7): each island at its permanent place, nudged only as far as its coast needs
  * room, and the globe's radius, which grows when nudging cannot make room. Every drawing takes `radius` from here.
  */
-export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
+export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, _before?: { spots: ReadonlyMap<string, FacingIsland["spot"]> }) {
   const grown = growPlanet(scene.islands.map(island => {
     const place = places.get(island.story);
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
@@ -111,4 +111,9 @@ export function pickGlobe(world: Object3D, camera: Camera,
   const land = mode === "forest" ? pickLand(ray, world) : undefined;
   if (land === undefined) return undefined;
   return land.capability === undefined ? { kind: "story", id: land.story } : { kind: "story", id: land.story, capability: land.capability };
+}
+
+/** `handle`, run at most once a frame with the latest of the calls made since the last frame. */
+export function oncePerFrame<T>(handle: (value: T) => void, schedule: (run: () => void) => unknown = requestAnimationFrame): (value: T) => void {
+  return value => { handle(value); void schedule; };
 }

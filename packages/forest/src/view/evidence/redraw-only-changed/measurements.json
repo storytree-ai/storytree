@@ -58,5 +58,122 @@
       "errors": [],
       "unknownCalls": []
     }
-  ]
+  ],
+  "items34": {
+    "instrument": "same capture; MODE=island changes one island (its title) on every 2 s poll; MODE=wisps claims and releases a capability on every poll",
+    "islandBefore": [
+      {
+        "seconds": 40.175,
+        "lineReads": 40,
+        "treeReads": 40,
+        "librarianLabel": "The librarian 5",
+        "longFrames": 19,
+        "longFrameMsTotal": 4031,
+        "blockedShare": 0.1,
+        "longestFrameMs": 277,
+        "blockingMsTotal": 3057,
+        "errors": [],
+        "unknownCalls": []
+      },
+      {
+        "seconds": 40.00009999999963,
+        "lineReads": 40,
+        "treeReads": 40,
+        "librarianLabel": "The librarian 0",
+        "longFrames": 20,
+        "longFrameMsTotal": 4250,
+        "blockedShare": 0.106,
+        "longestFrameMs": 255,
+        "blockingMsTotal": 3227,
+        "errors": [],
+        "unknownCalls": []
+      }
+    ],
+    "islandAfter": [
+      {
+        "seconds": 40.05740000000037,
+        "lineReads": 40,
+        "treeReads": 40,
+        "librarianLabel": "The librarian 5",
+        "longFrames": 19,
+        "longFrameMsTotal": 2461,
+        "blockedShare": 0.061,
+        "longestFrameMs": 161,
+        "blockingMsTotal": 1486,
+        "errors": [],
+        "unknownCalls": []
+      },
+      {
+        "seconds": 40.000200000001115,
+        "lineReads": 40,
+        "treeReads": 40,
+        "librarianLabel": "The librarian 0",
+        "longFrames": 20,
+        "longFrameMsTotal": 2549,
+        "blockedShare": 0.064,
+        "longestFrameMs": 168,
+        "blockingMsTotal": 1526,
+        "errors": [],
+        "unknownCalls": []
+      }
+    ],
+    "wispsBefore": {
+      "seconds": 40.00019999999925,
+      "lineReads": 40,
+      "treeReads": 0,
+      "librarianLabel": "The librarian",
+      "longFrames": 2,
+      "longFrameMsTotal": 410,
+      "blockedShare": 0.01,
+      "longestFrameMs": 360,
+      "blockingMsTotal": 310,
+      "errors": [],
+      "unknownCalls": []
+    },
+    "wispsAfter": {
+      "seconds": 40.00009999999963,
+      "lineReads": 40,
+      "treeReads": 0,
+      "librarianLabel": "The librarian",
+      "longFrames": 2,
+      "longFrameMsTotal": 154,
+      "blockedShare": 0.004,
+      "longestFrameMs": 98,
+      "blockingMsTotal": 47,
+      "errors": [],
+      "unknownCalls": []
+    },
+    "idleAfter": {
+      "seconds": 40.00009999999963,
+      "lineReads": 40,
+      "treeReads": 0,
+      "librarianLabel": "The librarian",
+      "longFrames": 0,
+      "longFrameMsTotal": 0,
+      "blockedShare": 0,
+      "longestFrameMs": 0,
+      "blockingMsTotal": 0,
+      "errors": [],
+      "unknownCalls": []
+    },
+    "hover": {
+      "seconds": 2.0000999999996276,
+      "lineReads": 2,
+      "treeReads": 0,
+      "librarianLabel": "The librarian",
+      "longFrames": 0,
+      "longFrameMsTotal": 0,
+      "blockedShare": 0,
+      "longestFrameMs": 0,
+      "blockingMsTotal": 0,
+      "hover": [
+        "src/context/context.ts · 110 lines · 3 · Hooks",
+        "src/hooks/claude-code.ts · 82 lines · 3 · Hooks",
+        "src/hooks/status-line.ts · 103 lines · 3 · Hooks"
+      ],
+      "hoverTried": 76,
+      "errors": [],
+      "unknownCalls": []
+    }
+  }
 }

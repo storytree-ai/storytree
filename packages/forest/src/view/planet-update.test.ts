@@ -4,7 +4,8 @@ import { test } from "node:test";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, type SessionWisp } from "@storytree/forest";
 import type { AnnotatedTree } from "@storytree/library";
-import { nextScene, sameWisps } from "./planet-update.js";
+import { claimsOn, nextScene, sameWisps } from "./planet-update.js";
+import { oncePerFrame } from "./planet-navigation.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const tree = (title: string): AnnotatedTree => ({ arcs: [], stories: [
@@ -33,4 +34,25 @@ test("wisps that draw the same as those on show are not drawn again", () => {
   assert.ok(sameWisps([wisp(["c"])], [wisp(["c"])]));
   assert.ok(!sameWisps([wisp(["c"])], [wisp(["c", "d"])]));
   assert.ok(!sameWisps([wisp(["c"])], [{ ...wisp(["c"]), faded: true }]));
+});
+
+test("a claim on another island leaves this island's tints as they were, so its territories are not cut again", () => {
+  const land = { territories: [{ capability: "mine", lines: 10 }, { lines: 3 }], files: [] };
+  const tint = { colour: "hsl(1, 80%, 68%)", faded: false };
+  const before = claimsOn(new Map([["mine", tint]]), land);
+  assert.equal(claimsOn(new Map([["mine", tint], ["elsewhere", tint]]), land), before);
+  assert.notEqual(claimsOn(new Map([["mine", { ...tint, faded: true }]]), land), before);
+});
+
+test("the pointer is picked at most once a frame, at its latest place", () => {
+  const frames: (() => void)[] = [];
+  const picked: number[] = [];
+  const move = oncePerFrame((x: number) => picked.push(x), run => frames.push(run));
+  move(1); move(2); move(3);
+  assert.deepEqual(picked, []);
+  frames.splice(0).forEach(run => run());
+  assert.deepEqual(picked, [3]);
+  move(4);
+  frames.splice(0).forEach(run => run());
+  assert.deepEqual(picked, [3, 4]);
 });

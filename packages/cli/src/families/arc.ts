@@ -255,10 +255,7 @@ const list: Verb = {
   async act(_args, context) {
     const library = await context.library();
     const lines: string[] = [];
-    for (const arc of await library.list("arc")) {
-      const view = await library.arcView(arc.id);
-      if (view !== null) lines.push(`  ${arc.id}  [${stateOf(view)}]  ${view.arc.fields.title}`);
-    }
+    for (const view of await library.arcViews()) lines.push(`  ${view.arc.id}  [${stateOf(view)}]  ${view.arc.fields.title}`);
     return {
       text: lines.length === 0 ? "No arcs in this project." : [`${lines.length} arcs:`, ...lines].join("\n"),
       next: [{ command: "storytree arc show <arc>", why: "see one whole" }],

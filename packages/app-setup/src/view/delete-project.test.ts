@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { deleteChosenProject } from "./delete-project.js";
 
-test("3.6: Delete a project (app menu): nothing is asked of the library until the chosen name is typed; then it is deleted with the snapshot choice and the frame refreshes; a refusal is said, not reported as deleted", async () => {
+test("3.6 Delete a project (app menu): nothing is asked of the library until the chosen name is typed; then it is deleted with the snapshot choice and the frame refreshes; a refusal is said, not reported as deleted", async () => {
   const calls: string[] = [];
   const bridge = { deleteProject: async (name: unknown, typed: unknown, snapshot: unknown) => { calls.push(`delete ${String(name)} ${String(typed)} ${String(snapshot)}`); return { status: "deleted" as const, project: String(name), snapshot: "/home/backups/old/1.json" }; } };
   const onDeleted = async (project: string) => { calls.push(`deleted ${project}`); };

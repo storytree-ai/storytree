@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { connect } from "@storytree/library";
 import pg from "pg";
 
+import { acceptRun } from "./record-acceptance.mjs";
 import { mintAcceptance, readObservations, recordAcceptance } from "./acceptance-health.mjs";
 import { contractsOf } from "./own-health.mjs";
 
@@ -69,6 +70,26 @@ test("5.5 recordAcceptance writes each passing or failing verdict to the verifie
     assert.deepEqual(passing.reported, { state: "not-checked" }, "the reported column is left alone");
     assert.equal((await lib.health(contractIds.get("1.2"))).verified.state, "failing");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.3")), [], "nothing is written for a contract not checked");
+  });
+});
+
+test("5.5 a run's verdicts are written to its story's contracts; --dry-run only prints them, and a run naming a story the library lacks writes nothing", async () => {
+  await withLibrary(async (lib) => {
+    const story = await lib.addStory({ title: "The app setup" });
+    const capability = await lib.addCapability({ story: story.id, title: "1 · Get storytree" });
+    await lib.addContract({ capability: capability.id, title: "1.1 · It installs" });
+    const { contractIds } = contractsOf((await lib.projectTree()).stories[0]);
+    const run = { story: "The app setup", commit: "9f3734a", evidence: "evidence/run", checks: [{ contract: "1.1", name: "installed", observed: "pass" }, { contract: "9.9", name: "stray", observed: "pass" }] };
+    const said = [];
+    const io = { log: (line) => said.push(line), error: (line) => said.push(line) };
+
+    assert.equal(await acceptRun(lib, { ...run, story: "No such story" }, { dryRun: false, ...io }), 1);
+    assert.equal(await acceptRun(lib, run, { dryRun: true, ...io }), 0);
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), [], "a dry run writes nothing");
+    assert.match(said.join("\n"), /count for none: 9\.9[\s\S]*1\.1 +passing/);
+
+    assert.equal(await acceptRun(lib, run, { dryRun: false, ...io }), 0);
+    assert.equal((await lib.health(contractIds.get("1.1"))).verified.by, "acceptance run");
   });
 });
 

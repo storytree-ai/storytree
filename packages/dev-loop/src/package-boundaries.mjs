@@ -16,6 +16,10 @@
 //   Windows, and git walks a junction as an ordinary folder, so a cycle is a folder loop: the
 //   desktop app's `git clean` of a reused worktree then never finishes, and nor does the session's
 //   start (0.2 met it in 2026-08, 0.3 on 2026-09-28).
+// - Every workspace dependency runs one way the owner has sanctioned (ADR-0840 D1): package-edges.json
+//   beside this file lists each allowed edge with his own words and the date. Its "enforce" switch
+//   stays off until he has reviewed the seeded edges (D3); on, an edge not sanctioned there is
+//   refused. A listed edge no package.json uses any more is reported either way.
 //
 // The stories live only in the library (ADR-0641), which CI cannot read, so their ids are declared
 // here: a story added to the library is added to STORIES with its package, in the same change.
@@ -45,8 +49,11 @@ const SKIP = new Set(["node_modules", "dist", ".turbo"]);
 /** This check's own test, whose planted trees are written as the very imports it must refuse. */
 const OWN_TEST = "packages/dev-loop/src/package-boundaries.test.mjs";
 
+/** The owner's list of allowed workspace edges: { enforce, edges: [{ from, to, said, on }] }, `said` null while pending review. */
+export const EDGES = JSON.parse(readFileSync(new URL("./package-edges.json", import.meta.url), "utf8"));
+
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
-export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YET_MOVED } = {}) {
+export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YET_MOVED, edges = EDGES } = {}) {
   const problems = [];
   const packages = [...packageDirs(root, "packages"), ...packageDirs(root, "apps")];
 
@@ -90,20 +97,36 @@ export function boundaryProblems(root, { stories = STORIES, notYetMoved = NOT_YE
       }
     }
   }
-  for (const cycle of dependencyCycles(root, packages)) {
+  const deps = workspaceDependencies(root, packages);
+  const sanctioned = new Set(edges.edges.filter((edge) => edge.said).map((edge) => `${edge.from} ${edge.to}`));
+  for (const [from, tos] of deps) {
+    for (const to of tos) {
+      if (edges.enforce && !sanctioned.has(`${from} ${to}`)) {
+        problems.push(`${from} → ${to} is a workspace dependency the owner has not sanctioned in package-edges.json: raise a question on the arc rather than adding it yourself (ADR-0840 D1)`);
+      }
+    }
+  }
+  for (const { from, to } of edges.edges) {
+    if (!deps.get(from)?.includes(to)) problems.push(`${from} → ${to} is in package-edges.json but no package.json uses it any more: take it off the list`);
+  }
+  for (const cycle of dependencyCycles(deps)) {
     problems.push(`these packages depend on each other in a cycle: ${cycle.join(" → ")}; pnpm links it into a folder loop that git clean never leaves, so drop one of its edges`);
   }
   return problems;
 }
 
-/** Each cycle among the workspace packages' dependencies of every kind, once, as names from and back to its least. */
-function dependencyCycles(root, packages) {
-  const deps = new Map();
+/** Each workspace package's name and the workspace packages it depends on, through any dependency field. */
+function workspaceDependencies(root, packages) {
+  const named = new Map();
   for (const dir of packages) {
     const manifest = JSON.parse(readFileSync(path.join(root, dir, "package.json"), "utf8"));
-    const named = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"].flatMap((field) => Object.keys(manifest[field] ?? {}));
-    deps.set(manifest.name, named);
+    named.set(manifest.name, ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"].flatMap((field) => Object.keys(manifest[field] ?? {})));
   }
+  return new Map([...named].map(([name, all]) => [name, [...new Set(all.filter((dep) => named.has(dep)))]]));
+}
+
+/** Each cycle among the workspace packages' dependencies, once, as names from and back to its least. */
+function dependencyCycles(deps) {
   const cycles = new Map();
   const visit = (name, trail) => {
     const at = trail.indexOf(name);
@@ -114,7 +137,7 @@ function dependencyCycles(root, packages) {
       cycles.set(cycle.join(" "), [...cycle, cycle[0]]);
       return;
     }
-    for (const next of deps.get(name) ?? []) if (deps.has(next)) visit(next, [...trail, name]);
+    for (const next of deps.get(name) ?? []) visit(next, [...trail, name]);
   };
   for (const name of deps.keys()) visit(name, []);
   return [...cycles.values()];

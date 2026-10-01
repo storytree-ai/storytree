@@ -2,7 +2,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, Vector2, Vector3 } from "three";
-import { smokeProblems } from "@storytree/app";
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
@@ -31,7 +30,8 @@ test("the globe opens every story with its grove at its place in the rows, reada
   assert.deepEqual([...layout.spots.keys()], ["new", "kept"]);
   assert.equal(layout.spots.get("new")!.y, layout.spots.get("kept")!.y, "neither depends on anything: one row");
   assert.deepEqual(layout.scene.islands.map(i => i.trees.map(t => t.capability)), [[undefined], ["cap"]]);
-  assert.deepEqual(smokeProblems("ready", tree, JSON.stringify(forestDrawn(layout.scene))), []);
+  const drawn = forestDrawn(layout.scene);
+  assert.deepEqual([drawn.stories, drawn.capabilities], [["new", "kept"], ["cap"]], "what the page drew names every story and capability");
 });
 
 test("a click picks the rotated island mesh, while the see-through shell keeps far-side islands unselectable", () => {

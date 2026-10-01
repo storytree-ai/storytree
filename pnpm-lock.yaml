@@ -164,6 +164,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
@@ -266,9 +269,6 @@ importers:
       '@storytree/agent-link':
         specifier: workspace:*
         version: link:../agent-link
-      '@storytree/app':
-        specifier: workspace:*
-        version: link:../app
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -321,9 +321,6 @@ importers:
         specifier: ^0.185.1
         version: 0.185.1
     devDependencies:
-      '@storytree/app':
-        specifier: workspace:*
-        version: link:../app
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -556,18 +553,9 @@ importers:
         specifier: ^19.1.1
         version: 19.3.0(react@19.3.0)
     devDependencies:
-      '@storytree/agent-link':
-        specifier: workspace:*
-        version: link:../agent-link
-      '@storytree/arc-surface':
-        specifier: workspace:*
-        version: link:../arc-surface
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

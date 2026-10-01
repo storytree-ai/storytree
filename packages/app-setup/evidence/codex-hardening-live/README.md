@@ -4,7 +4,8 @@ Run 2026-09-30 on the owner's Windows 11 Home x64 laptop (`ssh winlap`), Codex C
 Git or Node. A **fresh `CODEX_HOME`** (`home-L1`: a copy of the sign-in and sandbox setup, no hooks, no
 trust, no AGENTS.md: `0-prep.txt`) and a fresh empty folder `CH Live L1`. Desktop-session steps ran
 through the interactive scheduled task (`../codex-first-session/harness/lap.sh`); the elevated step ran
-over SSH, which on this laptop is an administrator login (High Mandatory Level).
+over SSH, which on this laptop is an administrator login (High Mandatory Level). The run's scripts are
+retired; a dev build reaches a throwaway Codex home with `pnpm --filter @storytree/app-setup dev-home` (`../dev-home`).
 
 | Step | What a user sees | Result | Evidence |
 |---|---|---|---|

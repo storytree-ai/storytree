@@ -20,7 +20,7 @@ export { mainUpdates } from "./updates/main-updates.js";
 export type { UpdateAction, UpdateState } from "./updates/main-updates.js";
 export { refreshOwnHealth } from "./updates/build-health.js";
 export type { OwnHealthOptions } from "./updates/build-health.js";
-export { SEED_CONNECTION, seedWriting } from "./updates/seed-writing.js";
+export { seedWriting } from "./updates/seed-writing.js";
 export { ReleaseUpdater } from "./updates/releases.js";
 export { QUIET_MS, SETTLE_MS, whenToInstall } from "./updates/install-moment.js";
 export type { InstallMoment } from "./updates/install-moment.js";

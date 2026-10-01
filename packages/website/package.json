@@ -21,9 +21,6 @@
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "@types/react-dom": "^19.1.6",
-    "@storytree/forest": "workspace:*",
-    "@storytree/arc-surface": "workspace:*",
-    "@storytree/agent-link": "workspace:*",
-    "@storytree/library": "workspace:*"
+    "@storytree/forest": "workspace:*"
   }
 }

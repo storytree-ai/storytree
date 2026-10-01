@@ -4,8 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
-import { saveForestSnapshot, forestSnapshot } from "./forest-snapshot.js";
-import { refreshForest } from "./refresh-forest.js";
+import { forestSnapshot, refreshForest, saveForestSnapshot } from "./forest-snapshot.js";
 
 const health = { reported: { state: "passing" }, verified: { state: "not-checked" } } as const;
 const plan = {
@@ -18,8 +17,8 @@ const plan = {
 } as unknown as AnnotatedTree;
 const states = { part: () => "landed" as const, story: () => "landed" as const };
 
-test("3.1 · refresh saves only public drawing fields with capture time and agent-reported forms", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "website-snapshot-"));
+test("website 3.1: refresh saves only public drawing fields with capture time and agent-reported forms", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "forest-snapshot-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "forest.json");
   const capturedAt = "2026-09-30T00:00:00.000Z";
@@ -34,8 +33,8 @@ test("3.1 · refresh saves only public drawing fields with capture time and agen
   assert.doesNotMatch(JSON.stringify(saved), /PRIVATE_|verified|credential|session|description/);
 });
 
-test("3.1 · refresh draws the selected plan with its history and work states, captured now", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "website-snapshot-"));
+test("website 3.1: refresh draws the selected plan with its history and work states, captured now", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "forest-snapshot-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "forest.json");
   const asked: unknown[] = [];
@@ -49,8 +48,8 @@ test("3.1 · refresh draws the selected plan with its history and work states, c
   assert.deepEqual(asked, [0, "storytree", 0], "the whole history and the selected project's whole activity log");
 });
 
-test("3.2 · a failed refresh leaves the last saved scene byte-for-byte intact", async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), "website-snapshot-"));
+test("website 3.2: a failed refresh leaves the last saved scene byte-for-byte intact", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "forest-snapshot-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "forest.json");
   const before = JSON.stringify(forestSnapshot(plan, [], states, "2026-09-30T00:00:00.000Z"));

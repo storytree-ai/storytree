@@ -6,6 +6,8 @@
  *   for the project's code.
  * - A story's package is the one named after its title ("The agent link" is packages/agent-link),
  *   but for a story whose package was named otherwise; a story with no such package has no code yet.
+ * - A story's package.json says which other stories' packages it depends on, through any dependency
+ *   field: the code's edges between stories, which place the islands in rows (ADR-0840 D2).
  * - A package's coverage map (survey-coverage.json beside its src, ADR-0838 D3) is read with its files,
  *   and again only when it changed.
  * - Surveying again reads only what changed (ADR-0836 D2): a file whose size and modified time are as
@@ -25,6 +27,24 @@ import { packageOf, surveyStory, type CoverageMap, type SourceFile, type StorySu
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
 
 const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
+
+/** The dependency fields of a package.json, in the order their names are listed. */
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
+
+/** A package.json's name and the packages it depends on through any field; undefined when it cannot be read. */
+function manifestFrom(text: string): { name: string; deps: string[] } | undefined {
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    if (typeof parsed.name !== "string") return undefined;
+    const deps = DEPENDENCY_FIELDS.flatMap((field) => {
+      const named = parsed[field];
+      return typeof named === "object" && named !== null ? Object.keys(named) : [];
+    });
+    return { name: parsed.name, deps: [...new Set(deps)] };
+  } catch {
+    return undefined;
+  }
+}
 
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
@@ -66,6 +86,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
   const kept = new Map<string, Kept>();
   const surveyed = new Map<string, { readonly files: readonly SourceFile[]; readonly capabilities: string; readonly survey: StorySurvey }>();
   const running = new Map<string, Promise<ProjectSurvey>>();
+  const edged = new Map<string, { readonly base: StorySurvey; readonly survey: StorySurvey }>();
 
   /** A file at `full`, its path from `root` with forward slashes, read again only if it changed; undefined when there is none. */
   async function fileAt(root: string, full: string, seen: Map<string, Kept>): Promise<SourceFile | undefined> {
@@ -101,18 +122,31 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       const root = path.join(checkout, "packages", packageOf(story.title));
       const sources = await filesUnder(root, path.join(root, "src"), seen);
       if (sources.length === 0) return [];
+      const manifest = await fileAt(root, path.join(root, "package.json"), seen);
       const map = await fileAt(root, path.join(root, COVERAGE_MAP), seen);
       const files = map === undefined ? sources : [...sources, map];
       const capabilities = JSON.stringify(story.capabilities.map(({ id, title }) => [id, title]));
       const last = surveyed.get(story.id);
-      if (last !== undefined && last.capabilities === capabilities && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey] as const];
+      const read = manifest === undefined ? undefined : manifestFrom(manifest.text);
+      if (last !== undefined && last.capabilities === capabilities && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read] as const];
       const fresh = surveyStory(sources, story.capabilities, map === undefined ? {} : coverageFrom(map.text));
       surveyed.set(story.id, { files, capabilities, survey: fresh });
-      return [[story.id, fresh] as const];
+      return [[story.id, fresh, read] as const];
     }));
+    // Each story's package dependencies on other stories' packages, by package name.
+    const storyOf = new Map(surveys.flat().flatMap(([id, , read]) => (read === undefined ? [] : [[read.name, id] as const])));
+    const withEdges = surveys.flat().map(([id, base, read]) => {
+      if (read === undefined) return [id, base] as const;
+      const dependsOn = read.deps.flatMap((dep) => { const other = storyOf.get(dep); return other === undefined || other === id ? [] : [other]; });
+      const last = edged.get(id);
+      if (last !== undefined && last.base === base && JSON.stringify(last.survey.dependsOn) === JSON.stringify(dependsOn)) return [id, last.survey] as const;
+      const survey = { ...base, dependsOn };
+      edged.set(id, { base, survey });
+      return [id, survey] as const;
+    });
     for (const full of kept.keys()) if (full.startsWith(checkout + path.sep) && !seen.has(full)) kept.delete(full);
     for (const [full, now] of seen) kept.set(full, now);
-    return Object.fromEntries(surveys.flat());
+    return Object.fromEntries(withEdges);
   }
 
   return {

@@ -7,7 +7,8 @@
     "./surfaces": "./src/surfaces/surfaces.ts",
     "./view": "./src/view/index.ts",
     "./view/styles.css": "./src/view/styles.css",
-    "./code-survey": "./src/code-survey/read-survey.ts"
+    "./code-survey": "./src/code-survey/read-survey.ts",
+    "./snapshot": "./src/snapshot/forest-snapshot.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -32,7 +33,6 @@
     "@types/three": "^0.185.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
-    "typescript": "~7.0.2",
-    "@storytree/app": "workspace:*"
+    "typescript": "~7.0.2"
   }
 }

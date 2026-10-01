@@ -4,10 +4,8 @@
  * the running app's database, holding its writing lock on
  * a connection it names SEED_CONNECTION; restarting stops that database, so the updater asks first.
  */
+import { SEED_CONNECTION } from "@storytree/library";
 import pg from "pg";
-
-/** The name (Postgres's application_name) of the connection a seed holds while it writes. */
-export const SEED_CONNECTION = "storytree-seed";
 
 /** Whether a seed is connected to the database at `url`. */
 export async function seedWriting(url: string): Promise<boolean> {

@@ -1,0 +1,78 @@
+MSG: Ill read part 3 and the existing app structure, then implement the article page and editor and check the read, write, edit, and delete flows.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Force; rg --files -g '*require exit 0
+  - st:check_setup {} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content conduit-requirements.md, README.m exit 0
+  - file add C:\Users\mickh\conduit-codex\.storytree-check
+  - st:show_plan {} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/home.test.cjs, tests/accoun exit 0
+  - st:check_setup {} completed 
+  - st:search_notes {"query":"orchestrator librarian","limit":5} completed 
+  - st:open {"id":"capability_be6d7ec11b44"} completed 
+  - web_search https://docs.realworld.show/specifications/frontend/templates/
+MSG: Part 3 fits the existing page modules and RealWorld theme. Ill add the article view, an editor with removable tags, author-only edit/delete controls, and safe Markdown rendering. Comments and social actions remain in their planned later parts. Storytrees setup check passed; it needs no action from you.
+
+  - st:open {"id":"agent_92534bb7c323"} completed 
+  - st:open {"id":"agent_339193b5867c"} completed 
+  - st:open {"id":"decision_d50f560cce93"} completed 
+  - st:ready_increment {"increment":"increment_0aeb62db40de"} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/home.test.cjs -TotalCount 1 exit 1
+  - st:claim {"increment":"increment_0aeb62db40de","reason":"Build article page and editor"} completed 
+  - st:claim {"capability":"capability_be6d7ec11b44","reason":"Build article page and editor"} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Invoke-RestMethod https://registry.npmjs.org/ exit 0
+  - file add C:\Users\mickh\conduit-codex\tests\article-cases.cjs, update C:\Users\mickh\conduit-codex\tests\home.test.cjs
+MSG: The browser tests now cover publishing, editing, removing all tags, ownership checks, delete redirects, and failure recovery. Im also testing malicious Markdown so article content cannot execute scripts or inject event handlers.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'New-Item -ItemType Directory -Path vendor -Fo exit 1
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Invoke-WebRequest -UseBasicParsing https://cd exit 0
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem Env: | Where-Object { $_.Name - exit 1
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+MSG: The new article test fails as expected because the route is still a placeholder. The browser harness needed an unsandboxed run to connect to Edge; thats working now. Ill render Markdown tokens as DOM nodes, which lets the page support formatting and images without inserting article content as HTML.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - st:report {"contract":"contract_0ea32a141f0b","result":"red","note":"New browser contract fails waiting for .article-content p on existing p completed 
+  - file update C:\Users\mickh\conduit-codex\app.css, update C:\Users\mickh\conduit-codex\app.js, add C:\Users\mickh\conduit-codex\article.js, add C:\Users\mickh\conduit-codex\editor.js, add C:\Users\mickh\conduit-codex\markdown.js, update C:\Users\mickh\conduit-codex\server.cjs
+  - file update C:\Users\mickh\conduit-codex\tests\home.test.cjs
+MSG: The article view passes the first checks: Markdown formatting, safe links and images, default avatars, ownership controls, and retryable load errors. The editor renders correctly on mobile and desktop. Publishing is still failing in the browser test; Im tracing that before finishing the lifecycle checks.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - file update C:\Users\mickh\conduit-codex\tests\article-cases.cjs, update C:\Users\mickh\conduit-codex\tests\home.test.cjs
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content index.html; rg -n 'navbar|article exit 0
+  - file update C:\Users\mickh\conduit-codex\app.css, update C:\Users\mickh\conduit-codex\tests\article-cases.cjs
+MSG: Publishing, editing, tag removal, and deletion now pass. The publishing failure was in the test: its description selector matched the pages metadata instead of the form input. Screenshot review also caught clipped mobile navigation, which Ive fixed. Im finishing regression checks and updating the project notes.
+
+  (raw) codex : 2026-10-01T22:19:15.370853Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to 
+  (raw) find expected lines in C:\Users\mickh\conduit-codex\README.md:
+  (raw) At C:\Users\mickh\st-firstbuild\turn.ps1:20 char:20
+  (raw) + ... { $prompt | codex exec --skip-git-repo-check --approve-for-me --json  ...
+  (raw) +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  (raw)     + CategoryInfo          : NotSpecified: (2026-10-01T22:1...odex\README.md::String) [], RemoteException
+  (raw)     + FullyQualifiedErrorId : NativeCommandError
+  (raw)  
+  (raw) Plain HTML, CSS and JavaScript, with no build step or npm dependencies.
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - file update C:\Users\mickh\conduit-codex\PLAN.md, update C:\Users\mickh\conduit-codex\README.md, add C:\Users\mickh\conduit-codex\vendor\README.md
+  - st:search_notes {"query":"Markdown rendering parser DOM safety","limit":3} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-NetTCPConnection -LocalPort 4173 -State L exit 0
+MSG: All 14 tests pass, covering parts 13. I checked the article and editor screenshots on mobile and desktop; the navigation now stays visible. The implementation and docs are complete, and Im recording the result in Storytree. The full official suite still awaits parts 4 and 5.
+
+  - st:write_note {"kind":"decision","title":"Render Markdown tokens as safe DOM nodes","text":"Part 3 vendors Marked 18.0.14 ESM plus MIT license;  completed 
+  - st:report {"contract":"contract_0ea32a141f0b","result":"green","note":"Start.ps1 -Test: 14 tests passed, 0 failed (38 seconds). Headless bro completed 
+  - st:land {"capability":"capability_be6d7ec11b44"} completed 
+  - st:mark_built {"capability":"capability_be6d7ec11b44","built":true} completed 
+  - st:close_increment {"increment":"increment_0aeb62db40de","disposition":"landed","note":"Part 3 delivered in original non-Git workspace: article/edito completed 
+  - st:read_context {} completed 
+  - st:close_out {"safe":true,"why":"Requested part 3 delivered in original non-Git folder; no PR or worktree. Browser tests completed, test server completed 
+MSG: Part 3 is implemented:
+
+- Article pages with safe Markdown rendering.
+- Create/edit forms with removable tags.
+- Author-only edit/delete controls.
+- Error recovery and required redirects.
+
+All 14 browser tests pass, including existing feed/account checks. Mobile and desktop screenshots checked; docs and Storytree updated.
+
+Comments and social features remain for parts 45.
+USAGE {"input_tokens":1490822,"cached_input_tokens":1403904,"cache_write_input_tokens":0,"output_tokens":13739,"reasoning_output_tokens":1048}

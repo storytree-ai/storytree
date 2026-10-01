@@ -1,0 +1,31 @@
+MSG: Ill reproduce the official tests submission flow, check why the 400 error stays hidden, and add a regression test for the fix.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content editor.js; Get-Content tests/arti exit 0
+  - web_search https://raw.githubusercontent.com/realworld-apps/realworld/main/specs/e2e/tests/error-handling.spec.ts
+  - st:check_setup {} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Command storytree -ErrorAction SilentlyCo exit 1
+  - web_search https://api.github.com/repos/realworld-apps/realworld/contents/specs/e2e
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$entries = Invoke-RestMethod https://api.gith exit 0
+  - st:claim {"capability":"capability_be6d7ec11b44","reason":"Fix article creation 400 errors"} completed 
+  - st:park_increment {"arc":"arc_8ccda3be5663","title":"Fix article creation 400 errors","objective":"Display article creation validation errors in the completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$source = (Invoke-WebRequest -UseBasicParsing exit 0
+  - st:ready_increment {"increment":"increment_172e5b28183d"} completed 
+  - st:claim {"increment":"increment_172e5b28183d","reason":"Fix article creation 400 errors"} completed 
+MSG: Found the cause: the official test leaves the title and body blank. The editors native `required` validation blocks submission before the API request happens, so the mocked 400 response never reaches the error handler. Ill let the API validate the editor fields so its errors appear in `.error-messages`.
+
+  - file update C:\Users\mickh\conduit-codex\tests\article-cases.cjs, update C:\Users\mickh\conduit-codex\tests\home.test.cjs
+  - st:report {"contract":"contract_0ea32a141f0b","result":"red","note":"Reproduced official creation flow with blank title/body and description completed 
+  - file update C:\Users\mickh\conduit-codex\editor.js
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+MSG: The new regression failed before the fix and now passes. Blank fields reach the API, both validation messages are visible, and the draft stays editable for a successful retry. The remaining browser regression checks are running.
+
+  - st:write_note {"kind":"decision","title":"Editor validation errors use the API error list","text":"The official 400 creation case sends blank ti completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - st:report {"contract":"contract_0ea32a141f0b","result":"green","note":"New regression reproduces official blank title/body 400 case; failed  completed 
+  - st:land {"capability":"capability_be6d7ec11b44"} completed 
+  - st:close_increment {"increment":"increment_172e5b28183d","disposition":"landed","note":"Set editor form.noValidate so blank fields reach API validati completed 
+  - st:close_out {"safe":true,"why":"400 validation fix and regression delivered; local browser suite finished and cleaned up its processes; no PR  completed 
+MSG: Fixed. Browser validation was blocking blank title/body submissions before the API request. The editor now lets API validation run and displays the returned errors in `.error-messages`.
+
+Added a regression covering the failing case and successful retry. All 15 local browser tests pass; I havent rerun the official 87-test suite.
+USAGE {"input_tokens":3216145,"cached_input_tokens":3102976,"cache_write_input_tokens":0,"output_tokens":16483,"reasoning_output_tokens":1276}

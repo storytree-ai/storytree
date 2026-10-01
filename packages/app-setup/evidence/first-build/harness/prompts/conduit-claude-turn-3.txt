@@ -1,0 +1,121 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 100
+  - ToolSearch
+  - Glob
+  - st:check_setup {}
+  - Write C:\Users\mickh\conduit-claude\.storytree-check
+  - PowerShell echo storytree-check
+  - ToolSearch
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:show_plan {}
+  - Read C:\Users\mickh\conduit-claude\conduit-requirements.md
+  - ToolSearch
+  - st:open {"id":"agent_0ed30a28aaf0"}
+  - st:open {"id":"agent_1684401f1e27"}
+  - st:open {"id":"increment_0136418334d0"}
+  - st:name_session {"title":"Build part 3: article page and editor"}
+  - st:open {"id":"principle_225e8f3338f6"}
+  - st:open {"id":"principle_331280ad3dda"}
+  - st:search_notes {"query":"test harness, how tests run, markdown, fetch mocking","limit":8}
+  - Read C:\Users\mickh\conduit-claude\README.md
+  - Read C:\Users\mickh\conduit-claude\public\app.js
+  - Read C:\Users\mickh\conduit-claude\public\api.js
+  - Read C:\Users\mickh\conduit-claude\public\dom.js
+  - Read C:\Users\mickh\conduit-claude\public\settings.js
+  - Read C:\Users\mickh\conduit-claude\public\forms.js
+  - Read C:\Users\mickh\conduit-claude\public\article-preview.js
+  - Read C:\Users\mickh\conduit-claude\public\session.js
+  - Read C:\Users\mickh\conduit-claude\public\index.html
+  - Read C:\Users\mickh\conduit-claude\tests\lib.js
+  - Read C:\Users\mickh\conduit-claude\tests\settings.test.js
+  - Read C:\Users\mickh\conduit-claude\tests\runner.html
+  - Read C:\Users\mickh\conduit-claude\public\home.js
+  - Read C:\Users\mickh\conduit-claude\tests\harness.html
+  - Read C:\Users\mickh\conduit-claude\serve.ps1
+  - Read C:\Users\mickh\conduit-claude\public\layout.js
+  - Read C:\Users\mickh\conduit-claude\tests\run.ps1
+  - st:search_notes {"query":"third-party libraries, CDN dependencies, no build step","limit":5}
+  - Grep
+  - st:ready_increment {"increment":"increment_0136418334d0"}
+  - st:open {"id":"story_a71b9efbd0d6"}
+  - st:open {"id":"decision_8cc5f4cf2ba9"}
+  - st:claim {"increment":"increment_0136418334d0","reason":"Build part 3: article page and editor"}
+  - st:plan_capability {"story":"story_a71b9efbd0d6","title":"Article page","description":"/article/<slug> loads GET /articles/<slug> and shows the title, markdown
+  - st:plan_capability {"story":"story_a71b9efbd0d6","title":"Editor","description":"/editor writes a new article and /editor/<slug> edits one: title, description,
+  - st:plan_contract {"capability":"capability_8bd04059833a","title":"Article page shows the article","description":"At /article/<slug>, .article-page has an h1 
+  - st:plan_contract {"capability":"capability_8bd04059833a","title":"Markdown is rendered sanitised","description":"Headings, emphasis, lists, code and links re
+  - st:plan_contract {"capability":"capability_8bd04059833a","title":"Author and reader actions","description":"The signed-in author sees a 'Edit Article' to /ed
+  - st:plan_contract {"capability":"capability_8bd04059833a","title":"Delete Article deletes and goes home","description":"Clicking Delete Article sends DELETE /
+  - st:plan_contract {"capability":"capability_8bd04059833a","title":"The page survives a failed or missing article","description":"When GET /articles/<slug> ans
+  - st:plan_contract {"capability":"capability_2c5fb57b0cff","title":"Write and publish a new article","description":"Signed in, /editor has input[name=title], i
+  - st:plan_contract {"capability":"capability_2c5fb57b0cff","title":"Edit an existing article","description":"/editor/<slug> pre-fills title, description, body 
+  - st:plan_contract {"capability":"capability_2c5fb57b0cff","title":"Editor errors show and the form stays","description":"An API error or network failure on pu
+  - st:claim {"capability":"capability_8bd04059833a","reason":"Build part 3: article page and editor"}
+  - Read C:\Users\mickh\conduit-claude\tests\feed.test.js
+  - Write C:\Users\mickh\conduit-claude\tests\article.test.js
+  - Edit C:\Users\mickh\conduit-claude\tests\runner.html
+  - PowerShell powershell -ExecutionPolicy Bypass -File tests\run.ps1 | Select-String "articles|passed"
+  - st:report {"contract":"contract_9cbd19936309","result":"red"}
+  - st:report {"contract":"contract_2b537460b7ae","result":"red"}
+  - st:report {"contract":"contract_7385ed23d497","result":"red"}
+  - st:report {"contract":"contract_24219a951110","result":"red"}
+  - st:report {"contract":"contract_8e0bf38f329f","result":"red"}
+  - Write C:\Users\mickh\conduit-claude\public\markdown.js
+  - Edit C:\Users\mickh\conduit-claude\public\forms.js
+  - Write C:\Users\mickh\conduit-claude\public\article.js
+  - Edit C:\Users\mickh\conduit-claude\public\article.js
+  - Edit C:\Users\mickh\conduit-claude\public\app.js
+  - Edit C:\Users\mickh\conduit-claude\public\app.js
+  - Edit C:\Users\mickh\conduit-claude\public\app.js
+  - PowerShell powershell -ExecutionPolicy Bypass -File tests\run.ps1 | Select-String "FAIL|passed"
+  - Edit C:\Users\mickh\conduit-claude\tests\article.test.js
+  - PowerShell powershell -ExecutionPolicy Bypass -File tests\run.ps1 | Select-String "FAIL|passed"
+  - st:report {"contract":"contract_9cbd19936309","result":"green"}
+  - st:report {"contract":"contract_2b537460b7ae","result":"green"}
+  - st:report {"contract":"contract_7385ed23d497","result":"green","note":"Favorite/Follow buttons render with the right text and class but clicks do noth
+  - st:report {"contract":"contract_24219a951110","result":"green"}
+  - st:report {"contract":"contract_8e0bf38f329f","result":"green"}
+  - st:mark_built {"capability":"capability_8bd04059833a","built":true}
+  - st:land {"capability":"capability_8bd04059833a"}
+  - st:claim {"capability":"capability_2c5fb57b0cff","reason":"Build part 3: article page and editor"}
+  - Write C:\Users\mickh\conduit-claude\tests\editor.test.js
+  - Edit C:\Users\mickh\conduit-claude\tests\runner.html
+  - PowerShell powershell -ExecutionPolicy Bypass -File tests\run.ps1 | Select-String "FAIL|passed"
+  - st:report {"contract":"contract_3fe106b84b63","result":"red"}
+  - st:report {"contract":"contract_2ea038e2d2b0","result":"red"}
+  - st:report {"contract":"contract_0306ada8613f","result":"red"}
+  - Write C:\Users\mickh\conduit-claude\public\editor.js
+  - Edit C:\Users\mickh\conduit-claude\public\app.js
+  - Edit C:\Users\mickh\conduit-claude\public\app.js
+  - PowerShell powershell -ExecutionPolicy Bypass -File tests\run.ps1 | Select-String "FAIL|passed"
+  - st:report {"contract":"contract_3fe106b84b63","result":"green"}
+  - st:report {"contract":"contract_2ea038e2d2b0","result":"green"}
+  - st:report {"contract":"contract_0306ada8613f","result":"green"}
+  - st:mark_built {"capability":"capability_2c5fb57b0cff","built":true}
+  - st:land {"capability":"capability_2c5fb57b0cff"}
+  - st:close_increment {"increment":"increment_0136418334d0","disposition":"landed","note":"No git repo, so no PR. Article page and editor built test-first; 54/54 
+  - st:write_note {"kind":"decision","title":"Routes marked session: true are rebuilt when the signed-in user changes","text":"The article page shows author-o
+  - ToolSearch
+  - st:record_friction {"title":"Markdown list test also counted the tag list","description":"A selector for the body's ul matched the article's ul.tag-list too, s
+  - st:close_out {"safe":true,"why":"Part 3 landed, 54/54 tests pass, no servers left running; folder is not a git repo"}
+RESULT success turns 101 ms 401631 cost 1.7392236 
+Part 3 is done: people can now read, write, edit and delete articles. All 54 tests pass, including 16 new ones. These run against a stand-in for the API; I haven't tried it against the live demo API.
+
+**What now works**
+- **Reading an article** (`/article/<slug>`): the page shows the title, the body converted from markdown, the tags, and the author's picture and name (the default avatar if they have none). If the article is missing or the API fails, the page still appears with a message ("Article not found." or "Could not load this article.").
+- **Safe article text**: I wrote a small markdown converter instead of adding a library. It builds the page directly rather than inserting HTML text, so any HTML typed into an article just shows as plain text. Links and images only work if they point to http(s), mailto or a page on the site, so `javascript:` links never work.
+- **Author vs. reader buttons**: the author sees **Edit Article** (opens `/editor/<slug>`) and **Delete Article**. Delete removes the article and goes to `/`, and a reply of `200 {}` counts as success. Everyone else sees **Favorite Article / Unfavorite Article** and **Follow / Unfollow <name>**, with the right styling. These buttons don't do anything yet; making them work is part 5.
+- **Writing a new article** (`/editor`): there are fields for title, description and body, plus a tag box where pressing Enter adds a tag and clicking its  removes it. **Publish Article** saves the article and goes to `/article/<slug>`. Errors appear in the error list ("Unable to connect" when offline) and what you typed stays in the form.
+- **Editing an article** (`/editor/<slug>`): the form fills in from the saved article, and Publish is disabled until it has loaded so a slow load can't overwrite the article with blanks. Removing every tag sends `tagList: []`.
+- Visitors who aren't signed in are sent from both editor pages to `/login`.
+
+**Changes to existing code**
+- **New files**: `public/markdown.js`, `public/article.js` and `public/editor.js`, with tests in `tests/article.test.js` and `tests/editor.test.js`.
+- **`app.js`**: pages that depend on who is signed in can now be marked so they redraw when that changes. Before, the article page could stay stuck showing reader buttons to the author.
+- **`forms.js`**: the error handling the forms already used is now shared, so the Delete button uses it too.
+
+In storytree, I planned and landed the Article page and Editor parts, closed the part 3 increment, and recorded the redraw decision plus a small problem I hit: one of my tests was wrong, not the code.
+
+Part 4 (comments) is next. The comment section will need the same redraw-on-sign-in marking.

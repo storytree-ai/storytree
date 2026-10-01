@@ -18,6 +18,10 @@ using the API, and run the signing-in sessions one agent at a time.
 | 1 home | Codex | 1121 s | 5 stories, 1 capability and 1 contract each, 1 arc, 5 increments, a PLAN.md | Node server (`server.cjs`, run with a Node it found in the TodoMVC round's Cypress cache), feed, tags, pagination; 7 own tests | **14/14** home area |
 | 2 accounts (fresh session) | Claude Code | 388 s, $1.80 | found its place from the plan (show_plan, then the part 2 increment and story); 3 capabilities, 8 contracts | session and auth state, sign in / sign up, settings and sign out; 38 own tests (15 + 23); prefixed test labels with the story (account 1.1) because contract numbers repeat per story | **59/59** home + auth |
 | 2 accounts (fresh session) | Codex | 521 s | found its place from the plan; claimed the increment and its one capability (a claim naming both was refused, then made one at a time) | account forms, settings, sign out, stale-request cancelling; 10 own browser checks | **59/59** home + auth |
+| 3 articles (fresh session) | Claude Code | 407 s, $1.74 | from the plan; 2 capabilities (article page, editor), 8 contracts | article page with its own sanitised markdown renderer, editor with tags, delete; 54 own tests | 86/87: no Your Feed tab once signed in (the suite needs it from part 3; the user's spec said part 5) |
+| 3 follow-up (same session) | Claude Code | 203 s, $1.04 | parked and claimed a new increment, 1 contract | Your Feed tab and /?feed=following; 58 own tests | **87/87** home + auth + articles |
+| 3 articles (fresh session) | Codex | 753 s | from the plan; its one capability, 1 contract | article page with vendored Marked 18 rendered as safe DOM nodes, editor, delete; 14 own browser checks | 86/87: a 400 on article creation showed no .error-messages |
+| 3 follow-up (same session) | Codex | 282 s | parked and claimed a fix increment | the editor form's browser validation stopped blank fields reaching the API (form.noValidate); regression test | **87/87** home + auth + articles |
 
 Session 1 notes:
 - The first start (07:12 local) raced the app's update to 0.3.507: the app's folder was being reinstalled as both
@@ -36,3 +40,9 @@ Session 2 notes:
 - Codex's setup check in a fresh session verified its hooks and told the user nothing was needed: the trust message of session 1 (increment_278013a874cf) came only from the session that set the project up.
 - The app updated itself to 0.3.510 between sessions, at a quiet moment.
 - Run one agent at a time on the demo API (it crosses sessions); both grades ran with no agent working.
+
+Session 3 notes:
+- Each agent had one official failure, fed back as a user would (`harness/prompts/conduit-*-31.txt`) and fixed in a follow-up turn of the same session; both then passed 87/87.
+- Claude Code's failure came from the user's spec, not the agent: the suite clicks Your Feed once sign-in exists, and the spec's part list put Your Feed in part 5. The grader's NOTES.md says so; the requirements file did not.
+- Claude Code tried to record the redirection as a resteer twice; both were refused because the quoted words had no quotation marks, and the refusal ("quote what the owner actually said") read as "use the exact words" → increment_9f9bf0367bf5.
+- The app updated to 0.3.517 at 08:47, between part 3 and part 4.

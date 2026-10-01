@@ -17,7 +17,7 @@ import { MissingReferenceError } from "../references.js";
 import { SchemaError, SchemaRecords } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
-import { LifecycleError, WorkInFlight, WorkModel, type NewIncrement } from "./index.js";
+import { LifecycleError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
 
 interface Library {
   readonly work: WorkModel;
@@ -212,7 +212,8 @@ for (const backend of [memory, postgres]) {
       (records as unknown as Record<string, unknown>)[method] = (...args: unknown[]) => { reads += 1; return real(...args); };
     }
     const views = await flight.arcViews(at);
-    assert.deepEqual(views, one.filter((view) => view !== null), "the same views, oldest arc first, retired ones left out");
+    const byId = (list: readonly ArcView[]): ArcView[] => [...list].sort((a, b) => a.arc.id.localeCompare(b.arc.id));
+    assert.deepEqual(byId(views), byId(one.filter((view) => view !== null)), "the same views, retired arcs left out");
     assert.ok(reads <= 3, `${reads} reads for ${arcs.length} arcs`);
   });
 

@@ -21,6 +21,8 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   projectSelection(): Promise<ProjectSelection>;
   chooseProject(name: string): Promise<ProjectSelection>;
   arcView(name: string, id: string): Promise<ArcView | null>;
+  /** Every live arc's view in a project, in one read. Refused for a name that is not a project. */
+  arcViews(name: string): Promise<ArcView[]>;
   /** Every hold on a project's live work, wait and owner, in one reading. Refused for a name that is not a project. */
   holds(name: string): Promise<Holds>;
   /** Each named session's context reading in a project, read now. Refused for a name that is not a project. */
@@ -69,6 +71,7 @@ export const CHANNELS = {
   projectSelection: "storytree:project-selection",
   chooseProject: "storytree:choose-project",
   arcView: "storytree:arc-view",
+  arcViews: "storytree:arc-views",
   holds: "storytree:holds",
   contextReadings: "storytree:context-readings",
   idleAfterMs: "storytree:idle-after-ms",

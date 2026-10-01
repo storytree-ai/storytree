@@ -11,11 +11,14 @@ import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/a
 
 export interface SessionsReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;
-  arcView(project: string, id: string): Promise<ArcView | null>;
+  /** Every live arc's view in one ask (library 7.8): never one read per arc. */
+  arcViews(project: string): Promise<readonly ArcView[]>;
   /** The agent link's context readings (9.5, 9.8) for these sessions, read now; the rows' bars and totals. */
   contextReadings?(project: string, sessions: readonly string[]): Promise<readonly ContextReading[]>;
   /** A session's window (agent link 9.10), read when its row is expanded: the files its expansion lists. */
   windowReading?(project: string, session: string): Promise<SessionWindow>;
+  /** Several sessions' windows in one ask, in the order asked; preferred to windowReading when given. */
+  windowReadings?(project: string, sessions: readonly string[]): Promise<readonly SessionWindow[]>;
   /** The user's idle-after setting in milliseconds; without it the list judges idleness by the 30-minute default. */
   idleAfterMs?(): Promise<number>;
   /** The user's leave-after setting in milliseconds; without it a quiet session leaves the list by the 1-hour default. */
@@ -32,6 +35,48 @@ function detailsOf(reading: ContextReading): SessionDetails {
   return "absent" in reading.composition ? { totalTokens: reading.tokens, ...guidance }
     : { totalTokens: reading.tokens, ...guidance, composition: { injected: reading.composition.injected, grounding: reading.composition.grounding,
       implementation: reading.composition.implementation, other: reading.composition.other } };
+}
+
+/** The record types an arc view is built from: a change to any other leaves the arcs as they were. */
+const WORK_TYPES: ReadonlySet<string> = new Set(["arc", "increment", "question"]);
+
+/**
+ * The arcs the rows are built from after `news`: every arc in one ask, read again only when a change
+ * touches an arc, an increment or a question, so other changes cost no arc read (ADR-0836 D3).
+ */
+export async function arcsAfter(reads: Pick<SessionsReads, "arcViews">, project: string,
+  news: { readonly changes: readonly { readonly type: string }[] }, last: readonly ArcView[] | undefined): Promise<readonly ArcView[]> {
+  if (last !== undefined && !news.changes.some(change => WORK_TYPES.has(change.type))) return last;
+  return reads.arcViews(project);
+}
+
+/**
+ * Reads sessions' windows in one batched ask at a time: sessions asked while one is in flight wait
+ * for the next ask, together, and a session already in flight is not asked again (ADR-0836 D2).
+ * A failed ask answers each of its sessions as unreadable; the next ask tries again.
+ */
+export function windowsReader(read: (sessions: readonly string[]) => Promise<readonly SessionWindow[]>,
+  onFiles: (files: ReadonlyMap<string, SessionFiles>) => void) {
+  const queued = new Set<string>();
+  const inFlight = new Set<string>();
+  const flush = (): void => {
+    if (inFlight.size > 0 || queued.size === 0) return;
+    const sessions = [...queued];
+    queued.clear();
+    for (const session of sessions) inFlight.add(session);
+    read(sessions).then(windows => new Map<string, SessionFiles>(sessions.map((session, i) => [session, windowFiles(windows[i]!)])),
+      () => new Map<string, SessionFiles>(sessions.map(session => [session, { absent: "the window could not be read" }]))).then(files => {
+      inFlight.clear();
+      onFiles(files);
+      flush();
+    });
+  };
+  return {
+    ask(sessions: readonly string[]): void {
+      for (const session of sessions) if (!inFlight.has(session)) queued.add(session);
+      flush();
+    },
+  };
 }
 
 /** Whether a kept value is session rows, so rows kept by an older build are not drawn. */
@@ -67,7 +112,7 @@ export function mountSessionsList(container: HTMLElement, options: {
   container.append(host);
   const root = createRoot(host);
   let tree: AnnotatedTree | undefined;
-  let arcs: ArcView[] = [];
+  let arcs: readonly ArcView[] | undefined;
   let lines: Line[] = [];
   // The rows last drawn for this project, shown marked as refreshing until the first read lands.
   const kept = pageKept(`storytree.forest.sessions.v1:${options.project}`, isSessionRows);
@@ -84,7 +129,6 @@ export function mountSessionsList(container: HTMLElement, options: {
   let collapsed: ReadonlySet<string> = new Set();
   const openKept = keptPanelOpen(options.project);
   let stripOpen = openKept.read();
-  const pending = new Set<string>();
   let files: ReadonlyMap<string, SessionFiles> = new Map();
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
@@ -96,22 +140,21 @@ export function mountSessionsList(container: HTMLElement, options: {
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
     .map(id => [id, { ...details.get(id), ...readings.get(id) }]));
-  /** Read an expanded row's files, one read at a time; a failed read says so and the next ask tries again. */
-  const askFiles = (session: string): void => {
-    const read = options.reads.windowReading;
-    if (read === undefined || pending.has(session)) return;
-    pending.add(session);
-    read.call(options.reads, options.project, session).then(window => windowFiles(window),
-      () => ({ absent: "the window could not be read" })).then(answer => {
-      pending.delete(session);
-      if (stopped || collapsed.has(session)) return;
-      files = new Map([...files, [session, answer]]);
-      draw();
-    });
-  };
+  const { windowReadings, windowReading } = options.reads;
+  const readWindows = windowReadings !== undefined ? (sessions: readonly string[]) => windowReadings.call(options.reads, options.project, sessions)
+    : windowReading !== undefined ? (sessions: readonly string[]) => Promise.all(sessions.map(session => windowReading.call(options.reads, options.project, session)))
+    : undefined;
+  /** Expanded rows' files, read in one batched ask at a time; a failed read says so and the next ask tries again. */
+  const windows = windowsReader(readWindows ?? (async () => []), answers => {
+    const shown = [...answers].filter(([session]) => !collapsed.has(session));
+    if (stopped || shown.length === 0) return;
+    files = new Map([...files, ...shown]);
+    draw();
+  });
+  const askFiles = (sessions: readonly string[]): void => { if (readWindows !== undefined && sessions.length > 0) windows.ask(sessions); };
   const toggle = (session: string): void => {
     const next = new Set(collapsed);
-    if (next.delete(session)) askFiles(session);
+    if (next.delete(session)) askFiles([session]);
     else { next.add(session); files = new Map([...files].filter(([id]) => id !== session)); }
     collapsed = next;
     draw();
@@ -121,7 +164,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     if (ask === undefined || asking || Date.now() - askedAt < READING_EVERY_MS || rows.length === 0) return;
     asking = true;
     askedAt = Date.now();
-    for (const session of everyId(rows)) if (!collapsed.has(session)) askFiles(session);
+    askFiles(everyId(rows).filter(session => !collapsed.has(session)));
     options.reads.idleAfterMs?.().then(ms => { quietMs = ms; }, () => {
       // An unreadable setting keeps the last one read; the next ask tries again.
     });
@@ -138,10 +181,10 @@ export function mountSessionsList(container: HTMLElement, options: {
     });
   };
   const refresh = (now: Date, ask = true): void => {
-    if (stopped || tree === undefined) return;
+    if (stopped || tree === undefined || arcs === undefined) return;
     rows = sessionRows(tree, lines, arcs, now, merged(), quietMs, leaveMs);
     kept.write(rows);
-    for (const session of everyId(rows)) if (!collapsed.has(session) && !files.has(session)) askFiles(session);
+    askFiles(everyId(rows).filter(session => !collapsed.has(session) && !files.has(session)));
     options.onWisps?.(sessionWisps(rows, lines, now, quietMs));
     options.onRoster?.(sessionRoster(rows));
     draw();
@@ -154,8 +197,7 @@ export function mountSessionsList(container: HTMLElement, options: {
       let nextArcs = arcs;
       if (tree === undefined || news.changes.length > 0) {
         nextTree = await options.reads.projectTree(options.project);
-        const views = await Promise.all(nextTree.arcs.map(({ id }) => options.reads.arcView(options.project, id)));
-        nextArcs = views.filter((arc): arc is ArcView => arc !== null);
+        nextArcs = await arcsAfter(options.reads, options.project, news, arcs);
       }
       if (stopped) return;
       tree = nextTree;

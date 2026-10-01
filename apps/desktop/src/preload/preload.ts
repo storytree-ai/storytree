@@ -24,6 +24,7 @@ const bridge: StorytreeBridge & SettingsBridge & SurfacesBridge = {
   openFeedbackDraft: (draft) => ipcRenderer.invoke(CHANNELS.openFeedbackDraft, draft) as ReturnType<StorytreeBridge["openFeedbackDraft"]>,
   copyHelpText: (text) => ipcRenderer.invoke(CHANNELS.copyHelpText, text) as ReturnType<StorytreeBridge["copyHelpText"]>,
   arcView: (name, id) => ipcRenderer.invoke(CHANNELS.arcView, name, id) as ReturnType<StorytreeBridge["arcView"]>,
+  arcViews: (name) => ipcRenderer.invoke(CHANNELS.arcViews, name) as ReturnType<StorytreeBridge["arcViews"]>,
   holds: (name) => ipcRenderer.invoke(CHANNELS.holds, name) as ReturnType<StorytreeBridge["holds"]>,
   contextReadings: (name, sessions) => ipcRenderer.invoke(CHANNELS.contextReadings, name, sessions) as ReturnType<StorytreeBridge["contextReadings"]>,
   idleAfterMs: () => ipcRenderer.invoke(CHANNELS.idleAfterMs) as Promise<number>,

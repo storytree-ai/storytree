@@ -57,6 +57,7 @@ const LIBRARY_API = [
   "parkArc",
   "unparkArc",
   "arcView",
+  "arcViews",
   "addWait",
   "removeWait",
   "waitHolds",

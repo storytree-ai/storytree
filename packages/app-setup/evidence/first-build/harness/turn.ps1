@@ -11,7 +11,7 @@ $OutputEncoding = New-Object System.Text.UTF8Encoding $false
 $prompt = Get-Content -Raw "$d\prompts\$Agent-$N.txt"
 $t = Get-Date
 "start $(Get-Date -Format o)" | Set-Content "$out\turn-$N.meta.txt"
-if ($Agent -eq 'claude') {
+if ($Agent -like "*claude*") {
   $more = if ($N -gt 1 -and -not $Fresh) { @('--continue') } else { @() }
   $prompt | claude -p @more --permission-mode bypassPermissions --output-format stream-json --verbose > "$out\turn-$N.jsonl" 2>&1
 } else {

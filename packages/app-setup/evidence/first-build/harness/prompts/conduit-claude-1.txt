@@ -1,0 +1,5 @@
+Please set this folder up as a new storytree project first.
+
+I want to build Conduit, a small Medium.com clone (the RealWorld project). Everything I want is in conduit-requirements.md in this folder. Please read it and follow it exactly, because I'll check the site with the official RealWorld test suite.
+
+Plan the whole site first, then build only part 1 today: the home page with the global feed of articles from the demo API, the popular tags, and pagination. Keep it plain HTML, CSS and JavaScript with no build step, and tell me how to open it in my browser.

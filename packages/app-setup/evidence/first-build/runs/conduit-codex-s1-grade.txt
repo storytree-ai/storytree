@@ -1,0 +1,27 @@
+STATUS SPEC FILE               TEST  |  FIRST ERROR LINE / SKIP REASON
+--------------------------------------------------------------------------------------------------------------
+PASS   error-handling.spec.ts  Error Handling - 500 Internal Server Error › should handle 500 on articles feed load
+PASS   error-handling.spec.ts  Error Handling - 500 Internal Server Error › should handle 500 on tags load
+PASS   error-handling.spec.ts  Error Handling - 500 Internal Server Error › should handle network error on tags load
+PASS   error-handling.spec.ts  Error Handling - 500 Internal Server Error › should handle intermittent 500 errors gracefully
+PASS   error-handling.spec.ts  Error Handling - Network Errors › should handle network timeout
+PASS   error-handling.spec.ts  Error Handling - Network Errors › should handle connection refused
+PASS   error-handling.spec.ts  Error Handling - Edge Cases › should handle malformed JSON response
+PASS   error-handling.spec.ts  Error Handling - Edge Cases › should handle empty response body
+PASS   health.spec.ts          Health Checks › app should load successfully
+PASS   health.spec.ts          Health Checks › API should be accessible
+PASS   navigation.spec.ts      Navigation and Filtering › should navigate through main pages when logged out
+PASS   null-fields.spec.ts     Null/Empty Image and Bio Handling › author avatars should render on other user articles in feed
+PASS   url-navigation.spec.ts  URL-based Navigation (Realworld Issue #691) › / should show Global Feed for everyone
+PASS   url-navigation.spec.ts  URL-based Navigation (Realworld Issue #691) › /tag/:tag should filter by tag
+
+SPEC FILE               PASS  FLAKY  FAIL  SKIP
+error-handling.spec.ts     8      0     0     0
+health.spec.ts             2      0     0     0
+navigation.spec.ts         1      0     0     0
+null-fields.spec.ts        1      0     0     0
+url-navigation.spec.ts     2      0     0     0
+
+TOTAL 14 tests: 14 pass, 0 flaky (passed on a retry or re-run), 0 fail, 0 skip
+grade-conduit: stopped 2 process(es) it started
+grade-conduit: exit 0

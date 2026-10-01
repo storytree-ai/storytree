@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { underlayComposition } from './ForestWorldCanvas.js';
+import { underlayComposition } from './ForestWorldCanvas.underlay.js';
 
 /** The camera a host hands over once it has solved the registration. */
 const REGISTERED = { zoom: 0.6528, target: { x: 120, z: -400 } };

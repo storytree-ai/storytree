@@ -1,0 +1,9 @@
+Thanks, it looks great. I had the official TodoMVC test suite run against it (Cypress, from tastejs/todomvc at commit ff43b02e, run with framework vanillajs). 22 passed, 5 failed and 2 were skipped. The failures:
+
+1. New Todo > should allow me to add todo items: cy.invoke() errored because the property reset does not exist on your subject.
+2. Mark all as completed > should allow me to mark all items as completed: the same reset error, in the beforeEach hook, so the other two tests in that block were skipped.
+3. Item > should allow me to mark items as complete: cy.find() failed because the subject is no longer attached to the DOM.
+4. Item > should allow me to un-mark items as complete: the same no-longer-attached-to-the-DOM error.
+5. Persistence > should persist its data: the same no-longer-attached-to-the-DOM error.
+
+Can you fix whatever is on our side so it passes as much of the official suite as possible? If some of the failures are the test suite's own problem rather than the app's, tell me which.

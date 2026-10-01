@@ -1,0 +1,7 @@
+Set-Location -LiteralPath $HOME
+$t = Get-Date
+& "$HOME\.storytree\0.3\bin\storytree.cmd" setup uninstall --remove-library
+"command exit: $LASTEXITCODE after $([int]((Get-Date) - $t).TotalMilliseconds) ms"
+Start-Sleep 2
+while ((Test-Path "$env:LOCALAPPDATA\Programs\storytree-0.3") -or (Get-Process | Where-Object { $_.ProcessName -like 'Au_*' -or $_.ProcessName -like 'Uninstall*' })) { if (((Get-Date) - $t).TotalSeconds -gt 240) { 'uninstall still running at 240 s'; break }; Start-Sleep 1 }
+"uninstalled in $([int]((Get-Date) - $t).TotalSeconds) s"

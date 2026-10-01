@@ -1,0 +1,64 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 41
+  - ToolSearch
+  - Glob
+  - st:check_setup {}
+  - Read C:\Users\mickh\todo-claude\js\app.js
+  - Read C:\Users\mickh\todo-claude\index.html
+  - ToolSearch
+  - Write C:\Users\mickh\todo-claude\.storytree-check
+  - PowerShell echo storytree-check
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - WebFetch
+  - ToolSearch
+  - WebFetch
+  - st:open {"id":"agent_ea381ad0cd2c"}
+  - WebFetch
+  - WebFetch
+  - WebFetch
+  - WebFetch
+  - WebFetch
+  - WebFetch
+  - WebFetch
+  - WebFetch
+  - st:show_plan {}
+  - Read C:\Users\mickh\todo-claude\test\run.ps1
+  - Read C:\Users\mickh\todo-claude\test\tests.html
+  - ToolSearch
+  - st:park_increment {"arc":"arc_8500fdd523cb","title":"Pass the official TodoMVC Cypress suite","objective":"Keep each todo's list item element in place across 
+  - st:ready_increment {"increment":"increment_5837da7967b7"}
+  - st:claim {"increment":"increment_5837da7967b7","reason":"Keep todo elements stable for Cypress"}
+  - st:claim {"capability":"capability_d4ca89b9b8c3","reason":"Keep todo elements stable for Cypress"}
+  - st:plan_contract {"capability":"capability_d4ca89b9b8c3","title":"Updating a todo keeps its list item element in place","description":"Toggling, toggle-all, 
+  - Edit C:\Users\mickh\todo-claude\test\tests.html
+  - PowerShell powershell -ExecutionPolicy Bypass -File test\run.ps1
+  - st:report {"contract":"contract_e83d19b157c0","result":"red","note":"Fails at 'elements still attached after toggle': render() replaces every li."}
+  - Edit C:\Users\mickh\todo-claude\js\app.js
+  - PowerShell powershell -ExecutionPolicy Bypass -File test\run.ps1 2>$null
+  - st:report {"contract":"contract_e83d19b157c0","result":"green","note":"render() now reconciles list items by todo id; local suite 14/14."}
+  - st:land {"capability":"capability_d4ca89b9b8c3"}
+  - st:mark_built {"capability":"capability_d4ca89b9b8c3","built":true}
+  - st:close_increment {"increment":"increment_5837da7967b7","disposition":"landed","note":"Keyed render keeps each li attached; local suite 14/14. The 'reset' fai
+  - PowerShell Remove-Item .storytree-check -Confirm:$false
+RESULT success turns 42 ms 172477 cost 0.8344798 
+I fixed the app-side cause, which covers 3 of the 5 failures. The other 2 are a bug in the test suite itself. I haven't re-run the Cypress suite here, so please re-run it to confirm.
+
+## Failures 3, 4, 5 ("no longer attached to the DOM"): our bug, now fixed
+
+The suite saves a reference to a todo's `<li>` (`cy.createTodo(...).as('firstTodo')`), ticks its checkbox, then checks that same element. Our `render()` deleted and rebuilt every `<li>` on each change, so after the first tick the saved element was no longer on the page. Cypress usually looks an element up again when that happens, but it can't here because `createTodo` ends in `.then()`.
+
+**Fix (`js/app.js`):** each todo now keeps its `<li>`. `render()` matches list items to todos by id. It updates existing items in place, creates items only for new todos, and removes items for todos that are deleted or filtered out. The page looks and behaves the same.
+
+I added a local test that saves item references and checks they stay on the page and stay current through toggle, toggle-all and editing. It failed before the fix and passes now. The local suite passes 14/14.
+
+## Failures 1 and 2 ("property reset does not exist"): the test suite's bug
+
+`checkItemSaved()` in `spec.cy.js` runs `cy.wrap(localStorageSetItem).invoke('reset')`, where `localStorageSetItem` is a `cy.spy`. In the Cypress version the suite asks for (`^15.14.2`), spies don't have a `reset` method; they have `resetHistory`. So this fails for any app. The step just before it, `should('have.been.called')`, passed in your run, so our app is saving to localStorage correctly.
+
+- **Failure 1** will keep failing on our side.
+- **Failure 2** fails in the "Mark all as completed" setup, which is why the other two tests in that block were skipped. Those three tests will also keep failing as long as the suite is unpatched.
+
+If you want to check the app's behaviour in those tests, change `invoke('reset')` to `invoke('resetHistory')` in your copy of `spec.cy.js`. Those tests rely on saved references to the same `<li>` elements, so they need today's fix as well. That makes 27/29 the most our side can reach on the unpatched suite. With the one-line patch it should be all 29, but I haven't run it.
+
+I also recorded this work in the project's storytree plan as a new increment and contract, now landed and closed.

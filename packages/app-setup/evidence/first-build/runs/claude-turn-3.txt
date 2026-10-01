@@ -1,0 +1,45 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 21
+  - ToolSearch
+  - Glob
+  - st:check_setup {}
+  - Read C:\Users\mickh\todo-claude\js\app.js
+  - Read C:\Users\mickh\todo-claude\index.html
+  - Read C:\Users\mickh\todo-claude\test\tests.html
+  - ToolSearch
+  - Write C:\Users\mickh\todo-claude\.storytree-check
+  - PowerShell echo storytree-check
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - st:search_notes {"query":"librarian role","limit":3}
+  - st:show_plan {}
+  - ToolSearch
+  - st:open {"id":"agent_ea381ad0cd2c"}
+  - st:search_notes {"query":"official Cypress suite failures reset persistence","limit":5}
+  - ToolSearch
+  - WebFetch
+  - ToolSearch
+  - st:write_note {"kind":"decision","title":"Official Cypress \"should persist its data\" failure is the suite's, not the app's","text":"The test aliases the
+  - PowerShell Remove-Item .storytree-check -Confirm:$false
+RESULT success turns 22 ms 85194 cost 0.47977400000000014 
+That failure comes from the test suite, not the app. I haven't changed any code.
+
+**Why:** This is the official test, quoted from `cypress-example-todomvc`:
+
+```js
+cy.createTodo(TODO_ITEM_ONE).as('firstTodo')
+...
+.reload()
+.then(testState)   // cy.get('@firstTodo').should('contain', ...)
+```
+
+It saves references to the two `<li>` items it created, reloads the page, then checks those same saved items again. A reload replaces the whole page, so the old items are gone no matter what the app does. Older Cypress versions looked the items up again automatically. Cypress 12 and later only do that for aliases built from lookup commands like `cy.get`, and `createTodo` is a custom command that adds a todo, so the test fails with exactly the error you saw. Our earlier fix keeps list items in place while the page stays loaded, but nothing can carry them across a reload. A fix in the suite would look the items up again after the reload, e.g. `cy.get('.todo-list li').eq(0)`.
+
+The app's saving and reloading does work: the local test in `test/tests.html` checks that todos come back after a reload, and another checks that completed state is saved. I didn't re-run the local tests this session because no code changed.
+
+**Status against the spec:**
+- **Official suite:** 24 passed, 3 failed, 2 skipped. All 3 failures are, as far as I can tell, problems in the suite: this one is confirmed from its source, and the two reset failures are the ones I traced to the suite last time. I don't know which tests were skipped; if you tell me their names I'll check whether they matter.
+- **Local suite:** 14 tests, one per point in the spec, covering adding and listing, saving, completing and removing, editing, and filtering. All passed when last run.
+- **Gaps:** this machine has no Node, so I can't run the official Cypress suite myself and rely on your runs. In the project plan, every promise is marked passing but not yet independently verified.
+
+I added a note explaining this failure to the "Persist todos" section of the project plan, so it won't be investigated again.

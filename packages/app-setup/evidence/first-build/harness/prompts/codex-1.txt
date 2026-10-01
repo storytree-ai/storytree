@@ -1,0 +1,5 @@
+Please set this folder up as a new storytree project first.
+
+Then build me a simple to-do list app I can open in my browser. Make it work exactly like TodoMVC - this is the spec it should follow: https://github.com/tastejs/todomvc/blob/master/app-spec.md
+
+Use the official TodoMVC HTML template and CSS (https://github.com/tastejs/todomvc-app-template) so it looks right and so the official TodoMVC tests can find everything. Keep it plain HTML, CSS and JavaScript with no build step, so I can just double-click index.html to open it.

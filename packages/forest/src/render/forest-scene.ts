@@ -19,6 +19,7 @@ import { grove } from "../capability-tree/capability-tree.js";
 import { packageOf, type StorySurvey } from "../code-survey/code-survey.js";
 import { islandArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
+import { landForCircles } from "../territories/territories.js";
 
 export { PLACE_WIDTH };
 export type { ForestScene, Island, PlacedTree };
@@ -73,8 +74,8 @@ export function forestScene(tree: AnnotatedTree, history: readonly Change[], sta
       };
     });
     const land = landOf(story.capabilities, survey[story.id], packageOf(story.title));
-    // ADR-0804 D3, D7: a surveyed story's land follows its lines of code; unsurveyed, it follows its capabilities.
-    const area = land === undefined ? undefined : islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0));
+    // ADR-0804 D3, D7: a surveyed story's land follows its lines of code, grown where its files' circles need more room; unsurveyed, it follows its capabilities.
+    const area = land === undefined ? undefined : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, radius, trees: placed, ...(land === undefined ? {} : { land, area: area! }), key };
   });

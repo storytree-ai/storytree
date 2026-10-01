@@ -9,6 +9,7 @@ import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import { forestScene, placeOnPackedGlobe, PLANET_RADIUS } from "../index.js";
 import { islandArea, LAND_PER_LINE, MIN_ISLAND_AREA } from "../planet-places/island-growth.js";
 import type { StorySurvey } from "../code-survey/code-survey.js";
+import { circleDiameter, fileCircles, territories } from "../territories/territories.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const capability = (id: string) => ({ id, title: id, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health });
@@ -48,4 +49,17 @@ test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floo
   assert.ok(drawn("big") > drawn("small") && drawn("small") > drawn("tiny"), "drawn land follows lines, though each has three capabilities");
   assert.ok(Math.abs(drawn("unsurveyed") - 3 * MIN_ISLAND_AREA) < 1e-3 * 3 * MIN_ISLAND_AREA, "an unsurveyed island is its capabilities times the ratio; the floor is one capability's worth");
   assert.ok(Math.abs(drawn("tiny") - MIN_ISLAND_AREA) < 1e-3 * MIN_ISLAND_AREA);
+});
+
+test("3.19 an island whose files' circles do not fit on the land its lines give it grows until they all fit at full size inside its drawn coast", () => {
+  const crowded = { arcs: [], stories: [{ id: "crowded", title: "crowded", health, capabilities: [capability("c1"), capability("c2"), capability("c3")] }] };
+  // Two hundred three-line files: little code, but many circles.
+  const files = Array.from({ length: 200 }, (_, at) => ({ path: `src/${at}.ts`, lines: 3, capability: `c${(at % 3) + 1}` }));
+  const scene = forestScene(crowded, [], workStates([]), { crowded: { files, imports: [] } });
+  const island = scene.islands[0]!;
+  assert.ok(island.area! > islandArea(600), `the island grew past the ${islandArea(600)} units² its lines give it (to ${island.area!.toFixed(0)})`);
+  const coast = buildPlanetPathways(scene, new Map([["crowded", placeOnPackedGlobe(1)]]), PLANET_RADIUS).plates.get("crowded")!.coast;
+  const circles = fileCircles(territories(island.land!.territories, coast), island.land!.files);
+  assert.equal(circles.length, files.length);
+  for (const circle of circles) assert.ok(Math.abs(circle.radius - circleDiameter(circle.lines) / 2) < 1e-9, `${circle.path} keeps its full size`);
 });

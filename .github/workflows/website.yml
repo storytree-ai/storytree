@@ -38,12 +38,19 @@ jobs:
     if: needs.source.outputs.sha != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # GitHub's OIDC token, for the keyless sign-in that fetches the here.now key
     # Only eligible website runs enter this queue; an unrelated merge cannot displace one.
     concurrency:
       group: website-herenow
       cancel-in-progress: false
     env:
       WEBSITE_SHA: ${{ needs.source.outputs.sha }}
+      # The website's publishing identity (infra/website-publish). Until both are set the publish
+      # step says so and skips; nothing else here needs them.
+      WEBSITE_WIF_PROVIDER: ${{ vars.WEBSITE_WIF_PROVIDER }}
+      WEBSITE_SERVICE_ACCOUNT: ${{ vars.WEBSITE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -58,7 +65,23 @@ jobs:
       - run: pnpm --filter @storytree/website typecheck
       - run: pnpm run test --only=website
       - run: pnpm --filter @storytree/website build
-      - name: Publish, or clearly skip without the token
-        run: node packages/website/publish-ci.mjs publish
-        env:
-          HERENOW_TOKEN: ${{ secrets.HERENOW_TOKEN }}
+      - name: Sign in to Google as the website's publishing identity
+        if: env.WEBSITE_WIF_PROVIDER != '' && env.WEBSITE_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.WEBSITE_WIF_PROVIDER }}
+          service_account: ${{ vars.WEBSITE_SERVICE_ACCOUNT }}
+      # The key goes from Secret Manager into this one step's environment, masked before anything
+      # else reads it. Without the identity, publish-ci.mjs logs the skip and names the variables.
+      - name: Publish, or clearly skip without a publishing identity
+        run: |
+          if [ -n "$WEBSITE_WIF_PROVIDER" ] && [ -n "$WEBSITE_SERVICE_ACCOUNT" ]; then
+            HERENOW_TOKEN="$(gcloud secrets versions access latest --secret heredotnow_api_key --project storytree-498613)"
+            echo "::add-mask::$HERENOW_TOKEN"
+            if [ -z "$HERENOW_TOKEN" ]; then
+              echo "::error::The latest version of the secret heredotnow_api_key is empty."
+              exit 1
+            fi
+            export HERENOW_TOKEN
+          fi
+          node packages/website/publish-ci.mjs publish

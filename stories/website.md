@@ -154,8 +154,9 @@ command. CI and the public page use that file, never a live library connection.
 ## 4 · Publish on merge
 
 Merged website changes publish the built static folder to `crisp-globe-bf6v.here.now`, with no
-custom domain. The repository secret `HERENOW_TOKEN` supplies the credential; absent means a
-clear skip, not a failed merge or a claim that the site was published.
+custom domain. The here.now key comes from Secret Manager (`heredotnow_api_key`), read through
+CI's keyless Google identity for the website (`infra/website-publish`); without that identity the
+publish is a clear skip, not a failed merge or a claim that the site was published.
 
 - **Library:** `capability_d3ee9737837e`.
 - **Depends on:** 1, for deployable static output.
@@ -181,10 +182,12 @@ the README command source and workspace build inputs trigger publication. The pu
 builds the selected merge, checks that main has no newer website inputs, and serializes uploads.
 Unrelated CI runs never enter the publish queue. No pull-request artifacts supply executable code.
 
-**Enable publishing.** The owner adds `HERENOW_TOKEN` under the repository's Actions secrets,
-using a key for the account that owns the existing site, then runs **Publish website** on main.
-That manual run is also the retry path. Without the secret the build still verifies, and the
-publish log explicitly says it was skipped. The uploader follows the [here.now API](https://here.now/docs):
+**Enable publishing.** The owner keeps the here.now key for the account that owns the existing
+site in Secret Manager, applies `infra/website-publish` by hand, sets the repository variables
+`WEBSITE_WIF_PROVIDER` and `WEBSITE_SERVICE_ACCOUNT`, then runs **Publish website** on main (its
+README gives the commands). That manual run is also the retry path. Without the identity the build
+still verifies, and the publish log says it was skipped and names the two variables. The key goes
+from Secret Manager into the publish step's environment only, masked before anything reads it. The uploader follows the [here.now API](https://here.now/docs):
 declare the complete file manifest, upload changed bytes, and finalize the same version. It
 reports publication only after the service confirms that version is live. It creates no site,
 changes no domain, and logs no token or signed upload URL.

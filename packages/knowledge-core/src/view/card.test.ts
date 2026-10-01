@@ -5,6 +5,7 @@ import { Children, isValidElement, type ReactNode } from "react";
 
 import type { Card } from "../look-inside/look-inside.js";
 import * as drawing from "./drawing.js";
+import { createKnowledgeCore } from "./surface.js";
 
 test("4.1 the artifact card shows kind, title and summary without inspection metadata; Close dismisses it", () => {
   const card: Card = { id: "note", kind: "principle", title: "Protect a behaviour", summary: "Write the minimum test.", text: "The full detailed explanation." };
@@ -24,6 +25,26 @@ test("4.1 the artifact card shows kind, title and summary without inspection met
 
   const whole = drawing.NoteCard({ card: { ...card, summary: undefined }, onClose: () => {} });
   assert.ok(descendants(whole).includes(card.text), "without a summary the entire artifact text is shown");
+});
+
+test("4.6 one shared pin holds one card at a time for both globe modes: a new pin replaces it, closing clears it, and pinning asks the host for nothing", () => {
+  const asked: string[] = [];
+  const core = createKnowledgeCore("app", { reads: {
+    windowReading: async (_project, session) => { asked.push(session); throw new Error("not read"); },
+    windowReadings: async () => { asked.push("all"); return []; },
+  } });
+  const pinned = (): string | undefined => (core as unknown as { get(): { pinned: string | undefined } }).get().pinned;
+  try {
+    core.pin("principle");
+    assert.equal(pinned(), "principle");
+    core.pin("decision");
+    assert.equal(pinned(), "decision");
+    core.pin(undefined);
+    assert.equal(pinned(), undefined);
+    assert.deepEqual(asked, []);
+  } finally {
+    core.dispose();
+  }
 });
 
 function descendants(node: ReactNode): ReactNode[] {

@@ -98,8 +98,8 @@ function decode(value) {
 /**
  * The contract numbers a test file names, in itself and in every module it imports by a relative
  * path, transitively, within `root`: the leading contract list of each test title (`titlesIn`). It
- * is how the contracts a crashed file would have tested are known when the file reported nothing. It may find more than
- * the file tests, never fewer, so a crash can only ever leave too much not checked.
+ * is how the contracts a crashed file would have tested are known when the file reported nothing.
+ * It may find more than the file tests, never fewer, so a crash can only ever leave too much not checked.
  * @param {string} file
  * @param {{ root: string }} options
  * @returns {Set<string>}

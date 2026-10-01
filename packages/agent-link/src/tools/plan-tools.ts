@@ -77,11 +77,11 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable promise a capability makes. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, and a number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
     async ({ capability, title: name, description: about }, { library, writer }) => {
       const contract = await library.addContract({ title: name, capability, ...optional({ description: about }) }, writer);
-      return { text: `Planned contract ${quoted(name)} (${contract.id}). Write its test, see it fail, and report it red.`, data: { id: contract.id } };
+      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}). Write its test, see it fail, and report it red.`, data: { id: contract.id } };
     },
   );
 

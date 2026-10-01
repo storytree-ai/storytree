@@ -1265,7 +1265,7 @@ test("6.19 a Claude Code session attaches the linked worktree it is in through t
   });
 });
 
-test("6.22 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words", async () => {
+test("6.31 search_notes answers with the library's ranked search (capability 14), at most `limit`, and says why when it fell back to words", async () => {
   await withProject(async ({ folder, library }) => {
     for (const n of [1, 2, 3]) await library.defineTerm({ term: `Mailer ${n}`, meaning: "The mailer needs a verified sender domain." });
 

@@ -1,0 +1,203 @@
+{
+  "label": "after",
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+  ],
+  "islands": [
+    {
+      "title": "The website",
+      "rank": 0,
+      "dependsOn": [],
+      "latitude": -41,
+      "longitude": -95.5
+    },
+    {
+      "title": "The world",
+      "rank": 0,
+      "dependsOn": [],
+      "latitude": -45.9,
+      "longitude": -46.7
+    },
+    {
+      "title": "The local database",
+      "rank": 0,
+      "dependsOn": [],
+      "latitude": -44,
+      "longitude": 7.4
+    },
+    {
+      "title": "The library",
+      "rank": 0,
+      "dependsOn": [],
+      "latitude": -41.6,
+      "longitude": 41.7
+    },
+    {
+      "title": "The librarian",
+      "rank": 0,
+      "dependsOn": [],
+      "latitude": -41.9,
+      "longitude": 72.7
+    },
+    {
+      "title": "Process ledger",
+      "rank": 0,
+      "dependsOn": [],
+      "latitude": -42,
+      "longitude": 92.6
+    },
+    {
+      "title": "The dev loop",
+      "rank": 1,
+      "dependsOn": [
+        "The local database"
+      ],
+      "latitude": -9.7,
+      "longitude": -31.2
+    },
+    {
+      "title": "The agent link",
+      "rank": 1,
+      "dependsOn": [
+        "The local database",
+        "The library"
+      ],
+      "latitude": -13.8,
+      "longitude": 0.9
+    },
+    {
+      "title": "The knowledge core",
+      "rank": 1,
+      "dependsOn": [
+        "The library"
+      ],
+      "latitude": -13.9,
+      "longitude": 33.5
+    },
+    {
+      "title": "The app",
+      "rank": 2,
+      "dependsOn": [
+        "The local database",
+        "The agent link"
+      ],
+      "latitude": 13.9,
+      "longitude": -31.8
+    },
+    {
+      "title": "The forest",
+      "rank": 2,
+      "dependsOn": [
+        "The world",
+        "The knowledge core"
+      ],
+      "latitude": 17,
+      "longitude": -10
+    },
+    {
+      "title": "The arc surface",
+      "rank": 2,
+      "dependsOn": [
+        "The agent link"
+      ],
+      "latitude": 14.6,
+      "longitude": 10.9
+    },
+    {
+      "title": "The command line",
+      "rank": 2,
+      "dependsOn": [
+        "The library",
+        "The agent link",
+        "The librarian"
+      ],
+      "latitude": 14,
+      "longitude": 31.4
+    },
+    {
+      "title": "The app setup",
+      "rank": 3,
+      "dependsOn": [
+        "The app",
+        "The agent link"
+      ],
+      "latitude": 42,
+      "longitude": 0
+    }
+  ],
+  "edges": [
+    {
+      "from": "The dev loop",
+      "on": "The local database",
+      "north": true
+    },
+    {
+      "from": "The agent link",
+      "on": "The local database",
+      "north": true
+    },
+    {
+      "from": "The agent link",
+      "on": "The library",
+      "north": true
+    },
+    {
+      "from": "The knowledge core",
+      "on": "The library",
+      "north": true
+    },
+    {
+      "from": "The app",
+      "on": "The local database",
+      "north": true
+    },
+    {
+      "from": "The app",
+      "on": "The agent link",
+      "north": true
+    },
+    {
+      "from": "The forest",
+      "on": "The world",
+      "north": true
+    },
+    {
+      "from": "The forest",
+      "on": "The knowledge core",
+      "north": true
+    },
+    {
+      "from": "The arc surface",
+      "on": "The agent link",
+      "north": true
+    },
+    {
+      "from": "The command line",
+      "on": "The library",
+      "north": true
+    },
+    {
+      "from": "The command line",
+      "on": "The agent link",
+      "north": true
+    },
+    {
+      "from": "The command line",
+      "on": "The librarian",
+      "north": true
+    },
+    {
+      "from": "The app setup",
+      "on": "The app",
+      "north": true
+    },
+    {
+      "from": "The app setup",
+      "on": "The agent link",
+      "north": true
+    }
+  ],
+  "edgesNorth": "14 of 14"
+}

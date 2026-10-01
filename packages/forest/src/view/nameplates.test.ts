@@ -6,7 +6,7 @@ import { turnToIsland } from "@storytree/forest";
 import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { dragTurn, focusRotation } from "./planet-navigation.js";
-import { capabilityPlates, facesEye, screenOnPlate, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedOut, facesEye, facing, screenOnPlate, storyPlate } from "./nameplates.js";
 
 const coast = [[{ x: 30, z: 0 }, { x: 12, z: 26 }, { x: -28, z: 14 }, { x: -22, z: -22 }, { x: 6, z: -31 }]];
 
@@ -54,4 +54,16 @@ test("selecting a story shows one capability nameplate per territory, each insid
     const cell = map.cells.find(c => inside(plate, c.polygon));
     assert.equal(cell && map.territories[cell.territory]?.capability, plate.capability, `${plate.title} lies in its own territory`);
   }
+});
+
+test("no two story nameplates overlap on screen: where two would, the one whose island faces the eye less gives way", () => {
+  const box = (left: number, top: number) => ({ left, top, right: left + 120, bottom: top + 20 });
+  // As storytree's own globe shows them: The local database's plate over Process ledger's, both islands near the rim.
+  const hidden = crowdedOut([
+    { story: "local database", box: box(388, 785), facing: facing(new Quaternion().setFromEuler(new Euler(0.25, 0, 0)), new Quaternion()) },
+    { story: "process ledger", box: box(410, 798), facing: facing(new Quaternion().setFromEuler(new Euler(0.9, 0, 0)), new Quaternion()) },
+    { story: "library", box: box(545, 833), facing: 0.8 },
+  ]);
+  assert.deepEqual([...hidden], ["local database"], "the more edge-on gives way; a plate clear of the others stays");
+  assert.deepEqual([...crowdedOut([{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }], "a")], ["b"], "the selected story's plate never gives way");
 });

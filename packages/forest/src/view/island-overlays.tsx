@@ -6,7 +6,7 @@ import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
 import { globeOccluder, onIslandSurface } from "@storytree/forest-world/planet";
 import { territories, type Coast } from "../territories/territories.js";
-import { capabilityPlates, facesEye, screenOnPlate, storyPlate } from "./nameplates.js";
+import { capabilityPlates, crowdedOut, facing, screenOnPlate, storyPlate } from "./nameplates.js";
 import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
@@ -44,7 +44,10 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
     // Kept on the globe, so the sphere still hides a plate whose island is edge-on at the rim.
     group.position.copy(surface(storyPlate(coast, screenOnPlate(turned, camera.quaternion), radius * 0.9)));
     group.updateMatrixWorld();
-    if (label.current !== null) label.current.style.visibility = facesEye(turned, camera.quaternion) ? "" : "hidden";
+    if (label.current === null) return;
+    const faces = facing(turned, camera.quaternion);
+    label.current.style.visibility = faces > 0 ? "" : "hidden";
+    label.current.dataset.facing = String(faces);
   }, -1);
   const chosen = island.story === selected;
   const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(territories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
@@ -59,6 +62,25 @@ export function Nameplates({ island, coast, radius, selected, dimmed = false }: 
       <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability}>{plate.title}</div>
     </Overlay>)}
   </>;
+}
+
+/** Every frame, hides the story nameplates that would overlap another on screen (crowdedOut), and shows them again once clear. */
+export function NameplateCrowd({ selected }: { selected: string | undefined }) {
+  const gl = useThree(state => state.gl);
+  useFrame(() => {
+    const host = gl.domElement.parentElement;
+    if (host === null) return;
+    const labels = [...host.querySelectorAll<HTMLElement>(".planet-nameplate[data-story-id]")];
+    const shown = labels.flatMap(label => {
+      const box = label.getBoundingClientRect();
+      // Turned away, or hidden behind the sphere: not on screen to crowd another.
+      if (label.style.visibility === "hidden" || box.width === 0) return [];
+      return [{ story: label.dataset.storyId!, box, facing: Number(label.dataset.facing ?? 0) }];
+    });
+    const hidden = crowdedOut(shown, selected);
+    for (const label of labels) label.classList.toggle("crowded", hidden.has(label.dataset.storyId!));
+  });
+  return null;
 }
 
 /** A ring on the water round the selected island (3.3). */

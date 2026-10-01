@@ -12,7 +12,7 @@ import { coastTintMarks } from "./session-tints.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { fileCircles, territories } from "../territories/territories.js";
-import { Nameplates, Overlay, SelectionRing } from "./island-overlays.js";
+import { NameplateCrowd, Nameplates, Overlay, SelectionRing } from "./island-overlays.js";
 import { dragTurn, focusRotation, hiddenMarkers, oncePerFrame, pickGlobe, planetLayout, pointedFile, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 
@@ -80,6 +80,7 @@ export function PlanetView({ core, scene, places, wisps, selected, highlighted, 
     rotation={rotation.toArray()} plateChildren={overlays}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPick={onPick} onNote={onNote} mode={mode} />
+    <NameplateCrowd selected={selected} />
   </PlanetWorldCanvas>;
 }
 

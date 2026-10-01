@@ -8,14 +8,15 @@
  *   globe. When islands still grow into each other (across rows),
  *   {@link growPlanet} nudges them apart: first by pushing every overlapping pair away from each other
  *   along the sphere, then by pulling each back toward its anchor as far as it can go without touching
- *   another. Islands that do not overlap never move, so a small project keeps its places exactly.
+ *   another. Nudging keeps each island within {@link ROW_BAND} of its row's latitude, so no island is pushed past
+ *   a row below or above it. Islands that do not overlap never move, so a small project keeps its places exactly.
  * - When nudging cannot make room, the globe grows: the radius rises in steps of {@link GROWTH_STEP} until
- *   nothing overlaps and no island is more than {@link MAX_NUDGE} from its anchor. Islands keep their
+ *   nothing overlaps and no island is more than {@link MAX_NUDGE} from its anchor, which also widens the rows in ground units. Islands keep their
  *   ground size, so a bigger globe only spaces them further apart.
  *
  * Pure and deterministic: the same islands always give the same globe (no random, no clock).
  */
-import { PLANET_RADIUS, rowLatitude, rowOf, type PlanetPoint } from "./planet-places.js";
+import { PLANET_RADIUS, ROW_LATITUDE, rowLatitude, rowOf, type PlanetPoint } from "./planet-places.js";
 
 /**
  * Ground units² of land per line of code in a surveyed story.
@@ -89,8 +90,23 @@ function step(from: Vec, toward: Vec, by: number): Vec {
   return normalise([from[0] * Math.cos(by) + tangent[0] * Math.sin(by), from[1] * Math.cos(by) + tangent[1] * Math.sin(by), from[2] * Math.cos(by) + tangent[2] * Math.sin(by)]);
 }
 
-/** The islands at `radius`, nudged apart and pulled back toward their anchors; undefined when they cannot be made to fit within the bound. */
-function settle(anchors: readonly Vec[], reaches: readonly number[], radius: number): Vec[] | undefined {
+/**
+ * How far north or south of its row's latitude nudging may move an island, as a share of the rows' spacing.
+ * Under a half, so an island never reaches the band of the row above or below: every island stays north of
+ * every island in a lower row, and so of every story it depends on (Story nodes 1.4), whatever their sizes.
+ */
+export const ROW_BAND = 0.4;
+
+/** `spot` moved along its meridian into the latitudes `band` (south, north), when it has strayed out of them. */
+function intoBand(spot: Vec, band: readonly [number, number]): Vec {
+  const latitude = Math.asin(Math.max(-1, Math.min(1, spot[1])));
+  if (latitude >= band[0] && latitude <= band[1]) return spot;
+  const clamped = Math.max(band[0], Math.min(band[1], latitude)), longitude = Math.atan2(spot[0], spot[2]);
+  return [Math.cos(clamped) * Math.sin(longitude), Math.sin(clamped), Math.cos(clamped) * Math.cos(longitude)];
+}
+
+/** The islands at `radius`, nudged apart within their rows' bands and pulled back toward their anchors; undefined when they cannot be made to fit within the bound. */
+function settle(anchors: readonly Vec[], bands: readonly (readonly [number, number])[], reaches: readonly number[], radius: number): Vec[] | undefined {
   const need = (i: number, j: number) => (reaches[i]! + reaches[j]! + SEA_GAP) / radius;
   const clashes = (spots: readonly Vec[]) => spots.some((a, i) => spots.some((b, j) => j > i && angleBetween(a, b) < need(i, j) - SLACK));
   const spots = anchors.slice();
@@ -101,8 +117,8 @@ function settle(anchors: readonly Vec[], reaches: readonly number[], radius: num
       const short = need(i, j) - angleBetween(spots[i]!, spots[j]!);
       if (short <= SLACK) continue;
       const a = spots[i]!, b = spots[j]!;
-      spots[i] = step(a, b, -short / 2);
-      spots[j] = step(b, a, -short / 2);
+      spots[i] = intoBand(step(a, b, -short / 2), bands[i]!);
+      spots[j] = intoBand(step(b, a, -short / 2), bands[j]!);
     }
     if (spots.some((spot, i) => angleBetween(spot, anchors[i]!) > MAX_NUDGE)) return undefined;
   }
@@ -113,7 +129,7 @@ function settle(anchors: readonly Vec[], reaches: readonly number[], radius: num
       const away = angleBetween(spots[i]!, anchors[i]!);
       if (away < SLACK) continue;
       for (let fraction = 1; fraction > 1 / 64; fraction /= 2) {
-        const there = step(spots[i]!, anchors[i]!, away * fraction);
+        const there = intoBand(step(spots[i]!, anchors[i]!, away * fraction), bands[i]!);
         if (spots.some((other, j) => j !== i && angleBetween(there, other) < need(i, j) - SLACK)) continue;
         spots[i] = there;
         moved = true;
@@ -128,9 +144,12 @@ function settle(anchors: readonly Vec[], reaches: readonly number[], radius: num
 /** Every island at its anchor, nudged as little as needed; the globe's radius grows only when a row no longer fits round it or nudging cannot make room. */
 export function growPlanet(islands: readonly GrowingIsland[]): GrownPlanet {
   const reaches = islands.map(({ reach }) => reach);
+  const rows = Math.max(0, ...islands.map(({ place }) => rowOf(place).row + 1));
+  const half = rows <= 1 ? Math.PI : ROW_BAND * 2 * ROW_LATITUDE / (rows - 1);
+  const bands = islands.map(({ place }): [number, number] => { const at = rowLatitude(rowOf(place).row, rows); return [at - half, at + half]; });
   for (let radius = PLANET_RADIUS; ; radius *= GROWTH_STEP) {
     const anchors = rowAnchors(islands, radius);
-    const spots = anchors === undefined ? undefined : settle(anchors, reaches, radius);
+    const spots = anchors === undefined ? undefined : settle(anchors, bands, reaches, radius);
     if (spots !== undefined) return { radius, spots: new Map(islands.map(({ story }, i) => [story, { x: spots[i]![0], y: spots[i]![1], z: spots[i]![2] }])) };
   }
 }

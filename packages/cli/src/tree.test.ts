@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.4 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.5 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -88,5 +88,35 @@ test("10.4 each capability's line gives its word, and for one not healthy its re
     assert.match(line("Password rules"), /proposed — not built, the agent's to move/);
     assert.match(line("Email form"), /untested — no test names it, the agent's to move: 1\.2$/);
     assert.match(line("Thank-you page"), /healthy$/);
+  });
+});
+
+test("10.5 `storytree health worklist` prints the oldest three capabilities on the health worklist, each with its word, reason, who moves it, the contracts carrying it and since when, and how many more wait; with none it says nothing waits", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const none = await world.run(["health", "worklist"]);
+    assert.equal(none.code, 0, none.stderr);
+    assert.match(none.stdout, /nothing waits/i);
+
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.setProposed(form.id, false);
+    await library.recordVerified(check.id, "failing");
+    for (const title of ["Password rules", "Thank-you page", "Welcome email"]) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await library.addCapability({ title, story: story.id });
+    }
+
+    const ran = await world.run(["health", "worklist"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const at = (text: string): number => lines.findIndex((line) => line.includes(text));
+    assert.match(lines[at("Email form")]!, new RegExp(`unhealthy — failing, the agent's to move: ${check.id}.*since \\d{4}-\\d{2}-\\d{2}`));
+    assert.ok(at("Email form") < at("Password rules") && at("Password rules") < at("Thank-you page"), ran.stdout);
+    assert.match(lines[at("Password rules")]!, /proposed — not built, the agent's to move/);
+    assert.equal(at("Welcome email"), -1, ran.stdout);
+    assert.match(ran.stdout, /1 more wait/);
   });
 });

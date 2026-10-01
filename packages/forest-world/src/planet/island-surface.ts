@@ -115,8 +115,10 @@ export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius:
     geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
     geometry.setAttribute('normal', new Float32BufferAttribute(normal, 3));
     geometry.setIndex(triangles);
+    // One pass: the surface lies on the sphere, so the eye sees one face of it. Three draws a see-through,
+    // double-sided material in two passes and re-derives its shader program for each, every frame (ADR-0836 D1).
     const ground = new Mesh(geometry, new MeshBasicMaterial({
-      color: ISLAND_GROUND_COLOUR, transparent: true, opacity: ISLAND_GROUND_OPACITY, depthWrite: false, side: DoubleSide,
+      color: ISLAND_GROUND_COLOUR, transparent: true, opacity: ISLAND_GROUND_OPACITY, depthWrite: false, side: DoubleSide, forceSinglePass: true,
     }));
     ground.name = 'island-ground';
     group.add(ground);
@@ -141,7 +143,7 @@ export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius:
     geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
     geometry.setIndex(indices);
     const line = new Mesh(geometry, new MeshBasicMaterial({
-      color: ISLAND_COAST_COLOUR, transparent: true, opacity: ISLAND_COAST_OPACITY, depthWrite: false, side: DoubleSide,
+      color: ISLAND_COAST_COLOUR, transparent: true, opacity: ISLAND_COAST_OPACITY, depthWrite: false, side: DoubleSide, forceSinglePass: true,
     }));
     line.name = `island-coast:${index}`;
     group.add(line);

@@ -17,11 +17,15 @@
 // (STORYTREE_TEST_PG_URL), in a project of their own that is dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 import pg from "pg";
 
+import { syncGuidance } from "./build-guidance.mjs";
 import { BUDGETS, driftOf, expectedFiles, overBudget, readRoles, REGION_END, REGION_START } from "./guidance.mjs";
 
 const CLAUDE_MD = ["# storytree 0.3", "", "Written by hand.", "", `${REGION_START} -->`, "old", REGION_END, "", "After."].join("\n");
@@ -124,6 +128,42 @@ test("4.2 the drift check names a stale region, missing and stale files and an o
     { file: ".claude/agents/a.md", problem: "stale" },
     { file: ".codex/agents/gone.toml", problem: "orphan" },
   ]);
+});
+
+test("4.2 the check writes nothing and fails on drift; the build writes stale and missing files and removes an orphan role and skill, after which the check passes", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "guidance-sync-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const put = (file, text) => {
+    mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    writeFileSync(path.join(root, file), text);
+  };
+  put("CLAUDE.md", CLAUDE_MD);
+  put(".claude/agents/a.md", "stale\n");
+  put(".codex/agents/gone.toml", "left behind\n");
+  put(".claude/skills/old/SKILL.md", "an old skill\n");
+  const expected = new Map([["CLAUDE.md", CLAUDE_MD], ["AGENTS.md", "agents\n"], [".claude/agents/a.md", "a\n"]]);
+  const said = [];
+  const io = { log: (line) => said.push(line), error: (line) => said.push(line) };
+
+  assert.equal(syncGuidance(expected, { root, check: true, ...io }), 1);
+  assert.match(said.join("\n"), /missing: AGENTS\.md[\s\S]*stale: \.claude\/agents\/a\.md[\s\S]*orphan: \.codex\/agents\/gone\.toml/);
+  assert.equal(existsSync(path.join(root, "AGENTS.md")), false, "the check writes nothing");
+
+  assert.equal(syncGuidance(expected, { root, check: false, ...io }), 0);
+  assert.equal(readFileSync(path.join(root, "AGENTS.md"), "utf8"), "agents\n");
+  assert.equal(readFileSync(path.join(root, ".claude/agents/a.md"), "utf8"), "a\n");
+  assert.equal(existsSync(path.join(root, ".codex/agents/gone.toml")), false);
+  assert.equal(existsSync(path.join(root, ".claude/skills/old")), false, "an orphan skill's emptied folder goes too");
+  assert.equal(syncGuidance(expected, { root, check: true, ...io }), 0);
+});
+
+test("4.3 a build over a size budget fails, naming the file", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "guidance-sync-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const said = [];
+  const big = "x".repeat(BUDGETS["AGENTS.md"] + 1);
+  assert.equal(syncGuidance(new Map([["AGENTS.md", big]]), { root, check: false, log: () => {}, error: (line) => said.push(line) }), 1);
+  assert.deepEqual(said, [`over budget: AGENTS.md is ${big.length} bytes; its budget is ${BUDGETS["AGENTS.md"]}`]);
 });
 
 test("4.3 a file over its size budget is named with its size and its budget", () => {

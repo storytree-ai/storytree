@@ -35,8 +35,8 @@ test("a story's nameplate hides once its island turns away, and never leaves the
   const plate = new Quaternion().setFromEuler(new Euler(0.05, 0, Math.PI / 4));
   const at = storyPlate(coast, screenOnPlate(plate, eye), 100);
   assert.ok(Math.hypot(at.x, at.z) <= 100 + 1e-9, `the plate stays within reach of its island: ${JSON.stringify(at)}`);
-  assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(Math.PI / 2 - 0.05, 0, 0)), eye), true, "an island just in front of the rim shows its plate");
-  assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(Math.PI / 2 + 0.05, 0.3, 0)), eye), false, "one just past it hides its plate");
+  assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(0.05, 0, 0)), eye), true, "an island just in front of the rim shows its plate");
+  assert.equal(facesEye(new Quaternion().setFromEuler(new Euler(-0.05, 0.3, 0)), eye), false, "one just past it hides its plate");
 });
 
 test("selecting a story shows one capability nameplate per territory, each inside its own territory, none for Unclaimed code", () => {

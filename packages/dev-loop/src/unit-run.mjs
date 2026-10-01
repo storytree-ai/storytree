@@ -59,11 +59,11 @@ export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_
     let exitHung = [];
     const deadline = setTimeout(() => {
       timedOut = true;
-      running = stillRunning(runningFile, root);
+      running = stillRunning(runningFile);
       killTree(child);
     }, unitLimitMs);
     const exitWatch = setInterval(() => {
-      exitHung = endedNotExited(runningFile, root, Date.now() - exitGraceMs);
+      exitHung = endedNotExited(runningFile, Date.now() - exitGraceMs);
       if (exitHung.length > 0) killTree(child);
     }, Math.min(1_000, exitGraceMs / 2));
     const stop = () => {
@@ -132,25 +132,28 @@ function openEntries(runningFile) {
   return { lines, open: [...open.values()] };
 }
 
-/** A file's own entry, named by its basename or by the path it was given relative to the unit's root. */
-const isFileEntry = (entry, root) => entry.nesting === 0 && entry.file && (path.basename(entry.file) === entry.name || path.resolve(root, entry.name) === entry.file);
+/**
+ * A file's own entry, named by the path it was given: its basename, or a path relative to the unit's
+ * root, which `file` ends with (compared by suffix: on macOS `file` is the real path under /private).
+ */
+const isFileEntry = (entry) => entry.nesting === 0 && entry.file && `/${entry.file.replaceAll("\\", "/")}`.endsWith(`/${entry.name.replaceAll("\\", "/").replace(/^\.\//, "")}`);
 
 /** The files whose own entry is still open, with no test open, after tests that all ended before `since`. */
-function endedNotExited(runningFile, root, since) {
+function endedNotExited(runningFile, since) {
   const { lines, open } = openEntries(runningFile);
-  const busy = new Set(open.filter((entry) => !isFileEntry(entry, root)).map((entry) => entry.file));
+  const busy = new Set(open.filter((entry) => !isFileEntry(entry)).map((entry) => entry.file));
   const lastTest = new Map();
-  for (const entry of lines) if (!isFileEntry(entry, root)) lastTest.set(entry.file, entry.at);
+  for (const entry of lines) if (!isFileEntry(entry)) lastTest.set(entry.file, entry.at);
   return open
-    .filter((entry) => isFileEntry(entry, root) && !busy.has(entry.file) && lastTest.get(entry.file) < since)
+    .filter((entry) => isFileEntry(entry) && !busy.has(entry.file) && lastTest.get(entry.file) < since)
     .map((entry) => entry.file);
 }
 
 /** The tests started and not yet ended, the innermost of each file; a file stuck outside any test is named alone. */
-function stillRunning(runningFile, root) {
+function stillRunning(runningFile) {
   const byFile = new Map();
   for (const entry of openEntries(runningFile).open) {
-    const isFile = isFileEntry(entry, root);
+    const isFile = isFileEntry(entry);
     const list = byFile.get(entry.file) ?? { tests: [], file: false };
     if (isFile) list.file = true;
     else list.tests.push(entry);

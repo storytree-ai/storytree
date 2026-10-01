@@ -2,7 +2,7 @@
 // real `node --test` unit over a fixture file, with the limits cut to seconds.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -12,7 +12,8 @@ import { fileURLToPath } from "node:url";
 import { clearUnitLimit, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
 function fixture(t, files) {
-  const root = mkdtempSync(path.join(tmpdir(), "unit-run-"));
+  // Its real path: on macOS the temporary folder is a link, and node names test files by their real one.
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "unit-run-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const [name, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(root, name)), { recursive: true });

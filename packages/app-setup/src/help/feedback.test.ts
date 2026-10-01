@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { feedbackText, openFeedbackDraft } from "./feedback.js";
+import { draftSaid, feedbackText, openFeedbackDraft } from "./feedback.js";
 
 test("5.1/5.2 opens only the reviewed title and body as a GitHub issue draft", async () => {
   const draft = { title: "A suggestion & a question?", body: "Please add 🌳\n<details> + #notes" };
@@ -29,4 +29,10 @@ test("5.2 invalid or empty drafts never reach the external opener", async () => 
     await assert.rejects(() => openFeedbackDraft(draft, async () => { opens++; }));
   }
   assert.equal(opens, 0);
+});
+
+test("5.4 after opening the draft the app says it opened a draft, never that feedback was received", async () => {
+  const said = draftSaid(await openFeedbackDraft({ title: "Help", body: "My description" }, async () => {}));
+  assert.match(said, /opened a draft/i);
+  assert.doesNotMatch(said, /received|sent|thank/i);
 });

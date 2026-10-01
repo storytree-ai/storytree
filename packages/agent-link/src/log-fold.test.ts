@@ -100,3 +100,26 @@ test("a fold fed the log a piece at a time reads the same sessions and claims as
     }
   }
 });
+
+test("a fold kept as a plain snapshot and restored, then fed the rest, reads the same sessions and claims as one fed every line", () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const lines = busyLog(seed, 600);
+    for (const cut of [1, 50, 299, 600]) {
+      const first = new LogFold();
+      first.add(lines.slice(0, cut));
+      // Kept as the page keeps it: written out and read back, so nothing of the first fold is shared.
+      const restored = LogFold.fromSnapshot(JSON.parse(JSON.stringify(first.snapshot())));
+      restored.add(lines.slice(cut));
+      const last = Date.parse(lines.at(-1)!.at);
+      for (const later of [0, 31 * 60_000, 13 * 3_600_000]) {
+        const options = { now: new Date(last + later), quietMs: 20 * 60_000, leaveMs: 3_600_000 };
+        const at = `seed ${seed}, kept after ${cut} lines, ${later} ms after the last`;
+        assert.deepEqual(restored.sessions(options), sessionsFrom(lines, options), `sessions, ${at}`);
+        assert.deepEqual(restored.claims(options), claimsFrom(lines, options), `claims, ${at}`);
+      }
+      const whole = new LogFold();
+      whole.add(lines);
+      assert.deepEqual(restored.machines(), whole.machines(), `machines, seed ${seed}, kept after ${cut} lines`);
+    }
+  }
+});

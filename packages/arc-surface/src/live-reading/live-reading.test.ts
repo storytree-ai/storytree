@@ -8,11 +8,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Line, LinesSince } from "@storytree/agent-link";
-import { claimsFrom, sessionsFrom } from "@storytree/agent-link/readings";
+import { claimsFrom, sessionsFrom, type LogFoldSnapshot } from "@storytree/agent-link/readings";
 import type { Change, Changes } from "@storytree/library";
 
 import { liveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
-import { joinedReads, pageReading, type KeptReading } from "./page-reading.js";
+import { joinedReads, pageReading, type Keeping, type KeptReading } from "./page-reading.js";
 
 /** A stand-in clock whose timers fire only when the test moves it on. */
 class Clock implements Timers {
@@ -300,15 +300,61 @@ test("the page reading holds the log's sessions and claims folded, and drops eve
   reading.stop();
 });
 
-/** A kept reading in memory, as the page's storage keeps one between starts. */
+/** A kept reading in memory, as the page's storage keeps one between starts: its pieces, and the latest fold written out. */
 class KeptStandIn implements KeptReading {
   pieces: News[] = [];
-  async read(): Promise<News | undefined> {
-    return this.pieces.length === 0 ? undefined : { changes: this.pieces.flatMap(({ changes }) => changes), lines: this.pieces.flatMap(({ lines }) => lines) };
+  fold: string | undefined;
+  last: Line | undefined;
+  async read(): Promise<Keeping | undefined> {
+    if (this.pieces.length === 0) return undefined;
+    return {
+      changes: this.pieces.flatMap(({ changes }) => changes),
+      lines: this.pieces.flatMap(({ lines }) => lines),
+      ...(this.fold === undefined ? {} : { fold: JSON.parse(this.fold) as LogFoldSnapshot }),
+      ...(this.last === undefined ? {} : { last: this.last }),
+    };
   }
-  async add(news: News): Promise<void> { this.pieces.push(news); }
-  async clear(): Promise<void> { this.pieces = []; }
+  async add({ changes, lines, fold, last }: Keeping): Promise<void> {
+    this.pieces.push({ changes, lines });
+    if (fold !== undefined) this.fold = JSON.stringify(fold);
+    if (last !== undefined) this.last = last;
+  }
+  async clear(): Promise<void> { this.pieces = []; this.fold = undefined; this.last = undefined; }
 }
+
+test("the kept reading keeps the log's fold and only the lines a surface reads one by one, and the next start reads the same sessions and claims from it", async () => {
+  const app = new App();
+  const at = new Date(0).toISOString();
+  const common = { session: "s1", source: "hook", project: "shop", at } as const;
+  app.lines.push(
+    { ...common, seq: 1, kind: "session-started" },
+    { ...common, seq: 2, kind: "prompt-submitted" },
+    { ...common, seq: 3, kind: "command-started", command: "pnpm gate", call: "c1" },
+  );
+  app.claim("cap_a");
+  app.lines.push({ ...common, seq: 5, kind: "command-run", command: "pnpm gate", call: "c1" }, { ...common, seq: 6, kind: "file-edited", files: ["a.ts"] });
+  const kept = new KeptStandIn();
+  const clock = new Clock();
+  const first = pageReading({ project: "shop", reads: app, timers: clock, kept });
+  first.subscribe({ onNews: () => {} });
+  await settle();
+  app.lines.push({ ...common, seq: 7, kind: "turn-ended" });
+  await clock.advance(2_000);
+  first.stop();
+  assert.deepEqual((await kept.read())?.lines.map(({ kind }) => kind), ["claimed"], "only the claim is kept as a line");
+
+  app.lines.push({ ...common, seq: 8, kind: "prompt-submitted" }, { ...common, seq: 9, kind: "command-started", command: "pnpm test", call: "c2" });
+  app.asked.length = 0;
+  const next = pageReading({ project: "shop", reads: app, timers: clock, kept });
+  next.subscribe({ onNews: () => {} });
+  await settle();
+  assert.deepEqual(app.asked, ["changes shop 0", "lines shop 6"], "it still asks from just before the last line it took");
+  const options = { now: new Date(0) };
+  assert.deepEqual(next.held().fold.sessions(options), sessionsFrom(app.lines, options));
+  assert.deepEqual(next.held().fold.claims(options), claimsFrom(app.lines, options));
+  assert.deepEqual(next.held().lines.map(({ seq }) => seq), [4]);
+  next.stop();
+});
 
 test("a page reading keeps what it reads, and the next start hears the kept reading at once and asks the library only from where it got to", async () => {
   const app = new App();

@@ -408,6 +408,30 @@ interface SessionFold {
   lastTurnEnded?: { seq: number; background: number };
 }
 
+/** What a branch's state lines have said of it last: open or not, and its open pull request once a look has read it. */
+type BranchState = { open: boolean; at: string; pr?: number | undefined; draft?: true | undefined; checks?: PullState["checks"] | undefined; queued?: true | undefined };
+
+/**
+ * A fold written out as plain data, its sets and maps as arrays, so a page can keep it between starts
+ * and start again from it rather than from every line (ADR-0836 D4). Nothing in it is shared with
+ * the fold it came from.
+ */
+export interface LogFoldSnapshot {
+  sessions: (Omit<SessionFold, "worktrees" | "branches" | "placed" | "running" | "finished"> & {
+    worktrees: string[];
+    branches: string[];
+    placed: [string, { folder?: string; branch: string }][];
+    running: [string, CommandRunning][];
+    finished: string[];
+  })[];
+  lastSeen: [string, string][];
+  branchStates: [string, BranchState][];
+  appRecords: [string, Line & { kind: "session-archived" | "session-unarchived" }][];
+  appWords: [string, Line & { kind: "session-described" }][];
+  holders: [string, Omit<Claim, "holder">][];
+  machines: [string, string][];
+}
+
 /**
  * The sessions and claims reading, folded as the log's lines arrive (ADR-0836 D1, D4): it keeps what
  * each session's lines have said, the claims standing, and the latest that others' lines say about a
@@ -419,11 +443,55 @@ export class LogFold {
   #sessions = new Map<string, SessionFold>();
   /** When each session, about others' work or its own, last wrote. */
   #lastSeen = new Map<string, string>();
-  #branchStates = new Map<string, { open: boolean; at: string; pr?: number | undefined; draft?: true | undefined; checks?: PullState["checks"] | undefined; queued?: true | undefined }>();
+  #branchStates = new Map<string, BranchState>();
   #appRecords = new Map<string, Line & { kind: "session-archived" | "session-unarchived" }>();
   #appWords = new Map<string, Line & { kind: "session-described" }>();
   #holders = new Map<string, Omit<Claim, "holder">>();
   #machines = new Map<string, string>();
+
+  /** A fold that goes on from `snapshot`, as the fold it was taken from would. */
+  static fromSnapshot(snapshot: LogFoldSnapshot): LogFold {
+    const fold = new LogFold();
+    for (const { worktrees, branches, placed, running, finished, closedOut, ...own } of snapshot.sessions) {
+      fold.#sessions.set(own.session, {
+        ...own,
+        worktrees: new Set(worktrees),
+        branches: new Set(branches),
+        placed: new Map(placed),
+        running: new Map(running.map(([call, one]) => [call, { ...one }])),
+        finished: new Set(finished),
+        ...(closedOut === undefined ? {} : { closedOut: { ...closedOut } }),
+      });
+    }
+    fold.#lastSeen = new Map(snapshot.lastSeen);
+    fold.#branchStates = new Map(snapshot.branchStates);
+    fold.#appRecords = new Map(snapshot.appRecords);
+    fold.#appWords = new Map(snapshot.appWords);
+    fold.#holders = new Map(snapshot.holders);
+    fold.#machines = new Map(snapshot.machines);
+    return fold;
+  }
+
+  /** What it has folded so far, as plain data to keep (LogFoldSnapshot). */
+  snapshot(): LogFoldSnapshot {
+    return {
+      sessions: [...this.#sessions.values()].map(({ worktrees, branches, placed, running, finished, closedOut, ...own }) => ({
+        ...own,
+        worktrees: [...worktrees],
+        branches: [...branches],
+        placed: [...placed],
+        running: [...running].map(([call, one]) => [call, { ...one }]),
+        finished: [...finished],
+        ...(closedOut === undefined ? {} : { closedOut: { ...closedOut } }),
+      })),
+      lastSeen: [...this.#lastSeen],
+      branchStates: [...this.#branchStates],
+      appRecords: [...this.#appRecords],
+      appWords: [...this.#appWords],
+      holders: [...this.#holders],
+      machines: [...this.#machines],
+    };
+  }
 
   /** Take what is new. */
   add(lines: readonly Line[]): void {

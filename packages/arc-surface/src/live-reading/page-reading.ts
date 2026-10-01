@@ -10,14 +10,14 @@
  * - Each surface takes news at its own pace: one whose handling fails is told so, and hears that
  *   news again together with the next, while the others hear it once.
  * - Given a kept reading (the page's storage, ADR-0836 D4), it keeps what it holds there, a piece at
- *   a time, and the next start hears the kept reading at once and asks the library only from where
- *   it got to. The first ask overlaps the kept reading by one change and one line, so a kept reading
+ *   a time, with the log's fold as it last stood rather than every line folded into it, and the next
+ *   start hears the kept reading at once and asks the library only from where it got to. The first ask overlaps the kept reading by one change and one line, so a kept reading
  *   the library does not know (another library, a project made again) is dropped and read again
  *   from the start, and the reading converges either way (D5).
  * - It never writes to the library.
  */
 import type { Line } from "@storytree/agent-link";
-import { LogFold, type LogReading } from "@storytree/agent-link/readings";
+import { LogFold, type LogFoldSnapshot, type LogReading } from "@storytree/agent-link/readings";
 import type { Change } from "@storytree/library";
 
 import { ASK_EVERY_MS, liveReading, pageTimers, type LiveReading, type LiveReads, type News, type Timers } from "./live-reading.js";
@@ -61,8 +61,22 @@ const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released
 class Held implements News, LogReading {
   readonly changes: Change[] = [];
   readonly lines: Line[] = [];
-  readonly fold = new LogFold();
+  fold = new LogFold();
+  /** The last line taken, whatever its kind: where a next start asks from. */
+  last: Line | undefined;
   #reported = new Map<string, unknown>();
+
+  /** Hold what a start kept: its changes and one-by-one lines as they were, its log as the fold kept (or, kept with none, as its lines fold). */
+  restore({ changes, lines, fold, last }: Keeping): void {
+    if (fold === undefined) {
+      this.add({ changes, lines });
+      return;
+    }
+    this.add({ changes, lines: [] });
+    this.lines.push(...lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)));
+    this.fold = LogFold.fromSnapshot(fold);
+    this.last = last ?? lines.at(-1);
+  }
 
   /** Hold what is new, and say what of it was kept, before the lines folded were dropped. */
   add({ changes, lines }: News): News {
@@ -81,17 +95,28 @@ class Held implements News, LogReading {
     }
     this.changes.push(...added.changes);
     this.fold.add(added.lines);
+    for (const line of added.lines) if (this.last === undefined || line.seq > this.last.seq) this.last = line;
     this.lines.push(...added.lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)));
     return added;
   }
 }
 
-/** Where a page reading is kept between starts: pieces added in order, read back as one. */
+/**
+ * What a page reading keeps: its thinned changes and the lines a surface reads one by one, and the
+ * log's fold with the last line folded into it, which stand for every line before.
+ */
+export interface Keeping extends News {
+  fold?: LogFoldSnapshot;
+  /** The last line folded, whatever its kind: where the next start asks from. */
+  last?: Line;
+}
+
+/** Where a page reading is kept between starts: pieces added in order, read back as one, and the latest fold. */
 export interface KeptReading {
-  /** Everything kept, oldest first, or undefined when nothing is. */
-  read(): Promise<News | undefined>;
-  /** Keep this piece after what is kept. */
-  add(news: News): Promise<void>;
+  /** Everything kept, oldest first, with the latest fold kept, or undefined when nothing is. */
+  read(): Promise<Keeping | undefined>;
+  /** Keep this piece after what is kept; a fold given replaces the one kept. */
+  add(piece: Keeping): Promise<void>;
   /** Keep nothing. */
   clear(): Promise<void>;
 }
@@ -148,7 +173,11 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
     if (read && whole.changes.length === 0 && whole.lines.length === 0) return;
     const added = held.add(news);
     read = true;
-    if (kept !== undefined && (added.changes.length > 0 || added.lines.length > 0)) kept.add(added).catch(() => { /* This start still holds it. */ });
+    if (kept !== undefined && (added.changes.length > 0 || added.lines.length > 0)) {
+      const piece: Keeping = { changes: added.changes, lines: added.lines.filter(({ kind }) => READ_ONE_BY_ONE.has(kind)) };
+      kept.add(added.lines.length === 0 ? piece : { ...piece, fold: held.fold.snapshot(), ...(held.last === undefined ? {} : { last: held.last }) })
+        .catch(() => { /* This start still holds it. */ });
+    }
     await Promise.all([...everyone].map((ears) => {
       ears.owed = joined(ears.owed, whole);
       return hand(ears);
@@ -187,12 +216,12 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
   async function resume(): Promise<void> {
     const last = await kept!.read().catch(() => undefined);
     if (stopped) return;
-    if (last === undefined || (last.changes.length === 0 && last.lines.length === 0)) return live();
+    if (last === undefined || (last.changes.length === 0 && last.lines.length === 0 && last.last === undefined)) return live();
     const change = last.changes.at(-1);
-    const line = last.lines.at(-1);
+    const line = last.last ?? last.lines.at(-1);
     const from = { changes: Math.max(0, (change?.seq ?? 0) - 1), lines: Math.max(0, (line?.seq ?? 0) - 1) };
     // The kept reading is let go of once held or dropped: held, it is folded down to what a surface reads.
-    let unheard: News | undefined = last;
+    let unheard: Keeping | undefined = last;
     let trying = false;
     const attempt = async (): Promise<boolean> => {
       if (trying || stopped) return stopped;
@@ -208,7 +237,7 @@ export function pageReading({ project, reads, timers, kept }: PageReadingOptions
           live();
           return true;
         }
-        if (unheard !== undefined) held.add(unheard);
+        if (unheard !== undefined) held.restore(unheard);
         unheard = undefined;
         const news = { changes: changes.changes.filter(({ seq }) => seq > (change?.seq ?? 0)), lines: lines.lines.filter(({ seq }) => seq > (line?.seq ?? 0)) };
         await heard(news, { changes: [...held.changes, ...news.changes], lines: [...held.lines, ...news.lines] });

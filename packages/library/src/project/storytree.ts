@@ -22,6 +22,7 @@ import { PgTransactions, WRITE_LOCK } from "../transactions/pg.js";
 import type { Transactions } from "../transactions/types.js";
 import { WorkInFlight } from "../work/work-in-flight.js";
 import { WorkModel } from "../work/work-model.js";
+import { addressServer } from "./address.js";
 import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud-sql.js";
 import { PgVectors } from "./embeddings.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
@@ -31,7 +32,7 @@ import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
 import { localServer, type ServerAccess } from "./server.js";
 
-/** Where the Postgres server is: at a URL, or a Cloud SQL instance reached with Google sign-in. */
+/** Where the Postgres server is: at a URL, a Cloud SQL instance reached with Google sign-in, or an address whose password is a key. */
 export type ConnectOptions =
   | {
       /**
@@ -42,6 +43,18 @@ export type ConnectOptions =
       /** A new local database connection must answer within this long; defaults to 3 seconds. */
       readonly connectTimeoutMs?: number;
       readonly cloudSql?: undefined;
+      readonly address?: undefined;
+    }
+  | {
+      /**
+       * Any Postgres reached by its address, a postgres:// URL with no password (capability 15): its
+       * password is the `postgres` key. Its own database is only used to create and list project databases.
+       */
+      readonly address: string;
+      /** A new connection must answer within this long; defaults to 20 seconds. */
+      readonly connectTimeoutMs?: number;
+      readonly url?: undefined;
+      readonly cloudSql?: undefined;
     }
   | {
       /**
@@ -50,6 +63,7 @@ export type ConnectOptions =
        */
       readonly cloudSql: CloudSqlConfig;
       readonly url?: undefined;
+      readonly address?: undefined;
     };
 
 /** How a project is opened. */
@@ -135,10 +149,11 @@ export interface Project {
  * internal: tests hand the cloud path a fake connector through it, and ranked search a fake embedder.
  */
 export async function connect(options: ConnectOptions, seams: ProjectSeams = {}): Promise<Storytree> {
-  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs), seams.embedder);
-  if (options.url !== undefined) {
-    throw new ConnectionError("config", "Give connect() either a url or a cloudSql instance, not both.");
+  if ([options.url, options.cloudSql, options.address].filter((given) => given !== undefined).length > 1) {
+    throw new ConnectionError("config", "Give connect() one of a url, a cloudSql instance or an address, not more.");
   }
+  if (options.address !== undefined) return new ServerConnection(addressServer(options.address, options.connectTimeoutMs), seams.embedder);
+  if (options.cloudSql === undefined) return new ServerConnection(localServer(new URL(options.url), options.connectTimeoutMs), seams.embedder);
   return new ServerConnection(await cloudSqlServer(options.cloudSql, seams), seams.embedder);
 }
 

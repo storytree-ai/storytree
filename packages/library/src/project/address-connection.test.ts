@@ -12,9 +12,10 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { saveKey } from "@storytree/keys";
+import pg from "pg";
 import { connect, ConnectionError, type Storytree } from "@storytree/library";
 
-import { dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
+import { dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 
 /** The group whose members must give a password to the test server. */
 const PASSWORD_GROUP = "storytree_password_auth";
@@ -34,7 +35,12 @@ async function createPasswordRole(name: string, password: string): Promise<void>
   }
   // The reload is a signal: wait until the server asks the role for its password.
   for (const until = Date.now() + 10_000; ;) {
-    const asked = await withTestClientAs(name, async () => false).catch(() => true);
+    // A wrong password, so a server that asks refuses it outright, leaving no backend waiting on us.
+    const wrong = new URL(address(name));
+    wrong.password = "not-the-password";
+    const probe = new pg.Client({ connectionString: wrong.href });
+    const asked = await probe.connect().then(() => false, (error: unknown) => (error as { code?: unknown }).code === "28P01");
+    await probe.end().catch(() => {});
     if (asked) return;
     if (Date.now() > until) throw new Error(`the test server did not take up ${PASSWORD_LINE}`);
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -49,8 +55,15 @@ function address(user: string, port?: number): string {
   return url.href;
 }
 
+/**
+ * A throwaway storytree home whose auth.json the library's keys are read from, with no PGPASSWORD:
+ * this file's own process, so nothing else sees it.
+ */
 function home(): string {
-  return mkdtempSync(path.join(tmpdir(), "storytree-address-"));
+  const made = mkdtempSync(path.join(tmpdir(), "storytree-address-"));
+  process.env.STORYTREE_HOME = made;
+  delete process.env.PGPASSWORD;
+  return made;
 }
 
 /** A port on this machine nothing listens on. */
@@ -69,7 +82,7 @@ test("15.1 a library at a Postgres address, its password the postgres key, opens
   try {
     await createPasswordRole(role, "right-secret");
     saveKey("postgres", "right-secret", { home: keys });
-    storytree = await connect({ address: address(role) }, { keys: { home: keys, env: {} } });
+    storytree = await connect({ address: address(role) });
     const library = await storytree.openProject(project);
     await library.addStory({ title: "Reached by address", description: "Its password a key." });
     assert.deepEqual((await library.projectTree()).stories.map((story) => story.title), ["Reached by address"]);
@@ -85,7 +98,7 @@ test("15.2 with no password saved for the library, connecting is refused saying 
   const keys = home();
   try {
     await assert.rejects(
-      connect({ address: address("someone", await closedPort()) }, { keys: { home: keys, env: {} } }),
+      connect({ address: address("someone", await closedPort()) }),
       (error: unknown) => {
         assert.ok(error instanceof ConnectionError, String(error));
         assert.equal(error.problem, "no-password");
@@ -106,7 +119,7 @@ test("15.3 a refused password and an unreachable host are each their own refusal
   try {
     await createPasswordRole(role, "right-secret");
     saveKey("postgres", "wrong-secret", { home: keys });
-    const refused = await connect({ address: address(role) }, { keys: { home: keys, env: {} } });
+    const refused = await connect({ address: address(role) });
     opened.push(refused);
     await assert.rejects(refused.listProjects(), (error: unknown) => {
       assert.ok(error instanceof ConnectionError, String(error));
@@ -116,7 +129,7 @@ test("15.3 a refused password and an unreachable host are each their own refusal
       return true;
     });
 
-    const away = await connect({ address: address(role, await closedPort()) }, { keys: { home: keys, env: {} } });
+    const away = await connect({ address: address(role, await closedPort()) });
     opened.push(away);
     await assert.rejects(away.listProjects(), (error: unknown) => {
       assert.ok(error instanceof ConnectionError, String(error));

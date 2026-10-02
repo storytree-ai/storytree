@@ -109,6 +109,11 @@ export async function verifyTour(browser, url, output) {
   await page.locator("#tour-replay").click(); await page.locator("#tour-depth").click(); await page.locator("#tour-skip").click();
   assert.equal(await page.locator("#chapter2").getAttribute("data-tour-mode"), "freeplay");
   assert.equal(await page.locator("#website-forest").getAttribute("data-forest-state"), "still");
+  const hatch = await page.locator("#tour-hatch").boundingBox();
+  assert.ok(hatch && hatch.x >= 0 && hatch.x + hatch.width <= 390 && hatch.y >= 0 && hatch.y + hatch.height <= 844,
+    "2.6 · the free-play waitlist exit is reachable in the viewport without scrolling past the saved surfaces");
+  assert.ok(hatch.x + hatch.width >= 366 && hatch.y + hatch.height >= 820,
+    "2.6 · the free-play exit stays in the bottom-right corner");
   await page.locator("#chapter2").screenshot({ path: path.join(output, "390-no-webgl.png") });
   await page.locator(".session-row[data-session-id='01a0fa93-ea61-7542-9574-6c752c763f16']").waitFor({ timeout: 5000 });
   assert.ok(await page.locator(".session-row").count() > 0, "Saved sessions use the recording clock, even in 2030");
@@ -136,7 +141,27 @@ export async function verifyTour(browser, url, output) {
   await page.locator(".panel-detail").waitFor();
   await page.locator("#tour-note-choice").selectOption({ index: 1 });
   await page.locator(".core-card").waitFor();
+  const pinned = await page.locator(".core-card h3").textContent();
+  for (const control of ["recording-replay", "recording-end"]) {
+    await page.locator(`#${control}`).click();
+    await page.locator(".core-card").waitFor({ timeout: 5000 });
+    assert.equal(await page.locator(".core-card h3").textContent(), pinned, "2.6 · replay preserves the note being read");
+  }
+  await page.locator(".core-card button").focus();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".core-card").count(), 0, "2.6 · Escape closes the saved note");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "tour-note-choice");
   assert.ok(await page.locator(".arc-lane").count() > 0);
+  const arcList = await page.locator(".arc-lanes").boundingBox();
+  assert.ok(arcList && arcList.height >= 100, "2.6 · phone free play keeps the arc choices readable above their briefing");
+  const collidingArcCounts = await page.locator(".arc-track").evaluateAll(tracks => tracks.filter(track => {
+    const count = track.querySelector(".arc-count")?.getBoundingClientRect();
+    return count && [...track.querySelectorAll(".arc-bar")].some(bar => {
+      const box = bar.getBoundingClientRect();
+      return Math.min(box.right, count.right) > Math.max(box.left, count.left) && Math.min(box.bottom, count.bottom) > Math.max(box.top, count.top);
+    });
+  }).length);
+  assert.equal(collidingArcCounts, 0, "2.6 · recorded arc bars do not obscure their counts on a phone");
   await page.locator(".arc-lane").last().click();
   assert.ok(await page.locator(".arc-briefing").isVisible());
   await page.locator("#tour-hatch").click();
@@ -160,6 +185,10 @@ export async function verifyTour(browser, url, output) {
     await live.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await live.mouse.down(); await live.mouse.move(box.x + box.width * .7, box.y + box.height * .65, { steps: 8 }); await live.mouse.up();
     await live.waitForFunction(before => JSON.stringify([...document.querySelectorAll(".planet-nameplate")].map(node => ({ name: node.textContent, x: node.getBoundingClientRect().x, y: node.getBoundingClientRect().y }))) !== JSON.stringify(before), before);
+    const exit = await live.locator("#tour-hatch").boundingBox();
+    assert.ok(exit && exit.x + exit.width >= width - 24 && exit.x + exit.width <= width && exit.y + exit.height >= 976 && exit.y + exit.height <= 1000,
+      "2.6 · the waitlist hatch remains bottom-right while turning the real globe");
+    await live.screenshot({ path: path.join(output, `${width}-exit.png`) });
     await live.locator("#chapter2").screenshot({ path: path.join(output, `${width}-freeplay.png`) });
     assert.equal(await live.evaluate(() => document.documentElement.scrollWidth), width);
     assert.deepEqual(liveErrors, []); await live.close();

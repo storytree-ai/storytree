@@ -126,9 +126,13 @@ export function wireTour() {
     target.focus({ preventScroll: true });
   });
   if ("IntersectionObserver" in window) {
-    const observer = new IntersectionObserver(entries => { visible = entries.some(entry => entry.isIntersecting); clock = performance.now(); });
+    const observer = new IntersectionObserver(entries => {
+      visible = entries.some(entry => entry.isIntersecting);
+      root.dataset.tourVisible = String(visible);
+      clock = performance.now();
+    });
     observer.observe(root);
-  } else visible = true;
+  } else { visible = true; root.dataset.tourVisible = "true"; }
   const frame = (now: number) => {
     const delta = Math.min(now - clock, 1000);
     clock = now;

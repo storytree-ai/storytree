@@ -100,6 +100,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const closeStory = useCallback(() => { setStory(undefined); setCapability(undefined); }, []);
   const pickNote = useCallback((id: string) => { interact(); setNote(id); setStory(undefined); core.pin(id); }, [core]);
   const closeNote = useCallback(() => { setNote(undefined); core.pin(undefined); }, [core]);
+  // A recording restart replaces the core, but the visitor is still reading this note.
+  useEffect(() => { core.pin(note); }, [core, note]);
   const onHighlight = useCallback((stories: readonly string[] | undefined, session?: string) => setHighlight({ stories, session }), []);
   const onControls = useCallback((next: GlobeControls | undefined) => setControls(next), []);
   useEffect(() => {
@@ -222,7 +224,11 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       <div hidden={!free && requestedPanel !== "arcs"}>
         <Arcs recording={recording} open={requestedPanel === "arcs" || free} />
       </div>
-      <div className="tour-knowledge" hidden={!free && requestedPanel !== "knowledge" && !note}>
+      <div className="tour-knowledge" hidden={!free && requestedPanel !== "knowledge" && !note} onKeyDown={event => {
+        if (event.key !== "Escape" || !note) return;
+        event.preventDefault(); event.stopPropagation(); closeNote();
+        document.getElementById("tour-note-choice")?.focus();
+      }}>
         <label htmlFor="tour-note-search">Find a recorded library note</label>
         <input id="tour-note-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search decisions and guidance" />
         <label htmlFor="tour-note-choice">Library note</label>

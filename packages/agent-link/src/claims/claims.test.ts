@@ -12,7 +12,7 @@ import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
 
-import { openActivityLog, type ActivityLog } from "../activity/index.js";
+import { openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
 import { readClaim, readClaims } from "../index.js";
 import { claimFrom, claimsFrom } from "../readings.js";
 import { runHook } from "../hooks/index.js";
@@ -186,8 +186,16 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-started", command: "npm run build", call: "call-1" });
 
     await sleep(quietMs + 300); // the build runs on, longer than the quiet time, and A writes nothing
-    const refused = await claim(as("B", { quietMs }), emailForm, "A went quiet; taking over");
+    let historyReads = 0;
+    const counted = Object.assign(Object.create(log) as ActivityLog, {
+      locked: <T>(of: string, work: (locked: LockedLog) => Promise<T>) => log.locked(of, (locked) => work({
+        ...locked,
+        lines: (kinds) => { historyReads++; return locked.lines(kinds); },
+      })),
+    });
+    const refused = await claim(as("B", { quietMs, log: counted }), emailForm, "A went quiet; taking over");
     assert.ok(!refused.ok && refused.refused === "held" && refused.holder.session === "A" && refused.holder.holder === "live");
+    assert.equal(historyReads, 1, "claim and command history are read together while the contender holds the lock (concurrent scan waits, 2026-10-02)");
     assert.deepEqual((await readClaims(log, project, { quietMs })).map(({ session, holder }) => ({ session, holder })), [{ session: "A", holder: "live" }]);
   });
 });
@@ -278,11 +286,21 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
 test("5.10 the board asks GitHub itself before it shows claims, even in a minute a hook has already asked: a claim whose branch merged is not shown (regression: a merged branch's claim stood for 7 hours, 2026-09-29)", async () => {
   await withWorld(async ({ log, project, emailForm, as }) => {
     assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
+    let locks = 0;
+    const counted = Object.assign(Object.create(log) as ActivityLog, {
+      since: log.since.bind(log),
+      locked: <T>(of: string, work: (locked: LockedLog) => Promise<T>) => { locks++; return log.locked(of, work); },
+    });
+    const context = { log: counted, project, folder: "/work/site", session: "person:owner", source: "tool" as const };
+    const unmerged = await boardClaims(context, { mergedPulls: async () => [] });
+    assert.deepEqual(unmerged.map((claim) => claim.session), ["A"]);
+    assert.equal(locks, 0, "with no merge to reconcile, displaying claims does not queue behind writers (concurrent scan waits, 2026-10-02)");
     await sleep(20);
     const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt: new Date().toISOString() }] : []) };
     due(project, 60_000); // a hook asked moments ago, and saw no merge then
-    const shown = await boardClaims({ log, project, folder: "/work/site", session: "person:owner", source: "tool" }, merges);
+    const shown = await boardClaims(context, merges);
     assert.deepEqual(shown, [], "the merge ended the claim");
+    assert.equal(locks, 1, "a merge still rechecks the current holder under the project lock");
     assert.deepEqual(await readClaims(log, project), [], "and a merged line says so for every reader");
   });
 });

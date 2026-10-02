@@ -293,6 +293,18 @@ test("3.18 a file circle the selected session opened is lit in its colour with t
   assert.deepEqual([a.getObjectByName("file-lit:src/a.ts"), a.getObjectByName("file-ring:src/a.ts"), b.getObjectByName("file-lit:src/b.ts")], [undefined, undefined, undefined]);
 });
 
+test("3.24 with no session selected, a file circle a listed session read is lit in that session's colour, each circle its own reader's, with no in-view ring and no fade", () => {
+  const circles = circlesOf();
+  const [a, b] = [mark(circles, "src/a.ts"), mark(circles, "src/b.ts")];
+  const [keyA, keyB] = [codePathKey("story", "src/a.ts"), codePathKey("story", "src/b.ts")];
+  lightFileCircles(circles, new Map([[keyA, "read" as const], [keyB, "read" as const]]), "#e69f00", "story", new Map([[keyA, "#56b4e9"], [keyB, "#cc79a7"]]));
+  const [litA, litB] = [a.getObjectByName("file-lit:src/a.ts") as Mesh, b.getObjectByName("file-lit:src/b.ts") as Mesh];
+  assert.deepEqual([colourOf(litA), colourOf(litB)], ["56b4e9", "cc79a7"], "each circle wears its reader's colour");
+  assert.equal((litA.material as MeshBasicMaterial).opacity, (litB.material as MeshBasicMaterial).opacity);
+  assert.deepEqual([a.getObjectByName("file-ring:src/a.ts"), b.getObjectByName("file-ring:src/b.ts")], [undefined, undefined], "the in-view ring is the selected window's alone");
+  assert.equal(a.userData.window, "read");
+});
+
 test("3.18 a capability the selected session opened fills its territory in the session's colour, faintly lighter when compacted, and letting go restores its tint", () => {
   const land = {
     radius: 2,

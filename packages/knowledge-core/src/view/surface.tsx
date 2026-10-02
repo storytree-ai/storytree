@@ -11,7 +11,7 @@ import type { Line, SessionWindow } from "@storytree/agent-link";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
-import { ORCHESTRATOR, lighting, noteCard, trails as readingPaths, agentPaths, stampOpens, traversalTrails, windowReplays, windowView, fileStop, type CodePlaces, type CodeState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
+import { ORCHESTRATOR, lighting, noteCard, rosterCode, trails as readingPaths, agentPaths, stampOpens, traversalTrails, windowReplays, windowView, fileStop, type CodePlaces, type CodeState, type WindowState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
@@ -206,8 +206,9 @@ export function KnowledgeGlobePoints({ core, spots, radius, places }: {
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.history), [state.history]);
   const points = useMemo(() => globePoints(underShelves(state.history, known), spots, radius, known.notes), [state.history, known, spots, radius]);
-  // With none selected, every listed session is drawn from its window, or its log's reads when it has none (ADR-0754 D1).
-  const windowed = useMemo(() => windowReplays(state.windows, new Set(known.notes.keys()), state.stamps), [state.windows, state.stamps, known]);
+  // With none selected, every listed session is drawn from its window, or its log's reads when it has none (ADR-0754 D1),
+  // its file reads stops on the land as a selected session's are (ADR-0804 D5).
+  const windowed = useMemo(() => windowReplays(state.windows, new Set(known.notes.keys()), state.stamps, places), [state.windows, state.stamps, known, places]);
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys()), windowed),
     // The record is kept in place, so its version stands in for its reads.
     [store.reads, state.version, state.roster, state.session, known, windowed]);
@@ -231,23 +232,30 @@ export function KnowledgeGlobePoints({ core, spots, radius, places }: {
   return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} lit={lit} trails={drawnPaths} paths={glows} window={window} replay={state.session !== undefined} stops={stops} />;
 }
 
-/** The land a selected session's window has opened (ADR-0804 D5), for the forest to light: the files and capabilities it opened, and the colour it wears. */
+/** The land the sessions' windows have opened (ADR-0804 D5), for the forest to light: the files and capabilities opened, and the colour each wears. */
 export interface CodeLighting {
   files: ReadonlyMap<string, CodeState>;
-  capabilities: ReadonlyMap<string, CodeState>;
+  capabilities: ReadonlyMap<string, WindowState>;
   colour: string;
+  /** With no session selected, each file's own colour, its latest reader's; a file not named wears `colour`. */
+  colours?: ReadonlyMap<string, string>;
 }
 
-const NOTHING_LIT: ReadonlyMap<string, CodeState> = new Map();
+const NOTHING_LIT: ReadonlyMap<string, never> = new Map<string, never>();
 
-/** What a selected session's window has lit on the land; nothing while none is selected or its window is not read yet. */
+/**
+ * What the windows have lit on the land: a selected session's files and capabilities, nothing until its window
+ * is read; with none selected, the files every listed session's window opened, each in its latest reader's colour.
+ */
 export function useCodeLighting(core: KnowledgeCore, places: CodePlaces | undefined): CodeLighting {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   return useMemo(() => {
-    if (places === undefined || state.session === undefined || state.window === undefined) return { files: NOTHING_LIT, capabilities: NOTHING_LIT, colour };
+    if (places === undefined) return { files: NOTHING_LIT, capabilities: NOTHING_LIT, colour };
+    if (state.session === undefined) return { ...rosterCode(state.windows, state.roster, places, state.stamps), capabilities: NOTHING_LIT, colour };
+    if (state.window === undefined) return { files: NOTHING_LIT, capabilities: NOTHING_LIT, colour };
     const { code } = windowView(state.window, new Set(), () => false, places);
     return { ...code, colour };
-  }, [places, state.session, state.window, colour]);
+  }, [places, state.session, state.window, state.windows, state.roster, state.stamps, colour]);
 }

@@ -211,6 +211,9 @@ importers:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
+      happy-dom:
+        specifier: 'catalog:'
+        version: 20.14.5
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

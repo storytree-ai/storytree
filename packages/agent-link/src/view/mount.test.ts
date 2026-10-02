@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setImmediate } from "node:timers/promises";
-import { Window } from "happy-dom";
+import { Window, type HTMLButtonElement } from "happy-dom";
 import { readSettings } from "../settings/settings.js";
 import { withTempDir } from "../testing/folders.js";
 import { mountSettings, type SettingsBridge } from "./index.js";
@@ -43,7 +43,7 @@ test("10.9 the mounted panel shows a failed read without rows, and clicking Retr
     assert.equal(host.querySelector("[data-read-error]")?.textContent, "the app did not answer");
     assert.equal(host.querySelector("[data-read-error]")?.hasAttribute("hidden"), false);
     assert.equal(host.querySelectorAll("form").length, 0);
-    const retry = host.querySelector("[data-retry]")!;
+    const retry = host.querySelector<HTMLButtonElement>("[data-retry]")!;
     assert.equal(retry.hasAttribute("hidden"), false);
     retry.click();
     await setImmediate();
@@ -71,7 +71,7 @@ test("10.9 the mounted panel keeps Save available after transport failure, and c
     await setImmediate();
     const form = host.querySelector('form[data-setting="context-guidance"]')!;
     const value = form.querySelector("input")!;
-    const save = form.querySelector('button[type="submit"]')!;
+    const save = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     assert.equal(save.disabled, true);
     value.value = "400000";
     value.dispatchEvent(new window.Event("input", { bubbles: true }));

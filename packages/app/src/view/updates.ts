@@ -107,9 +107,9 @@ export interface InstallChoiceBridge { read(): Promise<InstallChoiceState>; set(
 
 /** What the Updates section says about when the next automatic install may happen. */
 export function nextInstallText(choice: InstallChoice, now: Date): string {
-  const next = nextInstallAt(choice, now);
-  if (next === undefined) return "Updates still download in the background, ready for when you press Check for updates.";
+  if (choice.mode === "manual") return "Updates still download in the background, ready for when you press Check for updates.";
   if (choice.mode === "quiet") return "A downloaded update installs at the next quiet moment.";
+  const next = nextInstallAt(choice, now)!;
   if (next.getTime() === now.getTime()) return `Quiet hours are on now, until ${choice.to}: a downloaded update installs at the next quiet moment.`;
   const day = next.getDate() === now.getDate() ? "today" : "tomorrow";
   return `Next automatic install: ${day} from ${choice.from}, until ${choice.to}, when no one is using storytree.`;

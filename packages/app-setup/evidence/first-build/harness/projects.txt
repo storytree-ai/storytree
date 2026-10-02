@@ -1,2 +1,4 @@
 C:\Users\mickh\todo-claude
 C:\Users\mickh\todo-codex
+C:\Users\mickh\conduit-claude
+C:\Users\mickh\conduit-codex

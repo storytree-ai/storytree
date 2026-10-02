@@ -7,6 +7,7 @@ import { setImmediate } from "node:timers/promises";
 import { settingsActions } from "@storytree/agent-link/settings";
 import { Window, type HTMLButtonElement } from "happy-dom";
 import { mountAppMenu } from "./index.js";
+import { fakeBridge } from "../../../../apps/desktop/src/capture/index.js";
 
 test("2.7 clicking the mounted menu sections switches their content and preserves settings, updates and Help actions", async (t) => {
   const window = new Window();
@@ -17,11 +18,16 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   const host = window.document.createElement("header");
   const background = window.document.createElement("main");
   window.document.body.append(host, background);
+  // Share the Desktop capture's typed bridge; the mounted App keeps the same section actions.
+  const bridge = fakeBridge({
+    standingDelegations: async () => "The owner chooses the design.",
+    saveSurface: async () => { throw new Error("not changing surfaces in this test"); },
+  });
   Object.assign(window, { storytree: {
     ...settingsActions(home),
-    async standingDelegations() { return "The owner chooses the design."; },
-    async readSurfaces() { return { ok: true, value: [] }; },
-    async saveSurface() { throw new Error("not changing surfaces in this test"); },
+    standingDelegations: (...args: unknown[]) => bridge.call("standingDelegations", args),
+    readSurfaces: (...args: unknown[]) => bridge.call("readSurfaces", args),
+    saveSurface: (...args: unknown[]) => bridge.call("saveSurface", args),
   } });
   const updates: string[] = [];
   const help: string[] = [];

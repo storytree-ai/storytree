@@ -1,5 +1,5 @@
 /**
- * Work states for a capture over a restored snapshot. A snapshot holds the library, not the agent
+ * Test support: work states for a capture over a restored snapshot. A snapshot holds the library, not the agent
  * activity log the arc surface and the forest read work states from, so every part reads planned;
  * this writes the lines that make each named part read as stated. A part named planned gets no line.
  */

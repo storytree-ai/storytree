@@ -1,0 +1,147 @@
+{
+  "sourceCommit": "d8bdc26dc8eaefbb00843b3dc61f3317fd09f509",
+  "platform": "linux",
+  "browser": "148.0.7778.96",
+  "projects": {
+    "switched": {
+      "state": "ready",
+      "project": "beta",
+      "surface": "forest",
+      "drew": "{\"sessions\":[],\"surface\":\"forest\",\"stories\":[\"story_beta\"],\"capabilities\":[\"capability_beta\"],\"labels\":[\"The beta project\"],\"trees\":[{\"capability\":\"capability_beta\",\"form\":\"seedling\"}]}"
+    },
+    "failedChoiceRetried": true,
+    "emptyAndRecovered": true
+  },
+  "surfaces": {
+    "switches": [
+      "library",
+      "capability-tree",
+      "sessions",
+      "arcs"
+    ],
+    "saved": {
+      "surfaces": {
+        "arcs": {
+          "on": false
+        },
+        "library": {
+          "on": false
+        }
+      }
+    },
+    "remounted": true
+  },
+  "measured": {
+    "app 2.1 mounted project choice and retry, 2.5 empty project list": {
+      "../../apps/desktop/src/capture/build.ts": {
+        "2": 3
+      },
+      "../../apps/desktop/src/capture/fake-bridge.ts": {
+        "2": 11
+      },
+      "../../apps/desktop/src/capture/launch.ts": {
+        "2": 3
+      },
+      "../../apps/desktop/src/capture/output.ts": {
+        "2": 2
+      },
+      "../../apps/desktop/src/capture/runner.ts": {
+        "2": 10
+      },
+      "../../apps/desktop/src/renderer/renderer.ts": {
+        "2": 32
+      },
+      "src/projects/follow.ts": {
+        "2": 6
+      },
+      "src/surfaces/bridge.ts": {
+        "2": 5
+      },
+      "src/view/index.ts": {
+        "2": 14
+      },
+      "src/view/render.ts": {
+        "2": 6
+      },
+      "src/view/surfaces.ts": {
+        "2": 2
+      },
+      "src/view/switch.ts": {
+        "2": 1
+      },
+      "src/view/updates.ts": {
+        "2": 14
+      }
+    },
+    "app 3.7 mounted surface switches persist, 3.3 complete project census": {
+      "../../apps/desktop/src/capture/fake-bridge.ts": {
+        "3": 6
+      },
+      "../../apps/desktop/src/capture/runner.ts": {
+        "3": 8
+      },
+      "../../apps/desktop/src/renderer/renderer.ts": {
+        "3": 29
+      },
+      "src/projects/follow.ts": {
+        "3": 5
+      },
+      "src/surfaces/bridge.ts": {
+        "3": 5
+      },
+      "src/view/index.ts": {
+        "3": 14
+      },
+      "src/view/render.ts": {
+        "3": 5
+      },
+      "src/view/surfaces.ts": {
+        "3": 19
+      },
+      "src/view/updates.ts": {
+        "3": 14
+      }
+    }
+  },
+  "bundleHashes": [
+    {
+      "proof": "app 2.1 mounted project choice and retry, 2.5 empty project list",
+      "bundles": [
+        {
+          "source": "b8422007ef76ac688efd6a6aa86f7b88b6df003c88d933fc0a8d65f04e7c1f13",
+          "map": "8de16e5e139f9917d8b7fc865f32ef77876772ba4612040b49643a272cdfb773"
+        },
+        {
+          "source": "b8422007ef76ac688efd6a6aa86f7b88b6df003c88d933fc0a8d65f04e7c1f13",
+          "map": "8de16e5e139f9917d8b7fc865f32ef77876772ba4612040b49643a272cdfb773"
+        },
+        {
+          "source": "07405430944990ba92fc7e741918cbc37f0f66487d6bd8038a3960e4f8a15637",
+          "map": "7f98d895945d75fb48d7b1224da4a78c89b385659ad7378857b670c7fcdf6c23"
+        }
+      ]
+    },
+    {
+      "proof": "app 3.7 mounted surface switches persist, 3.3 complete project census",
+      "bundles": [
+        {
+          "source": "b8422007ef76ac688efd6a6aa86f7b88b6df003c88d933fc0a8d65f04e7c1f13",
+          "map": "8de16e5e139f9917d8b7fc865f32ef77876772ba4612040b49643a272cdfb773"
+        },
+        {
+          "source": "b8422007ef76ac688efd6a6aa86f7b88b6df003c88d933fc0a8d65f04e7c1f13",
+          "map": "8de16e5e139f9917d8b7fc865f32ef77876772ba4612040b49643a272cdfb773"
+        },
+        {
+          "source": "b8422007ef76ac688efd6a6aa86f7b88b6df003c88d933fc0a8d65f04e7c1f13",
+          "map": "8de16e5e139f9917d8b7fc865f32ef77876772ba4612040b49643a272cdfb773"
+        },
+        {
+          "source": "07405430944990ba92fc7e741918cbc37f0f66487d6bd8038a3960e4f8a15637",
+          "map": "7f98d895945d75fb48d7b1224da4a78c89b385659ad7378857b670c7fcdf6c23"
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

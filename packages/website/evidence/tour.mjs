@@ -141,6 +141,16 @@ export async function verifyTour(browser, url, output) {
   await page.locator(".panel-detail").waitFor();
   await page.locator("#tour-note-choice").selectOption({ index: 1 });
   await page.locator(".core-card").waitFor();
+  const pinned = await page.locator(".core-card h3").textContent();
+  for (const control of ["recording-replay", "recording-end"]) {
+    await page.locator(`#${control}`).click();
+    await page.locator(".core-card").waitFor({ timeout: 5000 });
+    assert.equal(await page.locator(".core-card h3").textContent(), pinned, "2.6 · replay preserves the note being read");
+  }
+  await page.locator(".core-card button").focus();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".core-card").count(), 0, "2.6 · Escape closes the saved note");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "tour-note-choice");
   assert.ok(await page.locator(".arc-lane").count() > 0);
   await page.locator(".arc-lane").last().click();
   assert.ok(await page.locator(".arc-briefing").isVisible());

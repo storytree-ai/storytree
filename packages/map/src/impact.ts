@@ -24,7 +24,7 @@ export function impact(graph: ProjectGraph, selected: readonly string[], label: 
       const reverse = direction === "up" ? [] : (incoming.get(current.id) ?? []).filter(edge => ["imports", "implements", "tests", "depends-on"].includes(edge.kind) || (edge.kind === "belongs-to" && byId.get(edge.from)?.kind === "promise" && byId.get(edge.to)?.kind === "capability"));
       for (const [edge, id] of [...forward.map(edge => [edge, edge.to] as const), ...reverse.map(edge => [edge, edge.from] as const)]) {
         const node = byId.get(id);
-        if (!node || node.kind === "story") continue;
+        if (!node || (direction === "impact" && node.kind === "story")) continue;
         const depth = current.depth + 1;
         const prior = rows.get(id);
         if (!prior || depth < prior.depth) rows.set(id, { ...node, depth, edge: [edge] });

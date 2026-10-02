@@ -1,45 +1,67 @@
-# Running sessions, bottom left
+# Running sessions: current bottom-strip evidence
 
-Increment `increment_31db1e015047`, arc `arc_895e232031b0`. The forest owns the list because it explains activity on the map and links sessions to their islands; the desktop only mounts the view and stylesheet.
+Refreshed for `increment_bdcb6eabee69` on 2026-10-02 using the current desktop
+renderer and the shared capture lifecycle. This replaces the fixture's obsolete
+left-panel, off-plan threshold and `needs you` expectations. Product code and
+contracts are unchanged.
 
-The list shows one row per non-ended session, with claim words, an empty context slot and an available total. Recorded children start folded under `+N`. Only `needs you` has a state colour; a folded child's open owner question remains visible on its parent. Hover and keyboard focus brighten the held islands, including descendants' claims, and dim the other islands; leaving restores their original materials. Selection and health stay independent.
+The strip starts expanded; **individual rows start collapsed**. That distinction
+is pinned by contracts 7.8 and 7.17 (`contract_46cd303512df`). Quiet sessions start
+behind `N idle` (7.10). Active unclaimed sessions remain listed even when they have
+edited no files or only one; a push is not a membership rule. A parent with an open
+question gets no `needs you` prose or special label colour (7.9). Absent context
+readings leave empty bar slots, unavailable totals and no guidance marks (7.6).
 
-The separate Unclaimed work box is replaced by each session's `off plan` file count and expandable, timestamped edit/command evidence. File counts are distinct paths; claimed edits never enter this evidence. Idle sessions remain plain; ended sessions and their old evidence are hidden, pending the owner's look.
+The seed uses a prior read-only library snapshot with synthetic session activity:
+one supervisor holding two stories, one logged child, one observed explorer,
+one idle session, three active unclaimed sessions and one ended session. The idle
+session is 35 minutes quiet: beyond the default idle threshold and within the
+leave threshold. Two explicit window-file readings exercise resident and gone
+files in current row detail. The snapshot predates capability status words, so
+those fixture words are filled from its recorded verified contract states before
+opening a story panel. No live library or transcript is read or written.
 
-**Off-plan rows are hidden unless they need attention** (increment `increment_9aa5452fdfe2`, owner-directed 2026-09-28). A session holding no claim is still recorded in full, but it gets a row only when its unclaimed edits reach **5 distinct files**, or when it runs `git push` or `gh pr create` while holding no claim. Below that line (editing a little before claiming, a quick unclaimed fix, reading around) it stays out of the list. A surfaced row looks exactly as before. The capture adds a pusher session (0 files, one `git push`: shown) and a below-the-line session (4 files and a `git stash push`: no row); the pictures were re-taken on Windows with Playwright's headless Chromium.
+## Captures and measurements
 
-## Evidence
+- [Default strip](sessions-list.png): four active root rows, collapsed individually, and `1 idle`.
+- [Hover links to islands](sessions-list-hover.png): both held islands brighten with neutral rings; the others dim.
+- [Idle group opened](sessions-list-idle.png).
+- [Row detail and children](sessions-list-expanded.png): explicit child rows and window files, including the muted gone file.
+- [Story panel open](sessions-list-panel.png): the strip makes room for the panel.
+- [Machine measurements and assertions](capture.json).
+- [Observed stale-fixture failure](refresh-red.txt): the old capture times out expecting the idle row to start visible.
 
-- [Default list](sessions-list.png)
-- [Hover linked to islands](sessions-list-hover.png)
-- [Expanded children and off-plan evidence](sessions-list-expanded.png)
-- [Chromium assertions and renderer](capture.json)
-- [Red test run](red.txt), committed and pushed as `8109cb1` before implementation; rerun after the push failed on the same missing sessions reading.
-- [Green gate](green.txt): typecheck and full tests passed. Scope is full because the forest manifest exports the stylesheet. Guidance is NOT RUN because no agent roles or their supporting guidance notes changed. Platform-only and live-cloud skips remain visible in the log.
+At **1440 × 960**, the strip measures **1440 × 185.844px**, ending at the bottom
+of the forest pane. With a **480px** story panel open at x=948, the strip becomes
+**936px** wide and leaves a **12px** gap before that panel. The default contains
+four visible session rows; the idle control exposes the fifth root explicitly.
+The expanded view exposes two child rows and the seeded file detail.
 
-The capture uses the actual desktop renderer, a prior read-only forest snapshot and explicitly synthetic agent activity/arc questions. It checks row deduplication, initial child collapse, expansion retention, off-plan files and commands, empty bar slots, unavailable totals, idle/ended policy, the sole coloured state, real material hover/focus/restore, live question settlement and live child end. It is behavioural evidence, not owner visual acceptance.
+The browser checks actual material hover/focus/restoration, one expander per row,
+independent strip folding, preservation of row expansion through polling, a child
+ending, and batched arc refresh after a question changes. All checks pass with no
+browser errors. The only captured warning is Three.js's Clock deprecation.
+
+By **Legible at the resting view** (`principle_1e3418812c33`), the captures show the
+session labels, child counts, empty context slots and unavailable totals as
+separate readable signals. The gone file is visibly muted. The panel capture
+shows the measured separation between surfaces. These observations describe the
+seeded captures; they do not record owner acceptance.
+
+## Reproduce
+
+From the checkout root:
 
 ```sh
-flock /tmp/storytree-heavy.lock node packages/forest/evidence/sessions-list/build.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/sessions-list/build.mjs
 flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/sessions-list/capture.mjs
-flock /tmp/storytree-heavy.lock pnpm gate
-pnpm test-ratio
 ```
 
-`PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` override the capture's Mint-local defaults. Generated bundles stay in ignored `dist/`.
+The default writes to `/tmp/storytree-captures/packages/forest/evidence/sessions-list`.
+Append `--retake` to replace the committed pictures and measurements explicitly.
+`CAPTURE_PLAYWRIGHT` and `CAPTURE_CHROMIUM` provide optional browser overrides.
+The shared runner closes the browser and asset server on success or failure.
+Generated bundles stay in ignored `dist/`.
 
-Test-ratio all row (test code lines, implementation code lines, ratio):
-
-```text
-  all                       41,833           33,586    1.25
-```
-
-## Public data seam and supervisor handoff
-
-Current `@storytree/agent-link/readings` supplies sessions, claims, attribution and explicit `subagent-started` parent/child links. A child with no independent session reading is labelled observed in its tooltip; the API has no subagent-end event. Unrecorded supervised-lane relationships are not guessed from task words, folders or timing.
-
-The current public API has no context-total reading or separate supervisor metadata. `mountSessionsList().showDetails()` accepts per-session `{ parentSession?, totalTokens? }` facts for the later integration. Production totals therefore show an unavailable dash today. Tests demonstrate supplied totals, including observed children; there is no second reader, transcript parsing, composition or threshold drawing. Completing those production inputs requires the agent-link work outside this lane's file fence.
-
-[Library field patch and checklist](library-update/README.md) adds forest capability 7 and amends capability 6 and stale as-built references. Story-author authored it before implementation and reviewed it against the result. No live store, claim, decision or question was written; application and increment closure remain with the laptop supervisor. No decision or agent-role curation was needed.
-
-For the owner's later look: confirm the idle/ended policy and the off-plan presentation. The shaping mock was unavailable; this evidence does not settle either. Context composition and per-row bar integration remain the later increments already on the arc, so this lane starts no successor.
+`red.txt`, `green.txt` and `library-update/` preserve the original implementation's
+historical evidence. They are not current gate results or current product guidance.

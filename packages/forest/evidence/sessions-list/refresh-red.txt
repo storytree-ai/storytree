@@ -1,0 +1,17 @@
+writing to the scratch folder /tmp/storytree-captures/packages/forest/evidence/sessions-list (--retake writes into the evidence folder)
+Bridge methods left to the stand-in: checkForUpdates, readSignIn, agentConnections, readSurfaces, arcViews, codeSurvey, windowReadings, idleAfterMs, leaveAfterMs, contextReadings
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 15000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('complementary', { name: 'Running sessions', exact: true }).locator('.session-row[data-session-id="sessions-list-idle"]') to be visible[22m
+
+    at /home/mickh/code/storytree03-wt/increment-bdcb6eabee69-f6b2e3/packages/forest/evidence/sessions-list/capture.mjs:102:23
+    at async withCapture (/home/mickh/code/storytree03-wt/increment-bdcb6eabee69-f6b2e3/apps/desktop/src/capture/runner.ts:100:12)
+    at async file:///home/mickh/code/storytree03-wt/increment-bdcb6eabee69-f6b2e3/packages/forest/evidence/sessions-list/capture.mjs:63:1 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.19.0

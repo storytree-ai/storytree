@@ -1,0 +1,11 @@
+writing to the scratch folder /tmp/storytree-captures/packages/forest/src/view/evidence/library-dots-clickable (--retake writes into the evidence folder)
+/home/mickh/code/storytree03-wt/increment-bdcb6eabee69-f6b2e3/packages/forest/src/view/evidence/library-dots-clickable/measure.mjs:19
+  const p = placeOnPackedGlobe(story.place);
+            ^
+
+TypeError: placeOnPackedGlobe is not a function
+    at <anonymous> (/home/mickh/code/storytree03-wt/increment-bdcb6eabee69-f6b2e3/packages/forest/src/view/evidence/library-dots-clickable/measure.mjs:19:13)
+    at Array.map (<anonymous>)
+    at <anonymous> (/home/mickh/code/storytree03-wt/increment-bdcb6eabee69-f6b2e3/packages/forest/src/view/evidence/library-dots-clickable/measure.mjs:18:54)
+
+Node.js v24.19.0

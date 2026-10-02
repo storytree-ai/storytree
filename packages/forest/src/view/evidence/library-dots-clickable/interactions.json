@@ -21,14 +21,14 @@
     "requiredSeparation": 0.035,
     "dotDiameter": 0.012,
     "measuredMinimum": 0.15131650735787316,
-    "measuredShelfClearance": 0.07524002669272253,
+    "measuredShelfClearance": 0.06630554496440932,
     "measuredMaximumRadius": 0.5455794261029357
   },
   "picked": {
-    "forest": "guardrail_2d0fb4d45f75",
-    "library": "principle_2366111e8a67",
+    "forest": "principle_c1855a8e6514",
+    "library": "guardrail_2d0fb4d45f75",
     "story": "story_609c3b171b3f",
-    "replacedStoryWith": "guardrail_2d0fb4d45f75"
+    "replacedStoryWith": "principle_c1855a8e6514"
   },
   "checks": {
     "realPointerClickInBothModes": true,
@@ -40,6 +40,7 @@
     "closeDismisses": true,
     "escapeDismisses": true,
     "dragIsNotClick": true,
+    "dragTurnsGlobeWithFixedCamera": true,
     "hiddenIslandsUnpickable": true,
     "noCardInspectionMetadata": true,
     "wheelClearsHover": true,
@@ -49,7 +50,6 @@
   },
   "errors": [],
   "warnings": [
-    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
-    "[.WebGL-0x89c0015da00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
   ]
 }

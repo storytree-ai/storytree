@@ -330,13 +330,15 @@ async function failureJourney(browser) {
   checkMode(opening, 'forest');
   assert.ok(opening.plates.find(p => p.story === story.id).facing > 0.999999, 'Forest opens facing its failure');
   await turn(page, Math.PI);
+  await page.locator(`.planet-edge-marker[data-failing-story="${story.id}"]`).waitFor({ state: 'visible', timeout: 15000 });
   const hidden = await measure(page);
   assert.ok(hidden.plates.find(p => p.story === story.id).facing < -0.999999);
-  assert.ok(hidden.markers.some(m => m.failingStory === story.id && m.visible), 'Forest never hides failure attention');
+  assert.ok(hidden.markers.some(m => m.failingStory === story.id && m.visible), `Forest never hides failure attention: ${JSON.stringify(hidden.markers)}`);
   await switchMode(page, 'library');
   const library = await measure(page);
   checkMode(library, 'library'); sameGlobe(hidden, library);
   await switchMode(page, 'forest');
+  await page.locator(`.planet-edge-marker[data-failing-story="${story.id}"]`).waitFor({ state: 'visible', timeout: 15000 });
   const restored = await measure(page);
   checkMode(restored, 'forest'); sameGlobe(library, restored);
   assert.ok(restored.markers.some(m => m.failingStory === story.id && m.visible), 'failure attention returns with Forest');

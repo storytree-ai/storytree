@@ -1,5 +1,18 @@
 # Knowledge beneath the islands — ADR-0658
 
+Historical evidence, archived on 2026-10-02. The text and pictures below describe
+the original landing, not today's page. Its runnable build, census, capture and
+seed-export scripts were retired by `increment_bdcb6eabee69`: the build removed
+an obsolete `inside={<KnowledgeGlobePoints ... />}` source slot to manufacture a
+before-layer baseline, and its assertions required disabled point picking and
+capability trees that the current page no longer has. Running the old build at
+`eb844d1d` failed with `Capture observation hook moved`.
+
+The current [Forest/Library evidence](../forest-library-toggle/README.md) checks
+the mounted point layer, exact artifact positions and depths, glass, mode changes,
+selection and failure navigation against today's page. The original snapshots,
+seed, measurements, red proof and library-update record remain here unchanged.
+
 The real 0.3 desktop page, reading its own seeded library through the normal page
 API. This is the accepted points-only treatment from `spike/globe-knowledge`, with
 no-shelf artifacts moved from outside the shell to a small centre cluster.
@@ -65,7 +78,7 @@ The initial checks and captures below used `6460b9c`. Main then merged #118
 This branch merged it at `afafede` and retained those deletions. The completed exit-0 seed is
 historical evidence, not an available command on the resulting main. The
 [reviewed library update](library-update/README.md) is preserved for the supervisor
-with access to the migrated app library. The capture continues to reproduce from
+with access to the migrated app library. At that landing the capture reproduced from
 its committed real-seed snapshot. The complete browser capture and failure/claim journey
 were repeated against `afafede`, with all assertions passing and unchanged PNGs. After
 `pnpm install`, locked typecheck passed again, and locked `pnpm test` reported affected
@@ -102,22 +115,12 @@ of ghosts/proposals/retired artifacts, and the bounded distinct centre pool. Exi
 inspection and failure-navigation tests stay green. The preserved front-cover record is uniquely
 ADR-0658; ADR-0647 and ADR-0655's narrowed prose is in the library-update evidence.
 
-## Reproduce
+## Historical reproduction
 
-From this worktree's root, using the committed seed:
-
-```sh
-node packages/forest/src/view/evidence/knowledge-under-islands/build.mjs
-node --import tsx packages/forest/src/view/evidence/knowledge-under-islands/measure.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/knowledge-under-islands/capture.mjs
-```
-
-To reproduce the original file-backed seed, use commit `6460b9c`, run
-`STORYTREE_HOME=$(mktemp -d) pnpm seed:library` under the shared lock, retaining that
-path, then run `export.mjs` with `node --import tsx` and the same `STORYTREE_HOME`.
-After #118, export from a restored isolated snapshot of the actual library instead. `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` override the
-Mint paths in the capture. Append a case name or `interactions` to capture only it.
-Browser, HTTP server and export Postgres close in `finally` blocks.
+The runnable scripts are available in git at `eb844d1d`; their original renderer
+and library dependencies belong to the commits described above. They are not a
+recipe for current main. For a current capture use the linked Forest/Library
+recipe, which consumes its committed seed through the shared capture runner.
 
 The instrument was borrowed from the spike, never merged or cherry-picked. Its
 production bundle substitutes only the Electron read bridge with the exported data

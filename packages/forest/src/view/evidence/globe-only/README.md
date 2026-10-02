@@ -1,11 +1,19 @@
 # The globe alone
 
+Historical evidence, archived on 2026-10-02. Its runnable capture was retired by
+`increment_bdcb6eabee69`: the no-view-switch look was superseded by today's
+Forest/Library modes, and the script depended on an ignored `dist/seed.json`
+whose build/export recipe was never committed. Running it at `eb844d1d` failed
+with `ENOENT` for that seed. The original picture, measurements and red proof
+remain unchanged. The current [Forest/Library capture](../forest-library-toggle/README.md)
+covers the globe, mode choices, point layer and story selection.
+
 Increment `0-3-planet-globe-only`, ADR-0655 D1/D2, 2026-09-27. The owner asked for
 only the globe. The page mounts it directly, with no Forest or Look inside choice.
 The flat canvas and knowledge-core implementation remain in their own packages.
 Placement and the glass shell retain the preceding landing's drawing.
 
-The landing's [acceptance capture](capture.mjs), adapted from `spike/globe-land`,
+The landing's acceptance capture (available in git at `eb844d1d`), adapted from `spike/globe-land`,
 was committed and pushed as `641ecd3` before changing the page. It first confirmed
 the seeded globe and smoke readout, then failed on the three offered views:
 `["Globe", "Look inside", "Forest"]` ([red output](red.txt)). This is a bounded
@@ -33,7 +41,7 @@ Three.Clock deprecation, drei nested-root cleanup and SwiftShader readback
 warnings are recorded. The owner's laptop session supplies the Electron
 `pnpm desktop:smoke` screenshot; this lane supplies the seeded Chromium proof.
 
-## Capture recipe
+## Historical capture recipe
 
 The scratch `dist/build.mjs` and `dist/export.mjs` are adapted from
 `spike/globe-land:apps/desktop/globe-land/`. The build bundles the actual desktop
@@ -44,9 +52,10 @@ substitutions. The export reads the isolated `pnpm seed:library` database throug
 No reported health or activity is invented. This capture uses eight seeded stories
 and 58 capability trees. The prior spike branch is never merged.
 
-The scripts, bundle and snapshot remain in this worktree's ignored `dist/`.
+At that landing the scripts, bundle and snapshot remained in its ignored `dist/`.
 `STORYTREE_HOME=/tmp/planet-lane-p-seed-home` selects the isolated database for
 seeding and export. `PLANET_PLAYWRIGHT` names the installed playwright-core
 `index.mjs`; `PLANET_CHROMIUM` names its cached Chromium headless-shell executable.
-Run `node --import tsx capture.mjs` from this directory with those variables set. Seed, export,
-Chromium and verification commands hold `/tmp/storytree-heavy.lock` with `flock`.
+Seed, export, Chromium and verification commands held `/tmp/storytree-heavy.lock`
+with `flock`. This is a record of that run, not a reproducible recipe on current
+main; use the linked Forest/Library recipe for current evidence.

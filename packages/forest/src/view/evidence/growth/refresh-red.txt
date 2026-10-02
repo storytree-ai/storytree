@@ -1,0 +1,10 @@
+file:///home/mickh/code/storytree03-wt/increment-bdcb6eabee69-f6b2e3/packages/forest/src/view/evidence/growth/capture.mjs:14
+import { placeOnPackedGlobe, PLANET_RADIUS } from '@storytree/forest';
+         ^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module '@storytree/forest' does not provide an export named 'placeOnPackedGlobe'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:327:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:431:5)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.19.0

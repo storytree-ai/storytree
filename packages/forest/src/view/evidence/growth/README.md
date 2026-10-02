@@ -1,76 +1,66 @@
-# Islands grow with their code from anchored places (ADR-0804 D3, D7)
+# Code growth in dependency rows
 
-Increment `increment_016179957fec`, arc "Code islands". An island's land follows its story's lines of code
-(0.75 ground units² a line, at least 318); each island keeps its permanent place as an anchor and is nudged
-only when a neighbour's coast needs the room; when nudging cannot make room the globe's radius grows, and the
-knowledge core with it. These are pictures for the owner to judge; nothing here is recorded as accepted (ADR-0794).
+Refreshed for `increment_bdcb6eabee69` on 2026-10-02. The original eight-story,
+58-capability snapshot and code survey remain fixed. The actual desktop renderer
+now supplies evidence for the accepted row placement in ADR-0839 D1–D3, including
+ADR-0850's latitude bounds. A story's anchor is its packed row position; the
+superseded permanent spiral is no longer a measurement baseline.
 
-| Scenario | What it is | Picture |
+| Scenario | Input | Picture |
 | --- | --- | --- |
-| before | no survey: every island sized by its capabilities, as on `main` before this increment | [before.png](before.png) |
-| after | the real code survey (same as [../file-circles](../file-circles/README.md)) | [after.png](after.png) |
-| nudged | The agent link's code doubled: its island outgrows its neighbours' room | [nudged.png](nudged.png) |
-| grown | every story's code x5: nudging cannot make room, so the globe grows | [grown.png](grown.png) |
+| before | No survey; capability-sized islands | [before.png](before.png) |
+| after | The recorded [file-circles survey](../file-circles/survey.json) | [after.png](after.png) |
+| nudged | The agent link's recorded code doubled | [nudged.png](nudged.png) |
+| grown | Every story's recorded code multiplied by five | [grown.png](grown.png) |
 
-Renderer: headless Chromium 148, ANGLE / SwiftShader, 1440 x 960, dark theme, device scale 1. Seed: the
-eight-story, 58-capability snapshot of [../knowledge-under-islands](../knowledge-under-islands/), places 1 to 8.
-`build.mjs` then `capture.mjs` (run as `node --import tsx` from `packages/forest`, under
-`flock /tmp/storytree-heavy.lock`). Every number below is read from the drawn meshes and written by the capture
-to [measurements.json](measurements.json).
+Each scenario computes its expected layout through `storyNodes(tree, changes,
+scenarioSurvey)`, `forestScene` and `planetLayout`. The capture independently reads
+the rendered island directions, coast reaches, areas and shell radius. Every
+rendered direction agrees with that scenario's layout within `1e-8`; every story
+in a deeper row remains north of every story in a lower row. The capture uses the
+shared runner and fake bridge, dismissing the first-run menu through its real
+Close control. No product code or library records are changed.
 
-## Measured before looking
+| Scenario | Globe radius | Core reach | Drawn land | Minimum sea between reaches | Core points |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| before | 218.00 | 183.1200 | 22,793.7 | 12.0000 | 78 |
+| after | 218.00 | 183.1200 | 22,965.3 | 12.0000 | 78 |
+| nudged | 218.00 | 183.1200 | 29,854.7 | 12.0000 | 78 |
+| grown | 222.36 | 186.7824 | 103,071.8 | 12.0000 | 78 |
 
-**The per-line constant.** Today's land is capabilities x 318 ground units²: 58 x 318 = 18,444 in all, over
-25,122 non-test lines in the survey, is 0.734 a line (the median of the eight stories' own ratios is 0.86,
-the range 0.29 to 2.6). 0.75 was chosen: it keeps the seed's total land within 2% (drawn, coasts included:
-22,794 before, 22,965 after) while the land now says how much code each story has.
+The doubled agent-link island moves itself and The knowledge core along their
+shared middle row. The other six islands retain exactly the same rendered
+directions as `after`. The globe remains at radius 218. At five times the code,
+the globe and core grow by 2%; all 78 eligible points remain. Every scenario
+asserts the 12-unit sea gap with a `1e-4` tolerance for rendered Float32 vertices.
+These assertions preserve Story nodes 1.7 and 1.8 under today's row-based anchors.
+Full measurements, row/slot assignments and direction errors are in
+[measurements.json](measurements.json). Browser page errors: zero.
 
-| Island | Capabilities | Lines | Drawn land before | Drawn land after | After per line | Before per line | Nudged from anchor (ground units) |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| The agent link | 8 | 8,724 | 3,110 | 7,428 | 0.85 | 0.36 | 8.5 |
-| The app | 4 | 1,624 | 1,693 | 1,630 | 1.00 | 1.04 | 8.5 |
-| The arc surface | 5 | 895 | 2,076 | 994 | 1.11 | 2.32 | 0.0 |
-| The command line | 11 | 2,299 | 4,212 | 2,236 | 0.97 | 1.83 | 0.0 |
-| The forest | 7 | 2,366 | 2,731 | 2,228 | 0.94 | 1.15 | 0.0 |
-| The knowledge core | 4 | 2,090 | 1,721 | 2,063 | 0.99 | 0.82 | 0.0 |
-| The librarian | 6 | 729 | 2,411 | 831 | 1.14 | 3.31 | 0.0 |
-| The library | 13 | 6,395 | 4,840 | 5,554 | 0.87 | 0.76 | 0.0 |
+The before/after/nudged pictures show distinct rows, readable labels and larger
+land for larger code counts, consistent with **Meaning outranks appearance**.
+The doubled island visibly spreads its row without shifting the upper and lower
+rows. Under **Legible at the resting view**, the five-times stress picture has a
+limit: The library's label sits beneath the bottom Sessions strip, and The forest
+is at the rim. This capture proves growth and coast clearance, not universal label
+legibility. That crowding remains visible in the evidence rather than being hidden
+by panning or a larger viewport.
 
-"Drawn land" is the area of each island's ground meshes, coast outset included, so about a seventh above the
-nominal `lines x 0.75` (7,428 against 6,543 for The agent link). The lines-per-area spread narrows from
-0.36 to 3.31 (nine-fold) to 0.85 to 1.14 (a third); the floor (318) applies to no island here.
+The Sessions-strip occlusion is parked as `increment_f4898f03a8ea` on
+`arc_895e232031b0`, under readable near-side names (3.4) and strip placement (7.17).
+Rim proximity alone is not that follow-up: ADR-0855 already bounds nameplate
+overlap clearance and permits hiding a label beyond that bound.
 
-| Scenario | Globe radius | Core reach | Total drawn land | Most any island moved | Sea between the nearest two reaches |
-| --- | --- | --- | --- | --- | --- |
-| before | 218.0 | 183.1 | 22,794 | 0 | 18.3 |
-| after | 218.0 | 183.1 | 22,965 | 8.5 units (0.039 rad) | 12.0 |
-| nudged | 218.0 | 183.1 | 29,855 | 28.8 units (0.132 rad) | 12.0 |
-| grown | 287.6 | 241.6 | 103,072 | 85.3 units (0.296 rad) | 12.0 |
+The baseline failed before opening Chromium because `placeOnPackedGlobe` is no
+longer exported. The refreshed capture passed all four scenarios in Chromium
+148.0.7778.96, ANGLE/SwiftShader, at 1440 × 960, device scale 1. Reproduce from the
+checkout root, with installed Playwright Chromium or `CAPTURE_CHROMIUM`:
 
-- Before: nothing moves, as before (nearest pair 18.3 units clear).
-- After: only two islands move, the pair the agent link's growth crowds (The agent link and The app, 8.5 units
-  each); the other six are exactly at their places. The sea between reaches is the 12 the layout keeps.
-- Nudged: seven of the eight islands give way, none more than 0.132 rad; the radius stays 218.
-- Grown: the radius rises 218.0 to 287.6 (x1.32), the core with it (183.1 to 241.6, x1.32); the largest nudge is
-  0.296 rad, at the 0.3 bound; all 78 knowledge points are still drawn; no page errors in any scenario.
+```sh
+node packages/forest/src/view/evidence/growth/build.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/growth/capture.mjs
+```
 
-## What the pictures show, and what to judge
-
-- **Meaning outranks appearance.** In [after.png](after.png) island size now tracks code: The agent link and
-  The library are the two big islands, The librarian a small one, where before The command line was the second
-  largest with about a third of The library's code. Judged as met: drawn land per line sits within 0.85 to 1.14 on
-  all eight, and the sizes read in the order of the lines.
-- **Legible at the resting view.** The eight islands, their labels and the pathways stay legible in all four;
-  no label is covered by another island. In [grown.png](grown.png) The knowledge core's label sits across the
-  globe's rim and The library's island reaches the bottom rim, the price of pushing every neighbour to the
-  0.3 rad bound at x5 code. Concern, not fixed here: the globe is re-framed to its own radius, so a grown globe
-  fills the same screen, and an island held near the rim (a big one at a far-back place) can still crowd it.
-- **A connector that does not connect is a defect.** The pathways are routed on the nudged spots: every trail
-  in all four pictures ends on both islands' coasts (see the route between The agent link and The library in
-  [nudged.png](nudged.png)); none dangles.
-- **The resting view is designed, not fitted.** The 12-unit sea is a designed floor, not a fit to this seed:
-  it is the most that leaves today's seed unmoved (its nearest pair had 18.3 clear), measured between
-  worst-direction reaches, so the real coasts facing each other are further apart (a layout test asserts at
-  least 11 units between drawn coasts). It is below the approved ribbon envelope of 19.3 (ADR-0655 D3), which
-  the frozen places meet at today's capability sizes and which nudged islands are not held to: a judgement
-  for the owner to raise if the trails between nudged neighbours look cramped.
+The default run writes to the temporary `storytree-captures/` folder. Add
+`--retake` to replace these pictures and measurements. This is synthetic browser
+evidence; it makes no laptop or Windows acceptance claim.

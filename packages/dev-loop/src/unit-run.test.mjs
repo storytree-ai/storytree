@@ -1,8 +1,8 @@
 // ADR-0731 / increment_4745a73cdd64: `pnpm test` and the gate always end, and name what hung. Each test runs a
 // real `node --test` unit over a fixture file, with the limits cut to seconds.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -33,6 +33,38 @@ function captured() {
     child.once("close", finish);
   } } };
 }
+
+test("6.8 CI evidence keeps each unit and repeated run separately, without leaking its destination to nested runs", async (t) => {
+  const root = fixture(t, {
+    "first.test.mjs": `import assert from "node:assert/strict"; import { test } from "node:test";
+test("1.9 words", () => assert.equal(process.env.STORYTREE_TEST_EVIDENCE, undefined));`,
+    "second.test.mjs": `import { test } from "node:test";
+test("1.12 words", { skip: "platform:win32: needs Windows" }, () => {});`,
+  });
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git("init");
+  git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "-m", "fixture");
+  const commit = git("rev-parse", "HEAD");
+  const directory = path.join(root, "evidence");
+  const env = { ...process.env, GITHUB_SERVER_URL: "https://github.com", GITHUB_REPOSITORY: "storytree-ai/storytree", GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "2", GITHUB_SHA: "not-the-checkout", STORYTREE_TEST_EVIDENCE: directory };
+  for (const [unit, file] of [["app-setup", "first.test.mjs"], ["cli", "second.test.mjs"], ["app-setup", "first.test.mjs"]]) {
+    const run = await runUnit({ root, files: [file], env, stdio: "ignore", evidence: { directory, unit } });
+    assert.equal(run.code, 0);
+  }
+  const reports = readdirSync(directory).map((dir) => JSON.parse(readFileSync(path.join(directory, dir, "result.json"), "utf8")));
+  assert.equal(reports.length, 3, "a later unit or rerun must not overwrite a prior unit");
+  assert.deepEqual(reports.map(({ unit }) => unit).sort(), ["app-setup", "app-setup", "cli"]);
+  for (const report of reports) {
+    assert.equal(report.commit, commit, "actual checkout, not GITHUB_SHA");
+    assert.equal(report.platform, process.platform);
+    assert.equal(report.run, "https://github.com/storytree-ai/storytree/actions/runs/123/attempts/2");
+    assert.equal(report.code, 0);
+    assert.equal(report.results.length, 1);
+    assert.deepEqual(report.results[0].suites, []);
+    assert.equal(report.results[0].file, report.unit === "cli" ? "second.test.mjs" : "first.test.mjs");
+    assert.equal(report.results[0].status, report.unit === "cli" ? "skipped" : "passed");
+  }
+});
 
 // increment_655d99c13fc3: a file dying before it reports any test must explain its failure.
 test("6.6 file failures name the file, exit status and its own stderr under concurrent execution", async (t) => {

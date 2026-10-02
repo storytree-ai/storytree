@@ -15,7 +15,7 @@ import { connect } from "@storytree/library";
 import pg from "pg";
 
 import { checkStory } from "./check-own-health.mjs";
-import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, recordHealth, recordingTarget } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, judge, packageOf, parseJunit, readWindowsEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const librarySrc = path.join(root, "packages", "library", "src");
@@ -282,6 +282,64 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
     assert.equal((await lib.health(contractIds.get("1.3"))).verified.state, "passing", "the dependant's prefixed title proves 1.3");
     assert.deepEqual(await lib.healthHistory(contractIds.get("1.4")), [], "a dependant's own unprefixed 1.4 is not the story's");
   });
+});
+
+test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front door 1.12, naming its run; unavailable or unrelated evidence gives no credit", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-windows-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const commit = "a".repeat(40);
+  const windowsRun = "https://github.com/storytree-ai/storytree/actions/runs/123/attempts/1";
+  const quiet = { log: () => {}, error: () => {} };
+  for (const [title, pkg, number, file] of [
+    ["The app setup", "app-setup", "1.9", "deliver/delivery.test.ts"],
+    ["The command line", "cli", "1.12", "launched.test.ts"],
+  ]) {
+    mkdirSync(path.join(root, "packages", pkg, "src"), { recursive: true });
+    await withLibrary(async (lib) => {
+      const story = await lib.addStory({ title });
+      const capability = await lib.addCapability({ story: story.id, title: "1 · Install and run" });
+      const contract = await lib.addContract({ capability: capability.id, title: `${number} · Windows command preserves words` });
+      const planned = (await lib.projectTree()).stories[0];
+      const test = { name: `${number} Windows command preserves words`, suites: [], file: `packages/${pkg}/src/${file}` };
+      const skipped = { ...test, file: path.join(root, test.file), status: "skipped", message: "platform:win32: needs the Windows command" };
+      const evidence = { platform: "win32", commit, run: windowsRun, unit: pkg, code: 0, results: [{ ...test, status: "passed" }] };
+      const directory = path.join(root, "evidence");
+      const record = async (windows, results = [skipped]) => {
+        rmSync(directory, { recursive: true, force: true });
+        if (windows !== undefined) {
+          mkdirSync(path.join(directory, "unit-1"), { recursive: true });
+          writeFileSync(path.join(directory, "unit-1", "result.json"), JSON.stringify(windows));
+        }
+        await checkStory(lib, planned, { by: "storytree test run on CI", commit }, {
+          root, ...quiet, windows: readWindowsEvidence(directory, { commit, run: windowsRun }), runTests: async () => ({ code: 0, results }),
+        });
+        return (await lib.health(contract.id)).verified;
+      };
+      for (const windows of [undefined, { ...evidence, commit: "b".repeat(40) }, { ...evidence, platform: "linux" },
+        { ...evidence, run: windowsRun.replace("attempts/1", "attempts/2") }, { ...evidence, code: 1 }, { ...evidence, code: undefined },
+        { ...evidence, results: [] }, { ...evidence, results: [{ ...test, status: "failed" }] },
+        { ...evidence, results: [{ ...test, status: "skipped" }] },
+        { ...evidence, results: [{ ...test, file: "packages/other/src/launched.test.ts", status: "passed" }] },
+        { ...evidence, results: [{ ...test, suites: ["different suite"], status: "passed" }] },
+        { ...evidence, results: [{ ...test, name: "different test", status: "passed" }] },
+        { ...evidence, results: [{ ...test, status: "passed" }, { ...test, status: "failed" }] },
+      ]) assert.equal((await record(windows)).state, "not-checked");
+      assert.equal((await record(evidence, [{ ...skipped, message: "owner: needs a real install" }])).state, "not-checked");
+      assert.equal((await record(evidence, [skipped, { ...skipped, name: `${number} another Windows proof` }])).state, "not-checked", "every skipped test needs its own proof");
+      assert.equal((await record(evidence, [skipped, { ...skipped, name: `${number} local failure`, status: "failed" }])).state, "failing", "Windows cannot erase a local failure");
+      const verified = await record(evidence);
+      assert.equal(verified.state, "passing");
+      assert.equal(verified.skip, undefined);
+      assert.match(verified.note, /1\/1 tests passed/);
+      assert.ok(verified.note.includes(commit));
+      assert.ok(verified.note.includes(windowsRun), "names the actual Windows run");
+      mkdirSync(path.join(directory, "unit-2"));
+      writeFileSync(path.join(directory, "unit-2", "result.json"), JSON.stringify({ ...evidence, unit: "other", results: [{ ...test, file: "packages/other/src/test.ts", status: "passed" }] }));
+      assert.equal(readWindowsEvidence(directory, { commit, run: windowsRun }).results.length, 2, "reads every unit, not only the last");
+      writeFileSync(path.join(directory, "unit-2", "result.json"), "{incomplete");
+      assert.equal(readWindowsEvidence(directory, { commit, run: windowsRun }), undefined, "incomplete evidence grants no credit");
+    });
+  }
 });
 
 test("recordHealth writes each passing or failing verdict to the verified column, with who and how many tests, and nothing for not checked", async () => {

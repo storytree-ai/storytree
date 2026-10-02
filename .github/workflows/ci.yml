@@ -25,7 +25,7 @@ name: CI
 # request from a fork is checked, never merged automatically.
 #
 # `verify` also runs on each push to main. The queue's merge is such a push, so it starts this
-# workflow, release.yml (after it) and own-health.yml on main by itself. A direct merge that
+# workflow, then release.yml and own-health.yml after it completes. A direct merge that
 # `automerge` makes starts none of them: GitHub starts no workflow from a push made with a
 # workflow's own token. So then `automerge` starts own-health.yml on main itself, which records
 # each contract's verified health (ADR-0744 D3), and release.yml follows the pull request's run.
@@ -85,6 +85,8 @@ jobs:
       # (packages/dev-loop/src/test-scope.mjs, the same one a local run takes, ADR-0649 D4) and its last the
       # PASS / FAIL table per package.
       - run: pnpm test
+        env:
+          STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || '' }}
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove NSIS can unpack the app and its database binaries.
       - name: Does this change reach the installer?
@@ -99,6 +101,16 @@ jobs:
         run: pnpm desktop:dist
       - if: matrix.system == 'Windows' && steps.installer.outputs.changed == 'true'
         run: node apps/desktop/check-install.mjs
+      # Reuse this Windows execution for own health. Each attempt keeps its own immutable
+      # artifact; a failed Windows job publishes no evidence.
+      - name: Preserve Windows test evidence
+        if: matrix.system == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-test-evidence-${{ github.run_attempt }}
+          path: .pgtest/windows-evidence
+          include-hidden-files: true
+          if-no-files-found: error
 
   # The check branch protection on main requires, and the one `automerge` waits for; it reports on
   # the merge queue's runs too, so the queue can merge on it. It passes only
@@ -183,7 +195,8 @@ jobs:
       # happened, which GitHub finishes a few seconds after `gh pr merge --auto` returns (7 s on
       # #219), so this waits for it, up to two minutes. A merge still held back after that records
       # nothing now, and the next change to main records it. The merge is already made or
-      # scheduled, so a failure here never fails it. The queue's merge starts own-health.yml itself.
+      # scheduled, so a failure here never fails it. The queue's merge starts CI, whose completion
+      # starts own-health.yml with Windows evidence for that exact commit.
       - name: Record own health on main
         if: steps.merge.outcome == 'success' && steps.merge.outputs.queue != 'true'
         continue-on-error: true

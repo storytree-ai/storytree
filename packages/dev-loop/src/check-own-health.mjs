@@ -26,7 +26,7 @@
 // link, and this never writes it: showing the two apart is the point of the two columns. The rules
 // for what counts as passing live in packages/dev-loop/src/own-health.mjs.
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -37,7 +37,7 @@ import { connect } from "@storytree/library";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
 import { appLibraryServer } from "./library-server.mjs";
-import { contractsCoveredBy, contractsOf, dependantTestsNaming, judge, packageOf, parseJunit, recordHealth, recordingTarget } from "./own-health.mjs";
+import { contractsCoveredBy, contractsOf, creditWindows, dependantTestsNaming, judge, packageOf, parseJunit, readWindowsEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -68,6 +68,9 @@ async function main() {
     console.log(target.why);
     return 0;
   }
+  // workflow_run's GITHUB_SHA names the default branch, not necessarily the checked-out CI commit.
+  target.writer.commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  const windows = readWindowsEvidence(process.env.STORYTREE_WINDOWS_EVIDENCE, { commit: target.writer.commit, run: process.env.STORYTREE_WINDOWS_RUN });
   let where;
   if (target.library === "app") {
     console.log(`the app's library: ${home.pgdata}`);
@@ -89,7 +92,7 @@ async function main() {
     try {
       let code = 0;
       for (const story of (await library.projectTree()).stories) {
-        if (!(await checkStory(library, story, target.writer, { root }))) code = 1;
+        if (!(await checkStory(library, story, target.writer, { root, windows }))) code = 1;
       }
       return code;
     } finally {
@@ -106,7 +109,7 @@ async function main() {
  * its contracts' verified health from what they showed. False if the run produced no report, so no
  * health could be recorded.
  */
-export async function checkStory(library, story, writer, { root, runTests = runStoryTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
+export async function checkStory(library, story, writer, { root, windows, runTests = runStoryTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
   const name = packageOf(story.title);
   const source = path.join(root, "packages", name, "src");
@@ -127,7 +130,7 @@ export async function checkStory(library, story, writer, { root, runTests = runS
 
   const { verdicts, unmapped, crashedFiles } = judge({
     contracts: numbers,
-    results: run.results,
+    results: creditWindows(run.results, windows, { root, commit: writer.commit }),
     coverage: (test) => (dependant(test) ? contractsCoveredBy(test, { root: path.join(root, "packages"), prefix: name }) : contractsCoveredBy(test, { root: source })),
     show: (test) => path.relative(root, test),
     prefix: name,

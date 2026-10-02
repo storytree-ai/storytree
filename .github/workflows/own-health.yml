@@ -1,15 +1,18 @@
 name: Own health
 
-# After each change to main, run each of storytree 0.3's own stories' tests and record each
+# After CI completes for a change to main, run storytree 0.3's own stories' tests and record each
 # contract's VERIFIED health in the library on Cloud SQL (ADR-0744 D3-D4): `pnpm check:own-health`,
 # the same rules a hand run uses (packages/dev-loop/src/own-health.mjs), written as "storytree test run on CI"
-# with the commit in each note. Never from a pull request's run: only main's own commits are
-# recorded.
+# with the commit in each note. Windows-only contracts need the passing Windows evidence from
+# that exact commit and CI attempt. Never from a pull request's or merge group's run: only main's
+# own commits are recorded.
 #
-# The merge queue's merge (ADR-0796) is a push to main and starts it. A direct merge by CI is made
+# The merge queue's merge (ADR-0796) is a push to main and starts CI, whose completion starts this.
+# A direct merge by CI is made
 # with the workflow's own token, and GitHub starts no push workflow from those, so then ci.yml's
 # `automerge` dispatches this workflow on main once its merge has happened. It can also be run by
-# hand (Actions > Own health > Run workflow) to record main as it is now.
+# hand (Actions > Own health > Run workflow) to record main as it is now. A manual run looks for
+# successful main-push CI at its exact checkout; without that evidence it grants no Windows credit.
 #
 # It signs in to Google keylessly: GitHub's OIDC token, exchanged through workload identity
 # federation for CI's own service account (infra/ci-health), which may connect to the instance as
@@ -17,12 +20,15 @@ name: Own health
 # are all set, the job says so and passes without recording anything.
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 # One recording at a time. A run in progress finishes; a newer one waits, replacing any older one
-# still waiting, so the last change to main is always the one recorded.
+# still waiting. A delayed CI completion for an older commit must not overwrite newer health:
+# after acquiring this slot, a job checks that its checkout is still main before recording.
 concurrency:
   group: own-health
   cancel-in-progress: false
@@ -33,10 +39,15 @@ permissions:
 jobs:
   record:
     name: record own health
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
+      actions: read # download Windows evidence from the exact CI run
       contents: read
       id-token: write # GitHub's OIDC token, for the keyless sign-in
     env:
@@ -45,18 +56,69 @@ jobs:
       HEALTH_CLOUDSQL_INSTANCE: ${{ vars.HEALTH_CLOUDSQL_INSTANCE }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          # workflow_run's GITHUB_SHA is the current default branch, not the triggering commit.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Select Windows evidence for this main commit
+        id: evidence
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { execFileSync } = require('node:child_process');
+            const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+            const { data: main } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/main' });
+            if (main.object.sha !== sha) {
+              core.notice(`Main has moved beyond ${sha}; this older run records nothing.`);
+              return;
+            }
+            core.setOutput('current', 'true');
+            try {
+              const run = context.eventName === 'workflow_run'
+                ? context.payload.workflow_run
+                : (await github.rest.actions.listWorkflowRuns({
+                    ...context.repo, workflow_id: 'ci.yml', branch: 'main', event: 'push',
+                    status: 'success', head_sha: sha, per_page: 1,
+                  })).data.workflow_runs[0];
+              if (!run || run.conclusion !== 'success' || run.head_sha !== sha ||
+                  run.event !== 'push' || run.head_branch !== 'main') {
+                core.notice(`No passing CI evidence for ${sha}; Windows-only contracts receive no credit.`);
+                return;
+              }
+              core.setOutput('run-id', run.id);
+              core.setOutput('attempt', run.run_attempt);
+              core.setOutput('run-url', `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${run.id}/attempts/${run.run_attempt}`);
+            } catch (error) {
+              core.warning(`Windows evidence unavailable; recording local results only: ${error.message}`);
+            }
+      - name: Download this CI attempt's Windows evidence
+        id: windows
+        if: steps.evidence.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-test-evidence-${{ steps.evidence.outputs.attempt }}
+          path: .pgtest/windows-evidence
+          run-id: ${{ steps.evidence.outputs.run-id }}
+          github-token: ${{ github.token }}
       - uses: pnpm/action-setup@v6
+        if: steps.evidence.outputs.current == 'true'
       - uses: actions/setup-node@v6
+        if: steps.evidence.outputs.current == 'true'
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        if: steps.evidence.outputs.current == 'true'
       # Only when the identity is configured: without it the action has nothing to sign in as, and
       # the script below says which variables are unset.
       - name: Sign in to Google as CI's health identity
-        if: env.HEALTH_WIF_PROVIDER != '' && env.HEALTH_SERVICE_ACCOUNT != '' && env.HEALTH_CLOUDSQL_INSTANCE != ''
+        if: steps.evidence.outputs.current == 'true' && env.HEALTH_WIF_PROVIDER != '' && env.HEALTH_SERVICE_ACCOUNT != '' && env.HEALTH_CLOUDSQL_INSTANCE != ''
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.HEALTH_WIF_PROVIDER }}
           service_account: ${{ vars.HEALTH_SERVICE_ACCOUNT }}
       - run: pnpm check:own-health
+        if: steps.evidence.outputs.current == 'true'
+        env:
+          STORYTREE_WINDOWS_EVIDENCE: ${{ steps.windows.outcome == 'success' && '.pgtest/windows-evidence' || '' }}
+          STORYTREE_WINDOWS_RUN: ${{ steps.windows.outcome == 'success' && steps.evidence.outputs.run-url || '' }}

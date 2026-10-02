@@ -1,0 +1,13 @@
+{
+  "collections": {
+    "waitlist": {
+      "fields": {
+        "email": { "type": "email", "required": true, "trim": true, "maxLength": 254 },
+        "computer": { "type": "string", "trim": true, "maxLength": 7 },
+        "agent": { "type": "string", "trim": true, "maxLength": 11 }
+      },
+      "access": { "insert": "public", "read": "owner", "update": "owner", "delete": "owner" },
+      "rateLimit": "10/hour/ip"
+    }
+  }
+}

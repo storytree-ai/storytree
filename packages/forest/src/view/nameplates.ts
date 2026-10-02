@@ -39,15 +39,28 @@ export const PLATE_STEP_GAP = 3;
 export const MAX_DROP = 140;
 
 /**
- * How the story nameplates on screen settle so that no two overlap. Taken one at a time, the selected story's
- * first and then the more squarely faced, each plate stays where it hangs if it clears the plates already
- * settled, or else steps down the screen just below the ones it would overlap, by the least drop that clears
- * them all. Only a plate that would have to step further than MAX_DROP is hidden, as where many islands crowd
- * at the rim; the selected story's plate never steps or hides. Boxes are measured before any drop, so a drop
- * never feeds back on itself.
+ * How the story nameplates on screen settle so that no two overlap. Taken one at a time, each plate stays where
+ * it hangs if it clears the plates already settled, or else steps down the screen just below the ones it would
+ * overlap, by the least drop that clears them all. Three orders are tried: the more squarely faced first (so the
+ * more edge-on steps), west to east, and every other plate west to east before the rest (so a row of small
+ * islands zigzags in two lines rather than a staircase); the one that hides fewer, and then steps less in all, is kept. The selected story's plate always goes first, and never steps or
+ * hides. Only a plate that would step further than MAX_DROP is hidden, as where many islands crowd at the rim.
+ * Boxes are measured before any drop, so a drop never feeds back on itself.
  */
 export function settlePlates(plates: readonly ShownPlate[], selected?: string): { drops: Map<string, number>; hidden: Set<string> } {
-  const order = [...plates].sort((a, b) => Number(b.story === selected) - Number(a.story === selected) || b.facing - a.facing);
+  const first = (a: ShownPlate, b: ShownPlate) => Number(b.story === selected) - Number(a.story === selected);
+  const west = (a: ShownPlate, b: ShownPlate) => a.box.left - b.box.left || b.facing - a.facing;
+  const along = new Map([...plates].sort(west).map((plate, i) => [plate, i]));
+  const tries = [
+    (a: ShownPlate, b: ShownPlate) => b.facing - a.facing,
+    west,
+    (a: ShownPlate, b: ShownPlate) => along.get(a)! % 2 - along.get(b)! % 2 || west(a, b),
+  ].map(order => settleInOrder([...plates].sort((a, b) => first(a, b) || order(a, b)), selected));
+  const stepped = ({ drops }: { drops: Map<string, number> }) => [...drops.values()].reduce((sum, drop) => sum + drop, 0);
+  return tries.reduce((best, next) => next.hidden.size < best.hidden.size || (next.hidden.size === best.hidden.size && stepped(next) < stepped(best)) ? next : best);
+}
+
+function settleInOrder(order: readonly ShownPlate[], selected?: string): { drops: Map<string, number>; hidden: Set<string> } {
   const settled: ShownPlate["box"][] = [], drops = new Map<string, number>(), hidden = new Set<string>();
   const overlaps = (box: ShownPlate["box"], other: ShownPlate["box"]) => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom;
   for (const { story, box } of order) {

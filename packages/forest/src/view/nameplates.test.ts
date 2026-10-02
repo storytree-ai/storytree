@@ -56,7 +56,7 @@ test("selecting a story shows one capability nameplate per territory, each insid
   }
 });
 
-test("no two story nameplates overlap on screen: where two would, the one whose island faces the eye less steps down below the other, and only one that would step too far is hidden", () => {
+test("no two story nameplates overlap on screen: where two would, one steps down just below the other, the least in all, and only one that would step too far is hidden", () => {
   const box = (left: number, top: number) => ({ left, top, right: left + 120, bottom: top + 20 });
   // As storytree's own globe shows them: The local database's plate over Process ledger's, both islands near the rim.
   const { drops, hidden } = settlePlates([
@@ -65,7 +65,10 @@ test("no two story nameplates overlap on screen: where two would, the one whose 
     { story: "library", box: box(545, 833), facing: 0.8 },
   ]);
   assert.deepEqual([...hidden], [], "nothing is hidden");
-  assert.deepEqual([...drops], [["local database", 798 + 20 + PLATE_STEP_GAP - 785]], "the more edge-on steps just below the other; a plate clear of the others stays");
+  assert.deepEqual([...drops], [["process ledger", 785 + 20 + PLATE_STEP_GAP - 798]], "the one that need step less steps just below the other; a plate clear of the others stays");
+  // Five small islands in a row, plates a slot and a half wide: the more edge-on step, and they zigzag in two lines, not a staircase.
+  const row = settlePlates([0, 1, 2, 3, 4].map(i => ({ story: `r${i}`, box: { left: i * 64 - 45, right: i * 64 + 45, top: 0, bottom: i === 4 ? 50 : 34 }, facing: 1 - Math.abs(i - 2) / 20 })));
+  assert.deepEqual([...row.drops.keys()].sort(), ["r1", "r3"], "every other plate steps down once");
   const chosen = settlePlates([{ story: "a", box: box(0, 0), facing: 0.2 }, { story: "b", box: box(10, 5), facing: 0.9 }], "a");
   assert.deepEqual([...chosen.drops.keys()], ["b"], "the selected story's plate never steps");
   // A crowd stacked deeper than MAX_DROP: the plate that would have to step past it is hidden.

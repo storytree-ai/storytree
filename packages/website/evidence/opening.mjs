@@ -29,6 +29,11 @@ export async function verifyOpening(browser, url, output) {
   await page.waitForFunction(() => document.querySelector("#opening-count").textContent === "15 agents · 15 waiting on you · 0 answered");
   await page.getByRole("button", { name: "Show me the better way" }).waitFor();
   assert.ok(await page.evaluate(() => window.audioStarts) > 0);
+  await page.getByRole("button", { name: "Restart chapter 1" }).focus();
+  await page.keyboard.press("Enter");
+  assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "website 1.8: restarting returns keyboard focus to Run");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Show me the better way" }).waitFor({ timeout: 25000 });
   await page.getByRole("button", { name: "Show me the better way" }).click();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
   assert.equal(page.url(), url, "The turn does not navigate or change the hash");

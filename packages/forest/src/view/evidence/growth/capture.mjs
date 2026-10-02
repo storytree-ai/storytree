@@ -4,7 +4,7 @@
 //   after    the real survey: each island's land follows its lines of code
 //   nudged   The agent link's code doubled: its row packs again; other rows that fit stay in place
 //   grown    every story's code x5: row packing and nudging need a larger globe (and core)
-// Run under `tsx capture.mjs` from packages/forest, and under flock /tmp/storytree-heavy.lock, after `node build.mjs`.
+// Run from the checkout root with `node --import tsx`, after `node build.mjs`.
 // Measures what can be counted before anyone looks and writes measurements.json.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -28,6 +28,20 @@ const scenarios = {
   grown: scaled(5),
 };
 const changes = seed.changes.changes;
+
+// Contracts 3.4 and 7.17: measure the rendered near-side name against the actual strip,
+// including the header left when collapsed. CSS visibility alone misses an overlay covering it.
+const measureName = page => page.evaluate(() => {
+  const label = [...document.querySelectorAll('.planet-nameplate[data-story-id]')].find(el => el.textContent === 'The library');
+  const strip = document.querySelector('.sessions-list');
+  const rectangle = el => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; };
+  return { name: rectangle(label), strip: rectangle(strip), visible: label.checkVisibility({ visibilityProperty: true }), facing: Number(label.dataset.facing) };
+});
+const assertName = (reading, state) => {
+  assert.ok(reading.visible && reading.facing > 0, `3.4: The library is a visible near-side name (${state})`);
+  assert.ok(reading.name.bottom <= reading.strip.top - 3,
+    `3.4 / 7.17: The library bottom ${reading.name.bottom} clears Sessions top ${reading.strip.top} (${state})`);
+};
 await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 /** Per island: its drawn land, how far its coast reaches, and where its plate stands (a direction, in the globe's own frame); and the globe's radius. */
@@ -96,6 +110,26 @@ const measure = page => page.evaluate(() => {
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
     await settle(page);
     const measured = await measure(page);
+    if (name === 'grown') {
+      measured.nameClearance = { expanded: await measureName(page) };
+      assertName(measured.nameClearance.expanded, 'expanded');
+      await page.getByRole('button', { name: 'Hide sessions', exact: true }).click();
+      // No forced WebGL redraw: changing strip height must update the name by itself.
+      await page.waitForFunction(() => {
+        const label = [...document.querySelectorAll('.planet-nameplate[data-story-id]')].find(el => el.textContent === 'The library');
+        return Math.abs(label.getBoundingClientRect().bottom - 916) < 2;
+      });
+      measured.nameClearance.collapsed = await measureName(page);
+      assertName(measured.nameClearance.collapsed, 'collapsed');
+      await page.screenshot({ path: path.join(out, 'grown-collapsed.png'), timeout: 180000 });
+      await page.getByRole('button', { name: 'Show sessions', exact: true }).click();
+      await page.waitForFunction(() => {
+        const label = [...document.querySelectorAll('.planet-nameplate[data-story-id]')].find(el => el.textContent === 'The library');
+        return label.getBoundingClientRect().bottom <= document.querySelector('.sessions-list').getBoundingClientRect().top - 3;
+      });
+      measured.nameClearance.reopened = await measureName(page);
+      assertName(measured.nameClearance.reopened, 'reopened');
+    }
     const lines = Object.fromEntries(Object.entries(code).map(([id, story]) => [id, story.files.reduce((sum, file) => sum + file.lines, 0)]));
     const nodes = storyNodes(seed.tree, changes, code);
     const expected = planetLayout(forestScene(seed.tree, changes, workStates(seed.lines.lines), code),

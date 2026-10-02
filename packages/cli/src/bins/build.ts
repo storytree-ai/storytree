@@ -7,7 +7,7 @@
  * directory of their own with buildCommand().
  */
 import path from "node:path";
-import { stageNativeProbes } from "@storytree/agent-link/bins";
+import { buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/agent-link/bins";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
@@ -36,6 +36,8 @@ export async function buildCommand(outdir: string): Promise<string> {
     external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],
   });
   await stageNativeProbes(outdir);
+  // On Windows the command a setup check puts on the path is a program built beside this script (ADR-0854).
+  if (process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
   return path.join(outdir, "storytree.mjs");
 }
 

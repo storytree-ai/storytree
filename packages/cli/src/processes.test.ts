@@ -27,10 +27,12 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${instal
     const payload = path.join(desktop, 'dist', 'agent-tools', 'x64');
     await buildBins(payload);
     await mkdir(install, { recursive: true });
-    // The installer supplies these three assets; this pins verification of the real bin output.
+    // The installer supplies these assets; this pins verification of the real bin output.
     await writeFile(path.join(install, 'storytree-0.3.exe'), 'app fixture');
     await writeFile(path.join(payload, 'node.exe'), 'runtime fixture');
     await writeFile(path.join(payload, 'storytree-deliver.mjs'), '// delivery fixture');
+    // So is the command's launcher program (ADR-0854), which a build makes only on Windows.
+    if (process.platform !== 'win32') await writeFile(path.join(payload, 'storytree-launcher.exe'), 'launcher fixture');
     writePayloadManifest(payload, 'x64', '24.21.0');
     // Exercise the actual packager copy with the desktop's rules before verifying/running it.
     const config = JSON.parse(await readFile(new URL('../../../apps/desktop/package.json', import.meta.url), 'utf8'));

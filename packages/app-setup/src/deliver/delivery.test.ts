@@ -1,14 +1,30 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { launcherRuns } from "@storytree/agent-link";
+import { buildLauncher, LAUNCHER_PROGRAM } from "@storytree/agent-link/bins";
 import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
 
 import { finishDelivery, installCommand, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
 import { waitForApp } from "./delivery.js";
+
+/** The program the Windows command is made from: on Windows the real one, which tests run; elsewhere nothing runs it. */
+let program: Buffer | undefined;
+function launcherProgram(): Buffer {
+  if (process.platform !== "win32") return Buffer.from("a runnable fixture");
+  if (program === undefined) {
+    const dir = mkdtempSync(path.join(tmpdir(), "storytree launcher "));
+    try {
+      buildLauncher(path.join(dir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
+      program = readFileSync(path.join(dir, LAUNCHER_PROGRAM));
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+  return program;
+}
 
 function fixture() {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree delivery "));
@@ -17,6 +33,7 @@ function fixture() {
   const tools = toolPaths(install, "win32");
   mkdirSync(path.join(tools.dir, "chunks"), { recursive: true });
   for (const file of [tools.node, tools.mcp, tools.hook, tools.setup, tools.cli, tools.deliver, tools.app]) writeFileSync(file, "a runnable fixture");
+  writeFileSync(path.join(tools.dir, LAUNCHER_PROGRAM), launcherProgram());
   writeFileSync(path.join(tools.dir, "chunks", "shared.mjs"), "export const compatible = true;");
   writePayloadManifest(tools.dir, "arm64", "24.21.0");
   return { dir, install, home, tools, close: () => rmSync(dir, { recursive: true, force: true }) };
@@ -83,7 +100,7 @@ test("1.4: failure to launch or reach the app never publishes a successful insta
         waitForApp: async () => { throw new Error("database timeout"); },
       }), new RegExp(failed));
       assert.equal(readFileSync(path.join(f.home, "delivery.json"), "utf8"), "last usable installation");
-      assert.equal(existsSync(path.join(f.home, "bin", "storytree.cmd")), false);
+      assert.equal(existsSync(path.join(f.home, "bin", "storytree.exe")), false);
     }
   } finally { f.close(); }
 });
@@ -100,12 +117,12 @@ test("1.6: command conflicts of every Windows executable kind are named and left
       assert.equal(result.status, "conflict");
       assert.equal(result.conflict, file);
       assert.equal(readFileSync(file, "utf8"), "another installation");
-      assert.equal(existsSync(path.join(f.home, "bin", "storytree.cmd")), false);
+      assert.equal(existsSync(path.join(f.home, "bin", "storytree.exe")), false);
       rmSync(file);
     }
     const result = installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: "" });
     assert.equal(result.status, "installed");
-    assert.ok(readFileSync(result.file, "utf8").includes(`"${f.tools.node}" "${f.tools.cli}"`));
+    assert.deepEqual(launcherRuns(result.file), { node: f.tools.node, target: f.tools.cli });
     assert.equal(result.pathEntry, path.join(f.home, "bin"));
     const nonDirectory = path.join(f.dir, "not a PATH directory");
     writeFileSync(nonDirectory, "ordinary file");
@@ -122,7 +139,9 @@ test("1.6: finish repoints an older storytree launcher on PATH and says which on
   try {
     const first = installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: cargo });
     assert.deepEqual(first.replaced, [older]);
-    assert.equal(readFileSync(older, "utf8"), readFileSync(first.file, "utf8"));
+    // The batch file it was becomes the launcher program in the same folder (ADR-0854).
+    assert.equal(existsSync(older), false);
+    assert.deepEqual(readFileSync(path.join(cargo, "storytree.exe")), readFileSync(first.file));
     assert.deepEqual(installCommand({ home: f.home, tools: f.tools, platform: "win32", searchPath: cargo }).replaced, []);
   } finally { f.close(); }
 });
@@ -150,6 +169,41 @@ test("1.6: a fresh shell runs the installed command with spaces and preserves it
     });
     assert.equal(result.status, 23, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), ["an argument with spaces"]);
+  } finally { f.close(); }
+});
+
+test("1.9 on Windows, the installed command hands each word on as the caller's line spelled it: run by name from Git Bash, Windows PowerShell or a program, no word is cut at a > or &, nothing else runs and no file is written (ADR-0854)", {
+  skip: process.platform !== "win32" && "platform:win32: only Windows starts a command's file through cmd.exe, which reads its words as its own syntax",
+}, () => {
+  const f = fixture();
+  try {
+    const heard = path.join(f.dir, "heard.jsonl");
+    writeFileSync(f.tools.cli, 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.STORYTREE_HEARD, JSON.stringify(process.argv.slice(2)) + "\\n");');
+    const installed = installCommand({ home: f.home, tools: { ...f.tools, node: process.execPath }, searchPath: "" });
+    const folder = path.join(f.dir, "a project");
+    mkdirSync(folder);
+    const env = { ...process.env, PATH: installed.pathEntry, Path: installed.pathEntry, STORYTREE_HEARD: heard };
+    const hears = (caller: string, words: string[], run: () => { stdout: string; stderr: string; error?: Error }) => {
+      rmSync(heard, { force: true });
+      const ran = run();
+      const said = `${caller}: ${ran.error?.message ?? ""}${ran.stdout}${ran.stderr}`;
+      assert.deepEqual(existsSync(heard) ? readFileSync(heard, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : [], [words], said);
+      assert.deepEqual(readdirSync(folder), [], `${caller} wrote a file: ${said}`);
+      assert.doesNotMatch(ran.stdout, /INJECTED/, `${caller} ran a second command: ${said}`);
+    };
+    // Words cmd.exe would read as its own syntax; then free text with an inner double quote, and a folder.
+    const plain = ["a&echo", "INJECTED", "x|y", "x>y", "100%PATH%", "^caret"];
+    const words = [...plain, 'he said "website -> forest -> the rest" ok', "C:\\a folder\\"];
+    const bash = path.join(process.env.ProgramFiles ?? "C:\\Program Files", "Git", "bin", "bash.exe");
+    assert.ok(existsSync(bash), `Git for Windows, which storytree needs, brings Git Bash: ${bash}`);
+    const quoted = words.map((word) => `'${word.replaceAll("'", "'\\''")}'`).join(" ");
+    hears("Git Bash", words, () => spawnSync(bash, ["-c", `storytree ${quoted}`], { cwd: folder, env, encoding: "utf8", timeout: 30_000 }));
+    hears("a program", words, () => spawnSync("storytree", words, { cwd: folder, env, encoding: "utf8", timeout: 30_000 }));
+    // Windows PowerShell 5.1 quotes a word with a space for every program it starts without escaping what is in it
+    // (increment_e95ceec15288), so it is given only the words cmd.exe would misread.
+    const script = `& storytree ${plain.map((word) => `'${word.replaceAll("'", "''")}'`).join(" ")}`;
+    const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    hears("Windows PowerShell", plain, () => spawnSync(powershell, ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { cwd: folder, env, encoding: "utf8", timeout: 60_000 }));
   } finally { f.close(); }
 });
 

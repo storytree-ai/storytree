@@ -1,0 +1,22 @@
+# Contract 1.9's test against the batch launcher, before the program existed (Windows 11 arm64, 2026-10-02):
+# node --import tsx --test --test-name-pattern="^1\.9 " packages/app-setup/src/deliver/delivery.test.ts
+# It stops at its first caller, Git Bash; red-routes.txt shows the other two callers' red.
+
+✖ 1.9 on Windows, the installed command hands each word on as the caller's line spelled it: run by name from Git Bash, Windows PowerShell or a program, no word is cut at a > or &, nothing else runs and no file is written (ADR-0854) (120.6891ms)
+  AssertionError [ERR_ASSERTION]: Git Bash: /usr/bin/bash: line 1: storytree: command not found
+
+  + actual - expected
+
+  + []
+  - [
+  -   [
+  -     'a&echo',
+  -     'INJECTED',
+  -     'x|y',
+  -     'x>y',
+  -     '100%PATH%',
+  -     '^caret',
+  -     'he said "website -> forest -> the rest" ok',
+  -     'C:\\a folder\\'
+  -   ]
+  - ]

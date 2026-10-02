@@ -36,16 +36,18 @@ does (marker, library project, the app's project choice); a folder already in a 
 said and nothing is created. `finish` itself still never creates a project. `setup install` retains its hook/command meaning;
 delivery's own `inspect` and `finish` operations do not write harness settings.
 
-Delivery owns `~/.storytree/0.3/bin/storytree.cmd`, recognizes the agent-link's 0.3 launcher
-marker, and adds its directory to the per-user Windows PATH. Unrelated commands anywhere on
+Delivery owns `~/.storytree/0.3/bin/storytree.exe`, recognizes the agent-link's 0.3 launcher
+marker, and adds its directory to the per-user Windows PATH. The launcher is a small program of
+its own, made from the payload's `storytree-launcher.exe`, so no shell reads its words (ADR-0854);
+the batch file it was before, `storytree.cmd`, is replaced by it in its folder. Unrelated commands anywhere on
 the supplied PATH cause a named conflict; the user can run the bundled Node/CLI explicitly.
 A marked launcher elsewhere on PATH (a source build's, say) would shadow this one, so it is
 repointed at this installation and named in the result's `replaced`, which the one-liner prints.
 PowerShell owns registry PATH persistence and Explorer notification; no global Node or tool
 installation occurs. Node patch versions and both hashes are pinned in `runtime.ts`.
 
-The launcher uses the existing agent-link format so capability 2's exact-match disconnect
-recognises it. The delivery tests exercise that public disconnect seam after both lanes merge.
+The launcher is the agent link's own (`launcherFor` in its setup), so capability 2's disconnect
+recognises it by what it runs. The delivery tests exercise that public disconnect seam.
 
 See `../../evidence/deliver/README.md` for observed proofs and the outstanding real Windows
 first-run, update and harness acceptance. The fixed payload paths are the update interface;

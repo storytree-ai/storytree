@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { noteCodexHookRan, registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
+import { launcherFile, noteCodexHookRan, registerHooks, runSetupCheck, verifyHooks } from "@storytree/agent-link";
 import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
 import { deliveredCommand } from "./installed.js";
 import { makeDevHome, removeDevHome } from "./dev-home.js";
@@ -359,6 +359,8 @@ test("2.2 a dev build connects its own commands to a throwaway Codex home with i
     mkdirSync(outdir, { recursive: true });
     const names = ["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"];
     for (const name of names) writeFileSync(path.join(outdir, `${name}.mjs`), `// ${name}\n`);
+    // A build on Windows also makes the program its command is made from (ADR-0854); nothing runs it here.
+    writeFileSync(path.join(outdir, "storytree-launcher.exe"), "a stand-in launcher program");
     return Object.fromEntries(names.map((name) => [name, path.join(outdir, `${name}.mjs`)]));
   };
   const rig = path.join(dir, "rig");
@@ -378,7 +380,7 @@ test("2.2 a dev build connects its own commands to a throwaway Codex home with i
   // One file to source, and the dev build's storytree command first on its PATH.
   const envFile = readFileSync(made.envFile, "utf8");
   for (const name of ["HOME", "CODEX_HOME", "STORYTREE_HOME"]) assert.ok(envFile.includes(made.env[name]!), name);
-  assert.ok(existsSync(path.join(made.env.PATH!.split(path.delimiter)[0]!, process.platform === "win32" ? "storytree.cmd" : "storytree")));
+  assert.ok(existsSync(path.join(made.env.PATH!.split(path.delimiter)[0]!, launcherFile())));
 });
 
 test("2.2 a dev home never copies Claude Code's sign-in, and hands a Codex sign-in refreshed inside it back to the user's own, so its refresh cannot end the user's", async (t) => {
@@ -393,6 +395,8 @@ test("2.2 a dev home never copies Claude Code's sign-in, and hands a Codex sign-
     mkdirSync(outdir, { recursive: true });
     const names = ["storytree-mcp", "storytree-hook", "storytree-setup", "storytree"];
     for (const name of names) writeFileSync(path.join(outdir, `${name}.mjs`), `// ${name}\n`);
+    // A build on Windows also makes the program its command is made from (ADR-0854); nothing runs it here.
+    writeFileSync(path.join(outdir, "storytree-launcher.exe"), "a stand-in launcher program");
     return Object.fromEntries(names.map((name) => [name, path.join(outdir, `${name}.mjs`)]));
   };
   const rig = path.join(dir, "rig");

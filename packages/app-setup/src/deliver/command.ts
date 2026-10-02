@@ -1,22 +1,24 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { launcherFile, launcherFor, removeLauncher, writeLauncher } from "@storytree/agent-link";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import type { InstalledTools } from "./payload.js";
 
-// Share recognition with agent-link's existing command setup; its meaning is unchanged.
+// The agent link's launcher, recognised by its marker line: on Windows a program of its own (ADR-0854).
 const marker = "storytree 0.3's command (put here by its setup check)";
 export interface CommandResult {
   status: "installed" | "already installed" | "conflict";
   file: string;
   pathEntry: string;
   conflict?: string;
-  /** storytree launchers elsewhere on PATH that pointed at another build and now run this one. */
+  /** storytree launchers elsewhere on PATH that pointed at another build, or were its batch file, and now run this one. */
   replaced?: string[];
 }
 
 export function installCommand(options: { home: string; tools: InstalledTools; searchPath: string; platform?: NodeJS.Platform; pathExt?: string }): CommandResult {
-  const windows = (options.platform ?? process.platform) === "win32";
+  const platform = options.platform ?? process.platform;
+  const windows = platform === "win32";
   const pathEntry = path.join(options.home, "bin");
-  const file = path.join(pathEntry, windows ? "storytree.cmd" : "storytree");
+  const file = path.join(pathEntry, launcherFile(platform));
   const folders = [...new Set([...options.searchPath.split(windows ? ";" : ":").filter(Boolean).map((dir) => dir.replace(/^"|"$/g, "")), pathEntry])];
   const ours: string[] = [];
   const extensions = new Set(["", ".ps1", ".exe", ".com", ".bat", ".cmd", ...(options.pathExt ?? process.env.PATHEXT ?? ".VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC").toLowerCase().split(";")]);
@@ -32,23 +34,19 @@ export function installCommand(options: { home: string; tools: InstalledTools; s
       ours.push(candidate);
     }
   }
-  const quote = windows
-    ? (value: string) => `"${value.replaceAll("%", "%%")}"`
-    : (value: string) => `"${value.replace(/[\\$`]/g, "\\$&")}"`;
-  if ([options.tools.node, options.tools.cli].some((value) => /[\r\n"]/.test(value))) throw new Error("Command paths contain an unsupported quote or newline");
-  const command = windows
-    ? `@echo off\r\nrem ${marker}\r\ngoto #_storytree_handoff_# 2>nul || ${quote(options.tools.node)} ${quote(options.tools.cli)} %*\r\n`
-    : `#!/bin/sh\n# ${marker}\nexec ${quote(options.tools.node)} ${quote(options.tools.cli)} "$@"\n`;
-  const targets = [...new Set([...ours, file])];
-  const same = targets.every((target) => existsSync(target) && readFileSync(target, "utf8") === command);
+  const command = launcherFor(options.tools.node, options.tools.cli, platform);
   const replaced: string[] = [];
+  let changed = false;
   mkdirSync(pathEntry, { recursive: true });
-  for (const target of targets) {
-    if (existsSync(target) && readFileSync(target, "utf8") === command) continue;
+  for (const found of [...new Set([...ours, file])]) {
+    // Each launcher of ours becomes this one in its own folder: the batch file storytree wrote before ADR-0854 included.
+    const target = path.join(path.dirname(found), path.basename(file));
+    if (found === target && existsSync(target) && readFileSync(target).equals(command)) continue;
+    writeLauncher(target, command);
+    if (found !== target) removeLauncher(found);
+    changed = true;
     // Our own launchers earlier on PATH would shadow this one, so they are repointed, and said so.
-    if (target !== file) replaced.push(target);
-    writeFileSync(target, command);
-    if (!windows) chmodSync(target, 0o755);
+    if (found !== file) replaced.push(found);
   }
-  return { status: same ? "already installed" : "installed", file, pathEntry, replaced };
+  return { status: changed ? "installed" : "already installed", file, pathEntry, replaced };
 }

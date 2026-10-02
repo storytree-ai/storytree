@@ -23,7 +23,7 @@ const ONE_PART = "Name a capability or an increment to claim, exactly one.";
 export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = []): void {
   define(
     "claim",
-    "Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
+    "Pass exactly one target per call: capability or increment, never both. To claim an increment and a capability, call claim twice, once for each target. Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
     z.object({ ...part, reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`) }),
     async ({ capability, increment, reason }, call) => {
       const id = capability ?? increment;

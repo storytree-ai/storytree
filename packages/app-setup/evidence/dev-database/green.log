@@ -1,0 +1,18 @@
+
+> storytree@ test /home/mickh/code/worktrees/st03-allocation-appsetup
+> node --import tsx packages/dev-loop/src/test.mjs "packages/app-setup/src/connect/dev-database.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: the previous run's server log is kept in .pgtest/pg.previous.log
+test Postgres: listening on 127.0.0.1:42307 (started in 0.1 s)
+✔ 2.2 a dev home's database answers queries and releases its server on SIGTERM (864.051269ms)
+✔ 2.2 a dev home's database answers queries and releases its server on SIGINT (805.026627ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1776.219168
+test Postgres: stopped (0.1 s)

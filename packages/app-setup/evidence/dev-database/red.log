@@ -1,0 +1,58 @@
+
+> storytree@ test /home/mickh/code/worktrees/st03-allocation-appsetup
+> node --import tsx packages/dev-loop/src/test.mjs "packages/app-setup/src/connect/dev-database.test.ts"
+
+scope: files — the files named on the command line
+test Postgres: creating the cluster in /home/mickh/code/worktrees/st03-allocation-appsetup/.pgtest/data (first run only; it can take minutes under x64 emulation)
+test Postgres: cluster created in 0.5 s
+test Postgres: listening on 127.0.0.1:43181 (started in 0.1 s)
+✖ 2.2 a dev home's database answers queries and releases its server on SIGTERM (883.233647ms)
+✖ 2.2 a dev home's database answers queries and releases its server on SIGINT (813.003549ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1853.749362
+
+✖ failing tests:
+
+test at packages/app-setup/src/connect/dev-database.test.ts:1:492
+✖ 2.2 a dev home's database answers queries and releases its server on SIGTERM (883.233647ms)
+  AssertionError [ERR_ASSERTION]: the entry released its database ownership
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/mickh/code/worktrees/st03-allocation-appsetup/packages/app-setup/src/connect/dev-database.test.ts:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/app-setup/src/connect/dev-database.test.ts:1:492
+✖ 2.2 a dev home's database answers queries and releases its server on SIGINT (813.003549ms)
+  AssertionError [ERR_ASSERTION]: the entry released its database ownership
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/mickh/code/worktrees/st03-allocation-appsetup/packages/app-setup/src/connect/dev-database.test.ts:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+test Postgres: stopped (0.1 s)
+ ELIFECYCLE  Test failed. See above for more details.

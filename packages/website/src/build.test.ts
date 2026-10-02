@@ -73,3 +73,19 @@ test("4.4 · the built site names the merge it was built from in its home page a
   await buildWebsite(output, { commit: undefined });
   assert.equal(await readFile(path.join(output, "version.txt"), "utf8"), "unpublished local build\n");
 });
+
+test("5.3 · the built storage manifest permits public insertion and explicitly reserves all other actions for the owner", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-data-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const manifest = JSON.parse(await readFile(path.join(output, ".herenow/data.json"), "utf8"));
+  assert.deepEqual(manifest, { collections: { waitlist: {
+    fields: {
+      email: { type: "email", required: true, trim: true, maxLength: 254 },
+      computer: { type: "string", trim: true, maxLength: 7 },
+      agent: { type: "string", trim: true, maxLength: 11 },
+    },
+    access: { insert: "public", read: "owner", update: "owner", delete: "owner" },
+    rateLimit: "10/hour/ip",
+  } } });
+});

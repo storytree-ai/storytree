@@ -1,7 +1,10 @@
 /**
  * Capability 7 · Instructions, the habits card (the agent link story): one short text, a screen or
  * less, that teaches the agent storytree's habits. The tool server hands it to the agent at the
- * start of every session, as its instructions; Claude Code and Codex both read it from there.
+ * start of every session, as its instructions, which Claude Code reads. Codex never shows a tool
+ * server's instructions: its sessions get a short section in Codex's AGENTS.md instead
+ * (./codex-agents.ts, contract 7.4). The starter roles are named by check_setup (8.19), not here:
+ * both harnesses' first sessions opened them from that alone (increment_a3786e385e28).
  *
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
  * naming exactly the tools the server has, within 60 lines.

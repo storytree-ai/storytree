@@ -162,8 +162,11 @@ export function withLock(lock: string, body: () => void, { open = openLock, wait
       open(lock);
       break;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      if (stale(lock)) {
+      // Windows refuses the open with EPERM (or EACCES) while another writer is still removing the
+      // lock: wait that out like a held lock. One the user can never open still ends at the deadline.
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST" && code !== "EPERM" && code !== "EACCES") throw error;
+      if (code === "EEXIST" && stale(lock)) {
         rmSync(lock, { force: true });
         continue;
       }

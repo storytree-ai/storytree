@@ -14,10 +14,10 @@ try {
   try { Initialize-StorytreeChannel $channelHome $channelInstall 'development'; throw 'accepted conflict' }
   catch { Assert ($_.Exception.Message -match 'already.*stable') 'an explicit conflicting channel cannot silently migrate an install' }
   [IO.File]::WriteAllText($channelFile, '{broken')
-  try { Initialize-StorytreeChannel $channelHome $channelInstall ''; throw 'accepted corrupt channel' }
+  try { Initialize-StorytreeChannel $channelHome $channelInstall ''; throw 'unexpected success' }
   catch { Assert ($_.Exception.Message -match 'channel') 'corrupt saved channel stops delivery' }
   [IO.File]::WriteAllText($channelFile, '{"schema":1,"channel":"preview"}')
-  try { Initialize-StorytreeChannel $channelHome $channelInstall ''; throw 'accepted unknown channel' }
+  try { Initialize-StorytreeChannel $channelHome $channelInstall ''; throw 'unexpected success' }
   catch { Assert ($_.Exception.Message -match 'channel') 'unknown saved channel stops delivery' }
   Remove-Item -LiteralPath $channelFile
   New-Item -ItemType Directory -Path (Join-Path $channelInstall 'resources') -Force | Out-Null
@@ -124,7 +124,7 @@ Assert ((Add-StorytreePath 'C:\Other;C:\Storytree\bin\' 'c:\storytree\bin') -eq 
 $release = @{ tag_name = 'v0.3.123'; draft = $false; prerelease = $false; assets = @(@{ name = 'storytree-0.3-0.3.123-setup.exe'; browser_download_url = 'https://github.com/storytree-ai/storytree/releases/download/v0.3.123/storytree-0.3-0.3.123-setup.exe' }) }
 $manifest = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.123-setup.exe'; sha256 = ('a' * 64) } }
 Assert ((Select-StorytreeInstaller $release $manifest 'arm64').sha256 -eq ('a' * 64)) 'select the combined NSIS installer'
-try { Select-StorytreeInstaller $release $manifest 'arm64' 'stable'; throw 'accepted pre-channel build' }
+try { Select-StorytreeInstaller $release $manifest 'arm64' 'stable'; throw 'unexpected success' }
 catch { Assert ($_.Exception.Message -match 'channel') 'stable refuses a release whose app cannot honor the saved channel' }
 $manifest.channelSchema = 1
 Assert ((Select-StorytreeInstaller $release $manifest 'arm64' 'stable').sha256 -eq ('a' * 64)) 'stable accepts a channel-aware installer'

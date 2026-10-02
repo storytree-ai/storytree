@@ -155,6 +155,8 @@ async function openPage(browser, variant, data) {
       return meshes >= 2;
     });
   }, data.tree.stories.map(story => story.id), { timeout: 180000 });
+  const closeMenu = page.getByRole('button', { name: 'Close app menu', exact: true });
+  if (await closeMenu.isVisible()) await closeMenu.click();
   await settle(page);
   return { page, errors, warnings };
 }
@@ -179,7 +181,7 @@ function checkMode(result, mode) {
 }
 
 async function switchMode(page, mode) {
-  await page.getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
+  await page.getByRole('group', { name: 'Globe view' }).getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
   await page.waitForFunction(mode => document.querySelector(`.forest-views [data-forest-mode="${mode}"]`)?.getAttribute('aria-pressed') === 'true', mode);
   await settle(page);
 }
@@ -324,8 +326,16 @@ async function openLand(page) {
   await page.mouse.up();
   await settle(page);
   await assertDismissed(page);
+  const returned = await measure(page);
+  await page.mouse.move(650, 420);
+  await page.mouse.down();
+  await page.mouse.move(750, 450, { steps: 8 });
+  await page.mouse.up();
+  await settle(page);
   const afterDrag = await measure(page);
-  assert.notDeepEqual(afterDrag.cameraQuaternion, libraryFront.cameraQuaternion, 'the synthetic drag exercises globe rotation');
+  assert.notDeepEqual(afterDrag.rotation, returned.rotation, 'the drag turns the globe');
+  assert.deepEqual(afterDrag.camera, returned.camera, 'the camera stays in place while the globe turns');
+  assert.deepEqual(afterDrag.cameraQuaternion, returned.cameraQuaternion, 'the camera frame stays north-up');
   await hoverDot(page);
   await page.mouse.wheel(0, 25);
   await settle(page);
@@ -337,7 +347,7 @@ async function openLand(page) {
   const last = seed.changes.changes.filter(change => change.recordId === retiring.chosen).at(-1);
   const batch = { changes: [{ ...last, action: 'retired', seq: seed.changes.cursor + 1 }], cursor: seed.changes.cursor + 1 };
   await page.evaluate(batch => {
-    window.storytree.changesSince = async (_, cursor) => cursor < batch.cursor
+    window.storytreeAnswers.changesSince = async (_, cursor) => cursor < batch.cursor
       ? structuredClone(batch) : { changes: [], cursor: batch.cursor };
   }, batch);
   await assertDismissed(page);
@@ -348,7 +358,7 @@ async function openLand(page) {
     picked: { forest: forestCard.chosen, library: libraryCard.chosen, story: land.selected, replacedStoryWith: replacing.chosen },
     checks: { realPointerClickInBothModes: true, libraryFarSidePickable: true, hoverTitleAndPointer: true, foregroundLandWins: true,
       cardReplacesStory: true, storyReplacesCard: true, closeDismisses: true, escapeDismisses: true,
-      dragIsNotClick: true, hiddenIslandsUnpickable: true, noCardInspectionMetadata: true,
+      dragIsNotClick: true, dragTurnsGlobeWithFixedCamera: true, hiddenIslandsUnpickable: true, noCardInspectionMetadata: true,
       wheelClearsHover: true, liveRetirementClosesCardAndRemovesDot: true,
       storyTextExcluded: true, allEligibleDotsSubmittedInBothModes: true },
     errors, warnings: [...new Set(warnings)],

@@ -1,17 +1,19 @@
-// Seeded, repeatable capture of the actual desktop page for ADR-0804 D3 and D7: the same eight-story seed
+// Seeded capture for ADR-0804 D3/D7 as anchored to dependency rows by ADR-0839 D1-D3: the same eight-story seed
 // and real code survey as ../file-circles, the same 1440 x 960 viewport, no hand-panning. Four scenarios:
-//   before   no survey, so every island is sized by its capabilities, as it was before this increment
+//   before   no survey, so every island is sized by its capabilities
 //   after    the real survey: each island's land follows its lines of code
-//   nudged   The agent link's code doubled: its island outgrows its neighbours' room and nudges them
-//   grown    every story's code x5: nudging cannot make room, so the globe (and its core) grows
+//   nudged   The agent link's code doubled: its row packs again; other rows that fit stay in place
+//   grown    every story's code x5: row packing and nudging need a larger globe (and core)
 // Run under `tsx capture.mjs` from packages/forest, and under flock /tmp/storytree-heavy.lock, after `node build.mjs`.
 // Measures what can be counted before anyone looks and writes measurements.json.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
-import { placeOnPackedGlobe, PLANET_RADIUS } from '@storytree/forest';
+import { forestScene, storyNodes, rowOf, PLANET_RADIUS, SEA_GAP } from '@storytree/forest';
+import { workStates } from '@storytree/arc-surface';
+import { planetLayout } from '../../planet-navigation.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
@@ -25,7 +27,7 @@ const scenarios = {
   nudged: scaled(id => id === AGENT_LINK ? 2 : 1),
   grown: scaled(5),
 };
-const places = new Map(seed.tree.stories.map((story, i) => [story.id, i + 1]));
+const changes = seed.changes.changes;
 await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 /** Per island: its drawn land, how far its coast reaches, and where its plate stands (a direction, in the globe's own frame); and the globe's radius. */
@@ -67,10 +69,12 @@ const measure = page => page.evaluate(() => {
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    const bridge = fakeBridge({});
+    await bridge.install(page);
     await page.addInitScript(({ data, survey }) => {
       const copy = value => structuredClone(value);
       let current = data.projects.includes('storytree') ? 'storytree' : data.projects[0];
-      window.storytree = {
+      window.storytreeAnswers = {
         projectSelection: async () => copy({ projects: data.projects, current }),
         chooseProject: async project => { current = project; return copy({ projects: data.projects, current }); },
         listProjects: async () => copy(data.projects), projectTree: async () => copy(data.tree),
@@ -87,17 +91,27 @@ const measure = page => page.evaluate(() => {
       return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
     }, seed.tree.stories.map(s => s.id), { timeout: 60000 });
     if (Object.keys(code).length > 0) await page.waitForFunction(() => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('file:')) n++; }); return n > 0; }, undefined, { timeout: 30000 });
+    const closeMenu = page.getByRole('button', { name: 'Close app menu', exact: true });
+    if (await closeMenu.isVisible()) await closeMenu.click();
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
     await settle(page);
     const measured = await measure(page);
     const lines = Object.fromEntries(Object.entries(code).map(([id, story]) => [id, story.files.reduce((sum, file) => sum + file.lines, 0)]));
-    // Nudge distance: how far each plate's direction is from its permanent place, in radians and in ground units on this globe.
+    const nodes = storyNodes(seed.tree, changes, code);
+    const expected = planetLayout(forestScene(seed.tree, changes, workStates(seed.lines.lines), code),
+      new Map(nodes.map(story => [story.id, story.place])));
+    assert.equal(measured.radius, expected.radius, `${name}: the drawn globe uses this scenario's row layout`);
+    assert.equal(measured.islands.length, nodes.length, `${name}: every story has its drawn island`);
     for (const island of measured.islands) {
-      const anchor = placeOnPackedGlobe(places.get(island.story));
-      const a = [anchor.x, anchor.y, anchor.z].map(v => v / PLANET_RADIUS);
+      const node = nodes.find(node => node.id === island.story);
+      const spot = expected.spots.get(island.story);
+      island.title = node.title;
+      island.row = rowOf(node.place).row;
+      island.slot = rowOf(node.place).slot;
       island.lines = lines[island.story] ?? null;
-      island.nudgeRadians = Math.acos(Math.max(-1, Math.min(1, a[0] * island.direction[0] + a[1] * island.direction[1] + a[2] * island.direction[2])));
-      island.nudgeGround = island.nudgeRadians * measured.radius;
+      island.expectedDirection = [spot.x, spot.y, spot.z];
+      island.layoutError = Math.hypot(...island.direction.map((value, i) => value - island.expectedDirection[i]));
+      assert.ok(island.layoutError < 1e-8, `${name}: ${node.title} is at its scenario's dependency-row position`);
     }
     // Nearest two islands' reaches, sea to spare between them (reach discs, as the layout reads them).
     let tightest = Infinity;
@@ -106,14 +120,30 @@ const measure = page => page.evaluate(() => {
       tightest = Math.min(tightest, angle * measured.radius - a.reach - b.reach);
     }
     measured.seaBetweenReaches = tightest;
+    assert.ok(tightest >= SEA_GAP - 1e-4, `${name}: the drawn coasts keep ${SEA_GAP} units of sea (${tightest})`);
+    for (const island of measured.islands) for (const below of measured.islands.filter(other => other.row < island.row)) {
+      assert.ok(island.direction[1] > below.direction[1], `${name}: deeper dependency rows stay further north`);
+    }
     measured.errors = errors;
     results.scenarios[name] = measured;
     await page.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 });
     assert.deepEqual(errors, []);
     await page.close();
   }
+  const { after, nudged, grown } = results.scenarios;
+  const growingRow = after.islands.find(island => island.story === AGENT_LINK).row;
+  for (const island of nudged.islands) {
+    const before = after.islands.find(other => other.story === island.story);
+    island.movedFromSurvey = Math.hypot(...island.direction.map((value, i) => value - before.direction[i]));
+    if (island.row === growingRow) assert.ok(island.movedFromSurvey > 1e-4, `${island.title}: growth moves neighbours along the same row`);
+    else assert.ok(island.movedFromSurvey < 1e-8, `${island.title}: another row that fits stays in place`);
+  }
+  assert.equal(nudged.radius, PLANET_RADIUS, 'row packing makes enough room for one doubled island');
+  assert.ok(grown.radius > PLANET_RADIUS, 'the globe grows when packing and nudging cannot make room');
+  assert.ok(Math.abs(grown.coreReach / after.coreReach - grown.radius / after.radius) < 1e-8, 'the live core grows with the globe');
+  assert.ok(Object.values(results.scenarios).every(scenario => scenario.corePoints === after.corePoints), 'growth retains the complete knowledge core');
   results.browser = await browser.version();
   writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
-  const line = ([name, s]) => [name, `radius ${s.radius.toFixed(1)}`, `sea ${s.seaBetweenReaches.toFixed(1)}`, s.islands.map(i => `${i.story.slice(-4)}:${i.area.toFixed(0)}/${(i.nudgeGround).toFixed(1)}`).join(' ')].join(' | ');
+  const line = ([name, s]) => [name, `radius ${s.radius.toFixed(1)}`, `sea ${s.seaBetweenReaches.toFixed(1)}`, s.islands.map(i => `${i.title}:row${i.row}/${i.area.toFixed(0)}`).join(' ')].join(' | ');
   console.log(Object.entries(results.scenarios).map(line).join('\n'));
 });

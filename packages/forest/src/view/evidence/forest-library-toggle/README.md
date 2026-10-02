@@ -68,6 +68,12 @@ The synthetic interaction fixture uses a verified unhealthy capability and its
 current health word, dismisses the first-run guide through its Close control,
 and selects the Forest/Library buttons within their named group.
 
+The final fixture refresh (`increment_bdcb6eabee69`) waits for the actual edge
+marker after a turn and after restoring Forest. Twelve rendered frames alone
+can precede the overlay's React commit: [the reproduced failure](refresh-red.txt)
+saw no marker yet. Both waits retain the visibility assertion and fail after
+15 seconds; the refreshed run passes all 18 checks.
+
 Reproduce from the checkout root (installed Playwright Chromium, or
 `CAPTURE_CHROMIUM`; `CAPTURE_PLAYWRIGHT` can name a different Playwright module):
 

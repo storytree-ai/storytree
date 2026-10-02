@@ -1586,7 +1586,7 @@ test("6.26 open on a contract shows it whole: its title, its description and the
   });
 });
 
-test("6.28 move_increment moves an open increment to another arc keeping its id, with the session as writer and the reason in its history; a closed increment, a closed or missing arc and a missing increment get a readable refusal, with nothing written", async () => {
+test("6.28 move_increment moves open work with its claim and completed history with its outcome; open work into a closed arc, missing arcs and missing increments are refused", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
@@ -1605,16 +1605,20 @@ test("6.28 move_increment moves an open increment to another arc keeping its id,
       const closedArc = idOf(await agent.call("plan_arc", { title: "Done", intent: "Was done", end_state: "Done" }));
       await agent.call("park_increment", { arc: closedArc, title: "Old", objective: "Done", body: "Done", outcome: { disposition: "landed", pr: "#1" } });
       const done = idOf(await agent.call("park_increment", { arc: target, title: "Shipped", objective: "Done", body: "Done", outcome: { disposition: "landed", pr: "#2" } }));
+      const historyMove = await agent.call("move_increment", { increment: done, to: closedArc, reason: "separate the completed phase" });
+      assert.equal(historyMove.isError, false, historyMove.text);
+      const completed = (await library.arcView(closedArc))?.increments.find(({ id }) => id === done);
+      assert.equal(completed?.fields.status, "closed");
+      assert.equal(completed?.fields.outcome?.pr, "#2");
       for (const [args, why] of [
         [{ increment, to: closedArc, reason: "r" }, "a closed arc"],
         [{ increment, to: "arc_000000000000", reason: "r" }, "a missing arc"],
-        [{ increment: done, to: arc, reason: "r" }, "a closed increment"],
         [{ increment: "increment_000000000000", to: arc, reason: "r" }, "a missing increment"],
       ] as const) {
         const refused = await agent.call("move_increment", args);
         assert.equal(refused.isError, true, `${why} is refused: ${refused.text}`);
       }
-      assert.ok((await ids(target)).includes(increment) && (await ids(target)).includes(done), "nothing moved");
+      assert.ok((await ids(target)).includes(increment) && !(await ids(target)).includes(done), "only completed history moved");
     });
   });
 });

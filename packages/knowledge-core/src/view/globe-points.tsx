@@ -8,7 +8,7 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { SessionRing } from "./ring.js";
-import { arcKey, arrived, curvePoint, IN_VIEW, fillAt, stepPoint, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, tailSpan, type AgentPath, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
+import { arcKey, arrived, IN_VIEW, fillAt, stepPoint, glowAt, growthPlan, heldNotes, ringArcs, noteTitle, replayAt, tailSpan, type AgentPath, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
 
@@ -161,17 +161,19 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   const invalidate = useThree(state => state.invalidate);
   const size = useThree(state => state.size);
   const { step } = trail;
+  // A reading path reaching a file with none selected crosses the land as a traversal step does (ADR-0804 D5).
+  const kind = step?.kind ?? trail.kind;
   const line = useMemo(() => {
     const made = lineOf(1.6, false);
     // A step over the land is drawn after the land's tints and circles, which are otherwise laid over it (ADR-0804 D5).
-    if (step?.kind !== undefined) { made.renderOrder = 6; made.material.linewidth = 2.4; }
+    if (kind !== undefined) { made.renderOrder = 6; made.material.linewidth = 2.4; }
     if (step?.edge === "dotted") Object.assign(made.material, { dashed: true, dashSize: radius * 0.007, gapSize: radius * 0.007 });
     if (step?.faded) made.material.opacity = 0.45;
     return made;
-  }, [step?.edge, step?.faded, step?.kind, radius]);
+  }, [step?.edge, step?.faded, kind, radius]);
   const fill = useMemo(() => {
     const made = step === undefined || reducedMotion() || replayed !== undefined ? undefined : lineOf(3, true);
-    if (made !== undefined && step?.kind !== undefined) made.renderOrder = 6;
+    if (made !== undefined && kind !== undefined) made.renderOrder = 6;
     return made;
   }, [step === undefined, replayed === undefined]);
   useEffect(() => () => { line.geometry.dispose(); line.material.dispose(); }, [line]);
@@ -196,7 +198,7 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
   }, [trail.colour, step?.faded]);
   // Drawn to `end` of the way along; a log path's colours stay dim-to-bright over what is drawn.
   const draw = (end: number) => {
-    moveLine(line.geometry, sample(from, to, end, step?.kind), colours);
+    moveLine(line.geometry, sample(from, to, end, kind), colours);
     if (step?.edge === "dotted") line.computeLineDistances();
     line.visible = end > 0;
   };
@@ -226,13 +228,13 @@ function TrailCurve({ trail, from, to, grow, radius, replayed }: {
     const run = done.current ? fillAt(now - began.current, FILL) : undefined;
     fill.visible = run !== undefined && run > 0;
     if (fill.visible) {
-      moveLine(fill.geometry, sample(from, to, run!, step?.kind), fillColours);
+      moveLine(fill.geometry, sample(from, to, run!, kind), fillColours);
     }
     fill.userData = { fill: run ?? null };
     invalidate();
   });
   return <group name={`knowledge-trail:${trail.from}>${trail.to}`}
-    userData={{ from: trail.from, to: trail.to, colour: trail.colour, seq: trail.seq, edge: step?.edge ?? null, faded: step?.faded ?? false, kind: step?.kind ?? null }}>
+    userData={{ from: trail.from, to: trail.to, colour: trail.colour, seq: trail.seq, edge: step?.edge ?? null, faded: step?.faded ?? false, kind: kind ?? null }}>
     <primitive object={line} />
     {fill !== undefined && <primitive object={fill} name={`knowledge-fill:${trail.from}>${trail.to}`} />}
   </group>;
@@ -307,7 +309,7 @@ function PathGlow({ path, at, starts }: { path: AgentPath; at: ReadonlyMap<strin
     const [tail, head] = tailSpan(place.t);
     const positions: number[] = [];
     for (let index = 0; index < GLOW_POINTS; index++) {
-      const point = curvePoint(from, to, tail + (head - tail) * index / (GLOW_POINTS - 1));
+      const point = stepPoint(step.kind, from, to, tail + (head - tail) * index / (GLOW_POINTS - 1));
       positions.push(point.x, point.y, point.z);
     }
     moveLine(glow.geometry, positions, colours);

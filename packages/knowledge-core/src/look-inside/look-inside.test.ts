@@ -7,7 +7,7 @@ import type { Agent, Line } from "@storytree/agent-link";
 import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord } from "../reads/reads.js";
 import { History } from "../testing/changes.js";
-import { agentPaths, arcKey, arrived, codeKey, curvePoint, fillAt, hopPoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, replayAt, ringArcs, stampOpens, traversalTrails, windowReplays, windowView, type CodePlaces } from "./look-inside.js";
+import { agentPaths, arcKey, arrived, codeKey, curvePoint, fillAt, hopPoint, glowAt, growthPlan, heldNotes, legend, lighting, noteCard, tailSpan, trails, replayAt, ringArcs, rosterCode, stampOpens, traversalTrails, windowReplays, windowView, type CodePlaces } from "./look-inside.js";
 
 let seq = 0;
 const read = (session: string, note: string, how: "peek" | "whole", agent?: Agent): Line => ({
@@ -441,4 +441,36 @@ test("4.20 the traversal's trails carry what a step crosses; a hop arcs above th
   const core = { x: 0, y: 0, z: SURFACE * 0.4 };
   const dive = [0, 0.5, 1].map((t) => radius(curvePoint(places.files.get("packages/agent-link/src/a.ts")!, core, t)));
   assert.ok(dive[0]! >= SURFACE - 1e-9 && dive[2]! < SURFACE && dive[1]! < SURFACE, "a dive leaves the surface and ends inside the core");
+});
+
+test("4.21 with no session selected, a listed session's window draws its file reads too: each surveyed file lights in its latest reader's colour, and its steps hop between files and dive between a file and a note", () => {
+  const history = project();
+  const [a, b] = ["hsl(200, 80%, 68%)", "hsl(300, 80%, 68%)"];
+  const roster = [
+    { session: "a", label: "Signup", colour: a, members: ["a"] },
+    { session: "b", label: "Billing", colour: b, members: ["b"] },
+  ];
+  const windows = new Map([
+    ["a", { ...windowOf([opened("deep"), opened("/repo/packages/agent-link/src/a.ts", true, "file"), opened("/repo/packages/agent-link/src/b.ts", false, "file"),
+      opened("/repo/scripts/x.mjs", true, "file"), opened("cover")]), session: "a" }],
+    ["b", { ...windowOf([opened("/repo/packages/agent-link/src/a.ts", true, "file")]), session: "b" }],
+  ]);
+  const stamps = new Map([["a", [0, 0, 0, 0, 0]], ["b", [5]]]);
+  const { reads, knowledge: known } = input(history, []);
+  const present = new Set(known.notes.keys());
+  const windowed = windowReplays(windows, present, stamps, places);
+
+  assert.deepEqual(trails(reads, roster, undefined, present, windowed).map(({ from, to, colour, kind }) => [from, to, colour, kind]), [
+    ["deep", "file:packages/agent-link/src/a.ts", a, "dive"],
+    ["file:packages/agent-link/src/a.ts", "file:packages/agent-link/src/b.ts", a, "hop"],
+    ["file:packages/agent-link/src/b.ts", "cover", a, "dive"],
+  ], "a path that names no surveyed file is stepped over; b's single open draws no step");
+  assert.deepEqual(agentPaths(reads, roster, undefined, present, windowed).find(({ mover }) => mover === "a orchestrator")?.steps.map(({ kind }) => kind),
+    ["dive", "hop", "dive"], "the glow travels the same steps");
+  assert.deepEqual([...lighting(reads, roster, undefined, present, windowed).keys()].sort(), ["cover", "deep"], "files light on the land, not as notes in the core");
+
+  const land = rosterCode(windows, roster, places, stamps);
+  assert.deepEqual([...land.files].sort(), [["packages/agent-link/src/a.ts", "read"], ["packages/agent-link/src/b.ts", "read"]], "a compacted read does not fade here");
+  assert.deepEqual([...land.colours].sort(), [["packages/agent-link/src/a.ts", b], ["packages/agent-link/src/b.ts", a]], "a file two sessions read wears its latest reader's colour");
+  assert.deepEqual(windowReplays(windows, present, stamps).get("a")?.jumps.map(({ to }) => to), ["deep", "cover"], "with no land to reach, files are stepped over as before");
 });

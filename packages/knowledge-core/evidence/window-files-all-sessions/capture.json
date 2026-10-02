@@ -1,0 +1,93 @@
+{
+  "sessions": {
+    "a": "builder",
+    "b": "traversal-a"
+  },
+  "colours": {
+    "a": "6cd0ef",
+    "b": "ad6cef"
+  },
+  "litCircles": {
+    "src/view/file-circles.ts": {
+      "window": "read",
+      "lit": true,
+      "colour": "ad6cef",
+      "opacity": 0.9
+    },
+    "src/view/forest-view.tsx": {
+      "window": "read",
+      "lit": true,
+      "colour": "ad6cef",
+      "opacity": 0.9
+    },
+    "src/view/planet-view.tsx": {
+      "window": "read",
+      "lit": true,
+      "colour": "ad6cef",
+      "opacity": 0.9
+    },
+    "src/look-inside/look-inside.ts": {
+      "window": "read",
+      "lit": true,
+      "colour": "6cd0ef",
+      "opacity": 0.9
+    },
+    "src/view/globe-points.tsx": {
+      "window": "read",
+      "lit": true,
+      "colour": "6cd0ef",
+      "opacity": 0.9
+    },
+    "src/view/surface.tsx": {
+      "window": "read",
+      "lit": true,
+      "colour": "6cd0ef",
+      "opacity": 0.9
+    }
+  },
+  "rings": [],
+  "codeTrails": [
+    {
+      "from": "file:packages/knowledge-core/src/look-inside/look-inside.ts",
+      "to": "file:packages/knowledge-core/src/view/surface.tsx",
+      "kind": "hop",
+      "colour": "hsl(194, 80%, 68%)"
+    },
+    {
+      "from": "file:packages/knowledge-core/src/view/surface.tsx",
+      "to": "decision_88f95657e45b",
+      "kind": "dive",
+      "colour": "hsl(194, 80%, 68%)"
+    },
+    {
+      "from": "file:packages/knowledge-core/src/view/globe-points.tsx",
+      "to": "file:packages/forest/src/view/file-circles.ts",
+      "kind": "hop",
+      "colour": "hsl(194, 80%, 68%)"
+    },
+    {
+      "from": "file:packages/forest/src/view/planet-view.tsx",
+      "to": "file:packages/forest/src/view/file-circles.ts",
+      "kind": "hop",
+      "colour": "hsl(270, 80%, 68%)"
+    },
+    {
+      "from": "file:packages/forest/src/view/file-circles.ts",
+      "to": "file:packages/forest/src/view/forest-view.tsx",
+      "kind": "hop",
+      "colour": "hsl(270, 80%, 68%)"
+    },
+    {
+      "from": "file:packages/forest/src/view/forest-view.tsx",
+      "to": "decision_0aa9bd1f4dd2",
+      "kind": "dive",
+      "colour": "hsl(270, 80%, 68%)"
+    }
+  ],
+  "shared": {
+    "file": "packages/forest/src/view/file-circles.ts",
+    "first": "ad6cef",
+    "laterReader": "builder",
+    "after": "6cd0ef"
+  }
+}

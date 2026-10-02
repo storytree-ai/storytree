@@ -45,6 +45,14 @@ export function crowdedOut(plates: readonly ShownPlate[], selected?: string): Se
   return hidden;
 }
 
+/** How wide a story's nameplate may grow, in pixels, before its title wraps. */
+export const STORY_PLATE_WIDTH = Infinity;
+
+/** How the story nameplates on screen settle: how far each steps down the screen, and which are hidden. */
+export function settlePlates(plates: readonly ShownPlate[], selected?: string): { drops: Map<string, number>; hidden: Set<string> } {
+  return { drops: new Map(), hidden: crowdedOut(plates, selected) };
+}
+
 /**
  * Where a story's nameplate hangs from: on the line through the island's middle that runs straight down the
  * screen, just past the coast's lowest point, so the plate reads below its island and under it. It hangs no

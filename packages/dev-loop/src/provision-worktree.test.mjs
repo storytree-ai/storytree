@@ -115,7 +115,7 @@ for (const condition of ["current", "stale"]) {
     mkdirSync(path.join(root, "packages", "library", "node_modules", "@storytree", "keys"), { recursive: true });
     const linked = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
     assert.equal(linked.status, 0, linked.stderr);
-});
+  });
 }
 
 test("2.2 missing root workspace links are refused and reinstalled even after a package's missing link is repaired", (t) => {

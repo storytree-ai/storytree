@@ -62,3 +62,19 @@ test("4.9, 4.11 five independent capabilities fit the story panel at readable fu
     }
   }
 });
+
+test("4.9 dependency curves stay inside the tree when unrelated groups are packed", () => {
+  const layout = layoutTree({ ...panel,
+    capabilities: ["a", "b", "c", "d", "e"].map(line),
+    arrows: [["a", "b"], ["a", "c"], ["a", "d"], ["b", "d"]].map(([from, to]) => ({
+      from: from!, to: to!, toTitle: to!, landed: false, toStatus: "proposed" as const,
+    })),
+  });
+  for (const link of layout.links) {
+    const coordinates = link.d.match(/-?\d+\.\d+/g)!.map(Number);
+    for (let i = 0; i < coordinates.length; i += 2) {
+      assert.ok(coordinates[i]! >= 0 && coordinates[i]! <= layout.width, `${link.from} to ${link.to} stays inside the tree's width`);
+      assert.ok(coordinates[i + 1]! >= 0 && coordinates[i + 1]! <= layout.height, `${link.from} to ${link.to} stays inside the tree's height`);
+    }
+  }
+});

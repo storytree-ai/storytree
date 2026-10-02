@@ -104,3 +104,25 @@ test("4.1 unsurveyed paths share the show ceiling and do not expand counts metad
   assert.deepEqual(answer.selected, ["diff:origin/main"]);
   assert.ok(JSON.stringify(answer).length < 2000, "counts metadata does not list every changed path");
 });
+
+test("4.1 diverged refs distinguish two-dot endpoints from merge-base and current-worktree comparisons", async t => {
+  const repo = await repository(t);
+  repo.git("checkout", "-b", "side");
+  await repo.write("packages/shop/src/unrelated.ts", "export const unrelated = 7;\n");
+  repo.git("add", "-A"); repo.commit("side changes unrelated");
+  repo.git("checkout", "--detach", repo.base);
+  await repo.write("packages/shop/src/core.ts", "export const core = 7;\n");
+  repo.git("add", "-A"); repo.commit("head changes core");
+  await repo.write("dirty.md", "working only\n");
+  const endpoints = await focusProject(repo.library, repo.folder, { select: "diff:side..HEAD", mode: "show" });
+  assert.ok(endpoints.rows!.some(row => row.id === "unrelated"));
+  assert.equal(endpoints.diff?.changedPaths, 2);
+  const branch = await focusProject(repo.library, repo.folder, { select: "diff:side...HEAD", mode: "show" });
+  assert.equal(branch.diff?.base, repo.base);
+  assert.equal(branch.diff?.changedPaths, 1);
+  assert.ok(!branch.rows!.some(row => row.id === "unrelated" || row.path === "dirty.md"));
+  const current = await focusProject(repo.library, repo.folder, { select: "diff:side", mode: "show" });
+  assert.equal(current.diff?.base, repo.base);
+  assert.equal(current.diff?.changedPaths, 2);
+  assert.ok(current.rows!.some(row => row.path === "dirty.md"));
+});

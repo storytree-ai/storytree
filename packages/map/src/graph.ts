@@ -3,6 +3,8 @@ import type { AnnotatedTree, NodeHealth } from "@storytree/library";
 import { packageOf, type SurveyedTest } from "./code-survey/code-survey.js";
 import type { ProjectSurvey } from "./code-survey/read-survey.js";
 
+export type SnapshotOrigin = "base" | "target" | "both";
+export type ChangeLabel = "added" | "modified" | "deleted" | "renamed-from" | "renamed-to" | "untracked";
 export type NodeKind = "story" | "capability" | "promise" | "file" | "test";
 export type MapHealth = "healthy" | "failing" | "untested";
 export interface MapNode {
@@ -15,12 +17,16 @@ export interface MapNode {
   readonly path?: string;
   /** Proof identities retain their package qualifier when a dependent tests another story. */
   readonly testTitles?: SurveyedTest["titles"];
+  readonly snapshot?: SnapshotOrigin;
+  readonly changes?: readonly ChangeLabel[];
+  readonly unresolved?: string;
 }
 export interface MapEdge {
   readonly from: string;
   readonly to: string;
   readonly kind: "belongs-to" | "depends-on" | "implements" | "imports" | "tests";
   readonly provenance: "declared" | "inferred";
+  readonly snapshot?: SnapshotOrigin;
 }
 export interface ProjectGraph {
   readonly nodes: readonly MapNode[];

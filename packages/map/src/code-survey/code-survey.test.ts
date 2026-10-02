@@ -59,6 +59,33 @@ test("8.4 a relative import between two source files is reported, from the impor
   ]);
 });
 
+test("8.4 quoted fixtures and comments create no import edges or ownership, even when their paths resolve", () => {
+  for (const inert of [
+    `const fixture = 'import { answer } from "./main.js";';`,
+    `const fixture = "import('./main.js')";`,
+    'const fixture = `export { answer } from "./main.js";`;',
+    '// import "./main.js";',
+    '/* export * from "./main.js"; */',
+  ]) {
+    const surveyed = surveyStory([
+      { path: "src/main.ts", text: "export const answer = 42;" },
+      { path: "src/real.ts", text: "export const real = 1;" },
+      { path: "src/side.ts", text: "export {};" },
+      { path: "src/lazy.ts", text: "export {};" },
+      { path: "src/index.ts", text: 'export { real } from "./real.js";' },
+      { path: "src/fixture.test.ts", text: [inert,
+        'import { real } from "./index.js";',
+        'import "./side.js";',
+        'test("3.1 real imports", () => import("./lazy.js"));',
+      ].join("\n") },
+    ], capabilities);
+    assert.equal(surveyed.files.find(file => file.path === "src/main.ts")?.capability, undefined, inert);
+    assert.deepEqual(surveyed.tests?.[0]?.imports.map(edge => edge.to), ["src/index.ts", "src/side.ts", "src/lazy.ts"], inert);
+    assert.deepEqual(surveyed.imports, [{ from: "src/index.ts", to: "src/real.ts" }], inert);
+    assert.ok(surveyed.files.filter(file => file.path !== "src/main.ts").every(file => file.capability === "cap-claims"), inert);
+  }
+});
+
 test("8.6 a file a numbered test's runs executed belongs to the capability whose tests executed it most; a direct import outranks it, and it outranks a file reached only through further imports", () => {
   const covered = surveyStory(tree, capabilities, {
     "src/bins/run.ts": { "5": 2, "3": 1 },

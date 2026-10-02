@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "03826903796f29387598d79a71bd574906568461",
+  "evidence": "packages/website/evidence/chapter2",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "1.8",
+      "name": "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      "observed": "pass"
+    }
+  ]
+}

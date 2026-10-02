@@ -10,7 +10,7 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { z } from "zod";
 
 import { findProject, notAProjectYet, setUpProject, starterRolesIn, suggestProjectName } from "../routing/index.js";
-import { checkFilesWritten, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type SetupOptions } from "../setup/index.js";
+import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "../setup/index.js";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { lineOf, metaOf, seenCaller, type Caller } from "./server.js";
@@ -59,9 +59,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const { library, log } = await connections.reach(report.storytree.library, report.project.name, identity);
         // Seeded roles are read only when the agent is pointed at them (1.14, 8.19).
         const starterRoles = await starterRolesIn(library);
-        if (starterRoles.length > 0) {
-          said.push(`Its library holds the ${starterRoles.join(" and ")} roles, which say how to work in this project: find each with search_notes and read it before you start, and work as it says.`);
-        }
+        if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller((await log.since(report.project.name, 0)).lines, heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
@@ -116,9 +114,17 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
           folder, project: name, storytree: await connections.server(running.library), join: join === true,
           ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
         });
-        const { log } = await connections.reach(running.library, name);
+        const { library, log } = await connections.reach(running.library, name);
         await log.append(name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "set_up_project" });
-        return result({ text: `This folder is now storytree project ${quoted(name)}. Call check_setup to finish the setup.`, data: { project: name } });
+        // The setup finishes here, with no second check_setup in this session (8.22): that check could verify none
+        // of this session's hooks, which started before its folder was a project, and Codex's approval review
+        // judges each call to it afresh, refusing one now and then.
+        const starterRoles = await starterRolesIn(library);
+        const fixes: Fix[] = [caller.harness === "codex" && codexHooksState(setup) === "waiting" ? "codex-approval" : "new-session"];
+        const said = [`This folder is now storytree project ${quoted(name)}, and its setup is finished: carry on with the user's request, with no second check_setup in this session.`];
+        if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
+        said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
+        return result({ text: said.join(" "), data: { project: name, starterRoles, fixes } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -128,4 +134,13 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       }
     }) as never,
   );
+}
+
+/** What a session that set its project up is told of its hooks, which only a session started in the project can show. */
+const SET_UP_THIS_SESSION =
+  "A session's start reaches storytree only when the session starts in a storytree project, so storytree verifies the hooks in the next session here, and nothing is left unfinished in this one. Once its work is done, tell the user that a new session here checks them.";
+
+/** The starter roles the project's library holds (1.14, 8.19), named for the agent to open. */
+function rolesSentence(starterRoles: readonly string[]): string {
+  return `Its library holds the ${starterRoles.join(" and ")} roles, which say how to work in this project: find each with search_notes and read it before you start, and work as it says.`;
 }

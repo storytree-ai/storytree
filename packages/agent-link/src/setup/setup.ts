@@ -96,9 +96,7 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const homes = options.homes ?? defaultHomes();
   const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected);
   const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex);
-  // Whether a Codex hook has run since storytree's were registered: the only sign the user trusted them (3.18).
-  const trust = homes.codex === undefined || disconnected.has("codex") ? "not registered" : codexHookTrust({ storytreeHome: options.storytreeHome ?? storytreeHome(), codexHome: homes.codex });
-  const codexHooks = trust === "not registered" ? undefined : trust;
+  const codexHooks = codexHooksState(options);
   const found = findProject(options.folder);
   const project = found.project === undefined ? { status: "ask" as const, suggestion: suggestedName(options.folder) } : { status: "set up" as const, name: found.project };
   // The `storytree` command runs the front door built beside the hook script (ADR-0643 D1, 8).
@@ -113,6 +111,18 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   return { ...report, lines: setupLines(report) };
 }
 
+
+/**
+ * Whether a Codex hook has run since storytree's were registered, the only sign the user trusted them (3.18):
+ * undefined where Codex has none of storytree's hooks or the user disconnected it.
+ */
+export function codexHooksState(options: Pick<SetupOptions, "homes" | "storytreeHome">): "running" | "waiting" | undefined {
+  const home = options.storytreeHome ?? storytreeHome();
+  const codexHome = (options.homes ?? defaultHomes()).codex;
+  if (codexHome === undefined || disconnectedHarnesses(home).has("codex")) return undefined;
+  const trust = codexHookTrust({ storytreeHome: home, codexHome });
+  return trust === "not registered" ? undefined : trust;
+}
 
 /** Whether Codex's config.toml in `home` registers storytree's tool server, where Codex has a home here. */
 function codexServerState(home: string | undefined): SetupReport["codexServer"] {

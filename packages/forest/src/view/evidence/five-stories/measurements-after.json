@@ -1,0 +1,327 @@
+{
+  "label": "after",
+  "browser": "148.0.7778.96",
+  "forests": {
+    "row": {
+      "errors": [],
+      "plates": [
+        {
+          "title": "Have an account",
+          "box": [
+            664,
+            554,
+            776,
+            587
+          ],
+          "shown": true,
+          "facing": 1,
+          "drop": 0
+        },
+        {
+          "title": "Comment on articles",
+          "box": [
+            598,
+            590,
+            710,
+            624
+          ],
+          "shown": true,
+          "facing": 0.98,
+          "drop": 35.27423095703125
+        },
+        {
+          "title": "Browse the home page feed",
+          "box": [
+            730,
+            606,
+            842,
+            655
+          ],
+          "shown": true,
+          "facing": 0.98,
+          "drop": 51.52197265625
+        },
+        {
+          "title": "Read and write articles",
+          "box": [
+            534,
+            555,
+            646,
+            588
+          ],
+          "shown": true,
+          "facing": 0.94,
+          "drop": 0
+        },
+        {
+          "title": "Follow people and favourite articles",
+          "box": [
+            794,
+            555,
+            906,
+            603
+          ],
+          "shown": true,
+          "facing": 0.94,
+          "drop": 0
+        }
+      ],
+      "shown": "5 of 5",
+      "overlaps": []
+    },
+    "chain": {
+      "errors": [],
+      "plates": [
+        {
+          "title": "Have an account",
+          "box": [
+            664,
+            796,
+            776,
+            829
+          ],
+          "shown": true,
+          "facing": 0.74,
+          "drop": 0
+        },
+        {
+          "title": "Comment on articles",
+          "box": [
+            664,
+            687,
+            776,
+            720
+          ],
+          "shown": true,
+          "facing": 0.93,
+          "drop": 0
+        },
+        {
+          "title": "Browse the home page feed",
+          "box": [
+            664,
+            555,
+            776,
+            604
+          ],
+          "shown": true,
+          "facing": 1,
+          "drop": 0
+        },
+        {
+          "title": "Read and write articles",
+          "box": [
+            664,
+            421,
+            776,
+            454
+          ],
+          "shown": true,
+          "facing": 0.93,
+          "drop": 0
+        },
+        {
+          "title": "Follow people and favourite articles",
+          "box": [
+            664,
+            300,
+            776,
+            349
+          ],
+          "shown": true,
+          "facing": 0.74,
+          "drop": 0
+        }
+      ],
+      "shown": "5 of 5",
+      "overlaps": []
+    },
+    "storytree": {
+      "errors": [],
+      "plates": [
+        {
+          "title": "The library",
+          "box": [
+            562,
+            829,
+            650,
+            847
+          ],
+          "shown": true,
+          "facing": 0.71,
+          "drop": 0
+        },
+        {
+          "title": "The agent link",
+          "box": [
+            759,
+            687,
+            871,
+            705
+          ],
+          "shown": true,
+          "facing": 0.96,
+          "drop": 0
+        },
+        {
+          "title": "The app",
+          "box": [
+            526,
+            547,
+            595,
+            566
+          ],
+          "shown": true,
+          "facing": 0.89,
+          "drop": 0
+        },
+        {
+          "title": "The forest",
+          "box": [
+            705,
+            348,
+            789,
+            366
+          ],
+          "shown": true,
+          "facing": 0.77,
+          "drop": 0
+        },
+        {
+          "title": "The arc surface",
+          "box": [
+            767,
+            406,
+            879,
+            439
+          ],
+          "shown": true,
+          "facing": 0.88,
+          "drop": 0
+        },
+        {
+          "title": "The command line",
+          "box": [
+            603,
+            259,
+            715,
+            292
+          ],
+          "shown": true,
+          "facing": 0.56,
+          "drop": 0
+        },
+        {
+          "title": "The librarian",
+          "box": [
+            645,
+            720,
+            746,
+            739
+          ],
+          "shown": true,
+          "facing": 0.9,
+          "drop": 0
+        },
+        {
+          "title": "The knowledge core",
+          "box": [
+            618,
+            495,
+            730,
+            544
+          ],
+          "shown": true,
+          "facing": 0.96,
+          "drop": 0
+        },
+        {
+          "title": "The app setup",
+          "box": [
+            893,
+            505,
+            1002,
+            523
+          ],
+          "shown": true,
+          "facing": 0.76,
+          "drop": 0
+        },
+        {
+          "title": "Process ledger",
+          "box": [
+            425,
+            770,
+            537,
+            803
+          ],
+          "shown": true,
+          "facing": 0.51,
+          "drop": 0
+        },
+        {
+          "title": "The website",
+          "box": [
+            753,
+            248,
+            849,
+            266
+          ],
+          "shown": true,
+          "facing": 0.56,
+          "drop": 0
+        },
+        {
+          "title": "The world",
+          "box": [
+            853,
+            858,
+            936,
+            877
+          ],
+          "shown": true,
+          "facing": 0.47,
+          "drop": 0
+        },
+        {
+          "title": "The local database",
+          "box": [
+            394,
+            806,
+            506,
+            839
+          ],
+          "shown": true,
+          "facing": 0.26,
+          "drop": 32.13140869140625
+        },
+        {
+          "title": "The dev loop",
+          "box": [
+            546,
+            415,
+            646,
+            433
+          ],
+          "shown": true,
+          "facing": 0.82,
+          "drop": 0
+        },
+        {
+          "title": "Keys",
+          "box": [
+            983,
+            754,
+            1031,
+            772
+          ],
+          "shown": false,
+          "facing": -0.03,
+          "drop": 0
+        }
+      ],
+      "shown": "14 of 15",
+      "overlaps": []
+    }
+  }
+}

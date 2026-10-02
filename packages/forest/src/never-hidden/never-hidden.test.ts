@@ -65,9 +65,11 @@ test("3.11 turning the view removes front-side markers and places hidden ones on
   assert.equal(edgeMarkers([island("on-rim", FRONT, "unhealthy")], north).length, 1, "an edge-on island still has a marker");
 });
 
-test("without failures the first story is faced, and an empty globe keeps its neutral turn", () => {
+test("without failures the islands' middle is faced, or the first story where they ring the globe; an empty globe keeps its neutral turn", () => {
+  const low = island("low", { x: 0, y: -2, z: 3 }, "proposed"), high = island("high", { x: 0, y: 2, z: 3 }, "healthy");
+  facesFront(FRONT, openingTurn([low, high]));
   const first = island("first", { x: -5, y: 2, z: 1 }, "proposed", "untested", "healthy");
-  facesFront(first.spot, openingTurn([first, island("second", FRONT, "healthy")]));
+  facesFront(first.spot, openingTurn([first, island("opposite", { x: 5, y: -2, z: -1 }, "healthy")]));
   facesFront(first.spot, turnToIsland(first.spot));
   assert.deepEqual(openingTurn([]), { yaw: 0, pitch: 0 });
   assert.deepEqual(edgeMarkers([], FRONT), []);

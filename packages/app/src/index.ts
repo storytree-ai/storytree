@@ -24,6 +24,8 @@ export { seedWriting } from "./updates/seed-writing.js";
 export { ReleaseUpdater } from "./updates/releases.js";
 export { QUIET_MS, SETTLE_MS, whenToInstall } from "./updates/install-moment.js";
 export type { InstallMoment } from "./updates/install-moment.js";
+export { installChoice } from "./updates/install-choice-file.js";
+export type { InstallChoice, InstallChoiceState } from "./updates/install-choice.js";
 export { agentActiveAt } from "./updates/agent-activity.js";
 export type { ReleaseOptions } from "./updates/releases.js";
 export { buildLabel, launchToRecord } from "./lifecycle/launch.js";

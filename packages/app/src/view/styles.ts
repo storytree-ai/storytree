@@ -64,6 +64,18 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-update-status strong, .app-update-status span { display: block; }
 .app-update-status strong { font-weight: 600; color: #eceae3; }
 .app-update-status span { margin-top: 6px; color: #a9b0ba; }
+.app-install-choice { margin: 28px 0 0; padding: 20px 0 0; border: 0; border-top: 1px solid #485159; min-inline-size: 0; }
+.app-install-choice legend { float: left; width: 100%; margin: 0 0 12px; padding: 0; font-weight: 600; color: #eceae3; }
+.app-install-choice > label { display: flex; gap: 12px; align-items: flex-start; clear: left; padding: 8px 0; cursor: pointer; }
+.app-install-choice > label > input { margin: 4px 0 0; accent-color: #a9b0ba; cursor: pointer; }
+.app-install-choice strong, .app-install-choice label > span > span { display: block; }
+.app-install-choice strong { font-weight: 500; color: #eceae3; }
+.app-install-choice label > span > span { margin-top: 4px; color: #a9b0ba; }
+.app-install-hours { display: flex !important; flex-wrap: wrap; gap: 8px; align-items: center; }
+.app-install-hours input { font: inherit; color: #eceae3; background: #262a2f; border: 1px solid #485159; border-radius: 4px; padding: 3px 6px; color-scheme: dark; }
+.app-install-hours input:disabled { opacity: 0.5; }
+.app-install-next { margin: 12px 0 0; color: #a9b0ba; overflow-wrap: anywhere; }
+.app-install-error { margin: 8px 0 0; color: #ffaaaa; }
 .app-sign-in { display: flex; gap: 12px; align-items: flex-start; margin-top: 28px; padding-top: 20px; border-top: 1px solid #485159; cursor: pointer; }
 .app-sign-in input { margin: 4px 0 0; accent-color: #a9b0ba; cursor: pointer; }
 .app-sign-in strong, .app-sign-in span span { display: block; }

@@ -54,8 +54,8 @@ try {
     await copy.locator("#copy-command").click();
     await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
     assert.equal(await copy.evaluate(() => navigator.clipboard.readText()), expected);
-    await copy.evaluate(() => Object.defineProperty(navigator, "clipboard", {
-      configurable: true, value: { writeText: async () => { throw new Error("Clipboard denied for this proof"); } },
+    await copy.evaluate(() => Object.defineProperty(navigator.clipboard, "writeText", {
+      configurable: true, value: async () => { throw new Error("Clipboard denied for this proof"); },
     }));
     await copy.locator("#copy-command").click();
     await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "failed");
@@ -66,10 +66,10 @@ try {
       for (const outcome of ["copied", "failed", "tab-away"]) {
         await copy.evaluate(() => {
           window.copyWrites = 0;
-          Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => {
+          Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: () => {
             window.copyWrites++;
             return new Promise((resolve, reject) => { window.finishCopy = resolve; window.denyCopy = reject; });
-          } } });
+          } });
         });
         await copy.locator("#copy-command").focus();
         await copy.keyboard.press("Enter");

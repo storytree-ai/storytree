@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { escapeHtml, installCommand } from "./install-command.js";
+import { openingMarkup } from "./opening-markup.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -37,6 +38,7 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   const template = await readFile(path.join(packageRoot, "src/index.html"), "utf8");
   if (template.split("<!-- INSTALL_COMMAND -->").length !== 2) throw new Error("The home page needs one install-command slot.");
   const home = template.replace("<!-- INSTALL_COMMAND -->", escapeHtml(command))
+    .replace("<!-- OPENING -->", openingMarkup())
     .replace("</head>", `  <meta name="storytree-commit" content="${version}">\n  </head>`);
   await writeFile(path.join(output, "index.html"), home);
   await writeFile(path.join(output, "version.txt"), `${version}\n`);

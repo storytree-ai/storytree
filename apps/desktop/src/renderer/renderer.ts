@@ -33,6 +33,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   background: content,
   checkForUpdates: (action) => window.storytree.checkForUpdates(action),
   signIn: { read: () => window.storytree.readSignIn(), set: (on) => window.storytree.setSignIn(on) },
+  installChoice: { read: () => window.storytree.readInstallChoice(), set: (choice) => window.storytree.setInstallChoice(choice) },
   chooseProject: async (name) => { await window.storytree.chooseProject(name); },
   onChosen: () => following?.refresh(),
   // A surface switched or set in the Surfaces menu shows at once: the project is drawn again.

@@ -38,6 +38,7 @@ test("4.14 the Updates section shows the install choice that is on, saves a chan
   let kept: InstallChoice = { mode: "hours", from: "01:00", to: "06:00" };
   const asked: unknown[] = [];
   let refuse = false;
+  let changes = 0;
   const mounted = mountInstallChoice(host as unknown as HTMLElement, {
     async read(): Promise<InstallChoiceState> { return { available: true, choice: kept }; },
     async set(choice) {
@@ -46,7 +47,7 @@ test("4.14 the Updates section shows the install choice that is on, saves a chan
       kept = choice;
       return { available: true, choice: kept };
     },
-  }, () => new Date(2026, 9, 2, 12, 0));
+  }, () => new Date(2026, 9, 2, 12, 0), () => { changes += 1; });
   await setImmediate();
   const field = host.querySelector("[data-app-install-choice]")!;
   const radio = (mode: string) => field.querySelector(`input[value="${mode}"]`) as HTMLInputElement;
@@ -62,6 +63,7 @@ test("4.14 the Updates section shows the install choice that is on, saves a chan
   assert.deepEqual(asked.at(-1), { mode: "manual" });
   assert.equal(radio("manual").checked, true);
   assert.match(next(), /Check for updates/);
+  assert.equal(changes, 1, "a saved change is announced, so the pending update's line follows it");
 
   refuse = true;
   radio("quiet").checked = true;
@@ -69,6 +71,7 @@ test("4.14 the Updates section shows the install choice that is on, saves a chan
   await setImmediate();
   assert.deepEqual(asked.at(-1), { mode: "quiet" });
   assert.equal(radio("manual").checked, true, "a refused change keeps the old choice");
+  assert.equal(changes, 1);
   const error = field.querySelector("[data-app-install-error]")!;
   assert.equal(error.hasAttribute("hidden"), false);
   assert.match(error.textContent, /Say a time as HH:MM/);
@@ -79,10 +82,11 @@ test("4.14 the install choice is hidden where the app does not install releases"
   const window = new Window();
   const host = window.document.createElement("div");
   host.innerHTML = renderAppMenu();
-  mountInstallChoice(host as unknown as HTMLElement, {
+  const mounted = mountInstallChoice(host as unknown as HTMLElement, {
     async read() { return { available: false, choice: { mode: "quiet" } }; },
     async set() { throw new Error("unused"); },
   });
   await setImmediate();
   assert.equal(host.querySelector("[data-app-install-choice]")!.hasAttribute("hidden"), true);
+  mounted.stop();
 });

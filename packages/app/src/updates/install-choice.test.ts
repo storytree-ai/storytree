@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { installChoice, nextInstallAt } from "./install-choice.js";
+import { nextInstallAt } from "./install-choice.js";
+import { installChoice } from "./install-choice-file.js";
 
 const fileIn = () => path.join(mkdtempSync(path.join(tmpdir(), "install-choice-")), "install-choice.json");
 

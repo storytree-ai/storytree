@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { pinStable, type PinPorts, type StableManifest } from "./stable-pin.js";
+import { mergedPullRequests, pinStable, type PinPorts, type StableManifest } from "./stable-pin.js";
 import { publishStable, type GithubRequest } from "./stable-github.js";
 
 function fixture() {
@@ -31,6 +31,10 @@ function fixture() {
   };
   return { state, ports };
 }
+
+test("4.16 a PR mentioned by another merge is not recorded as shipped", () => {
+  assert.deepEqual([...mergedPullRequests("Merge pull request #531 from storytree-ai/update\nMention (#600) and Merge pull request #601\nMerge pull request #532 from storytree-ai/pin")], ["531", "532"]);
+});
 
 test("4.16 a pin reuses the released installer and records only newly landed increments; late closure records survive the boundary", async () => {
   const { state, ports } = fixture();

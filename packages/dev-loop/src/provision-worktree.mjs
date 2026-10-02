@@ -14,7 +14,7 @@
 //   - UNLINKED: an install reported success but no workspace package got a node_modules of its own
 //     (0.2 met this: "Already up to date", exit 0, and nothing could run). The root's node_modules
 //     holds no .bin in a pnpm workspace even when healthy, so the packages are where to look.
-//   - BEHIND: a workspace package depends on another (`workspace:` in its package.json) that its
+//   - BEHIND: the root or a workspace package depends on another (`workspace:` in its package.json) that its
 //     node_modules has no link to. It happens when main adds a workspace package after the last
 //     install: the lockfile can match and every package still has a node_modules, yet the first
 //     import of the new package fails, naming it, not the cause.
@@ -30,6 +30,8 @@
 // the cause, so it is refused in one line that names the command to run. A session reaches it when
 // its start hook never ran in this worktree (a launch path that skips it). STALE is let through: the
 // command line usually still runs, and the session-start refresh or `pnpm install` is its fix.
+// Missing links take priority over STALE: a matching lockfile is not proof that the links exist,
+// and a different installed lockfile must not hide a link the command line needs.
 //
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
@@ -47,9 +49,9 @@ const WORKSPACE_GROUPS = ["packages", "apps"];
 function conditionOf(root) {
   const modules = path.join(root, "node_modules");
   if (!existsSync(path.join(modules, ".modules.yaml"))) return "fresh";
-  if (lockfileAdvanced(root)) return "stale";
   if (unlinked(root)) return "unlinked";
   if (missingLink(root)) return "behind";
+  if (lockfileAdvanced(root)) return "stale";
   return undefined;
 }
 
@@ -76,7 +78,13 @@ function* workspacePackages(root) {
 
 /** The first workspace dependency with no link in its dependant's node_modules, as "dependant → dependency", or undefined. */
 function missingLink(root) {
-  for (const { dir, manifest } of workspacePackages(root)) {
+  const packages = [...workspacePackages(root)];
+  try {
+    packages.unshift({ dir: root, manifest: JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) });
+  } catch {
+    // Like a workspace package, an unreadable root manifest is not one this check can judge.
+  }
+  for (const { dir, manifest } of packages) {
     for (const field of ["dependencies", "devDependencies"]) {
       for (const [name, spec] of Object.entries(manifest[field] ?? {})) {
         if (typeof spec !== "string" || !spec.startsWith("workspace:")) continue;
@@ -124,9 +132,9 @@ export function pnpmInstall(root) {
 }
 
 /**
- * Install root's dependencies if it is fresh, stale or unlinked, trying `retries` more times after a
+ * Install root's dependencies if it is fresh, stale, unlinked or behind, trying `retries` more times after a
  * failure (a failed install leaves the store warm, so the retry is quick).
- * @returns {{ ok: boolean, condition?: "fresh" | "stale" | "unlinked", code: number }}
+ * @returns {{ ok: boolean, condition?: "fresh" | "stale" | "unlinked" | "behind", code: number }}
  */
 export function provision({ root = repoRoot, install = pnpmInstall, retries = 1, log = () => {} } = {}) {
   const condition = conditionOf(root);
@@ -174,7 +182,7 @@ const WHAT_HAPPENED = {
     'reinstall at session start failed. A later install may again print "Already up to date"; check ' +
     "that the packages have a node_modules afterwards",
   behind:
-    "is BEHIND: a workspace package depends on another its node_modules has no link to (a workspace " +
+    "is BEHIND: the root or a workspace package depends on another its node_modules has no link to (a workspace " +
     "package landed on main since the last install), and the automatic reinstall at session start failed",
 };
 

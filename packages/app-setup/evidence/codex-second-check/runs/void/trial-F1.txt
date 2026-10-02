@@ -1,0 +1,18 @@
+  (raw) codex : Reading additional input from stdin...
+  (raw) At line:1 char:9
+  (raw) + $null | codex exec --skip-git-repo-check --approve-for-me --dangerous ...
+  (raw) +         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  (raw)     + CategoryInfo          : NotSpecified: (Reading additional input from stdin...:String) [], RemoteException
+  (raw)     + FullyQualifiedErrorId : NativeCommandError
+  (raw)  
+  - error
+  - error
+MSG: I’ll set up this folder as a storytree project, then create `hello.txt` containing `hi`.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Force | Select-Object Name,Mod exit 0
+  - st:check_setup {} failed ERROR {"message":"tool call error: tool call failed for `storytree/check_setup`\n\nCaused by:\n    Transport closed"}
+  - st:set_up_project {"name":"sc-trial-f1"} failed ERROR {"message":"tool call error: tool call failed for `storytree/set_up_project`\n\nCaused by:\n    Transport closed"}
+MSG: Storytree’s connection failed with “Transport closed,” so I couldn’t initialize the project. I haven’t created `hello.txt`, since you asked for setup first.
+
+Please restart storytree, then I can retry both steps.
+USAGE {"input_tokens":87929,"cached_input_tokens":75264,"cache_write_input_tokens":0,"output_tokens":262,"reasoning_output_tokens":32}

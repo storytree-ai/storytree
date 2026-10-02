@@ -1,0 +1,5 @@
+Codex: tools connected; hooks waiting for you to trust them in Codex.
+Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. In Codex, type /hooks and trust storytree's hooks (Codex also asks by itself when it starts, as "Hooks need review"), then start a new Codex session. This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not "Run as administrator".
+
+trial F2, arm 'F': args = ["C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3\\resources\\agent-tools\\storytree-mcp-armF.mjs"]
+folder empty: True; AGENTS.md: True; hooks.json: True

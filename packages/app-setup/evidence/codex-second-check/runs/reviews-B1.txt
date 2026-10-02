@@ -1,0 +1,29 @@
+=== reviewer session rollout-2026-10-02T11-38-06-01a0fa42-f2e6-7c73-9324-fab88326b61e.jsonl
+  ACTION { "arguments": {}, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "check_setup" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"The user explicitly requested storytree setup, and check_setup is the required initial local setup check."}
+  ACTION { "arguments": { "name": "sc-trial-b1" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "set_up_project" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"The user explicitly authorized setting up this folder as a new storytree project; using the folder-derived name is a narrow, routine setup side effect."}
+  ACTION { "arguments": {}, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "check_setup" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"This is the required final local verification step for the storytree setup the user explicitly requested."}
+  ACTION { "arguments": { "limit": 2, "query": "orchestrator librarian" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "search_notes" }
+  ANSWER {"risk_level":"low","user_authorization":"low","outcome":"allow","rationale":"This is a read-only, narrowly scoped search of project notes with no material side effects."}
+  ACTION { "arguments": {}, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "check_setup" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"This is the required storytree setup verification for the project the user explicitly requested."}
+  ACTION { "arguments": { "id": "agent_85074224069b" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "open" }
+  ANSWER {"risk_level":"low","user_authorization":"low","outcome":"allow","rationale":"Opening the identified project role note is a read-only action with no meaningful side effects."}
+  ACTION { "arguments": { "id": "agent_ead3c88f355f" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "open" }
+  ANSWER {"risk_level":"low","user_authorization":"low","outcome":"allow","rationale":"Opening the project�?Ts orchestrator note is read-only and has no meaningful side effects."}
+  ACTION { "arguments": {}, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "show_plan" }
+  ANSWER {"risk_level":"low","user_authorization":"low","outcome":"allow","rationale":"Showing the storytree plan is read-only and has no meaningful side effects."}
+  ACTION { "arguments": { "founding": { "text": "The user asked for hello.txt in this folder saying hi.", "title": "A plain text greeting" }, "title": "Read a greeting" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "plan_story" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"This narrowly records the user-requested greeting as a storytree plan item; it is a reversible local metadata change with no destructive or external side effects."}
+  ACTION { "arguments": { "founding": { "text": "Create the requested plain text file at the project root.", "title": "hello.txt contains hi" }, "story": "story_65fd659eb4b2", "title": "Greeting file" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "plan_capability" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"This is a narrow, reversible storytree metadata update documenting the requested hello.txt capability."}
+  ACTION { "arguments": { "capability": "capability_19bfcf0ab2d8", "reason": "Create hello.txt" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "claim" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"Claiming the capability is a narrow, reversible project-metadata action directly tied to creating the user-requested file."}
+  ACTION { "arguments": { "built": true, "capability": "capability_19bfcf0ab2d8" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "mark_built" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"Marking the completed hello.txt capability as built is a narrow, reversible project-record update tied to the user�?Ts requested file."}
+  ACTION { "arguments": { "capability": "capability_19bfcf0ab2d8" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "land" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"Landing the completed capability is a narrow, reversible project-record update tied to the requested hello.txt file."}
+  ACTION { "arguments": { "safe": false, "why": "Created hello.txt and verified its contents. Session-start hook verification still requires a new trusted Codex session; files remain local." }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "close_out" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"Closing out with safe=false is a bounded project-session record update and accurately preserves the unresolved hook-verification status."}

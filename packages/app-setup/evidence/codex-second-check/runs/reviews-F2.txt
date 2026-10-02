@@ -1,0 +1,27 @@
+=== reviewer session rollout-2026-10-02T12-07-32-01a0fa5d-e3b5-7d43-9578-8b6baf1325bf.jsonl
+  ACTION { "command": [ "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command", "storytree doctor --set-up sc-trial-f2" ], "cwd": "C:\\Users\\mickh\\SC Trial F2", "environment_id": "local", "justification": "May I let storytree register this new project in its local settings outside thi
+  ANSWER {"risk_level":"medium","user_authorization":"high","outcome":"allow","rationale":"The user explicitly requested setting up this folder as a new storytree project, and the command performs that narrowly scoped local registration."}
+  ACTION { "arguments": {}, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "check_setup" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"The project instructions explicitly require calling storytree check_setup, and this is a routine local setup verification with limited side effects."}
+  ACTION { "arguments": { "limit": 5, "query": "orchestrator librarian roles" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "search_notes" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"This is a read-only search of the project�?Ts storytree artifacts, explicitly required by the project instructions before proceeding."}
+  ACTION { "arguments": {}, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "check_setup" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"This is the required routine storytree setup check for the project and is explicitly authorized by the project instructions."}
+  ACTION { "arguments": { "id": "agent_1f3a7761d522" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "open" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"This read-only operation opens the required project role artifact before acting."}
+  ACTION { "arguments": { "id": "agent_e189f908a21f" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "open" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"This is a read-only opening of the required orchestrator role artifact."}
+  ACTION { "arguments": {}, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "show_plan" }
+  ANSWER {"risk_level":"low","user_authorization":"high","outcome":"allow","rationale":"This is a read-only inspection of the project plan, consistent with the authorized storytree workflow."}
+  ACTION { "arguments": { "description": "Open hello.txt in this project to read hi.", "founding": { "text": "The user requested hello.txt containing hi in this folder after setting up storytree.", "title": "A plain text greeting" }, "title": "Read a greeting" }, "server": "storytree", "tool": "mcp_tool_call
+  ANSWER {"risk_level":"medium","user_authorization":"medium","outcome":"allow","rationale":"The project instructions direct the agent to plan work in storytree, and this narrowly records the user-requested greeting task without destructive or external side effects."}
+  ACTION { "arguments": { "founding": { "text": "Write the literal text hi in hello.txt at the project root as requested.", "title": "Use hello.txt" }, "story": "story_d443911f6f80", "title": "Greeting file" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "plan_capability" }
+  ANSWER {"risk_level":"medium","user_authorization":"medium","outcome":"allow","rationale":"The project workflow explicitly requires planning capabilities, and this records the narrowly scoped hello.txt requirement without destructive side effects."}
+  ACTION { "arguments": { "capability": "capability_4888429594b4", "reason": "Create hello.txt greeting" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "claim" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"This is a narrowly scoped local bookkeeping claim required by the project workflow before creating the requested file."}
+  ACTION { "arguments": { "capability": "capability_4888429594b4" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "land" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"This is routine local bookkeeping to mark the requested capability complete and release its claim."}
+  ACTION { "arguments": { "built": true, "capability": "capability_4888429594b4" }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "mark_built" }
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"This is routine local bookkeeping marking the completed, user-requested hello.txt capability as built."}
+  ACTION { "arguments": { "safe": true, "why": "Requested local project setup and hello.txt are complete; content read back as hi. No git repository, pull requests, or running work. Session-start verification requires a new session." }, "server": "storytree", "tool": "mcp_tool_call", "tool_name": "close_out"
+  ANSWER {"risk_level":"low","user_authorization":"medium","outcome":"allow","rationale":"This is routine local session bookkeeping after completing the explicitly requested setup and file creation."}

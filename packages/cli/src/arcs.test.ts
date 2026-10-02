@@ -187,7 +187,7 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
   });
 });
 
-test("4.7 `arc increment move` re-homes an increment to another arc, keeping its id and its claim", async () => {
+test("4.7 `arc increment move` re-homes open work with its claim and closed history with its outcome", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const [from, to] = [await anArc(world), await anArc(world)];
@@ -204,6 +204,16 @@ test("4.7 `arc increment move` re-homes an increment to another arc, keeping its
       assert.deepEqual((await library.arcView(to))?.increments.map(({ id }) => id), [increment.id]);
       assert.deepEqual((await library.arcView(from))?.increments, []);
       assert.equal((await readClaims(log, world.project))[0]?.increment, increment.id, "the claim survives the move");
+
+      await library.closeIncrement(increment.id, { disposition: "landed", pr: "#7" });
+      const historyArc = await anArc(world);
+      const closedSeed = await library.addIncrement({ arc: historyArc, title: "Earlier", objective: "Done", body: "Done" });
+      await library.closeIncrement(closedSeed.id, { disposition: "landed", pr: "#6" });
+      const historyMove = await world.run(["arc", "increment", "move", increment.id, "--to", historyArc, "--reason", "separate the completed phase"]);
+      assert.equal(historyMove.code, 0, historyMove.stderr);
+      const moved = (await library.arcView(historyArc))?.increments.find(({ id }) => id === increment.id);
+      assert.equal(moved?.fields.status, "closed");
+      assert.equal(moved?.fields.outcome?.pr, "#7");
     } finally {
       await log.close();
     }

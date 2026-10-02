@@ -232,7 +232,7 @@ const incrementEdit: Verb = {
 const incrementMove: Verb = {
   name: "move",
   usage: "arc increment move <increment> --to <arc> --reason <why>",
-  summary: "re-home an open increment on another live arc, keeping its id, waits and claims",
+  summary: "re-home an increment on another live arc, keeping its identity and lifecycle",
   async act(args, context) {
     const id = args.word(0, "the increment's id", this.usage);
     const to = args.need("to", this.usage);

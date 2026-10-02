@@ -217,7 +217,7 @@ for (const backend of [memory, postgres]) {
     assert.ok(reads <= 3, `${reads} reads for ${arcs.length} arcs`);
   });
 
-  contract("10.5", "an open increment moves to another live arc keeping its id and waits, the history recording the move and its reason; a closed increment, or a move to a closed arc, is refused with nothing written", async ({ work, flight, transactions }) => {
+  contract("10.5", "an increment moves to another live arc keeping its id, lifecycle and waits, the history recording the move and its reason; only open work moving to a closed arc is refused", async ({ work, flight, transactions }) => {
     const from = await work.createArc(ARC);
     const to = await work.createArc(ARC);
     const blocker = await flight.addIncrement({ arc: from.id, ...WORK });
@@ -236,11 +236,22 @@ for (const backend of [memory, postgres]) {
     assert.equal(last?.reason, "belongs with the launch work", "the history keeps why it moved");
     assert.equal(last?.actor, "agent-m");
 
-    // A closed increment is the log of the arc it closed on; a closed arc takes nothing new (ADR-0792 D2).
+    // Completed history can be decomposed without reopening either arc or losing its outcome.
     await flight.closeIncrement(blocker.id, { pr: "#1", disposition: "landed" });
+    await flight.closeIncrement(increment.id, { pr: "#2", disposition: "landed" });
+    const movedHistory = await flight.moveIncrement(blocker.id, to.id, "split the completed arc", { actor: "owner" });
+    assert.equal(movedHistory?.fields.status, "closed");
+    assert.deepEqual(movedHistory?.fields.outcome, { date: movedHistory?.fields.outcome?.date, disposition: "landed", pr: "#1" });
+    assert.equal((await flight.arcView(from.id))?.state, "active", "an emptied arc is ready for its newly scoped work");
+    assert.equal((await flight.arcView(to.id))?.state, "closed", "closed history does not reopen its destination");
+    const historyMove = (await transactions.history({ id: blocker.id })).at(-1);
+    assert.equal(historyMove?.reason, "split the completed arc");
+    assert.equal(historyMove?.actor, "owner");
+
+    const openArc = await work.createArc(ARC);
+    const open = await flight.addIncrement({ arc: openArc.id, ...WORK });
     const history = await transactions.history();
-    await assert.rejects(flight.moveIncrement(blocker.id, to.id, "tidy"), LifecycleError);
-    await assert.rejects(flight.moveIncrement(increment.id, from.id, "back"), (error: unknown) => error instanceof RangeError && error.message.includes("closed"));
+    await assert.rejects(flight.moveIncrement(open.id, to.id, "new work"), (error: unknown) => error instanceof RangeError && error.message.includes("closed"));
     await assert.rejects(flight.moveIncrement(increment.id, "arc_000000000000", "nowhere"), MissingReferenceError);
     assert.deepEqual(await transactions.history(), history, "nothing was written");
     assert.equal(await flight.moveIncrement("increment_000000000000", to.id, "ghost"), null);

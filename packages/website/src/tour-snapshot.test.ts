@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { refreshTourSnapshot, type TourReading } from "./tour-snapshot.js";
 
 const at = "2026-10-02T00:00:00.000Z";
@@ -31,7 +31,7 @@ function reading(): TourReading {
   } as unknown as TourReading;
 }
 
-async function saved(t: Parameters<Parameters<typeof test>[1]>[0]) {
+async function saved(t: TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), "website-recording-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   return path.join(directory, "snapshot.json");
@@ -68,7 +68,7 @@ test("3.3 · recording is exactly the requested half-open time window, preservin
 test("3.2, 3.3 · credential-like retained text or an invalid window refuses refresh and preserves the saved file", async t => {
   const file = await saved(t);
   await writeFile(file, "last valid snapshot\n");
-  for (const value of ["ghp_" + "a".repeat(36), "-----BEGIN PRIVATE KEY-----", "postgres://user:password@example.test/db", 'api_key="' + "a".repeat(30) + '"']) {
+  for (const value of ["password=short", "client_secret=syntheticOAuthSecret123456789", "ghp_" + "a".repeat(36), "-----BEGIN PRIVATE KEY-----", "postgres://user:password@example.test/db", 'api_key="' + "a".repeat(30) + '"']) {
     const input = reading();
     input.tree.stories[0]!.description = value;
     await assert.rejects(refreshTourSnapshot(file, async () => input), /credential/i);

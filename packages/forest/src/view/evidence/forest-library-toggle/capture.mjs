@@ -431,7 +431,7 @@ try {
   complete = true;
 } finally {
   if (!complete) for (const contract of ['3.5', '3.9', '3.10']) checks.push({ contract, name: 'complete browser journey', observed: 'not-observed' });
-  writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
+  writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'The forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
 }

@@ -2,6 +2,7 @@
  * Capability 4 · Updates, contract 4.4: when a downloaded release may restart the installed app.
  * Installing stops the app and its database for a minute or two, so it waits for a quiet moment.
  */
+import type { InstallChoice } from "./install-choice.js";
 
 /** How long after a launch the app is left alone: its user, or an agent, has just opened it. */
 export const SETTLE_MS = 10 * 60_000;
@@ -17,6 +18,10 @@ export interface InstallMoment {
   readonly agentActiveAt?: number;
   /** The user asked for the update from the gear. */
   readonly asked?: boolean;
+  /** When the user lets a release install itself (4.13); undefined reads as any quiet moment. */
+  readonly choice?: InstallChoice;
+  /** The local time of day, in minutes after midnight, for quiet hours. */
+  readonly minuteOfDay?: number;
 }
 
 export function whenToInstall(moment: InstallMoment): "now" | "wait" {

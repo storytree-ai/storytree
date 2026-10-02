@@ -1,4 +1,5 @@
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
+import type { InstallChoice, InstallChoiceState } from "../updates/install-choice.js";
 
 /**
  * Plain, live status inside the gear; closing the menu never cancels an update. The status is read
@@ -92,4 +93,10 @@ export function mountSignIn(host: HTMLElement, bridge: SignInBridge | undefined)
   box.addEventListener("change", change);
   void bridge?.read().then(show, () => { label.hidden = true; });
   return { stop() { stopped = true; box.removeEventListener("change", change); } };
+}
+
+export interface InstallChoiceBridge { read(): Promise<InstallChoiceState>; set(choice: InstallChoice): Promise<InstallChoiceState> }
+
+export function mountInstallChoice(_host: HTMLElement, _bridge: InstallChoiceBridge | undefined, _now: () => Date = () => new Date()) {
+  return { stop() {} };
 }

@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderAppMenu, renderSwitcher } from "./render.js";
+import { renderAppMenu, renderNoProjects, renderSwitcher } from "./render.js";
+
+test("2.5: the empty page explains adding a project from the gear menu or the command line", () => {
+  const html = renderNoProjects();
+  assert.match(html, /<h1>No projects yet<\/h1>/);
+  assert.match(html, /Add a folder as a project from the gear menu: Projects → Add project…/);
+  assert.match(html, /<code>storytree doctor --set-up &lt;name&gt;<\/code> in the folder/);
+});
 
 // App capability 2: the gear and project switcher (pending contracts in evidence/top-bars/library-update).
 test("2.6–2.8 the app bar holds only the gear and opens a sectioned overlay", () => {

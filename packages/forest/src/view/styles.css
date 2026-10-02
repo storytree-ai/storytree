@@ -1,3 +1,651 @@
+/* Shared forest surface. Hosts supply their frame and choose their theme. */
+.forest-workspace {
+  position: relative;
+  font: 15px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+}
+
+.forest-workspace, .forest-workspace * {
+  box-sizing: border-box;
+}
+
+/* Opt-in desktop dark palette for hosts without the desktop OS theme. */
+.forest-workspace[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #17191c;
+  --surface: #1e2125;
+  --text: #e7e8ea;
+  --muted: #a0a6af;
+  --line: #33373d;
+  --row-hover: #262a2f;
+  --code-bg: #2b2f35;
+  --pass-bg: #173a24;
+  --pass-text: #8fdba6;
+  --pass-line: #2c6b41;
+  --fail-bg: #4a1d1d;
+  --fail-text: #ffaaaa;
+  --fail-line: #8a3434;
+  --none-bg: #2a2e33;
+  --none-text: #b8bdc4;
+  --none-line: #454a52;
+}
+
+.forest {
+  position: relative;
+  isolation: isolate; /* the names' own z-indexes stay inside it, under the panels */
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.forest canvas {
+  display: block;
+}
+
+.forest-views {
+  position: absolute;
+  z-index: 50;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #485159;
+  border-radius: 8px;
+  background: #101418;
+}
+
+.forest-views button {
+  border: 0;
+  border-radius: 5px;
+  padding: 0.4rem 0.8rem;
+  background: transparent;
+  color: #eee;
+  font: inherit;
+  cursor: pointer;
+}
+
+.forest-views button[aria-pressed="true"] {
+  background: #eadcae;
+  color: #101418;
+}
+
+.planet-edge-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #ffa89a;
+  border-radius: 50%;
+  background: #622e27;
+  color: white;
+  font: bold 18px/1 system-ui;
+  cursor: pointer;
+}
+
+.forest-label {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: rgb(16 20 24 / 0.72);
+  color: #f3efe4;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+.forest-label.selected {
+  background: #ffd75e;
+  color: #1d1f23;
+  text-shadow: none;
+}
+
+/* The knowledge core (the knowledge core story, capability 4): the pinned note's card. */
+.core-card {
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #485159;
+}
+
+.core-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.core-card-text {
+  white-space: pre-wrap;
+  max-height: 16rem;
+  overflow-y: auto;
+  color: #d4d2cb;
+}
+
+.core-card-kind {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.story-panel .core-card {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.story-panel .core-card-text {
+  max-height: none;
+  color: var(--text);
+}
+
+.knowledge-tooltip {
+  max-width: 260px;
+  padding: 6px 9px;
+  border: 1px solid #586775;
+  border-radius: 5px;
+  background: #17212bef;
+  color: #edf4f8;
+  font: 12px/1.35 system-ui, sans-serif;
+}
+
+.core-entrance,
+.core-pinned-label {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(16 20 24 / 0.72);
+  color: #eadcae;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.core-entrance-story {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.core-pinned-label {
+  color: #fff;
+  transform: translateY(-18px);
+}
+
+/* The drill-down (the forest story, capability 4): a panel over the forest's right side. */
+
+.story-panel {
+  position: absolute;
+  z-index: 2; /* above the names floating over the islands */
+  top: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  width: min(30rem, calc(100% - 1.5rem));
+  overflow-y: auto;
+  padding: 1rem 1.2rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.35);
+}
+
+
+.panel-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.panel-close {
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.panel-sentences {
+  margin-top: 0.4rem;
+}
+
+.panel-muted,
+.panel-trail,
+.panel-state {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.panel-state.status-proposed { color: var(--st-proposed); }
+.panel-state.status-healthy { color: var(--st-healthy); }
+.panel-state.status-unhealthy { color: var(--st-unhealthy); }
+.panel-state.status-untested { color: var(--st-untested); }
+
+/* The one capability selected in the diagram, shown below it (ADR-0659 D2). */
+
+.panel-detail {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.panel-detail h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+}
+
+.panel-detail p {
+  margin: 0.2rem 0;
+}
+
+/* Why the selected capability is not green, and who moves it (forest 4.12, ADR-0825 D1): plain words
+   under its word, no colour of its own, so "needs you" is carried by the sentence, not a tint. */
+
+.panel-detail p.panel-why {
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.25rem 0 0.25rem 0.6rem;
+  border-left: 3px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.panel-why .panel-mover {
+  color: var(--muted);
+}
+
+.panel-why.mover-owner .panel-mover {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.panel-last-seen {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.panel-health {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.panel-badge {
+  font-size: 0.78rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--none-line);
+  background: var(--none-bg);
+  color: var(--none-text);
+}
+
+.panel-badge.badge-passing {
+  border-color: var(--pass-line);
+  background: var(--pass-bg);
+  color: var(--pass-text);
+}
+
+.panel-badge.badge-failing {
+  border-color: var(--fail-line);
+  background: var(--fail-bg);
+  color: var(--fail-text);
+}
+
+.panel-contracts {
+  margin: 0.4rem 0 0;
+  padding-left: 1rem;
+}
+
+.panel-contracts li {
+  margin: 0.35rem 0;
+}
+
+/* The capability tree (ADR-0743): in the panel it has its own framed space, where the cards pan
+   and zoom at a readable size; the icon in its corner pops the same tree out into a larger window. */
+
+.panel-tree {
+  position: relative;
+  margin: 0.6rem 0 0.8rem;
+}
+
+.panel-tree-frame {
+  position: relative;
+  height: 22rem;
+  overflow: hidden; /* no scroll bars: the drag moves it (0.2's ADR-0502) */
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.panel-tree-frame.is-grabbing {
+  cursor: grabbing;
+}
+
+.panel-tree-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.panel-diagram {
+  display: block;
+  max-width: none;
+}
+
+.panel-tree-pop-out {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.panel-tree-pop-out:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.panel-tree-pop-out path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tree-space {
+  position: absolute;
+  z-index: 60; /* over the forest, its sessions list and the knowledge core; beside the panel */
+  top: 0.75rem;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  right: calc(var(--tree-open-panel) + 1.5rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.35);
+}
+
+.tree-space[hidden] {
+  display: none;
+}
+
+/* While the tree has its space, the panel beside it narrows to its drill-down's width. */
+.forest-workspace {
+  --tree-open-panel: min(22rem, 40%);
+}
+
+.forest-workspace:has(> .tree-space:not([hidden])) > .story-panel {
+  width: var(--tree-open-panel);
+}
+
+.tree-space-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tree-space-head h2 {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 1.05rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tree-space-legend {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.tree-space-legend span {
+  padding: 0.05rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #fff;
+}
+
+.tree-space-legend .status-proposed { background: var(--st-proposed); }
+.tree-space-legend .status-healthy { background: var(--st-healthy); }
+.tree-space-legend .status-unhealthy { background: var(--st-unhealthy); }
+.tree-space-legend .status-untested { background: var(--st-untested); }
+
+.tree-space-hint {
+  position: absolute;
+  left: 0.8rem;
+  bottom: 0.4rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+.tree-space-fit,
+.tree-space-close {
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.tree-space-fit {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.tree-space-close {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.tree-space-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden; /* no scroll bars: the drag moves it (0.2's ADR-0502) */
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  background: var(--bg);
+  border-radius: 0 0 10px 10px;
+}
+
+.tree-space-frame.is-grabbing {
+  cursor: grabbing;
+}
+
+.tree-space-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.tree-space-diagram {
+  display: block;
+  max-width: none;
+}
+
+/* A card: its strip says its word in 0.2's status colours (ADR-0744: 0.2's studio --st-*, the
+   text-grade stops that carry white text); the story's own cards are buttons, and another story's
+   is muted context, not a button (ADR-0659 D3, D5). */
+
+.forest-workspace {
+  --st-proposed: #9a5a1c;
+  --st-healthy: #2f6b3f;
+  --st-unhealthy: #9f2d22;
+  --st-untested: #6b7280;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-bg {
+  fill: var(--surface);
+  stroke: var(--none-line);
+  stroke-width: 1.2;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box.status-healthy .card-bg {
+  stroke: var(--pass-line);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box.status-unhealthy .card-bg {
+  fill: var(--fail-bg);
+  stroke: var(--fail-line);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-strip {
+  fill: var(--st-untested);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .status-proposed .card-strip {
+  fill: var(--st-proposed);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .status-healthy .card-strip {
+  fill: var(--st-healthy);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .status-unhealthy .card-strip {
+  fill: var(--st-unhealthy);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-status {
+  fill: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--text);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-story {
+  font-size: 11px;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-mark {
+  font-size: 10.5px;
+  fill: var(--none-text);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-mark.mark-passing {
+  fill: var(--pass-text);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .card-mark.mark-failing {
+  fill: var(--fail-text);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box[role="button"] {
+  cursor: pointer;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box[role="button"]:hover .card-bg {
+  stroke: var(--muted);
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box[role="button"]:focus {
+  outline: none;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box[role="button"]:focus-visible .card-bg,
+:is(.panel-diagram, .tree-space-diagram) .box.selected .card-bg {
+  stroke: var(--text);
+  stroke-width: 2.4;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box.elsewhere :is(.card-strip, text) {
+  opacity: 0.6;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .box.elsewhere .card-bg {
+  stroke-dasharray: 4 3;
+}
+
+:is(.panel-diagram, .tree-space-diagram) .arrow {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.3;
+}
+
+:is(.panel-diagram, .tree-space-diagram) marker path {
+  fill: var(--muted);
+}
+
+/* Agent capability claims (the forest story, capability 5): who holds a tree, over it. */
+
+.forest-claim {
+  padding: 0.05rem 0.5rem;
+  border-radius: 6px;
+  background: rgb(255 244 214 / 0.92);
+  color: #3b2f12;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+
+.forest-claim::before {
+  content: "● ";
+  color: #2f8f4e;
+}
+
+.forest-claim.faded {
+  opacity: 0.45;
+}
+
+.forest-claim.faded::before {
+  color: #8a8a8a;
+}
+
+.forest-claim.no-hooks {
+  background: rgb(253 231 231 / 0.95);
+  color: #7a1616;
+}
+
+.forest-claim.no-hooks::before {
+  content: "⚠ ";
+  color: #a61b1b;
+}
+
 .sessions-list { position:absolute; left:0; right:0; bottom:0; z-index:45; max-height:40%; display:flex; flex-direction:column; box-sizing:border-box; color:#d9dedb; background:rgba(18,24,27,.62); backdrop-filter:blur(3px); border-top:1px solid #3d4748; font:13px/1.45 system-ui,sans-serif; box-shadow:0 -5px 20px #0004; }
 .sessions-list { --group-injected:#8d9794; --group-grounding:#5c9fd6; --group-implementation:#e0a84a; --group-other:#566260; }
 .sessions-list[data-fresh="no"] { border-top-color:#b5771980; }

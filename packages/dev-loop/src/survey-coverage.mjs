@@ -17,11 +17,11 @@
 //
 // It runs under the machine's heavy-run lock, against a throwaway test Postgres as `pnpm test` does.
 
-import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { SourceMap } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { runUnit } from "./unit-run.mjs";
 
@@ -30,6 +30,7 @@ const CODE_FILE = /\.[cm]?[jt]sx?$/;
 const NUMBERED_TEST = /\b(?:test|it|describe)\s*\(\s*["'`](?:([a-z][a-z0-9-]*)\s+)?(\d+)\.\d+\b/g;
 const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 export const MAP_FILE = "survey-coverage.json";
+const BROWSER_FILE = "survey-browser-coverage.json";
 
 /** Every code file under `dir`, as full paths. */
 function codeFiles(dir) {
@@ -55,8 +56,7 @@ function fullPath(url, from) {
 
 /** The full paths of the files whose functions ran, each with how many of its functions ran, read from a NODE_V8_COVERAGE folder. */
 export function executedFiles(coverageDir) {
-  const ran = new Map();
-  const add = (file, fn) => ran.set(file, (ran.get(file) ?? new Set()).add(fn));
+  const records = [];
   for (const name of readdirSync(coverageDir)) {
     if (!name.endsWith(".json")) continue;
     let record;
@@ -65,6 +65,15 @@ export function executedFiles(coverageDir) {
     } catch {
       continue; // a process killed mid-write leaves half a record: it proves nothing
     }
+    records.push(record);
+  }
+  return executedRecords(records);
+}
+
+function executedRecords(records) {
+  const ran = new Map();
+  const add = (file, fn) => ran.set(file, (ran.get(file) ?? new Set()).add(fn));
+  for (const record of records) {
     const maps = record["source-map-cache"] ?? {};
     for (const script of record.result ?? []) {
       const file = fullPath(script.url, process.cwd());
@@ -93,6 +102,64 @@ export function executedFiles(coverageDir) {
   return new Map([...ran].map(([file, functions]) => [file, functions.size]));
 }
 
+/** Saved measured browser inputs, kept independently of regenerated Node coverage. */
+function browserProofs(pkgDir) {
+  try {
+    return JSON.parse(readFileSync(path.join(pkgDir, BROWSER_FILE), "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+function sorted(tally) {
+  return Object.fromEntries([...tally].sort(([a], [b]) => a.localeCompare(b)).map(([file, counts]) => [file, Object.fromEntries([...counts].sort(([a], [b]) => Number(a) - Number(b)))]));
+}
+
+function addExecution(tally, pkgDir, executed, counts) {
+  for (const [file, functions] of executed) {
+    const relative = path.relative(pkgDir, file).split(path.sep).join("/");
+    if (!relative.startsWith("src/") || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
+    const counted = tally.get(relative) ?? new Map();
+    for (const [number, count] of counts) counted.set(number, (counted.get(number) ?? 0) + count * functions);
+    tally.set(relative, counted);
+  }
+}
+
+/**
+ * Record one passing story-prefixed browser proof. scripts contains precise V8 functions,
+ * generated source text, its source map and the bundle's local path (to resolve map sources).
+ * A recapture replaces that proof; a failed or unexecuted recapture removes its previous input.
+ * Regenerate survey-coverage.json with survey:coverage after recording the browser proofs.
+ */
+export function recordBrowserCoverage({ pkgDir: given, proof, passed, scripts }) {
+  const pkgDir = realpathSync(given);
+  const match = /^([a-z][a-z0-9-]*) (\d+)\.\d+\b/.exec(proof);
+  if (!match || match[1] !== path.basename(pkgDir)) throw new Error("browser proof must name its own story and contract number");
+  const proofs = browserProofs(pkgDir);
+  delete proofs[proof];
+  const save = () => writeFileSync(path.join(pkgDir, BROWSER_FILE), `${JSON.stringify(Object.fromEntries(Object.entries(proofs).sort(([a], [b]) => a.localeCompare(b))), null, 1)}\n`);
+  // Invalidate the old capture before validating the new one: any refusal proves nothing.
+  save();
+  if (passed !== true) {
+    throw new Error("only a passing browser proof contributes coverage");
+  }
+  const records = scripts.map(({ bundlePath, source, sourceMap, functions }) => {
+    if (!sourceMap || typeof source !== "string") throw new Error("browser coverage needs its generated source and source map");
+    const url = pathToFileURL(path.resolve(pkgDir, bundlePath)).href;
+    return { result: [{ url, functions }], "source-map-cache": { [url]: { data: sourceMap, lineLengths: source.split("\n").map(line => line.length) } } };
+  });
+  const tally = new Map();
+  addExecution(tally, pkgDir, executedRecords(records), new Map([[match[2], 1]]));
+  const measured = sorted(tally);
+  if (tally.size === 0) {
+    throw new Error("browser proof has no executed source functions in its own story");
+  }
+  proofs[proof] = measured;
+  save();
+  return measured;
+}
+
 /**
  * The coverage map of the package at `pkgDir`: each source file a numbered test file executed, with,
  * for each capability number, the tests carrying it times the file's functions their file ran.
@@ -104,6 +171,13 @@ export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
   const ownPackage = path.basename(pkgDir);
   const src = path.join(pkgDir, "src");
   const tally = new Map();
+  for (const map of Object.values(browserProofs(pkgDir))) {
+    for (const [file, counts] of Object.entries(map)) {
+      const counted = tally.get(file) ?? new Map();
+      for (const [number, count] of Object.entries(counts)) counted.set(number, (counted.get(number) ?? 0) + count);
+      tally.set(file, counted);
+    }
+  }
   for (const testFile of codeFiles(src).filter((file) => TEST_FILE.test(file)).sort()) {
     const counts = new Map();
     for (const [, prefix, number] of readFileSync(testFile, "utf8").matchAll(NUMBERED_TEST)) {
@@ -114,18 +188,12 @@ export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
     try {
       const run = await runUnit({ root, files: [testFile], env: { ...env, NODE_V8_COVERAGE: coverageDir }, stdio: "ignore" });
       log(`${path.relative(root, testFile)}: ${run.code === 0 ? "passed" : "did not pass"} (${Math.round(run.ms / 1000)} s)`);
-      for (const [file, functions] of executedFiles(coverageDir)) {
-        const relative = path.relative(pkgDir, file).split(path.sep).join("/");
-        if (!relative.startsWith("src/") || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
-        const counted = tally.get(relative) ?? new Map();
-        for (const [number, count] of counts) counted.set(number, (counted.get(number) ?? 0) + count * functions);
-        tally.set(relative, counted);
-      }
+      if (run.code === 0) addExecution(tally, pkgDir, executedFiles(coverageDir), counts);
     } finally {
       rmSync(coverageDir, { recursive: true, force: true });
     }
   }
-  return Object.fromEntries([...tally].sort(([a], [b]) => (a < b ? -1 : 1)).map(([file, counts]) => [file, Object.fromEntries([...counts].sort(([a], [b]) => Number(a) - Number(b)))]));
+  return sorted(tally);
 }
 
 async function main() {
@@ -146,7 +214,7 @@ async function main() {
     try {
       for (const pkgDir of packages) {
         const map = await coverageOf({ root, pkgDir, env: { ...env, STORYTREE_EMBEDDER: "off" }, log: (line) => console.log(line) });
-        if (Object.keys(map).length === 0) continue;
+        if (Object.keys(map).length === 0 && !existsSync(path.join(pkgDir, MAP_FILE))) continue;
         writeFileSync(path.join(pkgDir, MAP_FILE), `${JSON.stringify(map, null, 1)}\n`);
         console.log(`wrote ${path.relative(root, path.join(pkgDir, MAP_FILE))}: ${Object.keys(map).length} files`);
       }

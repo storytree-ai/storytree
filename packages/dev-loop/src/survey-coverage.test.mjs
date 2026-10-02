@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
 import { coverageOf } from "./survey-coverage.mjs";
+import { recordBrowserCoverage } from "./browser-coverage.mjs";
 
 test("6.5 a coverage run records, for each source file, the numbered tests of each number that executed it times the functions of it they ran, in processes the tests started and through a bundle's source map", async () => {
   const work = mkdtempSync(path.join(tmpdir(), "survey-coverage-"));
@@ -49,7 +50,6 @@ test("6.5 a coverage run records, for each source file, the numbered tests of ea
 });
 
 test("6.5 measured browser bundle inputs survive Node regeneration, scoped to passing proofs in their own story", async () => {
-  const { recordBrowserCoverage } = await import("@storytree/dev-loop/browser-coverage");
   const work = mkdtempSync(path.join(tmpdir(), "survey-browser-"));
   const pkg = path.join(work, "keys");
   try {
@@ -81,6 +81,9 @@ test("6.5 measured browser bundle inputs survive Node regeneration, scoped to pa
     assert.deepEqual(await coverageOf({ root: pkg, pkgDir: pkg, env: process.env }), expected);
     // A failed recapture invalidates that proof's earlier evidence.
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof, passed: false, scripts }), /passing/);
+    assert.deepEqual(await coverageOf({ root: pkg, pkgDir: pkg, env: process.env }), { "src/node.mjs": { 5: 1 } });
+    recordBrowserCoverage({ pkgDir: pkg, proof, passed: true, scripts });
+    assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof, passed: true, scripts: [{ ...scripts[0], sourceMap: undefined }] }), /source map/);
     assert.deepEqual(await coverageOf({ root: pkg, pkgDir: pkg, env: process.env }), { "src/node.mjs": { 5: 1 } });
   } finally {
     rmSync(work, { recursive: true, force: true });

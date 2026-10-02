@@ -24,9 +24,9 @@ const observe = { name: 'forest-evidence-observation', setup(builder) {
   }));
   builder.onLoad({ filter: /planet-view\.tsx$/ }, async args => {
     let contents = await readFile(args.path, 'utf8');
-    contents = replace(contents, 'const layout = useMemo(() => planetLayout(scene, places), [scene, places]);',
+    contents = replace(contents, 'const layout = useMemo(() => planetLayout(scene, places, shown.current), [scene, places]);',
       `const layout = useMemo(() => { const snapshot = globalThis.__snapshot; const spots = new Map(snapshot.spots); return { scene, spots, radius: snapshot.radius, islands: scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: spots.get(island.story) })) }; }, [scene]);`);
-    contents = replace(contents, 'onRotate(focusRotation(openingTurn(islands), camera.quaternion));', 'onRotate(new Quaternion());');
+    contents = replace(contents, 'turnTo(openingTurn(islands));', 'onRotate(new Quaternion());');
     return { contents, loader: 'tsx', resolveDir: path.dirname(args.path) };
   });
 } };

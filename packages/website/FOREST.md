@@ -1,27 +1,33 @@
 # The saved forest
 
-From the checkout root, refresh the public drawing snapshot with:
+From the checkout root, refresh the public reading with an explicit recording window:
 
 ```sh
-node --import tsx packages/website/src/refresh-forest.ts
+node --import tsx packages/website/src/refresh-forest.ts --from 2026-10-02T00:00:00.000Z --to 2026-10-02T04:15:00.000Z
 ```
 
-The command calls the forest story's `refreshForestFromLibrary`
-(`@storytree/forest/snapshot`), which reads the `storytree` library and draws it
-with the forest's own `forestScene`, `storyNodes` and `growPlanet`; the website
-depends on no other story for it. It writes `src/forest-snapshot.json` only after all
-reads and drawing preparation succeed. A failed refresh keeps the old file.
+The website owns the publication policy. It reads the marker's selected project
+through the library and agent link's public exports, surveys the main checkout
+through `@storytree/forest/code-survey`, and draws land with `forestScene`,
+`storyNodes`, `growPlanet` and the arc surface's `workStates`. The Node-only
+refresh resolves the forest's installed arc-surface dependency through its public
+entry. `saveForestSnapshot` replaces the file only after every read and privacy
+check succeeds; a failure keeps the old snapshot.
 
-The committed file contains the capture time, story names and islands, capability
-forms derived from agent-reported health and work state, dependency links, and
-globe positions, in rows by dependency depth as the app lays them out. It contains no raw records, descriptions, activity
-lines, session identities, credentials or source paths. Library, history and
-activity are read separately; this is a saved drawing, not an atomic database
-backup. Retired stories retain their places through the creation history.
+Under ADR-0852 D4, the committed reading now carries surveyed territories, files
+and imports, story places, plan descriptions and health, selected knowledge-change
+fields, open arc views with complete question text, and dated activity. The
+recording window includes `from` and excludes `to`; every line retains its project.
+Only session start/end/name, subagent start, note reads, claims/releases, landings,
+closures, merges and close-outs are kept. Folder, machine, transcript, branch and
+task fields are removed recursively. Home paths and the configured cloud project
+id are redacted; recognisable credentials in retained text refuse the refresh.
+No raw transcript or command event is exported. Library, history, activity and
+code are read separately: this is a dated reading, not an atomic backup.
 
-`forest-data.ts` is a type-only description a browser can consume without importing
-the refresh command or any database code. The snapshot test exercises the export
-with private fields present in its input and verifies preservation on failure.
+`forest-data.ts` carries browser-safe types. The refresh tests pin the retained
+records, complete question text, half-open recording boundaries, project identity,
+recursive scrubbing and preservation of the previous file when a secret is found.
 
 The browser entry waits for the text page to paint and for the map to enter the
 viewport before importing React, the committed JSON and the public
@@ -51,9 +57,8 @@ snapshot, `public/forest-*.png` and renewed evidence together. The square stills
 are central crops of the actual rendered canvas, preserving its short-side
 framing at other viewport sizes. They are not separately drawn illustrations.
 
-The saved scene uses the shared renderer's base islands and pathways; it does not
-include a source-code survey or the desktop's territory colouring and file-circle
-overlays, and the public canvas does not add the desktop's story-name labels.
+The saved scene uses the shared renderer's base islands and pathways; the saved data includes a source-code survey for the later tour, but today's
+canvas does not mount the desktop's territory colouring and file-circle overlays, and the public canvas does not add the desktop's story-name labels.
 The picture shows geography and connections, not a readable health report.
 Do not present the saved health as independently verified health.
 The desktop comparison adapts its layout and opening rotation to the saved

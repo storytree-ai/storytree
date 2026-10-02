@@ -1,0 +1,494 @@
+[
+  {
+    "viewport": 1440,
+    "document": 1440,
+    "headings": 1,
+    "mount": {
+      "x": 130,
+      "y": 219.21875,
+      "width": 690.5,
+      "height": 560,
+      "top": 219.21875,
+      "right": 820.5,
+      "bottom": 779.21875,
+      "left": 130
+    },
+    "waitlist": {
+      "x": 130,
+      "y": 1535.28125,
+      "width": 1180,
+      "height": 755.640625,
+      "top": 1535.28125,
+      "right": 1310,
+      "bottom": 2290.921875,
+      "left": 130
+    },
+    "form": {
+      "x": 723.796875,
+      "y": 1617.28125,
+      "width": 596.203125,
+      "height": 532.25,
+      "top": 1617.28125,
+      "right": 1320,
+      "bottom": 2149.53125,
+      "left": 723.796875
+    },
+    "emailFont": "16px",
+    "primaryInputs": 7,
+    "bodyFont": "22px",
+    "assets": [
+      {
+        "name": "/assets/styles.css",
+        "bytes": 38422
+      },
+      {
+        "name": "/assets/main.js",
+        "bytes": 11722
+      },
+      {
+        "name": "/assets/forest.js",
+        "bytes": 1195
+      },
+      {
+        "name": "/assets/chunk-5QVYDWAH.js",
+        "bytes": 1023
+      },
+      {
+        "name": "/assets/tour-ui-KSJFO24O.js",
+        "bytes": 24066
+      },
+      {
+        "name": "/forest-desktop.png",
+        "bytes": 64272
+      },
+      {
+        "name": "/assets/forest-scene-VSO65UY6.js",
+        "bytes": 3364249
+      }
+    ],
+    "controls": [
+      {
+        "name": "storytree.",
+        "width": 122.046875,
+        "height": 44
+      },
+      {
+        "name": "Join the waitlist",
+        "width": 99.953125,
+        "height": 44
+      },
+      {
+        "name": "GitHub ↗",
+        "width": 62.6875,
+        "height": 44
+      },
+      {
+        "name": "",
+        "width": 576.203125,
+        "height": 52
+      },
+      {
+        "name": "Windows",
+        "width": 112.796875,
+        "height": 44
+      },
+      {
+        "name": "Mac",
+        "width": 80.28125,
+        "height": 44
+      },
+      {
+        "name": "Linux",
+        "width": 88.671875,
+        "height": 44
+      },
+      {
+        "name": "Claude Code",
+        "width": 135.9375,
+        "height": 44
+      },
+      {
+        "name": "Codex",
+        "width": 93.953125,
+        "height": 44
+      },
+      {
+        "name": "Other",
+        "width": 91.328125,
+        "height": 44
+      },
+      {
+        "name": "Join the waitlist ↗",
+        "width": 224.8125,
+        "height": 52
+      },
+      {
+        "name": "How we keep this",
+        "width": 576.203125,
+        "height": 47.390625
+      },
+      {
+        "name": "Say hello on LinkedIn ↗",
+        "width": 156.140625,
+        "height": 44
+      },
+      {
+        "name": "storytree.",
+        "width": 100.25,
+        "height": 44
+      },
+      {
+        "name": "PolyForm Shield License 1.0.0",
+        "width": 152.140625,
+        "height": 44
+      },
+      {
+        "name": "Follow the work ↗",
+        "width": 93.84375,
+        "height": 44
+      }
+    ],
+    "focus": [
+      {
+        "name": "email",
+        "width": 3,
+        "contrast": 6.892420666068212,
+        "inside": true
+      },
+      {
+        "name": "submit",
+        "width": 3,
+        "contrast": 6.892420666068212,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "viewport": 390,
+    "document": 390,
+    "headings": 1,
+    "mount": {
+      "x": 20,
+      "y": 252.765625,
+      "width": 350,
+      "height": 320,
+      "top": 252.765625,
+      "right": 370,
+      "bottom": 572.765625,
+      "left": 20
+    },
+    "waitlist": {
+      "x": 20,
+      "y": 1815.078125,
+      "width": 350,
+      "height": 938.234375,
+      "top": 1815.078125,
+      "right": 370,
+      "bottom": 2753.3125,
+      "left": 20
+    },
+    "form": {
+      "x": 10,
+      "y": 2072.671875,
+      "width": 370,
+      "height": 578.25,
+      "top": 2072.671875,
+      "right": 380,
+      "bottom": 2650.921875,
+      "left": 10
+    },
+    "emailFont": "16px",
+    "primaryInputs": 7,
+    "bodyFont": "16px",
+    "assets": [
+      {
+        "name": "/assets/styles.css",
+        "bytes": 38422
+      },
+      {
+        "name": "/assets/main.js",
+        "bytes": 11722
+      },
+      {
+        "name": "/assets/forest.js",
+        "bytes": 1195
+      },
+      {
+        "name": "/assets/chunk-5QVYDWAH.js",
+        "bytes": 1023
+      },
+      {
+        "name": "/assets/tour-ui-KSJFO24O.js",
+        "bytes": 24066
+      },
+      {
+        "name": "/forest-phone.png",
+        "bytes": 43466
+      },
+      {
+        "name": "/assets/forest-scene-VSO65UY6.js",
+        "bytes": 3364249
+      }
+    ],
+    "controls": [
+      {
+        "name": "storytree.",
+        "width": 108.96875,
+        "height": 44
+      },
+      {
+        "name": "Join the waitlist",
+        "width": 85.671875,
+        "height": 44
+      },
+      {
+        "name": "GitHub ↗",
+        "width": 53.453125,
+        "height": 44
+      },
+      {
+        "name": "",
+        "width": 350,
+        "height": 52
+      },
+      {
+        "name": "Windows",
+        "width": 112.796875,
+        "height": 44
+      },
+      {
+        "name": "Mac",
+        "width": 80.28125,
+        "height": 44
+      },
+      {
+        "name": "Linux",
+        "width": 88.671875,
+        "height": 44
+      },
+      {
+        "name": "Claude Code",
+        "width": 135.9375,
+        "height": 44
+      },
+      {
+        "name": "Codex",
+        "width": 93.953125,
+        "height": 44
+      },
+      {
+        "name": "Other",
+        "width": 91.328125,
+        "height": 44
+      },
+      {
+        "name": "Join the waitlist ↗",
+        "width": 206.96875,
+        "height": 49
+      },
+      {
+        "name": "How we keep this",
+        "width": 350,
+        "height": 47.390625
+      },
+      {
+        "name": "Say hello on LinkedIn ↗",
+        "width": 156.140625,
+        "height": 44
+      },
+      {
+        "name": "storytree.",
+        "width": 100.25,
+        "height": 44
+      },
+      {
+        "name": "PolyForm Shield License 1.0.0",
+        "width": 152.140625,
+        "height": 44
+      },
+      {
+        "name": "Follow the work ↗",
+        "width": 93.84375,
+        "height": 44
+      }
+    ],
+    "focus": [
+      {
+        "name": "email",
+        "width": 3,
+        "contrast": 6.892420666068212,
+        "inside": true
+      },
+      {
+        "name": "submit",
+        "width": 3,
+        "contrast": 6.892420666068212,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "viewport": 320,
+    "document": 320,
+    "headings": 1,
+    "mount": {
+      "x": 20,
+      "y": 268.625,
+      "width": 280,
+      "height": 320,
+      "top": 268.625,
+      "right": 300,
+      "bottom": 588.625,
+      "left": 20
+    },
+    "waitlist": {
+      "x": 20,
+      "y": 1912.671875,
+      "width": 280,
+      "height": 1116.734375,
+      "top": 1912.671875,
+      "right": 300,
+      "bottom": 3029.40625,
+      "left": 20
+    },
+    "form": {
+      "x": 10,
+      "y": 2195.765625,
+      "width": 300,
+      "height": 731.25,
+      "top": 2195.765625,
+      "right": 310,
+      "bottom": 2927.015625,
+      "left": 10
+    },
+    "emailFont": "16px",
+    "primaryInputs": 7,
+    "bodyFont": "16px",
+    "assets": [
+      {
+        "name": "/assets/styles.css",
+        "bytes": 38422
+      },
+      {
+        "name": "/assets/main.js",
+        "bytes": 11722
+      },
+      {
+        "name": "/assets/forest.js",
+        "bytes": 1195
+      },
+      {
+        "name": "/assets/chunk-5QVYDWAH.js",
+        "bytes": 1023
+      },
+      {
+        "name": "/assets/tour-ui-KSJFO24O.js",
+        "bytes": 24066
+      },
+      {
+        "name": "/forest-phone.png",
+        "bytes": 43466
+      },
+      {
+        "name": "/assets/forest-scene-VSO65UY6.js",
+        "bytes": 3364249
+      }
+    ],
+    "controls": [
+      {
+        "name": "storytree.",
+        "width": 108.96875,
+        "height": 44
+      },
+      {
+        "name": "Join the waitlist",
+        "width": 85.671875,
+        "height": 44
+      },
+      {
+        "name": "GitHub ↗",
+        "width": 53.453125,
+        "height": 44
+      },
+      {
+        "name": "",
+        "width": 280,
+        "height": 52
+      },
+      {
+        "name": "Windows",
+        "width": 112.796875,
+        "height": 44
+      },
+      {
+        "name": "Mac",
+        "width": 80.28125,
+        "height": 44
+      },
+      {
+        "name": "Linux",
+        "width": 88.671875,
+        "height": 44
+      },
+      {
+        "name": "Claude Code",
+        "width": 135.9375,
+        "height": 44
+      },
+      {
+        "name": "Codex",
+        "width": 93.953125,
+        "height": 44
+      },
+      {
+        "name": "Other",
+        "width": 91.328125,
+        "height": 44
+      },
+      {
+        "name": "Join the waitlist ↗",
+        "width": 206.96875,
+        "height": 49
+      },
+      {
+        "name": "How we keep this",
+        "width": 280,
+        "height": 47.390625
+      },
+      {
+        "name": "Say hello on LinkedIn ↗",
+        "width": 156.140625,
+        "height": 44
+      },
+      {
+        "name": "storytree.",
+        "width": 100.25,
+        "height": 44
+      },
+      {
+        "name": "PolyForm Shield License 1.0.0",
+        "width": 152.140625,
+        "height": 44
+      },
+      {
+        "name": "Follow the work ↗",
+        "width": 93.84375,
+        "height": 44
+      }
+    ],
+    "focus": [
+      {
+        "name": "email",
+        "width": 3,
+        "contrast": 6.892420666068212,
+        "inside": true
+      },
+      {
+        "name": "submit",
+        "width": 3,
+        "contrast": 6.892420666068212,
+        "inside": true
+      }
+    ]
+  }
+]

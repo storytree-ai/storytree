@@ -3,7 +3,7 @@
  * space (ADR-0743). Ported from 0.2's sub-DAG (`layoutSubdag` in its studio): a graph layout
  * (dagre, bottom to top), so what a capability builds on sits below it and another story's
  * capability sits beside the one that builds on it, not in one row of every outside capability.
- * Every card is one readable size: the space pans and zooms, it never shrinks the cards to fit.
+ * Cards have a fixed natural size; disconnected groups pack into rows before the space fits them.
  */
 import dagre from "@dagrejs/dagre";
 
@@ -85,23 +85,64 @@ export function layoutTree(panel: StoryPanel): TreeLayout {
   // Laid out from what is built on up to what builds on it, as 0.2 did; drawn pointing the other way.
   for (const { from, to } of arrows) graph.setEdge(to, from);
   dagre.layout(graph);
+  const packed = packGroups(graph);
 
   const placed = [...cards.values()].map((card): Card => {
     const node = graph.node(card.id);
+    const offset = packed.offsets.get(card.id) ?? { x: 0, y: 0 };
     const { width, height } = sizeOf(card.own);
-    return { ...card, x: (node?.x ?? 0) - width / 2, y: (node?.y ?? 0) - height / 2, width, height };
+    return { ...card, x: (node?.x ?? 0) - width / 2 + offset.x, y: (node?.y ?? 0) - height / 2 + offset.y, width, height };
   });
   const links = arrows.map(({ from, to }): Link => {
-    const points = ((graph.edge(to, from) as { points?: Point[] } | undefined)?.points ?? []).slice().reverse();
+    const offset = packed.offsets.get(from) ?? { x: 0, y: 0 };
+    const points = ((graph.edge(to, from) as { points?: Point[] } | undefined)?.points ?? [])
+      .map(({ x, y }) => ({ x: x + offset.x, y: y + offset.y })).reverse();
     return { from, to, d: pathThrough(points) };
   });
-  const size = graph.graph();
   return {
-    width: Math.max(Math.ceil(size.width ?? 0), CARD.width + 2 * MARGIN),
-    height: Math.max(Math.ceil(size.height ?? 0), CARD.height + 2 * MARGIN),
+    width: Math.max(Math.ceil(packed.width), CARD.width + 2 * MARGIN),
+    height: Math.max(Math.ceil(packed.height), CARD.height + 2 * MARGIN),
     cards: placed,
     links,
   };
+}
+
+/** Keep each dependency group's geometry; wrap unrelated groups instead of making one tiny row. */
+function packGroups(graph: dagre.graphlib.Graph): { offsets: Map<string, Point>; width: number; height: number } {
+  const groups = dagre.graphlib.alg.components(graph).map((ids) => {
+    const nodes = ids.map((id) => graph.node(id));
+    const points = nodes.flatMap((node) => [
+      { x: node.x - node.width / 2, y: node.y - node.height / 2 },
+      { x: node.x + node.width / 2, y: node.y + node.height / 2 },
+    ]);
+    for (const edge of graph.edges()) if (ids.includes(edge.v)) points.push(...graph.edge(edge).points);
+    const left = Math.min(...points.map(({ x }) => x));
+    const top = Math.min(...points.map(({ y }) => y));
+    return { ids, left, top,
+      width: Math.max(...points.map(({ x }) => x)) - left,
+      height: Math.max(...points.map(({ y }) => y)) - top };
+  });
+  const offsets = new Map<string, Point>();
+  // A connected tree retains dagre's margins and placement exactly.
+  if (groups.length < 2) return { offsets, width: graph.graph().width ?? 0, height: graph.graph().height ?? 0 };
+  const gap = 8;
+  const margin = 6;
+  const area = groups.reduce((sum, group) => sum + (group.width + gap) * (group.height + gap), 0);
+  const columns = Math.ceil(Math.sqrt(area * 1.2) / (CARD.width + gap));
+  const rowWidth = Math.max(...groups.map((group) => group.width), columns * (CARD.width + gap) - gap);
+  let x = margin, y = margin, rowHeight = 0, width = 0;
+  for (const group of groups) {
+    if (x > margin && x + group.width > margin + rowWidth) {
+      x = margin;
+      y += rowHeight + gap;
+      rowHeight = 0;
+    }
+    for (const id of group.ids) offsets.set(id, { x: x - group.left, y: y - group.top });
+    width = Math.max(width, x + group.width + margin);
+    rowHeight = Math.max(rowHeight, group.height);
+    x += group.width + gap;
+  }
+  return { offsets, width, height: y + rowHeight + margin };
 }
 
 function sizeOf(own: boolean): { width: number; height: number } {

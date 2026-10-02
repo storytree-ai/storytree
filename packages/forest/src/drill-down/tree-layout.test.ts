@@ -9,6 +9,7 @@ import { test } from "node:test";
 
 import type { CapabilityLine, StoryPanel } from "./drill-down.js";
 import { CARD, layoutTree, OUTSIDE_CARD } from "./tree-layout.js";
+import { fitted } from "../view/pan-zoom.js";
 
 function line(id: string): CapabilityLine {
   return { id, title: `The ${id}`, description: "", reported: "not-checked", state: "planned", status: "proposed", contracts: [] };
@@ -44,4 +45,36 @@ test("4.9 the tree is a graph of fixed-size cards: each capability above what it
   assert.equal(at.get("a")?.own, true);
   assert.equal(layout.links.length, 4);
   assert.ok(layout.width >= CARD.width && layout.height >= 3 * CARD.height + OUTSIDE_CARD.height);
+});
+
+test("4.9, 4.11 five independent capabilities fit the story panel at readable full size", () => {
+  const layout = layoutTree({ ...panel, capabilities: ["a", "b", "c", "d", "e"].map(line), arrows: [] });
+  for (const frame of [{ width: 530, height: 440 }, { width: 438, height: 350 }]) {
+    assert.equal(fitted(layout, frame).scale, 1, "fitting the whole tree must not halve the labels and health words");
+  }
+  assert.equal(layout.cards.length, 5);
+  for (const card of layout.cards) {
+    assert.deepEqual([card.width, card.height], [CARD.width, CARD.height]);
+    assert.ok(card.x >= 0 && card.y >= 0 && card.x + card.width <= layout.width && card.y + card.height <= layout.height);
+    for (const other of layout.cards) {
+      if (card === other) continue;
+      assert.ok(card.x + card.width <= other.x || other.x + other.width <= card.x || card.y + card.height <= other.y || other.y + other.height <= card.y, "every card has its own readable space");
+    }
+  }
+});
+
+test("4.9 dependency curves stay inside the tree when unrelated groups are packed", () => {
+  const layout = layoutTree({ ...panel,
+    capabilities: ["a", "b", "c", "d", "e"].map(line),
+    arrows: [["a", "b"], ["a", "c"], ["a", "d"], ["b", "d"]].map(([from, to]) => ({
+      from: from!, to: to!, toTitle: to!, landed: false, toStatus: "proposed" as const,
+    })),
+  });
+  for (const link of layout.links) {
+    const coordinates = link.d.match(/-?\d+\.\d+/g)!.map(Number);
+    for (let i = 0; i < coordinates.length; i += 2) {
+      assert.ok(coordinates[i]! >= 0 && coordinates[i]! <= layout.width, `${link.from} to ${link.to} stays inside the tree's width`);
+      assert.ok(coordinates[i + 1]! >= 0 && coordinates[i + 1]! <= layout.height, `${link.from} to ${link.to} stays inside the tree's height`);
+    }
+  }
 });

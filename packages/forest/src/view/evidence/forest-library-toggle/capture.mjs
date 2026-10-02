@@ -220,8 +220,8 @@ function checkPoints(result) {
   assert.ok(result.knowledgeObjects.every(object => object.type === 'Mesh' && object.name.startsWith('knowledge-point:')));
 }
 
-async function openPage(browser, variant, data) {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
+async function openPage(browser, variant, data, viewport = { width: 1440, height: 960 }) {
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [], warnings = [];
   page.on('pageerror', error => errors.push(String(error)));
   page.on('console', message => {
@@ -412,6 +412,77 @@ async function failureJourney(browser) {
   console.log('PASS: failure attention, selection, camera, scene identity and launch default');
 }
 
+// The first-window reproduction uses the existing renderer and capture runner, not a
+// standalone panel. Five independent capabilities are the first-build failure case.
+async function panelJourney(browser) {
+  const data = structuredClone(seed);
+  const story = data.tree.stories.find(story => /forest/i.test(story.title));
+  story.capabilities = story.capabilities.slice(0, 5);
+  for (const capability of story.capabilities) {
+    capability.dependsOn = []; capability.proposed = true; capability.status = 'proposed';
+  }
+  data.tree.stories = [story]; data.tree.arcs = [];
+  data.lines.lines = [];
+  data.stats = { ...data.stats, stories: 1, capabilities: 5, links: 0 };
+  const viewport = { width: 1380, height: 970 };
+  const { page, errors } = await openPage(browser, 'production', data, viewport);
+  try {
+    const pick = await page.evaluate(id => {
+      const { scene, camera, gl } = window.__globe;
+      const p = scene.getObjectByName(`planet:${id}`).getWorldPosition(camera.position.clone()).project(camera);
+      const box = gl.domElement.getBoundingClientRect();
+      return { x: box.left + (p.x + 1) * box.width / 2, y: box.top + (1 - p.y) * box.height / 2 };
+    }, story.id);
+    await page.mouse.click(pick.x, pick.y);
+    await page.waitForFunction(id => document.body.dataset.selected === id && document.querySelector('.panel-diagram'), story.id);
+    await settle(page);
+    await page.mouse.move(4, 4);
+    const result = await page.evaluate(() => {
+      const frame = document.querySelector('.panel-tree-frame').getBoundingClientRect();
+      const cards = [...document.querySelectorAll('.panel-diagram [data-capability-id]')].map(card => {
+        const bounds = card.querySelector('.card-bg').getBoundingClientRect();
+        const fonts = selector => [...card.querySelectorAll(selector)].map(text => {
+          const matrix = text.getScreenCTM();
+          return parseFloat(getComputedStyle(text).fontSize) * Math.hypot(matrix.a, matrix.b);
+        });
+        return { id: card.dataset.capabilityId, bounds: bounds.toJSON(), titleFonts: fonts('.card-title'), healthFonts: fonts('.card-status'), markFonts: fonts('.card-mark'),
+          fits: bounds.left >= frame.left && bounds.right <= frame.right && bounds.top >= frame.top && bounds.bottom <= frame.bottom };
+      });
+      return { frame: frame.toJSON(), cards, treeView: document.querySelector('.panel-tree-surface').dataset.view,
+        popoutOpen: !!document.querySelector('.tree-space:not([hidden])'), selected: document.querySelector('.panel-detail')?.dataset.capabilityId };
+    });
+    result.viewport = viewport;
+    result.browser = await browser.version();
+    result.synthetic = 'One story and its first five capabilities, independent and proposed. No library writes.';
+    result.cardAreaFraction = result.cards.reduce((sum, card) => sum + card.bounds.width * card.bounds.height, 0) / (result.frame.width * result.frame.height);
+    writeFileSync(path.join(out, 'panel-first-window.json'), JSON.stringify(result, null, 2) + '\n');
+    await page.screenshot({ path: path.join(out, 'panel-first-window.png'), timeout: 180000 });
+    console.log(JSON.stringify({ panel: result }));
+    await check('4.9', 'five independent capability cards retain their natural size in the first user window', () => {
+      assert.equal(result.cards.length, 5);
+      for (const card of result.cards) {
+        assert.ok(Math.abs(card.bounds.width - 208) < 0.01, `card width ${card.bounds.width}`);
+        assert.ok(Math.abs(card.bounds.height - 94) < 0.01, `card height ${card.bounds.height}`);
+        assert.ok(card.titleFonts.length && card.titleFonts.every(size => Math.abs(size - 12.5) < 0.01), 'titles retain 12.5px');
+        assert.ok(card.healthFonts.length && card.healthFonts.every(size => Math.abs(size - 10) < 0.01), 'health words retain 10px');
+        assert.ok(card.markFonts.length && card.markFonts.every(size => Math.abs(size - 10.5) < 0.01), 'health reports retain 10.5px');
+      }
+    });
+    await check('4.11', 'the first panel fits all five capability cards without opening a larger window', () => {
+      assert.ok(result.cards.every(card => card.fits), 'all five cards are inside the panel');
+      assert.equal(result.popoutOpen, false);
+    });
+    await check('4.8', 'another capability card remains selectable in the fitted first panel', async () => {
+      const other = result.cards.find(card => card.id !== result.selected);
+      await page.mouse.click(other.bounds.x + other.bounds.width / 2, other.bounds.y + other.bounds.height / 2);
+      await page.waitForFunction(id => document.querySelector('.panel-detail')?.dataset.capabilityId === id, other.id);
+      assert.equal(await page.locator(`.panel-diagram [data-capability-id="${other.id}"]`).getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.locator('.tree-space:not([hidden])').count(), 0);
+      assert.deepEqual(errors, []);
+    });
+  } finally { await page.close(); }
+}
+
 await test('the forest render contracts on the actual desktop page', async context => {
 currentTest = context;
 let browser, complete = false;
@@ -442,9 +513,10 @@ try {
   console.log(JSON.stringify({ errors, warnings: [...new Set(warnings)] }));
   await page.close();
   await check('3.10', 'Library clears story selection, remains turnable and zoomable, and a launch defaults to Forest', () => failureJourney(browser));
+  await panelJourney(browser);
   complete = true;
 } finally {
-  if (!complete) for (const contract of ['3.5', '3.9', '3.10']) checks.push({ contract, name: 'complete browser journey', observed: 'not-observed' });
+  if (!complete) for (const contract of ['3.5', '3.9', '3.10', '4.8', '4.9', '4.11']) checks.push({ contract, name: 'complete browser journey', observed: 'not-observed' });
   if (!complete) knowledgeChecks.push({ contract: '1.7', name: 'complete two-mode journey', observed: 'not-observed' });
   writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'The forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
   writeFileSync(path.join(out, 'knowledge-observations.json'), JSON.stringify({ story: 'The knowledge core', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: 'packages/forest/src/view/evidence/forest-library-toggle', checks: knowledgeChecks }, null, 2) + '\n');

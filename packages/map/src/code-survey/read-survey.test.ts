@@ -66,6 +66,48 @@ test("8.8 each surveyed story names the stories whose packages its package depen
 });
 
 
+test("8.8 the app unions its package and desktop dependencies and refreshes only changed manifests", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-desktop-deps-"));
+  const stories = { arcs: [], stories: ["App", "Till", "Bank", "Shop", "Cloud"].map((title) => ({ id: `story-${title.toLowerCase()}`, title, capabilities: [] })) } as unknown as AnnotatedTree;
+  try {
+    const manifests = {
+      app: { name: "@x/app", dependencies: { "@x/till": "workspace:*" } },
+      till: { name: "@x/till" },
+      bank: { name: "@x/bank", dependencies: { "@x/desktop": "workspace:*" } },
+      shop: { name: "@x/shop" },
+      cloud: { name: "@x/cloud" },
+    };
+    for (const [name, manifest] of Object.entries(manifests)) {
+      await mkdir(path.join(folder, "packages", name, "src"), { recursive: true });
+      await writeFile(path.join(folder, "packages", name, "package.json"), JSON.stringify(manifest));
+      await writeFile(path.join(folder, "packages", name, "src", "index.ts"), "export const value = 1;\n");
+    }
+    await mkdir(path.join(folder, "apps/desktop"), { recursive: true });
+    const desktopManifest = path.join(folder, "apps/desktop/package.json");
+    await writeFile(desktopManifest, JSON.stringify({ name: "@x/desktop", dependencies: { "@x/bank": "workspace:*" }, devDependencies: { "@x/till": "workspace:*" }, optionalDependencies: { "@x/shop": "workspace:*" }, peerDependencies: { "@x/cloud": "workspace:*", "@x/app": "workspace:*" } }));
+    const read: string[] = [];
+    const reader = codeSurveyReader({ readFile: (file) => (read.push(file), readFile(file, "utf8")) });
+    const first = await reader.read(folder, stories);
+    assert.deepEqual(first["story-app"]?.dependsOn, ["story-till", "story-bank", "story-shop", "story-cloud"]);
+    assert.deepEqual(first["story-bank"]?.dependsOn, ["story-app"], "both package names identify the app story");
+    read.length = 0;
+    const second = await reader.read(folder, stories);
+    assert.deepEqual(read, []);
+    assert.equal(second["story-app"], first["story-app"]);
+    await writeFile(desktopManifest, JSON.stringify({ name: "@x/desktop", optionalDependencies: { "@x/shop": "workspace:*" } }));
+    const changed = await reader.read(folder, stories);
+    assert.deepEqual(read, [desktopManifest]);
+    assert.deepEqual(changed["story-app"]?.dependsOn, ["story-till", "story-shop"]);
+    assert.equal(changed["story-app"]?.files, first["story-app"]?.files, "manifest changes retain the code survey");
+    await rm(desktopManifest);
+    const removed = await reader.read(folder, stories);
+    assert.deepEqual(removed["story-app"]?.dependsOn, ["story-till"]);
+    assert.deepEqual(removed["story-bank"]?.dependsOn, [], "a removed manifest no longer identifies a package");
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("8.9 the app survey includes desktop source and resolves its imports as the same story", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-desktop-"));
   const app = { arcs: [], stories: [{ id: "app", title: "The app", capabilities: [{ id: "projects", title: "2 · Projects" }] }] } as unknown as AnnotatedTree;
@@ -74,7 +116,8 @@ test("8.9 the app survey includes desktop source and resolves its imports as the
     await mkdir(path.join(folder, "apps/desktop/src/view"), { recursive: true });
     await writeFile(path.join(folder, "packages/app/src/projects.ts"), "export const projects = true;\n");
     await writeFile(path.join(folder, "packages/app/src/projects.test.ts"), 'import { view } from "../../../apps/desktop/src/view/view.js";\ntest("2.5 Projects view", () => view);\n');
-    await writeFile(path.join(folder, "apps/desktop/src/view/view.ts"), 'import { projects } from "../../../../packages/app/src/projects.js";\nexport const view = projects;\n');
+    const projectsImport = path.posix.relative("apps/desktop/src/view", "packages/app/src/projects.js");
+    await writeFile(path.join(folder, "apps/desktop/src/view/view.ts"), `import { projects } from "${projectsImport}";\nexport const view = projects;\n`);
     const survey = await codeSurveyReader().read(folder, app);
     assert.deepEqual(survey["app"]?.files, [
       { path: "src/projects.ts", lines: 1, capability: "projects" },

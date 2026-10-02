@@ -25,6 +25,10 @@ using the API, and run the signing-in sessions one agent at a time.
 | 4 comments (fresh session) | Claude Code | 182 s, $0.96 | from the plan; 1 capability, 3 contracts | comments list, post, delete, logged-out prompt; 68 own tests | **101/101** through comments |
 | 4 comments (fresh session) | Codex | 555 s | from the plan; its one capability (a claim naming the increment and capability together was refused again, then made one at a time) | comments; 18 own browser checks | 100/101: a network failure posting a comment showed no visible .error-messages |
 | 4 follow-up (same session) | Codex | 268 s | parked and claimed a fix increment | an empty, hidden error list was the first .error-messages on the page; it now renders only populated lists | **101/101** through comments |
+| 5 social (fresh session) | Claude Code | 372 s, $1.96 | from the plan; 3 capabilities (profile page, follow, favourite) | profiles, follow, favourites, Your Feed content; 83 own tests | 134/139 (full suite): 3 profile-failure tests (the user's spec), 2 null-bio tests (a "Loading profile..." placeholder sat in the bio's p) |
+| 5 follow-up (same session) | Claude Code | 161 s, $0.83 | parked and claimed a fix increment | .user-info rendered only once the profile loads; none on failure; 84 own tests | **139/139** |
+| 5 social (fresh session) | Codex | 1427 s | from the plan; claimed its capability and two earlier ones it had to touch | profiles, follow, favourites, Your Feed; ran the official suite itself, fixed two issues it found (a favourite lost on navigation, buttons live before the session restored), called the 3 profile-failure tests a suite defect | 136/139 (full suite): the 3 profile-failure tests (the user's spec) |
+| 5 follow-up (same session) | Codex | 354 s | parked and claimed a fix increment | the loading and failed profile shell omits .user-info | **139/139** |
 
 Session 1 notes:
 - The first start (07:12 local) raced the app's update to 0.3.507: the app's folder was being reinstalled as both
@@ -54,3 +58,32 @@ Session 4 notes:
 - Claude Code's part 4 was its fastest session (3 minutes): the article page it built in part 3 left a clear seam for comments.
 - Codex's two part-specific failures (parts 3 and 4) were both in showing API errors; each was fixed in one follow-up turn, test-first.
 - Codex closed out "not safe" because a folder without Git has no pull request or clean tree to point to; Claude Code closed out "safe" in the same situation. The close-out question does not fit a user's project without Git.
+
+Session 5 notes:
+- **Both complete sites pass the official suite 139/139**, the ceiling the reference app reaches (`runs/conduit-*-s5-final-grade.txt`).
+- The 3 profile-failure tests were the user's spec's fault: it said `.profile-page` and `.user-info` must both render when the profile fails, but the suite checks `locator('.profile-page, .user-info')`, which fails in strict mode when both match. Corrected in `harness/conduit-requirements.md` and `grade-conduit/NOTES.md`, with the Your Feed timing from session 3. Codex had diagnosed it as a suite quirk; the reference app shows only one.
+- Libraries at the end (`runs/library-conduit-*`): conduit-claude 5 stories, 13 capabilities, 38 contracts, 7 increments landed (5 parts, 2 fixes), arc closed, nothing held; conduit-codex 5 stories, 5 capabilities, 5 contracts, 8 increments landed (5 parts, 3 fixes), arc closed, nothing held. Every contract reads "agent says passing" and storytree-verified "not checked" (increment_ef066f718a63).
+- The final forests (`shots/z1-…`, `z2-…`) draw all five stories, and Claude Code's with paths between dependent stories; every island stays grey although both sites pass every official test, and the top nameplates crowd the globe's rim (friction_92d59bf69b1e).
+- The app updated to 0.3.522 at the first quiet moment after the last session.
+
+## The build judged (Conduit 6, increment_53690337e6f9)
+
+**Result.** Both laptop agents built the whole of Conduit in plain HTML/JS from a user's requirements file and one-line prompts, over five fresh sessions plus short follow-up turns, and both complete sites pass the official RealWorld suite 139/139, the reference app's own ceiling. No grade at any point found an earlier area broken by a later session: every regression check stayed green.
+
+| | Claude Code | Codex |
+|---|---|---|
+| Agent time (all turns) | 2,201 s (37 min) over 7 turns | 5,281 s (88 min) over 8 turns |
+| Cost | $10.52 (Claude Max plan, as reported by the CLI) | not reported (ChatGPT plan) |
+| Parts green at their first grade | 1, 2, 4 (3 also, but for the spec's own error) | 1, 2 (5 also, but for the spec's own errors) |
+| Failures that were the agent's own | 2 (part 5: loading text in the bio) | 2 (part 3: hidden 400; part 4: hidden error list) |
+| Failures that were the user's spec | 4 (Your Feed timing; the profile-failure locator ×3) | 3 (the profile-failure locator ×3) |
+| Follow-up turns to reach green | 2 | 3 |
+| Plan in its library | 5 stories, 13 capabilities, 38 contracts, 7 increments | 5 stories, 5 capabilities, 5 contracts, 8 increments |
+| Resuming in a fresh session | found its place from show_plan and the next increment within its first ten calls, every time | the same |
+| Would we merge it? (`review.md`) | merge with light changes: an import cycle, copied render helpers, a startup sign-in race | merge after a heavier round: copied error handling, long renderers, dead code, a launcher that borrows Cypress's Node |
+
+**What it says about storytree.**
+- **Multi-session continuity works without chat history.** Each session after the first was fresh, prompted only "carry on, next part N"; every one found its place from the library (the plan, the next increment, its story and decisions), claimed it, built test-first, reported red then green, landed and closed it. The library holds a complete, consistent record of both builds.
+- **The plan shape follows the agent, not storytree.** Claude Code decomposed each part into 2 to 4 capabilities; Codex kept one capability and one contract per part. Both forests draw five islands; neither shows the build as healthy (every island stays grey, increment_ef066f718a63).
+- **The spec, not the agents, caused most failures.** 7 of 11 first-grade failures traced to the user's requirements file; the agents fixed each in one turn once told. A first user's own spec will be worse, and the suite was the only thing that caught it.
+- **Gaps found along the way, each an object:** increment_ef066f718a63 (health wording), increment_aada58eb5fe4 and increment_278013a874cf (Codex's setup check), increment_9f9bf0367bf5 (resteer refusal), friction_0069afc5f6e3 and friction_92d59bf69b1e (the forest's cards and nameplates). The close-out question does not fit a project without Git (Codex answered "not safe" every time, Claude Code "safe"), recorded here for the GitHub arc (arc_5a044e04cba7) to test.

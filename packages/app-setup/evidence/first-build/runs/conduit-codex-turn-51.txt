@@ -1,0 +1,34 @@
+MSG: Ill make failed profile loads show only `.profile-page` with the error and retry control, then update the requirements and tests to match.
+
+  - st:check_setup {} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content profile.js; Get-Content tests/soc exit 0
+  - st:park_increment {"arc":"arc_8ccda3be5663","title":"Correct profile load failure shell","objective":"Render only the profile-page shell with retrya completed 
+  - st:claim {"capability":"capability_a867c9a6e53f","reason":"Correct profile failure shell"} completed 
+  - st:record_resteer {"title":"Profile failures omit user-info","description":"Owner corrects the profile failure requirement and prior upstream-test d failed 
+  - file update C:\Users\mickh\conduit-codex\tests\home.test.cjs, update C:\Users\mickh\conduit-codex\tests\social-cases.cjs
+  - st:claim {"increment":"increment_864fed720d3d","reason":"Correct profile failure shell"} completed 
+  - st:record_resteer {"title":"Profile failures omit user-info","description":"Owner corrects the profile failure requirement.","disposition":"defect", failed 
+MSG: The updated test reproduces the failure. Ill mount `.user-info` only after the profile loads successfully; loading and error states will use the outer page shell, and a successful retry will restore the full profile.
+
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - st:report {"contract":"contract_1b1b8b50935e","result":"red","note":"Corrected local assertion reproduces 2 !== 1 for .profile-page, .user-i completed 
+  - st:record_resteer {"title":"Profile failures omit user-info","description":"Owner corrects the profile failure requirement and prior diagnosis.","di completed 
+  - file update C:\Users\mickh\conduit-codex\PLAN.md, update C:\Users\mickh\conduit-codex\README.md, update C:\Users\mickh\conduit-codex\conduit-requirements.md, update C:\Users\mickh\conduit-codex\profile.js
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "& C:/Users/mickh/AppData/Local/Temp/todo-offi exit 0
+  - st:edit_plan {"id":"contract_1b1b8b50935e","description":"Profiles show avatar, username, null-safe bio and authored/favorited tabs; own settin completed 
+  - st:correct_note {"id":"decision_041e83c83169","text":"Part 5 shares article-list rendering between home and profiles and one follow/favorite actio completed 
+  - st:correct_note {"id":"friction_842fea84de9a","title":"Resolved: profile failure requirement was incorrect","text":"Owner corrected the earlier re failed 
+MSG: All three unchanged official tests now pass. Ive also corrected the requirements and removed the upstream locator bug diagnosis from the docs. The local regression suite is still running, including successful retry after each failure type.
+
+  - st:correct_note {"id":"friction_842fea84de9a","title":"Superseded: owner corrected profile failure requirement"} completed 
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content profile.js; rg -n 'upstream|profi exit 0
+  - cmd "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "powershell -ExecutionPolicy Bypass -File .\\S exit 0
+  - file update C:\Users\mickh\conduit-codex\README.md
+  - st:report {"contract":"contract_1b1b8b50935e","result":"green","note":"Corrected owner contract: loading and failed profiles omit user-info; completed 
+  - st:land {"capability":"capability_a867c9a6e53f"} completed 
+  - st:close_increment {"increment":"increment_864fed720d3d","disposition":"landed","note":"Profile loading/error shell omits user-info; successful retry completed 
+  - st:close_out {"safe":false,"why":"Files saved locally without a Git checkout or PR. All test processes completed; 22 local checks and 3 officia completed 
+MSG: Fixed. Failed profile loads now show `.profile-page` with the error and retry button, without `.user-info`. A successful retry restores the full profile.
+
+All three unchanged official tests pass, plus all 22 local checks. Requirements and docs are corrected. The full 139-test suite wasnt rerun.
+USAGE {"input_tokens":4835135,"cached_input_tokens":4700032,"cache_write_input_tokens":0,"output_tokens":24460,"reasoning_output_tokens":3397}

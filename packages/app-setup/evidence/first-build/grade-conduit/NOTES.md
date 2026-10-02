@@ -122,7 +122,7 @@ The contract is `suite/specs/e2e/SELECTORS.md`. The official HTML templates (<ht
   - Own profile: `a[href="/settings"]` "Edit Profile Settings".
   - Others: `button` `Follow <name>` / `Unfollow <name>`.
   - Tabs: articles, and an `a` "Favorited" (href `/profile/<name>/favorites`).
-  - The `.profile-page` and `.user-info` must still render when the profile API fails or returns 404. Likewise `.article-page` when the article fails or returns 404.
+  - When the profile API fails or returns 404, `.profile-page` must still render, and **exactly one** of `.profile-page` and `.user-info` may be visible: the suite checks `page.locator('.profile-page, .user-info')` with `toBeVisible()`, which fails in Playwright's strict mode when both match (corrected 2026-10-02 after both agents rendered both, as this line first said, and failed 3 tests each; the reference app shows the page without `.user-info`). Likewise `.article-page` when the article fails or returns 404.
 
 ## Reference implementation's ceiling
 

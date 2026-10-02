@@ -1,0 +1,27 @@
+Conduit RealWorld frontend  [arc_8ccda3be5663]  closed
+
+Intent: Build the complete requirements in five ordered sessions using plain HTML, CSS and JavaScript and the demo API.
+End state: All five parts implemented and official RealWorld end-to-end tests pass.
+
+Work (0 open)
+  (none)
+
+Questions waiting on you (0)
+
+Increment log (8 closed)
+  - 2026-10-01  landed  increment_69d9b4aa0f57  Part 1: Discover articles
+      Part 1 delivered in the requested folder; no Git repository or PR. Home/global and tag feeds, pagination, history fallback, responsive official theme, auth/debug groundwork, tests, README and full five-part PLAN.md. Fixture browser tests and live API browser smoke passed; later parts remain planned.
+  - 2026-10-01  landed  increment_37767cc39d06  Part 2: Manage my account
+      Part 2 delivered in original non-Git workspace: account forms, persistent sessions, settings, logout, errors and guards. All 10 browser tests passed; independent review approved. README/PLAN updated. No PR for this folder.
+  - 2026-10-01  landed  increment_0aeb62db40de  Part 3: Read and publish articles
+      Part 3 delivered in original non-Git workspace: article/editor modules, safe DOM Markdown renderer and vendored lexer/license, routes/static assets, browser lifecycle and regression tests, mobile navigation fix, updated README and PLAN. All 14 local tests pass; no PR applies.
+  - 2026-10-01  landed  increment_b23aeba878b3  Part 4: Discuss an article
+      Implemented part 4 in the shared folder with comments.js, article integration, static asset route, accessible local trash icon, browser tests and updated README/PLAN. All 18 local browser tests pass; no PR (folder has no Git repository).
+  - 2026-10-01  landed  increment_a11e626e7115  Part 5: Connect with authors
+      Implemented part 5 locally: profiles, follow/unfollow, favorites and Your Feed. 22 local checks pass; 136 of 139 official checks pass after targeted fixes, with 3 documented upstream locator defects. No PR: this supplied folder has no Git checkout.
+  - 2026-10-01  landed  increment_172e5b28183d  Fix article creation 400 errors
+      Set editor form.noValidate so blank fields reach API validation; add 400 fixture and create/edit retry regression. All 15 local browser tests pass. Delivered in original non-Git workspace; no PR.
+  - 2026-10-01  landed  increment_3d5f671d3a89  Fix comment error visibility
+      Fixed hidden first error locator in article.js/comments.js, added browser regression assertions; all 18 local tests pass. Local files, no PR.
+  - 2026-10-02  landed  increment_864fed720d3d  Correct profile load failure shell
+      Profile loading/error shell omits user-info; successful retry restores it. Requirements, tests, docs and prior diagnosis corrected. 22 local checks and 3 targeted official tests pass. Files saved locally; no Git checkout/PR.

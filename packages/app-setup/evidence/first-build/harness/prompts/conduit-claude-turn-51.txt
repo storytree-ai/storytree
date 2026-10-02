@@ -1,0 +1,60 @@
+model: claude-opus-5-5 | mcp: storytree=connected,claude.ai Claude Docs=connected,claude.ai Google Drive=connected,claude.ai Gmail=connected,claude.ai Google Calendar=connected
+calls: 43
+  - ToolSearch
+  - Grep
+  - st:check_setup {}
+  - Read C:\Users\mickh\conduit-claude\public\profile.js
+  - Write C:\Users\mickh\conduit-claude\.storytree-check
+  - PowerShell echo storytree-check
+  - ToolSearch
+  - Grep
+  - st:check_setup {}
+  - st:search_notes {"query":"orchestrator role","limit":3}
+  - Read C:\Users\mickh\conduit-claude\tests\profile.test.js
+  - Read C:\Users\mickh\conduit-claude\conduit-requirements.md
+  - ToolSearch
+  - st:open {"id":"agent_0ed30a28aaf0"}
+  - st:show_plan {}
+  - ToolSearch
+  - Grep
+  - Read C:\Users\mickh\conduit-claude\tests\lib.js
+  - st:park_increment {"arc":"arc_f87836f9490e","title":"Profile: no loading text in .user-info, no .user-info on failure","objective":"Pass the official RealWorl
+  - st:ready_increment {"increment":"increment_65a7c148d5b1"}
+  - st:edit_plan {"id":"contract_4f2c2392b720","description":"When GET /profiles/<name> answers 404, 5xx or fails to connect, .profile-page renders with a me
+  - st:edit_plan {"id":"contract_25fbb1471114","description":"At /profile/<name>, .profile-page .user-info holds img.user-img (default-avatar.svg when null),
+  - st:claim {"increment":"increment_65a7c148d5b1","reason":"Fix profile loading/failure markup"}
+  - st:claim {"capability":"capability_9a43ec806a51","reason":"Fix profile loading/failure markup"}
+  - Edit C:\Users\mickh\conduit-claude\conduit-requirements.md
+  - Edit C:\Users\mickh\conduit-claude\tests\profile.test.js
+  - Edit C:\Users\mickh\conduit-claude\tests\profile.test.js
+  - Glob
+  - st:search_notes {"query":"how to run the test suite","limit":3}
+  - PowerShell & .\tests\run.ps1 | Select-String -Pattern "profile|FAIL|pass|fail" | Select-Object -Last 30
+  - st:report {"contract":"contract_25fbb1471114","result":"red","note":"New test: .user-info shows \"Loading profile...\" before the profile loads."}
+  - st:report {"contract":"contract_4f2c2392b720","result":"red","note":"Rewritten test: a failed profile still renders .user-info."}
+  - Edit C:\Users\mickh\conduit-claude\public\profile.js
+  - Edit C:\Users\mickh\conduit-claude\public\profile.js
+  - Edit C:\Users\mickh\conduit-claude\public\profile.js
+  - Edit C:\Users\mickh\conduit-claude\public\profile.js
+  - PowerShell & .\tests\run.ps1 | Select-String -Pattern "^FAIL|profiles 1\.|passed" 
+  - st:report {"contract":"contract_25fbb1471114","result":"green","note":".user-info is rendered only after GET /profiles succeeds; loading text sits out
+  - st:report {"contract":"contract_4f2c2392b720","result":"green","note":"Failure shows the message in .profile-page, no .user-info. Full suite 84/84."}
+  - st:land {"capability":"capability_9a43ec806a51"}
+  - st:close_increment {"increment":"increment_65a7c148d5b1","disposition":"landed","note":"No PR (folder is not a git repo). profile.js renders .user-info only on
+  - st:record_resteer {"title":"Failed profile must not render .user-info","description":"The requirement that .user-info still renders on a failed profile was wr
+  - st:record_resteer {"title":"Failed profile must not render .user-info","description":"The requirement that .user-info still renders on a failed profile was wr
+RESULT success turns 44 ms 154492 cost 0.8339774 
+I fixed both failures. The project's own suite passes (84/84), but I haven't re-run the official RealWorld suite, so please run it again to confirm the 5 tests now pass.
+
+**The cause:** the `.user-info` box was drawn as soon as the page opened and only filled in later. While the profile was loading, its `p` held "Loading profile...", which is what the null-bio and clear-bio tests read. When loading failed, the error message went inside `.user-info` too, so `.profile-page, .user-info` matched two elements.
+
+**The fix** (`public/profile.js`):
+- `.profile-page` now holds a slot above the article tabs instead of a ready-made `.user-info`.
+- While loading, the slot shows "Loading profile..." outside `.user-info`.
+- When the profile loads, the slot is replaced with the full `.user-info` box.
+- When loading fails, the slot shows "Profile not found." for a 404 or "Could not load this profile. Please try again." for anything else. There is no `.user-info`.
+
+**Other updates:**
+- **Requirements:** I corrected line 72 of `conduit-requirements.md` to say what you said. I also added that `.user-info` only appears once the profile has loaded.
+- **Tests:** I rewrote the failure test so it expects the message in `.profile-page` and no `.user-info`. I added a test that holds the profile request open and checks there's no `.user-info` until it arrives. I ran both against the old code first, and both failed for the reasons above.
+- **Storytree:** I updated profile contracts 1.1 and 1.3 to the new behaviour and recorded the work as a closed increment. I also logged your correction to the requirements.

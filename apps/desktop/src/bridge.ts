@@ -3,6 +3,8 @@
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
+import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/agent-link/view";
+import { SURFACES_CHANNELS } from "@storytree/app/surfaces";
 import type { InstallChoice, InstallChoiceState, ProjectSelection, SignInState, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
@@ -93,3 +95,47 @@ export const CHANNELS = {
   standingDelegations: "storytree:standing-delegations",
   codeSurvey: "storytree:code-survey",
 } as const;
+
+/** Build the page bridge over the preload's IPC invocation. */
+export function createBridge(
+  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>,
+): StorytreeBridge & SettingsBridge & SurfacesBridge {
+  return {
+    readSettings: () => invoke(SETTINGS_CHANNELS.readSettings) as ReturnType<SettingsBridge["readSettings"]>,
+    saveSetting: (name, values) => invoke(SETTINGS_CHANNELS.saveSetting, name, values) as ReturnType<SettingsBridge["saveSetting"]>,
+    readSurfaces: () => invoke(SURFACES_CHANNELS.readSurfaces) as ReturnType<SurfacesBridge["readSurfaces"]>,
+    saveSurface: (words) => invoke(SURFACES_CHANNELS.saveSurface, words) as ReturnType<SurfacesBridge["saveSurface"]>,
+    checkForUpdates: (action) => invoke(CHANNELS.checkForUpdates, action) as ReturnType<StorytreeBridge["checkForUpdates"]>,
+    readSignIn: () => invoke(CHANNELS.readSignIn) as ReturnType<StorytreeBridge["readSignIn"]>,
+    setSignIn: (on) => invoke(CHANNELS.setSignIn, on) as ReturnType<StorytreeBridge["setSignIn"]>,
+    readInstallChoice: () => invoke(CHANNELS.readInstallChoice) as ReturnType<StorytreeBridge["readInstallChoice"]>,
+    setInstallChoice: (choice) => invoke(CHANNELS.setInstallChoice, choice) as ReturnType<StorytreeBridge["setInstallChoice"]>,
+    readSetupLicense: () => invoke(CHANNELS.readSetupLicense) as ReturnType<StorytreeBridge["readSetupLicense"]>,
+    agentConnections: () => invoke(CHANNELS.agentConnections) as ReturnType<StorytreeBridge["agentConnections"]>,
+    checkSetupFolder: () => invoke(CHANNELS.checkSetupFolder) as ReturnType<StorytreeBridge["checkSetupFolder"]>,
+    addProject: () => invoke(CHANNELS.addProject) as ReturnType<StorytreeBridge["addProject"]>,
+    removeProject: (name) => invoke(CHANNELS.removeProject, name) as ReturnType<StorytreeBridge["removeProject"]>,
+    deletableProjects: () => invoke(CHANNELS.deletableProjects) as ReturnType<StorytreeBridge["deletableProjects"]>,
+    deleteProject: (name, typed, snapshot) => invoke(CHANNELS.deleteProject, name, typed, snapshot) as ReturnType<StorytreeBridge["deleteProject"]>,
+    openFeedbackDraft: (draft) => invoke(CHANNELS.openFeedbackDraft, draft) as ReturnType<StorytreeBridge["openFeedbackDraft"]>,
+    copyHelpText: (text) => invoke(CHANNELS.copyHelpText, text) as ReturnType<StorytreeBridge["copyHelpText"]>,
+    arcViews: (name) => invoke(CHANNELS.arcViews, name) as ReturnType<StorytreeBridge["arcViews"]>,
+    holds: (name) => invoke(CHANNELS.holds, name) as ReturnType<StorytreeBridge["holds"]>,
+    contextReadings: (name, sessions) => invoke(CHANNELS.contextReadings, name, sessions) as ReturnType<StorytreeBridge["contextReadings"]>,
+    idleAfterMs: () => invoke(CHANNELS.idleAfterMs) as Promise<number>,
+    leaveAfterMs: () => invoke(CHANNELS.leaveAfterMs) as Promise<number>,
+    windowReading: (name, session) => invoke(CHANNELS.windowReading, name, session) as ReturnType<StorytreeBridge["windowReading"]>,
+    windowReadings: (name, sessions) => invoke(CHANNELS.windowReadings, name, sessions) as ReturnType<StorytreeBridge["windowReadings"]>,
+
+    listProjects: () => invoke(CHANNELS.listProjects) as Promise<string[]>,
+    projectSelection: () => invoke(CHANNELS.projectSelection) as ReturnType<StorytreeBridge["projectSelection"]>,
+    chooseProject: (name) => invoke(CHANNELS.chooseProject, name) as ReturnType<StorytreeBridge["chooseProject"]>,
+    projectTree: (name) => invoke(CHANNELS.projectTree, name) as ReturnType<StorytreeBridge["projectTree"]>,
+    changesSince: (name, cursor) => invoke(CHANNELS.changesSince, name, cursor) as ReturnType<StorytreeBridge["changesSince"]>,
+    linesSince: (name, cursor) => invoke(CHANNELS.linesSince, name, cursor) as ReturnType<StorytreeBridge["linesSince"]>,
+    frontCovers: (name, nodeId) => invoke(CHANNELS.frontCovers, name, nodeId) as ReturnType<StorytreeBridge["frontCovers"]>,
+    relatedNotes: (name, noteId) => invoke(CHANNELS.relatedNotes, name, noteId) as ReturnType<StorytreeBridge["relatedNotes"]>,
+    standingDelegations: (name) => invoke(CHANNELS.standingDelegations, name) as ReturnType<StorytreeBridge["standingDelegations"]>,
+    codeSurvey: (name) => invoke(CHANNELS.codeSurvey, name) as ReturnType<StorytreeBridge["codeSurvey"]>,
+  };
+}

@@ -31,7 +31,7 @@ import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, nativeTheme, powerMonitor, shell, Tray } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, shell, Tray } from "electron";
 
 import {
   agentActiveAt,
@@ -69,7 +69,7 @@ import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@sto
 import { CHANNELS } from "../bridge.js";
 import { APP_OWNER, appHome } from "../home.js";
 import { parseArgs } from "./args.js";
-import { TRAY_ICON_PNG } from "./tray-icon.js";
+import { createTrayIcon } from "./tray-icon.js";
 import { followReleases, installedApp } from "./releases.js";
 
 const args = parseArgs(process.argv);
@@ -304,7 +304,7 @@ async function keepBackups(): Promise<void> {
 
 /** The tray icon, whose menu brings the window back or quits the app. */
 function showTray(): void {
-  tray = new Tray(nativeImage.createFromDataURL(TRAY_ICON_PNG));
+  tray = new Tray(createTrayIcon());
   tray.setToolTip(`storytree 0.3 · ${build}`);
   const actions = { show: showWindow, quit: () => app.quit() };
   tray.setContextMenu(Menu.buildFromTemplate(TRAY_MENU.map((item) => ({ label: item.label, click: actions[item.id] }))));

@@ -1,38 +1,76 @@
 {
+ "../../apps/desktop/src/bridge.ts": {
+  "1": 6,
+  "4": 6
+ },
+ "../../apps/desktop/src/home.ts": {
+  "1": 1,
+  "4": 1
+ },
+ "../../apps/desktop/src/main/args.ts": {
+  "1": 1,
+  "4": 1
+ },
+ "../../apps/desktop/src/main/main.ts": {
+  "1": 24,
+  "4": 23
+ },
+ "../../apps/desktop/src/main/releases.ts": {
+  "1": 2,
+  "4": 2
+ },
+ "../../apps/desktop/src/main/tray-icon.ts": {
+  "1": 1,
+  "4": 1
+ },
+ "../../apps/desktop/src/preload/preload.ts": {
+  "1": 1,
+  "4": 1
+ },
  "src/lifecycle/background.ts": {
-  "1": 40,
-  "4": 40
+  "1": 43,
+  "4": 42
  },
  "src/lifecycle/backups.ts": {
-  "1": 2
+  "1": 3,
+  "4": 1
  },
  "src/lifecycle/launch.ts": {
-  "1": 4
+  "1": 6,
+  "4": 2
  },
  "src/lifecycle/open-where-set.ts": {
-  "1": 2
+  "1": 3,
+  "4": 1
  },
  "src/lifecycle/quit.ts": {
   "1": 12
  },
  "src/lifecycle/sign-in.ts": {
-  "1": 12
+  "1": 15,
+  "4": 3
  },
  "src/projects/follow.ts": {
   "1": 25,
   "2": 14
  },
  "src/projects/selection.ts": {
-  "2": 36
+  "1": 6,
+  "2": 36,
+  "4": 6
  },
  "src/surfaces/reads.ts": {
-  "3": 138
+  "1": 1,
+  "3": 138,
+  "4": 1
  },
  "src/surfaces/smoke.ts": {
   "3": 4
  },
  "src/surfaces/switches.ts": {
-  "3": 39
+  "1": 1,
+  "3": 39,
+  "4": 1
  },
  "src/updates/agent-activity.ts": {
   "4": 1
@@ -44,14 +82,15 @@
   "4": 4
  },
  "src/updates/follow-main.ts": {
-  "1": 4,
-  "4": 12
+  "1": 9,
+  "4": 17
  },
  "src/updates/hold-run.mjs": {
   "4": 2
  },
  "src/updates/install-choice-file.ts": {
-  "4": 9
+  "1": 2,
+  "4": 11
  },
  "src/updates/install-choice.ts": {
   "4": 39
@@ -60,7 +99,8 @@
   "4": 12
  },
  "src/updates/main-updates.ts": {
-  "4": 55
+  "1": 4,
+  "4": 59
  },
  "src/updates/release-channel.ts": {
   "4": 1

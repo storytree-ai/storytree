@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Code survey (the forest story): each story's code files, their lines, the capability
+ * Capability 8 · Code survey (the map story): each story's code files, their lines, the capability
  * each belongs to by the contract numbers its tests name, and the imports between them (ADR-0804 D3,
  * D4). Written against a small package tree held in memory.
  */

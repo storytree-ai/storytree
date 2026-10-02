@@ -17,7 +17,7 @@
  * - A file nothing reaches is Unclaimed: no capability. Its folder's name allocates nothing, since name
  *   matching is brittle (ADR-0838 D3 retired the fallback).
  * - Lines are a file's non-blank lines. Test files, and test helpers under a testing/ folder, are read for
- *   their titles and imports, never counted.
+ *   their titles and imports, never counted. They remain as tagged tests in the survey (ADR-0864).
  * Capability records gain no file list: ownership is derived here, each time.
  */
 
@@ -33,9 +33,19 @@ export type SurveyedFile = { readonly path: string; readonly lines: number; read
 /** An import from one source file to another. */
 export type FileImport = { readonly from: string; readonly to: string };
 
+/** A test or test helper, kept apart from source-line counts with its numbered identities and imports. */
+export type SurveyedTest = {
+  readonly kind: "test";
+  readonly path: string;
+  readonly titles: readonly { readonly number: string; readonly title: string }[];
+  readonly imports: readonly FileImport[];
+};
+
 export type StorySurvey = {
   readonly files: readonly SurveyedFile[];
   readonly imports: readonly FileImport[];
+  /** Numbered tests and helpers; absent only in older saved surveys. */
+  readonly tests?: readonly SurveyedTest[];
   /** The stories whose packages this story's package depends on, through any field of its package.json; absent when it has none (ADR-0840 D2). */
   readonly dependsOn?: readonly string[];
 };
@@ -86,7 +96,7 @@ type Edge = { readonly to: string; readonly reexport: boolean; readonly typeOnly
 function resolve(from: string, specifier: string, paths: ReadonlySet<string>): string | undefined {
   const parts = from.split("/").slice(0, -1);
   for (const part of specifier.split("/")) {
-    if (part === "..") parts.pop();
+    if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") parts.pop();
     else if (part !== ".") parts.push(part);
   }
   const target = parts.join("/");
@@ -204,5 +214,12 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     return capability === undefined ? { path: file.path, lines: linesOf(file.text) } : { path: file.path, lines: linesOf(file.text), capability };
   });
   const imports = sources.flatMap((file) => edgesOf(file, paths).filter((edge) => !isTestCode(edge.to)).map((edge) => ({ from: file.path, to: edge.to })));
-  return { files, imports };
+  const tests = code.filter((file) => isTestCode(file.path)).map((file): SurveyedTest => ({
+    kind: "test",
+    path: file.path,
+    titles: [...file.text.matchAll(/\b(?:test|it|describe)\s*\(\s*(["'`])((\d+\.\d+)\b(?:\\.|(?!\1)[^\\])*)\1/g)]
+      .map(([, , title, number]) => ({ number: number!, title: title! })),
+    imports: edgesOf(file, paths).map((edge) => ({ from: file.path, to: edge.to })),
+  }));
+  return { files, imports, tests };
 }

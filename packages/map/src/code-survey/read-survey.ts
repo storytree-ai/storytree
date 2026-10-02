@@ -3,7 +3,7 @@
  * Node only (the app's main process reads it; the page cannot reach the disk).
  *
  * - The checkout is the main one of the folder's repository, so a session's worktree never stands in
- *   for the project's code.
+ *   for the project's code. A caller may explicitly choose its current checkout for the map (ADR-0864).
  * - A story's package is the one named after its title ("The agent link" is packages/agent-link),
  *   but for a story whose package was named otherwise; a story with no such package has no code yet.
  * - A story's package.json says which other stories' packages it depends on, through any dependency
@@ -51,12 +51,12 @@ const COVERAGE_MAP = "survey-coverage.json";
 
 export { packageOf };
 
-/** The main checkout of the repository `folder` is in, or `folder` itself when git cannot say. */
-async function mainCheckout(folder: string): Promise<string> {
+/** The requested checkout of the repository `folder` is in, or `folder` itself when git cannot say. */
+async function checkoutAt(folder: string, scope: "main" | "current"): Promise<string> {
   try {
-    const { stdout } = await promisify(execFile)("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: folder, encoding: "utf8", timeout: 5_000, windowsHide: true });
+    const { stdout } = await promisify(execFile)("git", ["rev-parse", "--path-format=absolute", scope === "main" ? "--git-common-dir" : "--show-toplevel"], { cwd: folder, encoding: "utf8", timeout: 5_000, windowsHide: true });
     const common = stdout.trim();
-    return path.basename(common) === ".git" ? path.dirname(common) : folder;
+    return scope === "current" ? common : path.basename(common) === ".git" ? path.dirname(common) : folder;
   } catch {
     return folder;
   }
@@ -81,7 +81,11 @@ function coverageFrom(text: string): CoverageMap {
   }
 }
 
-export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8") }: { readFile?(file: string): Promise<string> } = {}): CodeSurveyReader {
+export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main" }: {
+  readFile?(file: string): Promise<string>;
+  /** The forest reads the main checkout; the map can explicitly read its caller's current worktree. */
+  checkout?: "main" | "current";
+} = {}): CodeSurveyReader {
   const checkouts = new Map<string, Promise<string>>();
   const kept = new Map<string, Kept>();
   const surveyed = new Map<string, { readonly files: readonly SourceFile[]; readonly capabilities: string; readonly survey: StorySurvey }>();
@@ -115,12 +119,15 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
   }
 
   async function survey(folder: string, tree: AnnotatedTree): Promise<ProjectSurvey> {
-    if (!checkouts.has(folder)) checkouts.set(folder, mainCheckout(folder));
+    if (!checkouts.has(folder)) checkouts.set(folder, checkoutAt(folder, checkoutScope));
     const checkout = await checkouts.get(folder)!;
     const seen = new Map<string, Kept>();
     const surveys = await Promise.all(tree.stories.map(async (story) => {
-      const root = path.join(checkout, "packages", packageOf(story.title));
+      const storyPackage = packageOf(story.title);
+      const root = path.join(checkout, "packages", storyPackage);
       const sources = await filesUnder(root, path.join(root, "src"), seen);
+      // The desktop is the app story's frame, just as plan-edges maps it (ADR-0864 D4).
+      if (storyPackage === "app") sources.push(...await filesUnder(root, path.join(checkout, "apps", "desktop", "src"), seen));
       if (sources.length === 0) return [];
       const manifest = await fileAt(root, path.join(root, "package.json"), seen);
       const map = await fileAt(root, path.join(root, COVERAGE_MAP), seen);
@@ -129,7 +136,23 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       const last = surveyed.get(story.id);
       const read = manifest === undefined ? undefined : manifestFrom(manifest.text);
       if (last !== undefined && last.capabilities === capabilities && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read] as const];
-      const fresh = surveyStory(sources, story.capabilities, map === undefined ? {} : coverageFrom(map.text));
+      // Survey in repository coordinates so imports crossing the app/desktop seam can return to
+      // packages/app; publish the package-relative paths the forest and map already consume.
+      const base = `packages/${storyPackage}`;
+      const inCheckout = (file: string) => path.posix.normalize(`${base}/${file}`);
+      const inPackage = (file: string) => path.posix.relative(base, file);
+      const coverage = map === undefined ? {} : coverageFrom(map.text);
+      const measured = surveyStory(
+        sources.map((file) => ({ ...file, path: inCheckout(file.path) })),
+        story.capabilities,
+        Object.fromEntries(Object.entries(coverage).map(([file, counts]) => [inCheckout(file), counts])),
+      );
+      const relativeImport = ({ from, to }: { from: string; to: string }) => ({ from: inPackage(from), to: inPackage(to) });
+      const fresh: StorySurvey = {
+        files: measured.files.map((file) => ({ ...file, path: inPackage(file.path) })),
+        imports: measured.imports.map(relativeImport),
+        tests: (measured.tests ?? []).map((file) => ({ ...file, path: inPackage(file.path), imports: file.imports.map(relativeImport) })),
+      };
       surveyed.set(story.id, { files, capabilities, survey: fresh });
       return [[story.id, fresh, read] as const];
     }));

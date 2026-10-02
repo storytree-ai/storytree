@@ -115,3 +115,40 @@ test("8.10 prefixed proof retains its package and contract list without assignin
   assert.equal(surveyed.files.find(file => file.path === "src/local.ts")?.capability, "local-capability");
   assert.equal(surveyed.files.find(file => file.path === "src/self.ts")?.capability, "local-capability");
 });
+
+test("8.10 helper calls, constant titles and template prefixes retain proof while comments and unused strings do not", () => {
+  const surveyed = surveyStory([
+    { path: "src/foreign.ts", text: "export const foreign = true;" },
+    { path: "src/local.ts", text: "export const local = true;" },
+    { path: "src/foreign.test.ts", text: [
+      'import { foreign } from "./foreign.js";',
+      'const TITLE = "map 3.5: counted front door";',
+      'contract("map 3.6", () => foreign);',
+      'test(TITLE, () => foreign);',
+      'test(`${TITLE} (local)`, () => foreign);',
+      '// test("3.7 commented proof", () => foreign);',
+      '/* contract("3.8 commented proof", () => foreign); */',
+      'const UNUSED = "3.9 unused title";',
+      'const FIXTURE = "test(\'3.10 quoted call\', () => foreign)";',
+    ].join("\n") },
+    { path: "src/local.test.ts", text: [
+      'import { local } from "./local.js";',
+      'const TITLE = "3.5 local proof";',
+      'contract("3.6", () => local);',
+      'test(TITLE, () => local);',
+      'test(`${TITLE} (local)`, () => local);',
+    ].join("\n") },
+  ], [{ id: "local-capability", title: "3 · Local capability" }], {}, "agent-link");
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/foreign.test.ts")?.titles, [
+    { package: "map", number: "3.6", title: "map 3.6" },
+    { package: "map", number: "3.5", title: "map 3.5: counted front door" },
+    { package: "map", number: "3.5", title: "map 3.5: counted front door (local)" },
+  ]);
+  assert.deepEqual(surveyed.tests?.find(file => file.path === "src/local.test.ts")?.titles, [
+    { number: "3.6", title: "3.6" },
+    { number: "3.5", title: "3.5 local proof" },
+    { number: "3.5", title: "3.5 local proof (local)" },
+  ]);
+  assert.equal(surveyed.files.find(file => file.path === "src/foreign.ts")?.capability, undefined);
+  assert.equal(surveyed.files.find(file => file.path === "src/local.ts")?.capability, "local-capability");
+});

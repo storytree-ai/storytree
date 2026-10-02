@@ -116,10 +116,17 @@ function sorted(tally) {
   return Object.fromEntries([...tally].sort(([a], [b]) => a.localeCompare(b)).map(([file, counts]) => [file, Object.fromEntries([...counts].sort(([a], [b]) => Number(a) - Number(b)))]));
 }
 
+// App owns the Desktop frame in the same checkout. Keep its map beside packages/app/src,
+// using package-relative keys as the survey does; no other story gains sibling source roots.
+function sourceRoots(pkgDir) {
+  return path.basename(pkgDir) === "app" && path.basename(path.dirname(pkgDir)) === "packages"
+    ? ["src/", "../../apps/desktop/src/"] : ["src/"];
+}
+
 function addExecution(tally, pkgDir, executed, counts) {
   for (const [file, functions] of executed) {
     const relative = path.relative(pkgDir, existsSync(file) ? realpathSync(file) : file).split(path.sep).join("/");
-    if (!relative.startsWith("src/") || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
+    if (!sourceRoots(pkgDir).some(root => relative.startsWith(root)) || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
     const counted = tally.get(relative) ?? new Map();
     for (const [number, count] of counts) counted.set(number, (counted.get(number) ?? 0) + count * functions);
     tally.set(relative, counted);
@@ -169,7 +176,6 @@ export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
   // Coverage names files by their real path (macOS's temporary folder is a link to /private/var).
   const pkgDir = realpathSync(given);
   const ownPackage = path.basename(pkgDir);
-  const src = path.join(pkgDir, "src");
   const tally = new Map();
   for (const map of Object.values(browserProofs(pkgDir))) {
     for (const [file, counts] of Object.entries(map)) {
@@ -178,10 +184,12 @@ export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
       tally.set(file, counted);
     }
   }
-  for (const testFile of codeFiles(src).filter((file) => TEST_FILE.test(file)).sort()) {
+  for (const testFile of sourceRoots(pkgDir).flatMap(src => codeFiles(path.resolve(pkgDir, src))).filter((file) => TEST_FILE.test(file)).sort()) {
     const counts = new Map();
+    // Desktop also hosts other stories' mounted proofs: only an explicit App prefix owns one.
+    const local = path.relative(pkgDir, testFile).startsWith(`src${path.sep}`);
     for (const [, prefix, number] of readFileSync(testFile, "utf8").matchAll(NUMBERED_TEST)) {
-      if (prefix === undefined || prefix === ownPackage) counts.set(number, (counts.get(number) ?? 0) + 1);
+      if ((local && prefix === undefined) || prefix === ownPackage) counts.set(number, (counts.get(number) ?? 0) + 1);
     }
     if (counts.size === 0) continue;
     const coverageDir = mkdtempSync(path.join(tmpdir(), "survey-coverage-"));

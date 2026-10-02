@@ -67,7 +67,7 @@ try {
   execFileSync(path.join(release, installer), ["/S", `/D=${installed}`], { timeout: 180_000 });
   assert.deepEqual(readFileSync(path.join(installed, "resources", "LICENSE")), license, "the installed app carries the repository license unchanged");
   assert.deepEqual(readFileSync(path.join(release, "win-arm64-unpacked", "resources", "LICENSE")), license, "the arm64 portable payload carries the same license");
-  assert.equal(readFileSync(path.join(installed, "resources", "storytree-installed"), "utf8"), "nsis");
+  assert.equal(readFileSync(path.join(installed, "resources", "storytree-installed"), "utf8"), "nsis-stable");
   const update = readFileSync(path.join(installed, "resources", "app-update.yml"), "utf8");
   assert.match(update, /provider: github/);
   assert.match(update, /owner: storytree-ai/);

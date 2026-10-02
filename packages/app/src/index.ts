@@ -22,6 +22,8 @@ export { refreshOwnHealth } from "./updates/build-health.js";
 export type { OwnHealthOptions } from "./updates/build-health.js";
 export { seedWriting } from "./updates/seed-writing.js";
 export { ReleaseUpdater } from "./updates/releases.js";
+export { releaseChannel } from "./updates/release-channel.js";
+export { pinRelease } from "./updates/stable-github.js";
 export { QUIET_MS, SETTLE_MS, whenToInstall } from "./updates/install-moment.js";
 export type { InstallMoment } from "./updates/install-moment.js";
 export { installChoice } from "./updates/install-choice-file.js";

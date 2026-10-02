@@ -1,0 +1,10 @@
+{
+  "switched": {
+    "state": "ready",
+    "project": "beta",
+    "surface": "forest",
+    "drew": "{\"sessions\":[],\"surface\":\"forest\",\"stories\":[\"story_beta\"],\"capabilities\":[\"capability_beta\"],\"labels\":[\"The beta project\"],\"trees\":[{\"capability\":\"capability_beta\",\"form\":\"seedling\"}]}"
+  },
+  "failedChoiceRetried": true,
+  "emptyAndRecovered": true
+}

@@ -55,6 +55,76 @@
    "1": 4
   }
  },
+ "app 2.1 mounted project choice and retry, 2.5 empty project list": {
+  "../../apps/desktop/src/capture/build.ts": {
+   "2": 3
+  },
+  "../../apps/desktop/src/capture/fake-bridge.ts": {
+   "2": 11
+  },
+  "../../apps/desktop/src/capture/launch.ts": {
+   "2": 3
+  },
+  "../../apps/desktop/src/capture/output.ts": {
+   "2": 2
+  },
+  "../../apps/desktop/src/capture/runner.ts": {
+   "2": 10
+  },
+  "../../apps/desktop/src/renderer/renderer.ts": {
+   "2": 32
+  },
+  "src/projects/follow.ts": {
+   "2": 6
+  },
+  "src/surfaces/bridge.ts": {
+   "2": 5
+  },
+  "src/view/index.ts": {
+   "2": 14
+  },
+  "src/view/render.ts": {
+   "2": 6
+  },
+  "src/view/surfaces.ts": {
+   "2": 2
+  },
+  "src/view/switch.ts": {
+   "2": 1
+  },
+  "src/view/updates.ts": {
+   "2": 14
+  }
+ },
+ "app 3.7 mounted surface switches persist, 3.3 complete project census": {
+  "../../apps/desktop/src/capture/fake-bridge.ts": {
+   "3": 6
+  },
+  "../../apps/desktop/src/capture/runner.ts": {
+   "3": 8
+  },
+  "../../apps/desktop/src/renderer/renderer.ts": {
+   "3": 29
+  },
+  "src/projects/follow.ts": {
+   "3": 5
+  },
+  "src/surfaces/bridge.ts": {
+   "3": 5
+  },
+  "src/view/index.ts": {
+   "3": 14
+  },
+  "src/view/render.ts": {
+   "3": 5
+  },
+  "src/view/surfaces.ts": {
+   "3": 19
+  },
+  "src/view/updates.ts": {
+   "3": 14
+  }
+ },
  "app 4.10 native checkout update request refuses without fetching or restarting": {
   "../../apps/desktop/src/bridge.ts": {
    "4": 6

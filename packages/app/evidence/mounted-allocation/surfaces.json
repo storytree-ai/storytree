@@ -1,0 +1,19 @@
+{
+  "switches": [
+    "library",
+    "capability-tree",
+    "sessions",
+    "arcs"
+  ],
+  "saved": {
+    "surfaces": {
+      "arcs": {
+        "on": false
+      },
+      "library": {
+        "on": false
+      }
+    }
+  },
+  "remounted": true
+}

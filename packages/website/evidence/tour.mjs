@@ -152,6 +152,8 @@ export async function verifyTour(browser, url, output) {
   assert.equal(await page.locator(".core-card").count(), 0, "2.6 · Escape closes the saved note");
   assert.equal(await page.evaluate(() => document.activeElement.id), "tour-note-choice");
   assert.ok(await page.locator(".arc-lane").count() > 0);
+  const arcList = await page.locator(".arc-lanes").boundingBox();
+  assert.ok(arcList && arcList.height >= 100, "2.6 · phone free play keeps the arc choices readable above their briefing");
   await page.locator(".arc-lane").last().click();
   assert.ok(await page.locator(".arc-briefing").isVisible());
   await page.locator("#tour-hatch").click();

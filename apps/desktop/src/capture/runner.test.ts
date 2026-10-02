@@ -1,11 +1,28 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { get } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { chromium, type Browser, type Page } from "playwright-core";
 
 import { outputFolder, runCapture } from "./index.js";
+
+// Each probe owns its socket and finishes only after it closes. Global fetch leaves
+// connection cleanup running, which can abort native Windows Node at test-force-exit.
+function readPage(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    let failure: Error | undefined;
+    const request = get(url, { agent: false }, response => {
+      response.setEncoding("utf8");
+      response.on("data", chunk => { body += chunk; });
+      response.on("error", error => { failure = error; });
+    });
+    request.on("error", error => { failure = error; });
+    request.on("close", () => { if (failure) reject(failure); else resolve(body); });
+  });
+}
 
 test("a seed-and-views capture uses workspace Playwright and quiet bridge reads, and closes its server and browser", async t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-runner-"));
@@ -19,7 +36,7 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
     async addInitScript() {},
     async goto(url: string) {
       origin = new URL(url).origin;
-      assert.equal(await (await fetch(url)).text(), "<body>capture fixture</body>");
+      assert.equal(await readPage(url), "<body>capture fixture</body>");
       assert.deepEqual(await call("listProjects", []), ["sample"]);
       assert.deepEqual(await call("readSignIn", []), { available: false, on: false });
     },
@@ -38,11 +55,11 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
   assert.equal(launch.mock.callCount(), 1);
   assert.deepEqual(JSON.parse(readFileSync(path.join(outputFolder(folder), "quiet.json"), "utf8")), []);
   assert.equal(closed, 1);
-  await assert.rejects(fetch(origin));
+  await assert.rejects(readPage(origin));
 
   await assert.rejects(runCapture({ folder, dist: folder, seed, views: [{ name: "broken", picture: false,
     prepare: () => { throw new Error("view failed"); },
   }] }), /view failed/);
   assert.equal(closed, 2, "a failed view also closes the browser");
-  await assert.rejects(fetch(origin), "a failed view also closes the server");
+  await assert.rejects(readPage(origin), "a failed view also closes the server");
 });

@@ -65,3 +65,25 @@ Session 5 notes:
 - Libraries at the end (`runs/library-conduit-*`): conduit-claude 5 stories, 13 capabilities, 38 contracts, 7 increments landed (5 parts, 2 fixes), arc closed, nothing held; conduit-codex 5 stories, 5 capabilities, 5 contracts, 8 increments landed (5 parts, 3 fixes), arc closed, nothing held. Every contract reads "agent says passing" and storytree-verified "not checked" (increment_ef066f718a63).
 - The final forests (`shots/z1-…`, `z2-…`) draw all five stories, and Claude Code's with paths between dependent stories; every island stays grey although both sites pass every official test, and the top nameplates crowd the globe's rim (friction_92d59bf69b1e).
 - The app updated to 0.3.522 at the first quiet moment after the last session.
+
+## The build judged (Conduit 6, increment_53690337e6f9)
+
+**Result.** Both laptop agents built the whole of Conduit in plain HTML/JS from a user's requirements file and one-line prompts, over five fresh sessions plus short follow-up turns, and both complete sites pass the official RealWorld suite 139/139, the reference app's own ceiling. No grade at any point found an earlier area broken by a later session: every regression check stayed green.
+
+| | Claude Code | Codex |
+|---|---|---|
+| Agent time (all turns) | 2,201 s (37 min) over 7 turns | 5,281 s (88 min) over 8 turns |
+| Cost | $10.52 (Claude Max plan, as reported by the CLI) | not reported (ChatGPT plan) |
+| Parts green at their first grade | 1, 2, 4 (3 also, but for the spec's own error) | 1, 2 (5 also, but for the spec's own errors) |
+| Failures that were the agent's own | 2 (part 5: loading text in the bio) | 2 (part 3: hidden 400; part 4: hidden error list) |
+| Failures that were the user's spec | 4 (Your Feed timing; the profile-failure locator ×3) | 3 (the profile-failure locator ×3) |
+| Follow-up turns to reach green | 2 | 3 |
+| Plan in its library | 5 stories, 13 capabilities, 38 contracts, 7 increments | 5 stories, 5 capabilities, 5 contracts, 8 increments |
+| Resuming in a fresh session | found its place from show_plan and the next increment within its first ten calls, every time | the same |
+| Would we merge it? (`review.md`) | merge with light changes: an import cycle, copied render helpers, a startup sign-in race | merge after a heavier round: copied error handling, long renderers, dead code, a launcher that borrows Cypress's Node |
+
+**What it says about storytree.**
+- **Multi-session continuity works without chat history.** Each session after the first was fresh, prompted only "carry on, next part N"; every one found its place from the library (the plan, the next increment, its story and decisions), claimed it, built test-first, reported red then green, landed and closed it. The library holds a complete, consistent record of both builds.
+- **The plan shape follows the agent, not storytree.** Claude Code decomposed each part into 2 to 4 capabilities; Codex kept one capability and one contract per part. Both forests draw five islands; neither shows the build as healthy (every island stays grey, increment_ef066f718a63).
+- **The spec, not the agents, caused most failures.** 7 of 11 first-grade failures traced to the user's requirements file; the agents fixed each in one turn once told. A first user's own spec will be worse, and the suite was the only thing that caught it.
+- **Gaps found along the way, each an object:** increment_ef066f718a63 (health wording), increment_aada58eb5fe4 and increment_278013a874cf (Codex's setup check), increment_9f9bf0367bf5 (resteer refusal), friction_0069afc5f6e3 and friction_92d59bf69b1e (the forest's cards and nameplates). The close-out question does not fit a project without Git (Codex answered "not safe" every time, Claude Code "safe"), recorded here for the GitHub arc (arc_5a044e04cba7) to test.

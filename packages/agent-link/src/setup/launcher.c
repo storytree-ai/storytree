@@ -3,7 +3,9 @@
  * runs one through cmd.exe, which parses the caller's whole command line before the batch's first
  * line, so a > after an inner double quote writes a file and an & starts a command. This program
  * runs no shell. It hands the caller's command line, after its own name, unchanged to the Node and
- * the script named in the text appended to its file, waits, and exits with the script's exit code.
+ * the script named in the text appended to its file, waits, and exits with the script's exit code. It
+ * also passes that line on in STORYTREE_COMMAND_LINE, so the command can tell a word its caller's own
+ * quoting changed, as Windows PowerShell 5.1's does (ADR-0856).
  *
  * The appended text is UTF-8: three lines, each ended by a line feed (the marker that says the file
  * is storytree's, then Node, then the script), followed by its length in four little-endian bytes
@@ -67,6 +69,7 @@ IMPORT BOOL SetConsoleCtrlHandler(CONTROL_HANDLER handler, BOOL add);
 IMPORT BOOL CreateProcessW(const WCHAR *program, WCHAR *line, void *processSecurity, void *threadSecurity, BOOL inherit, DWORD flags, void *environment, const WCHAR *folder, STARTUPINFOW *startup, PROCESS_INFORMATION *process);
 IMPORT DWORD WaitForSingleObject(HANDLE handle, DWORD milliseconds);
 IMPORT BOOL GetExitCodeProcess(HANDLE process, DWORD *code);
+IMPORT BOOL SetEnvironmentVariableW(const WCHAR *name, const WCHAR *value);
 IMPORT void ExitProcess(unsigned code) __attribute__((noreturn));
 
 /* Text for the person at the terminal: as characters to a console, as UTF-8 to a file or a pipe. */
@@ -168,6 +171,7 @@ void start(void) {
   STARTUPINFOW startup;
   GetStartupInfoW(&startup);
   PROCESS_INFORMATION process;
+  SetEnvironmentVariableW(L"STORYTREE_COMMAND_LINE", words);
   SetConsoleCtrlHandler(waitForScript, 1);
   if (!CreateProcessW(node, line, 0, 0, 1, 0, 0, 0, &startup, &process)) fail(L"Node could not start:", node);
   CloseHandle(process.hThread);

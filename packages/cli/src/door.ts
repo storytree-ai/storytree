@@ -22,6 +22,7 @@ import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytre
 
 import { Refusal, render, type Answer } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
+import { changedByQuoting } from "./handed.js";
 import { FAMILIES, GUESSES } from "./families/index.js";
 import { commandSession, commandWriter, person } from "./writer.js";
 
@@ -32,6 +33,8 @@ export interface Io {
   readonly script?: string;
   /** The words as pnpm was handed them, when pnpm's script ran this command (./handed.ts). */
   readonly handed?: readonly string[];
+  /** The line the Windows launcher was handed, after its own name, when it started this command (./handed.ts). */
+  readonly launched?: string;
   out(text: string): void;
   err(text: string): void;
 }
@@ -88,10 +91,12 @@ export interface Family {
 export async function run(argv: readonly string[], io: Io): Promise<number> {
   const changed = io.handed === undefined ? -1 : changedWord(argv, io.handed);
   if (changed !== -1) {
-    const word = io.handed?.[changed] ?? "";
-    const line = word.split(/\r?\n/, 1)[0] ?? "";
-    const preview = line.length > 40 || line.length < word.length ? `${line.slice(0, 40)}…` : line;
-    io.err(render({ text: `storytree did nothing: the shell pnpm runs scripts through changed word ${changed + 1} ("${preview}") on its way here, as it does a $ or a line break. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt.` }));
+    io.err(render({ text: `storytree did nothing: the shell pnpm runs scripts through changed word ${changed + 1} ("${preview(io.handed?.[changed] ?? "")}") on its way here, as it does a $ or a line break. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt.` }));
+    return 1;
+  }
+  const requoted = io.launched === undefined ? undefined : changedByQuoting(io.launched, argv);
+  if (requoted !== undefined) {
+    io.err(render({ text: `storytree did nothing: word ${requoted + 1} ("${preview(argv[requoted] ?? "")}") arrived with its double quotes changed, as Windows PowerShell 5.1 hands on a word that holds a space and a double quote. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt, or write each double quote inside it as \\".` }));
     return 1;
   }
   const opened = new Opened(io.cwd);
@@ -119,6 +124,12 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
   } finally {
     await opened.close();
   }
+}
+
+/** A word as a refusal names it: its first line, cut at 40 characters. */
+function preview(word: string): string {
+  const line = word.split(/\r?\n/, 1)[0] ?? "";
+  return line.length > 40 || line.length < word.length ? `${line.slice(0, 40)}…` : line;
 }
 
 /** The index of the first handed word that did not arrive as handed, or -1 when every one did (contract 1.11). */

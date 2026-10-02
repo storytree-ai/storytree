@@ -1,0 +1,12 @@
+From Windows PowerShell 5.1: storytree 'he said "website -> forest" ok'
+exit 1
+storytree did nothing: word 1 ("he said website") arrived with its double quotes changed, as Windows PowerShell 5.1 hands on a word that holds a space and a double quote. Put that text in a file and pass @<file> in its place, as in --answer @answer.txt, or write each double quote inside it as \".
+
+From Git Bash: storytree 'he said "website -> forest" ok'
+exit 2
+storytree has no "he said "website -> forest" ok"
+Its families: library, arc, question, adr, noticeboard, doctor, app, friction, resteer, tree, health, capability, setup, project, workspace, processes, settings, auth, context, session.
+
+next:
+  - storytree   (each command, with its usage)
+

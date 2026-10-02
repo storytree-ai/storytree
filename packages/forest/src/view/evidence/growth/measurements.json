@@ -724,6 +724,56 @@
           "layoutError": 1.5716250041522723e-16
         }
       ],
+      "nameClearance": {
+        "expanded": {
+          "name": {
+            "left": 662.195556640625,
+            "top": 864.328125,
+            "right": 750.476806640625,
+            "bottom": 882.609375
+          },
+          "strip": {
+            "left": 0,
+            "top": 885.609375,
+            "right": 1440,
+            "bottom": 960
+          },
+          "visible": true,
+          "facing": 0.5119698532863906
+        },
+        "collapsed": {
+          "name": {
+            "left": 662.195556640625,
+            "top": 898.6162719726562,
+            "right": 750.476806640625,
+            "bottom": 916.8975219726562
+          },
+          "strip": {
+            "left": 0,
+            "top": 923,
+            "right": 1440,
+            "bottom": 960
+          },
+          "visible": true,
+          "facing": 0.5119698532863906
+        },
+        "reopened": {
+          "name": {
+            "left": 662.195556640625,
+            "top": 864.328125,
+            "right": 750.476806640625,
+            "bottom": 882.609375
+          },
+          "strip": {
+            "left": 0,
+            "top": 885.609375,
+            "right": 1440,
+            "bottom": 960
+          },
+          "visible": true,
+          "facing": 0.5119698532863906
+        }
+      },
       "seaBetweenReaches": 11.999996611306535,
       "errors": []
     }

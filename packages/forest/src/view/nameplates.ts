@@ -26,7 +26,7 @@ export function facesEye(plate: Quaternion, eye: Quaternion): boolean {
   return facing(plate, eye) > 0;
 }
 
-/** A story nameplate as the screen shows it: its box in pixels where it hangs, before any step down, and how squarely its island faces the eye. */
+/** A story nameplate as the screen shows it: its box in pixels where it hangs, before any displacement, and how squarely its island faces the eye. */
 export interface ShownPlate { story: string; box: { left: number; top: number; right: number; bottom: number }; facing: number }
 
 /** How wide a story's nameplate may grow, in pixels, before its title wraps: neighbours in a row of small islands then clear each other a slot apart. */
@@ -35,7 +35,7 @@ export const STORY_PLATE_WIDTH = 112;
 /** The space left between a plate and the one it steps below, in pixels. */
 export const PLATE_STEP_GAP = 3;
 
-/** The furthest a plate steps down the screen to clear the others, in pixels; past it, it is hidden. */
+/** The furthest a plate steps from its resting position to clear other names, in pixels; past it, it is hidden. */
 export const MAX_DROP = 140;
 
 /**
@@ -43,11 +43,13 @@ export const MAX_DROP = 140;
  * it hangs if it clears the plates already settled, or else steps down the screen just below the ones it would
  * overlap, by the least drop that clears them all. Three orders are tried: the more squarely faced first (so the
  * more edge-on steps), west to east, and every other plate west to east before the rest (so a row of small
- * islands zigzags in two lines rather than a staircase); the one that hides fewer, and then steps less in all, is kept. The selected story's plate always goes first, and never steps or
- * hides. Only a plate that would step further than MAX_DROP is hidden, as where many islands crowd at the rim.
- * Boxes are measured before any drop, so a drop never feeds back on itself.
+ * islands zigzags in two lines rather than a staircase); the one that hides fewer, and then steps less in all, is kept.
+ * The selected story's plate always goes first. The Sessions strip lifts a plate's resting position just above its top edge; if stepping down to
+ * clear another name would cross that edge, it steps above the other instead. The selected plate stays at
+ * its (possibly lifted) resting position. Only collision clearance beyond MAX_DROP hides a plate.
+ * Boxes are measured before any displacement, so a displacement never feeds back on itself.
  */
-export function settlePlates(plates: readonly ShownPlate[], selected?: string): { drops: Map<string, number>; hidden: Set<string> } {
+export function settlePlates(plates: readonly ShownPlate[], selected?: string, strip?: ShownPlate["box"]): { drops: Map<string, number>; hidden: Set<string> } {
   const first = (a: ShownPlate, b: ShownPlate) => Number(b.story === selected) - Number(a.story === selected);
   const west = (a: ShownPlate, b: ShownPlate) => a.box.left - b.box.left || b.facing - a.facing;
   const along = new Map([...plates].sort(west).map((plate, i) => [plate, i]));
@@ -55,20 +57,28 @@ export function settlePlates(plates: readonly ShownPlate[], selected?: string): 
     (a: ShownPlate, b: ShownPlate) => b.facing - a.facing,
     west,
     (a: ShownPlate, b: ShownPlate) => along.get(a)! % 2 - along.get(b)! % 2 || west(a, b),
-  ].map(order => settleInOrder([...plates].sort((a, b) => first(a, b) || order(a, b)), selected));
-  const stepped = ({ drops }: { drops: Map<string, number> }) => [...drops.values()].reduce((sum, drop) => sum + drop, 0);
+  ].map(order => settleInOrder([...plates].sort((a, b) => first(a, b) || order(a, b)), selected, strip));
+  const stepped = ({ drops }: { drops: Map<string, number> }) => [...drops.values()].reduce((sum, drop) => sum + Math.abs(drop), 0);
   return tries.reduce((best, next) => next.hidden.size < best.hidden.size || (next.hidden.size === best.hidden.size && stepped(next) < stepped(best)) ? next : best);
 }
 
-function settleInOrder(order: readonly ShownPlate[], selected?: string): { drops: Map<string, number>; hidden: Set<string> } {
+function settleInOrder(order: readonly ShownPlate[], selected?: string, strip?: ShownPlate["box"]): { drops: Map<string, number>; hidden: Set<string> } {
   const settled: ShownPlate["box"][] = [], drops = new Map<string, number>(), hidden = new Set<string>();
   const overlaps = (box: ShownPlate["box"], other: ShownPlate["box"]) => box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom;
   for (const { story, box } of order) {
-    const steps = [0, ...settled.map(other => other.bottom + PLATE_STEP_GAP - box.top)]
-      .filter(drop => drop >= 0 && (drop === 0 || story !== selected) && drop <= MAX_DROP).sort((a, b) => a - b);
-    const drop = steps.find(drop => !settled.some(other => overlaps({ ...box, top: box.top + drop, bottom: box.bottom + drop }, other)));
+    const ceiling = strip !== undefined && box.left < strip.right && strip.left < box.right
+      ? strip.top - PLATE_STEP_GAP - box.bottom : Infinity;
+    const rest = Math.min(0, ceiling);
+    const clears = (drop: number) => drop <= ceiling && Math.abs(drop - rest) <= MAX_DROP
+      && (drop === rest || story !== selected)
+      && !settled.some(other => overlaps({ ...box, top: box.top + drop, bottom: box.bottom + drop }, other));
+    const down = [rest, ...settled.map(other => other.bottom + PLATE_STEP_GAP - box.top)]
+      .filter(drop => drop >= rest).sort((a, b) => a - b);
+    const above = ceiling === Infinity ? [] : settled.map(other => other.top - PLATE_STEP_GAP - box.bottom)
+      .filter(drop => drop < rest).sort((a, b) => b - a);
+    const drop = down.find(clears) ?? above.find(clears);
     if (drop === undefined) { hidden.add(story); continue; }
-    if (drop > 0) drops.set(story, drop);
+    if (drop !== 0) drops.set(story, drop);
     settled.push({ ...box, top: box.top + drop, bottom: box.bottom + drop });
   }
   return { drops, hidden };

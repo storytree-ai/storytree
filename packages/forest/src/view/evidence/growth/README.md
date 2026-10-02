@@ -1,6 +1,7 @@
 # Code growth in dependency rows
 
-Refreshed for `increment_bdcb6eabee69` on 2026-10-02. The original eight-story,
+Refreshed for `increment_f4898f03a8ea` on 2026-10-02, following the geometry refresh
+in `increment_bdcb6eabee69`. The original eight-story,
 58-capability snapshot and code survey remain fixed. The actual desktop renderer
 now supplies evidence for the accepted row placement in ADR-0839 D1–D3, including
 ADR-0850's latitude bounds. A story's anchor is its packed row position; the
@@ -40,16 +41,29 @@ Full measurements, row/slot assignments and direction errors are in
 The before/after/nudged pictures show distinct rows, readable labels and larger
 land for larger code counts, consistent with **Meaning outranks appearance**.
 The doubled island visibly spreads its row without shifting the upper and lower
-rows. Under **Legible at the resting view**, the five-times stress picture has a
-limit: The library's label sits beneath the bottom Sessions strip, and The forest
-is at the rim. This capture proves growth and coast clearance, not universal label
-legibility. That crowding remains visible in the evidence rather than being hidden
-by panning or a larger viewport.
+rows. The five-times stress picture now also pins **Legible at the resting view**:
+The library's near-side name stays above the Sessions strip, at the same seeded
+opening, viewport and zoom. The original occlusion remains in
+[grown-before.png](grown-before.png), copied from the previous committed capture.
 
-The Sessions-strip occlusion is parked as `increment_f4898f03a8ea` on
-`arc_895e232031b0`, under readable near-side names (3.4) and strip placement (7.17).
-Rim proximity alone is not that follow-up: ADR-0855 already bounds nameplate
-overlap clearance and permits hiding a label beyond that bound.
+| Sessions state | Name bottom (px) | Strip top (px) | Clearance (px) | Picture |
+| --- | ---: | ---: | ---: | --- |
+| Expanded, before fix | 916.898 | 885.609 | -31.288 | [Original](grown-before.png) |
+| Expanded, fixed | 882.609 | 885.609 | 3.000 | [Readable name](grown.png) |
+| Collapsed, fixed | 916.898 | 923.000 | 6.102 | [Header only](grown-collapsed.png) |
+| Reopened, fixed | 882.609 | 885.609 | 3.000 | [Readable name](grown.png) |
+
+Contracts 3.4 and 7.17 are checked against the actual rendered name and strip
+rectangles, including visibility and near-side facing. Collapse and reopen use
+the real header control and wait for the name to move without forcing a WebGL
+redraw. The name lifts only where the strip covers its horizontal position;
+collision settlement keeps neighbouring names apart, with ADR-0855's 140px
+collision-clearance bound measured from that lifted resting position.
+
+The forest remains at the rim. This evidence proves the targeted strip clearance,
+growth and coast clearance, not universal label legibility: ADR-0855 still permits
+hiding names where bounded overlap clearance cannot fit them. There is no camera
+panning or viewport enlargement to hide that limit.
 
 The baseline failed before opening Chromium because `placeOnPackedGlobe` is no
 longer exported. The refreshed capture passed all four scenarios in Chromium
@@ -58,7 +72,7 @@ checkout root, with installed Playwright Chromium or `CAPTURE_CHROMIUM`:
 
 ```sh
 node packages/forest/src/view/evidence/growth/build.mjs
-flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/growth/capture.mjs
+node --import tsx packages/forest/src/view/evidence/growth/capture.mjs
 ```
 
 The default run writes to the temporary `storytree-captures/` folder. Add

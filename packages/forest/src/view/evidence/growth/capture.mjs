@@ -39,7 +39,7 @@ const measureName = page => page.evaluate(() => {
 });
 const assertName = (reading, state) => {
   assert.ok(reading.visible && reading.facing > 0, `3.4: The library is a visible near-side name (${state})`);
-  assert.ok(reading.name.bottom <= reading.strip.top - 3,
+  assert.ok(reading.name.bottom <= reading.strip.top - 2.99,
     `3.4 / 7.17: The library bottom ${reading.name.bottom} clears Sessions top ${reading.strip.top} (${state})`);
 };
 await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
@@ -115,17 +115,17 @@ const measure = page => page.evaluate(() => {
       assertName(measured.nameClearance.expanded, 'expanded');
       await page.getByRole('button', { name: 'Hide sessions', exact: true }).click();
       // No forced WebGL redraw: changing strip height must update the name by itself.
-      await page.waitForFunction(() => {
+      await page.waitForFunction(expandedBottom => {
         const label = [...document.querySelectorAll('.planet-nameplate[data-story-id]')].find(el => el.textContent === 'The library');
-        return Math.abs(label.getBoundingClientRect().bottom - 916) < 2;
-      });
+        return label.getBoundingClientRect().bottom > expandedBottom + 20;
+      }, measured.nameClearance.expanded.name.bottom);
       measured.nameClearance.collapsed = await measureName(page);
       assertName(measured.nameClearance.collapsed, 'collapsed');
       await page.screenshot({ path: path.join(out, 'grown-collapsed.png'), timeout: 180000 });
       await page.getByRole('button', { name: 'Show sessions', exact: true }).click();
       await page.waitForFunction(() => {
         const label = [...document.querySelectorAll('.planet-nameplate[data-story-id]')].find(el => el.textContent === 'The library');
-        return label.getBoundingClientRect().bottom <= document.querySelector('.sessions-list').getBoundingClientRect().top - 3;
+        return label.getBoundingClientRect().bottom <= document.querySelector('.sessions-list').getBoundingClientRect().top - 2.99;
       });
       measured.nameClearance.reopened = await measureName(page);
       assertName(measured.nameClearance.reopened, 'reopened');

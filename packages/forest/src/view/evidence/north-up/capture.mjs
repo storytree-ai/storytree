@@ -1,25 +1,16 @@
 // The globe after real pointer drags on the actual desktop page: where north points on screen after each.
 // Same seed and viewport as file-circles. `node capture.mjs <dist> <prefix>` after `node build.mjs`;
 // the before pictures come from origin/main bundled into another dist (see build.mjs).
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
-const [dist = 'dist', prefix = 'after'] = process.argv.slice(2);
+const [dist = 'dist', prefix = 'after'] = process.argv.slice(2).filter(arg => arg !== '--retake');
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, '../file-circles/survey.json'), 'utf8'));
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
-  res.end(readFileSync(path.join(here, dist, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const settle = page => page.evaluate(async () => { for (let i = 0; i < 12; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); } });
+await withCapture({ folder: here, dist: path.join(here, dist) }, async ({ browser, origin, out, settle }) => {
 
 /** North's bearing on screen in degrees clockwise from straight up, and how far it leans toward the eye. */
 const north = page => page.evaluate(() => {
@@ -32,11 +23,6 @@ const north = page => page.evaluate(() => {
   return { bearing: Math.round(Math.atan2(x, y) * 1800 / Math.PI) / 10, towardEye: Math.round(Math.asin(Math.max(-1, Math.min(1, toward))) * 1800 / Math.PI) / 10 };
 });
 
-let browser;
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
@@ -58,7 +44,7 @@ try {
     };
     window.storytree = new Proxy(known, { get: (target, name) => target[name] ?? (async () => undefined) });
   }, { data: seed, survey });
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -71,7 +57,7 @@ try {
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   await settle(page);
   const readings = [{ after: 'opening', ...await north(page) }];
-  await page.screenshot({ path: path.join(here, `${prefix}-opening.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${prefix}-opening.png`), timeout: 180000 });
 
   const box = await page.locator('canvas').first().boundingBox();
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
@@ -83,14 +69,11 @@ try {
     await page.mouse.up();
     await settle(page);
     readings.push({ after: `drag ${drag.x}, ${drag.y}`, ...await north(page) });
-    if (drag === drags[3]) await page.screenshot({ path: path.join(here, `${prefix}-four-drags.png`), timeout: 180000 });
+    if (drag === drags[3]) await page.screenshot({ path: path.join(out, `${prefix}-four-drags.png`), timeout: 180000 });
   }
   await page.mouse.move(2, 2);
   await settle(page);
-  await page.screenshot({ path: path.join(here, `${prefix}-tilted-to-the-pole.png`), timeout: 180000 });
-  writeFileSync(path.join(here, `${prefix}-measurements.json`), JSON.stringify({ readings, errors }, null, 2) + '\n');
+  await page.screenshot({ path: path.join(out, `${prefix}-tilted-to-the-pole.png`), timeout: 180000 });
+  writeFileSync(path.join(out, `${prefix}-measurements.json`), JSON.stringify({ readings, errors }, null, 2) + '\n');
   console.log(JSON.stringify({ readings, errors }, null, 2));
-} finally {
-  await browser?.close();
-  server.close();
-}
+});

@@ -8,7 +8,7 @@ green" and no mover. A proposed capability still says PROPOSED. Strip colours ar
 report-only card keeps untested's neutral grey, so the agent's word never paints a card green
 (ADR-0744 D3).
 
-Seeded, repeatable captures: `node packages/forest/evidence/report-only/capture.mjs` bundles the
+Seeded, repeatable captures: `node --import tsx packages/forest/evidence/report-only/capture.mjs` bundles the
 fixed TodoMVC-like tree in `entry.ts` (no randomness, no clock) through the real `drillDown` view
 model and the real `renderStoryPanel`, with the desktop page's real `styles.css`, in headless
 Chromium at fixed viewports (1280 x 800 desktop, 390 x 844 narrow). Measured values are in
@@ -25,3 +25,7 @@ The capture asserts every shot has exactly one sentence under the word, "storytr
 this project's tests yet.", and that none of "untested", "no test names", "moves this one" or "Why
 not green" appear in the panel's text. The panel's scrollWidth equals its clientWidth in every shot
 (478 px desktop, 364 px narrow).
+
+The shared capture kit resolves Playwright from this checkout. Pictures and measurements
+go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
+to replace the committed evidence in this directory.

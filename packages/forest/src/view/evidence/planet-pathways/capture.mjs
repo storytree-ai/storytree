@@ -1,38 +1,14 @@
 // Raw headless Chromium evidence of the actual seeded desktop page.
 // Run in the foreground under flock /tmp/storytree-heavy.lock.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (name === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) {
-    console.error(`Capture asset not found: ${name}`);
-    res.writeHead(404).end(); return;
-  }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css')
-    ? 'text/css' : name.endsWith('.map') ? 'application/json' : 'text/html');
-  res.end(readFileSync(path.join(here, 'dist', name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-
-async function settle(page) {
-  await page.evaluate(async () => {
-    for (let i = 0; i < 12; i++) {
-      window.__globe.invalidate();
-      await new Promise(requestAnimationFrame);
-    }
-  });
-}
+await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 async function measure(page) {
   return page.evaluate(() => {
@@ -87,15 +63,7 @@ async function measure(page) {
   });
 }
 
-let browser;
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM
-      ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
-  });
-  const requested = process.argv.slice(2);
+  const requested = process.argv.slice(2).filter(arg => arg !== '--retake');
   for (const name of ['front', 'quarter-turn'].filter(name => !requested.length || requested.includes(name))) {
     console.log(`Rendering ${name}`);
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
@@ -119,7 +87,7 @@ try {
         frontCovers: async () => [], relatedNotes: async () => [],
       };
     }, seed);
-    await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+    await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
     await page.waitForFunction(ids => {
       const state = window.__globe;
       if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -176,7 +144,4 @@ try {
       markers: result.markers, pathways: result.pathways.length, draws: result.render.calls, errors }));
     await page.close();
   }
-} finally {
-  await browser?.close();
-  await new Promise(resolve => server.close(resolve));
-}
+});

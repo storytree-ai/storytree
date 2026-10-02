@@ -51,10 +51,10 @@ accept.
 ```sh
 export STORYTREE_HOME=$(mktemp -d)     # a FRESH home each run
 node --import tsx scripts/restore-library.mjs ~/storytree-lanes/snapshots/2026-09-28T21-35-29-644Z.json --project storytree
-DISPLAY=:137 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock node packages/forest/evidence/cardwords/electron-capture.mjs
+DISPLAY=:137 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/cardwords/electron-capture.mjs
 # the four words: a fresh home, restored, then seeded
 node --import tsx packages/forest/evidence/cardwords/seed-words.mjs
-DISPLAY=:137 STORYTREE_EMBEDDER=off CARDWORDS_SHOTS=words flock /tmp/storytree-heavy.lock node packages/forest/evidence/cardwords/electron-capture.mjs
+DISPLAY=:137 STORYTREE_EMBEDDER=off CARDWORDS_SHOTS=words flock /tmp/storytree-heavy.lock node --import tsx packages/forest/evidence/cardwords/electron-capture.mjs
 ```
 
 As for #204/#210: the gear lane's extracted Xvfb (`/tmp/gear-xvfb/root`) on a private display, and
@@ -66,3 +66,7 @@ the Linux Postgres package linked into desktop's ignored `node_modules` for the 
 - [green.txt](green.txt): `pnpm test`, full scope, every unit passing (see its note on 8.5 and this
   box's stale launcher).
 - [Library patch, switch-off list and supervisor checklist](library-update/README.md).
+
+The shared capture kit resolves Playwright from this checkout. Pictures and measurements
+go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
+to replace the committed evidence in this directory.

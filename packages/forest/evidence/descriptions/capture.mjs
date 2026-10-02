@@ -2,14 +2,12 @@
 // title, its increment's objective, its app's latest status). Sessions on two machines, as 7.13 draws them. The actual desktop page, built by ../sessions-list/build.mjs; all activity is synthetic.
 // PLANET_PLAYWRIGHT and PLANET_CHROMIUM point at playwright-core and a headless Chromium on the capturing machine.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { fileURLToPath } from 'node:url';
+import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = path.join(here, '../sessions-list/dist/production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
@@ -31,18 +29,7 @@ line('mn-mint', 1, 'mint', { kind: 'session-described', of: 'mn-plain', app: 'cl
 seed.lines = { lines, cursor: lines.length };
 seed.tree.arcs = [];
 
-const { chromium } = await import(pathToFileURL(process.env.PLANET_PLAYWRIGHT).href);
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
-  res.end(readFileSync(path.join(dist, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-let browser;
-try {
-  browser = await chromium.launch({ executablePath: process.env.PLANET_CHROMIUM, headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
@@ -65,7 +52,7 @@ try {
       windowReading: async (_, session) => ({ session, at: new Date().toISOString(), absent: "no hook has named this session's transcript" }),
     };
   }, seed);
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded' });
   const closeHelp = page.getByRole('button', { name: /^Close/ }).first();
   await page.waitForFunction(() => document.body.dataset.state === 'ready', null, { timeout: 15000 });
   if (await closeHelp.isVisible()) await closeHelp.click();
@@ -90,7 +77,4 @@ try {
   await list.screenshot({ path: path.join(out, 'descriptions-expanded.png') });
   assert.deepEqual(errors, []);
   console.log('Captured descriptions');
-} finally {
-  await browser?.close();
-  server.close();
-}
+});

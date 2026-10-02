@@ -46,6 +46,8 @@ export interface CaptureView {
 interface CaptureOptions {
   folder: string;
   dist?: string;
+  /** Pure HTML/SVG previews use Chromium's ordinary compositor, without the WebGL flags. */
+  softwareGL?: boolean;
 }
 
 export interface SeededCaptureOptions extends CaptureOptions {
@@ -72,7 +74,7 @@ export async function settle(page: Page, frames = 12): Promise<void> {
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".map": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".glb": "model/gltf-binary" };
 
 /** A shared server/browser lifetime for captures with their own interaction or measurement flow. */
-export async function withCapture<T>({ folder, dist }: CaptureOptions, run: (context: CaptureContext) => Promise<T>): Promise<T> {
+export async function withCapture<T>({ folder, dist, softwareGL = true }: CaptureOptions, run: (context: CaptureContext) => Promise<T>): Promise<T> {
   const out = captureOutput(folder);
   const server = dist === undefined ? undefined : createServer((request, response) => {
     try {
@@ -94,7 +96,7 @@ export async function withCapture<T>({ folder, dist }: CaptureOptions, run: (con
     });
     const address = server?.address();
     const origin = address && typeof address === "object" ? `http://127.0.0.1:${address.port}` : undefined;
-    browser = await launch();
+    browser = await launch(undefined, { softwareGL });
     return await run({ browser, origin, out, settle });
   } finally {
     try { await browser?.close(); }

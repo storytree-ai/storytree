@@ -8,7 +8,7 @@ territories, at a point inside that territory, and dims the other stories' plate
 from the land. No row lines or row labels are drawn.
 
 Captured on the actual desktop page with the rows capture's build, seed and survey
-(`node ../rows/build.mjs <checkout> nameplates-after|nameplates-before`, then `node capture.mjs <label>`),
+(`node ../rows/build.mjs <checkout> nameplates-after|nameplates-before`, then `node --import tsx capture.mjs <label>`),
 1440 × 960, headless Chromium on SwiftShader. Before is origin/main with north-up and rows landed.
 The drags are real pointer drags: 110 px right; 60 down; 60 left and 90 up. Then 240 left (bringing the
 land clear of the story panel) and a click on the island with the most capabilities left of the middle.

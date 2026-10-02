@@ -1,10 +1,11 @@
 // Seeded, repeatable capture of the drill-down card saying why a capability is not green (forest 4.12,
 // ADR-0825 D1/D2): the fixed tree in ./entry.ts, through the real view model and renderer, with the
 // desktop page's real styles.css, headless Chromium, fixed viewports, no hand-panning.
-//   node packages/forest/evidence/why-card/capture.mjs
+//   node --import tsx packages/forest/evidence/why-card/capture.mjs
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -13,7 +14,6 @@ const find = (name) => { const dir = path.join(root, 'node_modules/.pnpm'); retu
 import { readdirSync } from 'node:fs';
 function readdirSyncFor(dir, prefix) { const hit = readdirSync(dir).find((entry) => entry.startsWith(prefix)); assert.ok(hit, `${prefix} is installed`); return path.join(dir, hit, 'node_modules', prefix.split('@')[0]); }
 const esbuild = await import(path.join(find('esbuild@0'), 'lib/main.js'));
-const { chromium } = await import(path.join(find('playwright-core@'), 'index.mjs'));
 
 const bundle = await esbuild.build({ entryPoints: [path.join(here, 'entry.ts')], bundle: true, write: false, format: 'iife', platform: 'browser', absWorkingDir: root, loader: { '.png': 'dataurl', '.glb': 'dataurl' }, logLevel: 'error' });
 const css = readFileSync(path.join(root, 'apps/desktop/src/renderer/styles.css'), 'utf8');
@@ -28,9 +28,8 @@ const shots = [
   { name: 'needs-you-narrow', selected: 'cloud', viewport: { width: 390, height: 844 }, scheme: 'dark', open: true },
   { name: 'not-re-run-narrow', selected: 'sync', viewport: { width: 390, height: 844 }, scheme: 'dark', open: true },
 ];
-const browser = await chromium.launch();
+await withCapture({ folder: here, softwareGL: false }, async ({ browser, out, settle }) => {
 const results = [];
-try {
   for (const shot of shots) {
     const page = await browser.newPage({ viewport: shot.viewport, colorScheme: shot.scheme, deviceScaleFactor: 1 });
     const errors = [];
@@ -39,7 +38,8 @@ try {
     await page.evaluate((selected) => globalThis.show(selected), shot.selected);
     if (shot.open) await page.evaluate(() => document.querySelector('.panel-detail details')?.setAttribute('open', ''));
     await page.evaluate(() => { document.querySelector('.panel-detail')?.scrollIntoView(); });
-    await page.screenshot({ path: path.join(here, `${shot.name}.png`) });
+    await settle(page);
+    await page.screenshot({ path: path.join(out, `${shot.name}.png`) });
     const measured = await page.evaluate(() => {
       const panel = document.querySelector('.story-panel');
       const why = [...document.querySelectorAll('.panel-why')].map((node) => node.textContent.replace(/\s+/g, ' ').trim());
@@ -51,9 +51,7 @@ try {
     results.push({ shot: shot.name, ...shot, ...measured });
     await page.close();
   }
-} finally {
-  await browser.close();
-}
 assert.equal(results.find((r) => r.shot === 'healthy').why.length, 0, 'a healthy capability says nothing more');
-writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
+writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(results, null, 2) + '\n');
 console.log(JSON.stringify(results.map(({ shot, why, lastSeen, panel }) => ({ shot, why, lastSeen, panel })), null, 1));
+});

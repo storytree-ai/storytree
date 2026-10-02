@@ -109,7 +109,7 @@ From this worktree's root, using the committed seed:
 ```sh
 node packages/forest/src/view/evidence/knowledge-under-islands/build.mjs
 node --import tsx packages/forest/src/view/evidence/knowledge-under-islands/measure.mjs
-flock /tmp/storytree-heavy.lock node packages/forest/src/view/evidence/knowledge-under-islands/capture.mjs
+flock /tmp/storytree-heavy.lock node --import tsx packages/forest/src/view/evidence/knowledge-under-islands/capture.mjs
 ```
 
 To reproduce the original file-backed seed, use commit `6460b9c`, run

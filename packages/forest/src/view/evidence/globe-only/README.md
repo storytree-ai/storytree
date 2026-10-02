@@ -48,5 +48,5 @@ The scripts, bundle and snapshot remain in this worktree's ignored `dist/`.
 `STORYTREE_HOME=/tmp/planet-lane-p-seed-home` selects the isolated database for
 seeding and export. `PLANET_PLAYWRIGHT` names the installed playwright-core
 `index.mjs`; `PLANET_CHROMIUM` names its cached Chromium headless-shell executable.
-Run `node capture.mjs` from this directory with those variables set. Seed, export,
+Run `node --import tsx capture.mjs` from this directory with those variables set. Seed, export,
 Chromium and verification commands hold `/tmp/storytree-heavy.lock` with `flock`.

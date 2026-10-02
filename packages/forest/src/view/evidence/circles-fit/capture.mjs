@@ -4,16 +4,14 @@
 // turns and zoom; nothing is hand-panned. Run under flock /tmp/storytree-heavy.lock. Writes
 // <label>-front.png, <label>-world.png, <label>-crowded.png and measurements-<label>.json.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
+import { withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
 const here = path.dirname(fileURLToPath(import.meta.url));
-const label = process.argv[2];
+const label = process.argv.slice(2).find(arg => arg !== '--retake');
 assert.ok(['before', 'after'].includes(label), 'usage: node capture.mjs <before|after>');
 const dist = path.join(here, 'dist', label);
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
@@ -21,16 +19,7 @@ const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
 const WORLD = seed.tree.stories.find(s => s.title === 'The world').id;
 const CROWDED = Object.entries(survey).sort((a, b) => b[1].files.length - a[1].files.length)[0][0];
 const ZOOM = 2.6;
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (name === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : name.endsWith('.map') ? 'application/json' : 'text/html');
-  res.end(readFileSync(path.join(dist, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-
-const settle = page => page.evaluate(async () => { for (let i = 0; i < 12; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); } });
+await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle }) => {
 
 /**
  * Per island, in its own plate coordinates (x, z): circles against surveyed files; circles whose whole
@@ -102,11 +91,6 @@ function measure(page) {
   });
 }
 
-let browser;
-try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [], warnings = [], failed = [];
   page.on('response', r => { if (r.status() >= 400) failed.push(r.url()); });
@@ -133,7 +117,7 @@ try {
     };
     window.storytree = new Proxy(known, { get: (t, m) => m === 'then' ? undefined : (t[m] ?? (async () => undefined)) });
   }, { data: seed, survey });
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -151,7 +135,7 @@ try {
   results.surveyedFiles = Object.fromEntries(Object.entries(survey).map(([id, v]) => [id, v.files.length]));
   results.titles = Object.fromEntries(seed.tree.stories.map(s => [s.id, s.title]));
   results.measured = await measure(page);
-  await page.screenshot({ path: path.join(here, `${label}-front.png`), timeout: 180000 });
+  await page.screenshot({ path: path.join(out, `${label}-front.png`), timeout: 180000 });
 
   const faceIt = async story => {
     await page.evaluate(id => {
@@ -169,15 +153,12 @@ try {
     await faceIt(story);
     await page.evaluate(({ zoom }) => { const { camera, invalidate } = window.__globe; camera.zoom = zoom; camera.updateProjectionMatrix(); invalidate(); }, { zoom: base * ZOOM });
     await settle(page);
-    await page.screenshot({ path: path.join(here, `${label}-${shot}.png`), timeout: 180000 });
+    await page.screenshot({ path: path.join(out, `${label}-${shot}.png`), timeout: 180000 });
   }
 
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
   results.seed = seed.stats;
-  writeFileSync(path.join(here, `measurements-${label}.json`), JSON.stringify(results, null, 2) + '\n');
+  writeFileSync(path.join(out, `measurements-${label}.json`), JSON.stringify(results, null, 2) + '\n');
   assert.deepEqual(errors, []);
   console.log(JSON.stringify(results.measured.islands.map(i => [results.titles[i.story], results.surveyedFiles[i.story], i.circles, i.notWhollyInOwnTerritory, i.notWhollyOnGround, i.overlappingPairs, +i.maxRadius.toFixed(2), +i.groundArea.toFixed(0)])));
-} finally {
-  await browser?.close();
-  await new Promise(resolve => server.close(resolve));
-}
+});

@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { captureOutput } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const out = captureOutput(here);
 const root = path.resolve(here, '../../../../../..');
 const require = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { knowledge, underShelves, globePoints, noteTitle } = await import(pathToFileURL(require.resolve('@storytree/knowledge-core')));
@@ -44,5 +46,5 @@ const result = {
     shelves: core.shelves.filter(shelf => shelf.story === story.id).length })), notes,
   noShelfMeaning: 'No recorded route from a shelf; no depth. Pooled at the centre, never unimportant.',
 };
-writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
+writeFileSync(path.join(out, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify({ ...result, notes: undefined, stories: undefined }));

@@ -3,13 +3,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';
-import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge, launch } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
 const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
 const checks = [];
@@ -24,27 +22,7 @@ async function check(contract, name, run, story = 'The forest') {
   });
   if (failure) throw failure;
 }
-const server = createServer((req, res) => {
-  const [variant, name] = new URL(req.url, 'http://localhost').pathname.slice(1).split('/');
-  if (variant === 'favicon.ico') { res.writeHead(204).end(); return; }
-  if (!['production'].includes(variant) || !['index.html', 'renderer.js', 'renderer.js.map', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) {
-    console.error(`Capture asset not found: ${name}`);
-    res.writeHead(404).end(); return;
-  }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css')
-    ? 'text/css' : name.endsWith('.map') ? 'application/json' : 'text/html');
-  res.end(readFileSync(path.join(here, 'dist', variant, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-
-async function settle(page) {
-  await page.evaluate(async () => {
-    for (let i = 0; i < 12; i++) {
-      window.__globe.invalidate();
-      await new Promise(requestAnimationFrame);
-    }
-  });
-}
+await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
 
 async function measure(page) {
   return page.evaluate(() => {
@@ -245,7 +223,7 @@ async function openPage(browser, variant, data, viewport = { width: 1440, height
       frontCovers: async (_, id) => copy(data.covers[id] ?? []), relatedNotes: async () => [],
     };
   }, data);
-  await page.goto(`http://127.0.0.1:${server.address().port}/${variant}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/${variant}/index.html`, { timeout: 180000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(ids => {
     const state = window.__globe;
     if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
@@ -485,9 +463,8 @@ async function panelJourney(browser) {
 
 await test('the forest render contracts on the actual desktop page', async context => {
 currentTest = context;
-let browser, complete = false;
+let complete = false;
 try {
-  browser = await launch();
   const { page, errors, warnings } = await openPage(browser, 'production', seed);
   await check('3.5', 'the mounted glass transmits at least 80% through both faces, with a bright rim and one soft highlight', () => glass(page));
   for (const view of ['front', 'quarter-turn']) {
@@ -520,7 +497,6 @@ try {
   if (!complete) knowledgeChecks.push({ contract: '1.7', name: 'complete two-mode journey', observed: 'not-observed' });
   writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'The forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
   writeFileSync(path.join(out, 'knowledge-observations.json'), JSON.stringify({ story: 'The knowledge core', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: 'packages/forest/src/view/evidence/forest-library-toggle', checks: knowledgeChecks }, null, 2) + '\n');
-  await browser?.close();
-  await new Promise(resolve => server.close(resolve));
 }
+});
 });

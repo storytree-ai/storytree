@@ -4,14 +4,12 @@
 // CAPTURE_DIST=<a dist/production> CAPTURE_AS=<prefix> renders the same activity with another build (the control).
 // Run both through flock /tmp/storytree-heavy.lock.
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const dist = process.env.CAPTURE_DIST ?? path.join(here, '../sessions-list/dist/production');
 const as = process.env.CAPTURE_AS ?? 'after';
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -47,20 +45,7 @@ for (const [session, minutes, folder] of [['co-idle-1', 42, 'tidy-readme'], ['co
 seed.lines = { lines, cursor: lines.length };
 seed.tree.arcs = [];
 
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
-const server = createServer((req, res) => {
-  const name = new URL(req.url, 'http://localhost').pathname.slice(1);
-  if (!['index.html', 'renderer.js', 'styles.css', 'arc-surface.css', 'app-setup.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }
-  res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html');
-  res.end(readFileSync(path.join(dist, name)));
-});
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-let browser;
-try {
-  browser = await chromium.launch({ executablePath: process.env.PLANET_CHROMIUM
-    ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell', headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2, colorScheme: 'dark' });
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
@@ -82,7 +67,7 @@ try {
       windowReading: async (_, session) => ({ session, at: new Date().toISOString(), absent: "no hook has named this session's transcript" }),
     };
   }, seed);
-  await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded' });
   const closeHelp = page.getByRole('button', { name: /^Close/ }).first();
   await page.waitForFunction(() => document.body.dataset.state === 'ready', null, { timeout: 15000 });
   if (await closeHelp.isVisible()) await closeHelp.click();
@@ -102,7 +87,4 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(`Captured ${as}`);
-} finally {
-  await browser?.close();
-  server.close();
-}
+});

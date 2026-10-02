@@ -24,7 +24,7 @@ the 13-line agent log of `../session-tints` (sessions A and B live, C quiet), at
 `2026-10-01T12:00:00Z`. The snapshot predates the word, so `capture.mjs` gives each capability one: its
 verified column's (passing reads healthy, anything else untested), with four seeded so every word shows:
 Cloud connection and Hooks unhealthy, Storytree projects and Story nodes proposed. Run `node build.mjs`,
-then `node capture.mjs`, under `flock /tmp/storytree-heavy.lock`. Full numbers: [measurements.json](measurements.json).
+then `node --import tsx capture.mjs`, under `flock /tmp/storytree-heavy.lock`. Full numbers: [measurements.json](measurements.json).
 
 ## Measured before looking
 

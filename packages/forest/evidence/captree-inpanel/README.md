@@ -50,7 +50,7 @@ The look is his to accept.
 export STORYTREE_HOME=$(mktemp -d)     # a FRESH home each run: a used one reopens differently
 node --import tsx scripts/restore-library.mjs ~/storytree-lanes/snapshots/2026-09-28T13-42-19-911Z.json --project storytree
 DISPLAY=:137 STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock \
-  node packages/forest/evidence/captree-inpanel/electron-capture.mjs
+  node --import tsx packages/forest/evidence/captree-inpanel/electron-capture.mjs
 ```
 
 As for #204: an extracted Xvfb on a private display, and the Linux Postgres package linked into
@@ -62,3 +62,7 @@ desktop's ignored `node_modules`.
   4.6–4.10 still pass.
 - [green.txt](green.txt): the same tests pass.
 - [Library patch and supervisor checklist](library-update/README.md).
+
+The shared capture kit resolves Playwright from this checkout. Pictures and measurements
+go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
+to replace the committed evidence in this directory.

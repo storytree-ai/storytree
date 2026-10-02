@@ -1,0 +1,82 @@
+{
+  "browser": "148.0.7778.96",
+  "errors": [],
+  "results": [
+    {
+      "contract": "3.21, 3.23",
+      "focused": {
+        "x": 450.0000000000001,
+        "y": 399.9999999999996,
+        "visible": true
+      }
+    },
+    {
+      "contract": "3.22, 6.7",
+      "field": "sea",
+      "found": 1,
+      "hidden": true,
+      "shown": [],
+      "same": true,
+      "zoom": 2.9393540710641752
+    },
+    {
+      "contract": "3.22, 6.7",
+      "field": "grounds",
+      "found": 15,
+      "hidden": true,
+      "shown": [],
+      "same": true,
+      "zoom": 2.9393540710641752
+    },
+    {
+      "contract": "3.22, 6.7",
+      "field": "roads",
+      "found": 1,
+      "hidden": true,
+      "shown": [],
+      "same": true,
+      "zoom": 2.9393540710641752
+    },
+    {
+      "contract": "3.22, 6.7",
+      "field": "territories",
+      "found": 80,
+      "hidden": true,
+      "shown": [],
+      "same": true,
+      "zoom": 2.9393540710641752
+    },
+    {
+      "contract": "3.22, 6.7",
+      "field": "fileCircles",
+      "found": 14,
+      "hidden": true,
+      "shown": [],
+      "same": true,
+      "zoom": 2.9393540710641752
+    },
+    {
+      "contract": "3.22, 6.7",
+      "field": "knowledgeCore",
+      "found": 1,
+      "hidden": true,
+      "shown": [],
+      "same": true,
+      "zoom": 2.9393540710641752
+    },
+    {
+      "contract": "3.22",
+      "field": "sessionTints",
+      "hidden": true
+    },
+    {
+      "contract": "3.22",
+      "field": "territories after session hover",
+      "plainAndHealthRestored": true
+    },
+    {
+      "contract": "public views",
+      "arcs": 1
+    }
+  ]
+}

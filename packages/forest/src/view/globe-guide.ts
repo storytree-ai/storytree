@@ -47,8 +47,13 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const projected = found.point.clone().project(camera), { width, height } = host.size();
       const centre = world.getObjectByName("globe")?.getWorldPosition(new Vector3()) ?? new Vector3();
       const near = target.kind === "core" || found.point.clone().sub(centre).dot(camera.getWorldDirection(new Vector3())) <= 0;
+      let marked = target.kind !== "story";
+      if (!marked) found.object.traverseVisible(object => {
+        const mesh = object as Mesh;
+        if (mesh.geometry && [mesh.material].flat().some(material => material?.visible && material.opacity > 0)) marked = true;
+      });
       return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2,
-        visible: isDrawn(found.object) && near && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1 };
+        visible: marked && isDrawn(found.object) && near && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1 };
     },
     cancel() { motion = undefined; },
     frame,

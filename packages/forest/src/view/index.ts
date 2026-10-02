@@ -8,3 +8,7 @@ export { attachPanZoom, type PanZoom, type View as TreeView } from "./pan-zoom.j
 export type { GlobeOpening, TreeOpening } from "../surfaces/surfaces.js";
 export { mountTreeSpace, type TreeSpace } from "./tree-space.js";
 export { mountSessionsList, type SessionsReads } from "./sessions-list.js";
+
+export { PlanetView, type PlanetViewProps } from "./planet-view.js";
+export type { CameraStop, GlobeTarget, GlobeControls, ScreenPosition } from "./globe-guide.js";
+export type { GlobeSurfaces } from "./globe-surfaces.js";

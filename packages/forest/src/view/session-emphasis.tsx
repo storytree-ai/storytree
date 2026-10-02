@@ -2,6 +2,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useRef } from "react";
 import { Group, Mesh, ShaderMaterial, type Material } from "three";
+import { restoreTerritoryPresentation } from "./globe-surfaces.js";
 
 export type SessionEmphasis = "held" | "dimmed" | undefined;
 
@@ -22,6 +23,7 @@ export function SessionIslandEmphasis({ emphasis }: { emphasis: SessionEmphasis 
         for (const material of copies) material.dispose();
       }
       saved.current.clear();
+      restoreTerritoryPresentation(plate);
       invalidate();
     };
   }, [emphasis, invalidate]);

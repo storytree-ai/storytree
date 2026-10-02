@@ -5,6 +5,7 @@ import { islandCoastReach } from "@storytree/forest-world/geometry";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
+import { isDrawn } from "./globe-guide.js";
 
 export type ForestMode = "forest" | "library";
 
@@ -92,6 +93,7 @@ export function pickIsland(ray: Raycaster, world: Object3D): string | undefined 
 /** The land a ray meets first: its story, and the capability whose territory it is, if it is one (3.15). */
 function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?: string } | undefined {
   for (const hit of ray.intersectObject(world, true)) {
+    if (!isDrawn(hit.object)) continue;
     let capability: string | undefined;
     for (let object: Object3D | null = hit.object; object !== null; object = object.parent) {
       if (object.name === "planet:shell") return undefined;
@@ -110,6 +112,7 @@ export function pointedFile(world: Object3D, camera: Camera,
   const ray = new Raycaster();
   ray.setFromCamera(new Vector2(2 * (cursor.x - box.left) / box.width - 1, 1 - 2 * (cursor.y - box.top) / box.height), camera);
   for (const hit of ray.intersectObject(world, true)) {
+    if (!isDrawn(hit.object)) continue;
     if (hit.object.name === "planet:shell") return undefined;
     if (hit.object.name.startsWith("file:")) return hit.object.userData as { file: string; lines: number; capability?: string };
   }
@@ -126,6 +129,7 @@ export function pickGlobe(world: Object3D, camera: Camera,
   let landDistance = Infinity;
   if (mode === "forest") {
     for (const hit of ray.intersectObject(world, true)) {
+      if (!isDrawn(hit.object)) continue;
       let land = false;
       for (let object: Object3D | null = hit.object; object !== null; object = object.parent) {
         if (object.name.startsWith("planet:") && object.name !== "planet:shell") { land = true; break; }
@@ -135,7 +139,7 @@ export function pickGlobe(world: Object3D, camera: Camera,
   }
   const notes: ProjectedNote[] = [];
   world.traverse(object => {
-    if (!object.name.startsWith("knowledge-point:")) return;
+    if (!object.name.startsWith("knowledge-point:") || !isDrawn(object)) return;
     const at = object.getWorldPosition(new Vector3());
     const projected = at.clone().project(camera);
     const inViewport = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1;

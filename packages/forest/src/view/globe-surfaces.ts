@@ -1,4 +1,4 @@
-import type { Group, Mesh, MeshBasicMaterial } from "three";
+import type { Group, Mesh, MeshBasicMaterial, Object3D } from "three";
 
 /** The app's attention switches, also available to guides mounted outside the app. */
 export type GlobeSurfaces = {
@@ -7,19 +7,27 @@ export type GlobeSurfaces = {
   fileCircles: boolean; knowledgeCore: boolean; sessionTints: boolean;
 };
 
-const healthOpacity = new WeakMap<MeshBasicMaterial, number>();
+const healthOpacity = new WeakMap<Mesh, number>();
+const presentation = new WeakMap<Object3D, GlobeSurfaces["territories"]>();
 
 export function presentTerritories(group: Group, mode: GlobeSurfaces["territories"]): void {
+  presentation.set(group, mode);
   for (const mark of group.children) {
     if (mark.name.startsWith("territory:")) {
       mark.visible = mode !== false;
-      const material = (mark as Mesh).material as MeshBasicMaterial;
-      if (!healthOpacity.has(material)) healthOpacity.set(material, material.opacity);
-      material.opacity = mode === "plain" ? 0 : healthOpacity.get(material)!;
+      const mesh = mark as Mesh, material = mesh.material as MeshBasicMaterial;
+      if (!healthOpacity.has(mesh)) healthOpacity.set(mesh, material.opacity);
+      material.opacity = mode === "plain" ? 0 : healthOpacity.get(mesh)!;
     } else if (mark.name === "territory-borders" || mark.name.startsWith("territory-hatch:")) {
       mark.visible = mode !== false;
     }
   }
 }
 
-export function restoreTerritoryPresentation(group: Group): void {}
+/** Session emphasis replaces materials temporarily; restoring one also restores the current presentation. */
+export function restoreTerritoryPresentation(root: Object3D): void {
+  root.traverse(object => {
+    const mode = presentation.get(object);
+    if (mode !== undefined) presentTerritories(object as Group, mode);
+  });
+}

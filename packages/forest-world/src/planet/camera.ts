@@ -9,5 +9,6 @@ export function applyPlanetFraming(camera: OrthographicCamera, radius: number, f
 
 /** A positive offset moves the globe right in CSS pixels without moving or turning the eye. */
 export function applyPlanetSideOffset(camera: OrthographicCamera, size: FramingViewport, sideOffset: number): void {
-  // The existing globe has no sideways framing yet.
+  const width = Math.max(size.width, 1), height = Math.max(size.height, 1);
+  camera.setViewOffset(width, height, -sideOffset, 0, width, height);
 }

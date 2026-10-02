@@ -38,7 +38,7 @@ for (const flag of ["links", "touches", "stories"] as const) {
       const kind = flag === "links" ? "decision" : flag === "touches" ? "increment" : "arc";
       const created = (await library.list(kind)).find(({ id }) => accepted.stdout.includes(id));
       assert.ok(created, accepted.stdout);
-      assert.deepEqual(created.fields[flag], ids);
+      assert.deepEqual((created.fields as Record<string, unknown>)[flag], ids);
     });
   });
 }

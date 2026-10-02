@@ -2,6 +2,7 @@
 // with DISPLAY pointing at a disposable X server. The home/database are throwaway.
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { mkdtemp, readFile, writeFile, rm, access } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -31,6 +32,7 @@ const flags = ["--no-sandbox", "--disable-dev-shm-usage", "--use-gl=angle", "--u
 let child, browser, inspector, renderer, log = "", closed, passed = false;
 const children = [];
 const observations = { platform: process.platform, sourceCommit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim() };
+const digest = value => createHash("sha256").update(value).digest("hex");
 
 async function until(read, message, timeout = 60000) {
   const end = Date.now() + timeout;
@@ -111,8 +113,17 @@ try {
   const launchRecord = JSON.parse(await readFile(path.join(home, "app.json"), "utf8"));
   assert.equal(launchRecord.pid, child.pid);
   const pidFile = path.join(home, "pgdata/postmaster.pid");
-  const databasePid = Number((await readFile(pidFile, "utf8")).split("\n")[0]);
+  const databaseRecord = (await readFile(pidFile, "utf8")).split("\n");
+  const databasePid = Number(databaseRecord[0]);
+  const { Client } = createRequire(path.join(root, "package.json"))("pg");
+  const queryDatabase = async () => {
+    const client = new Client({ connectionString: `postgres://postgres@127.0.0.1:${databaseRecord[3]}/postgres` });
+    await client.connect();
+    try { assert.equal((await client.query("select 1 as alive")).rows[0].alive, 1); }
+    finally { await client.end(); }
+  };
   process.kill(databasePid, 0);
+  await queryDatabase();
   observations.databasePid = databasePid;
   observations.backgroundLaunch = true;
 
@@ -150,11 +161,13 @@ try {
   assert.equal(child.exitCode, null, "closing the window keeps the native app running");
   assert.equal(Number((await readFile(pidFile, "utf8")).split("\n")[0]), databasePid);
   process.kill(databasePid, 0);
+  await queryDatabase();
   observations.closedIntoBackground = true;
   const reopened = launch([]);
   assert.equal((await once(reopened, "exit"))[0], 0);
   await until(async () => await windows() === 1, "reopening did not restore the window");
   assert.equal(Number((await readFile(pidFile, "utf8")).split("\n")[0]), databasePid);
+  await queryDatabase();
   observations.reopenedSameDatabase = true;
   // Capture functions from close/reopen as a second real measurement, not fabricated weights.
   const reopenCoverage = await inspector.send("Profiler.takePreciseCoverage");
@@ -163,13 +176,23 @@ try {
   inspector = undefined;
   const quit = launch(["--quit"]);
   assert.equal((await once(quit, "exit"))[0], 0);
-  assert.equal((await closed)[0], 0, log);
+  const exit = await Promise.race([closed, delay(15000, undefined, { ref: false }).then(() => { throw new Error("native quit did not finish within 15 s"); })]);
+  assert.equal(exit[0], 0, log);
   await assert.rejects(access(pidFile), { code: "ENOENT" });
   assert.throws(() => process.kill(databasePid, 0), { code: "ESRCH" });
   assert.doesNotMatch(log, /library is closed|pool after calling end/i);
   observations.quitStoppedDatabase = true;
   observations.lifecycle = recordBrowserCoverage({ pkgDir, proof: lifecycleProof, passed: true, scripts: lifecycleScripts });
   observations.updates = recordBrowserCoverage({ pkgDir, proof: updateProof, passed: true, scripts: measured });
+  observations.sources = {};
+  for (const file of ["home.ts", "main/args.ts", "main/main.ts", "main/releases.ts", "main/tray-icon.ts", "preload/preload.ts", "bridge.ts"]) {
+    observations.sources[`apps/desktop/src/${file}`] = digest(await readFile(path.join(desktop, "src", file)));
+  }
+  await writeFile(path.join(here, "functions.json"), JSON.stringify(lifecycleScripts.map(script => ({
+    bundle: path.relative(root, script.bundlePath), sourceSha256: digest(script.source),
+    sourceMapSha256: digest(JSON.stringify(script.sourceMap)),
+    functions: script.functions.filter(fn => fn.ranges[0].count > 0),
+  })), null, 1) + "\n");
   observations.passed = true;
   passed = true;
   await writeFile(path.join(here, "observations.json"), JSON.stringify(observations, null, 2) + "\n");

@@ -40,13 +40,14 @@ test("1.1 · a static build serves its home page and every local asset without a
   assert.ok((await stat(path.join(output, "assets/forest.js"))).size > 0);
 });
 
-test("1.2, 1.3 · generated HTML carries the source command and usable install, license and contact links without running JavaScript", async (t) => {
+test("1.3 · the built home page offers the waitlist and a no-JavaScript way to join, with repository, license and contact links", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-home-"));
   t.after(() => rm(output, { recursive: true, force: true }));
-  await buildWebsite(output, { readme: "## Install\n```powershell\nWrite-Output '<ready>&'\n```" });
+  await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
-  assert.match(html, /<code id="install-command">Write-Output '&lt;ready&gt;&amp;'<\/code>/);
-  assert.match(html, /id="install"/);
+  assert.match(html, /id="waitlist"/);
+  assert.equal([...html.matchAll(/href="#waitlist"/g)].length, 2);
+  assert.match(html, /<noscript>[\s\S]*linkedin\.com[\s\S]*<\/noscript>/);
   assert.match(html, /href="https:\/\/github.com\/storytree-ai\/storytree\/blob\/main\/LICENSE"/);
   assert.match(html, /href="https:\/\/www.linkedin.com\/in\/mick-hua-353353a\/"/);
   assert.match(html, /href="https:\/\/github.com\/storytree-ai\/storytree"/);
@@ -71,4 +72,20 @@ test("4.4 · the built site names the merge it was built from in its home page a
 
   await buildWebsite(output, { commit: undefined });
   assert.equal(await readFile(path.join(output, "version.txt"), "utf8"), "unpublished local build\n");
+});
+
+test("5.3 · the built storage manifest permits public insertion and explicitly reserves all other actions for the owner", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-data-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const manifest = JSON.parse(await readFile(path.join(output, ".herenow/data.json"), "utf8"));
+  assert.deepEqual(manifest, { collections: { waitlist: {
+    fields: {
+      email: { type: "email", required: true, trim: true, maxLength: 254 },
+      computer: { type: "string", trim: true, maxLength: 7 },
+      agent: { type: "string", trim: true, maxLength: 11 },
+    },
+    access: { insert: "public", read: "owner", update: "owner", delete: "owner" },
+    rateLimit: "10/hour/ip",
+  } } });
 });

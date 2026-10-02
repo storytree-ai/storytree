@@ -103,3 +103,15 @@ export function parseArgs(tokens: readonly string[], switches: readonly string[]
   }
   return new Args(words, flags, cwd);
 }
+
+/** Comma-separated ids: refuse a shell-joined word, never infer its intended ids. */
+export function commaSeparatedIds(value: string, name: string): string[] {
+  const ids = value.split(",").map((one) => one.trim()).filter((one) => one !== "");
+  if (ids.some((id) => /\s/.test(id))) {
+    throw new Refusal(
+      `--${name} contains whitespace inside an id. PowerShell may have converted an unquoted comma list to an array and joined it with spaces. Retry with the whole comma-separated list quoted, for example --${name} "id1,id2" (replace id1 and id2 with your intended ids). No ids were guessed or split on whitespace.`,
+      { code: 2 },
+    );
+  }
+  return ids;
+}

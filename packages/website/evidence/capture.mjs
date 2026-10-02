@@ -5,7 +5,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
-import { installCommand } from "../src/install-command.ts";
 import { verifyOpening } from "./opening.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -35,11 +34,11 @@ try {
   const url = `http://127.0.0.1:${server.address().port}/`;
   if (process.argv.includes("--verify-opening")) await verifyOpening(browser, url, output);
   if (verifyHome) {
-    const expected = installCommand(await readFile(path.resolve(here, "../../../README.md"), "utf8"));
     const noScript = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+    await noScript.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await noScript.goto(url);
-    assert.equal(await noScript.locator("#install-command").textContent(), expected);
-    assert.equal(await noScript.locator("#copy-command").isVisible(), false);
+    assert.equal(await noScript.locator('#waitlist-form').isVisible(), false);
+    assert.ok(await noScript.locator('#waitlist noscript a[href="https://www.linkedin.com/in/mick-hua-353353a/"]').isVisible());
     for (const href of ["https://github.com/storytree-ai/storytree", "https://github.com/storytree-ai/storytree/blob/main/LICENSE", "https://www.linkedin.com/in/mick-hua-353353a/"]) {
       assert.ok(await noScript.locator(`a[href="${href}"]`).first().isVisible());
     }
@@ -48,53 +47,14 @@ try {
     await noScript.locator('main a[href="/"]').first().click();
     assert.equal(new URL(noScript.url()).pathname, "/");
     await noScript.close();
-
-    const copy = await browser.newPage({ permissions: ["clipboard-read", "clipboard-write"], hasTouch: verifyControls });
-    await copy.goto(url);
-    await copy.locator("#copy-command").click();
-    await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
-    assert.equal(await copy.evaluate(() => navigator.clipboard.readText()), expected);
-    await copy.evaluate(() => Object.defineProperty(navigator.clipboard, "writeText", {
-      configurable: true, value: async () => { throw new Error("Clipboard denied for this proof"); },
-    }));
-    await copy.locator("#copy-command").click();
-    await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "failed");
-    assert.equal(await copy.locator("#install-command").textContent(), expected);
-    assert.ok((await copy.locator("#copy-status").textContent()).trim());
-    if (verifyControls) {
-      // Contract 1.6: pending copies keep focus and cannot steal it back after Tab.
-      for (const outcome of ["copied", "failed", "tab-away"]) {
-        await copy.evaluate(() => {
-          window.copyWrites = 0;
-          Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: () => {
-            window.copyWrites++;
-            return new Promise((resolve, reject) => { window.finishCopy = resolve; window.denyCopy = reject; });
-          } });
-        });
-        await copy.locator("#copy-command").focus();
-        await copy.keyboard.press("Enter");
-        await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "pending");
-        assert.equal(await copy.evaluate(() => document.activeElement.id), "copy-command", "Pending copy retains keyboard focus");
-        await copy.keyboard.press("Enter");
-        assert.equal(await copy.evaluate(() => window.copyWrites), 1, "A second activation cannot start a duplicate copy");
-        if (outcome === "tab-away") await copy.keyboard.press("Tab");
-        await copy.evaluate(failed => failed ? window.denyCopy(new Error("Denied")) : window.finishCopy(), outcome === "failed");
-        await copy.waitForFunction(state => document.querySelector("#copy-command").dataset.copyState === state, outcome === "failed" ? "failed" : "copied");
-        assert.equal(await copy.evaluate(moved => document.activeElement === document.querySelector(moved ? ".command-box pre" : "#copy-command"), outcome === "tab-away"), true, "Completion preserves the visitor's current focus");
-      }
-      await copy.locator("#copy-command").evaluate(button => button.blur());
-      await copy.locator("#copy-command").tap();
-      await copy.evaluate(() => window.finishCopy());
-      await copy.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
-    }
-    await copy.close();
   }
   if (verifyEnlarged) {
     // Contract 1.7: injected text enlargement, not native browser zoom.
     const enlarged = [];
     const problems = [];
     for (const width of [320, 390, 1280]) for (const route of ["home", "404"]) {
-      const page = await browser.newPage({ viewport: { width, height: 900 }, permissions: ["clipboard-read", "clipboard-write"] });
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
       await page.goto(url + (route === "404" ? "missing-page" : ""));
       await page.evaluate(() => {
         const sizes = [...document.querySelectorAll("body, body *")].map(element => [element, parseFloat(getComputedStyle(element).fontSize)]);
@@ -111,17 +71,17 @@ try {
         for (let i = 0; i < header.length; i++) for (let j = i + 1; j < header.length; j++) {
           if (header[i].rects.some(a => header[j].rects.some(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1))) issues.push(`${header[i].text} overlaps ${header[j].text}`);
         }
-        const headings = [...document.querySelectorAll("h1, #install-title")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
+        const headings = [...document.querySelectorAll("h1, #waitlist-title, .email-label, #waitlist-form legend, .waitlist-choice, #waitlist-promise, #waitlist-ai, #waitlist-disclosure")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
         for (const element of [...header, ...headings]) if (element.rects.some(rect => rect.left < 0 || rect.right > innerWidth + 1)) issues.push(`${element.text} extends beyond the viewport`);
-        const button = document.querySelector("#copy-command");
-        let copy;
+        const button = document.querySelector("#waitlist-submit");
+        let form;
         if (button) {
-          const box = button.closest(".command-box").getBoundingClientRect();
-          copy = { control: button.getBoundingClientRect().toJSON(), text: textRects(button), panel: box.toJSON() };
-          if ([copy.control, ...copy.text].some(rect => rect.left < box.left || rect.right > box.right || rect.top < box.top || rect.bottom > box.bottom)) issues.push("Copy control or label is clipped by the command panel");
+          const box = button.closest("#waitlist-form").getBoundingClientRect();
+          form = { control: button.getBoundingClientRect().toJSON(), text: textRects(button), panel: box.toJSON() };
+          if ([form.control, ...form.text].some(rect => rect.left < box.left || rect.right > box.right || rect.top < box.top || rect.bottom > box.bottom)) issues.push("Waitlist control or label is clipped by the form");
         }
         if (document.documentElement.scrollWidth > innerWidth) issues.push("Page overflows horizontally");
-        return { viewport: innerWidth, document: document.documentElement.scrollWidth, header, headings, copy, issues };
+        return { viewport: innerWidth, document: document.documentElement.scrollWidth, header, headings, form, issues };
       });
       enlarged.push({ route, ...measured });
       problems.push(...measured.issues.map(issue => `${route} at ${width}px: ${issue}`));
@@ -129,23 +89,22 @@ try {
       await page.locator(".site-header").screenshot({ path: path.join(output, `${prefix}-header.png`) });
       await page.locator("h1").screenshot({ path: path.join(output, `${prefix}-heading.png`) });
       if (route === "home") {
-        await page.locator("#install-title").screenshot({ path: path.join(output, `${prefix}-install.png`) });
-        await page.locator(".command-box").screenshot({ path: path.join(output, `${prefix}-command.png`) });
+        await page.locator("#waitlist-title").screenshot({ path: path.join(output, `${prefix}-waitlist.png`) });
+        await page.locator("#waitlist-form").screenshot({ path: path.join(output, `${prefix}-form.png`) });
       }
       if (measured.issues.length === 0) {
         const nav = page.locator(".site-header nav a").first();
         await nav.focus();
         await page.keyboard.press("Enter");
-        await page.waitForURL(route === "home" ? url + "#install" : url);
+        await page.waitForURL(route === "home" ? url + "#waitlist" : url);
         if (route === "home") {
-          assert.equal(new URL(page.url()).hash, "#install");
-          const button = page.locator("#copy-command");
-          await button.click();
-          await page.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
-          await button.focus();
-          await page.keyboard.press("Enter");
-          await page.waitForFunction(() => document.querySelector("#copy-command").dataset.copyState === "copied");
-          assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await page.locator("#install-command").textContent());
+          assert.equal(new URL(page.url()).hash, "#waitlist");
+          await page.locator('#waitlist-email').fill('invalid');
+          await page.locator('#waitlist-submit').click();
+          assert.equal(await page.locator('#waitlist-email').evaluate(input => input.validity.valid), false);
+          await page.locator('#waitlist-disclosure summary').focus();
+          await page.keyboard.press('Enter');
+          assert.equal(await page.locator('#waitlist-disclosure').getAttribute('open'), '');
         }
         await page.locator(".site-header .wordmark").click();
         await page.waitForURL(url);
@@ -158,6 +117,7 @@ try {
   const measures = [];
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }, ...(verifyControls ? [{ width: 320, height: 720 }] : [])]) {
     const page = await browser.newPage({ viewport, deviceScaleFactor: 1, reducedMotion: "reduce" });
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(url, { waitUntil: "networkidle" });
@@ -166,6 +126,10 @@ try {
       document: document.documentElement.scrollWidth,
       headings: document.querySelectorAll("h1").length,
       mount: document.querySelector("#website-forest").getBoundingClientRect().toJSON(),
+      waitlist: document.querySelector('#waitlist').getBoundingClientRect().toJSON(),
+      form: document.querySelector('#waitlist-form').getBoundingClientRect().toJSON(),
+      emailFont: getComputedStyle(document.querySelector('#waitlist-email')).fontSize,
+      primaryInputs: document.querySelectorAll('#waitlist-form input').length,
       bodyFont: getComputedStyle(document.querySelector(".lede")).fontSize,
       assets: performance.getEntriesByType("resource").map(entry => ({ name: new URL(entry.name).pathname, bytes: entry.encodedBodySize })),
     }));
@@ -173,29 +137,33 @@ try {
     assert.equal(measured.headings, 1);
     assert.deepEqual(errors, []);
     await page.screenshot({ path: path.join(output, `${viewport.width}.png`), fullPage: true });
+    await page.locator('#waitlist-disclosure').evaluate(details => { details.open = true; });
+    const waitlistClip = await page.locator('#waitlist').evaluate(section => ({ x: 0, y: section.getBoundingClientRect().top + scrollY, width: innerWidth, height: section.getBoundingClientRect().height }));
+    await page.screenshot({ path: path.join(output, `${viewport.width}-waitlist.png`), clip: waitlistClip, fullPage: true });
     if (verifyControls) {
-      measured.controls = await page.locator(".site-header a, .site-footer a, .text-link, #copy-command").evaluateAll(controls => controls.map(control => ({
+      measured.controls = await page.locator(".site-header a, .site-footer a, .text-link, #waitlist-submit, #waitlist-email, .waitlist-choice, #waitlist-disclosure summary").evaluateAll(controls => controls.map(control => ({
         name: control.textContent.trim(), width: control.getBoundingClientRect().width, height: control.getBoundingClientRect().height,
       })));
       for (const control of measured.controls) assert.ok(control.height >= 44, `${control.name} needs a 44 px target height`);
       measured.focus = [];
-      for (const [name, selector] of [["command", ".command-box pre"], ["copy", "#copy-command"]]) {
+      for (const [name, selector] of [["email", "#waitlist-email"], ["submit", "#waitlist-submit"]]) {
+        await page.keyboard.press("Tab");
         await page.locator(selector).focus();
         const focus = await page.locator(selector).evaluate(control => {
-          const box = control.closest(".command-box");
+          const box = control.closest("#waitlist-form");
           const style = getComputedStyle(control);
           const width = parseFloat(style.outlineWidth);
           const extent = Math.max(0, width + parseFloat(style.outlineOffset));
           const rect = control.getBoundingClientRect();
           const boundary = box.getBoundingClientRect();
           const light = color => color.match(/[\d.]+/g).slice(0, 3).map(Number).map(n => n / 255).map(n => n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4).reduce((sum, n, i) => sum + n * [.2126, .7152, .0722][i], 0);
-          const levels = [light(style.outlineColor), light(getComputedStyle(box).backgroundColor)].sort((a, b) => b - a);
+          const levels = [light(style.outlineColor), light(getComputedStyle(box.closest(".paper")).backgroundColor)].sort((a, b) => b - a);
           return { width, contrast: (levels[0] + .05) / (levels[1] + .05), inside: rect.left - extent >= boundary.left && rect.right + extent <= boundary.right && rect.top - extent >= boundary.top && rect.bottom + extent <= boundary.bottom };
         });
-        assert.ok(focus.width > 0 && focus.contrast >= 3, `${name} focus must be visible against the command panel`);
-        assert.ok(focus.inside, `${name} focus must fit inside the clipping panel`);
+        assert.ok(focus.width > 0 && focus.contrast >= 3, `${name} focus must be visible against the form`);
+        assert.ok(focus.inside, `${name} focus must fit inside the form`);
         measured.focus.push({ name, ...focus });
-        await page.locator(".command-box").screenshot({ path: path.join(output, `${viewport.width}-focus-${name}.png`) });
+        await page.locator("#waitlist-form").screenshot({ path: path.join(output, `${viewport.width}-focus-${name}.png`) });
       }
     }
     measures.push(measured);

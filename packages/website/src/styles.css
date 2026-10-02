@@ -17,8 +17,8 @@ button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-underline-offset: .3em; }
 a:hover { text-decoration-thickness: 2px; }
-a:focus-visible, button:focus-visible, pre:focus-visible { outline: 3px solid #bdd6a6; outline-offset: 6px; }
-.paper a:focus-visible, .paper button:focus-visible, .paper pre:focus-visible { outline-color: #375535; }
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #bdd6a6; outline-offset: 6px; }
+.paper a:focus-visible, .paper button:focus-visible, .paper input:focus-visible, .paper summary:focus-visible { outline-color: #375535; }
 [hidden] { display: none !important; }
 p { margin: 0; }
 .shell { width: min(1180px, calc(100% - 96px)); margin-inline: auto; }
@@ -28,7 +28,7 @@ p { margin: 0; }
 .site-header .wordmark { flex-shrink: 0; }
 .wordmark { font-size: 28px; font-weight: 650; letter-spacing: -.055em; text-decoration: none; }
 .wordmark span { color: var(--green); }
-.site-header nav { display: flex; gap: 34px; font-size: 14px; }
+.site-header nav { display: flex; flex-wrap: wrap; gap: 12px 34px; font-size: 14px; }
 .site-header a, .site-footer a, .text-link { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
 .site-header nav a { gap: .3em; text-decoration: none; }
 .site-header nav a:hover { text-decoration: underline; }
@@ -68,7 +68,7 @@ h1 em { font-style: normal; color: var(--green); }
 .forest-key p:first-child { color: #d4ddd0; }
 .paper { background: var(--paper); color: var(--ink); color-scheme: light; }
 .paper .eyebrow { color: #456040; }
-.explanation, .install { display: grid; grid-template-columns: 1fr 1.1fr; gap: 80px; padding-block: 91px; }
+.explanation, .waitlist { display: grid; grid-template-columns: 1fr 1.1fr; gap: 80px; padding-block: 91px; }
 h2 { font-size: clamp(36px, 3.6vw, 48px); font-weight: 500; line-height: 1.13; letter-spacing: -.045em; overflow-wrap: anywhere; }
 .section-intro h2 { margin: 20px 0 0; }
 .explanation-rows { list-style: none; padding: 0; margin: 0; }
@@ -77,23 +77,32 @@ h2 { font-size: clamp(36px, 3.6vw, 48px); font-weight: 500; line-height: 1.13; l
 .explanation-rows li:last-child { padding-bottom: 0; }
 .row-number { flex-shrink: 0; font-size: 11px; line-height: 2; font-variant-numeric: tabular-nums; color: #52654c; }
 h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -.02em; line-height: 1.4; }
-.explanation-rows p, .requirement, .install-step { font-size: 15px; line-height: 1.75; color: #465048; }
-.install { border-top: 1px solid #babeb1; }
-.install-summary { margin-top: 25px; color: #465048; line-height: 1.7; font-size: 16px; }
-.install-detail { min-width: 0; }
-.requirement { margin-bottom: 23px; }
-.command-box { background: #18211f; color: #edf0e7; border-radius: 4px; overflow: hidden; }
-.command-heading { padding: 10px 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; min-height: 55px; gap: 12px; border-bottom: 1px solid #394640; font-size: 11px; color: #c0cabb; }
-.command-heading > span { text-transform: uppercase; letter-spacing: .1em; }
-.command-heading button { color: #edf0e7; background: transparent; min-width: 116px; min-height: 44px; padding: 8px 12px; border: 1px solid #788779; border-radius: 3px; cursor: pointer; font-size: 12px; line-height: 1.5; }
-.command-heading button[aria-disabled="true"] { cursor: progress; }
-.paper .command-box :is(button, pre):focus-visible { outline-color: var(--green); outline-offset: -6px; }
-.command-heading button:hover { background: #344236; }
-pre { margin: 0; padding: 22px 20px 25px; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-size: 13px; line-height: 1.9; }
-code { font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace; user-select: text; }
-.copy-status { min-height: 26px; padding-top: 5px; font-size: 12px; color: #375535; }
-.install-step { margin-bottom: 23px; }
-.install-step strong { color: #202d23; font-weight: 600; }
+.explanation-rows p { font-size: 15px; line-height: 1.75; color: #465048; }
+.waitlist { border-top: 1px solid #babeb1; }
+.waitlist-summary { margin-top: 25px; color: #465048; line-height: 1.7; font-size: 16px; }
+.waitlist-detail { min-width: 0; }
+#waitlist-form { padding: 10px; margin: -10px; }
+.email-label, #waitlist-form legend { font-size: 15px; font-weight: 600; line-height: 1.6; }
+.email-label { display: block; margin-bottom: 9px; }
+#waitlist-email { width: 100%; min-width: 0; min-height: 52px; padding: 12px 14px; border: 1px solid #697664; border-radius: 3px; background: #f7f7ef; color: var(--ink); font-size: 16px; }
+#waitlist-form fieldset { min-width: 0; border: 0; padding: 0; margin: 25px 0 0; }
+#waitlist-form legend { padding: 0; margin-bottom: 9px; }
+#waitlist-form legend span { color: #465048; font-weight: 400; font-size: 13px; }
+.waitlist-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.waitlist-choice { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 10px 13px; border: 1px solid #a5ad9d; border-radius: 3px; font-size: 14px; line-height: 1.5; cursor: pointer; }
+.waitlist-choice:has(input:checked) { background: #d4e0c9; border-color: #456040; }
+.waitlist-choice input { margin: 0; width: 16px; height: 16px; flex: 0 0 16px; accent-color: #375535; }
+.waitlist-promise { margin-top: 25px; font-size: 15px; line-height: 1.75; }
+.waitlist-ai { margin-top: 12px; font-size: 13px; line-height: 1.75; color: #465048; }
+#waitlist-submit { margin-top: 25px; border: 0; background: #253d2d; color: #f3f5eb; cursor: pointer; max-width: 100%; text-align: left; }
+#waitlist-submit:hover { background: #375535; }
+#waitlist-submit[aria-disabled="true"] { cursor: default; }
+.waitlist-status { margin-top: 10px; min-height: 24px; color: #375535; font-size: 14px; line-height: 1.7; }
+#waitlist-form:is([data-waitlist-state="failed"], [data-waitlist-state="refused"], [data-waitlist-state="rate-limited"], [data-waitlist-state="invalid"]) .waitlist-status { color: #823321; }
+.waitlist-disclosure { border-top: 1px solid #babeb1; margin-top: 12px; font-size: 13px; line-height: 1.8; color: #465048; }
+.waitlist-disclosure summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 600; color: var(--ink); }
+.waitlist-disclosure p + p { margin-top: 12px; }
+.waitlist-fallback { line-height: 1.8; }
 .text-link { gap: .3em; font-size: 14px; line-height: 1.7; }
 .about { padding-block: 84px 87px; }
 .about-body { display: grid; grid-template-columns: 1fr 1.1fr; gap: 80px; margin-top: 24px; }
@@ -112,7 +121,7 @@ code { font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace; u
   .shell { width: calc(100% - 64px); }
   .hero-bottom { align-items: flex-start; flex-direction: column; gap: 28px; }
   .hero { padding-top: 65px; }
-  .explanation, .install, .about-body { gap: 40px; grid-template-columns: .9fr 1.1fr; }
+  .explanation, .waitlist, .about-body { gap: 40px; grid-template-columns: .9fr 1.1fr; }
   .section-caption, .forest-key { flex-wrap: wrap; gap: 8px; }
   .site-footer { flex-wrap: wrap; }
 }
@@ -135,18 +144,16 @@ code { font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace; u
   .forest-key { display: block; font-size: 11px; }
   .forest-key p + p { margin-top: 6px; }
   .forest-section { padding-bottom: 30px; }
-  .explanation, .install { display: block; padding-block: 52px; }
+  .explanation, .waitlist { display: block; padding-block: 52px; }
   .eyebrow { font-size: 10px; }
   h2 { font-size: 37px; }
   .section-intro h2 { margin-top: 15px; }
   .explanation-rows { margin-top: 35px; }
   .explanation-rows li { gap: 20px; padding-block: 24px; }
   h3 { font-size: 17px; }
-  .explanation-rows p, .requirement, .install-step { font-size: 14px; }
-  .install-summary { font-size: 15px; margin-top: 20px; }
-  .install-detail { margin-top: 29px; }
-  .command-heading { padding-inline: 15px; }
-  pre { padding-inline: 15px; font-size: 12px; }
+  .explanation-rows p { font-size: 14px; }
+  .waitlist-summary { font-size: 15px; margin-top: 20px; }
+  .waitlist-detail { margin-top: 29px; }
   .about { padding-block: 51px; }
   .about-body { display: block; margin-top: 17px; }
   .about-copy { margin-top: 27px; }

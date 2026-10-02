@@ -1,0 +1,93 @@
+{
+  "offlineWaitlist": {
+    "requests": 4,
+    "distinctKeys": 1,
+    "requestsInterceptedLocally": true,
+    "first": {
+      "body": {
+        "email": "offline-proof@example.invalid",
+        "computer": "linux",
+        "agent": "codex"
+      },
+      "key": "86f49c31-7097-4244-9388-af35df6175e2"
+    }
+  },
+  "controls": [
+    {
+      "name": "storytree.",
+      "height": 44
+    },
+    {
+      "name": "Join the waitlist",
+      "height": 44
+    },
+    {
+      "name": "GitHub ↗",
+      "height": 44
+    },
+    {
+      "name": "",
+      "height": 52
+    },
+    {
+      "name": "Windows",
+      "height": 44
+    },
+    {
+      "name": "Mac",
+      "height": 44
+    },
+    {
+      "name": "Linux",
+      "height": 44
+    },
+    {
+      "name": "Claude Code",
+      "height": 44
+    },
+    {
+      "name": "Codex",
+      "height": 44
+    },
+    {
+      "name": "Other",
+      "height": 44
+    },
+    {
+      "name": "Join the waitlist ↗",
+      "height": 49
+    },
+    {
+      "name": "How we keep this",
+      "height": 47
+    },
+    {
+      "name": "Say hello on LinkedIn ↗",
+      "height": 44
+    },
+    {
+      "name": "storytree.",
+      "height": 44
+    },
+    {
+      "name": "PolyForm Shield License 1.0.0",
+      "height": 44
+    },
+    {
+      "name": "Follow the work ↗",
+      "height": 44
+    }
+  ],
+  "focus": [
+    {
+      "width": 3,
+      "style": "solid",
+      "inside": true
+    },
+    {
+      "width": 3,
+      "style": "solid",
+      "inside": true
+    }
+  ]
+}

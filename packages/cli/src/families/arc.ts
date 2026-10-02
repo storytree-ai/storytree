@@ -15,7 +15,7 @@ import { closed } from "@storytree/agent-link";
 import type { ArcView, Library } from "@storytree/library";
 
 import { labelOf, Refusal, type Answer } from "../answer.js";
-import type { Args } from "../args.js";
+import { commaSeparatedIds, type Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
 
@@ -34,7 +34,7 @@ function listOf(args: Args, name: string): string[] | undefined {
   const value = args.text(name);
   if (value === undefined) return undefined;
   const parsed = valueOf(value);
-  return Array.isArray(parsed) ? (parsed as string[]) : value.split(",").map((one) => one.trim()).filter((one) => one !== "");
+  return Array.isArray(parsed) ? (parsed as string[]) : commaSeparatedIds(value, name);
 }
 
 const ARC_FIELDS = ["title", "intent", "end-state", "description"] as const;

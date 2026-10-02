@@ -156,6 +156,25 @@ test("8.10 prefixed proof retains its package and contract list without assignin
   assert.equal(surveyed.files.find(file => file.path === "src/self.ts")?.capability, "local-capability");
 });
 
+test("8.10 regex literals neither hide later numbered proofs nor supply fake titles", () => {
+  for (const pattern of ['/"/', '/["\']/g', '/test("5.2 fake",)/']) {
+    for (const unfinished of ["", "function pending() {"]) {
+      const surveyed = surveyStory([
+        { path: "src/main.ts", text: "export const answer = 42;" },
+        { path: "src/main.test.ts", text: [
+          `const pattern = ${pattern};`,
+          'import { answer } from "./main.js";',
+          'test("3.1 answer", () => answer);',
+          unfinished,
+        ].join("\n") },
+      ], capabilities);
+      assert.deepEqual(surveyed.tests?.[0]?.titles, [{ number: "3.1", title: "3.1 answer" }], pattern);
+      assert.deepEqual(surveyed.tests?.[0]?.imports, [{ from: "src/main.test.ts", to: "src/main.ts" }]);
+      assert.deepEqual(surveyed.files, [{ path: "src/main.ts", lines: 1, capability: "cap-claims" }]);
+    }
+  }
+});
+
 test("8.10 helper calls, constant titles and template prefixes retain proof while comments and unused strings do not", () => {
   const surveyed = surveyStory([
     { path: "src/foreign.ts", text: "export const foreign = true;" },

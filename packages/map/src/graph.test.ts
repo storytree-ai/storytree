@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
-import { buildGraph } from "./graph.js";
+import { buildGraph } from "./index.js";
 import { focus } from "./focus.js";
 
 const health = { reported: { state: "not-checked" }, verified: { state: "passing" } } as const;

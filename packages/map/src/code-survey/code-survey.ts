@@ -88,7 +88,13 @@ const numberOf = (title: string): number | undefined => {
 };
 
 /** First-argument title strings, including helpers and local constants, without reading comments or quoted examples as calls. */
-function calledTitles(text: string): readonly string[] {
+function calledTitles(file: SourceFile): readonly string[] {
+  let text = file.text;
+  // Regex quotes and call-looking text are inert; keep offsets for the existing title scan.
+  for (const token of syntaxOf(file, true)?.tokens ?? []) {
+    if (typeof token.type === "string" || token.type.label !== "regexp") continue;
+    text = text.slice(0, token.start) + text.slice(token.start, token.end).replace(/[^\r\n]/g, " ") + text.slice(token.end);
+  }
   const strings: { at: number; quote: string; value: string }[] = [];
   const code = text.replace(/\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g, (token: string, quote: string | undefined, at: number) => {
     if (quote !== undefined) strings.push({ at, quote, value: token.slice(1, -1) });
@@ -167,13 +173,13 @@ function namesOf(clause: string): Edge["names"] {
 const importSyntax = new WeakMap<SourceFile, readonly RegExpExecArray[]>();
 
 /** Keep the parseable prefix while a file is being edited; never fall back to raw-text edges. */
-function syntaxOf(file: SourceFile): ReturnType<typeof parse> | undefined {
+function syntaxOf(file: SourceFile, tokens = false): ReturnType<typeof parse> | undefined {
   let text = file.text;
   for (;;) {
     try {
       return parse(text, {
         sourceType: "unambiguous", errorRecovery: true, allowUndeclaredExports: true,
-        createImportExpressions: true, attachComment: false,
+        createImportExpressions: true, attachComment: false, tokens,
         plugins: ["decorators-legacy", ...(/\.[cm]?tsx?$/.test(file.path) ? ["typescript" as const] : []), ...(/\.[jt]sx$/.test(file.path) ? ["jsx" as const] : [])],
       });
     } catch (error) {
@@ -273,7 +279,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
-  const calls = new Map(code.filter((file) => isTestCode(file.path)).map((file) => [file.path, calledTitles(file.text)]));
+  const calls = new Map(code.filter((file) => isTestCode(file.path)).map((file) => [file.path, calledTitles(file)]));
   const byNumber = new Map(capabilities.flatMap((capability) => {
     const number = numberOf(capability.title);
     return number === undefined ? [] : [[number, capability.id] as const];

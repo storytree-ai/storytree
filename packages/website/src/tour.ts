@@ -10,7 +10,7 @@ export type TourStep = {
 };
 export type TourState = {
   index: number; generation: number; lines: number; paused: boolean; speed: number;
-  why: boolean; everything: boolean; freePlay: boolean; selection: "all" | Explainer;
+  why: boolean; everything: boolean; freePlay: boolean;
 };
 export type TourDetail = { step: TourStep; state: TourState };
 
@@ -19,19 +19,19 @@ export const readingTime = (text: string): number => Math.max(2800, text.trim().
 
 export function createTour(steps: readonly TourStep[]) {
   if (!steps.length) throw new Error("A tour needs at least one step.");
-  let state: TourState = { index: 0, generation: 0, lines: 1, paused: false, speed: 1, why: false, everything: false, freePlay: false, selection: "all" };
+  let state: TourState = { index: 0, generation: 0, lines: 1, paused: false, speed: 1, why: false, everything: false, freePlay: false };
   let elapsed = 0;
   const update = (patch: Partial<TourState>) => state = { ...state, ...patch };
   const start = () => {
     elapsed = 0;
-    return update({ index: Math.max(0, steps.findIndex(step => state.selection === "all" || step.explainer === state.selection)),
+    return update({ index: 0,
       generation: state.generation + 1, lines: 1, paused: false, why: false, everything: false, freePlay: false });
   };
   const next = () => {
     if (state.freePlay) return state;
     elapsed = 0;
-    const index = steps.findIndex((step, index) => index > state.index && (state.selection === "all" || step.explainer === state.selection));
-    return index < 0 ? update({ freePlay: true, why: false }) : update({ index, lines: 1, why: false, freePlay: false });
+    const index = state.index + 1;
+    return index >= steps.length ? update({ freePlay: true, why: false }) : update({ index, lines: 1, why: false, freePlay: false });
   };
   return {
     get state() { return state; },
@@ -46,7 +46,6 @@ export function createTour(steps: readonly TourStep[]) {
       return state.lines < step.lines.length ? update({ lines: state.lines + 1 }) : next();
     },
     next,
-    select(selection: "all" | Explainer) { update({ selection }); return start(); },
     replay: start,
     togglePause() { return update({ paused: !state.paused }); },
     setSpeed(speed: .75 | 1 | 1.5) { return update({ speed }); },

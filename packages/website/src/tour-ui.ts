@@ -22,7 +22,6 @@ export function wireTour() {
   const why = get("tour-why");
   const whyBody = get("tour-why-body");
   const comparisons = get("tour-comparisons");
-  const menu = get("tour-navigation");
   const pause = get<HTMLButtonElement>("tour-pause");
   const whyButton = get<HTMLButtonElement>("tour-depth");
   const everything = get<HTMLButtonElement>("tour-everything");
@@ -86,20 +85,13 @@ export function wireTour() {
     everything.textContent = state.everything ? "Back to this view" : "Show everything";
     whyButton.setAttribute("aria-expanded", String(state.why));
     why.hidden = !state.why;
-    menu.querySelectorAll<HTMLButtonElement>("button").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.explainer === state.selection)));
-    if (changedStep) live.textContent = state.freePlay ? "Free play. Explore the saved project below." : `${heading.textContent}. Step ${state.index + 1} of ${steps.length}.`;
+    if (changedStep) live.textContent = state.freePlay ? "Free play. Explore the saved project." : `${heading.textContent}. Step ${state.index + 1} of ${steps.length}.`;
     else if (previous?.lines !== state.lines && !state.freePlay) live.textContent = step.lines.slice(previous?.lines ?? 0, state.lines).join(" ");
     if (state.why && !previous?.why) get("tour-why-title").focus();
     if (!state.why && previous?.why) whyButton.focus({ preventScroll: true });
     previous = { ...state };
     emit();
   };
-  for (const choice of [{ id: "all", title: "Play all" }, ...explainers]) {
-    const button = element("button", choice.title);
-    button.type = "button"; button.dataset.explainer = choice.id;
-    button.addEventListener("click", () => render(tour.select(choice.id as Parameters<typeof tour.select>[0])));
-    menu.append(button);
-  }
   pause.addEventListener("click", () => render(tour.togglePause()));
   speed.addEventListener("change", () => render(tour.setSpeed(Number(speed.value) as .75 | 1 | 1.5)));
   get("tour-next").addEventListener("click", () => render(tour.next()));
@@ -111,6 +103,12 @@ export function wireTour() {
   document.addEventListener("keydown", event => {
     if (event.key === "Escape" && tour.state.why && !openingActive) { event.preventDefault(); render(tour.toggleWhy()); }
   });
+  window.addEventListener("storytree-tour-playback", event => {
+    const change = (event as CustomEvent<{ paused?: boolean; speed?: .75 | 1 | 1.5 }>).detail;
+    if (change.paused !== undefined && change.paused !== tour.state.paused) tour.togglePause();
+    if (change.speed !== undefined) tour.setSpeed(change.speed);
+    render();
+  });
   window.addEventListener("storytree-tour-request", emit);
   window.addEventListener("storytree-tour-interact", () => { if (!tour.state.paused) render(tour.togglePause()); });
   window.addEventListener("storytree-opening", event => {
@@ -118,13 +116,6 @@ export function wireTour() {
     clock = performance.now();
   });
   document.addEventListener("visibilitychange", () => { clock = performance.now(); });
-  get("tour-hatch").addEventListener("click", event => {
-    event.preventDefault();
-    const target = document.querySelector<HTMLElement>("#waitlist-form:not([hidden]) #waitlist-email") ?? get("waitlist-title");
-    get("waitlist").scrollIntoView({ block: "start", behavior: "instant" });
-    target.tabIndex = target.id === "waitlist-email" ? 0 : -1;
-    target.focus({ preventScroll: true });
-  });
   if ("IntersectionObserver" in window) {
     const observer = new IntersectionObserver(entries => {
       visible = entries.some(entry => entry.isIntersecting);
@@ -144,7 +135,6 @@ export function wireTour() {
     requestAnimationFrame(frame);
   };
   get("tour-controls").hidden = false;
-  menu.hidden = false;
   get("tour-hatch").hidden = false;
   render();
   requestAnimationFrame(frame);

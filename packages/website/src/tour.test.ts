@@ -29,19 +29,6 @@ test("2.4 · readable lines, speed, pause and inspection holds control the same 
   tour.tick(1); assert.equal(tour.state.index, 2);
 });
 
-test("2.5 · selecting an explainer plays only its steps; play all and replay restore a complete journey", () => {
-  const tour = createTour(steps);
-  tour.select("stories");
-  assert.equal(tour.state.index, 1);
-  tour.next(); assert.equal(tour.state.index, 2);
-  tour.next(); assert.equal(tour.state.freePlay, true);
-  tour.replay(); assert.equal(tour.state.index, 1);
-  assert.equal(tour.state.freePlay, false);
-  tour.select("all"); assert.equal(tour.state.index, 0);
-  for (let i = 0; i < steps.length; i++) tour.next();
-  assert.equal(tour.state.freePlay, true);
-});
-
 test("2.6 · skip reaches free play during every hold and replay returns with working controls", () => {
   const tour = createTour(steps);
   tour.togglePause(); tour.toggleWhy(); tour.toggleEverything(); tour.skip();

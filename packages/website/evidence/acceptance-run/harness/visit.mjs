@@ -74,7 +74,8 @@ try {
   await plain.goto(url);
   await picture(plain, "no-js-390.png", { fullPage: true });
   await step("1.3", "with JavaScript off, the page reads and the waitlist offers LinkedIn joining", async () => {
-    const heading = await plain.locator("h1").isVisible();
+    const heading = await plain.locator("#tour-title").isVisible();
+    await plain.locator('#tour-hatch').click();
     const fallback = await plain.locator('#waitlist noscript a[href="https://www.linkedin.com/in/mick-hua-353353a/"]').isVisible();
     const hidden = !(await plain.locator('#waitlist-form').isVisible());
     return [heading && fallback && hidden, `heading ${heading}, LinkedIn fallback ${fallback}, inactive form hidden ${hidden}`];
@@ -130,7 +131,7 @@ try {
       sent.push({ body: route.request().postDataJSON(), key: route.request().headers()['idempotency-key'] });
       await new Promise(resolve => { respond = response => resolve(route.fulfill(response)); received(); });
     });
-    await form.goto(url);
+    await form.goto(new URL("waitlist.html", url).href);
     await step('5.2', 'missing and malformed email are refused without a request', async () => {
       await form.locator('#waitlist-submit').click();
       await form.locator('#waitlist-email').fill('invalid');
@@ -182,17 +183,21 @@ try {
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
   await phone.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
   await phone.goto(url);
-  await step('5.4', 'menu and hero open the same waitlist; one keyboard action opens its disclosure', async () => {
-    await phone.locator('.site-header a[href="#waitlist"]').focus();
+  await step('5.4', 'the corner entry opens the separate waitlist by keyboard and touch, with a route home', async () => {
+    await phone.locator('#tour-hatch').focus();
     await phone.keyboard.press('Enter');
-    const menu = new URL(phone.url()).hash === '#waitlist';
-    await phone.locator('.hero a[href="#waitlist"]').tap();
-    const hero = new URL(phone.url()).hash === '#waitlist';
+    await phone.waitForURL(new URL('waitlist.html', url).href);
+    const keyboard = new URL(phone.url()).pathname === '/waitlist.html';
+    await phone.locator('.site-header a[href="/"]').first().click();
+    await phone.waitForURL(url);
+    await phone.locator('#tour-hatch').tap();
+    await phone.waitForURL(new URL('waitlist.html', url).href);
+    const touch = new URL(phone.url()).pathname === '/waitlist.html';
     await phone.locator('#waitlist-disclosure summary').focus();
     await phone.keyboard.press('Enter');
     const disclosure = await phone.locator('#waitlist-disclosure p').first().isVisible();
     const promise = await phone.locator('#waitlist-promise').isVisible() && await phone.locator('#waitlist-ai').isVisible();
-    return [menu && hero && disclosure && promise, `menu ${menu}, hero ${hero}, disclosure ${disclosure}, adjacent promise and AI disclosure ${promise}`];
+    return [keyboard && touch && disclosure && promise, `keyboard ${keyboard}, touch ${touch}, disclosure ${disclosure}, adjacent promise and AI disclosure ${promise}`];
   });
   await step("1.6", "at 390 px, every header, footer, text-link and waitlist submit control is at least 44 CSS px high", async () => {
     const controls = await phone.locator(".site-header a, .site-footer a, .text-link, #waitlist-submit, #waitlist-email, .waitlist-choice, #waitlist-disclosure summary").evaluateAll((all) => all.map((control) => ({ name: control.textContent.trim(), height: Math.round(control.getBoundingClientRect().height) })));
@@ -221,10 +226,10 @@ try {
 
   // 1.7: text enlarged to 200% at 320 and 390 px keeps headers, headings and the waitlist submit control readable and whole.
   const problems = [];
-  for (const width of [320, 390]) for (const route of ["home", "not found"]) {
+  for (const width of [320, 390]) for (const route of ["home", "waitlist", "not found"]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
-    await page.goto(route === "home" ? url : new URL("missing-page", url).href);
+    await page.goto(route === "home" ? url : new URL(route === "waitlist" ? "waitlist.html" : "missing-page", url).href);
     const issues = await page.evaluate(() => {
       for (const [element, size] of [...document.querySelectorAll("body, body *")].map((element) => [element, parseFloat(getComputedStyle(element).fontSize)])) element.style.setProperty("font-size", `${size * 2}px`, "important");
       const rects = (element) => { const range = document.createRange(); range.selectNodeContents(element); return [...range.getClientRects()]; };
@@ -243,7 +248,7 @@ try {
       if (document.documentElement.scrollWidth > innerWidth) found.push(`the page scrolls sideways (${document.documentElement.scrollWidth} px wide)`);
       return found;
     });
-    await picture(page, `text200-${route === "home" ? "home" : "404"}-${width}.png`);
+    await picture(page, `text200-${route === "not found" ? "404" : route}-${width}.png`);
     problems.push(...issues.map((issue) => `${route} at ${width} px: ${issue}`));
     await page.close();
   }

@@ -20,6 +20,7 @@ type Tour = { step: TourStep; state: TourState };
 type Recording = ReturnType<typeof savedReading>;
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const interact = () => window.dispatchEvent(new Event("storytree-tour-interact"));
+const playback = (detail: { paused?: boolean; speed?: .75 | 1 | 1.5 }) => window.dispatchEvent(new CustomEvent("storytree-tour-playback", { detail }));
 
 /** A lost graphics context leaves the saved picture and the readable app surfaces available. */
 class GlobeBoundary extends Component<{ children: ReactNode; failed(): void }, { failed: boolean }> {
@@ -40,12 +41,12 @@ function StoryDetails({ story, capability, choose, close }: { story: string; cap
     const surface = host.querySelector<HTMLElement>(".panel-tree-surface");
     const moving = frame && surface ? attachPanZoom(frame, surface, choose) : undefined;
     moving?.open();
-    const large = mountTreeSpace(host, { choose, closed() {} });
+    const large = mountTreeSpace(document.querySelector<HTMLElement>("#chapter2")!, { choose, closed() {} });
     host.querySelector("[data-open-tree]")?.addEventListener("click", () => large.show(panel, capability));
     host.querySelector(".panel-close")?.addEventListener("click", close);
     return () => { moving?.stop(); large.stop(); };
   }, [panel, capability, choose, close]);
-  return <div ref={ref} className="tour-story-panel" data-story-id={story} />;
+  return <div ref={ref} className="story-panel tour-story-panel" data-story-id={story} />;
 }
 
 function Sessions({ recording, core, onWisps, onHighlight }: { recording: Recording; core: KnowledgeCore; onWisps(wisps: readonly SessionWisp[]): void; onHighlight(stories: readonly string[] | undefined, session?: string): void }) {
@@ -82,16 +83,19 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [note, setNote] = useState<string>();
   const [mode, setMode] = useState<"forest" | "library">("forest");
   const [query, setQuery] = useState("");
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  useEffect(() => { const resize = () => setViewportWidth(window.innerWidth); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const [manual, setManual] = useState(false);
   const [userStop, setUserStop] = useState<CameraStop>();
   const [progress, setProgress] = useState(recording.progress);
   const previousStep = useRef<string | undefined>(undefined);
   const previousGeneration = useRef<number | undefined>(undefined);
-  const panelHost = document.querySelector<HTMLElement>("#tour-freeplay");
+  const panelHost = document.querySelector<HTMLElement>("#chapter2");
   const free = tour?.state.freePlay === true;
   const requestedPanel = tour?.step.panel;
-  const panelsVisible = free || requestedPanel !== undefined || story !== undefined || note !== undefined;
   const surfaces = tour?.state.everything || free ? complete : tour?.step.surfaces ?? complete;
+  const sideOffset = !free && viewportWidth > 900 ? Math.round(viewportWidth * .13) : 0;
   const stopMotion = useCallback(() => { controls?.cancel(); setManual(true); interact(); }, [controls]);
   const pickStory = useCallback((id: string | undefined, picked?: string) => {
     interact(); setStory(id); setCapability(picked); setNote(undefined); core.pin(undefined);
@@ -100,6 +104,10 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const closeStory = useCallback(() => { setStory(undefined); setCapability(undefined); }, []);
   const pickNote = useCallback((id: string) => { interact(); setNote(id); setStory(undefined); core.pin(id); }, [core]);
   const closeNote = useCallback(() => { setNote(undefined); core.pin(undefined); }, [core]);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key !== "Escape" || event.defaultPrevented) return; if (note) closeNote(); else if (story) closeStory(); else setBrowserOpen(false); };
+    window.addEventListener("keydown", escape); return () => window.removeEventListener("keydown", escape);
+  }, [note, story, closeNote, closeStory]);
   // A recording restart replaces the core, but the visitor is still reading this note.
   useEffect(() => { core.pin(note); }, [core, note]);
   const onHighlight = useCallback((stories: readonly string[] | undefined, session?: string) => setHighlight({ stories, session }), []);
@@ -140,9 +148,6 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     return () => cancelAnimationFrame(frame);
   }, [controls, ready]);
   useEffect(() => {
-    if (panelHost) panelHost.hidden = !panelsVisible;
-  }, [panelHost, panelsVisible]);
-  useEffect(() => {
     if (!tour) return;
     setManual(false);
     setUserStop(undefined);
@@ -161,27 +166,22 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     controls.cancel();
     if (tour.state.freePlay || manual || tour.state.paused || tour.state.why || tour.state.everything) return;
     // Every active transition retakes the target, including resuming an interrupted stop.
-    if (tour.step.target) controls.stop({ target: tour.step.target, framing: tour.step.framing ?? 1.4, duration: reduced() ? 0 : 700 });
+    if (tour.step.target) controls.stop({ target: tour.step.target, framing: Math.min(tour.step.framing ?? 1.18, 1.18), sideOffset, duration: reduced() ? 0 : 700 });
     if (tour.state.index !== 0 || reduced()) return;
     let island = 0;
     const turn = () => {
       const place = snapshot.places[island++ % snapshot.places.length];
-      if (place) controls.stop({ target: { kind: "story", story: place.id }, framing: 1.4, duration: 20_000 });
+      if (place) controls.stop({ target: { kind: "story", story: place.id }, framing: 1.18, sideOffset, duration: 20_000 });
     };
     turn();
     const timer = setInterval(turn, 20_000);
     return () => { clearInterval(timer); controls.cancel(); };
-  }, [controls, tour?.state.index, tour?.state.generation, tour?.state.paused, tour?.state.why, tour?.state.everything, tour?.state.freePlay, manual]);
+  }, [controls, tour?.state.index, tour?.state.generation, tour?.state.paused, tour?.state.why, tour?.state.everything, tour?.state.freePlay, manual, sideOffset]);
   // A user's turn starts after pausing has cancelled the tour's previous camera movement.
   useEffect(() => { if (userStop) controls?.stop(userStop); }, [controls, userStop]);
   const inspectStory = (id: string) => {
     stopMotion(); pickStory(id);
     setUserStop({ target: { kind: "story", story: id }, framing: 1.1, duration: reduced() ? 0 : 700 });
-  };
-  const turn = (by: number) => {
-    const index = Math.max(0, snapshot.places.findIndex(place => place.id === story));
-    const next = snapshot.places[(index + by + snapshot.places.length) % snapshot.places.length];
-    if (next) inspectStory(next.id);
   };
   const shownNotes = notes.filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   return <>
@@ -189,42 +189,26 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       <div className="forest-drawing" role="group" aria-label="Storytree’s saved project globe" onPointerDown={stopMotion} onWheel={stopMotion}>
         <PlanetView core={core} scene={snapshot.scene} places={places} wisps={wisps} selected={story}
           highlighted={highlight.stories} highlightedSession={highlight.session} onPick={pickStory} onNote={pickNote}
-          onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={free || tour?.state.everything ? 1.4 : tour?.step.framing ?? 1.4} mode={mode} />
-      </div>
-      <div className="forest-controls" aria-label="Explore the saved globe">
-        <button type="button" onClick={() => turn(-1)} aria-label="Turn map left">←</button>
-        <button type="button" onClick={() => { stopMotion(); setMode("forest"); setUserStop({ target: { kind: "story", story: snapshot.places[0]!.id }, framing: 1.4, duration: reduced() ? 0 : 700 }); }}>Reset view</button>
-        <button type="button" onClick={() => turn(1)} aria-label="Turn map right">→</button>
-        <button type="button" aria-pressed={mode === "library"} onClick={() => { stopMotion(); setMode(before => before === "forest" ? "library" : "forest"); }}>Look inside</button>
+          onWispHover={() => {}} onControls={onControls} surfaces={surfaces} framing={free || tour?.state.everything ? 1.18 : Math.min(tour?.step.framing ?? 1.18, 1.18)} sideOffset={sideOffset} mode={mode} />
       </div>
     </GlobeBoundary>}
     {panelHost && createPortal(<>
-      <p className="tour-recorded-label">Saved 2 October 2026 · recorded activity 00:00–04:15 UTC · read only</p>
-      <div className="tour-record-browser" hidden={!free && requestedPanel !== "stories" && !story}>
+      <div className="forest-views" role="group" aria-label="Project view" hidden={!free}>
+        <button type="button" aria-pressed={mode === "forest"} onClick={() => { stopMotion(); setMode("forest"); }}>Forest</button>
+        <button type="button" aria-pressed={mode === "library"} onClick={() => { stopMotion(); setMode("library"); }}>Library</button>
+      </div>
+      <button className="tour-browse-toggle" type="button" aria-label="Explore saved project" aria-expanded={browserOpen} onClick={() => setBrowserOpen(value => !value)}>Explore</button>
+      <div className="tour-record-browser" hidden={!browserOpen}>
+        <header><h2>Saved project</h2><button type="button" aria-label="Close project browser" onClick={() => setBrowserOpen(false)}>×</button></header>
+        <p className="tour-recorded-label">2 October 2026 · read only</p>
+
         <label htmlFor="tour-story-choice">Explore a story</label>
-        <select id="tour-story-choice" value={story ?? ""} onChange={event => inspectStory(event.target.value)}>
+        <select id="tour-story-choice" value={story ?? ""} onChange={event => { inspectStory(event.target.value); setBrowserOpen(false); }}>
           <option value="" disabled>Choose an island…</option>
           {snapshot.tree.stories.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
         </select>
-        {story && <StoryDetails story={story} capability={capability} choose={pickCapability} close={closeStory} />}
-      </div>
-      <div hidden={!free && requestedPanel !== "sessions"}>
-        <div className="tour-recording-controls">
-          <p id="recording-progress" data-recording-index={progress.index} data-recording-total={progress.total}>
-            {progress.index === progress.total ? "All recorded activity" : tour?.state.paused || tour?.state.why || tour?.state.everything ? "Activity replay paused" : "Activity replay"}
-            {` · ${progress.index} / ${progress.total} events · `}<time dateTime={progress.at}>{progress.at.slice(11, 19)} UTC</time>
-          </p>
-          <button id="recording-replay" type="button" onClick={replay}>Replay recording</button>
-          <button id="recording-end" type="button" onClick={finishRecording}>End of recording</button>
-          <p>Compressed playback: one saved event per second at 1×. Use the tour’s Pause and Speed controls. Plan and code stay at the saved capture.</p>
-        </div>
-        <Sessions recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} />
-        <p className="tour-recording-note">Context totals and transcript windows were not captured. An empty bar means unavailable.</p>
-      </div>
-      <div hidden={!free && requestedPanel !== "arcs"}>
-        <Arcs recording={recording} open={requestedPanel === "arcs" || free} />
-      </div>
-      <div className="tour-knowledge" hidden={!free && requestedPanel !== "knowledge" && !note} onKeyDown={event => {
+
+      <div className="tour-knowledge" onKeyDown={event => {
         if (event.key !== "Escape" || !note) return;
         event.preventDefault(); event.stopPropagation(); closeNote();
         document.getElementById("tour-note-choice")?.focus();
@@ -232,12 +216,31 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         <label htmlFor="tour-note-search">Find a recorded library note</label>
         <input id="tour-note-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search decisions and guidance" />
         <label htmlFor="tour-note-choice">Library note</label>
-        <select id="tour-note-choice" value={note ?? ""} onChange={event => pickNote(event.target.value)}>
+        <select id="tour-note-choice" value={note ?? ""} onChange={event => { pickNote(event.target.value); setBrowserOpen(false); }}>
           <option value="" disabled>Choose a note…</option>
           {shownNotes.map(item => <option key={item.id} value={item.id}>{String(item.fields.title ?? item.id)}</option>)}
         </select>
         {shownNotes.length === 0 && <p>No saved notes match that search.</p>}
-        <KnowledgeNoteCard core={core} onClose={closeNote} />
+
+      </div>
+      </div>
+      {story && <StoryDetails story={story} capability={capability} choose={pickCapability} close={closeStory} />}
+      {note && <div className="story-panel" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); closeNote(); setBrowserOpen(true); requestAnimationFrame(() => document.getElementById("tour-note-choice")?.focus()); } }}><KnowledgeNoteCard core={core} onClose={closeNote} /></div>}
+      <div className="tour-session-surface" hidden={!free && requestedPanel !== "sessions"}>
+        <Sessions recording={recording} core={core} onWisps={setWisps} onHighlight={onHighlight} />
+        <details className="tour-recording-controls"><summary>Recording · {progress.index} / {progress.total}</summary>
+          <p id="recording-progress" data-recording-index={progress.index} data-recording-total={progress.total}>Saved activity 00:00–04:15 UTC · <time dateTime={progress.at}>{progress.at.slice(11, 19)} UTC</time></p>
+          <button id="recording-replay" type="button" onClick={() => { replay(); playback({ paused: false }); }}>Replay recording</button>
+          <div className="recording-playback">
+            <button id="recording-pause" type="button" aria-pressed={tour?.state.paused ?? false} onClick={() => playback({ paused: !tour?.state.paused })}>{tour?.state.paused ? "Resume recording" : "Pause recording"}</button>
+            <label htmlFor="recording-speed">Speed <select id="recording-speed" value={tour?.state.speed ?? 1} onChange={event => playback({ speed: Number(event.target.value) as .75 | 1 | 1.5 })}><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.5">1.5×</option></select></label>
+          </div>
+          <button id="recording-end" type="button" onClick={finishRecording}>End of recording</button>
+          <p>One saved event per second at 1×. Context totals and transcript windows were not captured.</p>
+        </details>
+      </div>
+      <div className="tour-arc-surface" hidden={!free && requestedPanel !== "arcs"}>
+        <Arcs recording={recording} open={requestedPanel === "arcs" && !free} />
       </div>
     </>, panelHost)}
   </>;

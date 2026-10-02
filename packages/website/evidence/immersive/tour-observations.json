@@ -1,0 +1,14 @@
+{
+  "contracts": [
+    "2.4",
+    "2.5",
+    "2.6"
+  ],
+  "observed": "pass",
+  "build": "unpublished local build",
+  "reviewRegressions": {
+    "freeplayRecording": "pass: replay after Library interaction, pause hold, resume at 1.5x",
+    "whyOverlay": "pass: close button hit-test above visible comparison and arcs drawer",
+    "source": "Locally built unpublished working tree; capture.mjs --verify-recording"
+  }
+}

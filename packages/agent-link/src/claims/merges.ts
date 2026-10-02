@@ -89,6 +89,9 @@ async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (bra
   const merged = new Map<string, MergedPull[]>();
   for (const branch of new Set(claims.map((claim) => claim.branch!))) merged.set(branch, await ask(context.folder, branch).catch(() => []));
 
+  // With no merge observed, nothing can be released: do not make readers queue behind writers.
+  if (![...merged.values()].some((pulls) => pulls.length > 0)) return [];
+
   return context.log.locked(context.project, async (log) => {
     const written: Line[] = [];
     // Read again under the lock: a claim may have ended, or been taken again, since.

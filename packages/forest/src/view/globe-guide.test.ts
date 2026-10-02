@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, OrthographicCamera, Quaternion, Vector3 } from "three";
-import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
-import { focusRotation } from "./planet-navigation.js";
+import { createGlobeGuide, type GlobePose, type ScreenPosition } from "./globe-guide.js";
+import { focusRotation, pickGlobe, pointedFile } from "./planet-navigation.js";
 
 function fixture() {
   const world = new Group(), globe = new Group(), story = new Group();
@@ -46,11 +46,14 @@ test("3.21 camera stops face the actual story, capability and file, interpolate 
 
 test("3.23 screen positions follow actual transforms, zoom, viewport and camera offset; missing and hidden targets are honest", () => {
   const f = fixture(), target = { kind: "file", story: "shop", path: "src/pay.ts" } as const;
-  assert.deepEqual(f.guide.position(target), { x: 510, y: 280, visible: true });
+  const at = (actual: ScreenPosition | undefined, x: number, y: number) => {
+    assert.ok(actual?.visible); assert.ok(Math.abs(actual.x - x) < 1e-8); assert.ok(Math.abs(actual.y - y) < 1e-8);
+  };
+  at(f.guide.position(target), 510, 280);
   f.camera.zoom = 20; f.camera.updateProjectionMatrix();
-  assert.deepEqual(f.guide.position(target), { x: 620, y: 260, visible: true });
+  at(f.guide.position(target), 620, 260);
   f.camera.setViewOffset(800, 600, 100, 0, 800, 600);
-  assert.deepEqual(f.guide.position(target), { x: 520, y: 260, visible: true });
+  at(f.guide.position(target), 520, 260);
   f.globe.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
   assert.equal(f.guide.position(target)?.visible, false, "far side");
   f.globe.quaternion.copy(new Quaternion()); f.story.visible = false;
@@ -62,4 +65,16 @@ test("3.23 screen positions follow actual transforms, zoom, viewport and camera 
   f.core.visible = true; f.camera.clearViewOffset();
   f.resize({ width: 400, height: 300 });
   assert.deepEqual(f.guide.position({ kind: "core" }), { x: 200, y: 150, visible: true });
+});
+
+test("3.22 hidden land and file circles cannot be picked, including through an invisible parent", () => {
+  const f = fixture();
+  const file = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial()); file.name = "file:src/pay.ts";
+  file.position.z = 2; file.userData = { file: "src/pay.ts", lines: 20, capability: "checkout" }; f.story.add(file);
+  const box = { left: 0, top: 0, width: 800, height: 600 }, cursor = { x: 500, y: 300 };
+  assert.equal(pickGlobe(f.world, f.camera, box, cursor, "forest")?.id, "shop");
+  assert.equal(pointedFile(f.world, f.camera, box, cursor)?.file, "src/pay.ts");
+  f.story.visible = false;
+  assert.equal(pickGlobe(f.world, f.camera, box, cursor, "forest"), undefined);
+  assert.equal(pointedFile(f.world, f.camera, box, cursor), undefined);
 });

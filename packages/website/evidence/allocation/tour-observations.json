@@ -1,0 +1,9 @@
+{
+  "contracts": [
+    "2.4",
+    "2.5",
+    "2.6"
+  ],
+  "observed": "pass",
+  "build": "88fc0e6c8ffb559aaeb050a79d442a7342310c88"
+}

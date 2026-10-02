@@ -1,0 +1,22 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: website 1.8: restarting returns keyboard focus to Run
++ actual - expected
+
++ 'opening-joke'
+- 'opening-run'
+           ^
+
+    at verifyOpening (file:///home/mickh/code/worktrees/st03-allocation-website/packages/website/evidence/opening.mjs:34:10)
+    at async file:///home/mickh/code/worktrees/st03-allocation-website/packages/website/evidence/capture.mjs:57:7 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'opening-joke',
+  expected: 'opening-run',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

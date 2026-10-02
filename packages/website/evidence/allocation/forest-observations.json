@@ -1,0 +1,32 @@
+{
+  "story": "The website",
+  "commit": "88fc0e6c8ffb559aaeb050a79d442a7342310c88",
+  "evidence": "packages/website/evidence/allocation",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "2.3",
+      "name": "before the 3D scene's code arrives, the heading and the waitlist form work before the scene arrives",
+      "observed": "pass",
+      "detail": "scene code requested yet: false; form validation available true"
+    },
+    {
+      "contract": "2.1",
+      "name": "with WebGL, the live scene takes over from the still and draws on its canvas",
+      "observed": "pass",
+      "detail": "state live, canvas shown true, still shown false, 115 distinct colours where the scene is"
+    },
+    {
+      "contract": "2.2",
+      "name": "when WebGL is unavailable, the visitor sees the forest's still and the page stays usable",
+      "observed": "pass",
+      "detail": "state still, still shown true, waitlist usable true"
+    },
+    {
+      "contract": "2.2",
+      "name": "when the scene's code fails to load, the visitor sees the forest's still and the page stays usable",
+      "observed": "pass",
+      "detail": "state still, still shown true, waitlist usable true"
+    }
+  ]
+}

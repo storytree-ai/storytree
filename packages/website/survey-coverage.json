@@ -1,25 +1,66 @@
 {
  "src/build.ts": {
   "1": 3,
-  "2": 1
+  "2": 1,
+  "4": 1,
+  "5": 1
  },
- "src/copy-command.ts": {
-  "1": 9
+ "src/escape-html.ts": {
+  "1": 3,
+  "2": 1,
+  "4": 1,
+  "5": 1
  },
- "src/forest-snapshot.ts": {
-  "3": 12
+ "src/forest-scene.tsx": {
+  "1": 39,
+  "2": 98
  },
- "src/install-command.ts": {
-  "1": 20,
-  "2": 4
+ "src/forest.ts": {
+  "1": 11,
+  "2": 23
+ },
+ "src/main.ts": {
+  "1": 5,
+  "2": 10
+ },
+ "src/opening-markup.ts": {
+  "1": 15,
+  "2": 5,
+  "4": 5,
+  "5": 5
+ },
+ "src/opening.ts": {
+  "1": 44,
+  "2": 29
  },
  "src/publish-source.ts": {
-  "4": 9
+  "4": 20
  },
  "src/publish.ts": {
-  "4": 32
+  "4": 40
  },
- "src/refresh-forest.ts": {
-  "3": 6
+ "src/tour-copy.ts": {
+  "1": 3,
+  "2": 6
+ },
+ "src/tour-reading.ts": {
+  "1": 12,
+  "2": 39
+ },
+ "src/tour-snapshot.ts": {
+  "3": 63
+ },
+ "src/tour-ui.ts": {
+  "1": 14,
+  "2": 36
+ },
+ "src/tour.ts": {
+  "1": 4,
+  "2": 66
+ },
+ "src/waitlist.ts": {
+  "1": 1,
+  "2": 6,
+  "5": 3
  }
 }

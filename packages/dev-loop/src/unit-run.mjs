@@ -14,10 +14,12 @@
 // twice its slowest recent pass, doubled after each kill since it last passed, or what an agent set
 // for it here with a reason. UNIT_LIMIT_MS is the deadline until a unit has enough history.
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { parseJunit } from "./own-health.mjs";
 
 export const TEST_LIMIT_MS = 60_000;
 export const UNIT_LIMIT_MS = 180_000;
@@ -34,7 +36,7 @@ const reporter = fileURLToPath(new URL("./test-running-reporter.mjs", import.met
 let runs = 0;
 
 /** Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs }. */
-export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, stdio = "inherit", onSpawn = () => {} }) {
+export function runUnit({ root, files, env, args = [], evidence, testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, stdio = "inherit", onSpawn = () => {} }) {
   const runningFile = path.join(tmpdir(), `storytree-running-${process.pid}-${++runs}.jsonl`);
   rmSync(runningFile, { force: true });
   const guard = ["--test-force-exit"];
@@ -43,9 +45,24 @@ export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_
     // Separate destinations: spec ending stdout can discard another reporter's final output.
     guard.push("--test-reporter=spec", "--test-reporter-destination=stdout", `--test-reporter=${pathToFileURL(reporter).href}`, "--test-reporter-destination=stderr");
   }
+  // A fresh directory per invocation: later units and reruns cannot replace earlier evidence.
+  // Keep JUnit alongside the normal reporters, including the watchdog's running-test stream.
+  let report;
+  let provenance;
+  if (evidence !== undefined) {
+    mkdirSync(evidence.directory, { recursive: true });
+    report = path.join(mkdtempSync(path.join(evidence.directory, "unit-")), "tests.xml");
+    provenance = {
+      unit: evidence.unit,
+      commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+      platform: process.platform,
+      run: `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}/attempts/${env.GITHUB_RUN_ATTEMPT}`,
+    };
+    guard.push("--test-reporter=junit", `--test-reporter-destination=${report}`);
+  }
   // A unit is a run of its own even when a test runs it: under node:test, NODE_TEST_CONTEXT would
   // make it report into the outer run instead.
-  const { NODE_TEST_CONTEXT: _, ...own } = env;
+  const { NODE_TEST_CONTEXT: _, STORYTREE_TEST_EVIDENCE: _evidence, ...own } = env;
   const started = Date.now();
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", tsx, "--test", ...guard, ...args, ...files], {
@@ -78,7 +95,21 @@ export function runUnit({ root, files, env, args = [], testLimitMs = TEST_LIMIT_
     child.on("exit", (code) => {
       stop();
       rmSync(runningFile, { force: true });
-      resolve({ code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs });
+      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs };
+      if (report !== undefined) {
+        try {
+          let xml = "";
+          try { xml = readFileSync(report, "utf8"); } catch { /* A killed process may have no report. */ }
+          const results = xml.trimEnd().endsWith("</testsuites>") ? parseJunit(xml).map((test) => ({
+            ...test, file: path.relative(root, test.file).replaceAll("\\", "/"),
+          })) : [];
+          writeFileSync(path.join(path.dirname(report), "result.json"), JSON.stringify({ ...provenance, code: result.code, results }), { flag: "wx" });
+        } catch (error) {
+          reject(error);
+          return;
+        }
+      }
+      resolve(result);
     });
   });
 }

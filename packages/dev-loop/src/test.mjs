@@ -223,7 +223,8 @@ async function runNodeTest(env, files, unit) {
   try {
     // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
     // ranked search is tested with a fake embedder, and everything else ranks by words.
-    const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, unitLimitMs: limit.ms, onSpawn: (spawned) => (child = spawned) });
+    const evidence = env.STORYTREE_TEST_EVIDENCE ? { directory: path.resolve(root, env.STORYTREE_TEST_EVIDENCE), unit: unit ?? "files" } : undefined;
+    const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, evidence, unitLimitMs: limit.ms, onSpawn: (spawned) => (child = spawned) });
     return { ...run, limitSource: limit.source };
   } finally {
     child = undefined;

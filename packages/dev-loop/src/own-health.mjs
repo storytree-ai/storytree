@@ -26,7 +26,7 @@ export const VERIFIED_BY_CI = "storytree test run on CI";
 // --- a test run -------------------------------------------------------------------------------
 
 /**
- * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string }} TestResult
+ * @typedef {{ name: string, suites: string[], file: string, status: "passed" | "failed" | "skipped", message?: string, windowsRun?: string }} TestResult
  */
 
 /**
@@ -70,6 +70,43 @@ export function parseJunit(xml) {
     }
   }
   return results;
+}
+
+/** Read only the downloaded Windows run/attempt for the exact recording commit; bad or absent evidence proves nothing. */
+export function readWindowsEvidence(directory, { commit, run }) {
+  if (!directory || !commit || !run) return undefined;
+  try {
+    const reports = readdirSync(directory).map((entry) => JSON.parse(readFileSync(path.join(directory, entry, "result.json"), "utf8")));
+    if (reports.length === 0 || reports.some((report) => report.run !== run || !validWindowsEvidence(report, commit))) return undefined;
+    return { platform: "win32", commit, run, code: 0, results: reports.flatMap((report) => report.results) };
+  } catch {
+    return undefined;
+  }
+}
+
+function validWindowsEvidence(evidence, commit) {
+  return /^[a-f0-9]{40}$/.test(commit ?? "") && evidence?.commit === commit && evidence.platform === "win32" && evidence.code === 0 &&
+    /^https:\/\/[^/]+\/[^/]+\/[^/]+\/actions\/runs\/\d+\/attempts\/\d+$/.test(evidence.run ?? "") &&
+    Array.isArray(evidence.results) && evidence.results.every((test) =>
+      typeof test.name === "string" && Array.isArray(test.suites) && test.suites.every((suite) => typeof suite === "string") &&
+      typeof test.file === "string" && test.file !== "" && !test.file.startsWith("/") && !/[\\:]/.test(test.file) && !test.file.split("/").includes("..") &&
+      ["passed", "failed", "skipped"].includes(test.status));
+}
+
+/** Replace only the local Windows skip whose complete test identity passed in the matching run. */
+export function creditWindows(results, windows, { root, commit }) {
+  if (!validWindowsEvidence(windows, commit)) return results;
+  const key = (test, file = test.file) => JSON.stringify([file, test.suites, test.name]);
+  const byTest = new Map();
+  for (const test of windows.results) {
+    const id = key(test);
+    byTest.set(id, [...(byTest.get(id) ?? []), test]);
+  }
+  return results.map((test) => {
+    if (test.status !== "skipped" || !/^platform:win32(?:\s|:|$)/.test(test.message ?? "")) return test;
+    const matches = byTest.get(key(test, path.relative(root, path.resolve(root, test.file)).replaceAll("\\", "/")));
+    return matches?.length && matches.every((match) => match.status === "passed") ? { ...test, status: "passed", windowsRun: windows.run } : test;
+  });
 }
 
 /** A tag's attributes, decoded. */
@@ -245,7 +282,8 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
       skipped: own.filter(({ status }) => status === "skipped").length,
       total: own.length,
     };
-    const tally = `${counts.passed}/${counts.total} tests passed`;
+    const windowsRuns = [...new Set(own.map((test) => test.windowsRun).filter(Boolean))];
+    const tally = `${counts.passed}/${counts.total} tests passed${windowsRuns.length ? `; Windows: ${windowsRuns.join(", ")}` : ""}`;
     const skipReasons = [...new Set(own.filter(({ status }) => status === "skipped").map(({ message }) => message).filter(Boolean))];
     /** @type {Verdict} */
     let verdict;

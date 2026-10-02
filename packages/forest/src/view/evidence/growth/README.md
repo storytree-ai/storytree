@@ -46,6 +46,11 @@ is at the rim. This capture proves growth and coast clearance, not universal lab
 legibility. That crowding remains visible in the evidence rather than being hidden
 by panning or a larger viewport.
 
+The Sessions-strip occlusion is parked as `increment_f4898f03a8ea` on
+`arc_895e232031b0`, under readable near-side names (3.4) and strip placement (7.17).
+Rim proximity alone is not that follow-up: ADR-0855 already bounds nameplate
+overlap clearance and permits hiding a label beyond that bound.
+
 The baseline failed before opening Chromium because `placeOnPackedGlobe` is no
 longer exported. The refreshed capture passed all four scenarios in Chromium
 148.0.7778.96, ANGLE/SwiftShader, at 1440 × 960, device scale 1. Reproduce from the

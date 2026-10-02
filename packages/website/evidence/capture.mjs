@@ -7,14 +7,18 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { verifyOpening } from "./opening.mjs";
 import { verifyTour, verifyTourCamera } from "./tour.mjs";
+import { verifyForest } from "./forest.mjs";
+import { withBrowserCoverage } from "./browser-coverage.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const output = path.join(here, process.argv[2] ?? "scaffold");
+const output = path.resolve(here, process.argv[2] ?? "scaffold");
 const dist = path.resolve(here, "../dist");
 const verifyOpeningRequested = process.argv.includes("--verify-opening");
 const verifyEnlarged = process.argv.includes("--verify-enlarged");
 const verifyControls = process.argv.includes("--verify-controls") || verifyEnlarged;
 const verifyHome = process.argv.includes("--verify-home") || verifyControls;
+const allocation = process.argv.includes("--allocation");
+const journey = (proof, run, using = browser) => allocation ? withBrowserCoverage(using, { proof, dist, output }, run) : run(using);
 await mkdir(output, { recursive: true });
 let openingCommit;
 if (verifyOpeningRequested) {
@@ -40,10 +44,30 @@ let browser;
 try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   const url = `http://127.0.0.1:${server.address().port}/`;
+  if (process.argv.includes("--verify-forest")) {
+    const checks = [];
+    const forestBrowser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
+    try {
+      await journey("website 2.1 live forest, deferred loading and still fallbacks", async measured => {
+        await verifyForest(measured, url, output, async (contract, name, run) => {
+          const [passed, detail] = await run();
+          checks.push({ contract, name, observed: passed ? "pass" : "fail", detail });
+          assert.ok(passed, `website ${contract}: ${name}: ${detail}`);
+        }, (target, file, options = {}) => target.screenshot({ path: path.join(output, file), ...options }));
+      }, forestBrowser);
+    } finally {
+      await forestBrowser.close();
+      await writeFile(path.join(output, "forest-observations.json"), JSON.stringify({
+        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist", checks,
+      }, null, 2) + "\n");
+    }
+  }
   if (process.argv.includes("--verify-camera")) await verifyTourCamera(browser, url);
   if (process.argv.includes("--verify-tour")) {
     const proof = { contracts: ["2.4", "2.5", "2.6"], observed: "not-observed", build: (await readFile(path.join(dist, "version.txt"), "utf8")).trim() };
-    try { await verifyTour(browser, url, output); proof.observed = "pass"; }
+    try { await journey("website 2.4 guided tour and dated free play", measured => verifyTour(measured, url, output)); proof.observed = "pass"; }
     catch (error) { proof.observed = "fail"; proof.detail = error.message; throw error; }
     finally { await writeFile(path.join(output, "tour-observations.json"), JSON.stringify(proof, null, 2) + "\n"); }
   }
@@ -54,7 +78,7 @@ try {
       observed: "not-observed",
     };
     try {
-      await verifyOpening(browser, url, output);
+      await journey("website 1.8 Chapter 1 playback, restart and exits", measured => verifyOpening(measured, url, output));
       check.observed = "pass";
     } catch (error) {
       check.observed = "fail";

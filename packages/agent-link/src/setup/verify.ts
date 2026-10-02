@@ -33,16 +33,22 @@ export interface Verification {
   fixes: Fix[];
 }
 
-/** Which of `session`'s hooks storytree has received, from `lines`, and the fix for each still missing. */
-export function verifyHooks(lines: readonly Line[], session: string, harness: string | undefined, machine: { readonly elevated?: boolean } = {}): Verification {
+/**
+ * Which of `session`'s hooks storytree has received, from `lines`, and the fix for each still missing.
+ * `codexHooks` is whether Codex's hooks are known to run on this machine (contract 8.16).
+ */
+export function verifyHooks(lines: readonly Line[], session: string, harness: string | undefined, machine: { readonly elevated?: boolean; readonly codexHooks?: "running" | "waiting" } = {}): Verification {
   const fired = new Set(lines.filter((line) => line.session === session && line.source === "hook").map((line) => line.kind));
   const missing = HOOK_TESTS.filter((test) => !fired.has(KIND_OF[test]));
   const fixes: Fix[] = [];
+  // Codex runs none of storytree's hooks until the user trusts them once. Once one has run here, a start or a
+  // call that did not arrive is this session's own, as with Claude Code: it set its project up after it started (8.21).
+  const codexWaits = harness === "codex" && machine.codexHooks !== "running";
   // Hooks that fire without the agent doing anything: missing, they need a new session or Codex's approval.
-  if (missing.includes("session start") || missing.includes("storytree tool call")) fixes.push(harness === "codex" ? "codex-approval" : "new-session");
-  // Codex runs none of them until the user trusts them: an edit or a command the agent made now could
-  // not reach storytree, and would only leave the check file in the user's folder.
-  if (harness === "codex" && fired.size === 0) return { verified: false, missing, fixes: machine.elevated === true ? [...fixes, "codex-elevated"] : fixes };
+  if (missing.includes("session start") || missing.includes("storytree tool call")) fixes.push(codexWaits ? "codex-approval" : "new-session");
+  // Until the user trusts them, an edit or a command the agent made now could not reach storytree, and would
+  // only leave the check file in the user's folder.
+  if (codexWaits && fired.size === 0) return { verified: false, missing, fixes: machine.elevated === true ? [...fixes, "codex-elevated"] : fixes };
   if (missing.includes("file edit")) fixes.push("edit-check-file");
   // Codex in an administrator terminal cannot run any command (its sandbox times out), so the test cannot fire (8.17).
   if (missing.includes("command")) fixes.push(harness === "codex" && machine.elevated === true ? "codex-elevated" : "run-check-command");

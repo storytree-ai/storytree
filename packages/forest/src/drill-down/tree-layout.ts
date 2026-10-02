@@ -111,11 +111,16 @@ export function layoutTree(panel: StoryPanel): TreeLayout {
 function packGroups(graph: dagre.graphlib.Graph): { offsets: Map<string, Point>; width: number; height: number } {
   const groups = dagre.graphlib.alg.components(graph).map((ids) => {
     const nodes = ids.map((id) => graph.node(id));
-    const left = Math.min(...nodes.map((node) => node.x - node.width / 2));
-    const top = Math.min(...nodes.map((node) => node.y - node.height / 2));
+    const points = nodes.flatMap((node) => [
+      { x: node.x - node.width / 2, y: node.y - node.height / 2 },
+      { x: node.x + node.width / 2, y: node.y + node.height / 2 },
+    ]);
+    for (const edge of graph.edges()) if (ids.includes(edge.v)) points.push(...graph.edge(edge).points);
+    const left = Math.min(...points.map(({ x }) => x));
+    const top = Math.min(...points.map(({ y }) => y));
     return { ids, left, top,
-      width: Math.max(...nodes.map((node) => node.x + node.width / 2)) - left,
-      height: Math.max(...nodes.map((node) => node.y + node.height / 2)) - top };
+      width: Math.max(...points.map(({ x }) => x)) - left,
+      height: Math.max(...points.map(({ y }) => y)) - top };
   });
   const offsets = new Map<string, Point>();
   // A connected tree retains dagre's margins and placement exactly.

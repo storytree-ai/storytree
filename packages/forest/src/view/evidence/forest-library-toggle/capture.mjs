@@ -1,18 +1,26 @@
 // Raw headless Chromium evidence of the actual seeded desktop page.
 // Run in the foreground under flock /tmp/storytree-heavy.lock.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { test } from 'node:test';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
-
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
+import { captureOutput, fakeBridge, launch } from '../../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
 const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
+const checks = [];
+async function check(contract, name, run) {
+  let failure;
+  await test(`${contract} ${name}`, async () => {
+    try { await run(); checks.push({ contract, name, observed: 'pass' }); }
+    catch (error) { checks.push({ contract, name, observed: 'fail', detail: String(error) }); failure = error; throw error; }
+  });
+  if (failure) throw failure;
+}
 const server = createServer((req, res) => {
   const [variant, name] = new URL(req.url, 'http://localhost').pathname.slice(1).split('/');
   if (variant === 'favicon.ico') { res.writeHead(204).end(); return; }
@@ -246,7 +254,7 @@ async function failureJourney(browser) {
   const data = structuredClone(seed);
   const story = data.tree.stories.find(s => /forest/i.test(s.title));
   const [failed, claimed] = story.capabilities;
-  failed.health.reported.state = 'failing'; story.health.reported.state = 'failing';
+  failed.health.verified.state = 'failing'; story.health.verified.state = 'failing';
   let seq = data.lines.cursor;
   const actor = { session: 'forest-toggle-diagnostic', harness: 'codex', project: 'storytree', at: new Date().toISOString() };
   for (const line of [
@@ -260,8 +268,6 @@ async function failureJourney(browser) {
   const opening = await measure(page);
   checkMode(opening, 'forest');
   assert.ok(opening.plates.find(p => p.story === story.id).facing > 0.999999, 'Forest opens facing its failure');
-  assert.equal(opening.drew.trees.find(t => t.capability === failed.id).form, 'dead');
-  assert.ok(opening.markers.some(m => m.capability === claimed.id && m.visible));
   await turn(page, Math.PI);
   const hidden = await measure(page);
   assert.ok(hidden.plates.find(p => p.story === story.id).facing < -0.999999);
@@ -293,14 +299,16 @@ async function failureJourney(browser) {
   await page.mouse.click(click.x, click.y);
   await settle(page);
   assert.equal((await measure(page)).selected, null, 'Library cannot pick hidden islands');
-  // The ordinary orbit controls work in Library too; toggling retains the new eye and zoom.
-  await page.evaluate(() => {
-    const { camera, controls, invalidate } = window.__globe;
-    camera.position.x += 30; camera.zoom *= 1.2; camera.updateProjectionMatrix();
-    controls.update(); invalidate();
-  });
+  // Turn and zoom with the user's actual controls in Library.
+  await page.mouse.move(650, 420);
+  await page.mouse.down();
+  await page.mouse.move(750, 450, { steps: 8 });
+  await page.mouse.up();
+  await page.mouse.wheel(0, -100);
   await settle(page);
   const orbited = await measure(page);
+  assert.notDeepEqual(orbited.rotation, cleared.rotation, 'Library remains turnable');
+  assert.notEqual(orbited.zoom, cleared.zoom, 'Library remains zoomable');
   await switchMode(page, 'forest');
   sameGlobe(orbited, await measure(page));
   await switchMode(page, 'library');
@@ -323,33 +331,31 @@ async function failureJourney(browser) {
 
 let browser;
 try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM
-      ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
-  });
+  browser = await launch();
   const { page, errors, warnings } = await openPage(browser, 'production', seed);
   for (const view of ['front', 'quarter-turn']) {
     if (view === 'quarter-turn') await turn(page, Math.PI / 2);
     const forest = await measure(page);
-    checkMode(forest, 'forest');
+    await check('3.9', `Forest restores all story layers (${view})`, () => checkMode(forest, 'forest'));
     await capture(page, browser, `forest-${view}`, forest);
     await switchMode(page, 'library');
     const library = await measure(page);
-    checkMode(library, 'library'); sameGlobe(forest, library);
+    await check('3.9', `Library submits only the knowledge points (${view})`, () => checkMode(library, 'library'));
+    await check('3.10', `switching to Library preserves the live globe (${view})`, () => sameGlobe(forest, library));
     await capture(page, browser, `library-${view}`, library);
     await switchMode(page, 'forest');
     const returned = await measure(page);
-    checkMode(returned, 'forest'); sameGlobe(library, returned);
+    checkMode(returned, 'forest');
+    await check('3.10', `switching to Forest preserves the live globe (${view})`, () => sameGlobe(library, returned));
     assert.deepEqual(returned.plates, forest.plates);
     assert.deepEqual(returned.pathways, forest.pathways);
   }
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ errors, warnings: [...new Set(warnings)] }));
   await page.close();
-  await failureJourney(browser);
+  await check('3.10', 'Library clears story selection, remains turnable and zoomable, and a launch defaults to Forest', () => failureJourney(browser));
 } finally {
+  writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
 }

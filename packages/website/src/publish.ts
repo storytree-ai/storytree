@@ -145,5 +145,11 @@ export async function publishWebsite(options: PublishWebsiteOptions): Promise<vo
     || !record(result.publishStatus) || result.publishStatus.state !== "live") {
     throw new Error("Website publish finalize failed: the requested version was not confirmed live.");
   }
+  if (result.warnings !== undefined && (!Array.isArray(result.warnings) || result.warnings.length > 0)) {
+    // Finalize may already have made the page live. Never report that its storage is ready.
+    // Keep server warning bodies out of logs: they may contain private paths or values.
+    throw new Error("Website publish finalize failed: manifest warnings; the page may be live without working Site Data. Inspect the here.now manifest before retrying.");
+  }
+  log(`Website finalized without manifest warnings: ${plan.versionId}`);
   log(`Website published: ${site}`);
 }

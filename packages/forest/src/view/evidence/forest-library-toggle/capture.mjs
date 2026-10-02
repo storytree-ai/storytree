@@ -13,12 +13,14 @@ const out = captureOutput(here); // pictures and measurements: a scratch folder 
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
 const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
 const checks = [];
+const knowledgeChecks = [];
 let currentTest;
-async function check(contract, name, run) {
+async function check(contract, name, run, story = 'The forest') {
+  const results = story === 'The forest' ? checks : knowledgeChecks;
   let failure;
-  await currentTest.test(`${contract} ${name}`, async () => {
-    try { await run(); checks.push({ contract, name, observed: 'pass' }); }
-    catch (error) { checks.push({ contract, name, observed: 'fail', detail: String(error) }); failure = error; throw error; }
+  await currentTest.test(`${story === 'The forest' ? '' : 'knowledge-core '}${contract} ${name}`, async () => {
+    try { await run(); results.push({ contract, name, observed: 'pass' }); }
+    catch (error) { results.push({ contract, name, observed: 'fail', detail: String(error) }); failure = error; throw error; }
   });
   if (failure) throw failure;
 }
@@ -293,6 +295,16 @@ function sameGlobe(before, after) {
   }
 }
 
+function sameCore(before, after) {
+  assert.ok(before.pointLayerId, 'the fixture mounts a live knowledge layer');
+  assert.equal(after.pointLayerId, before.pointLayerId, 'switching keeps the same live core mounted');
+  assert.deepEqual(after.drawn.points, census.notes.map(note => note.id).sort(), 'all eligible points are submitted');
+  assert.deepEqual(after.drawn.points, before.drawn.points, 'both modes submit the same complete set');
+  assert.deepEqual(after.points.map(({ id, at, depth, home }) => ({ id, at, depth, home })),
+    before.points.map(({ id, at, depth, home }) => ({ id, at, depth, home })), 'positions, computed depths and shelf membership are unchanged');
+  assert.ok(after.points.some(point => point.depth === null) && after.points.some(point => point.depth !== null), 'the fixture exercises shelf and no-shelf artifacts');
+}
+
 async function switchMode(page, mode) {
   await page.getByRole('group', { name: 'Globe view' }).getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
   await page.waitForFunction(mode => document.querySelector(`.forest-views [data-forest-mode="${mode}"]`)?.getAttribute('aria-pressed') === 'true', mode);
@@ -416,11 +428,13 @@ try {
     const library = await measure(page);
     await check('3.9', `Library submits only the knowledge points (${view})`, () => checkMode(library, 'library'));
     await check('3.10', `switching to Library preserves the live globe (${view})`, () => sameGlobe(forest, library));
+    await check('1.7', `Library keeps the live core and the complete points at their depths (${view})`, () => sameCore(forest, library), 'The knowledge core');
     await capture(page, browser, `library-${view}`, library);
     await switchMode(page, 'forest');
     const returned = await measure(page);
     checkMode(returned, 'forest');
     await check('3.10', `switching to Forest preserves the live globe (${view})`, () => sameGlobe(library, returned));
+    await check('1.7', `Forest keeps the live core and the complete points at their depths (${view})`, () => sameCore(library, returned), 'The knowledge core');
     assert.deepEqual(returned.plates, forest.plates);
     assert.deepEqual(returned.pathways, forest.pathways);
   }
@@ -431,7 +445,9 @@ try {
   complete = true;
 } finally {
   if (!complete) for (const contract of ['3.5', '3.9', '3.10']) checks.push({ contract, name: 'complete browser journey', observed: 'not-observed' });
+  if (!complete) knowledgeChecks.push({ contract: '1.7', name: 'complete two-mode journey', observed: 'not-observed' });
   writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'The forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
+  writeFileSync(path.join(out, 'knowledge-observations.json'), JSON.stringify({ story: 'The knowledge core', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: 'packages/forest/src/view/evidence/forest-library-toggle', checks: knowledgeChecks }, null, 2) + '\n');
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
 }

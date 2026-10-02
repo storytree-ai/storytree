@@ -453,6 +453,33 @@ test("8.5 the agent fires a test of each hook, and the connection shows as verif
   });
 });
 
+test("8.21 a Codex session that set its project up during the session, while Codex's hooks are known to run, is told what Claude Code is told: start a new session here and check again; never the trust step, which stays for a Codex whose hooks have never run (regression: Conduit 1 on the reset laptop, 2026-10-01)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const folder = path.join(dir, "site");
+    mkdirSync(folder);
+    writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const server = await connect({ url: testServerUrl() });
+      await (await server.openProject(project)).close().finally(() => server.close());
+      // storytree's hooks are registered for Codex and one of them has run on this machine: Codex trusts them.
+      registerHooks(home.homes, HOOK);
+      noteCodexHookRan({ storytreeHome: home.storytreeHome, codexHome: home.homes.codex });
+      // This session started before its folder was a project, so storytree heard none of its hooks.
+      await withAgent(folder, codex("codex-1", setup), async (agent) => {
+        const answer = await agent.call("check_setup");
+        assert.deepEqual((answer.data as { fixes: string[] }).fixes, ["new-session", "edit-check-file", "run-check-command"]);
+        assert.match(answer.text, /start a new session here/);
+        assert.doesNotMatch(answer.text, /type \/hooks/);
+      });
+    } finally {
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 /** A port nothing on 127.0.0.1 listens on just now. */
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {

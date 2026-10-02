@@ -1,0 +1,135 @@
+{
+  "platform": "linux",
+  "sourceCommit": "bb28625f2f3e2c94a180ed77c308e32b1e5f98c0",
+  "databasePid": 1489196,
+  "backgroundLaunch": true,
+  "checkoutUpdate": {
+    "phase": "unavailable",
+    "runningBuild": "development build bb28625 from /home/mickh/code/worktrees/st03-allocation-desktop (does not update itself)"
+  },
+  "closedIntoBackground": true,
+  "reopenedSameDatabase": true,
+  "quitStoppedDatabase": true,
+  "lifecycle": {
+    "../../apps/desktop/src/bridge.ts": {
+      "1": 6
+    },
+    "../../apps/desktop/src/home.ts": {
+      "1": 1
+    },
+    "../../apps/desktop/src/main/args.ts": {
+      "1": 1
+    },
+    "../../apps/desktop/src/main/main.ts": {
+      "1": 24
+    },
+    "../../apps/desktop/src/main/releases.ts": {
+      "1": 2
+    },
+    "../../apps/desktop/src/main/tray-icon.ts": {
+      "1": 1
+    },
+    "../../apps/desktop/src/preload/preload.ts": {
+      "1": 1
+    },
+    "src/lifecycle/background.ts": {
+      "1": 3
+    },
+    "src/lifecycle/backups.ts": {
+      "1": 1
+    },
+    "src/lifecycle/launch.ts": {
+      "1": 2
+    },
+    "src/lifecycle/open-where-set.ts": {
+      "1": 1
+    },
+    "src/lifecycle/sign-in.ts": {
+      "1": 3
+    },
+    "src/projects/selection.ts": {
+      "1": 6
+    },
+    "src/surfaces/reads.ts": {
+      "1": 1
+    },
+    "src/surfaces/switches.ts": {
+      "1": 1
+    },
+    "src/updates/follow-main.ts": {
+      "1": 5
+    },
+    "src/updates/install-choice-file.ts": {
+      "1": 2
+    },
+    "src/updates/main-updates.ts": {
+      "1": 4
+    }
+  },
+  "updates": {
+    "../../apps/desktop/src/bridge.ts": {
+      "4": 6
+    },
+    "../../apps/desktop/src/home.ts": {
+      "4": 1
+    },
+    "../../apps/desktop/src/main/args.ts": {
+      "4": 1
+    },
+    "../../apps/desktop/src/main/main.ts": {
+      "4": 23
+    },
+    "../../apps/desktop/src/main/releases.ts": {
+      "4": 2
+    },
+    "../../apps/desktop/src/main/tray-icon.ts": {
+      "4": 1
+    },
+    "../../apps/desktop/src/preload/preload.ts": {
+      "4": 1
+    },
+    "src/lifecycle/background.ts": {
+      "4": 2
+    },
+    "src/lifecycle/backups.ts": {
+      "4": 1
+    },
+    "src/lifecycle/launch.ts": {
+      "4": 2
+    },
+    "src/lifecycle/open-where-set.ts": {
+      "4": 1
+    },
+    "src/lifecycle/sign-in.ts": {
+      "4": 3
+    },
+    "src/projects/selection.ts": {
+      "4": 6
+    },
+    "src/surfaces/reads.ts": {
+      "4": 1
+    },
+    "src/surfaces/switches.ts": {
+      "4": 1
+    },
+    "src/updates/follow-main.ts": {
+      "4": 5
+    },
+    "src/updates/install-choice-file.ts": {
+      "4": 2
+    },
+    "src/updates/main-updates.ts": {
+      "4": 4
+    }
+  },
+  "sources": {
+    "apps/desktop/src/home.ts": "bf5270d25e55fb69e7e6afe0a124d41e5ac39e58595e0f2fe9f1967da3b89500",
+    "apps/desktop/src/main/args.ts": "0b60793b037423eeb01d06d4271138d79054d8ab0e5e9b2015c529ccf34a7d82",
+    "apps/desktop/src/main/main.ts": "ec72eccacecca5a2f4fd0b04bee25e710743731ebd52fbad0378efd5aeff7a38",
+    "apps/desktop/src/main/releases.ts": "4fec4bdd892786e249000f41c2b2761dbe7e9316b7e29d6c9b9a869e17807819",
+    "apps/desktop/src/main/tray-icon.ts": "b9187f5d7593cb830d976e6ab52c314aa21d30cdea88be232a1f9963ede4210f",
+    "apps/desktop/src/preload/preload.ts": "31787f5f254391dc7b46e0e13592dfe964419a3e17512c2eaabc9d7f80a66d03",
+    "apps/desktop/src/bridge.ts": "26ef2343471c2956c4f1572846783e544267b2d335b438bb492763b25911a090"
+  },
+  "passed": true
+}

@@ -1,0 +1,114 @@
+{
+ "app 1.7 native close, reopen and quit retain then stop the database": {
+  "../../apps/desktop/src/bridge.ts": {
+   "1": 6
+  },
+  "../../apps/desktop/src/home.ts": {
+   "1": 1
+  },
+  "../../apps/desktop/src/main/args.ts": {
+   "1": 1
+  },
+  "../../apps/desktop/src/main/main.ts": {
+   "1": 24
+  },
+  "../../apps/desktop/src/main/releases.ts": {
+   "1": 2
+  },
+  "../../apps/desktop/src/main/tray-icon.ts": {
+   "1": 1
+  },
+  "../../apps/desktop/src/preload/preload.ts": {
+   "1": 1
+  },
+  "src/lifecycle/background.ts": {
+   "1": 3
+  },
+  "src/lifecycle/backups.ts": {
+   "1": 1
+  },
+  "src/lifecycle/launch.ts": {
+   "1": 2
+  },
+  "src/lifecycle/open-where-set.ts": {
+   "1": 1
+  },
+  "src/lifecycle/sign-in.ts": {
+   "1": 3
+  },
+  "src/projects/selection.ts": {
+   "1": 6
+  },
+  "src/surfaces/reads.ts": {
+   "1": 1
+  },
+  "src/surfaces/switches.ts": {
+   "1": 1
+  },
+  "src/updates/follow-main.ts": {
+   "1": 5
+  },
+  "src/updates/install-choice-file.ts": {
+   "1": 2
+  },
+  "src/updates/main-updates.ts": {
+   "1": 4
+  }
+ },
+ "app 4.10 native checkout update request refuses without fetching or restarting": {
+  "../../apps/desktop/src/bridge.ts": {
+   "4": 6
+  },
+  "../../apps/desktop/src/home.ts": {
+   "4": 1
+  },
+  "../../apps/desktop/src/main/args.ts": {
+   "4": 1
+  },
+  "../../apps/desktop/src/main/main.ts": {
+   "4": 23
+  },
+  "../../apps/desktop/src/main/releases.ts": {
+   "4": 2
+  },
+  "../../apps/desktop/src/main/tray-icon.ts": {
+   "4": 1
+  },
+  "../../apps/desktop/src/preload/preload.ts": {
+   "4": 1
+  },
+  "src/lifecycle/background.ts": {
+   "4": 2
+  },
+  "src/lifecycle/backups.ts": {
+   "4": 1
+  },
+  "src/lifecycle/launch.ts": {
+   "4": 2
+  },
+  "src/lifecycle/open-where-set.ts": {
+   "4": 1
+  },
+  "src/lifecycle/sign-in.ts": {
+   "4": 3
+  },
+  "src/projects/selection.ts": {
+   "4": 6
+  },
+  "src/surfaces/reads.ts": {
+   "4": 1
+  },
+  "src/surfaces/switches.ts": {
+   "4": 1
+  },
+  "src/updates/follow-main.ts": {
+   "4": 5
+  },
+  "src/updates/install-choice-file.ts": {
+   "4": 2
+  },
+  "src/updates/main-updates.ts": {
+   "4": 4
+  }
+ }
+}

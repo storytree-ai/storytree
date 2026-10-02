@@ -1,3 +1,6 @@
 packages:
   - "packages/*"
   - "apps/*"
+
+catalog:
+  happy-dom: 20.14.5

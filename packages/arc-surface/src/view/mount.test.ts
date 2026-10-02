@@ -24,11 +24,12 @@ test("3.1 clicking Arcs opens a reading drawer; Escape and Close return focus to
     await page.happyDOM.abort();
   });
   const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
-  const pending = Promise.withResolvers<Awaited<ReturnType<BoardReads["arcViews"]>>>();
+  let answer!: (arcs: Awaited<ReturnType<BoardReads["arcViews"]>>) => void;
+  const pending = new Promise<Awaited<ReturnType<BoardReads["arcViews"]>>>((resolve) => { answer = resolve; });
   const reads: BoardReads = {
     changesSince: async () => ({ changes: [], cursor: 0 }),
     linesSince: async () => ({ lines: [], cursor: 0 }),
-    arcViews: () => pending.promise,
+    arcViews: () => pending,
     holds: async () => ({ waits: {}, heldOn: {} }),
   };
   const ticks = new Map<number, () => void>();
@@ -51,7 +52,7 @@ test("3.1 clicking Arcs opens a reading drawer; Escape and Close return focus to
   assert.equal(launch.getAttribute("aria-expanded"), "true");
   assert.equal(page.document.activeElement, close);
   assert.equal(drawer.querySelector("[role=status]")?.textContent, "Reading arcs…");
-  pending.resolve([{ arc, increments: [], questions: [], state: "active" }]);
+  answer([{ arc, increments: [], questions: [], state: "active" }]);
   await settle();
   assert.equal(drawer.dataset.arcState, "ready");
   assert.match(drawer.querySelector('[data-arc-select="arc_1"]')?.textContent ?? "", /Ship the board/);

@@ -1,13 +1,14 @@
 import type { BoardAgent } from "../agents/agents.js";
 import { briefing, type QuestionReading } from "../briefing/briefing.js";
 import type { Bar, BoardView, Lane } from "../board/board.js";
+import { arcSurfaces } from "../surfaces/surfaces.js";
 import { queueRun, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
 
 export const escape = (text: string) => text.replace(/[&<>"']/gu, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
 /** The same full-width control at rest and above the open drawer. */
 export function renderHandle(_project: string, open: boolean): string {
   const action = open ? "Close" : "Open";
-  return `<button type="button" class="arc-handle" data-${open ? "close" : "open"}-arcs aria-label="${action} arc surface" aria-expanded="${open}" aria-controls="arc-drawer" title="${action} arcs"><span class="arc-handle-label">Arcs</span><span class="arc-handle-caret" aria-hidden="true">${open ? "▴" : "▾"}</span></button>`;
+  return `<button type="button" class="arc-handle" data-${open ? "close" : "open"}-arcs aria-label="${action} arc surface" aria-expanded="${open}" aria-controls="arc-drawer" title="${action} arcs"><span class="arc-handle-label">${escape(arcSurfaces[0].name)}</span><span class="arc-handle-caret" aria-hidden="true">${open ? "▴" : "▾"}</span></button>`;
 }
 const agentText = (agent: BoardAgent) => `${agent.label} · window opened ${agent.startedAt}\n${agent.reason}\n${agent.activity}`;
 const workText = (work: WorkName) => `${work.title}${work.arc ? ` (${work.arc.title})` : ""}`;

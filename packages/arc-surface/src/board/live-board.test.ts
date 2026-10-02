@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import type { Line } from "@storytree/agent-link";
-import { readBoard, watchBoard } from "../index.js";
+import { CLOCK_EVERY_MS, readBoard, watchBoard } from "../index.js";
 import type { BoardState } from "./live-board.js";
 import type { BoardReads } from "./reads.js";
 import { record } from "../testing/records.js";
@@ -13,7 +13,7 @@ async function until(check: () => boolean): Promise<void> {
   assert.ok(check(), "the board answered within ten seconds");
 }
 
-test("the watched board reads a holder idle at the user's idle-after setting, not a fixed half hour", async () => {
+test("3.5 the public watched board ages a holder at the user's idle-after setting without new lines", async () => {
   const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
   const increment = record("inc_1", "increment", { arc: "arc_1", title: "Draw lanes", objective: "Draw", body: "Draw", status: "active" });
   const start = Date.parse("2026-09-29T10:00:00Z");
@@ -29,13 +29,16 @@ test("the watched board reads a holder idle at the user's idle-after setting, no
     holds: async () => ({ waits: {}, heldOn: {} }),
     idleAfterMs: async () => 10 * 60_000,
   };
-  let now = start + 15 * 60_000;
+  let now = start + 5 * 60_000;
   let state: BoardState | undefined;
   const ticks = new Map<number, () => void>();
   const watcher = watchBoard({ project: "p", reads, timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } },
     onState: (next) => { state = next; } });
   try {
     await until(() => state?.board?.lanes[0]?.agents.length === 1);
+    assert.equal(state?.board?.lanes[0]?.state, "claimed");
+    now = start + 15 * 60_000;
+    ticks.get(CLOCK_EVERY_MS)!();
     assert.equal(state?.board?.lanes[0]?.state, "idle");
     assert.equal(state?.board?.lanes[0]?.chip, "idle · 15 min");
   } finally {

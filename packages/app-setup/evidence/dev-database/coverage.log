@@ -1,0 +1,24 @@
+
+> storytree@ survey:coverage /home/mickh/code/worktrees/st03-allocation-appsetup
+> node --import tsx packages/dev-loop/src/survey-coverage.mjs "app-setup"
+
+test Postgres: listening on 127.0.0.1:44517 (started in 0.1 s)
+packages/app-setup/src/connect/connect.test.ts: passed (1 s)
+packages/app-setup/src/connect/dev-database.test.ts: passed (2 s)
+packages/app-setup/src/deliver/bootstrap.test.ts: passed (0 s)
+packages/app-setup/src/deliver/delivery.test.ts: passed (1 s)
+packages/app-setup/src/deliver/runtime.test.ts: passed (0 s)
+packages/app-setup/src/deliver/uninstall.test.ts: passed (1 s)
+packages/app-setup/src/help/add-project.test.ts: passed (2 s)
+packages/app-setup/src/help/agent-connections.test.ts: passed (1 s)
+packages/app-setup/src/help/feedback.test.ts: passed (0 s)
+packages/app-setup/src/help/license.test.ts: passed (0 s)
+packages/app-setup/src/help/setup-check.test.ts: passed (1 s)
+packages/app-setup/src/help/three-ways.test.ts: passed (1 s)
+packages/app-setup/src/project/project.test.ts: passed (2 s)
+packages/app-setup/src/view/delete-project.test.ts: passed (0 s)
+packages/app-setup/src/view/first-run.test.ts: passed (0 s)
+packages/app-setup/src/view/mount.test.ts: passed (1 s)
+packages/app-setup/src/view/remove-project.test.ts: passed (0 s)
+wrote packages/app-setup/survey-coverage.json: 19 files
+test Postgres: stopped (0.1 s)

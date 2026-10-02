@@ -1,0 +1,22 @@
+{
+  "story": "The forest",
+  "commit": "d72a42ee0537b0c81d743b138371df9da1c36b5c",
+  "evidence": "packages/forest/evidence/guided-globe",
+  "checks": [
+    {
+      "contract": "3.21",
+      "name": "Mounted public camera and surface checks",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.22",
+      "name": "Mounted public camera and surface checks",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.23",
+      "name": "Mounted public camera and surface checks",
+      "observed": "pass"
+    }
+  ]
+}

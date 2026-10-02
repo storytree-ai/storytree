@@ -5,7 +5,7 @@ import { renderAppMenu, renderSwitcher } from "./render.js";
 import { appMenuStyles } from "./styles.js";
 import { mountSurfaces } from "./surfaces.js";
 import { switchProject } from "./switch.js";
-import { mountSignIn, mountUpdates, type SignInBridge } from "./updates.js";
+import { mountInstallChoice, mountSignIn, mountUpdates, type InstallChoiceBridge, type SignInBridge } from "./updates.js";
 import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
 
 export { renderNoProjects } from "./render.js";
@@ -20,6 +20,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;
   /** Opening at sign-in, where the frame can offer it (lifecycle 1.12). */
   signIn?: SignInBridge;
+  /** When a downloaded release may install itself, where the app installs releases (updates 4.13). */
+  installChoice?: InstallChoiceBridge;
   /** The app setup's Add project control; it reports the project added, which is then shown. */
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void };
   /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
@@ -71,10 +73,11 @@ export function mountAppMenu(host: HTMLElement, options: {
   let shown: string | undefined;
   const removeProject = options.mountRemoveProject?.(menu.querySelector<HTMLElement>("[data-app-remove-project]")!, () => shown, async () => { await options.onChosen(); });
   const deleteProject = options.mountDeleteProject?.(menu.querySelector<HTMLElement>("[data-app-delete-project]")!, async () => { await options.onChosen(); });
+  const installChoice = mountInstallChoice(menu, options.installChoice, undefined, () => updates.refresh());
   const updates = mountUpdates(menu, options.checkForUpdates, (waiting) => {
     gear.toggleAttribute("data-update-pending", waiting);
     gear.title = waiting ? "App menu: an update is ready to install" : "App menu";
-  });
+  }, installChoice.choice);
   const signIn = mountSignIn(menu, options.signIn);
   let section = "projects";
   let stopped = false;
@@ -153,7 +156,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop(); deleteProject?.stop();
+      updates.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop(); deleteProject?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

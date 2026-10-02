@@ -3,7 +3,7 @@
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
 import type { ContextReading, LinesSince, SessionWindow } from "@storytree/agent-link";
-import type { ProjectSelection, SignInState, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
+import type { InstallChoice, InstallChoiceState, ProjectSelection, SignInState, SurfacesBridge, UpdateAction, UpdateState } from "@storytree/app";
 import type { SetupHelpBridge } from "@storytree/app-setup";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import type { AnnotatedTree, ArcView, Holds, Changes, Note, SchemaRecord } from "@storytree/library";
@@ -14,6 +14,10 @@ export interface StorytreeBridge extends SetupHelpBridge, SurfacesBridge {
   readSignIn(): Promise<SignInState>;
   /** Turn opening at sign-in on or off; refused where the app is not installed. */
   setSignIn(on: boolean): Promise<SignInState>;
+  /** When a downloaded release may install itself (updates 4.13), and whether this app installs releases. */
+  readInstallChoice(): Promise<InstallChoiceState>;
+  /** Keep a new install choice; refused where the app does not install releases, or for a choice that is not one. */
+  setInstallChoice(choice: InstallChoice): Promise<InstallChoiceState>;
   /** The names of the projects in the app's library, sorted. */
   listProjects(): Promise<string[]>;
   /** The current project list and the last chosen project, including newly set-up projects. */
@@ -60,6 +64,8 @@ export const CHANNELS = {
   checkForUpdates: "storytree:check-for-updates",
   readSignIn: "storytree:read-sign-in",
   setSignIn: "storytree:set-sign-in",
+  readInstallChoice: "storytree:read-install-choice",
+  setInstallChoice: "storytree:set-install-choice",
   readSetupLicense: "storytree:read-setup-license",
   agentConnections: "storytree:agent-connections",
   checkSetupFolder: "storytree:check-setup-folder",

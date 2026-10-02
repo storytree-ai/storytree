@@ -43,7 +43,7 @@ test("keys 1.1: saving creates auth.json in storytree's home, readable and writa
 
 test("keys 1.2: two writers at once lose nothing", async (t) => {
   const home = scratch(t);
-  const writer = fileURLToPath(new URL("./testing-writer.ts", import.meta.url));
+  const writer = fileURLToPath(new URL("./testing/writer.ts", import.meta.url));
   const tsx = import.meta.resolve("tsx");
   const count = 15;
   const run = (prefix: string) => new Promise<void>((resolve, reject) => {

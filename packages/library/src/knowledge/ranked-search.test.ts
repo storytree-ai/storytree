@@ -164,7 +164,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(again.embedded, ["plans"], "a new process reads the kept vectors");
   });
 
-  contract("14.5", "rankAll ranks the plan's stories, capabilities and contracts by their own wording, with the artifacts", async (_, { knowledge, records }) => {
+  contract("14.8", "rankAll ranks the plan's stories, capabilities and contracts by their own wording, with the artifacts", async (_, { knowledge, records }) => {
     const story = await records.create("story", { title: "Library", description: "The library keeps the plan." });
     const capability = await records.create("capability", { title: "Outbox", story: story.id, proposed: true });
     const mailer = await records.create("contract", { title: "The mailer needs a verified sender domain", capability: capability.id });
@@ -172,9 +172,12 @@ for (const backend of [memory, postgres]) {
 
     const ranked = await knowledge.rankAll("how do I send an email");
 
+    assert.equal(ranked.by, "meaning");
     assert.equal(ranked.hits[0]!.note.id, mailer.id);
     assert.equal(ranked.hits[0]!.note.type, "contract");
-    assert.ok(ranked.hits.some(({ note }) => note.id === deploys.id), "the artifacts are ranked too");
+    assert.deepEqual(new Map(ranked.hits.map(({ note }) => [note.id, note.type])), new Map([
+      [story.id, "story"], [capability.id, "capability"], [mailer.id, "contract"], [deploys.id, "definition"],
+    ]), "every plan kind is ranked alongside artifacts, with its own type");
   });
 
   contract("14.7", "a record whose title holds every word of the search, or that the search names by its contract number, ranks first", async (_, { knowledge, records }) => {
@@ -212,7 +215,7 @@ for (const backend of [memory, postgres]) {
     }
   });
 
-  test(`14.6 [${backend.label}] with no embedding model, rankAll's word matches include a contract holding the words`, async () => {
+  test(`14.9 [${backend.label}] with no embedding model, rankAll's word matches include a contract holding the words`, async () => {
     const opened = await backend.open(async () => {
       throw new Error("the embedding model is switched off");
     });
@@ -225,6 +228,7 @@ for (const backend of [memory, postgres]) {
       const ranked = await opened.knowledge.rankAll("mailer sender");
 
       assert.equal(ranked.by, "words");
+      assert.match(ranked.why ?? "", /switched off/);
       assert.deepEqual(ranked.hits.map(({ note }) => note.id), [mailer.id]);
       assert.deepEqual(await opened.knowledge.rankAll(capability.id).then(({ hits }) => hits.map(({ note }) => note.id)), [], "a contract's capability is an id, not its words");
     } finally {

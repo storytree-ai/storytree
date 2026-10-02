@@ -39,6 +39,9 @@
  "src/publish.ts": {
   "4": 40
  },
+ "src/refresh-forest.ts": {
+  "3": 1
+ },
  "src/tour-copy.ts": {
   "1": 3,
   "2": 6
@@ -48,7 +51,7 @@
   "2": 39
  },
  "src/tour-snapshot.ts": {
-  "3": 63
+  "3": 85
  },
  "src/tour-ui.ts": {
   "1": 14,

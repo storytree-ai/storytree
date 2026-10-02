@@ -24,14 +24,20 @@ test("3.1, 3.2, 3.3 · refresh command saves the selected public recording and k
   await copyFile(`${data}.owner.json`, path.join(home, "pgdata.owner.json"));
   const project = `t-${randomBytes(4).toString("hex")}`;
   await writeFile(path.join(directory, ".storytree.json"), JSON.stringify({ project }));
-  await writeFile(path.join(src, "main.ts"), "export const answer = 42;\n");
-  await writeFile(path.join(src, "main.test.ts"), 'import { answer } from "./main.js";\ntest("1.1 · answer", () => assert.equal(answer, 42));\n');
+  await writeFile(path.join(src, "answer.ts"), "export const answer = 42;\n");
+  await writeFile(path.join(src, "answer.test.ts"), 'import { answer } from "./answer.js";\ntest("1.1 · answer", () => assert.equal(answer, 42));\n');
   const server = await connect({ url });
-  t.after(() => server.close());
+  let created = false;
+  let activity: Awaited<ReturnType<typeof openActivityLog>> | undefined;
+  t.after(async () => {
+    try {
+      await activity?.close();
+      if (created) await server.dropProject(project);
+    } finally { await server.close(); }
+  });
   const library = await server.openProject(project);
-  t.after(() => server.dropProject(project));
-  const activity = await openActivityLog(server);
-  t.after(() => activity.close());
+  created = true;
+  activity = await openActivityLog(server);
   const story = await library.addStory({ title: "Example", description: "See /home/synthetic/code and projects/private-cloud-example" });
   const capability = await library.addCapability({ story: story.id, title: "1 · Answer", proposed: false });
   await library.addContract({ capability: capability.id, title: "1.1 · Answer is available" });
@@ -59,7 +65,7 @@ test("3.1, 3.2, 3.3 · refresh command saves the selected public recording and k
   assert.ok(Date.parse(snapshot.capturedAt) >= started && Date.parse(snapshot.capturedAt) <= Date.now());
   assert.equal(snapshot.tree.stories[0]!.id, story.id);
   assert.equal(snapshot.tree.stories[0]!.capabilities[0]!.id, capability.id);
-  assert.equal(snapshot.scene.islands[0]!.land!.files[0]!.path, "src/main.ts");
+  assert.equal(snapshot.scene.islands[0]!.land!.files[0]!.path, "src/answer.ts");
   assert.equal(snapshot.scene.islands[0]!.land!.territories[0]!.lines, 1);
   assert.ok(snapshot.changes.some(change => change.recordId === decision.id));
   assert.equal(snapshot.arcs[0]!.arc.id, arc.id);

@@ -1,4 +1,4 @@
-// From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO>
+// From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO> [--output <file>]
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { route, openNamedProject, openActivityLog } from "@storytree/agent-link";
@@ -6,7 +6,7 @@ import { connect } from "@storytree/library";
 import { readCodeSurvey } from "@storytree/forest/code-survey";
 import { refreshTourSnapshot } from "./tour-snapshot.js";
 
-const { values } = parseArgs({ options: { from: { type: "string" }, to: { type: "string" } } });
+const { values } = parseArgs({ options: { from: { type: "string" }, to: { type: "string" }, output: { type: "string" } } });
 if (!values.from || !values.to || !Number.isFinite(Date.parse(values.from)) || !Number.isFinite(Date.parse(values.to)) || Date.parse(values.from) >= Date.parse(values.to)) {
   throw new Error("Give --from and --to ISO timestamps for the recording's half-open window (from inclusive, to exclusive).");
 }
@@ -17,7 +17,7 @@ try {
   const library = await openNamedProject(server, routed.project, routed.identity);
   const activity = await openActivityLog(server);
   try {
-    await refreshTourSnapshot(fileURLToPath(new URL("./forest-snapshot.json", import.meta.url)), async () => {
+    await refreshTourSnapshot(values.output ?? fileURLToPath(new URL("./forest-snapshot.json", import.meta.url)), async () => {
       const [tree, history, log, arcs, holds] = await Promise.all([
         library.projectTree(), library.changesSince(0), activity.since(routed.project, 0), library.arcViews(), library.holds(),
       ]);

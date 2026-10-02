@@ -2,11 +2,10 @@
 // small package in a temporary folder whose numbered test runs its code only in processes it starts.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { pathToFileURL } from "node:url";
 
 import { coverageOf } from "./survey-coverage.mjs";
 import { recordBrowserCoverage } from "./browser-coverage.mjs";
@@ -66,7 +65,10 @@ test("6.5 measured browser bundle inputs survive Node regeneration, scoped to pa
     const coverageDir = path.join(work, "coverage");
     assert.equal(execFileSync(process.execPath, ["--enable-source-maps", bundlePath], { env: { ...process.env, NODE_V8_COVERAGE: coverageDir }, encoding: "utf8" }).trim(), "43");
     const records = readdirSync(coverageDir).map(file => JSON.parse(readFileSync(path.join(coverageDir, file), "utf8")));
-    const measured = records.flatMap(record => record.result).find(script => script.url === pathToFileURL(realpathSync(bundlePath)).href);
+    // V8 may report a short Windows path or a resolved link. This child loads one fixture bundle.
+    const bundles = records.flatMap(record => record.result).filter(script => script.url.endsWith("bundle.cjs"));
+    assert.equal(bundles.length, 1, "the child reported exactly one fixture bundle");
+    const [measured] = bundles;
     assert.ok(measured.functions.find(fn => fn.functionName === "clicked").ranges[0].count > 0);
     assert.equal(measured.functions.find(fn => fn.functionName === "idle").ranges[0].count, 0);
     const scripts = [{ bundlePath, source, sourceMap, functions: measured.functions }];

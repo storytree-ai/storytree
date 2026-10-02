@@ -1,0 +1,3 @@
+Carry on with the next part of my own backend. Keep using this existing project. I approve its private-repository pull request being created and merged once the required checks pass, and deleting the merged branch.
+
+Two notes from reviewing the plan: the final unchanged frontend suite still expects some existing articles from multiple authors, even in fullstack mode, so document reproducible local test data rather than assuming an empty database is enough. Also the tags/favourites acceptance includes errors_articles.hurl, which exercises the feed route; preserve that acceptance dependency on the profiles/following part.

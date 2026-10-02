@@ -1,0 +1,36 @@
+== inner quote with spaces: ["he said \"website -> forest -> the rest\" ok"]
+  PowerShell 5.1  {"argv":["he said website","->","forest","->","the","rest ok"],"line":"\"he said \"website -> forest -> the rest\" ok\""}
+  Git Bash        {"argv":["he said \"website -> forest -> the rest\" ok"],"line":"\"he said \\\"website -> forest -> the rest\\\" ok\""}
+  Node            {"argv":["he said \"website -> forest -> the rest\" ok"],"line":"\"he said \\\"website -> forest -> the rest\\\" ok\""}
+== inner quote, no spaces: ["a\"b"]
+  PowerShell 5.1  {"argv":["ab"],"line":"a\"b"}
+  Git Bash        {"argv":["a\"b"],"line":"\"a\\\"b\""}
+  Node            {"argv":["a\"b"],"line":"\"a\\\"b\""}
+== quoted word, no spaces: ["\"yes\""]
+  PowerShell 5.1  {"argv":["yes"],"line":"\"yes\""}
+  Git Bash        {"argv":["\"yes\""],"line":"\"\\\"yes\\\"\""}
+  Node            {"argv":["\"yes\""],"line":"\"\\\"yes\\\"\""}
+== starts with a quote: ["\"A\" (recommended)"]
+  PowerShell 5.1  {"argv":["A (recommended)"],"line":"\"\"A\" (recommended)\""}
+  Git Bash        {"argv":["\"A\" (recommended)"],"line":"\"\\\"A\\\" (recommended)\""}
+  Node            {"argv":["\"A\" (recommended)"],"line":"\"\\\"A\\\" (recommended)\""}
+== ends with a quote: ["say \"hi\""]
+  PowerShell 5.1  {"argv":["say hi"],"line":"\"say \"hi\"\""}
+  Git Bash        {"argv":["say \"hi\""],"line":"\"say \\\"hi\\\"\""}
+  Node            {"argv":["say \"hi\""],"line":"\"say \\\"hi\\\"\""}
+== folder with a trailing backslash: ["C:\\a folder\\","next"]
+  PowerShell 5.1  {"argv":["C:\\a folder\" next"],"line":"\"C:\\a folder\\\" next"}
+  Git Bash        {"argv":["C:\\a folder\\","next"],"line":"\"C:\\a folder\\\\\" next"}
+  Node            {"argv":["C:\\a folder\\","next"],"line":"\"C:\\a folder\\\\\" next"}
+== plain words: ["arc","show","a b","x>y","100%"]
+  PowerShell 5.1  {"argv":["arc","show","a b","x>y","100%"],"line":"arc show \"a b\" x>y 100%"}
+  Git Bash        {"argv":["arc","show","a b","x>y","100%"],"line":"arc show \"a b\" x>y 100%"}
+  Node            {"argv":["arc","show","a b","x>y","100%"],"line":"arc show \"a b\" x>y 100%"}
+== escaped as PowerShell 5.1 needs: ["he said \\\"x\\\" ok"]
+  PowerShell 5.1  {"argv":["he said \"x\" ok"],"line":"\"he said \\\"x\\\" ok\""}
+  Git Bash        {"argv":["he said \\\"x\\\" ok"],"line":"\"he said \\\\\\\"x\\\\\\\" ok\""}
+  Node            {"argv":["he said \\\"x\\\" ok"],"line":"\"he said \\\\\\\"x\\\\\\\" ok\""}
+== flag with a quoted value: ["--title=\"a b\""]
+  PowerShell 5.1  {"argv":["--title=a b"],"line":"--title=\"a b\""}
+  Git Bash        {"argv":["--title=\"a b\""],"line":"\"--title=\\\"a b\\\"\""}
+  Node            {"argv":["--title=\"a b\""],"line":"\"--title=\\\"a b\\\"\""}

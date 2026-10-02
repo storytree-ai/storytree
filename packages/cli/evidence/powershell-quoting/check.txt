@@ -1,0 +1,37 @@
+== inner quote with spaces: ["he said \"website -> forest ->
+  PowerShell 5.1  refused at word 1
+  Git Bash        acts
+  Node            acts
+== inner quote, no spaces: ["a\"b"]
+  PowerShell 5.1  refused at word 1
+  Git Bash        acts
+  Node            acts
+== quoted word, no spaces: ["\"yes\""]
+  PowerShell 5.1  acts
+  Git Bash        acts
+  Node            acts
+== starts with a quote: ["\"A\" (recommended)"]
+  PowerShell 5.1  refused at word 1
+  Git Bash        acts
+  Node            acts
+== ends with a quote: ["say \"hi\""]
+  PowerShell 5.1  refused at word 1
+  Git Bash        acts
+  Node            acts
+== folder with a trailing backslash: ["C:\\a folder\\","next
+  PowerShell 5.1  refused at word 1
+  Git Bash        acts
+  Node            acts
+== plain words: ["arc","show","a b","x>y","100%"]
+  PowerShell 5.1  acts
+  Git Bash        acts
+  Node            acts
+== escaped as PowerShell 5.1 needs: ["he said \\\"x\\\" ok"]
+  PowerShell 5.1  acts
+  Git Bash        acts
+  Node            acts
+== flag with a quoted value: ["--title=\"a b\""]
+  PowerShell 5.1  acts
+  Git Bash        acts
+  Node            acts
+foreign line: ignored

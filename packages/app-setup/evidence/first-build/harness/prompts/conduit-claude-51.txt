@@ -1,0 +1,6 @@
+I ran the official RealWorld tests on the whole site: 134 of 139 pass. Two kinds of failure:
+
+1. "null bio should not render as literal null on profile page" and "setting then clearing bio should not show stale data": right after /profile/<name> loads, the test reads the text of '.user-info p' and expects an empty string, but gets "Loading profile...".
+2. "should handle 500 on user profile load", "should handle network error on user profile load" and "should handle 404 for non-existent profile": the test checks page.locator('.profile-page, .user-info') is visible, and it fails with "strict mode violation: locator resolved to 2 elements", because it finds both. My requirements file was wrong to say both should still render: when the profile fails to load, show the .profile-page with its error message but no .user-info.
+
+Can you fix both?

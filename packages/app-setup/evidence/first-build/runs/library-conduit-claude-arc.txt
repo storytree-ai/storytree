@@ -1,0 +1,25 @@
+Conduit RealWorld frontend  [arc_f87836f9490e]  closed
+
+Intent: Deliver a plain HTML/CSS/JS Conduit frontend against the demo API that passes the official RealWorld e2e suite.
+End state: All five parts from conduit-requirements.md are built, one per session, and the site meets every rule in the requirements and SELECTORS.md.
+
+Work (0 open)
+  (none)
+
+Questions waiting on you (0)
+
+Increment log (7 closed)
+  - 2026-10-01  landed  increment_cc109e645135  Part 1: Home page
+      No git repo / PR. All 15 tests pass in headless Edge (tests\run.ps1); live-API smoke check shows 4 articles and 15 tags at / and the tag feed at /tag/javascript.
+  - 2026-10-01  landed  increment_9156707e3703  Part 2: Sign up, sign in, sign out, settings
+      Session/auth state, sign in & sign up, settings & logout built test-first; 38/38 tests pass (tests\run.ps1). Not a git repo, so no PR. Guard for /editor and /?feed=following left to parts 3 and 5, which reuse the { auth: true } route option.
+  - 2026-10-01  landed  increment_0136418334d0  Part 3: Article page and editor
+      No git repo, so no PR. Article page and editor built test-first; 54/54 tests pass (16 new).
+  - 2026-10-01  landed  increment_262fa3cd9502  Part 4: Comments
+      No PR: folder is not a git repo. public/comments.js mounted from article.js; tests/comments.test.js, 68/68 pass.
+  - 2026-10-01  landed  increment_6d9a592c137a  Part 5: Profiles, following, favourites, Your Feed
+      No PR: folder is not a git repo. Profile page, follow and favourite landed; 83/83 tests pass. Your Feed had already landed in increment_42aa47d43179.
+  - 2026-10-01  landed  increment_42aa47d43179  Your Feed tab on the home page
+      Your Feed tab, /?feed=following route (GET /articles/feed, empty message, &page=N, logged-out redirect to /login). Local suite 58/58; not a git repo, so no PR.
+  - 2026-10-02  landed  increment_65a7c148d5b1  Profile: no loading text in .user-info, no .user-info on failure
+      No PR (folder is not a git repo). profile.js renders .user-info only on success; local suite 84/84. Official suite not re-run here.

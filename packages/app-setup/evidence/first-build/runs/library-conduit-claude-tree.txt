@@ -1,0 +1,56 @@
+Browse the home page feed  [story_e12bfb221365]  agent says passing
+  1 · 1 · App shell and history routing  [capability_40c8766fa205]  agent says passing; storytree does not check this project's tests yet
+      - 1.1 · Every app route serves index.html with absolute assets  [contract_68c306137ce5]  agent says passing
+      - 1.2 · Logged-out navbar  [contract_f42a9dfb2e08]  agent says passing
+      - 1.3 · In-app links navigate with pushState  [contract_a12483cb03d4]  agent says passing
+  2 · 2 · Global feed of article previews  [capability_7418cd9d5b28]  agent says passing; storytree does not check this project's tests yet
+      - 2.1 · Home shows the global feed  [contract_8f5c4f0fd3a0]  agent says passing
+      - 2.2 · Preview carries the required elements  [contract_7c4948ab9d8b]  agent says passing
+      - 2.3 · Missing avatar uses default-avatar.svg and text is never HTML  [contract_d7cadd1a927d]  agent says passing
+      - 2.4 · Signed-in users get a Your Feed tab  [contract_ef764ba19842]  agent says passing
+  3 · 3 · Popular tags and tag feed  [capability_36e7d82f3ca7]  agent says passing; storytree does not check this project's tests yet
+      - 3.1 · Sidebar lists popular tags  [contract_6cdfd8aaee2f]  agent says passing
+      - 3.2 · Tag route shows an active tag tab and that tag's articles  [contract_82c7972fc9c0]  agent says passing
+  4 · 4 · Feed pagination  [capability_6f05753e480b]  agent says passing; storytree does not check this project's tests yet
+      - 4.1 · One page link per 10 articles, current one active  [contract_e3ece7bd49d3]  agent says passing
+      - 4.2 · Page links keep the feed and put the page in the URL  [contract_f934611cd0f8]  agent says passing
+Have an account  [story_fd8c683c408d]  agent says passing
+  1 · 1 · Session and auth state  [capability_f4e930c6be09]  agent says passing; storytree does not check this project's tests yet
+      - 1.1 · A valid token signs the user in at startup  [contract_8d34c079c81b]  agent says passing
+      - 1.2 · A rejected token is cleared  [contract_888f5b44400d]  agent says passing
+      - 1.3 · An unreachable API keeps the token and shows Connecting  [contract_774a110883f3]  agent says passing
+  2 · 2 · Sign in and sign up pages  [capability_7b52f3916590]  agent says passing; storytree does not check this project's tests yet
+      - 2.1 · Sign in and sign up forms sign the user in  [contract_22e18de0a451]  agent says passing
+      - 2.2 · Form errors show in ul.error-messages  [contract_37cd9bbced3e]  agent says passing
+  3 · 3 · Settings and sign out  [capability_4d53a8418a56]  agent says passing; storytree does not check this project's tests yet
+      - 3.1 · Settings form is pre-filled and guarded  [contract_36e26e009a6d]  agent says passing
+      - 3.2 · Update Settings saves and goes to the profile  [contract_3613aec916cb]  agent says passing
+      - 3.3 · Logout clears the session and goes home  [contract_834ec21258ab]  agent says passing
+Read and write articles  [story_a71b9efbd0d6]  agent says passing
+  1 · 1 · Article page  [capability_8bd04059833a]  agent says passing; storytree does not check this project's tests yet
+      - 1.1 · Article page shows the article  [contract_9cbd19936309]  agent says passing
+      - 1.2 · Markdown is rendered sanitised  [contract_2b537460b7ae]  agent says passing
+      - 1.3 · Author and reader actions  [contract_7385ed23d497]  agent says passing
+      - 1.4 · Delete Article deletes and goes home  [contract_24219a951110]  agent says passing
+      - 1.5 · The page survives a failed or missing article  [contract_8e0bf38f329f]  agent says passing
+  2 · 2 · Editor  [capability_2c5fb57b0cff]  agent says passing; storytree does not check this project's tests yet
+      - 2.1 · Write and publish a new article  [contract_3fe106b84b63]  agent says passing
+      - 2.2 · Edit an existing article  [contract_2ea038e2d2b0]  agent says passing
+      - 2.3 · Editor errors show and the form stays  [contract_0306ada8613f]  agent says passing
+Comment on articles  [story_71ced0ed6299]  agent says passing
+  1 · 1 · Comments under an article  [capability_31c7e023e7b2]  agent says passing; storytree does not check this project's tests yet
+      - 1.1 · Comments list under the article  [contract_eceb7d939838]  agent says passing
+      - 1.2 · Signed-in users post a comment  [contract_c24052292994]  agent says passing
+      - 1.3 · Authors delete their own comments  [contract_e6fafb52dd50]  agent says passing
+Follow people and favourite articles  [story_b746fd9fc97c]  agent says passing
+  1 · 1 · Profile page  [capability_9a43ec806a51]  agent says passing; storytree does not check this project's tests yet
+      - 1.1 · Profile shows the user's info  [contract_25fbb1471114]  agent says passing
+      - 1.2 · My Articles and Favorited tabs list articles  [contract_cb272b1b9b55]  agent says passing
+      - 1.3 · The page survives a failed or missing profile  [contract_4f2c2392b720]  agent says passing
+  2 · 2 · Follow authors  [capability_ce437e30b257]  agent says passing; storytree does not check this project's tests yet
+      - 2.1 · Follow and unfollow from the profile and article pages  [contract_5cb1ab62c2e3]  agent says passing
+      - 2.2 · Logged out, Follow goes to /login  [contract_4efe017bef6e]  agent says passing
+  3 · 3 · Favourite articles  [capability_a3fa63694cf6]  agent says passing; storytree does not check this project's tests yet
+      - 3.1 · Favourite from a preview  [contract_46c0410100de]  agent says passing
+      - 3.2 · Favourite from the article page  [contract_dd0aca3065f6]  agent says passing
+      - 3.3 · Logged out, favouriting goes to /login  [contract_e1539c96119d]  agent says passing

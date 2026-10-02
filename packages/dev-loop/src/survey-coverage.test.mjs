@@ -133,7 +133,7 @@ test("6.5 App records same-checkout Desktop functions from Node and browser proo
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof: "website 1.7 wrong story", passed: true, scripts }), /own story/);
     write("packages/app/src/run.test.mjs", 'import { test } from "node:test";\nimport { execFileSync } from "node:child_process";\nimport { fileURLToPath } from "node:url";\ntest("app 4.10 runs the Desktop bundle", () => { execFileSync(process.execPath, ["--enable-source-maps", fileURLToPath(new URL("../../../apps/desktop/dist/bundle.cjs", import.meta.url))]); });\n');
     write("apps/desktop/src/node.mjs", "export function answer() { return 7; }\n");
-    write("apps/desktop/src/node.test.mjs", 'import { test } from "node:test";\nimport { answer } from "./node.mjs";\ntest("app 6.1 answers", () => { if (answer() !== 7) throw Error("wrong answer"); });\ntest("forest 9.1 foreign title", () => {});\n');
+    write("apps/desktop/src/node.test.mjs", 'import { test } from "node:test";\nimport { answer } from "./node.mjs";\ntest("app 6.1 answers", () => { if (answer() !== 7) throw Error("wrong answer"); });\ntest("forest 9.1 foreign title", () => {});\ntest("8.1 ambiguous Desktop title", () => {});\n');
     const expected = { [desktop]: { 1: 1, 4: 1 }, "../../apps/desktop/src/node.mjs": { 6: 1 }, "src/frame.ts": { 1: 1, 4: 1 } };
     assert.deepEqual(await coverageOf({ root: work, pkgDir: pkg, env: process.env }), expected);
     assert.deepEqual(await coverageOf({ root: work, pkgDir: pkg, env: process.env }), expected);

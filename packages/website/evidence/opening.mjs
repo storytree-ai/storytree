@@ -36,6 +36,7 @@ export async function verifyOpening(browser, url, output) {
   await page.reload();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
   await page.getByRole("button", { name: "Replay chapter 1" }).click();
+  assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "Replay returns keyboard focus to the scene");
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
@@ -56,7 +57,19 @@ export async function verifyOpening(browser, url, output) {
     assert.ok(await still.getByText("want me to show you?", { exact: true }).isVisible());
     assert.equal(await still.getByRole("button", { name: "Run", exact: true }).isVisible(), false);
     await still.screenshot({ path: path.join(output, options.javaScriptEnabled === false ? "390-no-script.png" : "390-reduced-motion.png") });
-    if (options.reducedMotion) assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0);
+    if (options.reducedMotion) {
+      assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0);
+      await still.clock.install();
+      await still.emulateMedia({ reducedMotion: "no-preference" });
+      await still.getByRole("button", { name: "Run", exact: true }).click();
+      await still.clock.fastForward(16750);
+      await still.clock.fastForward(5250);
+      await still.getByRole("button", { name: "Show me the better way" }).click();
+      await still.emulateMedia({ reducedMotion: "reduce" });
+      await still.waitForFunction(() => document.querySelector("#opening").dataset.phase === "peak");
+      assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0, "Changing motion preference cancels the collapse");
+      assert.equal(await still.locator("#opening-finale").evaluate(el => getComputedStyle(el).opacity), "1");
+    }
     await still.close();
   }
   const denied = await browser.newPage();

@@ -20,7 +20,7 @@ export function installedApp(): boolean {
 export function followReleases(options: ReleaseOptions, home: string): ReleaseUpdater | undefined {
   if (!installedApp()) return undefined;
 
-  const updater = new ReleaseUpdater(options);
+  const updater = new ReleaseUpdater({ ...options, home });
   const log = (...parts: unknown[]): void => {
     const message = format(...parts);
     console.log(`releases: ${message}`);

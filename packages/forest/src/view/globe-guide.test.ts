@@ -65,6 +65,8 @@ test("3.23 screen positions follow actual transforms, zoom, viewport and camera 
   f.core.visible = true; f.camera.clearViewOffset();
   f.resize({ width: 400, height: 300 });
   assert.deepEqual(f.guide.position({ kind: "core" }), { x: 200, y: 150, visible: true });
+  for (const child of f.story.children) child.visible = false;
+  assert.equal(f.guide.position({ kind: "story", story: "shop" })?.visible, false, "an island with no shown marks is hidden");
 });
 
 test("3.22 hidden land and file circles cannot be picked, including through an invisible parent", () => {

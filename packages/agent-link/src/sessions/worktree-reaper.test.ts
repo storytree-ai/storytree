@@ -8,10 +8,64 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
+import { connect } from "@storytree/library";
+
 import { openActivityLog } from "../activity/index.js";
+import { claim, release } from "../claims/index.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { reapWorktrees } from "./index.js";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { closeOut, readSessions, reapWorktrees } from "./index.js";
+
+test("4.12, 4.18 a new admitted claim reopens a closed-out session and keeps its fresh worktree before any edit; a later close-out permits reaping", async () => {
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    const library = await storytree.openProject(project);
+    const arc = await library.createArc({ title: "Continue work", intent: "Build the next piece", endState: "Both pieces landed" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Next piece", objective: "Continue after close-out", body: "Claim a fresh workspace" });
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      git(repo, "commit", "-q", "--allow-empty", "-m", "first");
+      const home = path.join(dir, "ledger");
+      mkdirSync(home);
+      const who = { log, library, project, session: "continuing", harness: "codex", folder: repo, branch: "main" };
+      const session = async () => (await readSessions(log, project)).find((one) => one.session === who.session)!;
+      await closeOut(who, { safe: true, why: "Previous work finished" }, { home });
+      assert.equal((await session()).closeOut?.verified, true);
+      assert.equal((await session()).listing, "hidden");
+
+      const folder = path.join(dir, "next");
+      const branch = "codex/next";
+      git(repo, "worktree", "add", "-q", "-b", branch, folder, "main");
+      const next = { ...who, folder, branch };
+      assert.equal((await claim(next, increment.id, "Build the next piece")).ok, true);
+      // A fresh branch is already in main: branch resolution must not mask the stale close-out.
+      const observer = { log, project, session: "observer", harness: "codex", folder: repo, source: "hook" } as const;
+      await log.append(project, { session: observer.session, source: "hook", kind: "branch-state", of: branch, open: false, how: "not-ahead" });
+      const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+      assert.deepEqual(await reapWorktrees(observer, watch), [], "the fresh claimed worktree stays before any edit");
+      assert.equal(existsSync(folder), true);
+      assert.equal(git(repo, "branch", "--list", "--format=%(refname:short)", branch).trim(), branch);
+      const reopened = await session();
+      assert.equal(reopened.closeOut, undefined);
+      assert.equal(reopened.listing, "listed");
+      assert.equal(reopened.state, "working");
+
+      assert.equal((await release(next, increment.id)).ok, true);
+      await closeOut(next, { safe: true, why: "Next work finished, nothing left running" }, { home });
+      assert.equal((await session()).closeOut?.verified, true);
+      assert.deepEqual(await reapWorktrees(observer, watch), [folder]);
+      assert.equal(existsSync(folder), false);
+      assert.equal(git(repo, "branch", "--list", branch).trim(), "");
+    });
+  } finally {
+    await log.close();
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
 
 test("4.18 a clean worktree whose head is in main, and whose sessions have all closed out or been archived, is removed with its branch; a dirty, unmerged, locked, unknown, still-used, protected or hook-running one stays", async () => {
   const log = await openActivityLog(testServerUrl());

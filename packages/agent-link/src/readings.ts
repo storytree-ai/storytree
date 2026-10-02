@@ -51,7 +51,7 @@ export const LEAVE_MS = 60 * 60 * 1000;
 export type Listing = "listed" | "done" | "hidden";
 
 /**
- * A session's close-out (ADR-0758 D2, D3), standing until a prompt puts it back to work: what it said,
+ * A session's close-out (ADR-0758 D2, D3), standing until a prompt or new claim puts it back to work: what it said,
  * and whether the reading bore a "yes" out. A yes is verified when every branch it worked on has
  * resolved, none of its own runs still ran on its machine as the close-out counted them, and it left
  * no background task running; otherwise it needs you, naming the disagreement. A no needs you with
@@ -544,7 +544,7 @@ export class LogFold {
     } else if (line.kind === "turn-ended" || line.kind === "session-started" || line.kind === "session-ended") own.running.clear();
     // Its close-out, and what came after it.
     if (line.kind === "closed-out") own.closedOut = { line, reopened: false };
-    else if (own.closedOut !== undefined && (line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;
+    else if (own.closedOut !== undefined && (line.kind === "claimed" || line.kind === "prompt-submitted" || (line.kind === "session-started" && line.how !== "compact"))) own.closedOut.reopened = true;
     if (line.kind === "session-named") own.name = line.title;
     if (line.kind === "turn-ended") own.lastTurnEnded = { seq: line.seq, background: line.background ?? 0 };
   }

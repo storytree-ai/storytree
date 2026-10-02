@@ -16,7 +16,7 @@ import { PLACE_WIDTH, type CapabilityWord, type ForestScene, type Island, type P
 import type { AnnotatedTree, Change } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
-import { packageOf, type StorySurvey } from "../code-survey/code-survey.js";
+import { packageOf, type StorySurvey } from "@storytree/map";
 import { islandArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 import { landForCircles } from "../territories/territories.js";

@@ -8,7 +8,7 @@ import { buildPlanetPathways, plateTransform } from "@storytree/forest-world/geo
 import { forestScene, PLANET_RADIUS, SEA_GAP, storyNodes } from "@storytree/forest";
 
 import { planetLayout } from "./planet-navigation.js";
-import type { StorySurvey } from "../code-survey/code-survey.js";
+import type { StorySurvey } from "@storytree/map";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const ids = ["story_05e45963ca9f", "story_16ac26dfa5d6", "story_78b33d16d0b6", "story_20549f1d48af", "story_be32e99ed54f", "story_4c04d95d52a8", "story_69d0ee10bbe7", "story_eb7d623fb9c8"];

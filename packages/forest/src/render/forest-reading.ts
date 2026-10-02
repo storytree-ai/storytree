@@ -7,7 +7,7 @@
 import { ASK_EVERY_MS, pageReading, type LiveReading, type LiveReads, type News, type PageReading, type Timers } from "@storytree/arc-surface";
 import type { AnnotatedTree } from "@storytree/library";
 
-import type { StorySurvey } from "../code-survey/code-survey.js";
+import type { StorySurvey } from "@storytree/map";
 
 /** The live reading's two reads and the project's tree: `window.storytree`'s. */
 export interface ForestReads extends LiveReads {

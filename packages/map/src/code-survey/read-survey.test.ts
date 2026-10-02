@@ -3,6 +3,7 @@
  * changed since the last survey (ADR-0836 D2). Written against a small package in a temporary folder.
  */
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -59,6 +60,49 @@ test("8.8 each surveyed story names the stories whose packages its package depen
     assert.deepEqual(survey["story-shop"]?.dependsOn, ["story-till", "story-bank"]);
     assert.deepEqual(survey["story-till"]?.dependsOn, ["story-bank"]);
     assert.deepEqual(survey["story-bank"]?.dependsOn, []);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+
+test("8.9 the app survey includes desktop source and resolves its imports as the same story", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-desktop-"));
+  const app = { arcs: [], stories: [{ id: "app", title: "The app", capabilities: [{ id: "projects", title: "2 · Projects" }] }] } as unknown as AnnotatedTree;
+  try {
+    await mkdir(path.join(folder, "packages/app/src"), { recursive: true });
+    await mkdir(path.join(folder, "apps/desktop/src/view"), { recursive: true });
+    await writeFile(path.join(folder, "packages/app/src/projects.ts"), "export const projects = true;\n");
+    await writeFile(path.join(folder, "packages/app/src/projects.test.ts"), 'import { view } from "../../../apps/desktop/src/view/view.js";\ntest("2.5 Projects view", () => view);\n');
+    await writeFile(path.join(folder, "apps/desktop/src/view/view.ts"), 'import { projects } from "../../../../packages/app/src/projects.js";\nexport const view = projects;\n');
+    const survey = await codeSurveyReader().read(folder, app);
+    assert.deepEqual(survey["app"]?.files, [
+      { path: "src/projects.ts", lines: 1, capability: "projects" },
+      { path: "../../apps/desktop/src/view/view.ts", lines: 2, capability: "projects" },
+    ]);
+    assert.deepEqual(survey["app"]?.imports, [{ from: "../../apps/desktop/src/view/view.ts", to: "src/projects.ts" }]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.11 a caller may survey its current worktree while the forest default still surveys main", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-checkout-"));
+  const main = path.join(folder, "main");
+  const worktree = path.join(folder, "worktree");
+  try {
+    await mkdir(path.join(main, "packages/shop/src"), { recursive: true });
+    await writeFile(path.join(main, "packages/shop/src/claim.ts"), "export const claim = 1;\n");
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: main, stdio: "pipe", windowsHide: true });
+    git("init");
+    git("add", ".");
+    git("-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "-m", "survey fixture");
+    git("worktree", "add", "--detach", worktree, "HEAD");
+    await writeFile(path.join(worktree, "packages/shop/src/claim.ts"), "export const claim = 1;\nexport const changed = 2;\n");
+    const defaultSurvey = await codeSurveyReader().read(worktree, tree);
+    const currentSurvey = await codeSurveyReader({ checkout: "current" }).read(worktree, tree);
+    assert.equal(defaultSurvey["story-shop"]?.files[0]?.lines, 1);
+    assert.equal(currentSurvey["story-shop"]?.files[0]?.lines, 2);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

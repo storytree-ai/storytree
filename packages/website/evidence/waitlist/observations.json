@@ -1,0 +1,122 @@
+{
+  "story": "The website",
+  "commit": "local-worktree",
+  "evidence": "packages/website/evidence/waitlist/visit",
+  "note": "visited the locally built site (packages/website/dist), with waitlist writes intercepted locally",
+  "checks": [
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the page reads and the waitlist offers LinkedIn joining",
+      "observed": "pass",
+      "detail": "heading true, LinkedIn fallback true, inactive form hidden true"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the repository link is visible and following it reaches a page",
+      "observed": "pass",
+      "detail": "https://github.com/storytree-ai/storytree answered 200"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the license link is visible and following it reaches a page",
+      "observed": "fail",
+      "detail": "https://github.com/storytree-ai/storytree/blob/main/LICENSE answered 503"
+    },
+    {
+      "contract": "1.3",
+      "name": "with JavaScript off, the LinkedIn contact link is visible and following it reaches a page",
+      "observed": "pass",
+      "detail": "https://www.linkedin.com/in/mick-hua-353353a/ answered 999 (LinkedIn's refusal of automated browsers, not a missing page)"
+    },
+    {
+      "contract": "1.4",
+      "name": "an address with no page answers 404, and its link back takes the visitor home",
+      "observed": "pass",
+      "detail": "404, then /"
+    },
+    {
+      "contract": "5.2",
+      "name": "missing and malformed email are refused without a request",
+      "observed": "pass",
+      "detail": "0 requests"
+    },
+    {
+      "contract": "5.1",
+      "name": "pending keyboard activation submits once and leaves focus on submit",
+      "observed": "pass",
+      "detail": "1 request; focus waitlist-submit"
+    },
+    {
+      "contract": "5.2",
+      "name": "a rate limit retains email and choices, and completion does not steal focus after Tab",
+      "observed": "pass",
+      "detail": "input retained true; Too many attempts. Please try again later, or message Mick on LinkedIn. Your answers are still here."
+    },
+    {
+      "contract": "5.2",
+      "name": "HTTP 403 preserves the form for retry",
+      "observed": "pass",
+      "detail": "Your sign-up was not accepted. Check your email and try again, or message Mick on LinkedIn. Your answers are still here."
+    },
+    {
+      "contract": "5.2",
+      "name": "HTTP 500 preserves the form for retry",
+      "observed": "pass",
+      "detail": "We couldn’t confirm your sign-up. Please try again, or message Mick on LinkedIn. Your answers are still here."
+    },
+    {
+      "contract": "5.1",
+      "name": "touch retry reports joined only after acceptance and reuses the unchanged request key",
+      "observed": "pass",
+      "detail": "local responses only; 4 attempts, 1 idempotency key"
+    },
+    {
+      "contract": "5.4",
+      "name": "menu and hero open the same waitlist; one keyboard action opens its disclosure",
+      "observed": "pass",
+      "detail": "menu true, hero true, disclosure true, adjacent promise and AI disclosure true"
+    },
+    {
+      "contract": "1.6",
+      "name": "at 390 px, every header, footer, text-link and waitlist submit control is at least 44 CSS px high",
+      "observed": "pass",
+      "detail": "16 controls, the lowest 44 px"
+    },
+    {
+      "contract": "1.6",
+      "name": "at 390 px, keyboard focus on the email field and the waitlist submit control is visible and not clipped by its panel",
+      "observed": "pass",
+      "detail": "[{\"width\":3,\"style\":\"solid\",\"inside\":true},{\"width\":3,\"style\":\"solid\",\"inside\":true}]"
+    },
+    {
+      "contract": "1.7",
+      "name": "with text at 200% at 320 and 390 px, home and not-found headers do not overlap, nothing runs off the screen or scrolls sideways, and the waitlist submit control stays whole",
+      "observed": "pass",
+      "detail": "home and not found, at 320 and 390 px"
+    },
+    {
+      "contract": "2.3",
+      "name": "before the 3D scene's code arrives, the heading and the waitlist form work before the scene arrives",
+      "observed": "pass",
+      "detail": "scene code requested yet: true; form validation available true"
+    },
+    {
+      "contract": "2.1",
+      "name": "with WebGL, the live scene takes over from the still and draws on its canvas",
+      "observed": "pass",
+      "detail": "state live, canvas shown true, still shown false, 36 distinct colours where the scene is"
+    },
+    {
+      "contract": "2.2",
+      "name": "when WebGL is unavailable, the visitor sees the forest's still and the page stays usable",
+      "observed": "pass",
+      "detail": "state still, still shown true, waitlist usable true"
+    },
+    {
+      "contract": "2.2",
+      "name": "when the scene's code fails to load, the visitor sees the forest's still and the page stays usable",
+      "observed": "pass",
+      "detail": "state still, still shown true, waitlist usable true"
+    }
+  ]
+}

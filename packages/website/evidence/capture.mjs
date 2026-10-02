@@ -35,6 +35,7 @@ try {
   if (process.argv.includes("--verify-opening")) await verifyOpening(browser, url, output);
   if (verifyHome) {
     const noScript = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+    await noScript.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await noScript.goto(url);
     assert.equal(await noScript.locator('#waitlist-form').isVisible(), false);
     assert.ok(await noScript.locator('#waitlist noscript a[href="https://www.linkedin.com/in/mick-hua-353353a/"]').isVisible());
@@ -53,6 +54,7 @@ try {
     const problems = [];
     for (const width of [320, 390, 1280]) for (const route of ["home", "404"]) {
       const page = await browser.newPage({ viewport: { width, height: 900 } });
+      await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
       await page.goto(url + (route === "404" ? "missing-page" : ""));
       await page.evaluate(() => {
         const sizes = [...document.querySelectorAll("body, body *")].map(element => [element, parseFloat(getComputedStyle(element).fontSize)]);
@@ -69,7 +71,7 @@ try {
         for (let i = 0; i < header.length; i++) for (let j = i + 1; j < header.length; j++) {
           if (header[i].rects.some(a => header[j].rects.some(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1))) issues.push(`${header[i].text} overlaps ${header[j].text}`);
         }
-        const headings = [...document.querySelectorAll("h1, #waitlist-title")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
+        const headings = [...document.querySelectorAll("h1, #waitlist-title, .email-label, #waitlist-form legend, .waitlist-choice, #waitlist-promise, #waitlist-ai, #waitlist-disclosure")].map(element => ({ text: element.textContent.trim(), rects: textRects(element) }));
         for (const element of [...header, ...headings]) if (element.rects.some(rect => rect.left < 0 || rect.right > innerWidth + 1)) issues.push(`${element.text} extends beyond the viewport`);
         const button = document.querySelector("#waitlist-submit");
         let form;
@@ -115,6 +117,7 @@ try {
   const measures = [];
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }, ...(verifyControls ? [{ width: 320, height: 720 }] : [])]) {
     const page = await browser.newPage({ viewport, deviceScaleFactor: 1, reducedMotion: "reduce" });
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(url, { waitUntil: "networkidle" });
@@ -135,7 +138,8 @@ try {
     assert.deepEqual(errors, []);
     await page.screenshot({ path: path.join(output, `${viewport.width}.png`), fullPage: true });
     await page.locator('#waitlist-disclosure').evaluate(details => { details.open = true; });
-    await page.locator('#waitlist').screenshot({ path: path.join(output, `${viewport.width}-waitlist.png`) });
+    const waitlistClip = await page.locator('#waitlist').evaluate(section => ({ x: 0, y: section.getBoundingClientRect().top + scrollY, width: innerWidth, height: section.getBoundingClientRect().height }));
+    await page.screenshot({ path: path.join(output, `${viewport.width}-waitlist.png`), clip: waitlistClip, fullPage: true });
     if (verifyControls) {
       measured.controls = await page.locator(".site-header a, .site-footer a, .text-link, #waitlist-submit, #waitlist-email, .waitlist-choice, #waitlist-disclosure summary").evaluateAll(controls => controls.map(control => ({
         name: control.textContent.trim(), width: control.getBoundingClientRect().width, height: control.getBoundingClientRect().height,
@@ -143,6 +147,7 @@ try {
       for (const control of measured.controls) assert.ok(control.height >= 44, `${control.name} needs a 44 px target height`);
       measured.focus = [];
       for (const [name, selector] of [["email", "#waitlist-email"], ["submit", "#waitlist-submit"]]) {
+        await page.keyboard.press("Tab");
         await page.locator(selector).focus();
         const focus = await page.locator(selector).evaluate(control => {
           const box = control.closest("#waitlist-form");
@@ -152,7 +157,7 @@ try {
           const rect = control.getBoundingClientRect();
           const boundary = box.getBoundingClientRect();
           const light = color => color.match(/[\d.]+/g).slice(0, 3).map(Number).map(n => n / 255).map(n => n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4).reduce((sum, n, i) => sum + n * [.2126, .7152, .0722][i], 0);
-          const levels = [light(style.outlineColor), light(getComputedStyle(box).backgroundColor)].sort((a, b) => b - a);
+          const levels = [light(style.outlineColor), light(getComputedStyle(box.closest(".paper")).backgroundColor)].sort((a, b) => b - a);
           return { width, contrast: (levels[0] + .05) / (levels[1] + .05), inside: rect.left - extent >= boundary.left && rect.right + extent <= boundary.right && rect.top - extent >= boundary.top && rect.bottom + extent <= boundary.bottom };
         });
         assert.ok(focus.width > 0 && focus.contrast >= 3, `${name} focus must be visible against the form`);

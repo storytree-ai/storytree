@@ -19,8 +19,8 @@ test("3.4 the map command reads the current plan and survey and exposes counts, 
       const options = { select: "file:packages/app/src/view.ts", up: 1, mode };
       const json = JSON.parse(await mapCommand(library, folder, options, true));
       const text = await mapCommand(library, folder, options);
-      assert.equal(json.rowCount, 3);
-      assert.match(text, /3 rows/);
+      assert.equal(json.rowCount, 4);
+      assert.match(text, /4 rows/);
       assert.equal(json.rows !== undefined, mode === "show");
       if (mode === "show") assert.ok(json.rows.some((row: { id: string }) => row.id === "empty"));
     }

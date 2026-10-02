@@ -78,6 +78,7 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
     for (const file of read.files) {
       const cap = file.capability === undefined ? undefined : caps.get(file.capability);
       add({ id: fileId(file.path), kind: "file", title: pathname(file.path), path: pathname(file.path), story: story.id, health: healthOf(cap?.health, healthSource) });
+      edge(fileId(file.path), story.id, "belongs-to", "inferred");
       if (cap) {
         edge(fileId(file.path), cap.id, "implements", "inferred");
         // These direct edges make a file's promises visible at depth one (Projects 2.5).
@@ -89,6 +90,7 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
       const states = contracts.map(contract => healthOf(contract.health, healthSource));
       const health = states.includes("failing") ? "failing" : states.length > 0 && states.every(state => state === "healthy") ? "healthy" : "untested";
       add({ id: fileId(file.path), kind: "test", title: pathname(file.path), path: pathname(file.path), story: story.id, health });
+      edge(fileId(file.path), story.id, "belongs-to", "inferred");
       for (const contract of contracts) edge(fileId(file.path), contract.id, "tests", "inferred");
       for (const imported of file.imports) {
         edge(fileId(imported.from), fileId(imported.to), "imports", "inferred");

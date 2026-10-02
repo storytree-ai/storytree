@@ -20,6 +20,7 @@ import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
 import { session } from "./session.js";
 import { settings } from "./settings.js";
+import { mapFamily } from "./map.js";
 
 /** Words agents try for a family storytree does not have, each with the command for that job. */
 export const GUESSES: Readonly<Record<string, string>> = {
@@ -38,6 +39,7 @@ export const FAMILIES: readonly Family[] = [
   friction,
   resteer,
   plan,
+  mapFamily,
   health,
   capabilities,
   setupFamily,

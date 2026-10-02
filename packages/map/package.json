@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./code-survey": "./src/code-survey/read-survey.ts"
+    "./code-survey": "./src/code-survey/read-survey.ts",
+    "./read": "./src/read.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

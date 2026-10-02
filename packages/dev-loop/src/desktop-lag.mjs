@@ -252,7 +252,7 @@ function profileSummary(p) {
   const self = new Map();
   let total = 0;
   for (let i = 0; i < p.samples.length; i++) {
-    const ms = (p.timeDeltas[i + 1] ?? 0) / 1000;
+    const ms = (p.timeDeltas[i] ?? 0) / 1000;
     total += ms;
     self.set(p.samples[i], (self.get(p.samples[i]) ?? 0) + ms);
   }

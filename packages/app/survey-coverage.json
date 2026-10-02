@@ -1,7 +1,7 @@
 {
  "src/lifecycle/background.ts": {
   "1": 40,
-  "4": 20
+  "4": 40
  },
  "src/lifecycle/backups.ts": {
   "1": 2
@@ -26,7 +26,7 @@
   "2": 36
  },
  "src/surfaces/reads.ts": {
-  "3": 115
+  "3": 138
  },
  "src/surfaces/smoke.ts": {
   "3": 4
@@ -47,32 +47,62 @@
   "1": 4,
   "4": 12
  },
+ "src/updates/hold-run.mjs": {
+  "4": 2
+ },
+ "src/updates/install-choice-file.ts": {
+  "4": 9
+ },
+ "src/updates/install-choice.ts": {
+  "4": 39
+ },
  "src/updates/install-moment.ts": {
-  "4": 6
+  "4": 12
  },
  "src/updates/main-updates.ts": {
   "4": 55
+ },
+ "src/updates/release-channel.ts": {
+  "4": 1
  },
  "src/updates/release-source.ts": {
   "4": 9
  },
  "src/updates/releases.ts": {
-  "3": 5,
-  "4": 52
+  "3": 6,
+  "4": 104
  },
  "src/updates/seed-writing.ts": {
   "4": 1
  },
+ "src/updates/stable-github.ts": {
+  "4": 4
+ },
+ "src/updates/stable-pin.ts": {
+  "4": 32
+ },
+ "src/updates/update-holds.ts": {
+  "4": 16
+ },
  "src/updates/version.ts": {
   "4": 6
  },
+ "src/view/index.ts": {
+  "2": 13
+ },
  "src/view/render.ts": {
-  "2": 10
+  "2": 23,
+  "4": 10
  },
  "src/view/surfaces.ts": {
+  "2": 2,
   "3": 24
  },
+ "src/view/switch.ts": {
+  "2": 2
+ },
  "src/view/updates.ts": {
-  "4": 3
+  "2": 11,
+  "4": 50
  }
 }

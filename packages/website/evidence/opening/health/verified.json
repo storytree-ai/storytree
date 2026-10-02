@@ -1,0 +1,37 @@
+{
+  "contract": {
+    "reported": {
+      "state": "not-checked"
+    },
+    "verified": {
+      "state": "passing",
+      "by": "acceptance run",
+      "at": "2026-10-02T10:32:02.854Z",
+      "note": "1/1 checks passed, Locally built website served from packages/website/dist, evidence packages/website/evidence/opening/health, at commit 681be458401110002ac0d1eaad13167524ecb1c0"
+    }
+  },
+  "capability": {
+    "reported": {
+      "state": "not-checked"
+    },
+    "verified": {
+      "state": "passing"
+    }
+  },
+  "acceptance": [
+    {
+      "column": "verified",
+      "state": "passing",
+      "by": "acceptance run",
+      "at": "2026-10-02T10:23:30.980Z",
+      "note": "1/1 checks passed, Locally built website served from packages/website/dist, evidence packages/website/evidence/opening/health, at commit d94fc5cab3172831e7ee089a464228c719fa3814"
+    },
+    {
+      "column": "verified",
+      "state": "passing",
+      "by": "acceptance run",
+      "at": "2026-10-02T10:32:02.854Z",
+      "note": "1/1 checks passed, Locally built website served from packages/website/dist, evidence packages/website/evidence/opening/health, at commit 681be458401110002ac0d1eaad13167524ecb1c0"
+    }
+  ]
+}

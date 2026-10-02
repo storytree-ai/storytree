@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "681be458401110002ac0d1eaad13167524ecb1c0",
+  "evidence": "packages/website/evidence/opening/health",
+  "note": "Locally built website served from packages/website/dist",
+  "checks": [
+    {
+      "contract": "1.8",
+      "name": "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      "observed": "pass"
+    }
+  ]
+}

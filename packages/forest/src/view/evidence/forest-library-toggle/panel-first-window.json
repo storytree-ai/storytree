@@ -1,0 +1,144 @@
+{
+  "frame": {
+    "x": 908.1875,
+    "y": 332.6875,
+    "width": 439.625,
+    "height": 352,
+    "top": 332.6875,
+    "right": 1347.8125,
+    "bottom": 684.6875,
+    "left": 908.1875
+  },
+  "cards": [
+    {
+      "id": "capability_33812c1d778b",
+      "bounds": {
+        "x": 916.1875,
+        "y": 359.6875,
+        "width": 208,
+        "height": 94,
+        "top": 359.6875,
+        "right": 1124.1875,
+        "bottom": 453.6875,
+        "left": 916.1875
+      },
+      "titleFonts": [
+        12.5
+      ],
+      "healthFonts": [
+        10
+      ],
+      "markFonts": [
+        10.5,
+        10.5
+      ],
+      "fits": true
+    },
+    {
+      "id": "capability_8595861a88df",
+      "bounds": {
+        "x": 1132.1875,
+        "y": 359.6875,
+        "width": 208,
+        "height": 94,
+        "top": 359.6875,
+        "right": 1340.1875,
+        "bottom": 453.6875,
+        "left": 1132.1875
+      },
+      "titleFonts": [
+        12.5
+      ],
+      "healthFonts": [
+        10
+      ],
+      "markFonts": [
+        10.5,
+        10.5
+      ],
+      "fits": true
+    },
+    {
+      "id": "capability_8ffc78a4bad2",
+      "bounds": {
+        "x": 916.1875,
+        "y": 461.6875,
+        "width": 208,
+        "height": 94,
+        "top": 461.6875,
+        "right": 1124.1875,
+        "bottom": 555.6875,
+        "left": 916.1875
+      },
+      "titleFonts": [
+        12.5
+      ],
+      "healthFonts": [
+        10
+      ],
+      "markFonts": [
+        10.5,
+        10.5
+      ],
+      "fits": true
+    },
+    {
+      "id": "capability_f0ffead428df",
+      "bounds": {
+        "x": 1132.1875,
+        "y": 461.6875,
+        "width": 208,
+        "height": 94,
+        "top": 461.6875,
+        "right": 1340.1875,
+        "bottom": 555.6875,
+        "left": 1132.1875
+      },
+      "titleFonts": [
+        12.5
+      ],
+      "healthFonts": [
+        10
+      ],
+      "markFonts": [
+        10.5,
+        10.5
+      ],
+      "fits": true
+    },
+    {
+      "id": "capability_efa4328b624c",
+      "bounds": {
+        "x": 916.1875,
+        "y": 563.6875,
+        "width": 208,
+        "height": 94,
+        "top": 563.6875,
+        "right": 1124.1875,
+        "bottom": 657.6875,
+        "left": 916.1875
+      },
+      "titleFonts": [
+        12.5
+      ],
+      "healthFonts": [
+        10
+      ],
+      "markFonts": [
+        10.5,
+        10.5
+      ],
+      "fits": true
+    }
+  ],
+  "treeView": "{\"x\":1,\"y\":20,\"scale\":1}",
+  "popoutOpen": false,
+  "selected": "capability_33812c1d778b",
+  "viewport": {
+    "width": 1380,
+    "height": 970
+  },
+  "browser": "148.0.7778.96",
+  "synthetic": "One story and its first five capabilities, independent and proposed. No library writes.",
+  "cardAreaFraction": 0.6317367591180499
+}

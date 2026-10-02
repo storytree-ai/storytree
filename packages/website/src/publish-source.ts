@@ -15,13 +15,15 @@ export interface MergedPullRequest {
 
 export const REPOSITORY = "storytree-ai/storytree";
 
-/** Contract 4.3: queue merges produce a main push; CI's direct merges produce a PR run. */
+/** Contract 4.3: accept verified main pushes, direct PR merges and queue commits confirmed merged. */
 export function publicationSource(run: CheckedRun, pr?: MergedPullRequest): string | undefined {
   if (run.conclusion !== "success" || run.head_repository?.full_name !== REPOSITORY) return undefined;
   let sha: string | null | undefined;
   if (run.event === "push" && run.head_branch === "main") sha = run.head_sha;
   if (run.event === "pull_request" && pr?.merged && pr.base.ref === "main" &&
       pr.head.repo?.full_name === REPOSITORY && pr.head.sha === run.head_sha) sha = pr.merge_commit_sha;
+  if (run.event === "merge_group" && pr?.merged && pr.base.ref === "main" &&
+      pr.head.repo?.full_name === REPOSITORY && pr.merge_commit_sha === run.head_sha) sha = pr.merge_commit_sha;
   return sha && /^[a-f0-9]{40}$/.test(sha) ? sha : undefined;
 }
 

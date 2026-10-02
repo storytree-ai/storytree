@@ -17,7 +17,7 @@ const verifyHome = process.argv.includes("--verify-home") || verifyControls;
 await mkdir(output, { recursive: true });
 let openingCommit;
 if (verifyOpeningRequested) {
-  await rm(path.join(output, "observations.json"), { force: true });
+  await rm(path.join(output, "opening-observations.json"), { force: true });
   openingCommit = (await readFile(path.join(dist, "version.txt"), "utf8")).trim();
   assert.match(openingCommit, /^[0-9a-f]{40}$/, "Opening acceptance needs the locally built website's full commit in dist/version.txt");
 }
@@ -53,7 +53,7 @@ try {
       check.detail = error.message;
       throw error;
     } finally {
-      await writeFile(path.join(output, "observations.json"), JSON.stringify({
+      await writeFile(path.join(output, "opening-observations.json"), JSON.stringify({
         story: "The website",
         commit: openingCommit,
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),

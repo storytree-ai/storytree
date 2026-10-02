@@ -66,24 +66,37 @@ test("8.4 quoted fixtures and comments create no import edges or ownership, even
     'const fixture = `export { answer } from "./main.js";`;',
     '// import "./main.js";',
     '/* export * from "./main.js"; */',
+    'export const label = 1 /* from "./main.js" */;',
+    'const pattern = /"/; const apostrophe = /\'/;',
+    '@sealed class Example { method(@inject value: unknown) {} }',
   ]) {
     const surveyed = surveyStory([
       { path: "src/main.ts", text: "export const answer = 42;" },
       { path: "src/real.ts", text: "export const real = 1;" },
       { path: "src/side.ts", text: "export {};" },
       { path: "src/lazy.ts", text: "export {};" },
-      { path: "src/index.ts", text: 'export { real } from "./real.js";' },
-      { path: "src/fixture.test.ts", text: [inert,
-        'import { real } from "./index.js";',
+      { path: "src/index.ts", text: 'export { /* from "./main.js" */ real } from "./real.js";' },
+      { path: "src/fixture.test.ts", text: ['test("3.1 real imports", () => real);', inert,
+        'import { /* from "./main.js" */ real } from "./index.js";',
         'import "./side.js";',
-        'test("3.1 real imports", () => import("./lazy.js"));',
+        'const later = () => `${import("./lazy.js")}`;',
+        'type Lazy = typeof import("./lazy.js");',
       ].join("\n") },
     ], capabilities);
     assert.equal(surveyed.files.find(file => file.path === "src/main.ts")?.capability, undefined, inert);
-    assert.deepEqual(surveyed.tests?.[0]?.imports.map(edge => edge.to), ["src/index.ts", "src/side.ts", "src/lazy.ts"], inert);
+    assert.deepEqual(surveyed.tests?.[0]?.imports.map(edge => edge.to), ["src/index.ts", "src/side.ts", "src/lazy.ts", "src/lazy.ts"], inert);
     assert.deepEqual(surveyed.imports, [{ from: "src/index.ts", to: "src/real.ts" }], inert);
     assert.ok(surveyed.files.filter(file => file.path !== "src/main.ts").every(file => file.capability === "cap-claims"), inert);
   }
+});
+
+test("8.4 an unfinished edit after a real import does not hide that import or abort the survey", () => {
+  const surveyed = surveyStory([
+    { path: "src/main.ts", text: "export const answer = 42;" },
+    { path: "src/main.test.ts", text: 'import { answer } from "./main.js"; test("3.1 answer", () => answer); function pending() {' },
+  ], capabilities);
+  assert.deepEqual(surveyed.tests?.[0]?.imports, [{ from: "src/main.test.ts", to: "src/main.ts" }]);
+  assert.equal(surveyed.files[0]?.capability, "cap-claims");
 });
 
 test("8.6 a file a numbered test's runs executed belongs to the capability whose tests executed it most; a direct import outranks it, and it outranks a file reached only through further imports", () => {

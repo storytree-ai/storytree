@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { pinStable, type PinPorts, type StableManifest } from "./stable-pin.js";
+import { publishStable, type GithubRequest } from "./stable-github.js";
 
 function fixture() {
   let current: { ref: string; manifest: StableManifest } | undefined;
@@ -64,4 +65,38 @@ test("4.16 preview publishes nothing; invalid, old or channel-unaware builds and
   state.race = true;
   await assert.rejects(pinStable("0.3.3", ports), /pin moved/i);
   assert.equal(state.published.length, 1);
+});
+
+test("4.16 competing publishers expose one complete feed and bootstrap, with the losing pin refused", async () => {
+  const { ports } = fixture();
+  const manifest = await pinStable("0.3.2", ports, true);
+  let head = "base";
+  const trees = new Map<string, { tree: { path: string; content: string }[] }>();
+  const commits = new Map<string, { tree: string; parents: string[] }>();
+  const api: GithubRequest = async (endpoint, method, body) => {
+    if (endpoint === "git/trees") {
+      const sha = `tree-${trees.size}`;
+      trees.set(sha, body as never);
+      return { sha };
+    }
+    if (endpoint === "git/commits") {
+      const sha = `commit-${commits.size}`;
+      commits.set(sha, body as never);
+      return { sha };
+    }
+    assert.equal(method, "PATCH");
+    const update = body as { sha: string; force: boolean };
+    if (!update.force && commits.get(update.sha)?.parents[0] !== head) throw new Error("Reference update is not a fast forward");
+    head = update.sha;
+    return {};
+  };
+  const results = await Promise.allSettled([
+    publishStable(manifest, "the published bootstrap", "base", api),
+    publishStable({ ...manifest, version: "0.3.3" }, "the published bootstrap", "base", api),
+  ]);
+  assert.equal(results.filter(r => r.status === "fulfilled").length, 1);
+  assert.equal(results.filter(r => r.status === "rejected").length, 1);
+  const tree = trees.get(commits.get(head)!.tree)!.tree;
+  assert.deepEqual(JSON.parse(tree.find(f => f.path === "latest.yml")!.content), manifest);
+  assert.equal(tree.find(f => f.path === "install-storytree.ps1")!.content, "the published bootstrap");
 });

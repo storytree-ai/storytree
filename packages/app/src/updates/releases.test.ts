@@ -12,6 +12,27 @@ import { ElectronHttpExecutor } from "electron-updater/out/electronHttpExecutor.
 import { background, type Launch } from "../lifecycle/background.js";
 import { ReleaseUpdater } from "./releases.js";
 
+test("4.15 stable downloads only the pinned artifact while development continues to advance; no stable feed never falls back", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.9";
+  feed.stable = "0.3.2";
+  const stable = feed.updater(async () => {}, async () => false, async () => false, "stable");
+  const development = feed.updater(async () => {}, async () => false, async () => false, "development");
+  assert.equal(await stable.check(), "waiting");
+  assert.equal(stable.request("status").nextBuild, "0.3.2");
+  assert.equal(await development.check(), "waiting");
+  assert.equal(development.request("status").nextBuild, "0.3.9");
+  feed.stable = undefined;
+  let installed = 0;
+  const unpinned = feed.updater(async () => { installed++; }, async () => true, async () => true, "stable");
+  await assert.rejects(unpinned.check(), /404|channel/i);
+  assert.equal(installed, 0);
+  assert.equal(unpinned.request("status").phase, "failed");
+  feed.stable = "0.3.3";
+  assert.equal(await unpinned.check(), "restarting");
+  assert.equal(unpinned.request("status").nextBuild, "0.3.3");
+});
+
 test("4.4 an installed app downloads a newer release, waits for a seed, stops its database and restarts through NSIS", async (t) => {
   const feed = await fixture(t);
   let writing = true;
@@ -141,10 +162,13 @@ async function fixture(t: test.TestContext) {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture NSIS payload — never executed");
-  const state = { version: "0.3.1", offline: false, corrupt: false, downloads: 0, installer };
+  const state = { version: "0.3.1", stable: undefined as string | undefined, offline: false, corrupt: false, downloads: 0, installer };
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
-    if (request.url?.startsWith("/latest.yml")) {
+    if (request.url?.startsWith("/stable/latest.yml")) {
+      if (!state.stable) { response.writeHead(404).end(); return; }
+      response.end(JSON.stringify({ version: state.stable, files: [{ url: `http://127.0.0.1:${(server.address() as { port: number }).port}/setup.exe`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }] }));
+    } else if (request.url?.startsWith("/latest.yml")) {
       response.end(JSON.stringify({ version: state.version, files: [{ url: "setup.exe", size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }] }));
     } else if (request.url === "/setup.exe") {
       state.downloads++;
@@ -159,8 +183,8 @@ async function fixture(t: test.TestContext) {
   await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${address.port}`, updaterCacheDirName: "updates" }));
   return Object.assign(state, {
     holds: path.join(dir, "update-holds"),
-    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true) {
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir }, {
+    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, ...(channel ? { releaseChannel: () => channel } : {}) }, {
         version: "0.3.1", name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),
@@ -168,7 +192,12 @@ async function fixture(t: test.TestContext) {
       });
       // Replace only Electron's network transport, retaining its file download and digest checks.
       const transport = new NodeHttpExecutor();
-      const executor = Object.assign(new ElectronHttpExecutor(), { createRequest: transport.createRequest.bind(transport) });
+      const executor = Object.assign(new ElectronHttpExecutor(), { createRequest(options: Parameters<typeof transport.createRequest>[0], callback: Parameters<typeof transport.createRequest>[1]) {
+        if (options.hostname === "raw.githubusercontent.com") {
+          options = { ...options, protocol: "http:", hostname: "127.0.0.1", port: address.port, path: `/stable/${String(options.path).split("/").at(-1)}` };
+        }
+        return transport.createRequest(options, callback);
+      } });
       Object.assign(updater, { httpExecutor: executor, _testOnlyOptions: { platform: "win32" } });
       updater.logger = null;
       updater.disableDifferentialDownload = true;

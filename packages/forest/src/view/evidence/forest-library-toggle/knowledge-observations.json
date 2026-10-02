@@ -1,0 +1,27 @@
+{
+  "story": "The knowledge core",
+  "commit": "779a8c71628674d567e6e7b803ebca9047730cfd",
+  "evidence": "packages/forest/src/view/evidence/forest-library-toggle",
+  "checks": [
+    {
+      "contract": "1.7",
+      "name": "Library keeps the live core and the complete points at their depths (front)",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.7",
+      "name": "Forest keeps the live core and the complete points at their depths (front)",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.7",
+      "name": "Library keeps the live core and the complete points at their depths (quarter-turn)",
+      "observed": "pass"
+    },
+    {
+      "contract": "1.7",
+      "name": "Forest keeps the live core and the complete points at their depths (quarter-turn)",
+      "observed": "pass"
+    }
+  ]
+}

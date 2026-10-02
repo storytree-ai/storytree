@@ -5,6 +5,14 @@ runs named Node tests for forest 3.5, 3.9 and 3.10, and emits machine observatio
 for `pnpm record:acceptance`. Pointer hover and the five-CSS-pixel drag threshold
 (3.12) run in the ordinary suite in `../../planet-view.test.ts`.
 
+Increment `increment_c5580ace0978` also names Knowledge core 1.7 in four browser
+tests: each switch, in both directions and at both angles, submits all 176 eligible
+points at unchanged positions, computed depths and shelf membership, and preserves
+the live point-layer identity. The fixture includes both shelf and no-shelf points.
+These existing behaviors are retained, not retired. `knowledge-observations.json`
+records their acceptance checks for **The knowledge core**, separately from the
+forest's results; record it with the same acceptance command below.
+
 | Check | Observed |
 | --- | --- |
 | 3.5 glass | At least 81.96% background transmission across the inner disc, a brighter rim, one soft highlight, no opaque sea |

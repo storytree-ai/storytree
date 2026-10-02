@@ -1,0 +1,57 @@
+{
+  "story": "The forest",
+  "commit": "cb972c551d7751e5cedeef70382f26b010b1332a",
+  "evidence": "/home/mickh/code/storytree03-wt/increment-05f91c159f48-9889ad/packages/forest/src/view/evidence/forest-library-toggle",
+  "checks": [
+    {
+      "contract": "3.5",
+      "name": "the mounted glass transmits at least 80% through both faces, with a bright rim and one soft highlight",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.9",
+      "name": "Forest restores all story layers (front)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.9",
+      "name": "Library submits only the knowledge points (front)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.10",
+      "name": "switching to Library preserves the live globe (front)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.10",
+      "name": "switching to Forest preserves the live globe (front)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.9",
+      "name": "Forest restores all story layers (quarter-turn)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.9",
+      "name": "Library submits only the knowledge points (quarter-turn)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.10",
+      "name": "switching to Library preserves the live globe (quarter-turn)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.10",
+      "name": "switching to Forest preserves the live globe (quarter-turn)",
+      "observed": "pass"
+    },
+    {
+      "contract": "3.10",
+      "name": "Library clears story selection, remains turnable and zoomable, and a launch defaults to Forest",
+      "observed": "pass"
+    }
+  ]
+}

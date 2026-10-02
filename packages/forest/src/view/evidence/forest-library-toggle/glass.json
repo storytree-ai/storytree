@@ -1,0 +1,23 @@
+{
+  "transmission": 0.8196078431372549,
+  "centreLight": 5,
+  "rim": [
+    45,
+    43,
+    45,
+    43
+  ],
+  "highlights": 1,
+  "highlightLevels": 30,
+  "faces": [
+    {
+      "transparent": true,
+      "depthWrite": false
+    },
+    {
+      "transparent": true,
+      "depthWrite": false
+    }
+  ],
+  "sea": false
+}

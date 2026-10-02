@@ -16,5 +16,23 @@
       "median": 8191.0,
       "max": 9415
     }
+  },
+  "explicitShutdown": {
+    "commit": "072ba0d263426b975d72b4207af5a17faa8b1a5a",
+    "node": "v24.19.0",
+    "platform": "linux",
+    "availableParallelism": 12,
+    "concurrency": 4,
+    "testLimitMs": 60000,
+    "exitGraceMs": 20000,
+    "unitLimitMs": 60000,
+    "runs": 100,
+    "testsPerRun": 164,
+    "failedRuns": [],
+    "durationMs": {
+      "min": 7966,
+      "median": 8719.5,
+      "max": 11701
+    }
   }
 }

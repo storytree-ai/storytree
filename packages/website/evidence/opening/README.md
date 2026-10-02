@@ -5,11 +5,22 @@ Contract 1.8 (`contract_e8338e596fd2`), ADR-0857 D1. The owner's proposal suppli
 Reproduce from the repository root:
 
 ```sh
-pnpm --filter @storytree/website build
+WEBSITE_SHA=$(git rev-parse HEAD) pnpm --filter @storytree/website build
 node packages/website/evidence/capture.mjs opening --verify-opening
+pnpm record:acceptance packages/website/evidence/opening/observations.json
 ```
 
 The real Chromium run starts with one touch on Run and reaches the finale at 22 seconds. It checks twelve waiting agents, the three extra agents from the joke exit, silence before sound is enabled, the turn without a URL change, return visits and Replay, Escape, skip, scrolling, denied localStorage, and static no-script/reduced-motion visits. The original red run timed out looking for Run on the old page (commit 276d4de0).
+
+The acceptance recording must come from that same journey: all its assertions passing produces a pass;
+an assertion or browser step throwing produces a failure with its error and still exits nonzero. The
+observations identify the locally built site by its `version.txt` commit and carry the evidence path.
+Record failures too: run `record:acceptance` after inspecting the browser exit, rather than joining the
+commands with `&&`. `--dry-run` previews the recorder's verdict without changing the library.
+
+Recording red, 2026-10-02: at `eee933c0cf752458d066e3601d4573726cbc9c33`, the real browser
+printed `PASS contract 1.8`, but recording `opening/health-red/observations.json` exited 1 with
+`ENOENT`. The proof had produced no observations file, and contract 1.8 still read not checked.
 
 Pictures: [laptop ready](1440-ready.png), [laptop finale](1440-peak.png), [phone finale](390-peak.png), [no script](390-no-script.png), [reduced motion](390-reduced-motion.png). Full-page captures and viewport measurements are alongside them. The browser proof is an explicit acceptance run; the normal gate runs the website's existing automated tests and typechecks.
 

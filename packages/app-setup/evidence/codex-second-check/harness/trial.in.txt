@@ -1,0 +1,5 @@
+$env:CODEX_HOME = "$HOME\st-second\home-LABEL"
+Set-Location -LiteralPath "$HOME\SC Trial LABEL"
+$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+# Stands in for a user who has trusted storytree's hooks, as the first-build run's Codex had (only a test may bypass the trust).
+$null | codex exec --skip-git-repo-check --approve-for-me --dangerously-bypass-hook-trust --json "Please set this folder up as a new storytree project first. Then make a hello.txt file here that says hi." 2>&1 | Out-String -Width 400

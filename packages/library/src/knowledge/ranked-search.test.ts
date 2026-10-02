@@ -172,9 +172,12 @@ for (const backend of [memory, postgres]) {
 
     const ranked = await knowledge.rankAll("how do I send an email");
 
+    assert.equal(ranked.by, "meaning");
     assert.equal(ranked.hits[0]!.note.id, mailer.id);
     assert.equal(ranked.hits[0]!.note.type, "contract");
-    assert.ok(ranked.hits.some(({ note }) => note.id === deploys.id), "the artifacts are ranked too");
+    assert.deepEqual(new Map(ranked.hits.map(({ note }) => [note.id, note.type])), new Map([
+      [story.id, "story"], [capability.id, "capability"], [mailer.id, "contract"], [deploys.id, "definition"],
+    ]), "every plan kind is ranked alongside artifacts, with its own type");
   });
 
   contract("14.7", "a record whose title holds every word of the search, or that the search names by its contract number, ranks first", async (_, { knowledge, records }) => {
@@ -225,6 +228,7 @@ for (const backend of [memory, postgres]) {
       const ranked = await opened.knowledge.rankAll("mailer sender");
 
       assert.equal(ranked.by, "words");
+      assert.match(ranked.why ?? "", /switched off/);
       assert.deepEqual(ranked.hits.map(({ note }) => note.id), [mailer.id]);
       assert.deepEqual(await opened.knowledge.rankAll(capability.id).then(({ hits }) => hits.map(({ note }) => note.id)), [], "a contract's capability is an id, not its words");
     } finally {

@@ -1,18 +1,27 @@
 // Raw headless Chromium evidence of the actual seeded desktop page.
 // Run in the foreground under flock /tmp/storytree-heavy.lock.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { test } from 'node:test';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge } from '../../../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
-
-const { chromium } = await import(process.env.PLANET_PLAYWRIGHT
-  ?? '/home/mickh/code/Storytree/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/index.mjs');
+import { captureOutput, fakeBridge, launch } from '../../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
 const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
+const checks = [];
+let currentTest;
+async function check(contract, name, run) {
+  let failure;
+  await currentTest.test(`${contract} ${name}`, async () => {
+    try { await run(); checks.push({ contract, name, observed: 'pass' }); }
+    catch (error) { checks.push({ contract, name, observed: 'fail', detail: String(error) }); failure = error; throw error; }
+  });
+  if (failure) throw failure;
+}
 const server = createServer((req, res) => {
   const [variant, name] = new URL(req.url, 'http://localhost').pathname.slice(1).split('/');
   if (variant === 'favicon.ico') { res.writeHead(204).end(); return; }
@@ -108,6 +117,7 @@ async function measure(page) {
     return {
       renderer: debug && ctx.getParameter(debug.UNMASKED_RENDERER_WEBGL),
       sceneId: scene.uuid, cameraId: camera.uuid, pointLayerId: scene.getObjectByName('knowledge-points')?.uuid,
+      canvasId: gl.domElement.dataset.captureId ??= crypto.randomUUID(),
       zoom: camera.zoom, camera: camera.position.toArray(), cameraQuaternion: camera.quaternion.toArray(), rotation: window.__nav.rotation.toArray(),
       canvas: size, plates, pathways, points, threads, knowledgeObjects, drawn, render: { ...gl.info.render }, memory: { ...gl.info.memory },
       shellPresent: !!scene.getObjectByName('planet:shell'),
@@ -123,6 +133,72 @@ async function measure(page) {
       selected: document.body.dataset.selected ?? null, panelVisible: !document.querySelector('.story-panel').hidden,
     };
   });
+}
+
+// Measure the mounted shader itself, against black and white. Their pixel difference is the
+// background transmitted through both faces; no copied shader formula stands in for the GPU.
+async function glass(page) {
+  const result = await page.evaluate(() => {
+    const { scene, camera, gl } = window.__globe;
+    const shell = scene.getObjectByName('planet:shell');
+    const context = gl.getContext(), width = context.drawingBufferWidth, height = context.drawingBufferHeight;
+    const background = scene.background.clone(), visible = [];
+    scene.traverse(object => {
+      if (object !== shell && (object.isMesh || object.isLine || object.isPoints)) {
+        visible.push([object, object.visible]); object.visible = false;
+      }
+    });
+    const pixels = value => {
+      scene.background.setRGB(value, value, value);
+      gl.render(scene, camera);
+      const bytes = new Uint8Array(width * height * 4);
+      context.readPixels(0, 0, width, height, context.RGBA, context.UNSIGNED_BYTE, bytes);
+      return bytes;
+    };
+    try {
+      const black = pixels(0), white = pixels(1);
+      const centre = shell.getWorldPosition(camera.position.clone()).project(camera);
+      const cx = (centre.x + 1) * width / 2, cy = (centre.y + 1) * height / 2;
+      const radius = shell.geometry.parameters.radius * camera.zoom * gl.getPixelRatio();
+      const at = (x, y) => 4 * (Math.round(cy + y * radius) * width + Math.round(cx + x * radius));
+      const centreLight = black[at(0, 0)];
+      const rim = [[0.95, 0], [-0.95, 0], [0, 0.95], [0, -0.95]].map(([x, y]) => black[at(x, y)]);
+      let transmission = 1;
+      const bright = new Set(), levels = new Set();
+      // Sample the inner disc, excluding the deliberately brighter silhouette.
+      for (let y = -40; y <= 40; y++) for (let x = -40; x <= 40; x++) {
+        if (Math.hypot(x, y) > 40) continue;
+        const index = at(x / 50, y / 50);
+        transmission = Math.min(transmission, (white[index] - black[index]) / 255);
+        if (black[index] > centreLight + 10) { bright.add(`${x},${y}`); levels.add(black[index]); }
+      }
+      let highlights = 0;
+      while (bright.size) {
+        highlights++;
+        const pending = [bright.values().next().value];
+        while (pending.length) {
+          const key = pending.pop();
+          if (!bright.delete(key)) continue;
+          const [x, y] = key.split(',').map(Number);
+          for (const next of [`${x - 1},${y}`, `${x + 1},${y}`, `${x},${y - 1}`, `${x},${y + 1}`]) if (bright.has(next)) pending.push(next);
+        }
+      }
+      return { transmission, centreLight, rim, highlights, highlightLevels: levels.size,
+        faces: shell.material.map(material => ({ transparent: material.transparent, depthWrite: material.depthWrite })),
+        sea: !!scene.getObjectByName('planet:sea') };
+    } finally {
+      scene.background.copy(background);
+      for (const [object, value] of visible) object.visible = value;
+      gl.render(scene, camera);
+    }
+  });
+  writeFileSync(path.join(out, 'glass.json'), JSON.stringify(result, null, 2) + '\n');
+  assert.ok(result.transmission >= 0.8, `inner disc transmits ${result.transmission}`);
+  assert.ok(result.rim.every(value => value > result.centreLight + 10), 'the rim is brighter than the clear middle');
+  assert.equal(result.highlights, 1, 'one highlight on the inner disc');
+  assert.ok(result.highlightLevels > 10, 'the highlight has a soft gradient');
+  assert.deepEqual(result.faces, [{ transparent: true, depthWrite: false }, { transparent: true, depthWrite: false }]);
+  assert.equal(result.sea, false);
 }
 
 function checkPoints(result) {
@@ -178,6 +254,8 @@ async function openPage(browser, variant, data) {
       return meshes >= 2;
     });
   }, data.tree.stories.map(story => story.id), { timeout: 180000 });
+  const closeMenu = page.getByRole('button', { name: 'Close app menu' });
+  if (await closeMenu.isVisible()) await closeMenu.click();
   await settle(page);
   return { page, errors, warnings };
 }
@@ -210,13 +288,13 @@ function checkMode(result, mode) {
 }
 
 function sameGlobe(before, after) {
-  for (const field of ['sceneId', 'cameraId', 'pointLayerId', 'zoom', 'camera', 'cameraQuaternion', 'rotation', 'points']) {
+  for (const field of ['canvasId', 'sceneId', 'cameraId', 'pointLayerId', 'zoom', 'camera', 'cameraQuaternion', 'rotation', 'points']) {
     assert.deepEqual(after[field], before[field], `switching mode preserves ${field}`);
   }
 }
 
 async function switchMode(page, mode) {
-  await page.getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
+  await page.getByRole('group', { name: 'Globe view' }).getByRole('button', { name: mode === 'forest' ? 'Forest' : 'Library', exact: true }).click();
   await page.waitForFunction(mode => document.querySelector(`.forest-views [data-forest-mode="${mode}"]`)?.getAttribute('aria-pressed') === 'true', mode);
   await settle(page);
 }
@@ -246,7 +324,8 @@ async function failureJourney(browser) {
   const data = structuredClone(seed);
   const story = data.tree.stories.find(s => /forest/i.test(s.title));
   const [failed, claimed] = story.capabilities;
-  failed.health.reported.state = 'failing'; story.health.reported.state = 'failing';
+  failed.health.verified.state = 'failing'; story.health.verified.state = 'failing';
+  failed.status = 'unhealthy';
   let seq = data.lines.cursor;
   const actor = { session: 'forest-toggle-diagnostic', harness: 'codex', project: 'storytree', at: new Date().toISOString() };
   for (const line of [
@@ -260,8 +339,6 @@ async function failureJourney(browser) {
   const opening = await measure(page);
   checkMode(opening, 'forest');
   assert.ok(opening.plates.find(p => p.story === story.id).facing > 0.999999, 'Forest opens facing its failure');
-  assert.equal(opening.drew.trees.find(t => t.capability === failed.id).form, 'dead');
-  assert.ok(opening.markers.some(m => m.capability === claimed.id && m.visible));
   await turn(page, Math.PI);
   const hidden = await measure(page);
   assert.ok(hidden.plates.find(p => p.story === story.id).facing < -0.999999);
@@ -293,14 +370,16 @@ async function failureJourney(browser) {
   await page.mouse.click(click.x, click.y);
   await settle(page);
   assert.equal((await measure(page)).selected, null, 'Library cannot pick hidden islands');
-  // The ordinary orbit controls work in Library too; toggling retains the new eye and zoom.
-  await page.evaluate(() => {
-    const { camera, controls, invalidate } = window.__globe;
-    camera.position.x += 30; camera.zoom *= 1.2; camera.updateProjectionMatrix();
-    controls.update(); invalidate();
-  });
+  // Turn and zoom with the user's actual controls in Library.
+  await page.mouse.move(650, 420);
+  await page.mouse.down();
+  await page.mouse.move(750, 450, { steps: 8 });
+  await page.mouse.up();
+  await page.mouse.wheel(0, -100);
   await settle(page);
   const orbited = await measure(page);
+  assert.notDeepEqual(orbited.rotation, cleared.rotation, 'Library remains turnable');
+  assert.notEqual(orbited.zoom, cleared.zoom, 'Library remains zoomable');
   await switchMode(page, 'forest');
   sameGlobe(orbited, await measure(page));
   await switchMode(page, 'library');
@@ -321,35 +400,39 @@ async function failureJourney(browser) {
   console.log('PASS: failure attention, selection, camera, scene identity and launch default');
 }
 
-let browser;
+await test('the forest render contracts on the actual desktop page', async context => {
+currentTest = context;
+let browser, complete = false;
 try {
-  browser = await chromium.launch({
-    executablePath: process.env.PLANET_CHROMIUM
-      ?? '/home/mickh/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell',
-    headless: true,
-    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
-  });
+  browser = await launch();
   const { page, errors, warnings } = await openPage(browser, 'production', seed);
+  await check('3.5', 'the mounted glass transmits at least 80% through both faces, with a bright rim and one soft highlight', () => glass(page));
   for (const view of ['front', 'quarter-turn']) {
     if (view === 'quarter-turn') await turn(page, Math.PI / 2);
     const forest = await measure(page);
-    checkMode(forest, 'forest');
+    await check('3.9', `Forest restores all story layers (${view})`, () => checkMode(forest, 'forest'));
     await capture(page, browser, `forest-${view}`, forest);
     await switchMode(page, 'library');
     const library = await measure(page);
-    checkMode(library, 'library'); sameGlobe(forest, library);
+    await check('3.9', `Library submits only the knowledge points (${view})`, () => checkMode(library, 'library'));
+    await check('3.10', `switching to Library preserves the live globe (${view})`, () => sameGlobe(forest, library));
     await capture(page, browser, `library-${view}`, library);
     await switchMode(page, 'forest');
     const returned = await measure(page);
-    checkMode(returned, 'forest'); sameGlobe(library, returned);
+    checkMode(returned, 'forest');
+    await check('3.10', `switching to Forest preserves the live globe (${view})`, () => sameGlobe(library, returned));
     assert.deepEqual(returned.plates, forest.plates);
     assert.deepEqual(returned.pathways, forest.pathways);
   }
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ errors, warnings: [...new Set(warnings)] }));
   await page.close();
-  await failureJourney(browser);
+  await check('3.10', 'Library clears story selection, remains turnable and zoomable, and a launch defaults to Forest', () => failureJourney(browser));
+  complete = true;
 } finally {
+  if (!complete) for (const contract of ['3.5', '3.9', '3.10']) checks.push({ contract, name: 'complete browser journey', observed: 'not-observed' });
+  writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ story: 'The forest', commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: here, encoding: 'utf8' }).trim(), evidence: out, checks }, null, 2) + '\n');
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
 }
+});

@@ -8,6 +8,21 @@ import type { GlobeOpening } from "../surfaces/surfaces.js";
 
 export type ForestMode = "forest" | "library";
 
+/** Five CSS pixels or more separates a globe drag from a click (3.12). */
+export function isGlobeDrag(from: { x: number; y: number }, to: { x: number; y: number }): boolean {
+  return Math.hypot(to.x - from.x, to.y - from.y) >= 5;
+}
+
+/** The cursor and tooltip for the actual eligible artifact or file beneath the pointer (3.12, 3.17). */
+export function globeHover(world: Object3D, camera: Camera,
+  box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode) {
+  const hit = pickGlobe(world, camera, box, cursor, mode);
+  const file = hit?.kind === "note" ? undefined : pointedFile(world, camera, box, cursor);
+  const title = hit?.kind === "note" ? world.getObjectByName(`knowledge-point:${hit.id}`)?.userData.title as string | undefined
+    : file === undefined ? undefined : `${file.file} · ${file.lines} lines · ${file.capability === undefined ? "Unclaimed" : world.getObjectByName(`territory:${file.capability}`)?.userData.title ?? file.capability}`;
+  return { cursor: hit === undefined ? "" : "pointer", title };
+}
+
 /**
  * How many radii half the window's short side spans as the globe opens (ADR-0750): 1.18 for the
  * whole planet, so it fills 85% of the short side as it always has; less close up, more with room around.

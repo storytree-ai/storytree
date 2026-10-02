@@ -5,11 +5,34 @@ import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh,
 import { workStates } from "@storytree/arc-surface";
 import { forestDrawn, forestScene, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { dragTurn, focusRotation, globeFraming, hiddenMarkers, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
+import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlobeDrag, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
 import { coastTintMarks } from "./session-tints.js";
+
+test("3.12 hovering an eligible artifact shows its title and pointer in either mode; empty space clears both", () => {
+  const world = new Group();
+  const note = new Group();
+  note.name = "knowledge-point:note";
+  note.userData.title = "The artifact title";
+  world.add(note);
+  const camera = new OrthographicCamera(-10, 10, 10, -10, 0.1, 100);
+  camera.position.z = 40;
+  const box = { left: 20, top: 30, width: 400, height: 400 };
+  for (const mode of ["forest", "library"] as const) {
+    assert.deepEqual(globeHover(world, camera, box, { x: 220, y: 230 }, mode), { cursor: "pointer", title: "The artifact title" });
+    assert.deepEqual(globeHover(world, camera, box, { x: 240, y: 230 }, mode), { cursor: "", title: undefined });
+  }
+});
+
+test("3.12 movement of five CSS pixels is a drag, including diagonal movement", () => {
+  const from = { x: 100, y: 100 };
+  assert.equal(isGlobeDrag(from, { x: 104.9, y: 100 }), false);
+  assert.equal(isGlobeDrag(from, { x: 105, y: 100 }), true);
+  assert.equal(isGlobeDrag(from, { x: 103, y: 104 }), true);
+  assert.equal(isGlobeDrag(from, { x: 100, y: 94 }), true);
+});
 
 test("the globe opens every story with its grove at its place in the rows, readable by the smoke check", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };

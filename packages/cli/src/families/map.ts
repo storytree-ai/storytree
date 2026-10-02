@@ -24,7 +24,7 @@ export const mapFamily: Family = {
   verbs: [],
   bare: {
     name: "map",
-    usage: "map --select file:<path>|cap:<id|number>|promise:<id|number>|story:<name> [--up N] [--down N] [--kind story,capability,promise,file,test] [--dry-run|--show] [--json]",
+    usage: "map --select file:<path>|cap:<id|number>|promise:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,promise,file,test] [--dry-run|--show] [--json]",
     summary: "up follows dependencies; down follows dependents; show refuses above 200 rows; JSON on every mode",
     switches: ["dry-run", "show", "json"],
     async act(args, context) {

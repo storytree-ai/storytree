@@ -22,7 +22,7 @@ test("map 4.1: affected exposes the branch's promises through counts, dry-run, s
     const git = (...args: string[]) => execFileSync("git", args, { cwd: world.folder, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
     git("init", "-b", "main");
     git("add", ".");
-    git("-c", "user.name=Map test", "-c", "user.email=map@example.invalid", "commit", "-m", "Baseline");
+    git("-c", "user.name=Map test", "-c", "user.email=map@example.invalid", "-c", "commit.gpgsign=false", "commit", "-m", "Baseline");
     git("update-ref", "refs/remotes/origin/main", "HEAD");
     writeFileSync(path.join(source, "view.ts"), "export const view = 2;\n");
 

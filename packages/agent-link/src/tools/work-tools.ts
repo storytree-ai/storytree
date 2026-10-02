@@ -72,7 +72,7 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "move_increment",
-    "Move an open increment to another arc, with the reason: it keeps its id, status, waits and claims, and its history records the move. A closed increment stays on the arc it closed on, and a closed arc takes nothing new.",
+    "Move an increment to another arc, with the reason: it keeps its id, lifecycle, waits and claims, and its history records the move. Completed history may move into a closed arc; open work may not.",
     z.object({ increment: id("increment"), to: id("arc it moves to"), reason: z.string().min(1).describe("Why it moves, in a line") }),
     async ({ increment, to, reason }, { library, writer }) => {
       const moved = await library.moveIncrement(increment, to, reason, writer);

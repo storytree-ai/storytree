@@ -1047,6 +1047,30 @@ test("6.12 it records friction with concrete evidence and a re-steer with the ow
   });
 });
 
+test("6.35 a re-steer whose evidence is the user's exact words without quotation marks is refused with the step that passes, putting those words inside double quotation marks, and the same words inside them are then recorded (regression: Conduit 3 on the reset laptop, 2026-10-02)", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const words = "I know Your Feed was meant for part 5, but the tests expect the tab to be there as soon as people can sign in. Can you add it now?";
+      const resteer = (evidence: string) => agent.call("record_resteer", {
+        title: "Your Feed now, not in part 5",
+        description: "The user moved the feed tab forward",
+        doing: "Leaving the feed tab for part 5",
+        redirect: "Add the feed tab as soon as people can sign in",
+        evidence,
+        disposition: "taste",
+        judged_by: "owner",
+      });
+      const refused = await resteer(words);
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /double quotation marks/, refused.text);
+      const recorded = await resteer(`"${words}"`);
+      assert.notEqual(recorded.isError, true, recorded.text);
+      const stored = (await library.search("Your Feed")).find((note) => note.id === idOf(recorded))?.fields as { evidence?: string } | undefined;
+      assert.equal(stored?.evidence, `"${words}"`);
+    });
+  });
+});
+
 test("6.13 it corrects a note's wording in place: the note keeps its id with the new words, only the fields given change, and a note that is not there, or a field its kind does not have, gets a readable refusal", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Mesh, MeshBasicMaterial, Vector3 } from "three";
-import { presentTerritories } from "./globe-surfaces.js";
+import { presentTerritories, restoreTerritoryPresentation } from "./globe-surfaces.js";
 import { territoryLand } from "./territory-land.js";
 
 test("3.22 territories switch between health, plain boundaries and hidden without changing claims or geometry", () => {
@@ -21,4 +21,13 @@ test("3.22 territories switch between health, plain boundaries and hidden withou
   presentTerritories(land, "health");
   assert.ok(territory.visible && border.visible); assert.equal(material.opacity, opacity); assert.ok(material.color.equals(colour));
   assert.equal(territory.geometry, geometry);
+  presentTerritories(land, "plain");
+  territory.material = material.clone(); // Session emphasis owns a temporary material copy.
+  presentTerritories(land, "health");
+  assert.equal((territory.material as MeshBasicMaterial).opacity, opacity, "health survives a plain-mode material copy");
+  material.opacity = opacity;
+  presentTerritories(land, "plain");
+  territory.material = material; // Emphasis cleanup restores its original.
+  restoreTerritoryPresentation(land);
+  assert.equal(material.opacity, 0, "cleanup cannot restore a stale health fill over a plain view");
 });

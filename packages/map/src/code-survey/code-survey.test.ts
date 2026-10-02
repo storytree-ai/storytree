@@ -85,11 +85,13 @@ test("8.10 test files keep their numbered titles and imports, tagged as tests wi
 test("2.5 Projects view opens", () => view);
 it('2.6 Projects view closes', () => view);
 test("an unnumbered case", () => view);` },
-    { path: "src/other.spec.ts", text: 'import "./view.js";\ntest("plain case", () => {});' },
+    { path: "src/testing/helper.ts", text: 'import { view } from "../view.js";\nexport const helper = view;' },
+    { path: "src/other.spec.ts", text: 'import "./testing/helper.js";\ntest("plain case", () => {});' },
   ], [{ id: "projects", title: "2 · Projects" }]);
   assert.deepEqual(surveyed.tests, [
     { kind: "test", path: "src/view.test.ts", titles: [{ number: "2.5", title: "2.5 Projects view opens" }, { number: "2.6", title: "2.6 Projects view closes" }], imports: [{ from: "src/view.test.ts", to: "src/view.ts" }] },
-    { kind: "test", path: "src/other.spec.ts", titles: [], imports: [{ from: "src/other.spec.ts", to: "src/view.ts" }] },
+    { kind: "test", path: "src/testing/helper.ts", titles: [], imports: [{ from: "src/testing/helper.ts", to: "src/view.ts" }] },
+    { kind: "test", path: "src/other.spec.ts", titles: [], imports: [{ from: "src/other.spec.ts", to: "src/testing/helper.ts" }] },
   ]);
   assert.deepEqual(surveyed.files, [{ path: "src/view.ts", lines: 1, capability: "projects" }]);
   assert.deepEqual(surveyed.imports, []);

@@ -1,0 +1,219 @@
+{
+  "nodes": [
+    {
+      "id": 1,
+      "callFrame": {
+        "functionName": "(root)",
+        "scriptId": "0",
+        "url": "",
+        "lineNumber": -1,
+        "columnNumber": -1
+      },
+      "hitCount": 0,
+      "children": [
+        2
+      ]
+    },
+    {
+      "id": 2,
+      "callFrame": {
+        "functionName": "processTicksAndRejections",
+        "scriptId": "32",
+        "url": "node:internal/process/task_queues",
+        "lineNumber": 71,
+        "columnNumber": 34
+      },
+      "hitCount": 0,
+      "children": [
+        3
+      ]
+    },
+    {
+      "id": 3,
+      "callFrame": {
+        "functionName": "",
+        "scriptId": "110",
+        "url": "file:///home/mickh/code/storytree03/[eval1]",
+        "lineNumber": -1,
+        "columnNumber": -1
+      },
+      "hitCount": 1,
+      "children": [
+        4,
+        7
+      ]
+    },
+    {
+      "id": 4,
+      "callFrame": {
+        "functionName": "fn",
+        "scriptId": "13",
+        "url": "node:internal/util",
+        "lineNumber": 476,
+        "columnNumber": 13
+      },
+      "hitCount": 0,
+      "children": [
+        5
+      ]
+    },
+    {
+      "id": 5,
+      "callFrame": {
+        "functionName": "",
+        "scriptId": "13",
+        "url": "node:internal/util",
+        "lineNumber": 477,
+        "columnNumber": 23
+      },
+      "hitCount": 0,
+      "children": [
+        6
+      ]
+    },
+    {
+      "id": 6,
+      "callFrame": {
+        "functionName": "post",
+        "scriptId": "112",
+        "url": "node:inspector",
+        "lineNumber": 114,
+        "columnNumber": 6
+      },
+      "hitCount": 0
+    },
+    {
+      "id": 7,
+      "callFrame": {
+        "functionName": "measuredWork",
+        "scriptId": "110",
+        "url": "file:///home/mickh/code/storytree03/[eval1]",
+        "lineNumber": 8,
+        "columnNumber": 22
+      },
+      "hitCount": 1,
+      "children": [
+        8,
+        9
+      ],
+      "positionTicks": [
+        {
+          "line": 9,
+          "ticks": 1
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "callFrame": {
+        "functionName": "get",
+        "scriptId": "13",
+        "url": "node:internal/util",
+        "lineNumber": 637,
+        "columnNumber": 16
+      },
+      "hitCount": 1,
+      "positionTicks": [
+        {
+          "line": 645,
+          "ticks": 1
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "callFrame": {
+        "functionName": "now",
+        "scriptId": "136",
+        "url": "node:internal/perf/performance",
+        "lineNumber": 136,
+        "columnNumber": 5
+      },
+      "hitCount": 0,
+      "children": [
+        10,
+        11
+      ]
+    },
+    {
+      "id": 10,
+      "callFrame": {
+        "functionName": "now",
+        "scriptId": "0",
+        "url": "",
+        "lineNumber": -1,
+        "columnNumber": -1
+      },
+      "hitCount": 6,
+      "positionTicks": [
+        {
+          "line": 139,
+          "ticks": 6
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "callFrame": {
+        "functionName": "wrappedFn",
+        "scriptId": "7",
+        "url": "node:internal/errors",
+        "lineNumber": 536,
+        "columnNumber": 20
+      },
+      "hitCount": 0,
+      "children": [
+        12
+      ]
+    },
+    {
+      "id": 12,
+      "callFrame": {
+        "functionName": "",
+        "scriptId": "12",
+        "url": "node:internal/validators",
+        "lineNumber": 546,
+        "columnNumber": 50
+      },
+      "hitCount": 2,
+      "positionTicks": [
+        {
+          "line": 548,
+          "ticks": 2
+        }
+      ]
+    }
+  ],
+  "startTime": 111798017241,
+  "endTime": 111798149691,
+  "samples": [
+    6,
+    7,
+    8,
+    7,
+    10,
+    10,
+    10,
+    10,
+    10,
+    12,
+    10,
+    12,
+    3
+  ],
+  "timeDeltas": [
+    11429,
+    3824,
+    6313,
+    10092,
+    10067,
+    10074,
+    10073,
+    10071,
+    10068,
+    10070,
+    10066,
+    10080,
+    10095
+  ]
+}

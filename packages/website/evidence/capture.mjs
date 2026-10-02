@@ -1,7 +1,7 @@
 // Build first, then: node packages/website/evidence/capture.mjs [evidence subfolder]
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -10,9 +10,17 @@ import { verifyOpening } from "./opening.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const output = path.join(here, process.argv[2] ?? "scaffold");
 const dist = path.resolve(here, "../dist");
+const verifyOpeningRequested = process.argv.includes("--verify-opening");
 const verifyEnlarged = process.argv.includes("--verify-enlarged");
 const verifyControls = process.argv.includes("--verify-controls") || verifyEnlarged;
 const verifyHome = process.argv.includes("--verify-home") || verifyControls;
+await mkdir(output, { recursive: true });
+let openingCommit;
+if (verifyOpeningRequested) {
+  await rm(path.join(output, "opening-observations.json"), { force: true });
+  openingCommit = (await readFile(path.join(dist, "version.txt"), "utf8")).trim();
+  assert.match(openingCommit, /^[0-9a-f]{40}$/, "Opening acceptance needs the locally built website's full commit in dist/version.txt");
+}
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".json": "application/json" };
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
@@ -30,9 +38,30 @@ await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 let browser;
 try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
-  await mkdir(output, { recursive: true });
   const url = `http://127.0.0.1:${server.address().port}/`;
-  if (process.argv.includes("--verify-opening")) await verifyOpening(browser, url, output);
+  if (verifyOpeningRequested) {
+    const check = {
+      contract: "1.8",
+      name: "Chapter 1 playback, exits, sound, storage and static fallbacks",
+      observed: "not-observed",
+    };
+    try {
+      await verifyOpening(browser, url, output);
+      check.observed = "pass";
+    } catch (error) {
+      check.observed = "fail";
+      check.detail = error.message;
+      throw error;
+    } finally {
+      await writeFile(path.join(output, "opening-observations.json"), JSON.stringify({
+        story: "The website",
+        commit: openingCommit,
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist",
+        checks: [check],
+      }, null, 2) + "\n");
+    }
+  }
   if (verifyHome) {
     const noScript = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
     await noScript.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));

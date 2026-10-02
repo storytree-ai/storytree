@@ -26,7 +26,7 @@ All four synthetic submission attempts were intercepted inside the browser on th
 Run from the worktree root after the website build:
 
 ```sh
-pnpm --filter @storytree/website build
+WEBSITE_SHA=$(git rev-parse HEAD) pnpm --filter @storytree/website build
 node packages/website/evidence/capture.mjs waitlist --verify-enlarged --verify-opening
 node packages/website/evidence/acceptance-run/harness/visit.mjs packages/website/evidence/waitlist/visit --commit <built-commit> --evidence packages/website/evidence/waitlist/visit > packages/website/evidence/waitlist/observations.json
 ```

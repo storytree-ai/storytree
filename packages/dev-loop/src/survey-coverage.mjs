@@ -54,6 +54,8 @@ function fullPath(url, from) {
   return path.resolve(from, url);
 }
 
+const realFile = file => existsSync(file) ? realpathSync(file) : file;
+
 /** The full paths of the files whose functions ran, each with how many of its functions ran, read from a NODE_V8_COVERAGE folder. */
 export function executedFiles(coverageDir) {
   const records = [];
@@ -75,12 +77,17 @@ function executedRecords(records) {
   const add = (file, fn) => ran.set(file, (ran.get(file) ?? new Set()).add(fn));
   for (const record of records) {
     const maps = record["source-map-cache"] ?? {};
+    // V8 and Node's cache may use different spellings of a Windows short path or a junction.
+    const byFile = new Map(Object.entries(maps).flatMap(([url, cached]) => {
+      const file = fullPath(url, process.cwd());
+      return file === undefined ? [] : [[realFile(file), cached]];
+    }));
     for (const script of record.result ?? []) {
       const file = fullPath(script.url, process.cwd());
       if (file === undefined) continue;
       const functions = script.functions.filter((fn) => fn.ranges[0].count > 0 && !(fn.ranges[0].startOffset === 0 && fn.functionName === ""));
       if (functions.length === 0) continue;
-      const cached = maps[script.url];
+      const cached = maps[script.url] ?? byFile.get(realFile(file));
       if (cached?.data === undefined || cached.lineLengths === undefined) {
         for (const fn of functions) add(file, fn.ranges[0].startOffset);
         continue;
@@ -116,10 +123,17 @@ function sorted(tally) {
   return Object.fromEntries([...tally].sort(([a], [b]) => a.localeCompare(b)).map(([file, counts]) => [file, Object.fromEntries([...counts].sort(([a], [b]) => Number(a) - Number(b)))]));
 }
 
+// App owns the Desktop frame in the same checkout. Keep its map beside packages/app/src,
+// using package-relative keys as the survey does; no other story gains sibling source roots.
+function sourceRoots(pkgDir) {
+  return path.basename(pkgDir) === "app" && path.basename(path.dirname(pkgDir)) === "packages"
+    ? ["src/", "../../apps/desktop/src/"] : ["src/"];
+}
+
 function addExecution(tally, pkgDir, executed, counts) {
   for (const [file, functions] of executed) {
-    const relative = path.relative(pkgDir, existsSync(file) ? realpathSync(file) : file).split(path.sep).join("/");
-    if (!relative.startsWith("src/") || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
+    const relative = path.relative(pkgDir, realFile(file)).split(path.sep).join("/");
+    if (!sourceRoots(pkgDir).some(root => relative.startsWith(root)) || TEST_FILE.test(relative) || !CODE_FILE.test(relative)) continue;
     const counted = tally.get(relative) ?? new Map();
     for (const [number, count] of counts) counted.set(number, (counted.get(number) ?? 0) + count * functions);
     tally.set(relative, counted);
@@ -169,7 +183,6 @@ export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
   // Coverage names files by their real path (macOS's temporary folder is a link to /private/var).
   const pkgDir = realpathSync(given);
   const ownPackage = path.basename(pkgDir);
-  const src = path.join(pkgDir, "src");
   const tally = new Map();
   for (const map of Object.values(browserProofs(pkgDir))) {
     for (const [file, counts] of Object.entries(map)) {
@@ -178,10 +191,12 @@ export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
       tally.set(file, counted);
     }
   }
-  for (const testFile of codeFiles(src).filter((file) => TEST_FILE.test(file)).sort()) {
+  for (const testFile of sourceRoots(pkgDir).flatMap(src => codeFiles(path.resolve(pkgDir, src))).filter((file) => TEST_FILE.test(file)).sort()) {
     const counts = new Map();
+    // Desktop also hosts other stories' mounted proofs: only an explicit App prefix owns one.
+    const local = path.relative(pkgDir, testFile).startsWith(`src${path.sep}`);
     for (const [, prefix, number] of readFileSync(testFile, "utf8").matchAll(NUMBERED_TEST)) {
-      if (prefix === undefined || prefix === ownPackage) counts.set(number, (counts.get(number) ?? 0) + 1);
+      if ((local && prefix === undefined) || prefix === ownPackage) counts.set(number, (counts.get(number) ?? 0) + 1);
     }
     if (counts.size === 0) continue;
     const coverageDir = mkdtempSync(path.join(tmpdir(), "survey-coverage-"));

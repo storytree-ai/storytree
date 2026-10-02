@@ -21,7 +21,8 @@
     "@storytree/keys": "workspace:*",
     "@storytree/librarian": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/processes": "workspace:*"
+    "@storytree/processes": "workspace:*",
+    "@storytree/map": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

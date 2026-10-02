@@ -1,5 +1,5 @@
 /**
- * Capability 8 · Code survey (the forest story): each story's code files, their lines, the capability
+ * Capability 8 · Code survey (the map story): each story's code files, their lines, the capability
  * each belongs to by the contract numbers its tests name, and the imports between them (ADR-0804 D3,
  * D4). Written against a small package tree held in memory.
  */
@@ -75,4 +75,24 @@ test("8.7 a file numbered tests reach only through type imports belongs to the c
   assert.equal(owner("src/claims/typed.ts"), "cap-claims");
   assert.equal(owner("src/claims/shapes.ts"), "cap-claims");
   assert.equal(owner("src/merges/merge.ts"), "cap-merges");
+});
+
+
+test("8.10 test files keep their numbered titles and imports, tagged as tests without entering source counts", () => {
+  const surveyed = surveyStory([
+    { path: "src/view.ts", text: "export const view = true;" },
+    { path: "src/view.test.ts", text: `import { view } from "./view.js";
+test("2.5 Projects view opens", () => view);
+it('2.6 Projects view closes', () => view);
+test("an unnumbered case", () => view);` },
+    { path: "src/testing/helper.ts", text: 'import { view } from "../view.js";\nexport const helper = view;' },
+    { path: "src/other.spec.ts", text: 'import "./testing/helper.js";\ntest("plain case", () => {});' },
+  ], [{ id: "projects", title: "2 · Projects" }]);
+  assert.deepEqual(surveyed.tests, [
+    { kind: "test", path: "src/view.test.ts", titles: [{ number: "2.5", title: "2.5 Projects view opens" }, { number: "2.6", title: "2.6 Projects view closes" }], imports: [{ from: "src/view.test.ts", to: "src/view.ts" }] },
+    { kind: "test", path: "src/testing/helper.ts", titles: [], imports: [{ from: "src/testing/helper.ts", to: "src/view.ts" }] },
+    { kind: "test", path: "src/other.spec.ts", titles: [], imports: [{ from: "src/other.spec.ts", to: "src/testing/helper.ts" }] },
+  ]);
+  assert.deepEqual(surveyed.files, [{ path: "src/view.ts", lines: 1, capability: "projects" }]);
+  assert.deepEqual(surveyed.imports, []);
 });

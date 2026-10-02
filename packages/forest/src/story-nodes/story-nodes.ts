@@ -20,7 +20,7 @@
  */
 import type { AnnotatedTree, Change, HealthState } from "@storytree/library";
 
-import type { StorySurvey } from "../code-survey/code-survey.js";
+import type { StorySurvey } from "@storytree/map";
 import { placeInRow } from "../planet-places/planet-places.js";
 
 /** A point on the forest's ground, in place-widths from its centre. */

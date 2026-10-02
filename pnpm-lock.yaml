@@ -229,6 +229,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
@@ -302,6 +305,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
       react:
         specifier: ^19.1.1
         version: 19.3.0
@@ -506,6 +512,22 @@ importers:
       pg:
         specifier: ^8.23.0
         version: 8.23.0
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/map:
+    dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15

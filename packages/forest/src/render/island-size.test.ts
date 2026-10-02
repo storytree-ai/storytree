@@ -8,7 +8,7 @@ import { buildPlanetPathways, islandCoastReach } from "@storytree/forest-world/g
 
 import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from "../index.js";
 import { islandArea, LAND_PER_LINE, MIN_ISLAND_AREA } from "../planet-places/island-growth.js";
-import type { StorySurvey } from "../code-survey/code-survey.js";
+import type { StorySurvey } from "@storytree/map";
 import { circleDiameter, fileCircles, territories } from "../territories/territories.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
